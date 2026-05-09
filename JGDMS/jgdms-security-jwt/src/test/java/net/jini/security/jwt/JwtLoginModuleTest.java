@@ -545,7 +545,7 @@ public class JwtLoginModuleTest {
         return opts;
     }
 
-    private String jwksUri() {
+    private static String jwksUri() {
         return serverBaseUri + "/jwks.json";
     }
 
@@ -628,7 +628,7 @@ public class JwtLoginModuleTest {
     }
 
     private static String base64UrlEncode(String text) {
-        return base64UrlEncode(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return base64UrlEncode(text.getBytes(StandardCharsets.UTF_8));
     }
 
     // -----------------------------------------------------------------------
