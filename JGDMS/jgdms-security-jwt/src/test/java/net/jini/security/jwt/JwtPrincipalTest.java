@@ -19,11 +19,6 @@ package net.jini.security.jwt;
 
 import org.junit.Test;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.time.Instant;
 
 import static org.junit.Assert.*;
@@ -143,49 +138,6 @@ public class JwtPrincipalTest {
     }
 
     // -----------------------------------------------------------------------
-    // Serialization
-    // -----------------------------------------------------------------------
-
-    @Test
-    public void serializationRoundTrip() throws Exception {
-        JwtPrincipal original = new JwtPrincipal("sub:alice@example.org");
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-            oos.writeObject(original);
-        }
-        JwtPrincipal deserialized;
-        try (ObjectInputStream ois = new ObjectInputStream(
-                new ByteArrayInputStream(baos.toByteArray()))) {
-            deserialized = (JwtPrincipal) ois.readObject();
-        }
-        assertEquals(original, deserialized);
-        assertEquals(original.getName(), deserialized.getName());
-    }
-
-    @Test
-    public void deserializationRejectsNoColon() throws Exception {
-        // Serialize valid, then patch to remove ':'
-        JwtPrincipal valid = new JwtPrincipal("sub:alice");
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-            oos.writeObject(valid);
-        }
-        byte[] bytes = baos.toByteArray();
-        // Replace "sub:alice" with "subalice_" (same length, no colon)
-        byte[] find    = "sub:alice".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        byte[] replace = "subalice_".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        byte[] tampered = patchFirstOccurrence(bytes, find, replace);
-
-        try (ObjectInputStream ois = new ObjectInputStream(
-                new ByteArrayInputStream(tampered))) {
-            ois.readObject();
-            fail("Expected IOException for invalid JwtPrincipal name on deserialization");
-        } catch (IOException e) {
-            // expected
-        }
-    }
-
-    // -----------------------------------------------------------------------
     // JwtExpiryClaim
     // -----------------------------------------------------------------------
 
@@ -215,25 +167,6 @@ public class JwtPrincipalTest {
         Instant t = Instant.ofEpochSecond(9999999L);
         JwtExpiryClaim c = new JwtExpiryClaim(t);
         assertTrue(c.toString().contains("JwtExpiryClaim"));
-    }
-
-    // -----------------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------------
-
-    private static byte[] patchFirstOccurrence(byte[] src, byte[] find, byte[] replace) {
-        if (find.length != replace.length)
-            throw new IllegalArgumentException("find and replace must be same length");
-        outer:
-        for (int i = 0; i <= src.length - find.length; i++) {
-            for (int j = 0; j < find.length; j++) {
-                if (src[i + j] != find[j]) continue outer;
-            }
-            byte[] result = src.clone();
-            System.arraycopy(replace, 0, result, i, replace.length);
-            return result;
-        }
-        throw new IllegalStateException("Pattern not found in serialized bytes");
     }
 
     // -----------------------------------------------------------------------

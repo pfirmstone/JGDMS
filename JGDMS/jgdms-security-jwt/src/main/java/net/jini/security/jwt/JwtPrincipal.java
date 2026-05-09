@@ -17,7 +17,6 @@
  */
 package net.jini.security.jwt;
 
-import java.io.Serializable;
 import java.security.Principal;
 import java.util.Objects;
 
@@ -57,13 +56,13 @@ import java.util.Objects;
  * {@code (className, name)} pair and reconstructed on the receiving JVM by
  * {@code BasicInvocationDispatcher.instantiatePrincipal} via the public
  * {@code JwtPrincipal(String)} constructor.  No dispatcher changes are
- * required.
+ * required.  Standard Java serialization is intentionally <strong>not</strong>
+ * supported; use the JERI wire protocol or {@code @AtomicSerial} if persistence
+ * is ever required.
  *
  * @since 3.1.1
  */
-public final class JwtPrincipal implements Principal, Serializable {
-
-    private static final long serialVersionUID = 1L;
+public final class JwtPrincipal implements Principal {
 
     /** The {@code "claim:value"} string. */
     private final String name;
@@ -125,17 +124,5 @@ public final class JwtPrincipal implements Principal, Serializable {
     @Override
     public String toString() {
         return "JwtPrincipal[" + name + "]";
-    }
-
-    private void readObject(java.io.ObjectInputStream in)
-            throws java.io.IOException, ClassNotFoundException {
-        in.defaultReadObject();
-        if (name == null)
-            throw new java.io.IOException("JwtPrincipal name must not be null");
-        if (name.isBlank())
-            throw new java.io.IOException("JwtPrincipal name must not be blank");
-        if (!name.contains(":"))
-            throw new java.io.IOException(
-                    "JwtPrincipal name must be in 'claim:value' format, got: " + name);
     }
 }
