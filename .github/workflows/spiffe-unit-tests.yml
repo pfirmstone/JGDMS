@@ -4,9 +4,11 @@ name: "SPIFFE Unit Tests"
 # JERI module or the SPIFFE test resources, and can be triggered manually.
 #
 # Two Java variants are exercised:
-#   1. System JDK (Temurin 17) — always runs.
-#   2. DirtyChai JDK           — runs only when the dirty-chai-latest release
-#                                is available at pfirmstone/DirtyChai.
+#   1. Temurin 21 (via actions/setup-java) — always runs.
+#      jgdms-platform and jgdms-jeri require --release 21, so JDK 21 is the
+#      minimum version needed to compile the project.
+#   2. DirtyChai JDK — runs only when the dirty-chai-latest release is
+#      available at pfirmstone/DirtyChai.
 #      DirtyChai is a community OpenJDK fork that re-enables SecurityManager /
 #      AccessController, which is required for full JGDMS security testing.
 
@@ -40,14 +42,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - jdk-label: "Temurin-17 (system)"
+          - jdk-label: "Temurin-21"
             use-dirtychai: false
+            java-version: '21'
           - jdk-label: "DirtyChai (if available)"
             use-dirtychai: true
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Install JDK 21 via actions/setup-java for the Temurin matrix leg.
+      # jgdms-platform and jgdms-jeri require --release 21; the ubuntu-latest
+      # runner only ships JDK 17 by default so we must install 21 explicitly.
+      # The DirtyChai leg skips this step and uses its own JDK (set below).
+      # -----------------------------------------------------------------------
+      - name: Set up JDK 21 (Temurin)
+        if: ${{ !matrix.use-dirtychai }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: temurin
 
       # -----------------------------------------------------------------------
       # Install DirtyChai JDK (only for the DirtyChai matrix variant).
