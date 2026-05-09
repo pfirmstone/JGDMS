@@ -215,7 +215,7 @@ public final class AccessControlContextSerializer implements Serializable {
         int b2 = in.read();
         int b3 = in.read();
         int b4 = in.read();
-        if ((b1 | b2 | b3 | b4) < 0) throw new InvalidObjectException("unexpected EOF");
+        if ((b1 | b2 | b3 | b4) < 0) throw new InvalidObjectException("Unexpected EOF reading integer value");
         return ((b1 & 0xFF) << 24) | ((b2 & 0xFF) << 16) | ((b3 & 0xFF) << 8) | (b4 & 0xFF);
     }
 
@@ -227,7 +227,7 @@ public final class AccessControlContextSerializer implements Serializable {
     private static int readShort(ByteArrayInputStream in) throws IOException {
         int hi = in.read();
         int lo = in.read();
-        if ((hi | lo) < 0) throw new InvalidObjectException("unexpected EOF");
+        if ((hi | lo) < 0) throw new InvalidObjectException("Unexpected EOF reading short value");
         return ((hi & 0xFF) << 8) | (lo & 0xFF);
     }
 
@@ -323,7 +323,7 @@ public final class AccessControlContextSerializer implements Serializable {
         static DomainIdentityRecord readFrom(ByteArrayInputStream in) throws IOException {
             int locLen = readShort(in);
             byte[] locationBytes = new byte[locLen];
-            if (in.read(locationBytes) != locLen) throw new InvalidObjectException("unexpected EOF");
+            if (in.read(locationBytes) != locLen) throw new InvalidObjectException("Unexpected EOF reading location bytes");
             String location = new String(locationBytes, "UTF-8");
             int principalCount = readShort(in);
             String[] types = new String[principalCount];
@@ -331,11 +331,11 @@ public final class AccessControlContextSerializer implements Serializable {
             for (int i = 0; i < principalCount; i++) {
                 int typeLen = readShort(in);
                 byte[] typeBytes = new byte[typeLen];
-                if (in.read(typeBytes) != typeLen) throw new InvalidObjectException("unexpected EOF");
+                if (in.read(typeBytes) != typeLen) throw new InvalidObjectException("Unexpected EOF reading principal type");
                 types[i] = new String(typeBytes, "UTF-8");
                 int nameLen = readShort(in);
                 byte[] nameBytes = new byte[nameLen];
-                if (in.read(nameBytes) != nameLen) throw new InvalidObjectException("unexpected EOF");
+                if (in.read(nameBytes) != nameLen) throw new InvalidObjectException("Unexpected EOF reading principal name");
                 names[i] = new String(nameBytes, "UTF-8");
             }
             return new DomainIdentityRecord(location, types, names);

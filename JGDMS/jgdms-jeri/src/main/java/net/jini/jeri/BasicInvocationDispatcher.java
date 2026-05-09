@@ -1864,7 +1864,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                 | ((b3 & 0xFF) << 8)
                 | (b4 & 0xFF);
         if (len < 0 || len > MAX_ACC_BLOCK_BYTES) {
-            throw new IOException("invalid ACC block length " + len);
+            throw new IOException("invalid ACC block length " + len
+                    + "; maximum allowed is " + MAX_ACC_BLOCK_BYTES);
         }
         if (len == 0) return new byte[0];
         byte[] out = new byte[len];
