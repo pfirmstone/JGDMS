@@ -21,18 +21,26 @@
  *          SVIDs, populates the Subject with the expected principals and
  *          credentials, and that the one-SVID-per-JVM SpiffeSubjectHolder
  *          enforcement prevents concurrent registration.
- *          The new "client" SVID (spiffe://test.jgdms.local/client/test) is
- *          exercised explicitly to validate the /client/ path scheme.
+ *          SVIDs are generated at test time using keytool — no certificate
+ *          material is committed to the repository.
  * @build SpiffeEndpointTest
  * @run main/othervm SpiffeEndpointTest
  */
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -49,6 +57,9 @@ import net.jini.jeri.ssl.SpiffeLoginModule;
 /**
  * End-to-end integration test for the SPIFFE credential pipeline.
  *
+ * <p>SVIDs are generated at test time using {@code keytool} — no certificate
+ * material is committed to the repository.
+ *
  * <h2>Tests performed</h2>
  * <ol>
  *   <li>Service SVID loading: verifies that a {@code SpiffeCredentialManager}
@@ -56,90 +67,167 @@ import net.jini.jeri.ssl.SpiffeLoginModule;
  *       SPIFFE URI ({@code spiffe://test.jgdms.local/svc/reggie}), an
  *       {@link X500Principal}, a {@link CertPath} public credential, and an
  *       {@link X500PrivateCredential} private credential.</li>
- *   <li>Client SVID loading: exercises the new {@code client} SVID
- *       ({@code spiffe://test.jgdms.local/client/test}) introduced in the
- *       2026-05 update to {@code gen-spiffe-svids.sh}.  Verifies that the
+ *   <li>Client SVID loading: exercises the {@code client} SVID
+ *       ({@code spiffe://test.jgdms.local/client/test}).  Verifies that the
  *       {@code /client/} SPIFFE path scheme is correctly represented in the
  *       Subject's principals.</li>
  *   <li>SpiffeLoginModule-based loading: exercises the JAAS login path for
- *       the {@code tester} role, confirming that {@link SpiffeLoginModule}
- *       (used by the QA harness) and {@link SpiffeCredentialManager} (used by
- *       production services) produce equivalent principal sets.</li>
+ *       the {@code tester} role.</li>
  *   <li>One-per-JVM enforcement: confirms that attempting to start a second
  *       {@link SpiffeCredentialManager} while the first is still active throws
- *       {@link IllegalStateException}, preserving the one-SVID-per-process
- *       invariant required for correct workload identity.</li>
+ *       {@link IllegalStateException}.</li>
  * </ol>
- *
- * <h2>Classpath requirements</h2>
- * <p>This test requires {@code jgdms-jeri.jar} (which contains
- * {@link SpiffeCredentialManager} and {@link SpiffeLoginModule}) and its
- * transitive dependency {@code jgdms-platform.jar} on the classpath.  When
- * invoked via the JGDMS QA harness those JARs are already present.
- *
- * <h2>File layout</h2>
- * <p>The test reads SVID files from the QA harness trust directory.  Set the
- * system property {@code net.jini.jeri.ssl.spiffe.dir} to the absolute path
- * of the directory containing the per-role SVID subdirectories, or place the
- * test next to a {@code ../trust/spiffe/} tree when running standalone.
  *
  * @since 3.1.1
  */
 public class SpiffeEndpointTest {
 
     // -----------------------------------------------------------------------
-    // Test SVIDs directory
+    // SVID generation
     // -----------------------------------------------------------------------
 
+    /** Temporary directory that holds the generated SVID tree. */
+    private static Path tempDir;
+
+    /** Absolute path to the root of the generated SVID tree. */
+    private static String SPIFFE_DIR;
+
     /**
-     * Resolved at startup: absolute path to the SPIFFE test credential tree.
-     * The expected layout is:
-     * <pre>
-     *   SPIFFE_DIR/
-     *     reggie/svid.pem, svid_key.pem
-     *     tester/svid.pem, svid_key.pem
-     *     client/svid.pem, svid_key.pem
-     * </pre>
+     * Generates an ephemeral SPIFFE SVID for the given role using keytool and
+     * writes {@code svid.pem} + {@code svid_key.pem} under
+     * {@code <tempDir>/<role>/}.
      *
-     * <p>Resolution order:
-     * <ol>
-     *   <li>System property {@code net.jini.jeri.ssl.spiffe.dir} (set by the
-     *       QA harness at runtime).</li>
-     *   <li>Relative to {@code test.src}: the path
-     *       {@code ../../../../../../harness/trust/spiffe} relative to this
-     *       test's source directory, covering the canonical layout:
-     *       {@code qa/jtreg/net/jini/jeri/ssl/SpiffeEndpointTest/} →
-     *       {@code qa/harness/trust/spiffe/}.</li>
-     *   <li>Current working directory (last resort).</li>
-     * </ol>
+     * @param caP12     path to the pre-generated CA keystore
+     * @param caCerFile path to the exported CA certificate PEM
+     * @param role      role name (used as subdirectory name and in subject DN)
+     * @param cn        Common Name for the leaf certificate
+     * @param spiffeId  SPIFFE URI to embed as the URI SAN
      */
-    private static final String SPIFFE_DIR = resolveSpiffeDir();
+    private static void generateSvid(Path caP12, Path caCerFile,
+            String role, String cn, String spiffeId) throws Exception {
+        Path roleDir  = tempDir.resolve(role);
+        Files.createDirectories(roleDir);
 
-    private static String resolveSpiffeDir() {
-        // 1. Allow override via system property (set by the QA harness)
-        String prop = System.getProperty(SpiffeLoginModule.SPIFFE_DIR_PROPERTY);
-        if (prop != null && !prop.isBlank()) {
-            Path p = Paths.get(prop);
-            if (p.toFile().isDirectory()) return p.toString();
-            System.err.println("WARNING: spiffe.dir system property points to non-directory: " + prop);
+        Path roleP12  = tempDir.resolve(role + ".p12");
+        Path csrFile  = tempDir.resolve(role + ".csr");
+        Path signedCer = tempDir.resolve(role + "-signed.cer");
+
+        keytool("-genkeypair", "-alias", role, "-keyalg", "EC",
+                "-groupname", "secp256r1", "-dname", "CN=" + cn,
+                "-sigalg", "SHA256withECDSA", "-validity", "1",
+                "-keystore", roleP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-noprompt");
+
+        keytool("-certreq", "-alias", role,
+                "-keystore", roleP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-file", csrFile.toString());
+
+        keytool("-gencert", "-alias", "ca",
+                "-keystore", caP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit",
+                "-infile", csrFile.toString(),
+                "-outfile", signedCer.toString(),
+                "-ext", "san=uri:" + spiffeId,
+                "-validity", "1", "-rfc");
+
+        keytool("-importcert", "-alias", "ca",
+                "-keystore", roleP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-file", caCerFile.toString(), "-noprompt");
+
+        keytool("-importcert", "-alias", role,
+                "-keystore", roleP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-file", signedCer.toString(), "-noprompt");
+
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+        try (InputStream in = Files.newInputStream(roleP12)) {
+            ks.load(in, "changeit".toCharArray());
         }
+        PrivateKey key = (PrivateKey) ks.getKey(role, "changeit".toCharArray());
+        Certificate[] chain = ks.getCertificateChain(role);
 
-        // 2. Derive from jtreg's test.src property.
-        //    test.src is set to the directory containing the test source file:
-        //      qa/jtreg/net/jini/jeri/ssl/SpiffeEndpointTest/
-        //    We walk 7 segments up to reach the repository root, then descend to
-        //      qa/harness/trust/spiffe/
-        //    Path: SpiffeEndpointTest/ -> ssl/ -> jeri/ -> jini/ -> net/ -> jtreg/ -> qa/ -> harness/trust/spiffe/
-        String testSrc = System.getProperty("test.src", ".");
-        Path candidate = Paths.get(testSrc)
-                .resolve("../../../../../../../harness/trust/spiffe")
-                .normalize();
-        if (candidate.toFile().isDirectory()) return candidate.toString();
+        String nl = "\n";
+        Base64.Encoder enc = Base64.getMimeEncoder(64, nl.getBytes(StandardCharsets.US_ASCII));
 
-        // 3. Last resort: current working directory
-        System.err.println("WARNING: Could not resolve SPIFFE_DIR from test.src='" + testSrc
-                + "'; falling back to current directory.");
-        return ".";
+        StringBuilder svidPemContent = new StringBuilder();
+        for (Certificate c : chain) {
+            svidPemContent.append("-----BEGIN CERTIFICATE-----").append(nl);
+            svidPemContent.append(enc.encodeToString(c.getEncoded())).append(nl);
+            svidPemContent.append("-----END CERTIFICATE-----").append(nl);
+        }
+        Files.write(roleDir.resolve("svid.pem"),
+                svidPemContent.toString().getBytes(StandardCharsets.US_ASCII));
+
+        String keyPemContent = "-----BEGIN PRIVATE KEY-----" + nl
+                + enc.encodeToString(key.getEncoded()) + nl
+                + "-----END PRIVATE KEY-----" + nl;
+        Files.write(roleDir.resolve("svid_key.pem"),
+                keyPemContent.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    private static void setUpSvids() throws Exception {
+        tempDir = Files.createTempDirectory("spiffe-ep-test-");
+        SPIFFE_DIR = tempDir.toString();
+
+        // Generate the shared CA
+        Path caP12    = tempDir.resolve("ca.p12");
+        Path caCerFile = tempDir.resolve("ca.cer");
+
+        keytool("-genkeypair", "-alias", "ca", "-keyalg", "EC",
+                "-groupname", "secp256r1", "-dname", "CN=JGDMS Test CA",
+                "-sigalg", "SHA256withECDSA", "-validity", "1",
+                "-keystore", caP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-noprompt");
+
+        keytool("-exportcert", "-alias", "ca",
+                "-keystore", caP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-rfc", "-file", caCerFile.toString());
+
+        // Generate per-role SVIDs
+        generateSvid(caP12, caCerFile, "reggie",
+                "Reggie", "spiffe://test.jgdms.local/svc/reggie");
+        generateSvid(caP12, caCerFile, "client",
+                "Test Client", "spiffe://test.jgdms.local/client/test");
+        generateSvid(caP12, caCerFile, "tester",
+                "Tester", "spiffe://test.jgdms.local/svc/tester");
+    }
+
+    private static void tearDownSvids() {
+        if (tempDir != null) {
+            try {
+                Files.walk(tempDir)
+                        .sorted(java.util.Comparator.reverseOrder())
+                        .forEach(p -> {
+                            try { Files.deleteIfExists(p); }
+                            catch (IOException ignored) { }
+                        });
+            } catch (IOException ignored) { }
+        }
+    }
+
+    private static void keytool(String... args) throws IOException, InterruptedException {
+        String[] cmd = new String[args.length + 1];
+        cmd[0] = keytoolPath();
+        System.arraycopy(args, 0, cmd, 1, args.length);
+        Process proc = new ProcessBuilder(cmd)
+                .redirectErrorStream(true)
+                .start();
+        String output = new String(proc.getInputStream().readAllBytes(),
+                StandardCharsets.UTF_8);
+        int rc = proc.waitFor();
+        if (rc != 0) {
+            throw new IOException("keytool failed (exit " + rc + "): " + output);
+        }
+    }
+
+    private static String keytoolPath() {
+        String javaHome = System.getProperty("java.home");
+        if (javaHome != null) {
+            File kt = new File(javaHome, "bin/keytool");
+            if (kt.canExecute()) return kt.getAbsolutePath();
+            kt = new File(javaHome, "../bin/keytool");
+            if (kt.canExecute()) return kt.getAbsolutePath();
+        }
+        return "keytool";
     }
 
     // -----------------------------------------------------------------------
@@ -147,14 +235,19 @@ public class SpiffeEndpointTest {
     // -----------------------------------------------------------------------
 
     public static void main(String[] args) throws Exception {
-        System.out.println("SPIFFE credential directory: " + SPIFFE_DIR);
+        try {
+            setUpSvids();
+            System.out.println("SPIFFE credential directory: " + SPIFFE_DIR);
 
-        run("testReggieServiceSvid",           SpiffeEndpointTest::testReggieServiceSvid);
-        run("testClientSvid",                  SpiffeEndpointTest::testClientSvid);
-        run("testTesterSpiffeLoginModule",      SpiffeEndpointTest::testTesterSpiffeLoginModule);
-        run("testOnlyOneManagerPerJvm",         SpiffeEndpointTest::testOnlyOneManagerPerJvm);
+            run("testReggieServiceSvid",      SpiffeEndpointTest::testReggieServiceSvid);
+            run("testClientSvid",             SpiffeEndpointTest::testClientSvid);
+            run("testTesterSpiffeLoginModule", SpiffeEndpointTest::testTesterSpiffeLoginModule);
+            run("testOnlyOneManagerPerJvm",   SpiffeEndpointTest::testOnlyOneManagerPerJvm);
 
-        System.out.println("\nAll SpiffeEndpointTest tests PASSED.");
+            System.out.println("\nAll SpiffeEndpointTest tests PASSED.");
+        } finally {
+            tearDownSvids();
+        }
     }
 
     // -----------------------------------------------------------------------

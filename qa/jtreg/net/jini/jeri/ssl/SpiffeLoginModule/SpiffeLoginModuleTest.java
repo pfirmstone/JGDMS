@@ -17,13 +17,23 @@
  */
 /* @test
  * @summary Integration tests for SpiffeLoginModule: full JAAS
- *          login/commit/abort/logout cycle using checked-in test SVIDs.
+ *          login/commit/abort/logout cycle. SVIDs are generated at test
+ *          time using keytool — no certificate material is committed to
+ *          the repository.
  * @build SpiffeLoginModuleTest
  * @run main/othervm SpiffeLoginModuleTest
  */
 
-import java.nio.file.Paths;
-import java.security.cert.CertPath;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -31,30 +41,27 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginException;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
+import java.security.cert.CertPath;
 import net.jini.jeri.ssl.SpiffeLoginModule;
 import net.jini.jeri.ssl.SpiffePrincipal;
 
 /**
  * Integration tests for {@link SpiffeLoginModule}.
  *
- * Covers the full JAAS login / commit / abort / logout cycle using the
- * test SVIDs checked in under {@code reggie/} in this test directory.
- * Each test method is run sequentially from {@link #main(String[])};
- * failures are reported by throwing {@link RuntimeException}.
+ * Covers the full JAAS login / commit / abort / logout cycle.
+ * SVIDs are generated at test time using {@code keytool} — no certificate
+ * material is committed to the repository.
  */
 public class SpiffeLoginModuleTest {
 
-    /** jtreg populates this with the test-source directory. */
-    private static final String TEST_SRC =
-            System.getProperty("test.src", ".");
+    /** SPIFFE ID embedded in the generated reggie SVID. */
+    private static final String REGGIE_SPIFFE_ID =
+            "spiffe://test.jgdms.local/svc/reggie";
 
-    /** Absolute path to the reggie SVID PEM (leaf + intermediate chain). */
-    private static final String SVID_PEM =
-            Paths.get(TEST_SRC, "reggie", "svid.pem").toString();
-
-    /** Absolute path to the reggie private-key PEM (PKCS#8 format). */
-    private static final String KEY_PEM =
-            Paths.get(TEST_SRC, "reggie", "svid_key.pem").toString();
+    // Populated by setUpSvids()
+    private static Path tempDir;
+    private static String SVID_PEM;
+    private static String KEY_PEM;
 
     // -----------------------------------------------------------------------
     // Entry point
@@ -63,6 +70,7 @@ public class SpiffeLoginModuleTest {
     public static void main(String[] args) throws Exception {
         String savedProp = System.getProperty(SpiffeLoginModule.SPIFFE_DIR_PROPERTY);
         try {
+            setUpSvids();
             testLoginWithExplicitPathsPopulatesPrincipals();
             testLoginWithExplicitPathsPopulatesPublicCredential();
             testLoginWithExplicitPathsPopulatesPrivateCredential();
@@ -76,8 +84,137 @@ public class SpiffeLoginModuleTest {
             testLogoutAfterCommitLeavesSubjectClean();
         } finally {
             restoreProperty(savedProp);
+            tearDownSvids();
         }
         System.out.println("All SpiffeLoginModule integration tests PASSED.");
+    }
+
+    // -----------------------------------------------------------------------
+    // SVID generation helpers
+    // -----------------------------------------------------------------------
+
+    /**
+     * Generates an ephemeral SPIFFE SVID for {@code reggie} using keytool
+     * and writes {@code svid.pem} + {@code svid_key.pem} into a temporary
+     * directory laid out as {@code <tempDir>/reggie/}.  The static fields
+     * {@link #SVID_PEM} and {@link #KEY_PEM} are set to those paths.
+     */
+    private static void setUpSvids() throws Exception {
+        tempDir = Files.createTempDirectory("spiffe-login-test-");
+        Path reggieDir = tempDir.resolve("reggie");
+        Files.createDirectories(reggieDir);
+
+        Path caP12     = tempDir.resolve("ca.p12");
+        Path reggieP12 = tempDir.resolve("reggie.p12");
+        Path csrFile   = tempDir.resolve("reggie.csr");
+        Path signedCer = tempDir.resolve("reggie-signed.cer");
+        Path caCerFile = tempDir.resolve("ca.cer");
+
+        keytool("-genkeypair", "-alias", "ca", "-keyalg", "EC",
+                "-groupname", "secp256r1", "-dname", "CN=JGDMS Test CA",
+                "-sigalg", "SHA256withECDSA", "-validity", "1",
+                "-keystore", caP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-noprompt");
+
+        keytool("-genkeypair", "-alias", "reggie", "-keyalg", "EC",
+                "-groupname", "secp256r1", "-dname", "CN=Reggie",
+                "-sigalg", "SHA256withECDSA", "-validity", "1",
+                "-keystore", reggieP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-noprompt");
+
+        keytool("-certreq", "-alias", "reggie",
+                "-keystore", reggieP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-file", csrFile.toString());
+
+        keytool("-gencert", "-alias", "ca",
+                "-keystore", caP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit",
+                "-infile", csrFile.toString(),
+                "-outfile", signedCer.toString(),
+                "-ext", "san=uri:" + REGGIE_SPIFFE_ID,
+                "-validity", "1", "-rfc");
+
+        keytool("-exportcert", "-alias", "ca",
+                "-keystore", caP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-rfc", "-file", caCerFile.toString());
+
+        keytool("-importcert", "-alias", "ca",
+                "-keystore", reggieP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-file", caCerFile.toString(), "-noprompt");
+
+        keytool("-importcert", "-alias", "reggie",
+                "-keystore", reggieP12.toString(), "-storetype", "PKCS12",
+                "-storepass", "changeit", "-file", signedCer.toString(), "-noprompt");
+
+        // Extract cert chain + private key from the PKCS12 keystore
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+        try (InputStream in = Files.newInputStream(reggieP12)) {
+            ks.load(in, "changeit".toCharArray());
+        }
+        PrivateKey key = (PrivateKey) ks.getKey("reggie", "changeit".toCharArray());
+        Certificate[] chain = ks.getCertificateChain("reggie");
+
+        String nl = "\n";
+        Base64.Encoder enc = Base64.getMimeEncoder(64, nl.getBytes(StandardCharsets.US_ASCII));
+
+        StringBuilder svidPemContent = new StringBuilder();
+        for (Certificate c : chain) {
+            svidPemContent.append("-----BEGIN CERTIFICATE-----").append(nl);
+            svidPemContent.append(enc.encodeToString(c.getEncoded())).append(nl);
+            svidPemContent.append("-----END CERTIFICATE-----").append(nl);
+        }
+        Path svidPemPath = reggieDir.resolve("svid.pem");
+        Files.write(svidPemPath,
+                svidPemContent.toString().getBytes(StandardCharsets.US_ASCII));
+
+        String keyPemContent = "-----BEGIN PRIVATE KEY-----" + nl
+                + enc.encodeToString(key.getEncoded()) + nl
+                + "-----END PRIVATE KEY-----" + nl;
+        Path svidKeyPemPath = reggieDir.resolve("svid_key.pem");
+        Files.write(svidKeyPemPath,
+                keyPemContent.getBytes(StandardCharsets.US_ASCII));
+
+        SVID_PEM = svidPemPath.toString();
+        KEY_PEM  = svidKeyPemPath.toString();
+    }
+
+    private static void tearDownSvids() {
+        if (tempDir != null) {
+            try {
+                Files.walk(tempDir)
+                        .sorted(java.util.Comparator.reverseOrder())
+                        .forEach(p -> {
+                            try { Files.deleteIfExists(p); }
+                            catch (IOException ignored) { }
+                        });
+            } catch (IOException ignored) { }
+        }
+    }
+
+    private static void keytool(String... args) throws IOException, InterruptedException {
+        String[] cmd = new String[args.length + 1];
+        cmd[0] = keytoolPath();
+        System.arraycopy(args, 0, cmd, 1, args.length);
+        Process proc = new ProcessBuilder(cmd)
+                .redirectErrorStream(true)
+                .start();
+        String output = new String(proc.getInputStream().readAllBytes(),
+                StandardCharsets.UTF_8);
+        int rc = proc.waitFor();
+        if (rc != 0) {
+            throw new IOException("keytool failed (exit " + rc + "): " + output);
+        }
+    }
+
+    private static String keytoolPath() {
+        String javaHome = System.getProperty("java.home");
+        if (javaHome != null) {
+            File kt = new File(javaHome, "bin/keytool");
+            if (kt.canExecute()) return kt.getAbsolutePath();
+            kt = new File(javaHome, "../bin/keytool");
+            if (kt.canExecute()) return kt.getAbsolutePath();
+        }
+        return "keytool";
     }
 
     // -----------------------------------------------------------------------
@@ -149,8 +286,7 @@ public class SpiffeLoginModuleTest {
 
         Set<SpiffePrincipal> spiffes = subject.getPrincipals(SpiffePrincipal.class);
         assertEquals("Should have one SpiffePrincipal", 1, spiffes.size());
-        assertEquals("SPIFFE URI",
-                "spiffe://test.jgdms.local/svc/reggie",
+        assertEquals("SPIFFE URI", REGGIE_SPIFFE_ID,
                 spiffes.iterator().next().getName());
     }
 
@@ -189,9 +325,10 @@ public class SpiffeLoginModuleTest {
 
     static void testLoginWithServiceRolePopulatesSubject() throws Exception {
         Subject subject = new Subject();
-        // Point the property at the test-source directory; the module then
-        // looks for {dir}/{serviceRole}/svid.pem and svid_key.pem.
-        System.setProperty(SpiffeLoginModule.SPIFFE_DIR_PROPERTY, TEST_SRC);
+        // Point the property at tempDir; the module then looks for
+        // {dir}/{serviceRole}/svid.pem and svid_key.pem.
+        System.setProperty(SpiffeLoginModule.SPIFFE_DIR_PROPERTY,
+                tempDir.toString());
         Map<String, String> opts = new HashMap<>();
         opts.put("serviceRole", "reggie");
 
@@ -199,8 +336,7 @@ public class SpiffeLoginModuleTest {
 
         Set<SpiffePrincipal> spiffes = subject.getPrincipals(SpiffePrincipal.class);
         assertEquals("Should have one SpiffePrincipal", 1, spiffes.size());
-        assertEquals("SPIFFE URI",
-                "spiffe://test.jgdms.local/svc/reggie",
+        assertEquals("SPIFFE URI", REGGIE_SPIFFE_ID,
                 spiffes.iterator().next().getName());
     }
 

@@ -20,10 +20,12 @@ package net.jini.jeri.ssl;
 import net.jini.jeri.ssl.SpiffeCredentialManager.FileSvidSource;
 import net.jini.jeri.ssl.SpiffeCredentialManager.Svid;
 import net.jini.jeri.ssl.SpiffeCredentialManager.SvidSource;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
@@ -42,26 +44,37 @@ import static org.junit.Assert.fail;
 /**
  * Unit tests for {@link SpiffeCredentialManager}.
  *
- * Stage 4: credential-manager lifecycle — start, close, rotation, and
- * constructor validation.  Uses the test SVID resources and a stub
- * {@link SvidSource} to avoid real filesystem/scheduling coupling where
- * unnecessary.
+ * SVID certificates are generated at test time using
+ * {@link SpiffeTestSvidFactory} — no certificate material is committed to
+ * the repository.
  */
 public class SpiffeCredentialManagerTest {
+
+    private static SpiffeTestSvidFactory.Fixture fixture;
+
+    @BeforeClass
+    public static void setUpFixture() throws Exception {
+        Path tempDir = Files.createTempDirectory("spiffe-mgr-test-");
+        fixture = SpiffeTestSvidFactory.createReggieFixture(tempDir);
+    }
+
+    @AfterClass
+    public static void tearDownFixture() throws Exception {
+        if (fixture != null) {
+            Files.walk(fixture.dir)
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .forEach(p -> {
+                        try { Files.deleteIfExists(p); } catch (IOException ignored) { }
+                    });
+        }
+    }
 
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
-    private static Path resourcePath(String cp) throws Exception {
-        URI uri = SpiffeCredentialManagerTest.class.getResource(cp).toURI();
-        return Paths.get(uri);
-    }
-
-    private static FileSvidSource reggieSource() throws Exception {
-        return new FileSvidSource(
-                resourcePath("/spiffe/reggie/svid.pem"),
-                resourcePath("/spiffe/reggie/svid_key.pem"));
+    private static FileSvidSource reggieSource() {
+        return new FileSvidSource(fixture.svidPem, fixture.svidKeyPem);
     }
 
     private static Subject mutableSubject() {
@@ -130,7 +143,7 @@ public class SpiffeCredentialManagerTest {
             mgr.start();
             Set<SpiffePrincipal> spiffes = subject.getPrincipals(SpiffePrincipal.class);
             assertEquals("start() should add exactly one SpiffePrincipal", 1, spiffes.size());
-            assertEquals("spiffe://test.jgdms.local/svc/reggie",
+            assertEquals(SpiffeTestSvidFactory.REGGIE_SPIFFE_ID,
                     spiffes.iterator().next().getName());
         }
     }
@@ -317,12 +330,12 @@ public class SpiffeCredentialManagerTest {
         // Write a fake PEM key file containing a SEC1 EC PRIVATE KEY header.
         // The content bytes don't matter for this test — we just need the
         // header/footer to be present so the branch is triggered.
-        java.nio.file.Path tmpDir = java.nio.file.Files.createTempDirectory("spiffe-test");
+        java.nio.file.Path tmpDir = java.nio.file.Files.createTempDirectory("spiffe-sec1-test");
         java.nio.file.Path fakeSvid = tmpDir.resolve("svid.pem");
         java.nio.file.Path fakeKey  = tmpDir.resolve("svid_key.pem");
 
-        // Copy a real SVID cert so the cert-loading step succeeds.
-        java.nio.file.Files.copy(resourcePath("/spiffe/reggie/svid.pem"), fakeSvid);
+        // Copy the generated svid.pem so the cert-loading step succeeds.
+        java.nio.file.Files.copy(fixture.svidPem, fakeSvid);
 
         // Write a synthetic SEC1-format key file.
         String sec1Pem =
@@ -403,3 +416,4 @@ public class SpiffeCredentialManagerTest {
         }
     }
 }
+
