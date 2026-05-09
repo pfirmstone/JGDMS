@@ -170,11 +170,11 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     static final byte PREVIOUS_VERSION = 0x0;
     
     /** Marshal stream protocol version with user principals and remote ACC. */
-    static final byte VERSION_WITH_PRINCIPALS_AND_ACC = 0x03;
+    static final byte VERSION_WITH_PRINCIPALS_AND_ACC = 0x02;
 
     /**
      * Maximum number of user principals accepted from the wire in a single
-     * request (protocol version 0x03).  A real Subject rarely carries more
+     * request (protocol version 0x02).  A real Subject rarely carries more
      * than a handful of principals; this cap prevents a malicious peer from
      * forcing unbounded allocation.
      */
@@ -491,7 +491,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * from the request input stream of the inbound request. If any
      * exception is thrown when reading this byte, the inbound request is
      * aborted and this method returns. If the byte is not
-     * <code>0x00</code>, <code>0x01</code>, or <code>0x03</code>, two byte values of <code>0x00</code> (indicating
+     * <code>0x00</code>, <code>0x01</code>, or <code>0x02</code>, two byte values of <code>0x00</code> (indicating
      * a marshal stream protocol version mismatch) are written to the
      * response output stream of the inbound request, the output stream is
      * closed, and this method returns.
@@ -521,7 +521,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * then added to the server context, reflecting whether or not input validation
      * is being enforced.
      *
-     * <li>If the version byte is <code>0x03</code>, integrity, atomicValidation,
+     * <li>If the version byte is <code>0x02</code>, integrity, atomicValidation,
      * user principals, and a serialized {@link java.security.AccessControlContext}
      * are read in addition to the above. The user principals are reconstructed
      * into a read-only {@link javax.security.auth.Subject} stored in the server
@@ -1702,7 +1702,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /* ---------------------------------------------------------------------- */
-    /* User-principal helpers for protocol version 0x03                        */
+    /* User-principal helpers for protocol version 0x02                        */
     /* ---------------------------------------------------------------------- */
 
     /**
