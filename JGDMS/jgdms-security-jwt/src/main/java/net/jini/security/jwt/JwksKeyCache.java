@@ -220,8 +220,10 @@ final class JwksKeyCache {
                     LOG.warning("RSA JWK missing 'n' or 'e' field; skipping");
                     return null;
                 }
-                BigInteger modulus  = new BigInteger(1, Base64.getUrlDecoder().decode(nB64));
-                BigInteger exponent = new BigInteger(1, Base64.getUrlDecoder().decode(eB64));
+                byte[] nBytes = Base64.getUrlDecoder().decode(nB64);
+                byte[] eBytes = Base64.getUrlDecoder().decode(eB64);
+                BigInteger modulus  = new BigInteger(1, nBytes);
+                BigInteger exponent = new BigInteger(1, eBytes);
                 KeyFactory kf = KeyFactory.getInstance("RSA");
                 return kf.generatePublic(new RSAPublicKeySpec(modulus, exponent));
             }

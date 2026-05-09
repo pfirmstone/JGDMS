@@ -74,6 +74,13 @@ final class JwtValidator {
     private static final Set<String> REJECTED_ALGS =
             Set.of("none", "HS256", "HS384", "HS512");
 
+    /**
+     * Standard JWT claim names that are always included in {@link ParsedJwt#allClaims()}
+     * when present in the token payload.
+     */
+    private static final Set<String> WELL_KNOWN_CLAIMS =
+            Set.of("iss", "sub", "aud", "exp", "iat", "email", "jti", "nbf");
+
     private final JwksKeyCache keyCache;
     private final String expectedIssuer;
     private final String expectedAudience; // null means no audience check
@@ -237,7 +244,7 @@ final class JwtValidator {
 
         // Build allClaims map from well-known + additional claims
         Map<String, String> allClaims = new HashMap<>();
-        for (String key : List.of("iss", "sub", "aud", "exp", "iat", "email", "jti", "nbf")) {
+        for (String key : WELL_KNOWN_CLAIMS) {
             String val = payload.get(key);
             if (val != null) allClaims.put(key, val);
         }

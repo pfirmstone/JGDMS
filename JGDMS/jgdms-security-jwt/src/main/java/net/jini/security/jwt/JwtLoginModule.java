@@ -315,6 +315,13 @@ public final class JwtLoginModule implements LoginModule {
         private static final long MIN_BACKOFF_MS  =  5_000L;
         private static final long MAX_BACKOFF_MS  = 300_000L; // 5 minutes
 
+        /**
+         * Fraction of the remaining token lifetime at which proactive refresh
+         * is triggered.  A value of 0.8 means the thread wakes when 80% of
+         * the remaining lifetime has elapsed (i.e. 20% is left before expiry).
+         */
+        private static final double REFRESH_LIFETIME_FRACTION = 0.8;
+
         private final Subject  subject;
         private final String   refreshTokenUri;
         private volatile String refreshToken;
@@ -405,8 +412,8 @@ public final class JwtLoginModule implements LoginModule {
             Instant now = Instant.now();
             long remainingMs = expiry.toEpochMilli() - now.toEpochMilli();
             if (remainingMs <= 0) return 0; // already expired, refresh immediately
-            // Refresh at 80% of remaining lifetime (i.e. when 20% is left)
-            return (long) (remainingMs * 0.8);
+            // Refresh at REFRESH_LIFETIME_FRACTION of remaining lifetime
+            return (long) (remainingMs * REFRESH_LIFETIME_FRACTION);
         }
 
         /**

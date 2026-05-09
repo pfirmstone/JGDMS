@@ -66,7 +66,7 @@ public class JwtPrincipalTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void constructNocolonThrows() {
+    public void constructNoColonThrows() {
         new JwtPrincipal("subAlice");
     }
 
