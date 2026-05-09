@@ -26,6 +26,7 @@ import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.auth.login.LoginException;
 import javax.security.auth.spi.LoginModule;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -99,6 +100,12 @@ public final class JwtLoginModule implements LoginModule {
 
     private static final Logger LOG = Logger.getLogger(JwtLoginModule.class.getName());
 
+    /**
+     * Maximum number of additional claim names accepted from the
+     * {@code additionalClaims} configuration option.
+     */
+    private static final int MAX_ADDITIONAL_CLAIMS = 50;
+
     // ---- JAAS state --------------------------------------------------------
 
     private Subject subject;
@@ -145,8 +152,11 @@ public final class JwtLoginModule implements LoginModule {
 
         Set<String> additionalClaims = Collections.emptySet();
         if (additionalClaimsOpt != null && !additionalClaimsOpt.isBlank()) {
-            additionalClaims = new HashSet<>(Arrays.asList(
-                    additionalClaimsOpt.split(",\\s*")));
+            String[] claimNames = additionalClaimsOpt.split(",\\s*");
+            if (claimNames.length > MAX_ADDITIONAL_CLAIMS)
+                throw new LoginException("additionalClaims option specifies more than "
+                        + MAX_ADDITIONAL_CLAIMS + " claim names");
+            additionalClaims = new HashSet<>(Arrays.asList(claimNames));
         }
 
         // Obtain the JWT access token
@@ -316,6 +326,13 @@ public final class JwtLoginModule implements LoginModule {
         private static final long MAX_BACKOFF_MS  = 300_000L; // 5 minutes
 
         /**
+         * Maximum size of the OAuth2 token endpoint HTTP response body in bytes
+         * (64 KiB).  Token endpoint responses are typically well under 4 KiB;
+         * this limit prevents memory exhaustion from a rogue or misconfigured server.
+         */
+        private static final int MAX_TOKEN_RESPONSE_BYTES = 65_536;
+
+        /**
          * Fraction of the remaining token lifetime at which proactive refresh
          * is triggered.  A value of 0.8 means the thread wakes when 80% of
          * the remaining lifetime has elapsed (i.e. 20% is left before expiry).
@@ -438,25 +455,36 @@ public final class JwtLoginModule implements LoginModule {
                     .timeout(Duration.ofSeconds(15))
                     .build();
 
-            HttpResponse<String> response =
-                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            // Use InputStream to enforce a hard size limit before allocating a
+            // large String, defending against memory-exhaustion from a rogue
+            // token endpoint.
+            HttpResponse<InputStream> response =
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
             int status = response.statusCode();
+            String responseBody;
+            try (InputStream is = response.body()) {
+                byte[] bytes = is.readNBytes(MAX_TOKEN_RESPONSE_BYTES + 1);
+                if (bytes.length > MAX_TOKEN_RESPONSE_BYTES) {
+                    throw new Exception("Token endpoint response exceeds size limit of "
+                            + MAX_TOKEN_RESPONSE_BYTES + " bytes");
+                }
+                responseBody = new String(bytes, StandardCharsets.UTF_8);
+            }
 
             if (status == 400) {
                 // Check for invalid_grant error (permanent failure)
-                String responseBody = response.body();
-                if (responseBody != null && responseBody.contains("\"invalid_grant\""))
+                if (responseBody.contains("\"invalid_grant\""))
                     return false; // fatal — refresh token revoked
                 throw new FatalRefreshException(
                         "Token endpoint returned HTTP 400: " + responseBody);
             }
             if (status != 200) {
                 throw new Exception("Token endpoint returned HTTP " + status
-                        + ": " + response.body());
+                        + ": " + responseBody);
             }
 
             // Parse response JSON for access_token, refresh_token, expires_in
-            Map<String, String> tokenResponse = JwtValidator.parseClaimsJson(response.body());
+            Map<String, String> tokenResponse = JwtValidator.parseClaimsJson(responseBody);
             String newAccessToken = tokenResponse.get("access_token");
             if (newAccessToken == null || newAccessToken.isBlank())
                 throw new Exception("Token endpoint response missing 'access_token'");

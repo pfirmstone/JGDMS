@@ -22,6 +22,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.ECPoint;
@@ -60,6 +62,32 @@ final class JwksKeyCache {
 
     /** Default TTL for the JWKS cache (1 hour). */
     private static final Duration DEFAULT_TTL = Duration.ofHours(1);
+
+    /**
+     * Maximum JWKS HTTP response body size in bytes (1 MiB).
+     * Responses larger than this are rejected to prevent memory exhaustion.
+     */
+    static final int MAX_JWKS_RESPONSE_BYTES = 1 * 1024 * 1024;
+
+    /**
+     * Maximum length (in characters) of any single JSON string value.
+     * Rejects oversized Base64 key material or claim values that would
+     * exhaust heap memory.  RSA-8192 moduli Base64-encode to ≈ 1 366 chars,
+     * so 8 192 chars is well above any legitimate value.
+     */
+    static final int MAX_JSON_STRING_LENGTH = 8192;
+
+    /**
+     * Maximum number of public keys accepted from a single JWKS document.
+     * Prevents memory exhaustion from a JWKS with pathologically many keys.
+     */
+    static final int MAX_JWKS_KEYS = 100;
+
+    /**
+     * Maximum RSA key modulus size in bytes (= 8 192-bit RSA).
+     * Keys with a larger modulus are rejected to prevent CPU/memory exhaustion.
+     */
+    static final int MAX_RSA_MODULUS_BYTES = 1024;
 
     private final URI jwksUri;
     private final HttpClient httpClient;
@@ -161,14 +189,27 @@ final class JwksKeyCache {
                     .timeout(Duration.ofSeconds(15))
                     .header("Accept", "application/json")
                     .build();
-            HttpResponse<String> response =
-                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            // Use InputStream to enforce a hard response-size limit before
+            // allocating a large String, defending against memory-exhaustion.
+            HttpResponse<InputStream> response =
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
             if (response.statusCode() != 200) {
+                try { response.body().close(); } catch (Exception ignore) {}
                 LOG.warning("JWKS fetch returned HTTP " + response.statusCode()
                         + " from " + jwksUri);
                 return;
             }
-            Map<String, PublicKey> newCache = parseJwks(response.body());
+            String body;
+            try (InputStream is = response.body()) {
+                byte[] bytes = is.readNBytes(MAX_JWKS_RESPONSE_BYTES + 1);
+                if (bytes.length > MAX_JWKS_RESPONSE_BYTES) {
+                    LOG.warning("JWKS response from " + jwksUri + " exceeds size limit of "
+                            + MAX_JWKS_RESPONSE_BYTES + " bytes; ignoring");
+                    return;
+                }
+                body = new String(bytes, StandardCharsets.UTF_8);
+            }
+            Map<String, PublicKey> newCache = parseJwks(body);
             cache = Collections.unmodifiableMap(newCache);
             cacheExpiry = Instant.now().plus(ttl);
             LOG.fine("JWKS cache refreshed: " + newCache.size() + " key(s) from " + jwksUri);
@@ -221,6 +262,12 @@ final class JwksKeyCache {
                     return null;
                 }
                 byte[] nBytes = Base64.getUrlDecoder().decode(nB64);
+                if (nBytes.length > MAX_RSA_MODULUS_BYTES) {
+                    LOG.warning("RSA JWK modulus exceeds maximum size of "
+                            + MAX_RSA_MODULUS_BYTES + " bytes (" + (MAX_RSA_MODULUS_BYTES * 8)
+                            + "-bit); skipping");
+                    return null;
+                }
                 byte[] eBytes = Base64.getUrlDecoder().decode(eB64);
                 BigInteger modulus  = new BigInteger(1, nBytes);
                 BigInteger exponent = new BigInteger(1, eBytes);
@@ -327,8 +374,22 @@ final class JwksKeyCache {
                         if (d == ']') { pos[0]++; break; }
                         if (d == ',') { pos[0]++; continue; }
                         if (d == '{') {
-                            Map<String, String> jwk = readStringObject(json, pos);
-                            if (jwk != null) result.add(jwk);
+                                Map<String, String> jwk = readStringObject(json, pos);
+                                if (jwk != null) {
+                                    if (result.size() >= MAX_JWKS_KEYS) {
+                                        LOG.warning("JWKS contains more than " + MAX_JWKS_KEYS
+                                                + " keys; ignoring remaining keys");
+                                        // Skip to end of array
+                                        while (pos[0] < json.length()) {
+                                            char s = json.charAt(pos[0]);
+                                            if (s == ']') { pos[0]++; break; }
+                                            if (s == '"') readString(json, pos);
+                                            else pos[0]++;
+                                        }
+                                        break;
+                                    }
+                                    result.add(jwk);
+                                }
                         } else {
                             // Skip unexpected token
                             pos[0]++;
@@ -408,6 +469,10 @@ final class JwksKeyCache {
             } else {
                 sb.append(c);
             }
+            if (sb.length() > MAX_JSON_STRING_LENGTH)
+                throw new IllegalStateException(
+                        "JSON string value exceeds maximum length of "
+                        + MAX_JSON_STRING_LENGTH + " characters");
         }
         return sb.toString();
     }

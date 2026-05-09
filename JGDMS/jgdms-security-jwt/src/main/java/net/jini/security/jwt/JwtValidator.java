@@ -81,6 +81,20 @@ final class JwtValidator {
     private static final Set<String> WELL_KNOWN_CLAIMS =
             Set.of("iss", "sub", "aud", "exp", "iat", "email", "jti", "nbf");
 
+    /**
+     * Maximum length of a JWT token string in characters (64 KiB).
+     * Tokens larger than this are rejected before any parsing to prevent
+     * memory exhaustion via large Base64 decodes and string allocations.
+     */
+    static final int MAX_TOKEN_LENGTH = 65_536;
+
+    /**
+     * Maximum number of elements accepted from a JWT array claim (e.g. {@code groups}).
+     * Prevents memory exhaustion from a JWT carrying an unbounded list of groups,
+     * which would also create that many {@link JwtPrincipal} objects in the Subject.
+     */
+    static final int MAX_GROUPS = 200;
+
     private final JwksKeyCache keyCache;
     private final String expectedIssuer;
     private final String expectedAudience; // null means no audience check
@@ -128,6 +142,11 @@ final class JwtValidator {
     ParsedJwt validate(String token) throws JwtValidationException {
         if (token == null || token.isEmpty())
             throw new JwtValidationException("JWT token must not be null or empty");
+
+        // Reject oversized tokens before any allocation to prevent memory exhaustion.
+        if (token.length() > MAX_TOKEN_LENGTH)
+            throw new JwtValidationException(
+                    "JWT token exceeds maximum length of " + MAX_TOKEN_LENGTH + " characters");
 
         String[] parts = token.split("\\.", -1);
         if (parts.length != 3)
@@ -345,12 +364,26 @@ final class JwtValidator {
         pos[0]++; // consume '['
         StringBuilder sb = new StringBuilder();
         boolean first = true;
+        int count = 0;
         while (pos[0] < json.length()) {
             JwksKeyCache.skipWhitespace(json, pos);
             if (pos[0] >= json.length()) break;
             char c = json.charAt(pos[0]);
             if (c == ']') { pos[0]++; break; }
             if (c == ',') { pos[0]++; continue; }
+            if (count >= MAX_GROUPS) {
+                // Limit reached — skip remaining elements, then close the array.
+                // Advance past items until the closing ']', respecting quoted strings.
+                while (pos[0] < json.length()) {
+                    char s = json.charAt(pos[0]);
+                    if (s == ']') { pos[0]++; break; }
+                    if (s == '"') JwksKeyCache.readString(json, pos); // consume quoted value
+                    else pos[0]++;
+                }
+                LOG.warning("JWT array claim exceeds maximum of " + MAX_GROUPS
+                        + " elements; truncating");
+                break;
+            }
             String item;
             if (c == '"') {
                 item = JwksKeyCache.readString(json, pos);
@@ -361,6 +394,7 @@ final class JwtValidator {
                 if (!first) sb.append(',');
                 sb.append(item);
                 first = false;
+                count++;
             }
         }
         return sb.toString();

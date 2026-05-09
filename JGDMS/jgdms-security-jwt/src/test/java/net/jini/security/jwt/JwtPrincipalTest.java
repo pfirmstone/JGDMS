@@ -235,4 +235,34 @@ public class JwtPrincipalTest {
         }
         throw new IllegalStateException("Pattern not found in serialized bytes");
     }
+
+    // -----------------------------------------------------------------------
+    // DoS-mitigation: JWT token length check
+    // -----------------------------------------------------------------------
+
+    /**
+     * A token larger than {@link JwtValidator#MAX_TOKEN_LENGTH} must be
+     * rejected before any parsing occurs.
+     */
+    @Test
+    public void validateRejectsOversizedToken() {
+        // Construct a minimal "JwksKeyCache" bypass by using a dummy validator
+        // config pointing at a real-but-unused URI.  We only need to reach the
+        // length check, which happens before any network or crypto operation.
+        JwksKeyCache cache = new JwksKeyCache(java.net.URI.create("https://example.com/jwks"));
+        JwtValidator validator = new JwtValidator(cache, "https://example.com", null);
+
+        // Build a string longer than MAX_TOKEN_LENGTH
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i <= JwtValidator.MAX_TOKEN_LENGTH; i++) sb.append('A');
+        String hugeToken = sb.toString();
+
+        try {
+            validator.validate(hugeToken);
+            fail("Expected JwtValidationException for oversized token");
+        } catch (JwtValidationException e) {
+            assertTrue("Message should mention maximum length",
+                    e.getMessage().contains("maximum length"));
+        }
+    }
 }
