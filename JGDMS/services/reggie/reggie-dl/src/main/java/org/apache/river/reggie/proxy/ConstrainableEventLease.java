@@ -116,7 +116,7 @@ public final class ConstrainableEventLease
 	this(arg, check(arg));
     }
     
-    ConstrainableEventLease(GetArg arg, MethodConstraints constraints) throws IOException{
+    ConstrainableEventLease(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
 	super(arg);
 	this.constraints = constraints;
     }

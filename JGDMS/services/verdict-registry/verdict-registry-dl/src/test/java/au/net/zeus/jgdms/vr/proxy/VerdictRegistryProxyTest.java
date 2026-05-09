@@ -34,6 +34,7 @@ import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
+import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 import org.junit.Before;
@@ -141,6 +142,10 @@ public class VerdictRegistryProxyTest {
         @Override
         public RegistryVerdict getVerdictByHash(String contentHash) throws RemoteException {
             return null;
+        }
+
+        @Override
+        public void reportPinning(PinningReport report) throws RemoteException {
         }
 
         @Override

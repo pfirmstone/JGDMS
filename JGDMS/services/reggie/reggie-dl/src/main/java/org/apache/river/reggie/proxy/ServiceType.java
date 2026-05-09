@@ -134,7 +134,7 @@ public class ServiceType implements Serializable {
 	this(arg,check(arg));
     }
     
-    private ServiceType(GetArg arg, long hash) throws IOException{
+    private ServiceType(GetArg arg, long hash) throws IOException, ClassNotFoundException{
 	name = (String) arg.get("name", null);
 	this.hash = hash;
 	superclass = (ServiceType) arg.get("superclass", null);

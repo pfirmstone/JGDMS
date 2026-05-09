@@ -77,7 +77,7 @@ public final class ConstrainableRegistration
 	this(arg, check(arg));
     }
     
-    ConstrainableRegistration(GetArg arg, MethodConstraints constraints) throws IOException{
+    ConstrainableRegistration(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
 	super(arg);
 	this.constraints = constraints;
     }

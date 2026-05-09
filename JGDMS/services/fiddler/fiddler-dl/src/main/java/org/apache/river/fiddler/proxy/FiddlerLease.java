@@ -616,7 +616,7 @@ public class FiddlerLease extends AbstractLease
 	   this(arg, check(arg));
 	}
 	
-	ConstrainableFiddlerLease(GetArg arg, MethodConstraints constraints) throws IOException{
+	ConstrainableFiddlerLease(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
 	    super(arg);
 	    this.methodConstraints = constraints;
 	}

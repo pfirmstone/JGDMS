@@ -1275,7 +1275,7 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
 	    this(arg, check(arg));
 	}
 	
-	ConstrainableFiddlerRegistration(GetArg arg, MethodConstraints constraints) throws IOException{
+	ConstrainableFiddlerRegistration(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
 	    super(arg);
 	    this.methodConstraints = constraints;
 	}

@@ -352,7 +352,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 	return ((RO) arg.getReader()).integrity;
     }
 
-    private EntryRep(GetArg arg, boolean integrity) throws IOException {
+    private EntryRep(GetArg arg, boolean integrity) throws IOException, ClassNotFoundException {
 	values = (MarshalledInstance[]) arg.get("values", null);
 	superclasses = (String[]) arg.get("superclasses", null); // class names of the superclasses
 	hashes = (long[]) arg.get("hashes", null); // superclass hashes

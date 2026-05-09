@@ -209,7 +209,7 @@ public class AdminProxy
 	this(arg, check(arg));
     }
     
-    private AdminProxy(GetArg arg, boolean check) throws IOException {
+    private AdminProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
 	server = (Registrar) arg.get(SERVER, null);
 	registrarID = ((RO) arg.getReader()).registrarID;
     }

@@ -45,7 +45,7 @@ public class OutriggerQueryCookie
 	this.startTime = startTime;
     }
 
-    OutriggerQueryCookie(GetArg arg)throws IOException {
+    OutriggerQueryCookie(GetArg arg)throws IOException, ClassNotFoundException {
 	this(arg.get("startTime", 0L));
     }
 

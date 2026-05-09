@@ -157,6 +157,7 @@ public class CodebaseDownloaderImplTest {
         @Override public void cancelEventLease(Uuid id) throws UnknownLeaseException {}
         @Override public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdict(Set<Uri> u) { return null; }
         @Override public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(String h) { return null; }
+        @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
     }
 
     // -------------------------------------------------------------------------

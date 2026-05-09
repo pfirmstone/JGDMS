@@ -861,7 +861,7 @@ public class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializab
 	    this(arg, check(arg));
 	}
 	
-	ConstrainableFiddlerAdminProxy(GetArg arg, MethodConstraints constraints) throws IOException{
+	ConstrainableFiddlerAdminProxy(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
 	    super(arg);
 	    methodConstraints = constraints;
 	}

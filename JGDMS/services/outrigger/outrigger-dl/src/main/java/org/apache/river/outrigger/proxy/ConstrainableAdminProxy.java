@@ -174,19 +174,18 @@ public final class ConstrainableAdminProxy extends AdminProxy
 	this.methodConstraints = methodConstraints;
     }
 
-    ConstrainableAdminProxy(GetArg arg)throws IOException {
+    ConstrainableAdminProxy(GetArg arg)throws IOException, ClassNotFoundException {
 	this(arg, check(arg));
     }
     
-    ConstrainableAdminProxy(GetArg arg, MethodConstraints constraints) throws IOException{
+    ConstrainableAdminProxy(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException {
 	super(arg);
 	methodConstraints = constraints;
     }
     
     private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
 	AdminProxy ap = new AdminProxy(arg);
-	MethodConstraints methodConstraints = (MethodConstraints) 
-		arg.get("methodConstraints", null);
+	MethodConstraints methodConstraints = arg.get("methodConstraints", null, MethodConstraints.class);
 	MethodConstraints proxyCon = null;
 	if (ap.admin instanceof RemoteMethodControl && 
 	    (proxyCon = ((RemoteMethodControl)ap.admin).getConstraints()) != null) {

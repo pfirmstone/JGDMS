@@ -195,15 +195,14 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 	this(arg, check(arg));
     }
     
-    ConstrainableSpaceProxy2(GetArg arg, MethodConstraints constraints) throws IOException{
+    ConstrainableSpaceProxy2(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException {
 	super(arg);
 	methodConstraints = constraints;
     }
     
     private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
 	SpaceProxy2 sp2 = new SpaceProxy2(arg);
-	MethodConstraints methodConstraints = (MethodConstraints) 
-		arg.get("methodConstraints", null);
+	MethodConstraints methodConstraints = arg.get("methodConstraints", null, MethodConstraints.class);
 	MethodConstraints proxyCon = null;
 	if (sp2.space instanceof RemoteMethodControl && 
 	    (proxyCon = ((RemoteMethodControl)sp2.space).getConstraints()) != null) {

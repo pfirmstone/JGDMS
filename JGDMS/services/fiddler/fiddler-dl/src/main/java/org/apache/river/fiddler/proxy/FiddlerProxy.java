@@ -442,7 +442,7 @@ public class FiddlerProxy implements Administrable, LookupDiscoveryService,
 	    this(arg, check(arg));
 	}
 	
-	ConstrainableFiddlerProxy(GetArg arg, MethodConstraints constraints) throws IOException{
+	ConstrainableFiddlerProxy(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
 	    super(arg);
 	    this.methodConstraints = constraints;
 	}

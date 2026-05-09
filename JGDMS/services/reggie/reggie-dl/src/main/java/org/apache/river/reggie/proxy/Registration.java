@@ -118,7 +118,7 @@ public class Registration implements ServiceRegistration, ReferentUuid, Serializ
 	this(arg, check(arg));
     }
     
-    private Registration(GetArg arg, boolean check) throws IOException {
+    private Registration(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
 	server = (Registrar) arg.get("server", null);
 	lease = (ServiceLease) arg.get("lease", null);
     }

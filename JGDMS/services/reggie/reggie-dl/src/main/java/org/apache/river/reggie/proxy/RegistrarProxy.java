@@ -129,7 +129,7 @@ public class RegistrarProxy
 	this(arg, check(arg));
     }
     
-    RegistrarProxy(GetArg arg, boolean check) throws IOException{
+    RegistrarProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException{
 	server = (Registrar) arg.get("server", null);
 	RO r = (RO) arg.getReader();
 	registrarID = r.registrarID;
