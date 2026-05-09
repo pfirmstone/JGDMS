@@ -39,6 +39,7 @@ import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.nio.charset.StandardCharsets;
 import javax.security.auth.Subject;
 import net.jini.security.Security;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -54,6 +55,7 @@ import org.apache.river.api.net.Uri;
 public final class AccessControlContextSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final String DOMAINS = "domains";
+    private static final int HTTPMD_PREFIX_LENGTH = 7;
     private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
     public static SerialForm[] serialForm() {
@@ -169,7 +171,7 @@ public final class AccessControlContextSerializer implements Serializable {
 
     private static boolean isVerifiableHttpmd(String location) {
         if (location == null) return false;
-        if (!location.regionMatches(true, 0, "httpmd:", 0, 7)) return false;
+        if (!location.regionMatches(true, 0, "httpmd:", 0, HTTPMD_PREFIX_LENGTH)) return false;
         try {
             Security.verifyCodebaseIntegrity(location, AccessControlContextSerializer.class.getClassLoader());
             return true;
@@ -324,7 +326,7 @@ public final class AccessControlContextSerializer implements Serializable {
             int locLen = readShort(in);
             byte[] locationBytes = new byte[locLen];
             if (in.read(locationBytes) != locLen) throw new InvalidObjectException("Unexpected EOF reading location bytes");
-            String location = new String(locationBytes, "UTF-8");
+            String location = new String(locationBytes, StandardCharsets.UTF_8);
             int principalCount = readShort(in);
             String[] types = new String[principalCount];
             String[] names = new String[principalCount];
@@ -332,11 +334,11 @@ public final class AccessControlContextSerializer implements Serializable {
                 int typeLen = readShort(in);
                 byte[] typeBytes = new byte[typeLen];
                 if (in.read(typeBytes) != typeLen) throw new InvalidObjectException("Unexpected EOF reading principal type");
-                types[i] = new String(typeBytes, "UTF-8");
+                types[i] = new String(typeBytes, StandardCharsets.UTF_8);
                 int nameLen = readShort(in);
                 byte[] nameBytes = new byte[nameLen];
                 if (in.read(nameBytes) != nameLen) throw new InvalidObjectException("Unexpected EOF reading principal name");
-                names[i] = new String(nameBytes, "UTF-8");
+                names[i] = new String(nameBytes, StandardCharsets.UTF_8);
             }
             return new DomainIdentityRecord(location, types, names);
         }
@@ -360,14 +362,14 @@ public final class AccessControlContextSerializer implements Serializable {
         }
 
         private void writeTo(ByteArrayOutputStream out) throws IOException {
-            byte[] loc = location.getBytes("UTF-8");
+            byte[] loc = location.getBytes(StandardCharsets.UTF_8);
             writeShort(out, loc.length);
             out.write(loc);
             int count = Math.min(principalTypes.length, principalNames.length);
             writeShort(out, count);
             for (int i = 0; i < count; i++) {
-                byte[] type = principalTypes[i].getBytes("UTF-8");
-                byte[] name = principalNames[i].getBytes("UTF-8");
+                byte[] type = principalTypes[i].getBytes(StandardCharsets.UTF_8);
+                byte[] name = principalNames[i].getBytes(StandardCharsets.UTF_8);
                 writeShort(out, type.length);
                 out.write(type);
                 writeShort(out, name.length);
