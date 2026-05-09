@@ -200,7 +200,31 @@ public class AccessControlContextSerializerTest {
         }
     }
 
-    private static int readInt(byte[] bytes) {
+    @Test
+    public void testUnmarshalZeroDomainCountReturnsNull() throws Exception {
+        // A 4-byte payload encoding count=0 should behave the same as an empty payload.
+        byte[] payload = new byte[]{0, 0, 0, 0};
+        AccessControlContext result = AccessControlContextSerializer.unmarshalForTransport(payload, null);
+        Assert.assertNull("zero-domain payload should normalise to null", result);
+    }
+
+    @Test
+    public void testUnmarshalRejectsOversizedTotalPayload() throws Exception {
+        // Build a fake payload that claims to be larger than MAX_TOTAL_PAYLOAD_BYTES (16 MB).
+        // We don't need to fill it — just make the byte array large enough to trigger the check.
+        int oversize = 16 * 1024 * 1024 + 1;
+        byte[] huge = new byte[oversize];
+        // count=1 in the first 4 bytes so the parser reaches the budget check.
+        huge[3] = 1;
+        try {
+            AccessControlContextSerializer.unmarshalForTransport(huge, null);
+            Assert.fail("Expected InvalidObjectException for oversized total payload");
+        } catch (java.io.InvalidObjectException expected) {
+            Assert.assertTrue(expected.getMessage().contains("payload size exceeds maximum"));
+        }
+    }
+
+
         return ((bytes[0] & 0xFF) << 24)
                 | ((bytes[1] & 0xFF) << 16)
                 | ((bytes[2] & 0xFF) << 8)

@@ -67,6 +67,13 @@ public final class AccessControlContextSerializer implements Serializable {
     private static final int MAX_PRINCIPALS_PER_DOMAIN = 256;
     /** Maximum UTF-8 byte length accepted for a principal type or name field. */
     private static final int MAX_PRINCIPAL_FIELD_BYTES = 4096;
+    /**
+     * Hard upper bound on the total byte-length of a transport payload.
+     * Without this, a hostile sender could combine the per-field limits
+     * (4096 domains × 256 principals × 8 KB per principal) to produce a
+     * ~8 GB allocation.  16 MB is more than sufficient for real payloads.
+     */
+    private static final int MAX_TOTAL_PAYLOAD_BYTES = 16 * 1024 * 1024;
     private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
     public static SerialForm[] serialForm() {
@@ -96,10 +103,17 @@ public final class AccessControlContextSerializer implements Serializable {
         if (data == null || data.length == 0) {
             return null;
         }
+        if (data.length > MAX_TOTAL_PAYLOAD_BYTES) {
+            throw new InvalidObjectException("payload size exceeds maximum: " + data.length);
+        }
         ByteArrayInputStream in = new ByteArrayInputStream(data);
         int count = readInt(in);
         if (count < 0 || count > MAX_DOMAIN_COUNT) {
             throw new InvalidObjectException("invalid domain count: " + count);
+        }
+        if (count == 0) {
+            // Normalise: zero-domain payload carries no identity, same as empty data.
+            return null;
         }
         DomainIdentityRecord[] records = new DomainIdentityRecord[count];
         for (int i = 0; i < count; i++) {
@@ -108,11 +122,8 @@ public final class AccessControlContextSerializer implements Serializable {
         if (in.read() != -1) {
             throw new InvalidObjectException("unexpected trailing bytes");
         }
-        ProtectionDomain[] filtered = new FilteringDomainCombiner(authenticatedSubject).combine(
-            toProtectionDomains(records, authenticatedSubject),
-            null
-        );
-        return new AccessControlContext(filtered != null ? filtered : new ProtectionDomain[0]);
+        ProtectionDomain[] domains = toProtectionDomains(records, authenticatedSubject);
+        return domains.length == 0 ? null : new AccessControlContext(domains);
     }
 
     private final DomainIdentityRecord[] domains;
@@ -142,11 +153,11 @@ public final class AccessControlContextSerializer implements Serializable {
     private static DomainIdentityRecord[] recordsFromContext(AccessControlContext acc, Subject subjectOverride) {
         ProtectionDomain[] extracted = extractDomains(acc);
         if (extracted.length == 0) return new DomainIdentityRecord[0];
-        ProtectionDomain[] filtered = new FilteringDomainCombiner(subjectOverride).combine(extracted, null);
-        if (filtered == null || filtered.length == 0) return new DomainIdentityRecord[0];
-        List<DomainIdentityRecord> out = new ArrayList<DomainIdentityRecord>(filtered.length);
-        for (int i = 0; i < filtered.length; i++) {
-            DomainIdentityRecord r = DomainIdentityRecord.from(filtered[i], subjectOverride);
+        // DomainIdentityRecord.from() already filters to HTTPMD-verifiable domains and
+        // stamps the correct principals, so no intermediate FilteringDomainCombiner is needed.
+        List<DomainIdentityRecord> out = new ArrayList<DomainIdentityRecord>(extracted.length);
+        for (int i = 0; i < extracted.length; i++) {
+            DomainIdentityRecord r = DomainIdentityRecord.from(extracted[i], subjectOverride);
             if (r != null) out.add(r);
         }
         return out.toArray(new DomainIdentityRecord[out.size()]);
@@ -156,6 +167,14 @@ public final class AccessControlContextSerializer implements Serializable {
         if (acc == null) return new ProtectionDomain[0];
         final ExtractingDomainCombiner extractor = new ExtractingDomainCombiner(acc.getDomainCombiner());
         final AccessControlContext wrapped = new AccessControlContext(acc, extractor);
+        /*
+         * The JVM invokes DomainCombiner.combine() only when an AccessController
+         * stack-walk is triggered.  We force that walk by calling checkPermission
+         * inside a doPrivileged block restricted to 'wrapped'.  The permission used
+         * here is deliberately innocuous (and is expected to be denied); only the
+         * side-effect of driving the combine() callback matters.  The SecurityException
+         * is intentionally swallowed.
+         */
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
             try {
                 AccessController.checkPermission(new RuntimePermission("accessClassInPackage.java.lang"));
@@ -233,7 +252,10 @@ public final class AccessControlContextSerializer implements Serializable {
         return ((b1 & 0xFF) << 24) | ((b2 & 0xFF) << 16) | ((b3 & 0xFF) << 8) | (b4 & 0xFF);
     }
 
-    private static void writeShort(ByteArrayOutputStream out, int value) {
+    private static void writeUnsignedShort(ByteArrayOutputStream out, int value) {
+        if (value < 0 || value > 0xFFFF) {
+            throw new IllegalArgumentException("value out of unsigned short range: " + value);
+        }
         out.write((value >>> 8) & 0xFF);
         out.write(value & 0xFF);
     }
@@ -266,33 +288,6 @@ public final class AccessControlContextSerializer implements Serializable {
 
         private ProtectionDomain[] getCaptured() {
             return captured;
-        }
-    }
-
-    private static final class FilteringDomainCombiner implements DomainCombiner {
-        private final Subject authenticatedSubject;
-
-        private FilteringDomainCombiner(Subject authenticatedSubject) {
-            this.authenticatedSubject = authenticatedSubject;
-        }
-
-        public ProtectionDomain[] combine(ProtectionDomain[] current, ProtectionDomain[] assigned) {
-            List<ProtectionDomain> in = new ArrayList<ProtectionDomain>(8);
-            if (current != null) Collections.addAll(in, current);
-            if (assigned != null) Collections.addAll(in, assigned);
-            if (in.isEmpty()) return new ProtectionDomain[0];
-            List<ProtectionDomain> out = new ArrayList<ProtectionDomain>(in.size());
-            for (int i = 0; i < in.size(); i++) {
-                ProtectionDomain pd = in.get(i);
-                if (pd == null) continue;
-                CodeSource cs = pd.getCodeSource();
-                URL loc = cs != null ? cs.getLocation() : null;
-                String locText = loc != null ? loc.toExternalForm() : null;
-                if (!isVerifiableHttpmd(locText)) continue;
-                Principal[] principals = principalsFor(pd, authenticatedSubject);
-                out.add(new DomainIdentity(new CodeSource(loc, cs != null ? cs.getCertificates() : null), principals));
-            }
-            return out.toArray(new ProtectionDomain[out.size()]);
         }
     }
 
@@ -390,7 +385,7 @@ public final class AccessControlContextSerializer implements Serializable {
             if (loc.length > MAX_LOCATION_BYTES) {
                 throw new InvalidObjectException("location too long to encode: " + loc.length);
             }
-            writeShort(out, loc.length);
+            writeUnsignedShort(out, loc.length);
             out.write(loc);
             if (principalTypes.length != principalNames.length) {
                 throw new InvalidObjectException("principal type/name length mismatch");
@@ -399,7 +394,7 @@ public final class AccessControlContextSerializer implements Serializable {
             if (count > MAX_PRINCIPALS_PER_DOMAIN) {
                 throw new InvalidObjectException("principal count exceeds maximum: " + count);
             }
-            writeShort(out, count);
+            writeUnsignedShort(out, count);
             for (int i = 0; i < count; i++) {
                 byte[] type = principalTypes[i].getBytes(StandardCharsets.UTF_8);
                 byte[] name = principalNames[i].getBytes(StandardCharsets.UTF_8);
@@ -409,9 +404,9 @@ public final class AccessControlContextSerializer implements Serializable {
                 if (name.length > MAX_PRINCIPAL_FIELD_BYTES) {
                     throw new InvalidObjectException("principal name too long to encode: " + name.length);
                 }
-                writeShort(out, type.length);
+                writeUnsignedShort(out, type.length);
                 out.write(type);
-                writeShort(out, name.length);
+                writeUnsignedShort(out, name.length);
                 out.write(name);
             }
         }
@@ -471,6 +466,23 @@ public final class AccessControlContextSerializer implements Serializable {
 
         public String getName() {
             return name;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof Principal)) return false;
+            return name != null && name.equals(((Principal) obj).getName());
+        }
+
+        @Override
+        public int hashCode() {
+            return name != null ? name.hashCode() : 0;
+        }
+
+        @Override
+        public String toString() {
+            return "NamedPrincipal[" + name + "]";
         }
 
         private void writeObject(ObjectOutputStream out) throws IOException {
