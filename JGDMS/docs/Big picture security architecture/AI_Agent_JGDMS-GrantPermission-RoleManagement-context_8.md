@@ -528,6 +528,11 @@ Shed at doPrivileged:   where you came from (remote WorkerSubject domains)
 ```java
 public WorkerSubject processWorker() {
     // AuthPermission("getSubject") check
+    // The cast is safe: SpiffeSubjectHolder.get() holds the Subject registered by
+    // whichever SpiffeCredentialManager.start() was called first — always a WorkerSubject
+    // subtype (SpiffeSubject for the DirtyChai bootstrap implementation, or an equivalent
+    // WorkerSubject for the JGDMS implementation).  If no SpiffeCredentialManager has
+    // started, this returns null.
     return (WorkerSubject) SpiffeCredentialManager.getInstance().getSubject();
 }
 ```
@@ -1246,7 +1251,10 @@ may return a mix of `UserSubject` and legacy vanilla `Subject` instances,
 of the following safe patterns:
 
 ```java
-// Pattern A — filter to UserSubject, use varargs callAs (preferred when all are UserSubject)
+// Pattern A — filter to UserSubject, use varargs callAs
+// Use when: all Subjects in the transaction context are expected to be UserSubject.
+// Non-UserSubject (legacy vanilla Subject) instances are dropped — use Pattern B if
+// vanilla Subject context must be preserved.
 Subject[] subjects = Subject.currentAll();
 UserSubject[] userSubjects = Arrays.stream(subjects)
     .filter(s -> s instanceof UserSubject)
@@ -1261,8 +1269,11 @@ executor.submit(() -> {
 ```
 
 ```java
-// Pattern B — re-establish each Subject in reverse order (handles mixed UserSubject
-// and legacy vanilla Subject; first subject ends up as Subject.current())
+// Pattern B — re-establish each Subject in reverse order (PREFERRED for mixed contexts)
+// Use when: the array may contain a mix of UserSubject and legacy vanilla Subject.
+// All non-WorkerSubject entries are re-established; first subject ends up as
+// Subject.current().  Vanilla Subject instances (e.g. from JAAS LoginContext) are
+// preserved.  WorkerSubject is skipped because it is ambient.
 Subject[] subjects = Subject.currentAll();
 executor.submit(() -> {
     try {
