@@ -46,13 +46,25 @@ net.jini.lookup.entry.UIDescriptor extends AbstractEntry
   String          role        // fully qualified role interface name
   String          toolkit     // main toolkit package (e.g. "javax.swing")
   Set             attributes  // AccessibleUI, Locales, RequiredPackages, UIFactoryTypes …
-  MarshalledObject factory    // marshalled UI factory object
+  MarshalledInstance factory  // marshalled UI factory object
 ```
 
 `UIDescriptor.getUIFactory(ClassLoader parentLoader)` temporarily sets the **Thread Context
 ClassLoader** (TCCL) to `parentLoader`, then calls `new MarshalledInstance(factory).get(false)`
 to deserialise the factory.  The factory itself is a small, serialisable gateway object — not
 the heavy UI component.
+
+> **Note on `UIDescriptor.factory` field type:** The `factory` field on `UIDescriptor` is
+> declared as `java.rmi.MarshalledObject` for backwards compatibility with the original Jini
+> ServiceUI specification.  Service providers must **never** construct a
+> `java.rmi.MarshalledObject` directly — instead, always create a `MarshalledInstance` and
+> call `convertToMarshalledObject()`:
+> ```java
+> MarshalledInstance mi = new MarshalledInstance(new MyNodeFactory("/ui/My.fxml"));
+> UIDescriptor desc = new UIDescriptor(role, toolkit, attrs, mi.convertToMarshalledObject());
+> ```
+> `UIDescriptor.getUIFactory()` then wraps the stored `MarshalledObject` back into a
+> `MarshalledInstance` for deserialization, so `@AtomicSerial` support is preserved.
 
 > ⚠️ **TCCL limitation for JavaFX:** The TCCL set during `getUIFactory()` is a legacy
 > mechanism inherited from RMI-era serialisation.  It must **not** be propagated further into
@@ -64,7 +76,7 @@ the heavy UI component.
 
 A UI factory interface:
 
-1. Extends `java.io.Serializable` (so instances can be marshalled into a `MarshalledObject`)
+1. Extends `java.io.Serializable` (so instances can be marshalled into a `MarshalledInstance`)
 2. Declares a factory method whose return type is a **concrete toolkit object** (`JFrame`,
    `JComponent`, `Node`, `Stage`, etc.)
 3. Carries two convenience String constants:
@@ -108,7 +120,7 @@ Once started, `Platform.runLater(Runnable)` schedules work on the JAT, and `Plat
 listeners, and render-thread state.
 
 Consequence: a JavaFX UI factory **cannot return a pre-built Node**.  The factory object stored
-in the `MarshalledObject` must be a small, serialisable descriptor/builder that, when its factory
+in the `MarshalledInstance` must be a small, serialisable descriptor/builder that, when its factory
 method is called, **creates** JavaFX objects on the JAT.
 
 ### 3.3 JPMS module encapsulation
@@ -165,7 +177,7 @@ ClassLoader**:
 **Provisioning the ClassLoader:**
 
 The factory object's class is loaded by a `PreferredClassLoader` whose URLs come from the
-codebase annotation embedded in the `MarshalledObject`.  After the factory is deserialised,
+codebase annotation embedded in the `MarshalledInstance`.  After the factory is deserialised,
 `this.getClass().getClassLoader()` is already this provisioned loader — it knows the service's
 HTTP class-server URLs and does **not** need any TCCL gymnastics.
 
@@ -190,7 +202,7 @@ FXML (FX Markup Language) is JavaFX's XML-based declarative UI format, edited vi
 Scene Builder.  It is a strong fit for ServiceUI:
 
 * The FXML resource path (a `String`) is serialisable — exactly what a factory stored in a
-  `MarshalledObject` needs to carry.
+  `MarshalledInstance` needs to carry.
 * FXML cleanly separates layout/styling from the service proxy logic, matching ServiceUI's
   separation-of-concerns principle.
 * Controllers declared in FXML can receive the `roleObject` (service proxy) via a controller
@@ -489,9 +501,23 @@ A Jini service browser that wants to display JavaFX UIs must:
 
 ### 6.1 Factory deserialisation and ClassLoader provisioning
 
-`UIDescriptor.getUIFactory(parentLoader)` temporarily sets TCCL and calls
-`MarshalledInstance.get(false)` to deserialise the factory object.  The `false` flag means
-class-integrity verification is skipped (no codebase URL signature check at this point).
+**Packaging side (service provider):** Service providers must use `MarshalledInstance` to
+serialise the factory, then call `convertToMarshalledObject()` to obtain the
+`java.rmi.MarshalledObject` required by `UIDescriptor`:
+
+```java
+MarshalledInstance mi = new MarshalledInstance(myFactory);
+UIDescriptor desc = new UIDescriptor(role, toolkit, attrs, mi.convertToMarshalledObject());
+```
+
+`MarshalledInstance` writes codebase annotations with `MarshalOutputStream`, so the URL of
+the service's HTTP class server is embedded in the serialised bytes — enabling
+`PreferredClassProvider` to reconstruct the exact loader on the client side.
+
+**Deserialization side (client):** `UIDescriptor.getUIFactory(parentLoader)` temporarily sets
+TCCL and calls `new MarshalledInstance(factory).get(false)` to deserialise the factory object.
+The `false` flag means class-integrity verification is skipped (no codebase URL signature check
+at this point).
 
 > **Note on TCCL in deserialisation:** This TCCL usage is a legacy RMI-era mechanism required
 > by the current `MarshalledInstance` API.  It is distinct from, and must not be confused with,
@@ -500,12 +526,12 @@ class-integrity verification is skipped (no codebase URL signature check at this
 > ClassLoader for resolution.
 
 After deserialisation, the factory object's class has been loaded by a `PreferredClassLoader`
-whose URLs come from the codebase annotation in the `MarshalledObject`.  This loader is
+whose URLs come from the codebase annotation in the `MarshalledInstance`.  This loader is
 already provisioned with the correct URLs.  Dynamic permissions are granted by JGDMS's
 `DynamicPolicy` to the factory class's ProtectionDomain (keyed on the codebase URL) **before**
 any security-checked operation within the factory method.
 
-Under JGDMS's `DynamicPolicy`, the factory object arrives in a `MarshalledObject` whose
+Under JGDMS's `DynamicPolicy`, the factory object arrives in a `MarshalledInstance` whose
 codebase annotation points to the service's HTTP class server.  **All JavaFX and FXML code
 that runs inside the factory method runs as that loader's protection domain** — not under the
 client's broader permissions.
@@ -609,12 +635,18 @@ In both cases, any class or resource resolution inside the factory method body m
 `this.getClass().getClassLoader()` explicitly — never TCCL, and never `Class.forName(name)`
 without a ClassLoader argument.
 
-### 7.3 AtomicSerial compatibility
+### 7.3 AtomicSerial compatibility and MarshalledInstance
 
 JGDMS uses `AtomicSerial` for safe deserialisation of platform objects.  The JavaFX factory
 classes themselves (owned by service providers) do not need to implement `AtomicSerial` unless
 the provider chooses to.  They go through standard Java deserialisation, which is acceptable
 for trusted classes loaded from a known codebase.
+
+However, the **container** that holds the factory must always be a `MarshalledInstance` (not
+a raw `java.rmi.MarshalledObject`) so that `@AtomicSerial` infrastructure is engaged during
+deserialization.  Service providers must call `new MarshalledInstance(factory)` when packaging
+the factory and `convertToMarshalledObject()` only to satisfy `UIDescriptor`'s legacy field
+type — `java.rmi.MarshalledObject` must never appear elsewhere in service provider code.
 
 ---
 
@@ -715,7 +747,7 @@ module net.jini.lookup.ui.factory.javafx {
    `WebNodeFactory` variant pointing at a JPro session is conceivable.
 
 4. **FXML loading with AtomicSerial** — If the FXML document itself is stored in the
-   `MarshalledObject` as a byte array (rather than a resource path), AtomicSerial can validate
+   `MarshalledInstance` as a byte array (rather than a resource path), AtomicSerial can validate
    the FXML bytes before deserialisation.  This would allow policy-based FXML content control.
 
 6. **Eliminating TCCL from `UIDescriptor.getUIFactory()` deserialisation** — The current
