@@ -169,15 +169,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     
     static final byte PREVIOUS_VERSION = 0x0;
     
-    /** Marshal stream protocol version with user principals. */
-    static final byte VERSION_WITH_PRINCIPALS = 0x02;
-    
     /** Marshal stream protocol version with user principals and remote ACC. */
     static final byte VERSION_WITH_PRINCIPALS_AND_ACC = 0x03;
 
     /**
      * Maximum number of user principals accepted from the wire in a single
-     * request (protocol version 0x02).  A real Subject rarely carries more
+     * request (protocol version 0x03).  A real Subject rarely carries more
      * than a handful of principals; this cap prevents a malicious peer from
      * forcing unbounded allocation.
      */
@@ -494,7 +491,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * from the request input stream of the inbound request. If any
      * exception is thrown when reading this byte, the inbound request is
      * aborted and this method returns. If the byte is not
-     * <code>0x00</code>, or <code>0x01</code>, two byte values of <code>0x00</code> (indicating
+     * <code>0x00</code>, <code>0x01</code>, or <code>0x03</code>, two byte values of <code>0x00</code> (indicating
      * a marshal stream protocol version mismatch) are written to the
      * response output stream of the inbound request, the output stream is
      * closed, and this method returns.
@@ -523,6 +520,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * value is <code>0x00</code>.  An {@link AtomicInputValidation} element is
      * then added to the server context, reflecting whether or not input validation
      * is being enforced.
+     *
+     * <li>If the version byte is <code>0x03</code>, integrity, atomicValidation,
+     * user principals, and a serialized {@link java.security.AccessControlContext}
+     * are read in addition to the above. The user principals are reconstructed
+     * into a read-only {@link javax.security.auth.Subject} stored in the server
+     * context as a {@link net.jini.jeri.ClientUserSubject}.
      *
      * <li>The {@link #createMarshalInputStream createMarshalInputStream}
      * method of this invocation dispatcher is called, passing the remote
@@ -637,10 +640,6 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    supportsAtomicValidation = true;
 		    hasUserPrincipals = true;
                     hasSerializedAcc = true;
-		    break;
-		case VERSION_WITH_PRINCIPALS:
-		    supportsAtomicValidation = true;
-		    hasUserPrincipals = true;
 		    break;
 		case VERSION:
 		    supportsAtomicValidation = true;
@@ -1703,7 +1702,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /* ---------------------------------------------------------------------- */
-    /* User-principal helpers for protocol version 0x02                        */
+    /* User-principal helpers for protocol version 0x03                        */
     /* ---------------------------------------------------------------------- */
 
     /**

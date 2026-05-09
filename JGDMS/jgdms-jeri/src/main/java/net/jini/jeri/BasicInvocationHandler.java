@@ -840,27 +840,21 @@ public class BasicInvocationHandler
 	    }
 
 	    OutputStream ros = request.getRequestOutputStream();
-	    // Capture user principals (from Subject.callAs scope, JDK 18+).
-	    // These are sent separately from the TLS-authenticated worker Subject.
-	    Set<Principal> userPrincipals = getUserPrincipals();
 	    // Select marshalling protocol version.
 	    // 0x03 = with serialized remote ACC + user principals
-	    // 0x02 = with user principals (implies atomicValidation support)
 	    // 0x01 = atomicValidation, no user principals
 	    // 0x00 = legacy, no atomicValidation, no user principals
             final AccessControlContext currentAcc = AccessController.getContext();
             byte[] serializedAcc = AccessControlContextSerializer.marshalForTransport(currentAcc);
 	    if (serializedAcc.length > 0) {
+		// Capture user principals (from Subject.callAs scope, JDK 18+).
+		// These are sent separately from the TLS-authenticated worker Subject.
+		Set<Principal> userPrincipals = getUserPrincipals();
 		ros.write(0x03);			// marshalling protocol version
 		ros.write(integrity ? 0x01 : 0x00);	// integrity
 		ros.write(atomicValidation ? 0x01 : 0x00); // atomicValidation
 		writeUserPrincipals(ros, userPrincipals);
                 writeByteArrayBlock(ros, serializedAcc);
-	    } else if (!userPrincipals.isEmpty()) {
-		ros.write(0x02);			// marshalling protocol version
-		ros.write(integrity ? 0x01 : 0x00);	// integrity
-		ros.write(atomicValidation ? 0x01 : 0x00); // atomicValidation
-		writeUserPrincipals(ros, userPrincipals);
 	    } else if (atomicValidation){
 		ros.write(0x01);			// marshalling protocol version
 		ros.write(integrity ? 0x01 : 0x00);	// integrity
@@ -1740,7 +1734,7 @@ public class BasicInvocationHandler
 
     /**
      * Writes the user principals to the request output stream using the
-     * compact wire encoding for protocol version {@code 0x02}.
+     * compact wire encoding for protocol version {@code 0x03}.
      *
      * <p>Format (after the version/integrity/atomic bytes):
      * <pre>
