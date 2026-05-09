@@ -210,8 +210,8 @@ public final class AccessControlContextSerializer implements Serializable {
 
     private static Principal[] principalsFor(ProtectionDomain pd, Subject authenticatedSubject) {
         if (authenticatedSubject != null) {
-            Set<Principal> ps = authenticatedSubject.getPrincipals();
-            return ps.toArray(new Principal[0]);
+            Set<Principal> principalSet = authenticatedSubject.getPrincipals();
+            return principalSet.toArray(new Principal[0]);
         }
         Principal[] principals = pd.getPrincipals();
         return principals != null ? principals : new Principal[0];
@@ -421,8 +421,8 @@ public final class AccessControlContextSerializer implements Serializable {
             URL url = parseHttpmd(location);
             Principal[] principals;
             if (authenticatedSubject != null) {
-                Set<Principal> ps = authenticatedSubject.getPrincipals();
-                principals = ps.toArray(new Principal[0]);
+                Set<Principal> principalSet = authenticatedSubject.getPrincipals();
+                principals = principalSet.toArray(new Principal[0]);
             } else {
                 if (principalTypes.length != principalNames.length) {
                     throw new InvalidObjectException("principal type/name length mismatch");
