@@ -185,7 +185,9 @@ public class SpiffeLoginModuleTest {
                         .sorted(java.util.Comparator.reverseOrder())
                         .forEach(p -> {
                             try { Files.deleteIfExists(p); }
-                            catch (IOException ignored) { }
+                            catch (IOException e) {
+                                System.err.println("WARN: could not delete " + p + ": " + e);
+                            }
                         });
             } catch (IOException ignored) { }
         }

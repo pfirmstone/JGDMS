@@ -64,7 +64,9 @@ public class SpiffePrincipalTest {
             Files.walk(fixture.dir)
                     .sorted(java.util.Comparator.reverseOrder())
                     .forEach(p -> {
-                        try { Files.deleteIfExists(p); } catch (IOException ignored) { }
+                        try { Files.deleteIfExists(p); } catch (IOException e) {
+                            System.err.println("WARN: could not delete " + p + ": " + e);
+                        }
                     });
         }
     }
