@@ -17,15 +17,17 @@
  */
 package net.jini.jeri.ssl;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.security.cert.CertificateFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.cert.X509Certificate;
 import java.util.List;
 
@@ -40,11 +42,55 @@ import static org.junit.Assert.fail;
  * Unit tests for {@link SpiffePrincipal}.
  *
  * Stage 1: pure in-memory tests — no filesystem access required.
+ * The {@code fromCertificate} tests generate an ephemeral SVID at class
+ * setup time using {@link SpiffeTestSvidFactory}.
  */
 public class SpiffePrincipalTest {
 
     /** Java Object Serialization stream tag for a short UTF-8 string. */
     private static final byte TC_STRING = 0x74;
+
+    private static SpiffeTestSvidFactory.Fixture fixture;
+
+    @BeforeClass
+    public static void setUpFixture() throws Exception {
+        Path tempDir = Files.createTempDirectory("spiffe-principal-test-");
+        fixture = SpiffeTestSvidFactory.createReggieFixture(tempDir);
+    }
+
+    @AfterClass
+    public static void tearDownFixture() throws Exception {
+        if (fixture != null) {
+            Files.walk(fixture.dir)
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .forEach(p -> {
+                        try { Files.deleteIfExists(p); } catch (IOException e) {
+                            System.err.println("WARN: could not delete " + p + ": " + e);
+                        }
+                    });
+        }
+    }
+
+    /**
+     * Loads the leaf (index 0) certificate from the generated reggie SVID.
+     */
+    private static X509Certificate reggieLeafCert() throws Exception {
+        SpiffeCredentialManager.Svid svid =
+                new SpiffeCredentialManager.FileSvidSource(
+                        fixture.svidPem, fixture.svidKeyPem).fetch();
+        return (X509Certificate) svid.certPath.getCertificates().get(0);
+    }
+
+    /**
+     * Loads the CA (index 1) certificate from the generated reggie SVID.
+     * The CA certificate has no URI SAN.
+     */
+    private static X509Certificate caCert() throws Exception {
+        SpiffeCredentialManager.Svid svid =
+                new SpiffeCredentialManager.FileSvidSource(
+                        fixture.svidPem, fixture.svidKeyPem).fetch();
+        return (X509Certificate) svid.certPath.getCertificates().get(1);
+    }
 
     // -----------------------------------------------------------------------
     // Construction
@@ -230,16 +276,16 @@ public class SpiffePrincipalTest {
 
     @Test
     public void fromCertificateExtractsSpiffeUri() throws Exception {
-        X509Certificate cert = loadFirstCertFromResource("/spiffe/reggie/svid.pem");
+        X509Certificate cert = reggieLeafCert();
         List<SpiffePrincipal> principals = SpiffePrincipal.fromCertificate(cert);
         assertEquals(1, principals.size());
-        assertEquals("spiffe://test.jgdms.local/svc/reggie",
+        assertEquals(SpiffeTestSvidFactory.REGGIE_SPIFFE_ID,
                 principals.get(0).getName());
     }
 
     @Test
     public void fromCertificateReturnsUnmodifiableList() throws Exception {
-        X509Certificate cert = loadFirstCertFromResource("/spiffe/reggie/svid.pem");
+        X509Certificate cert = reggieLeafCert();
         List<SpiffePrincipal> principals = SpiffePrincipal.fromCertificate(cert);
         try {
             principals.add(new SpiffePrincipal("spiffe://example.org/svc/x"));
@@ -251,24 +297,15 @@ public class SpiffePrincipalTest {
 
     @Test
     public void fromCertificateNoCertReturnsEmpty() throws Exception {
-        // The CA cert in our test resources has no URI SAN.
-        X509Certificate caCert = loadFirstCertFromResource("/spiffe/ca/ca.pem");
-        List<SpiffePrincipal> principals = SpiffePrincipal.fromCertificate(caCert);
+        // The CA cert has no URI SAN — fromCertificate must return an empty list.
+        X509Certificate ca = caCert();
+        List<SpiffePrincipal> principals = SpiffePrincipal.fromCertificate(ca);
         assertTrue("CA cert should yield no SPIFFE principals", principals.isEmpty());
     }
 
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
-
-    private static X509Certificate loadFirstCertFromResource(String resource)
-            throws Exception {
-        try (InputStream in = SpiffePrincipalTest.class.getResourceAsStream(resource)) {
-            assertNotNull("Test resource not found: " + resource, in);
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            return (X509Certificate) cf.generateCertificate(in);
-        }
-    }
 
     /**
      * Replaces the first occurrence of {@code find} in {@code src} with

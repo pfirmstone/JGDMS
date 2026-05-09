@@ -19,10 +19,11 @@ package net.jini.jeri.ssl;
 
 import net.jini.jeri.ssl.SpiffeCredentialManager.FileSvidSource;
 import net.jini.jeri.ssl.SpiffeCredentialManager.Svid;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -38,24 +39,40 @@ import static org.junit.Assert.fail;
 /**
  * Unit tests for {@link SpiffeCredentialManager.FileSvidSource}.
  *
- * Stage 2: filesystem PEM loading — uses the test SVID resources copied
- * from {@code qa/harness/trust/spiffe/reggie/}.
+ * SVID certificates are generated at test time using
+ * {@link SpiffeTestSvidFactory} — no certificate material is committed to
+ * the repository.
  */
 public class FileSvidSourceTest {
+
+    private static SpiffeTestSvidFactory.Fixture fixture;
+
+    @BeforeClass
+    public static void setUpFixture() throws Exception {
+        Path tempDir = Files.createTempDirectory("spiffe-test-");
+        fixture = SpiffeTestSvidFactory.createReggieFixture(tempDir);
+    }
+
+    @AfterClass
+    public static void tearDownFixture() throws Exception {
+        if (fixture != null) {
+            // Delete all files in temp dir
+            Files.walk(fixture.dir)
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .forEach(p -> {
+                        try { Files.deleteIfExists(p); } catch (IOException e) {
+                            System.err.println("WARN: could not delete " + p + ": " + e);
+                        }
+                    });
+        }
+    }
 
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
-    private static Path resourcePath(String classpathResource) throws Exception {
-        URI uri = FileSvidSourceTest.class.getResource(classpathResource).toURI();
-        return Paths.get(uri);
-    }
-
-    private static FileSvidSource reggieSource() throws Exception {
-        Path svidPem = resourcePath("/spiffe/reggie/svid.pem");
-        Path keyPem  = resourcePath("/spiffe/reggie/svid_key.pem");
-        return new FileSvidSource(svidPem, keyPem);
+    private static FileSvidSource reggieSource() {
+        return new FileSvidSource(fixture.svidPem, fixture.svidKeyPem);
     }
 
     // -----------------------------------------------------------------------
@@ -83,8 +100,7 @@ public class FileSvidSourceTest {
 
     @Test
     public void dirConstructorResolvesDefaultNames() throws Exception {
-        Path dir = resourcePath("/spiffe/reggie/svid.pem").getParent();
-        FileSvidSource src = new FileSvidSource(dir);
+        FileSvidSource src = new FileSvidSource(fixture.dir);
         Svid svid = src.fetch();
         assertNotNull(svid);
         assertNotNull(svid.certPath);
@@ -118,7 +134,7 @@ public class FileSvidSourceTest {
         X509Certificate leaf = svid.leafCertificate();
         // Subject DN should be CN=Reggie
         String dn = leaf.getSubjectX500Principal().getName();
-        assertTrue("Leaf cert subject should contain CN=Reggie; got: " + dn,
+        assertTrue("Leaf cert subject should contain Reggie; got: " + dn,
                 dn.contains("Reggie") || dn.contains("reggie"));
     }
 
@@ -128,7 +144,7 @@ public class FileSvidSourceTest {
         X509Certificate leaf = svid.leafCertificate();
         List<SpiffePrincipal> principals = SpiffePrincipal.fromCertificate(leaf);
         assertEquals(1, principals.size());
-        assertEquals("spiffe://test.jgdms.local/svc/reggie",
+        assertEquals(SpiffeTestSvidFactory.REGGIE_SPIFFE_ID,
                 principals.get(0).getName());
     }
 
@@ -174,7 +190,7 @@ public class FileSvidSourceTest {
     public void fetchMissingSvidPemThrows() throws Exception {
         FileSvidSource src = new FileSvidSource(
                 Paths.get("/nonexistent/svid.pem"),
-                resourcePath("/spiffe/reggie/svid_key.pem"));
+                fixture.svidKeyPem);
         try {
             src.fetch();
             fail("Expected IOException for missing SVID PEM");
@@ -186,7 +202,7 @@ public class FileSvidSourceTest {
     @Test
     public void fetchMissingKeyPemThrows() throws Exception {
         FileSvidSource src = new FileSvidSource(
-                resourcePath("/spiffe/reggie/svid.pem"),
+                fixture.svidPem,
                 Paths.get("/nonexistent/svid_key.pem"));
         try {
             src.fetch();
@@ -202,7 +218,7 @@ public class FileSvidSourceTest {
         try {
             FileSvidSource src = new FileSvidSource(
                     emptyPem,
-                    resourcePath("/spiffe/reggie/svid_key.pem"));
+                    fixture.svidKeyPem);
             src.fetch();
             fail("Expected IOException for empty SVID PEM");
         } catch (IOException e) {
@@ -219,7 +235,7 @@ public class FileSvidSourceTest {
             Files.write(badKey, "-----BEGIN SOMETHING-----\naGVsbG8=\n-----END SOMETHING-----\n"
                     .getBytes("UTF-8"));
             FileSvidSource src = new FileSvidSource(
-                    resourcePath("/spiffe/reggie/svid.pem"),
+                    fixture.svidPem,
                     badKey);
             src.fetch();
             fail("Expected IOException for unrecognised key PEM");
@@ -256,3 +272,4 @@ public class FileSvidSourceTest {
                 "-----BEGIN CERTIFICATE-----", "-----END CERTIFICATE-----");
     }
 }
+
