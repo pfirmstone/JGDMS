@@ -1,53 +1,37 @@
-name: "SPIFFE Unit Tests"
+name: "JWT Integration Tests"
 
-# Runs the SPIFFE JUnit tests and jtreg integration tests on every push / PR
-# that touches the JERI module or the SPIFFE test resources, and can be
-# triggered manually.
+# Runs JwtLoginModuleTest (and supporting unit tests) on every push / PR that
+# touches the JWT security module, and can be triggered manually.
 #
-# Stages:
-#   1. SpiffePrincipalTest      — unit test for SpiffePrincipal
-#   2. FileSvidSourceTest       — unit test for FileSvidSource PEM loading
-#   3. SpiffeCredentialManagerTest — unit test for credential lifecycle
-#   (SpiffeLoginModuleTest is in qa/jtreg/net/jini/jeri/ssl/SpiffeLoginModule/)
-#   (SpiffeEndpointTest is in qa/jtreg/net/jini/jeri/ssl/SpiffeEndpointTest/)
+# The test starts an embedded HTTPS JWKS server in-process using
+# com.sun.net.httpserver.HttpsServer (jdk.httpserver module) and exercises the
+# full JwtLoginModule JAAS lifecycle: initialize → login → commit / abort /
+# logout.  No external OIDC/IdP service is required.
 #
 # Two Java variants are exercised:
-#   1. Temurin 21 (via actions/setup-java) — always runs.
-#      jgdms-platform and jgdms-jeri require --release 21, so JDK 21 is the
-#      minimum version needed to compile the project.
+#   1. Temurin 21 — always runs.  The JWT module requires --release 21 for
+#      JDK API compatibility.
 #   2. DirtyChai JDK — runs only when the dirty-chai-latest release is
-#      available at pfirmstone/DirtyChai.
-#      DirtyChai is a community OpenJDK fork that re-enables SecurityManager /
-#      AccessController, which is required for full JGDMS security testing.
+#      available at pfirmstone/DirtyChai.  DirtyChai is a community OpenJDK
+#      fork that re-enables SecurityManager / AccessController for full
+#      JGDMS security coverage.
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'JGDMS/jgdms-jeri/**'
+      - 'JGDMS/jgdms-security-jwt/**'
       - 'JGDMS/jgdms-platform/**'
-      - 'JGDMS/jgdms-collections/**'
-      - 'JGDMS/jgdms-activation-parameters/**'
-      - 'qa/harness/trust/spiffe/**'
-      - 'qa/harness/trust/spiffelogins'
-      - 'qa/jtreg/net/jini/jeri/ssl/SpiffeLoginModule/**'
-      - 'qa/jtreg/net/jini/jeri/ssl/SpiffeEndpointTest/**'
-      - '.github/workflows/spiffe-unit-tests.yml'
+      - '.github/workflows/jwt-integration-tests.yml'
   pull_request:
     paths:
-      - 'JGDMS/jgdms-jeri/**'
+      - 'JGDMS/jgdms-security-jwt/**'
       - 'JGDMS/jgdms-platform/**'
-      - 'JGDMS/jgdms-collections/**'
-      - 'JGDMS/jgdms-activation-parameters/**'
-      - 'qa/harness/trust/spiffe/**'
-      - 'qa/harness/trust/spiffelogins'
-      - 'qa/jtreg/net/jini/jeri/ssl/SpiffeLoginModule/**'
-      - 'qa/jtreg/net/jini/jeri/ssl/SpiffeEndpointTest/**'
-      - '.github/workflows/spiffe-unit-tests.yml'
+      - '.github/workflows/jwt-integration-tests.yml'
 
 jobs:
-  spiffe-tests:
-    name: "SPIFFE tests (${{ matrix.jdk-label }})"
+  jwt-tests:
+    name: "JWT tests (${{ matrix.jdk-label }})"
     runs-on: ubuntu-latest
 
     strategy:
@@ -66,9 +50,9 @@ jobs:
 
       # -----------------------------------------------------------------------
       # Install JDK 21 via actions/setup-java for the Temurin matrix leg.
-      # jgdms-platform and jgdms-jeri require --release 21; the ubuntu-latest
-      # runner only ships JDK 17 by default so we must install 21 explicitly.
-      # The DirtyChai leg skips this step and uses its own JDK (set below).
+      # The ubuntu-latest runner ships JDK 17 by default; the JWT module
+      # requires --release 21 so we must install JDK 21 explicitly.
+      # The DirtyChai leg uses its own JDK and skips this step.
       # -----------------------------------------------------------------------
       - name: Set up JDK 21 (Temurin)
         if: ${{ !matrix.use-dirtychai }}
@@ -137,15 +121,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-spiffe-${{ hashFiles('JGDMS/**/pom.xml') }}
+          key: ${{ runner.os }}-maven-jwt-${{ hashFiles('JGDMS/**/pom.xml') }}
           restore-keys: |
-            ${{ runner.os }}-maven-spiffe-
+            ${{ runner.os }}-maven-jwt-
             ${{ runner.os }}-maven-
 
       # -----------------------------------------------------------------------
       # Pre-install Pack200-ex-openjdk from GitHub Releases into the local
-      # Maven repository.  The artifact is published as a release binary at
-      # github.com/pfirmstone/Pack200-ex-openjdk, not via GitHub Packages.
+      # Maven repository (required transitive dependency).
       # -----------------------------------------------------------------------
       - name: Install Pack200-ex-openjdk into local Maven repository
         if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
@@ -168,30 +151,30 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # -----------------------------------------------------------------------
-      # Build dependencies (jgdms-platform + jgdms-jeri) — skip tests here.
+      # Build jgdms-platform (required by jgdms-security-jwt at compile time)
       # -----------------------------------------------------------------------
-      - name: Build dependencies
+      - name: Build dependencies (jgdms-platform)
         if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
         working-directory: JGDMS
         run: |
           mvn install -DskipTests \
-            -pl jgdms-platform,jgdms-jeri --also-make \
+            -pl jgdms-platform --also-make \
             --no-transfer-progress -q
         env:
           JAVA_HOME: ${{ env.JAVA_HOME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # -----------------------------------------------------------------------
-      # Stage 1 — SpiffePrincipalTest
+      # Stage 1 — JwksJsonParserTest (JSON parsing, no HTTP)
       # -----------------------------------------------------------------------
-      - name: "Stage 1: SpiffePrincipalTest"
+      - name: "Stage 1: JwksJsonParserTest"
         if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
         working-directory: JGDMS
         run: |
           PROFILE_FLAG=""
           [ "${{ matrix.use-dirtychai }}" = "true" ] && PROFILE_FLAG="-Pdirtychai"
-          mvn test -pl jgdms-jeri \
-            -Dtest=SpiffePrincipalTest \
+          mvn test -pl jgdms-security-jwt \
+            -Dtest=JwksJsonParserTest \
             $PROFILE_FLAG \
             --no-transfer-progress
         env:
@@ -199,36 +182,38 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # -----------------------------------------------------------------------
-      # Stage 2 — FileSvidSourceTest
+      # Stage 2 — JwtPrincipalTest (principal equality / serialisation)
       # -----------------------------------------------------------------------
-      - name: "Stage 2: FileSvidSourceTest"
+      - name: "Stage 2: JwtPrincipalTest"
         if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
         working-directory: JGDMS
         run: |
           PROFILE_FLAG=""
           [ "${{ matrix.use-dirtychai }}" = "true" ] && PROFILE_FLAG="-Pdirtychai"
-          mvn test -pl jgdms-jeri \
-            -Dtest=FileSvidSourceTest \
+          mvn test -pl jgdms-security-jwt \
+            -Dtest=JwtPrincipalTest \
             $PROFILE_FLAG \
             --no-transfer-progress
         env:
           JAVA_HOME: ${{ env.JAVA_HOME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Note: SpiffeLoginModuleTest moved to qa/jtreg/net/jini/jeri/ssl/SpiffeLoginModule/
-      # and is exercised via the qa integration test suite, not via Maven Surefire.
-
       # -----------------------------------------------------------------------
-      # Stage 3 — SpiffeCredentialManagerTest
+      # Stage 3 — JwtLoginModuleTest (full integration: embedded HTTPS server)
+      #
+      # Requires jdk.httpserver (--add-modules jdk.httpserver configured in
+      # jgdms-security-jwt/pom.xml via maven-surefire-plugin argLine).
+      # The test generates an ephemeral RSA-2048 key pair for JWT signing and
+      # a self-signed TLS certificate for the HTTPS JWKS server using keytool.
       # -----------------------------------------------------------------------
-      - name: "Stage 3: SpiffeCredentialManagerTest"
+      - name: "Stage 3: JwtLoginModuleTest (embedded HTTPS JWKS server)"
         if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
         working-directory: JGDMS
         run: |
           PROFILE_FLAG=""
           [ "${{ matrix.use-dirtychai }}" = "true" ] && PROFILE_FLAG="-Pdirtychai"
-          mvn test -pl jgdms-jeri \
-            -Dtest=SpiffeCredentialManagerTest \
+          mvn test -pl jgdms-security-jwt \
+            -Dtest=JwtLoginModuleTest \
             $PROFILE_FLAG \
             --no-transfer-progress
         env:
@@ -242,6 +227,6 @@ jobs:
         if: ${{ always() && (!matrix.use-dirtychai || steps.check.outputs.skip == 'false') }}
         uses: actions/upload-artifact@v4
         with:
-          name: surefire-reports-${{ matrix.jdk-label }}
-          path: JGDMS/jgdms-jeri/target/surefire-reports/
+          name: surefire-reports-jwt-${{ matrix.jdk-label }}
+          path: JGDMS/jgdms-security-jwt/target/surefire-reports/
           if-no-files-found: ignore

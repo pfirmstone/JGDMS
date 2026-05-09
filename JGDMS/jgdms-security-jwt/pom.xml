@@ -98,6 +98,19 @@
                     <maxmem>1024m</maxmem>
                 </configuration>
             </plugin>
+            <plugin>
+                <!--
+                  JwtLoginModuleTest uses com.sun.net.httpserver.HttpsServer, which is
+                  in the jdk.httpserver module.  That module is not part of java.se and
+                  is therefore not in the default module graph when Surefire runs in
+                  classpath (unnamed-module) mode.  We must add it explicitly so the
+                  embedded HTTPS JWKS server can be started during the test.
+                -->
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>--add-modules jdk.httpserver</argLine>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
