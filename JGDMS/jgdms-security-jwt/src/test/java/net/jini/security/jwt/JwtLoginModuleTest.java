@@ -627,6 +627,10 @@ public class JwtLoginModuleTest {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    private static String base64UrlEncode(String text) {
+        return base64UrlEncode(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
     // -----------------------------------------------------------------------
     // HTTPS server TLS setup
     // -----------------------------------------------------------------------

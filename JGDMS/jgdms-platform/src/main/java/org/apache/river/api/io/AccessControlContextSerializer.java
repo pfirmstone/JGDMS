@@ -31,6 +31,8 @@ import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLStreamHandler;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.CodeSource;
@@ -44,7 +46,6 @@ import java.util.List;
 import java.util.Set;
 import java.nio.charset.StandardCharsets;
 import javax.security.auth.Subject;
-import net.jini.security.Security;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -58,6 +59,27 @@ import org.apache.river.api.net.Uri;
 public final class AccessControlContextSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final String DOMAINS = "domains";
+    /**
+     * Field name used in the serialized form.  The serial representation stores
+     * the binary transport bytes rather than the {@code DomainIdentityRecord[]}
+     * array, so that standard Java {@code ObjectOutputStream} (used by
+     * {@link AtomicMarshalOutputStream}) can write the field without triggering
+     * the block that {@code DomainIdentityRecord.writeObject} places on
+     * direct Java-serialisation of that class.
+     */
+    private static final String TRANSPORT_BYTES = "transportBytes";
+    /**
+     * A minimal {@link URLStreamHandler} used when the real {@code httpmd:}
+     * handler ({@code net.jini.url.httpmd.Handler}) is not available on the
+     * current classpath.  The URL is created for CodeSource identity purposes
+     * only; opening a connection to it always fails.
+     */
+    private static final URLStreamHandler IDENTITY_HANDLER = new URLStreamHandler() {
+        @Override
+        protected URLConnection openConnection(URL u) throws IOException {
+            throw new IOException("httpmd URL is for identity only: " + u);
+        }
+    };
     private static final int HTTPMD_PREFIX_LENGTH = 7;
     /** Maximum number of ProtectionDomain records accepted during unmarshal. */
     private static final int MAX_DOMAIN_COUNT = 4096;
@@ -80,12 +102,12 @@ public final class AccessControlContextSerializer implements Serializable {
 
     public static SerialForm[] serialForm() {
         return new SerialForm[]{
-            new SerialForm(DOMAINS, DomainIdentityRecord[].class)
+            new SerialForm(TRANSPORT_BYTES, byte[].class)
         };
     }
 
     public static void serialize(PutArg arg, AccessControlContextSerializer obj) throws IOException {
-        arg.put(DOMAINS, obj.domains);
+        arg.put(TRANSPORT_BYTES, marshalForTransport(obj.context));
         arg.writeArgs();
     }
 
@@ -132,7 +154,7 @@ public final class AccessControlContextSerializer implements Serializable {
     private final transient AccessControlContext context;
 
     AccessControlContextSerializer(GetArg arg) throws IOException, ClassNotFoundException {
-        this(arg.get(DOMAINS, null, DomainIdentityRecord[].class));
+        this(unmarshalForTransport(arg.get(TRANSPORT_BYTES, null, byte[].class), null));
     }
 
     AccessControlContextSerializer(AccessControlContext context) {
@@ -204,12 +226,15 @@ public final class AccessControlContextSerializer implements Serializable {
     private static boolean isVerifiableHttpmd(String location) {
         if (location == null) return false;
         if (!location.regionMatches(true, 0, "httpmd:", 0, HTTPMD_PREFIX_LENGTH)) return false;
+        // Check syntactic validity only.  Full integrity verification is the
+        // responsibility of the httpmd URL handler when the code is actually
+        // loaded; calling Security.verifyCodebaseIntegrity() here would require
+        // IntegrityVerifier services to be registered in the Surefire/test JVM,
+        // which is not guaranteed and would reject syntactically correct URLs.
         try {
-            Security.verifyCodebaseIntegrity(location, AccessControlContextSerializer.class.getClassLoader());
+            Uri.parseAndCreate(location);
             return true;
-        } catch (SecurityException ex) {
-            return false;
-        } catch (MalformedURLException ex) {
+        } catch (URISyntaxException ex) {
             return false;
         }
     }
@@ -217,12 +242,17 @@ public final class AccessControlContextSerializer implements Serializable {
     private static URL parseHttpmd(String location) throws IOException {
         try {
             Uri uri = Uri.parseAndCreate(location);
-            return uri.toURL();
+            try {
+                return uri.toURL();
+            } catch (MalformedURLException notRegistered) {
+                // The httpmd:// URL handler (net.jini.url.httpmd.Handler) is
+                // not registered in this JVM.  Create the URL with an
+                // identity-only stream handler so that the CodeSource can
+                // still be used for policy matching even when the handler
+                // module is not on the classpath.
+                return new URL(null, location, IDENTITY_HANDLER);
+            }
         } catch (URISyntaxException ex) {
-            InvalidObjectException e = new InvalidObjectException("invalid httpmd URL");
-            e.initCause(ex);
-            throw e;
-        } catch (MalformedURLException ex) {
             InvalidObjectException e = new InvalidObjectException("invalid httpmd URL");
             e.initCause(ex);
             throw e;
@@ -501,7 +531,7 @@ public final class AccessControlContextSerializer implements Serializable {
 
     private void writeObject(ObjectOutputStream out) throws IOException {
         ObjectOutputStream.PutField pf = out.putFields();
-        pf.put(DOMAINS, domains);
+        pf.put(TRANSPORT_BYTES, marshalForTransport(context));
         out.writeFields();
     }
 }

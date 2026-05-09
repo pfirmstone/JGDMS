@@ -98,8 +98,7 @@
                     <maxmem>1024m</maxmem>
                 </configuration>
             </plugin>
-            <plugin>
-                <!--
+            <plugin><!--
                   JwtLoginModuleTest uses com.sun.net.httpserver.HttpsServer, which is
                   in the jdk.httpserver module.  That module is not part of java.se and
                   is therefore not in the default module graph when Surefire runs in
