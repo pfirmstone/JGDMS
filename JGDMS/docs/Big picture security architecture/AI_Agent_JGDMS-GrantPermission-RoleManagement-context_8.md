@@ -1,14 +1,39 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v17)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v18)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v16.
+context. It supersedes and extends v17.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
 
 ---
+
+## v18 Change Summary
+
+This version promotes **JWT/OIDC** (`JwtPrincipal` / `JwtLoginModule` in the new
+`jgdms-security-jwt` module) as the **primary** human-user authentication mechanism.
+Kerberos is retained for **legacy support only**.
+
+**New/changed in v18:**
+
+- **§8.2** — Section renamed to "Human User Identity — JWT/OIDC (Kerberos is Legacy)".
+  JWT/OIDC is now the preferred mechanism; `JwtPrincipal` replaces `KerberosPrincipal`
+  in all primary examples.
+- **§9 ServiceUI** — `callAs(kerberosSubject, ...)` example replaced with
+  `callAs(jwtUserSubject, ...)`.
+- **§10.11 dispatch example** — comment updated: JWT/OIDC is the primary user identity
+  in the ScopedValue; Kerberos noted as legacy fallback.
+- **§10.11 KerberosEndpoint section** — marked as legacy; JWT flow described first.
+- **§10.11 side-by-side table** — JWT/OIDC column added alongside Kerberos (legacy).
+- **§10.11 post-dispatch narrative** — outbound transport description updated.
+- **§13 key decisions** — JWT-primary design decision added.
+- **§14 SPIFFE identity scheme** — unchanged (SPIFFE is workload, not user).
+- **New module `jgdms-security-jwt`** — `JwtPrincipal`, `JwtExpiryClaim`,
+  `JwtValidationException`, `JwksKeyCache`, `JwtValidator`, `ParsedJwt`,
+  `JwtLoginModule`.  Zero third-party dependencies.  DoS-hardened: HTTP body limits,
+  token length cap, JSON string length cap, JWKS key count cap, RSA modulus cap.
 
 ## v17 Change Summary
 
@@ -315,7 +340,7 @@ is preserved.  The immediate `privilegedContext` domains are also enriched.
 Consequence: when `sm.checkPermission(this)` is called, the internal
 `AccessController.getContext()` call automatically incorporates the user Subject's
 principals into the domain array.  Policy grants scoped to user principals (e.g. a
-grant requiring both a SPIFFE workload principal **and** a `KerberosPrincipal`) are
+grant requiring both a SPIFFE workload principal **and** a `JwtPrincipal`) are
 therefore honoured transparently, whether the check occurs on the dispatch thread or
 on a spawned thread that inherited the enriched ACC.
 
@@ -447,9 +472,29 @@ JGDMS has no username/password login. Workload authentication is entirely
 
 `SpiffeCredentialManager` manages the current Subject and calls `SpiffePolicyFile.refresh()` on SVID rotation (~1 hour lifetime). Background watcher detects rotation via streaming gRPC; exponential backoff reconnects after transient failures. On an empty SVID response the existing valid Subject is retained (not overwritten) — transient SPIRE outages cannot destroy unexpired credentials.
 
-### 8.2 Human User Identity — Kerberos and Traditional JAAS
+### 8.2 Human User Identity — JWT/OIDC (Kerberos is Legacy)
 
-Human users authenticate via traditional JAAS mechanisms. The resulting Subject is installed per-request via `Subject.callAs(userSubject, () -> ...)`. `SubjectDomainCombiner` reads `SCOPED_SUBJECT` internally and injects human principals into every `checkPermission` for the duration of the request.
+Human users authenticate via **JWT/OIDC** using `JwtLoginModule` from the
+`jgdms-security-jwt` module.  The resulting `UserSubject` carries `JwtPrincipal`
+instances (e.g. `"sub:alice@example.org"`, `"group:admins"`) and is installed
+per-request via `Subject.callAs(jwtUserSubject, () -> ...)`.
+`SubjectDomainCombiner` reads `SCOPED_SUBJECT` internally and injects JWT principals
+into every `checkPermission` for the duration of the request.
+
+**Kerberos** (`KerberosPrincipal` / `KerberosEndpoint`) is retained for **legacy
+support only**.  New deployments must use JWT/OIDC.  The policy grant pattern is:
+
+```
+// JWT/OIDC — preferred
+grant principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org" {
+    permission net.jini.security.AccessPermission "*";
+};
+
+// Kerberos — legacy only
+grant principal javax.security.auth.kerberos.KerberosPrincipal "alice@REALM.EXAMPLE.ORG" {
+    permission net.jini.security.AccessPermission "*";
+};
+```
 
 ### 8.3 Traditional Jini LoginContext
 
@@ -466,7 +511,7 @@ DirtyChai runs as a workload with `spiffe://.../admin/policy` SVID. Human authen
 
 ## 9. ServiceUI — Design Now Resolved
 
-ServiceUI runs inside `Subject.callAs(kerberosSubject, () -> ...)`.  The SPIFFE workload
+ServiceUI runs inside `Subject.callAs(jwtUserSubject, () -> ...)`.  The SPIFFE workload
 identity (`WorkerSubject`) is **ambient** — it is already baked into every
 `ProtectionDomain` by `SecureClassLoader` at class load time and does not require any
 `Subject.doAs(spiffeSubject, ...)` wrapper.  Policy can therefore condition grants on the
@@ -630,6 +675,10 @@ Jini services.
 | `JGDMS/jgdms-platform/.../net/jini/io/context/MutableClientSubject.java` | `@Deprecated`, `mergeUserPrincipals()` no longer called |
 | `DirtyChai/.../SubjectDomainCombiner.java` | `getMergedPrincipals()` reads `SCOPED_SUBJECT` additively |
 | `DirtyChai/.../Subject.java` | Javadoc documents three-layer identity model; `callAs(Callable, UserSubject...)` varargs; sealed hierarchy |
+| **`JGDMS/jgdms-security-jwt/.../JwtPrincipal.java`** | **Primary user principal (`"claim:value"` format); `instantiatePrincipal` compatible** |
+| **`JGDMS/jgdms-security-jwt/.../JwtLoginModule.java`** | **JAAS `LoginModule`; populates Subject with `JwtPrincipal` + `JwtExpiryClaim`; background refresh** |
+| **`JGDMS/jgdms-security-jwt/.../JwksKeyCache.java`** | **HTTPS-only JWKS endpoint client; thread-safe; TTL-based expiry; DoS-hardened** |
+| **`JGDMS/jgdms-security-jwt/.../JwtValidator.java`** | **Compact JWT validator; RS/ES/PS algorithms; rejects HS*/none** |
 
 ### 10.11 SSL vs. Kerberos Endpoints — Subject Lookup Differences
 
@@ -659,7 +708,27 @@ ACC-derived user Subject for TLS, a `callAs(userSubject, ...)` scope could accid
 displace the SPIFFE workload identity.  Direct `SpiffeCredentialManager` access avoids
 this risk entirely.
 
-#### `KerberosEndpoint.newRequest()` — user/human identity first
+#### JWT/OIDC `JwtLoginModule` — primary user identity path
+
+JWT/OIDC is the **preferred** human-user authentication mechanism.  After a successful
+`JwtLoginModule` login, the `UserSubject` carries `JwtPrincipal` instances and is
+placed on `SCOPED_SUBJECT` via `Subject.callAs()`.  From that point it is available as
+`Subject.current()` on the dispatch thread and any threads spawned from it.  Policy
+grants reference `JwtPrincipal` by claim name:
+
+```
+grant principal net.jini.security.jwt.JwtPrincipal "group:admins" {
+    permission net.jini.security.AccessPermission "*";
+};
+```
+
+The `JwtPrincipal` format is `"claim:value"`, supporting `sub`, `email`, `groups`, and
+arbitrary additional claims extracted via `JwtValidator`.
+
+#### `KerberosEndpoint.newRequest()` — legacy user/human identity
+
+> **Legacy only.** New deployments should use JWT/OIDC (above).  The Kerberos path is
+> retained for backward compatibility.
 
 ```
 Priority 1: Subject.current()             — UserSubject or vanilla Subject from callAs() (ScopedValue)
@@ -681,14 +750,14 @@ reference.  Different users never share Kerberos connections.  Workload connecti
 
 #### Side-by-side comparison
 
-| | SSL (`SslEndpointImpl`) | Kerberos (`KerberosEndpoint`) |
-|---|---|---|
-| **Credential needed** | X.509 certificate / SPIFFE SVID | Kerberos TGT (`KerberosPrincipal`) |
-| **Primary Subject source** | `SpiffeCredentialManager.getInstance().getSubject()` (direct) | `Subject.current()` (user, `callAs`) |
-| **Fallback Subject source** | `Subject.getWorker()` (ACC combiner path) | `Subject.getSubject(acc)` (KerberosPrincipal filter) |
-| **`Subject.current()` used for TLS?** | **No** — never; `UserSubject`/vanilla always rejected | Yes — must have `KerberosPrincipal` |
-| **Connection cache isolation** | Not per-user (workload identity is shared) | Per-Subject; different users never share a connection |
-| **Why** | TLS is a machine/workload concern; only `WorkerSubject` has TLS credentials | Kerberos is a per-user concern; per-user credentials must not be mixed |
+| | SSL (`SslEndpointImpl`) | JWT/OIDC (`JwtLoginModule`) | Kerberos (`KerberosEndpoint`) — legacy |
+|---|---|---|---|
+| **Credential needed** | X.509 certificate / SPIFFE SVID | JWT access token (`JwtPrincipal`) | Kerberos TGT (`KerberosPrincipal`) |
+| **Primary Subject source** | `SpiffeCredentialManager.getInstance().getSubject()` (direct) | `Subject.current()` (`JwtPrincipal` filter) | `Subject.current()` (user, `callAs`) |
+| **Fallback Subject source** | `Subject.getWorker()` (ACC combiner path) | — | `Subject.getSubject(acc)` (`KerberosPrincipal` filter) |
+| **`Subject.current()` used?** | **No** — never; `UserSubject`/vanilla always rejected for TLS | **Yes** — JWT principals visible for policy checks | Yes — must have `KerberosPrincipal` |
+| **Connection cache isolation** | Not per-user (workload identity is shared) | Not applicable (JWT is stateless; token in `JwtPrincipal`) | Per-Subject; different users never share a connection |
+| **Why** | TLS is a machine/workload concern; only `WorkerSubject` has TLS credentials | JWT/OIDC is the standard modern user identity mechanism | Kerberos is a per-user concern; legacy deployments only |
 
 #### Interaction with JERI Dispatch (STD-003 v3 pattern)
 
@@ -707,15 +776,18 @@ Subject.callAs(() -> {                        // zero subjects = no user context
 Subject.callAs(() -> {                        // preferred multi-user varargs overload
     invoke(impl, method, args, context);
     return null;
-}, userSubject);                              // user on SCOPED_SUBJECT — Kerberos uses this
+}, userSubject);                              // user on SCOPED_SUBJECT — JWT/OIDC (or Kerberos legacy)
 ```
 
 An outbound TLS call made from inside `invoke()` will use the SPIFFE `WorkerSubject`
 retrieved directly from `SpiffeCredentialManager` (or `Subject.getWorker()` fallback).
-An outbound Kerberos call made from inside `invoke()` will use `userSubject` (from
-`Subject.current()`), so the GSS context is established as the authenticated client user.
-The server naturally acts on behalf of the user for Kerberos connections but uses its
-own workload certificate for TLS connections — no impersonation occurs.
+An outbound call that needs the authenticated user identity will use `userSubject` (from
+`Subject.current()`).  For JWT/OIDC users this means `JwtPrincipal` claims are visible
+for policy checks throughout the dispatch stack.  For legacy Kerberos deployments, the
+same `Subject.current()` lookup provides the `KerberosPrincipal` so the GSS context is
+established as the authenticated client user.
+The server naturally acts on behalf of the user for user-identity-sensitive operations
+but uses its own workload certificate for TLS connections — no impersonation occurs.
 
 ---
 
@@ -893,10 +965,11 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 | If the Subject is… | And the scope is… | Use… |
 |---|---|---|
 | `WorkerSubject` (SPIFFE workload identity) | Anywhere | **Do NOT pass to `doAs` or `callAs`** — it is ambient; baked into every `ProtectionDomain` at class load time; `doAs(WorkerSubject, ...)` is rejected with `IllegalArgumentException` |
-| `UserSubject` (authenticated user identity) | Any scope | `Subject.callAs(Callable, UserSubject...)` — preferred varargs overload; `WorkerSubject` excluded at compile time |
+| `UserSubject` from JWT/OIDC login (`JwtPrincipal`) | Any scope | `Subject.callAs(Callable, UserSubject...)` — preferred varargs overload; `WorkerSubject` excluded at compile time; **this is the preferred path** |
+| `UserSubject` (authenticated user identity, any type) | Any scope | `Subject.callAs(Callable, UserSubject...)` — preferred varargs overload; `WorkerSubject` excluded at compile time |
 | `UserSubject` or vanilla user `Subject` | Executor-submitted background task | Capture `Subject.current()` before submit; wrap task in `Subject.callAs(captured, ...)` or `Subject.callAs(() -> ..., (UserSubject) captured)` |
 | JAAS vanilla `Subject` (human identity, `LoginContext`) | Initialisation only (no cross-thread calls) | `Subject.callAs(loginSubject, action)` — makes Subject visible via `Subject.current()` |
-| Vanilla `Subject` (GSS/Kerberos internal use only) | GSS credential acquisition | Keep `Subject.doAs` — GSS-API JDK constraint; vanilla `Subject` only, not `WorkerSubject` or `UserSubject` |
+| Vanilla `Subject` (GSS/Kerberos internal use only — **legacy**) | GSS credential acquisition | Keep `Subject.doAs` — GSS-API JDK constraint; vanilla `Subject` only, not `WorkerSubject` or `UserSubject` |
 | Subject needed for `Subject.getSubject(acc)` check | Existing ACC-based check | Keep `Subject.getSubject(acc)` — reads the workload `WorkerSubject` from the ACC |
 
 ---
@@ -963,6 +1036,7 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 
 | Decision | Rationale |
 |---|---|
+| **JWT/OIDC (`JwtPrincipal`) is the primary user identity; Kerberos is legacy** | ✅ **v18:** JWT/OIDC is the modern standard for federated identity; stateless; no Kerberos KDC infrastructure required; `JwtPrincipal` integrates directly into the existing `writeUserPrincipals`/`instantiatePrincipal` JERI wire protocol via a single `(String)` constructor |
 | **`ContextKey.equals()` — `!` removed from final return** | ✅ **v16:** Inverted logic was security-critical bug — caused cache collisions between ACCs with different `privilegedContext` and cache misses for identical ones |
 | **`Subject.hashCode()` cached for read-only Subjects** | ✅ **v16:** Read-only Subjects are immutable; `synchronized` on every `hashCode()` call was unnecessary; `volatile` field + lazy init in `setReadOnly()` + restore in `readObject()` |
 | **`SubjectDomainCombiner.equals()/hashCode()` implemented** | ✅ **v16:** Previously unused `hashCode` field (initialised to `Subject.hashCode()`) was clearly intended to be used; completing the implementation ensures `ContextKey` cache correctly shares ACCs across threads with the same user Subject |
@@ -997,7 +1071,18 @@ Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 17, updated to document:*
+continue without loss of context. This is version 18, updated to document:*
+
+- *JWT/OIDC (`JwtPrincipal` / `JwtLoginModule` in `jgdms-security-jwt`) is the
+  **primary** human-user authentication mechanism*
+- *Kerberos retained for **legacy support only***
+- *All UserSubject examples updated to use `JwtPrincipal` / `JwtLoginModule`*
+- *§8.2, §9, §10.10, §10.11, §11.6, §13 revised*
+- *New module `jgdms-security-jwt` documented in §10.10*
+
+---
+
+*Previous version (v17) notes:*
 
 - *Alignment with **JGDMS-STD-003 v3** (Multi-Subject Identity Architecture)*
 - *Sealed Subject hierarchy formalised: `WorkerSubject` (sealed), `UserSubject` (final),
