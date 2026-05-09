@@ -74,6 +74,8 @@ public final class AccessControlContextSerializer implements Serializable {
      * ~8 GB allocation.  16 MB is more than sufficient for real payloads.
      */
     private static final int MAX_TOTAL_PAYLOAD_BYTES = 16 * 1024 * 1024;
+    /** Maximum value that fits in an unsigned 16-bit length field. */
+    private static final int MAX_UNSIGNED_SHORT_VALUE = 0xFFFF;
     private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
     public static SerialForm[] serialForm() {
@@ -253,7 +255,7 @@ public final class AccessControlContextSerializer implements Serializable {
     }
 
     private static void writeUnsignedShort(ByteArrayOutputStream out, int value) {
-        if (value < 0 || value > 0xFFFF) {
+        if (value < 0 || value > MAX_UNSIGNED_SHORT_VALUE) {
             throw new IllegalArgumentException("value out of unsigned short range: " + value);
         }
         out.write((value >>> 8) & 0xFF);

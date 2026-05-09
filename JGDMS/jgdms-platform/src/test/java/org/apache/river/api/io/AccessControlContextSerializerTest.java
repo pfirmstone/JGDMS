@@ -212,6 +212,7 @@ public class AccessControlContextSerializerTest {
     public void testUnmarshalRejectsOversizedTotalPayload() throws Exception {
         // Build a fake payload that claims to be larger than MAX_TOTAL_PAYLOAD_BYTES (16 MB).
         // We don't need to fill it — just make the byte array large enough to trigger the check.
+        // 16 MB — must match MAX_TOTAL_PAYLOAD_BYTES in AccessControlContextSerializer.
         int oversize = 16 * 1024 * 1024 + 1;
         byte[] huge = new byte[oversize];
         // count=1 in the first 4 bytes so the parser reaches the budget check.
