@@ -365,7 +365,10 @@ public final class AccessControlContextSerializer implements Serializable {
             byte[] loc = location.getBytes(StandardCharsets.UTF_8);
             writeShort(out, loc.length);
             out.write(loc);
-            int count = Math.min(principalTypes.length, principalNames.length);
+            if (principalTypes.length != principalNames.length) {
+                throw new InvalidObjectException("principal type/name length mismatch");
+            }
+            int count = principalTypes.length;
             writeShort(out, count);
             for (int i = 0; i < count; i++) {
                 byte[] type = principalTypes[i].getBytes(StandardCharsets.UTF_8);
@@ -384,7 +387,10 @@ public final class AccessControlContextSerializer implements Serializable {
             if (authenticatedSubject != null) {
                 principals = authenticatedSubject.getPrincipals().toArray(new Principal[authenticatedSubject.getPrincipals().size()]);
             } else {
-                principals = new Principal[Math.min(principalTypes.length, principalNames.length)];
+                if (principalTypes.length != principalNames.length) {
+                    throw new InvalidObjectException("principal type/name length mismatch");
+                }
+                principals = new Principal[principalTypes.length];
                 for (int i = 0; i < principals.length; i++) {
                     principals[i] = new NamedPrincipal(principalNames[i]);
                 }
