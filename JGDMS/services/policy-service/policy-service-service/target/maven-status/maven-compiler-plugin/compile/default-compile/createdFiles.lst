@@ -1,5 +1,0 @@
-au/net/zeus/jgdms/policy/InMemoryPolicyServiceImpl.class
-au/net/zeus/jgdms/policy/ActivatableInMemoryPolicyServiceImpl$PolicyServiceParameters.class
-au/net/zeus/jgdms/policy/InMemoryPolicyServiceImpl$ListenerRegistration.class
-au/net/zeus/jgdms/policy/ActivatableInMemoryPolicyServiceImpl.class
-au/net/zeus/jgdms/policy/InMemoryPolicyServiceImpl$SendPolicyUpdateTask.class
