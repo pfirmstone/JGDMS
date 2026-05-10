@@ -1,12 +1,54 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v19)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v20)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v18.
+context. It supersedes and extends v19.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v20 Change Summary
+
+This version documents the **`DigestGrant` implementation** in DirtyChai — a new
+`PermissionGrant` subtype that conditions grants on the SHA-256 content hash of a
+JAR file, complementing the existing `URIGrant` and `CertificateGrant` hierarchy.
+All seven files touched are complete and consistent.
+
+**New/changed in v20:**
+
+- **`DigestCodeSource`** — new `CodeSource` subclass carrying `byte[] digest` and
+  `String digestAlgorithm`; used by `SecureClassLoader` when loading from a
+  content-verified JAR; `implies()` delegates to `DigestGrant` for hash comparison.
+- **`DigestGrant extends URIGrant`** — new grant type; `implies(CodeSource, Principal[])`
+  checks URI first then verifies `DigestCodeSource.getDigest()` matches; `toString()`
+  prepends `digest "algorithm:hexValue",\n` before the `URIGrant` chain.
+- **`PermissionGrantBuilder.DIGEST` context constant** — new int constant; `build()`
+  switch routes to `new DigestGrant(...)`.
+- **`PermissionGrantBuilder.digest(String, byte[])` method** — new builder method
+  storing algorithm + raw bytes for `DigestGrant` construction.
+- **`PermissionGrantBuilderImp`** — implements `digest()` and `DIGEST` case in `build()`.
+- **`DefaultPolicyScanner.GrantEntry`** — added `private final String digest` field
+  (raw `"algorithm:hexValue"` string), updated constructor, added `getDigest()` accessor;
+  `toString()` updated to include digest.
+- **`DefaultPolicyScanner.readGrantEntry()`** — added `"digest"` keyword recognition
+  alongside `"codebase"` and `"signedby"`; passes `digest` to `GrantEntry` constructor.
+- **`DefaultPolicyParser.resolveGrant()`** — reads `ge.getDigest()`; if non-null,
+  splits on `:`, hex-decodes value via `hexDecode()`, calls
+  `pgb.digest(algorithm, bytes).context(DIGEST)`; otherwise `context(URI)`.
+- **`DefaultPolicyParser.hexDecode()`** — new private static helper; validates even
+  length and valid hex characters; throws `InvalidFormatException` on error.
+- **`SecurityPolicyWriter`** — emits `digest "algorithm:hexValue",\n` clause when the
+  `CodeSource` is a `DigestCodeSource`; added `hexEncode(byte[])` private static helper;
+  `hasDigest || hasPrincipals` controls comma placement after `codebase`.
+- **`DefaultPolicyParser` missing methods restored** — `getURI()`, `segment()`,
+  `expandURLs()`, `resolvePermission()`, `PermissionExpander`, `resolveSigners()`
+  (both overloads) were accidentally dropped during editing and have been restored.
+- **§1 document table** updated with all new/modified files.
+- **§12 work items** updated — `DigestGrant` plan items marked complete.
+- **§13** four new design decisions added.
 
 ---
 
@@ -205,6 +247,14 @@ re-establishment for `Subject.current()` in spawned threads.
 | `SpiffeCredentialManager.java` (JGDMS) | `net.jini.jeri.ssl` | ✅ **Reviewed (v19):** JGDMS implementation; uses standard Java APIs; constructs vanilla `Subject` with `X500Principal` + `SpiffePrincipal`; `updateSubjectCredentials()` atomically rotates principals + credentials under `synchronized (subject)`; `SpiffeSubjectHolder.set(subject)` on start; `ScheduledExecutorService` for renewal; `AutoCloseable` |
 | `SpiffeCredentialManager.java` (DirtyChai) | `au.zeus.jdk.authorization.spire` | ✅ **Reviewed (v19):** JDK bootstrap implementation; constructs sealed `SpiffeSubject extends WorkerSubject`; bootstrap-safe (no lambdas, `sun.security.util.Debug`); module-private `SpiffeSubject` constructor; `Subject.processWorker()` delegates here |
 | `LocalWorkerSubject.java` → `WorkerSubject.java` | DirtyChai source | ✅ **Renamed (v19):** Class renamed from `LocalWorkerSubject` to `WorkerSubject` throughout |
+| `DigestCodeSource.java` | DirtyChai source | ✅ **New (v20):** `CodeSource` subclass; carries `byte[] digest` + `String digestAlgorithm`; `implies()` delegates hash comparison to `DigestGrant`; used by `SecureClassLoader` for content-verified JARs |
+| `DigestGrant.java` | DirtyChai source (`org.apache.river.api.security`) | ✅ **New (v20):** Extends `URIGrant`; `implies(CodeSource, Principal[])` checks URI then digest match; `implies(ClassLoader, Principal[])` returns `false` unconditionally (no content hash from ClassLoader); `toString()` prepends `digest "alg:hex",\n` |
+| `PermissionGrantBuilder.java` | DirtyChai source | ✅ **Updated (v20):** New `DIGEST` int constant; new `digest(String algorithm, byte[] digest)` method |
+| `PermissionGrantBuilderImp.java` | DirtyChai source | ✅ **Updated (v20):** Implements `digest()` builder method; `DIGEST` case in `build()` constructs `DigestGrant` |
+| `DefaultPolicyScanner.java` | DirtyChai source | ✅ **Updated (v20):** `GrantEntry` has new `String digest` field + `getDigest()` + updated constructor + `toString()` includes digest; `readGrantEntry()` recognises `"digest"` keyword |
+| `DefaultPolicyParser.java` | DirtyChai source | ✅ **Updated (v20):** `resolveGrant()` reads `ge.getDigest()`, hex-decodes, selects `DIGEST` vs `URI` context; new `hexDecode()` helper; missing methods `getURI()`, `segment()`, `expandURLs()`, `resolvePermission()`, `PermissionExpander`, `resolveSigners()` restored |
+| `SecurityPolicyWriter.java` | DirtyChai source | ✅ **Updated (v20):** Emits `digest "alg:hex",\n` clause for `DigestCodeSource`; new `hexEncode(byte[])` helper; hasDigest \|\| hasPrincipals controls comma placement after codebase |
+
 ---
 
 ## 2. Full Architecture Summary
@@ -1300,6 +1350,15 @@ executor.submit(() -> {
     - Boot-time permissive: when registry is not yet injected (`null`), check is skipped
     - Unit tests in `jgdms-pref-class-loader/src/test/` cover all verdict outcomes and null-registry case
 25. **`DiscoveryCredentialProvider` interface** — *(not yet started; referenced in design docs only)*
+26. **`DigestGrant` plan — DirtyChai** — ✅ *completed (v20)*
+    - `DigestCodeSource` — content-hash-carrying `CodeSource` subclass
+    - `DigestGrant extends URIGrant` — new grant type; URI checked first, digest second
+    - `PermissionGrantBuilder.DIGEST` constant + `digest(String, byte[])` method
+    - `PermissionGrantBuilderImp` — wired up
+    - `DefaultPolicyScanner` — `digest "alg:hex"` token recognised
+    - `DefaultPolicyParser` — `hexDecode()` + `DIGEST` context routing
+    - `SecurityPolicyWriter` — `hexEncode()` + `DigestCodeSource` detection
+    - Policy file round-trip: write → parse → `DigestGrant` fully functional
 
 ---
 
@@ -1387,6 +1446,10 @@ executor.submit(() -> {
 | **`Thread.scopedSubjects` is `Subject[]` not single `Subject`** | ✅ **v19:** Mirrors `SCOPED_SUBJECT ScopedValue<Subject[]>`; full transaction array captured at construction; `runWith()` re-establishes all subjects via `callNoCheck(scopedSubjects, action)`; `Subject.currentAll()` works correctly in spawned threads for multi-party transactions |
 | **`getContext()` multi-subject loop with per-iteration `SubjectDomainCombiner`** | ✅ **v19:** Each `UserSubject` in the array gets its own `combine()` pass; principals accumulate progressively; final ACC contains all merged; `WorkerSubject` skipped; `existing` combiner preserved across all iterations; `privilegedContext` enriched per subject |
 | **`SubjectAccess.get()` returns `Subject[]`** | ✅ **v19:** `NoCheck.current()` returns `Subject[]`; `SubjectAccess.get()` delegates to `current()`; consistent with `SCOPED_SUBJECT` type; no single-subject extraction at this level |
+| **`DigestGrant extends URIGrant`** | ✅ **v20:** `DigestGrant` is a URI grant with an additional content-hash constraint; URI match must pass before digest is checked; extending `URIGrant` reuses all URI/certificate/principal matching without duplication; `toString()` naturally prepends `digest` before `codebase` following the hierarchy prepend pattern |
+| **`digest "algorithm:hexValue"` single-token policy syntax** | ✅ **v20:** Algorithm and hex value colon-separated inside one quoted string; mirrors `httpmd:` URL convention; scanner stores raw string, parser splits on first `:` and hex-decodes; no grammar ambiguity — colon cannot appear unquoted in a grant header |
+| **`DigestGrant.implies(ClassLoader, Principal[])` returns `false`** | ✅ **v20:** A `ClassLoader` carries no content hash; returning `false` (indeterminate) rather than delegating to `URIGrant` is the correct fail-secure behaviour; `URIGrant`'s existing override already handles that path correctly for plain URI grants |
+| **`SecurityPolicyWriter` detects `DigestCodeSource` at write time** | ✅ **v20:** `DigestCodeSource instanceof` check at write time enables policy round-trip; `hasDigest \|\| hasPrincipals` controls comma placement ensuring valid grant header syntax regardless of which optional clauses are present |
 
 ---
 
