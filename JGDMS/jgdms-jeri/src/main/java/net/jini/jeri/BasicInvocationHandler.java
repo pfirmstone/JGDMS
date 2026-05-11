@@ -181,6 +181,25 @@ public class BasicInvocationHandler
     private static final Logger logger =
 	Logger.getLogger("net.jini.jeri.BasicInvocationHandler");
 
+    /**
+     * DirtyChai JDK extension: {@code Subject.currentAll()} returns all
+     * user Subjects bound to the current thread via {@code Subject.callAs},
+     * outermost-first.  {@code null} on a standard JDK that only provides
+     * {@code Subject.current()}.  Cached once at class-load time.
+     */
+    private static final Method CURRENT_ALL_METHOD;
+    static {
+	Method m = null;
+	try {
+	    m = Subject.class.getMethod("currentAll");
+	} catch (NoSuchMethodException ignored) {
+	    // Standard JDK — Subject.currentAll() not available
+	} catch (SecurityException ignored) {
+	    // Security manager denied reflective access — treat as not available
+	}
+	CURRENT_ALL_METHOD = m;
+    }
+
     /** size of the method constraint cache (per instance) */
     private static final int CACHE_SIZE = 3;
 
@@ -1714,8 +1733,8 @@ public class BasicInvocationHandler
      * Returns all user Subjects bound to the current thread via
      * {@code Subject.callAs}, outermost-first.
      *
-     * <p>On the DirtyChai JDK, {@code Subject.currentAll()} is called via
-     * reflection to obtain the full {@code Subject[]} array.  On a standard
+     * <p>On the DirtyChai JDK, {@link #CURRENT_ALL_METHOD} ({@code Subject.currentAll()})
+     * is invoked to obtain the full {@code Subject[]} array.  On a standard
      * JDK that only exposes {@code Subject.current()}, a single-element array
      * is returned.  An empty array is returned when no user Subject is present.
      *
@@ -1725,15 +1744,13 @@ public class BasicInvocationHandler
      */
     @SuppressWarnings("unchecked")
     private static Subject[] getAllUserSubjects() {
-	try {
-	    // DirtyChai JDK extension: Subject.currentAll() returns Subject[]
-	    Method currentAll = Subject.class.getMethod("currentAll");
-	    Subject[] arr = (Subject[]) currentAll.invoke(null);
-	    if (arr != null && arr.length > 0) return arr;
-	} catch (NoSuchMethodException ignored) {
-	    // Standard JDK — fall through to Subject.current()
-	} catch (Exception ignored) {
-	    // Any other reflective failure — fall through
+	if (CURRENT_ALL_METHOD != null) {
+	    try {
+		Subject[] arr = (Subject[]) CURRENT_ALL_METHOD.invoke(null);
+		if (arr != null && arr.length > 0) return arr;
+	    } catch (Exception ignored) {
+		// Reflective invocation failure — fall through to Subject.current()
+	    }
 	}
 	Subject single = Subject.current();
 	return single != null ? new Subject[]{single} : new Subject[0];
