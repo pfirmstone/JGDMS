@@ -32,7 +32,7 @@ syntax ignores `digest` clauses and ignores the JAR manifest file.
 | Term | Meaning |
 |------|---------|
 | `CodeSource` | `java.security.CodeSource` — a (URL, certificate-set) pair that identifies where code was loaded from. |
-| `DigestCodeSource` | `java.security.DigestCodeSource` — a `CodeSource` sub-type (introduced in JDK 24 / DirtyChai) whose identity is primarily a set of `MessageDigest` values rather than a URL. |
+| `DigestCodeSource` | `java.security.DigestCodeSource` — a `CodeSource` sub-type (introduced in JDK 24 / DirtyChai) whose identity is a single `(String algorithm, byte[] digest)` pair rather than a URL. |
 | HTTPMD URL | A URL with scheme `httpmd:` whose path encodes a message-digest algorithm and hex value; serves as an integrity-verified codebase URL (pre-existing, JGDMS 2.0+). |
 | Permissions.list | The file `META-INF/Permissions.list` inside a JAR archive; declares the permissions the JAR requires, in policy-file `permission` syntax. |
 | BAE | Bytecode Analysis Engine (JGDMS-STD-002) — reads `Permissions.list` at analysis time. |
@@ -94,8 +94,9 @@ httpmd:<relative-path>;<algorithm>=<hex-digest>[,<comment>]
 ```
 
 *   `<algorithm>` — a JCA `MessageDigest` algorithm name in any case
-    (e.g. `sha-256`, `SHA-256`, `md5`).  Implementations **must** support at
-    least `SHA-256`; use of `md5` or `sha-1` is deprecated.
+    (e.g. `sha-256`, `SHA-256`).  Implementations **must** support at
+    least `SHA-256`.  Note: HTTPMD URLs accept any JCA algorithm; the `digest`
+    grant field additionally requires a strong algorithm — see §3.4.
 *   `<hex-digest>` — lowercase hexadecimal encoding of the digest bytes.
 *   `<comment>` — optional free-text comment after the digest; ignored by the engine.
 
@@ -182,11 +183,16 @@ content matches the digest, regardless of where it was loaded from.
 
 ### 3.4 Algorithm requirements
 
+`java.security.DigestCodeSource` enforces algorithm strength at construction time: passing
+`"MD5"` or `"SHA-1"` (or any other algorithm considered cryptographically weak) throws
+`IllegalArgumentException`.  The standard therefore permits only strong algorithms for
+`digest` grant fields.
+
 | Level | Algorithm | Requirement |
 |-------|-----------|-------------|
 | Mandatory | `SHA-256` | Implementations MUST support |
 | Recommended | `SHA-512` | Implementations SHOULD support |
-| Deprecated | `SHA-1`, `MD5` | Implementations MUST accept but SHOULD emit a warning |
+| Rejected | `SHA-1`, `MD5` | `DigestCodeSource` throws `IllegalArgumentException`; parser MUST reject the clause |
 
 ### 3.5 Policy tool support
 
@@ -545,6 +551,9 @@ A conforming JGDMS policy engine (parser + provider) **MUST**:
       and `java.security.DigestCodeSource` is available.
 - [x] Silently drop `digest`-only grants (with a `WARNING` log entry) when
       `DigestCodeSource` is not available.
+- [x] Reject (log + skip) a `digest` field whose algorithm is cryptographically weak
+      (e.g. `MD5`, `SHA-1`) — `DigestCodeSource` throws `IllegalArgumentException`
+      for such algorithms; the parser must catch this and drop the clause.
 - [x] Reject (log + skip) a `digest` field whose hex value length is inconsistent
       with the named algorithm's output size.
 - [x] Treat digest comparison as case-insensitive hex.
