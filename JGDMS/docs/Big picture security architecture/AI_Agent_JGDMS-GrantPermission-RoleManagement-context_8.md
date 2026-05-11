@@ -2,7 +2,7 @@
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v21.
+context. It supersedes and extends v22.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
@@ -815,7 +815,7 @@ JGDMS JERI dispatch handles three identity layers as specified in **JGDMS-STD-00
 3. **User identity** (`UserSubject` or vanilla `Subject`) — carried in `SCOPED_SUBJECT`;
    injected into stack domains and `privilegedContext`; survives `doPrivileged`.
 
-### 10.2 Remote ACC Serialization and `DomainCombiner` Retention
+### 10.2 Remote ACC Serialization and Anonymous Domain Preservation
 
 Remote process identity travels as `ProtectionDomain`s in a serialized
 `AccessControlContext`.  `AccessControlContext` is serialized using `@AtomicSerial`.
@@ -830,6 +830,30 @@ A `DomainCombiner` on the receiving JVM:
 `DomainCombiner` is retained as a **Java API compatibility layer** specifically for this
 receiving-side verification role.  `SubjectDomainCombiner` is deprecated.
 `CombinerSecurityManager` refactoring is deferred.
+
+#### 10.2.1 Domain Stripping Removed — Anonymous Count Transport (v23)
+
+Prior to v23 the sender silently dropped every non-HTTPMD, non-`DigestCodeSource` domain
+from the ACC before transmission.  Because those domains act as **permission ceilings**
+in the sender's ACC their removal was an implicit privilege escalation.
+
+`AccessControlContextSerializer.marshalForTransport()` now uses a single binary format:
+
+```
+[httpmdCount: 4 B BE][DomainIdentityRecord…][anonCount: 4 B BE]
+```
+
+`anonCount` is the number of non-HTTPMD, non-`DigestCodeSource` domains in the sender's
+ACC that could not be transported with a verifiable identity.  On the receiver,
+`unmarshalHttpmdDomains()` reconstructs one placeholder `ProtectionDomain(null CS, null
+perms)` per anonymous domain.  Placeholder permissions are resolved by the server's
+security policy at `checkPermission` time.
+
+**`jrt:/java.base` exclusion:** The `java.base` JDK module domain is present in every
+running JVM and carries no useful diagnostic identity.  It is excluded from `anonCount`
+to avoid inflating the transport payload.  All other `jrt:` module domains (e.g.
+`jrt:/jdk.crypto.ec`) **are retained** because their presence can identify processes
+running a specific (potentially vulnerable) JDK module version.
 
 **`RemotePolicy` grant example (remote code + remote process):**
 ```

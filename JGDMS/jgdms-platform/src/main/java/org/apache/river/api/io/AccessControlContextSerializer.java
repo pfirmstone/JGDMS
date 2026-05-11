@@ -116,6 +116,15 @@ public final class AccessControlContextSerializer implements Serializable {
      * compile-time dependency on that JDK-specific class.
      */
     private static final String DIGEST_CODESOURCE_CLASS_NAME = "java.security.DigestCodeSource";
+    /**
+     * The {@code jrt:} CodeSource location of the {@code java.base} JDK module.
+     * This domain is present in the ACC of every running JVM and carries no
+     * useful diagnostic identity; it is excluded from the anonymous domain count
+     * to avoid inflating the transport payload.  All other {@code jrt:} module
+     * domains (e.g. {@code jrt:/jdk.crypto.ec}) are retained because their
+     * presence can identify processes running a vulnerable JDK module.
+     */
+    private static final String JRT_JAVA_BASE_LOCATION = "jrt:/java.base";
     private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
     public static SerialForm[] serialForm() {
@@ -131,15 +140,81 @@ public final class AccessControlContextSerializer implements Serializable {
         arg.writeArgs();
     }
 
+    /**
+     * Serialises the HTTPMD-verifiable {@link ProtectionDomain}s from
+     * {@code acc} into a compact binary payload for JERI transport.
+     *
+     * <p><b>Transport format:</b>
+     * <pre>
+     *   [httpmdCount: 4 bytes BE][DomainIdentityRecord...][anonCount: 4 bytes BE]
+     * </pre>
+     * {@code httpmdCount} is the number of HTTPMD-verifiable domains that follow.
+     * {@code anonCount} is the number of non-HTTPMD, non-{@code DigestCodeSource}
+     * ("anonymous") domains present in the sender's ACC that could not be
+     * transported with a verifiable identity.
+     *
+     * <p><b>Anonymous domain preservation:</b> Non-HTTPMD, non-{@code DigestCodeSource}
+     * domains in the sender's ACC cannot be transported with a verifiable identity,
+     * but they act as <em>permission ceilings</em> — their removal would be an
+     * implicit privilege escalation.  The {@code anonCount} field allows the
+     * receiver to reconstruct placeholder domains (null {@code CodeSource},
+     * policy-deferred permissions) that preserve their ceiling effect without
+     * asserting any specific identity claim.
+     *
+     * <p>The {@code jrt:/java.base} domain is excluded from {@code anonCount}
+     * because it is present in the ACC of every running JVM and carries no
+     * diagnostic value.  All other {@code jrt:} module domains are retained:
+     * their presence indicates which JDK modules are loaded and can identify
+     * processes running a specific (potentially vulnerable) module version.
+     *
+     * @param acc the {@link AccessControlContext} to marshal; {@code null} returns
+     *            an empty byte array
+     * @return the binary transport payload, or an empty byte array when {@code acc}
+     *         contains no HTTPMD-verifiable domains
+     */
     public static byte[] marshalForTransport(AccessControlContext acc) throws IOException {
         if (acc == null) return new byte[0];
-        DomainIdentityRecord[] records = recordsFromContext(acc, null);
-        if (records.length == 0) return new byte[0];
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
-        writeInt(baos, records.length);
-        for (int i = 0; i < records.length; i++) {
-            records[i].writeTo(baos);
+        ProtectionDomain[] extracted = extractDomains(acc);
+        List<DomainIdentityRecord> records = new ArrayList<DomainIdentityRecord>(extracted.length);
+        int anonCount = 0;
+        for (int i = 0; i < extracted.length; i++) {
+            DomainIdentityRecord r = DomainIdentityRecord.from(extracted[i], null);
+            if (r != null) {
+                records.add(r);
+            } else {
+                // Domain is neither HTTPMD-verifiable nor a DigestCodeSource handled
+                // by marshalDigestForTransport().  These domains cannot be transported
+                // with a verifiable identity but still act as permission ceilings in
+                // the sender's ACC; count them so the receiver can reconstruct
+                // placeholder domains to preserve their ceiling effect.
+                //
+                // Exception: jrt:/java.base is present in every JVM ACC and carries
+                // no diagnostic value, so it is excluded to keep the payload compact.
+                // All other jrt: module domains are retained (they identify which JDK
+                // modules are loaded and may flag vulnerable-module processes).
+                CodeSource cs = extracted[i].getCodeSource();
+                boolean isDigest = cs instanceof Externalizable
+                        && DIGEST_CODESOURCE_CLASS_NAME.equals(cs.getClass().getName());
+                if (!isDigest) {
+                    URL loc = cs != null ? cs.getLocation() : null;
+                    String locText = loc != null ? loc.toExternalForm() : null;
+                    if (!JRT_JAVA_BASE_LOCATION.equals(locText)) {
+                        anonCount++;
+                    }
+                }
+            }
         }
+        if (records.isEmpty()) {
+            // No HTTPMD-verifiable domains to anchor the remote identity.
+            // Do not send the ACC — there is nothing the receiver can verify.
+            return new byte[0];
+        }
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+        writeInt(baos, records.size());
+        for (int i = 0; i < records.size(); i++) {
+            records.get(i).writeTo(baos);
+        }
+        writeInt(baos, anonCount);
         return baos.toByteArray();
     }
 
@@ -197,8 +272,14 @@ public final class AccessControlContextSerializer implements Serializable {
     }
 
     /**
-     * Reads the HTTPMD-only binary transport payload and returns the
-     * resulting {@link ProtectionDomain} array.
+     * Reads the binary transport payload and returns the resulting
+     * {@link ProtectionDomain} array.
+     *
+     * <p>Payload format: {@code [httpmdCount: 4B BE][DomainIdentityRecord…][anonCount: 4B BE]}.
+     * For each anonymous domain a placeholder {@link ProtectionDomain} with
+     * {@code null} {@link CodeSource} and {@code null}
+     * {@link java.security.PermissionCollection} is reconstructed; its permissions
+     * are determined by the server's security policy at run time.
      */
     private static ProtectionDomain[] unmarshalHttpmdDomains(byte[] data, Subject authenticatedSubject) throws IOException {
         if (data == null || data.length == 0) {
@@ -212,18 +293,36 @@ public final class AccessControlContextSerializer implements Serializable {
         if (count < 0 || count > MAX_DOMAIN_COUNT) {
             throw new InvalidObjectException("invalid domain count: " + count);
         }
-        if (count == 0) {
-            // Normalise: zero-domain payload carries no identity, same as empty data.
-            return new ProtectionDomain[0];
-        }
         DomainIdentityRecord[] records = new DomainIdentityRecord[count];
         for (int i = 0; i < count; i++) {
             records[i] = DomainIdentityRecord.readFrom(in);
         }
+        int anonCount = readInt(in);
+        if (anonCount < 0 || anonCount > MAX_DOMAIN_COUNT) {
+            throw new InvalidObjectException("invalid anonymous domain count: " + anonCount);
+        }
         if (in.read() != -1) {
             throw new InvalidObjectException("unexpected trailing bytes");
         }
-        return toProtectionDomains(records, authenticatedSubject);
+        if (count == 0 && anonCount == 0) {
+            // Normalise: zero-domain payload carries no identity, same as empty data.
+            return new ProtectionDomain[0];
+        }
+        List<ProtectionDomain> domains = new ArrayList<ProtectionDomain>(count + anonCount);
+        for (ProtectionDomain pd : toProtectionDomains(records, authenticatedSubject)) {
+            domains.add(pd);
+        }
+        // Reconstruct placeholder domains for each anonymous (non-HTTPMD,
+        // non-DigestCodeSource) domain counted by the sender.  A null CodeSource
+        // with null PermissionCollection defers permission decisions to the
+        // server's security policy; this mirrors how the sender's actual
+        // non-verifiable domain would behave if it could be faithfully reproduced.
+        for (int i = 0; i < anonCount; i++) {
+            domains.add(new ProtectionDomain(
+                    new CodeSource(null, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]));
+        }
+        return domains.toArray(new ProtectionDomain[0]);
     }
 
     /**
@@ -344,6 +443,24 @@ public final class AccessControlContextSerializer implements Serializable {
         return context;
     }
 
+    /**
+     * Extracts the HTTPMD-verifiable {@link DomainIdentityRecord}s from
+     * {@code acc} for inclusion in the serial form of this class.
+     *
+     * <p>Only domains whose {@link CodeSource} location is a syntactically
+     * valid {@code httpmd:} URL are included.  {@code DigestCodeSource} domains
+     * are excluded here because they are handled separately by
+     * {@link #marshalDigestForTransport}.  Non-verifiable domains (file URLs,
+     * {@code null} locations, plain {@code http:} URLs, etc.) are dropped;
+     * they are counted and preserved as anonymous placeholder domains in the
+     * JERI wire transport by {@link #marshalForTransport} to avoid the
+     * implicit privilege escalation that silent removal would cause.
+     *
+     * @param acc             the context to inspect; may be {@code null}
+     * @param subjectOverride when non-{@code null}, replaces the domain's own
+     *                        principals with those of this {@code Subject}
+     * @return the array of HTTPMD records; never {@code null}
+     */
     private static DomainIdentityRecord[] recordsFromContext(AccessControlContext acc, Subject subjectOverride) {
         ProtectionDomain[] extracted = extractDomains(acc);
         if (extracted.length == 0) return new DomainIdentityRecord[0];

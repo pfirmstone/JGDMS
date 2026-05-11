@@ -49,14 +49,18 @@ public class AccessControlContextSerializerTest {
 
             byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
             Assert.assertTrue(encoded.length > 0);
-            Assert.assertEquals(1, readInt(encoded));
+            // Format: [httpmdCount: 4B][records...][anonCount: 4B]
+            // The single HTTPMD domain is encoded first.
+            Assert.assertEquals("httpmd count must be 1", 1, readInt(encoded));
 
             Subject authenticated = new Subject();
             authenticated.getPrincipals().add(new X500Principal("CN=worker"));
             AccessControlContext reconstructed =
                     AccessControlContextSerializer.unmarshalForTransport(encoded, authenticated);
+            Assert.assertNotNull("reconstructed ACC must not be null", reconstructed);
             byte[] reencoded = AccessControlContextSerializer.marshalForTransport(reconstructed);
-            Assert.assertEquals(1, readInt(reencoded));
+            Assert.assertTrue("re-encoded payload must be non-empty", reencoded.length > 0);
+            Assert.assertEquals("re-encoded httpmd count must be 1", 1, readInt(reencoded));
         } finally {
             if (oldHandlers == null) {
                 System.clearProperty("java.protocol.handler.pkgs");
@@ -202,8 +206,8 @@ public class AccessControlContextSerializerTest {
 
     @Test
     public void testUnmarshalZeroDomainCountReturnsNull() throws Exception {
-        // A 4-byte payload encoding count=0 should behave the same as an empty payload.
-        byte[] payload = new byte[]{0, 0, 0, 0};
+        // An 8-byte payload encoding httpmdCount=0 and anonCount=0 carries no identity.
+        byte[] payload = new byte[]{0, 0, 0, 0,  0, 0, 0, 0};
         AccessControlContext result = AccessControlContextSerializer.unmarshalForTransport(payload, null);
         Assert.assertNull("zero-domain payload should normalise to null", result);
     }
@@ -258,9 +262,8 @@ public class AccessControlContextSerializerTest {
     }
 
     /**
-     * Verifies that the HTTPMD-only transport bytes produced by
-     * {@code marshalForTransport} round-trip correctly.
-     * The first 4 bytes of the transport payload encode the domain count.
+     * Verifies that the HTTPMD transport bytes produced by {@code marshalForTransport}
+     * round-trip correctly.  Format: {@code [httpmdCount: 4B][records…][anonCount: 4B]}.
      */
     @Test
     public void testHttpmdTransportRoundTrip() throws Exception {
@@ -275,11 +278,146 @@ public class AccessControlContextSerializerTest {
                     null, null, new java.security.Principal[0]);
             AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{pd});
             byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
-            // First 4 bytes encode the count (= 1)
-            Assert.assertEquals(1, readInt(encoded));
-            // Must be parseable on round-trip
+            Assert.assertTrue("encoded payload must be non-empty", encoded.length > 0);
+            // First 4 bytes are always the HTTPMD domain count.
+            Assert.assertEquals("HTTPMD domain count must be 1", 1, readInt(encoded));
+            // Must be parseable on round-trip.
             AccessControlContext decoded = AccessControlContextSerializer.unmarshalForTransport(encoded, null);
             Assert.assertNotNull(decoded);
+        } finally {
+            if (oldHandlers == null) {
+                System.clearProperty("java.protocol.handler.pkgs");
+            } else {
+                System.setProperty("java.protocol.handler.pkgs", oldHandlers);
+            }
+        }
+    }
+
+    /**
+     * Verifies that the count of non-HTTPMD, non-DigestCodeSource ("anonymous")
+     * domains is preserved through a marshal/unmarshal round-trip.
+     *
+     * <p>An ACC with 1 HTTPMD domain and 2 plain-HTTP domains is marshalled.
+     * The resulting payload must use version-1 format (first byte 0x01), with
+     * the HTTPMD domain count = 1 and the anonymous domain count = 2.
+     * After unmarshal, the reconstructed ACC must be non-null and the payload
+     * must survive re-encoding with the same HTTPMD count.
+     */
+    /**
+     * Verifies that the count of non-HTTPMD, non-DigestCodeSource ("anonymous")
+     * domains is preserved through a marshal/unmarshal round-trip.
+     *
+     * <p>An ACC with 1 HTTPMD domain and 2 plain-HTTP domains is marshalled.
+     * Format: {@code [httpmdCount: 4B][records…][anonCount: 4B]}.
+     * The HTTPMD domain count = 1 and the anonymous domain count = 2.
+     */
+    @Test
+    public void testAnonDomainCountPreservedInTransport() throws Exception {
+        String oldHandlers = System.getProperty("java.protocol.handler.pkgs");
+        System.setProperty("java.protocol.handler.pkgs", "net.jini.url");
+        try {
+            URL httpmd = new URL(null,
+                    "httpmd://repo.example.org/stub.jar;sha-256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    new PassThroughHandler());
+            URL plain1 = new URL("http://repo.example.org/app.jar");
+            URL plain2 = new URL("http://repo.example.org/framework.jar");
+
+            ProtectionDomain httpmdPd = new ProtectionDomain(
+                    new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            ProtectionDomain plain1Pd = new ProtectionDomain(
+                    new CodeSource(plain1, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            ProtectionDomain plain2Pd = new ProtectionDomain(
+                    new CodeSource(plain2, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            AccessControlContext acc = new AccessControlContext(
+                    new ProtectionDomain[]{httpmdPd, plain1Pd, plain2Pd});
+
+            byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
+            Assert.assertTrue("encoded payload must be non-empty", encoded.length > 0);
+            // First 4 bytes are the HTTPMD domain count.
+            Assert.assertEquals("httpmd domain count must be 1", 1, readInt(encoded));
+            // Anonymous domain count is the last 4 bytes of the payload.
+            Assert.assertEquals("anonymous domain count must be 2", 2, readIntAt(encoded, encoded.length - 4));
+
+            // Unmarshal and verify round-trip.
+            AccessControlContext decoded =
+                    AccessControlContextSerializer.unmarshalForTransport(encoded, null);
+            Assert.assertNotNull("decoded ACC must not be null", decoded);
+        } finally {
+            if (oldHandlers == null) {
+                System.clearProperty("java.protocol.handler.pkgs");
+            } else {
+                System.setProperty("java.protocol.handler.pkgs", oldHandlers);
+            }
+        }
+    }
+
+    /**
+     * Verifies that an ACC containing only non-HTTPMD domains produces an empty
+     * transport payload, because without any HTTPMD domain there is no verifiable
+     * remote code identity to anchor the context.
+     */
+    @Test
+    public void testOnlyAnonDomainsProducesEmptyPayload() throws Exception {
+        URL plain = new URL("http://repo.example.org/app.jar");
+        ProtectionDomain plainPd = new ProtectionDomain(
+                new CodeSource(plain, (java.security.cert.Certificate[]) null),
+                null, null, new java.security.Principal[0]);
+        AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{plainPd});
+        byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
+        Assert.assertEquals("no HTTPMD domain → empty payload", 0, encoded.length);
+    }
+
+    /**
+     * Verifies that {@code jrt:/java.base} is excluded from the anonymous domain
+     * count (it is universally present in every JVM and carries no diagnostic
+     * value), while other {@code jrt:} module domains are counted (they identify
+     * which JDK modules are loaded and may flag vulnerable-module processes).
+     *
+     * <p>An ACC is constructed with:
+     * <ul>
+     *   <li>1 HTTPMD domain</li>
+     *   <li>1 {@code jrt:/java.base} domain — must be excluded from anon count</li>
+     *   <li>1 other {@code jrt:} domain ({@code jrt:/jdk.crypto.ec}) — must be
+     *       included in anon count</li>
+     * </ul>
+     * The payload must have httpmd count = 1 and anon count = 1 (only the
+     * non-java.base jrt: domain).
+     */
+    @Test
+    public void testJrtJavaBaseExcludedButOtherJrtIncluded() throws Exception {
+        String oldHandlers = System.getProperty("java.protocol.handler.pkgs");
+        System.setProperty("java.protocol.handler.pkgs", "net.jini.url");
+        try {
+            URL httpmd = new URL(null,
+                    "httpmd://repo.example.org/stub.jar;sha-256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    new PassThroughHandler());
+            URL jrtBase      = new URL("jrt:/java.base");
+            URL jrtCryptoEc  = new URL("jrt:/jdk.crypto.ec");
+
+            ProtectionDomain httpmdPd = new ProtectionDomain(
+                    new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            ProtectionDomain jrtBasePd = new ProtectionDomain(
+                    new CodeSource(jrtBase, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            ProtectionDomain jrtCryptoPd = new ProtectionDomain(
+                    new CodeSource(jrtCryptoEc, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+
+            AccessControlContext acc = new AccessControlContext(
+                    new ProtectionDomain[]{httpmdPd, jrtBasePd, jrtCryptoPd});
+
+            byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
+            Assert.assertTrue("encoded payload must be non-empty", encoded.length > 0);
+            // First 4 bytes are the HTTPMD domain count.
+            Assert.assertEquals("HTTPMD domain count must be 1", 1, readInt(encoded));
+            // Anonymous domain count is the last 4 bytes:
+            // only jrt:/jdk.crypto.ec is counted; jrt:/java.base is excluded.
+            Assert.assertEquals("anon domain count must be 1 (jrt:/jdk.crypto.ec only)",
+                    1, readIntAt(encoded, encoded.length - 4));
         } finally {
             if (oldHandlers == null) {
                 System.clearProperty("java.protocol.handler.pkgs");
@@ -292,10 +430,14 @@ public class AccessControlContextSerializerTest {
     // ---- binary helpers used by the test methods above -----------------------
 
     private static int readInt(byte[] bytes) {
-        return ((bytes[0] & 0xFF) << 24)
-                | ((bytes[1] & 0xFF) << 16)
-                | ((bytes[2] & 0xFF) << 8)
-                | (bytes[3] & 0xFF);
+        return readIntAt(bytes, 0);
+    }
+
+    private static int readIntAt(byte[] bytes, int offset) {
+        return ((bytes[offset] & 0xFF) << 24)
+                | ((bytes[offset + 1] & 0xFF) << 16)
+                | ((bytes[offset + 2] & 0xFF) << 8)
+                | (bytes[offset + 3] & 0xFF);
     }
 
     private static final class PassThroughHandler extends URLStreamHandler {
