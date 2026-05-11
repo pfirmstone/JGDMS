@@ -12,12 +12,26 @@ context. It supersedes and extends v22.
 
 ## v23 Change Summary
 
-This version adds a **deep-dive performance analysis** of the two major security
-architecture costs: (1) transmitting the `AccessControlContext` on every outbound JERI
-call, and (2) Pack200 compression of service proxy JARs served via `httpmd:` URLs.
+This version documents two groups of changes:
+
+1. The **domain-stripping privilege-escalation fix** in JERI ACC transport: the
+   `marshalForTransport()` binary format now appends an `anonCount` field so that
+   anonymous (unverifiable) domains are preserved as placeholder `ProtectionDomain`s on
+   the receiver rather than being silently dropped — an implicit privilege escalation.
+   Administrator guidance on minimal-permission policy for unverifiable domains and the
+   `URLPermission → DigestCodeSource → LoadPermission` bootstrapping sequence is also
+   captured.
+
+2. A **deep-dive performance analysis** of the two major security architecture costs:
+   transmitting the `AccessControlContext` on every outbound JERI call, and Pack200
+   compression of service proxy JARs served via `httpmd:` URLs.
 
 **New/changed in v23:**
 
+- **§10.2** — renamed to "Remote ACC Serialization and Anonymous Domain Preservation";
+  new **§10.2.1** documents the domain-stripping fix (anonymous count transport format).
+- Administrator guidance: `URLPermission → DigestCodeSource → LoadPermission`
+  bootstrapping sequence; `jrt:/java.base` excluded from `anonCount`.
 - **§15 Performance Analysis — ACC Transmission & Pack200** — new section covering:
   - Wire-format byte budget for protocol-version `0x02` headers (~444 bytes typical)
   - CPU cost of the `extractDomains()` security stack walk (5–20 µs/call) and
@@ -28,8 +42,10 @@ call, and (2) Pack200 compression of service proxy JARs served via `httpmd:` URL
     deduplication, `DigestCodeSource` dual-path single-pass opportunity
   - Identified performance gap: per-call stack walk; connection-level ACC cache proposed
 - **§12 work item 28** added — connection-level serialized-ACC cache
-- **§13** — two new design-decision rows for performance rationale
-- **§14** (SPIFFE identity scheme) — content unchanged
+- **§13** — five new design-decision rows (two security, three performance)
+- `AccessControlContextSerializer.java` — Javadoc updated on `marshalForTransport()`
+  and `recordsFromContext()` documenting the anonymous count format and the
+  privilege-escalation fix rationale
 
 ---
 
@@ -826,6 +842,39 @@ A `DomainCombiner` on the receiving JVM:
 - Strips any domain whose `httpmd:` SHA-256 does not verify
 - Strips any domain whose `SpiffePrincipal` is outside the trusted SPIFFE trust domain
 - Verified domains participate in `RemotePolicy` checks as call stack domains
+
+**⚠ Security background — why domain stripping was a privilege escalation:**
+
+Every domain in a caller's `AccessControlContext` acts as a permission ceiling: for a
+`checkPermission` call to succeed, **every** domain in the intersection must hold the
+permission.  When an unverifiable domain was silently dropped during JERI transport, that
+ceiling disappeared.  In the worst case an ACC that was entirely unprivileged on the
+sender side — because it contained at least one domain with no permissions at all —
+could become fully privileged on the receiver side.  This is structurally identical to an
+unchecked `doPrivileged` call.
+
+This risk was addressed in v23 — see **§10.2.1** below for the anonymous domain count
+transport format that preserves the ceiling effect without requiring a verifiable identity.
+
+**Unverifiable domains** are `ProtectionDomain`s whose `CodeSource` has:
+- a plain (non-`httpmd:`) URL, or
+- no codebase URL at all (e.g. domains created with `new ProtectionDomain(null, ...)`).
+
+**Administrator guidance — `LoadPermission` bootstrapping:**
+
+If a domain must eventually obtain `LoadPermission` (to load classes from a remote
+codebase), the safe bootstrapping sequence is:
+
+   | Step | What happens |
+   |---|---|
+   | 1 | Grant `URLPermission` (or `java.net.URLPermission`) to the unverified domain so it can fetch the codebase URL over HTTP/HTTPS. |
+   | 2 | The fetch succeeds; `SecureClassLoader` computes the SHA-256 content hash and records it in a `DigestCodeSource`. |
+   | 3 | The `DigestCodeSource`-backed domain is verifiable and survives JERI transport via `digestTransportBytes`. |
+   | 4 | Only **after** step 3 is complete may `LoadPermission` be granted, scoped to the verified `DigestCodeSource` identity. |
+
+Granting `LoadPermission` **before** the digest is established is unsafe: the domain
+travels only as an anonymous placeholder on the receiver, and the resulting grant is
+effectively unconstrained by codebase identity.
 
 `DomainCombiner` is retained as a **Java API compatibility layer** specifically for this
 receiving-side verification role.  `SubjectDomainCombiner` is deprecated.
@@ -1639,6 +1688,8 @@ executor.submit(() -> {
 | **`AtomicMarshalOutputStream`/`AtomicMarshalInputStream` for DigestCodeSource transport** | ✅ **v21:** `DigestCodeSource` implements `Externalizable` and writes only strings and bytes with built-in DOS guards; `AtomicMarshalInputStream` is the project-standard secure deserializer — `ObjectInputStream` is explicitly avoided everywhere in JGDMS |
 | **`DomainIdentityRecord.from()` skips `DigestCodeSource` before httpmd URL test** | ✅ **v21:** A `DigestCodeSource` with an httpmd location must travel exclusively via `digestTransportBytes`; checking for `DigestCodeSource` first (via `cs instanceof Externalizable` + class-name) prevents it from being duplicated into `transportBytes` while adding zero overhead for ordinary `CodeSource` instances |
 | **`equals`/`hashCode` on `AccessControlContextSerializer` + `DomainIdentityRecord`** | ✅ **v22:** Java serialization's handle table deduplicates by reference identity; implementing logical equality allows equal serializer instances to be recognised as the same object once a deduplication layer is applied, avoiding repeated full serialisation of identical ACCs; `cachedDigestBytes` ensures the relatively expensive `marshalDigestForTransport` is called at most once per instance across all `equals`/`hashCode` invocations |
+| **Domain stripping is an implicit `doPrivileged`; fixed via `anonCount`** | ✅ **v23:** Every unverifiable `ProtectionDomain` stripped from a transmitted ACC removes a permission ceiling; the receiving JVM sees a strictly wider effective permission set — equivalent to an unchecked `doPrivileged` call.  Fixed in v23: `marshalForTransport()` appends `anonCount` so the receiver reconstructs anonymous placeholder domains that preserve the ceiling without asserting a specific identity claim.  `jrt:/java.base` excluded from `anonCount`. |
+| **Unverifiable domains must have minimal permissions; `URLPermission` before `LoadPermission`** | ✅ **v23:** An unverifiable domain (plain URL or no codebase) cannot survive JERI transport with a verified identity; it is counted as anonymous on the wire.  The safe bootstrapping order is: (1) grant `URLPermission` so the code can be fetched; (2) let `SecureClassLoader` compute the SHA-256 into a `DigestCodeSource`; (3) grant `LoadPermission` only after the verified digest identity is established.  Granting `LoadPermission` before the digest exists is unsafe because the domain travels only as an anonymous placeholder on the receiver. |
 | **ACC binary transport is a purpose-built compact encoding, not Java object serialization** | ✅ **v23:** The `transportBytes` format (4-byte count + per-domain records) and `writeUserPrincipals()` format (u16 count + u16-prefixed UTF-8 fields) avoid ObjectOutputStream overhead entirely; typical payload ~444 bytes/call; wire overhead is minor compared to TLS record framing |
 | **`extractDomains()` uses a side-effect `doPrivileged`+`checkPermission` to drive `DomainCombiner.combine()`** | ✅ **v23:** The JVM only invokes `DomainCombiner.combine()` during a security stack walk; the innocuous `RuntimePermission("accessClassInPackage...")` check inside a restricted `doPrivileged` is the only portable way to trigger the walk without JDK internals; the `SecurityException` is intentionally swallowed; cost is 5–20 µs per call and is the dominant serialization overhead |
 | **Pack200 (`.pack.gz`) for `-dl` proxy JAR download** | ✅ **v23:** Pack200+gzip achieves 40–60% size reduction over deflate-only JAR for class-file-heavy proxy JARs; decompression cost (~5–20 ms) is paid once per JVM lifetime per proxy class; `HttpmdURLConnection` SHA-256 verifies the packed stream before unpacking; the `httpmd:` URL in `DomainIdentityRecord` therefore references the packed artifact |
