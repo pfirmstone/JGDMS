@@ -1741,6 +1741,11 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    // Wrap in InvocationTargetException (itself an Exception) so the
 		    // caller still receives a meaningful stack trace.
 		    throw ite;
+		} catch (IllegalAccessException iae) {
+		    // Should never happen: the method is public.
+		    // Re-wrap so the Callable's Exception contract is honoured.
+		    throw new IllegalStateException(
+			"Unexpected access denial invoking Subject.callAs", iae);
 		}
 		return null;
 	    };
