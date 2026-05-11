@@ -70,6 +70,8 @@ granted privileges. Its key design goals are:
 DirtyChai completes what Sun Microsystems and Bill Joy started. Running JGDMS on DirtyChai restores the full
 authorization semantics and lets the platform evolve beyond the Java 23 ceiling.
 
+![DirtyChai mascot: a tough chai mug in a hard hat with a SPIFFE badge](images/dirty-chai-mascot.svg)
+
 ---
 
 ## Security: Baked In, Not Bolted On
@@ -327,6 +329,8 @@ This grant applies only when *alice* is using *specifically the order-processor 
 the JAR with that exact SHA-256 content hash. An attacker who controls one axis (e.g. replaces the
 JAR at the same URL) still cannot match all three.
 
+![The Permission Burger: three-layer authorization stack as a colorful stacked burger](images/permission-burger.svg)
+
 ---
 
 ## The Safe Codebase Audit Pipeline (SCAP)
@@ -344,6 +348,8 @@ as few concurrent requests as `Runtime.availableProcessors()`.
 
 It's worth noting that code repositories assembled prior to runtime are also subject to 
 library vulnerabilities and transient dependency vulnerabilities.
+
+![The JVM Club bouncer: SCAP turning away dangerous JARs at the door](images/jar-bouncer.svg)
 
 ### The Five Hosts
 
