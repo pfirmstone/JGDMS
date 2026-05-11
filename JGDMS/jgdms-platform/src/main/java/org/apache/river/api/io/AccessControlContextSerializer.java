@@ -510,10 +510,18 @@ public final class AccessControlContextSerializer implements Serializable {
          * Creates a {@link DomainIdentityRecord} for the given
          * {@link ProtectionDomain} if it has a verifiable HTTPMD location.
          * DigestCodeSource domains are handled separately by
-         * {@link #marshalDigestForTransport}.
+         * {@link #marshalDigestForTransport} and are explicitly excluded here
+         * to avoid duplicating a DigestCodeSource whose location happens to be
+         * an httpmd URL in both the HTTPMD and the digest transport streams.
          */
         static DomainIdentityRecord from(ProtectionDomain pd, Subject authenticatedSubject) {
             CodeSource cs = pd.getCodeSource();
+            // DigestCodeSource is handled exclusively by marshalDigestForTransport();
+            // skip it here even if its location is an httpmd URL.
+            if (cs instanceof Externalizable
+                    && DIGEST_CODESOURCE_CLASS_NAME.equals(cs.getClass().getName())) {
+                return null;
+            }
             URL location = cs != null ? cs.getLocation() : null;
             String locText = location != null ? location.toExternalForm() : null;
             if (!isVerifiableHttpmd(locText)) return null;
