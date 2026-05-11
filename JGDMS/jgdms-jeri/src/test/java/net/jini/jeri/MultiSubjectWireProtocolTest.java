@@ -165,4 +165,66 @@ public class MultiSubjectWireProtocolTest {
         Assert.assertEquals(1, readU16(bytes, 0)); // subjectCount
         Assert.assertEquals(0, readU16(bytes, 2)); // principalCount
     }
+
+    /**
+     * Verifies that the cached {@code CURRENT_ALL_METHOD} field is set on a
+     * DirtyChai JDK (where {@code Subject.currentAll()} exists) and is null on a
+     * standard JDK.
+     */
+    @Test
+    public void testCurrentAllMethodCachedCorrectly() throws Exception {
+        java.lang.reflect.Field f = BasicInvocationHandler.class
+            .getDeclaredField("CURRENT_ALL_METHOD");
+        f.setAccessible(true);
+        java.lang.reflect.Method cached = (java.lang.reflect.Method) f.get(null);
+
+        // Probe whether Subject.currentAll() exists in this JVM at runtime.
+        java.lang.reflect.Method probe = null;
+        try {
+            probe = Subject.class.getMethod("currentAll");
+        } catch (NoSuchMethodException ignored) {
+            // standard JDK
+        }
+
+        if (probe != null) {
+            Assert.assertNotNull("CURRENT_ALL_METHOD must be set on a DirtyChai JDK", cached);
+            Assert.assertEquals(probe, cached);
+        } else {
+            Assert.assertNull("CURRENT_ALL_METHOD must be null on a standard JDK", cached);
+        }
+    }
+
+    /**
+     * Verifies that {@code getAllUserSubjects()} returns the Subject(s) bound to
+     * the current thread.  On DirtyChai it uses {@code Subject.currentAll()};
+     * on a standard JDK it falls back to {@code Subject.current()}.
+     */
+    @Test
+    public void testGetAllUserSubjectsReturnsCurrentSubject() throws Exception {
+        X500Principal p = new X500Principal("CN=testuser");
+        Subject s = new Subject(true,
+            Collections.singleton((Principal) p),
+            Collections.emptySet(), Collections.emptySet());
+
+        java.lang.reflect.Method getAllUserSubjects = BasicInvocationHandler.class
+            .getDeclaredMethod("getAllUserSubjects");
+        getAllUserSubjects.setAccessible(true);
+
+        Subject[] result = Subject.callAs(s, () -> {
+            try {
+                return (Subject[]) getAllUserSubjects.invoke(null);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        Assert.assertNotNull("getAllUserSubjects must not return null", result);
+        Assert.assertTrue("getAllUserSubjects must return at least one Subject", result.length >= 1);
+        // The first Subject must contain our principal.
+        boolean found = false;
+        for (Subject sub : result) {
+            if (sub.getPrincipals().contains(p)) { found = true; break; }
+        }
+        Assert.assertTrue("bound Subject must be present in the returned array", found);
+    }
 }

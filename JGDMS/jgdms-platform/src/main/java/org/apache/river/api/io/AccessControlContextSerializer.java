@@ -349,51 +349,43 @@ public final class AccessControlContextSerializer implements Serializable {
             throw new InvalidObjectException("digest transport payload size exceeds maximum: " + data.length);
         }
         List<ProtectionDomain> result = new ArrayList<ProtectionDomain>();
-        try {
-            ObjectInputStream amis = AtomicMarshalInputStream.create(
-                    new ByteArrayInputStream(data), null, false, null, Collections.emptyList(), false);
-            int count = amis.readInt();
-            if (count < 0 || count > MAX_DOMAIN_COUNT) {
-                throw new InvalidObjectException("invalid digest domain count: " + count);
-            }
-            for (int i = 0; i < count; i++) {
-                try {
-                    CodeSource cs = (CodeSource) amis.readObject();
-                    int principalCount = amis.readInt();
-                    if (principalCount < 0 || principalCount > MAX_PRINCIPALS_PER_DOMAIN) {
-                        throw new InvalidObjectException("invalid principal count in digest transport: " + principalCount);
-                    }
-                    Principal[] principals;
-                    if (authenticatedSubject != null) {
-                        // Discard stream principals; use the authenticated subject's instead.
-                        for (int j = 0; j < principalCount; j++) {
-                            amis.readUTF(); // type  (discard)
-                            amis.readUTF(); // name  (discard)
-                        }
-                        Set<Principal> ps = authenticatedSubject.getPrincipals();
-                        principals = ps.toArray(new Principal[0]);
-                    } else {
-                        principals = new Principal[principalCount];
-                        for (int j = 0; j < principalCount; j++) {
-                            amis.readUTF(); // type class name (not stored in NamedPrincipal)
-                            String name = amis.readUTF();
-                            principals[j] = new NamedPrincipal(name);
-                        }
-                    }
-                    result.add(new DomainIdentity(cs, principals));
-                } catch (ClassNotFoundException e) {
-                    // DigestCodeSource is not available in this JVM — stop reading
-                    // further domains (stream position after ClassNotFoundException is
-                    // not guaranteed, so we cannot safely resume).
-                    break;
+        ObjectInputStream amis = AtomicMarshalInputStream.create(
+                new ByteArrayInputStream(data), null, false, null, Collections.emptyList(), false);
+        int count = amis.readInt();
+        if (count < 0 || count > MAX_DOMAIN_COUNT) {
+            throw new InvalidObjectException("invalid digest domain count: " + count);
+        }
+        for (int i = 0; i < count; i++) {
+            try {
+                CodeSource cs = (CodeSource) amis.readObject();
+                int principalCount = amis.readInt();
+                if (principalCount < 0 || principalCount > MAX_PRINCIPALS_PER_DOMAIN) {
+                    throw new InvalidObjectException("invalid principal count in digest transport: " + principalCount);
                 }
+                Principal[] principals;
+                if (authenticatedSubject != null) {
+                    // Discard stream principals; use the authenticated subject's instead.
+                    for (int j = 0; j < principalCount; j++) {
+                        amis.readUTF(); // type  (discard)
+                        amis.readUTF(); // name  (discard)
+                    }
+                    Set<Principal> ps = authenticatedSubject.getPrincipals();
+                    principals = ps.toArray(new Principal[0]);
+                } else {
+                    principals = new Principal[principalCount];
+                    for (int j = 0; j < principalCount; j++) {
+                        amis.readUTF(); // type class name (not stored in NamedPrincipal)
+                        String name = amis.readUTF();
+                        principals[j] = new NamedPrincipal(name);
+                    }
+                }
+                result.add(new DomainIdentity(cs, principals));
+            } catch (ClassNotFoundException e) {
+                // DigestCodeSource is not available in this JVM — stop reading
+                // further domains (stream position after ClassNotFoundException is
+                // not guaranteed, so we cannot safely resume).
+                break;
             }
-        } catch (ClassNotFoundException e) {
-            // Unexpected class not found outside of readObject — treat as invalid.
-            InvalidObjectException ex = new InvalidObjectException(
-                    "unexpected ClassNotFoundException reading digest transport");
-            ex.initCause(e);
-            throw ex;
         }
         return result.toArray(new ProtectionDomain[0]);
     }
