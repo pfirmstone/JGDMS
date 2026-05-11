@@ -168,16 +168,42 @@ its own carrier, lifetime, and routing rule:
 `"group:admins"`) and is installed per-request via `Subject.callAs(jwtUserSubject, () -> ...)`.
 Kerberos (`KerberosPrincipal` / `KerberosEndpoint`) is supported for **legacy deployments only**.
 
-JGDMS's JERI layer reads the user identity via `Subject.current()` and transmits the user's
-`Principal` set to the server in JERI wire protocol version `0x02` — an in-band channel distinct
-from and independent of the TLS handshake. On the server side, the dispatcher binds the received
-user principals as a read-only `UserSubject` via `Subject.callAs()`, so service code sees both
-*which process* is calling (from the TLS certificate / SPIFFE identity) and *which human* is
-acting (from the transmitted user principals).
+JGDMS's JERI layer reads all active user Subjects via `Subject.currentAll()` and transmits them
+to the server in **JERI wire protocol version `0x02`** — an in-band channel distinct from and
+independent of the TLS handshake. The protocol supports up to **16 user `Subject`s per call**,
+each carrying up to **64 principals**:
+
+```
+0x02 user-Subject block:
+  subjectCount : u16          (max 16)
+  per Subject:
+    principalCount : u16      (max 64)
+    per Principal:
+      className : UTF-8
+      name      : UTF-8
+```
+
+On the server side, the `BasicInvocationDispatcher` reads this block, constructs a `Subject[]`,
+wraps it in a `UserSubjectImpl` (which implements `ClientUserSubject`), and nests the entire
+invocation inside a chain of `Subject.callAs()` calls — one per received Subject. Service code
+retrieves *all* received user Subjects via:
+
+```java
+// inside a dispatched method:
+ServerContext ctx = ServerContext.getServerContext();
+ClientUserSubject cus = (ClientUserSubject) ctx.getServerContextElement(ClientUserSubject.class);
+Subject[] users = cus.getUserSubjects();       // the full Subject[]
+Subject  primary = cus.getUserSubject();        // subjects[0] — convenience for single-user callers
+```
+
+This makes it possible for a single RPC to carry, for example, both the end-user's JWT identity
+and a delegation chain subject, without any out-of-band negotiation.
 
 `Subject.current()` returns only what was bound via `callAs` — it never falls back to the
 `AccessControlContext`. This ensures the server can always distinguish TLS-verified machine
 identity from wire-asserted human identity.
+
+![JERI multi-Subject party bus: 16 JWT-wielding passengers arrive at the service endpoint](images/multi-subject-party-bus.svg)
 
 **Process Worker Subject** (`WorkerSubject`) — represents the JVM process itself, not any
 particular end user. With SPIFFE/SPIRE, DirtyChai's `SpiffeCredentialManager` constructs a sealed
@@ -331,6 +357,8 @@ JAR at the same URL) still cannot match all three.
 
 ![The Permission Burger: three-layer authorization stack as a colorful stacked burger](images/permission-burger.svg)
 
+> **See also:** [Diagram 2 — Three-layer policy stack](<Big picture security architecture/diagram2_three_layer_policy_stack.svg>) · [Diagram 4 — GrantPermission & role management](<Big picture security architecture/diagram4_grantpermission_role_management.svg>)
+
 ---
 
 ## The Safe Codebase Audit Pipeline (SCAP)
@@ -400,6 +428,8 @@ Key isolation invariants:
   cannot DoS the analysis pipeline.
 - An abnormal JVM exit (Phoenix crash) on Host 2 is itself a security signal: Phoenix submits a
   `CrashReport` directly to the Verdict Registry, condemning the codebase that caused the crash.
+
+> **See also:** [Diagram 1 — SCAP five-host pipeline](<Big picture security architecture/diagram1_scap_five_hosts.svg>)
 
 ### The Bytecode Analysis Engine
 
@@ -479,6 +509,8 @@ fully-unmarshaled service proxies. The client establishes cryptographic trust be
 deserialization, not after. Only once trust is confirmed — and the Verdict Registry gives a `SAFE`
 verdict for the JAR — does the client unmarshal the full proxy and connect directly to the service
 over IPv6.
+
+> **See also:** [Diagram 3 — Proxy lifecycle (export → dynamic grant)](<Big picture security architecture/diagram3_proxy_lifecycle.svg>)
 
 ---
 
@@ -615,6 +647,16 @@ gaps that authorization cannot defend against.
 
 ---
 
+## Full Security Architecture
+
+The diagram below shows how all the pieces fit together — SCAP pipeline, SPIFFE/SPIRE workload
+identity, three-layer policy stack, proxy lifecycle, `GrantPermission` intersection, and the
+`Subject` identity model — in a single view:
+
+![](<Big picture security architecture/diagram5_full_security_architecture.svg>)
+
+---
+
 ## Summary
 
 | Concern | JGDMS / DirtyChai Answer |
@@ -625,6 +667,7 @@ gaps that authorization cannot defend against.
 | Code integrity | SCAP five-host pipeline, quorum-based `RegistryVerdict`, signed `JarAnalysisReport` |
 | Content-hash grants | `DigestGrant` + `DigestCodeSource`: grants conditioned on SHA-256 JAR hash, not just URL |
 | User identity | JWT/OIDC via `JwtLoginModule`/`JwtPrincipal`; sealed `UserSubject`; per-request `callAs` |
+| Multi-user calls | JERI protocol `0x02`: up to 16 `UserSubject`s × 64 principals per call; `ClientUserSubject.getUserSubjects()` |
 | Workload identity | Sealed `WorkerSubject` (SPIFFE SVID), ambient in every `ProtectionDomain` |
 | Credential management | SPIFFE/SPIRE: short-lived SVIDs, automatic rotation, no keystores |
 | Service discovery | IPv6 unicast + multicast, `LookupLocator("jini://lookup.domain:4160")` |
