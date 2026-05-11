@@ -168,10 +168,9 @@ its own carrier, lifetime, and routing rule:
 `"group:admins"`) and is installed per-request via `Subject.callAs(jwtUserSubject, () -> ...)`.
 Kerberos (`KerberosPrincipal` / `KerberosEndpoint`) is supported for **legacy deployments only**.
 
-JGDMS's JERI layer reads all active user Subjects via `Subject.currentAll()` and transmits them
-to the server in **JERI wire protocol version `0x02`** — an in-band channel distinct from and
-independent of the TLS handshake. The protocol supports up to **16 user `Subject`s per call**,
-each carrying up to **64 principals**:
+JGDMS's JERI layer gathers user Subjects and transmits them to the server in **JERI wire protocol
+version `0x02`** — an in-band channel distinct from and independent of the TLS handshake. The
+protocol supports up to **16 user `Subject`s per call**, each carrying up to **64 principals**:
 
 ```
 0x02 user-Subject block:
@@ -183,23 +182,40 @@ each carrying up to **64 principals**:
       name      : UTF-8
 ```
 
-On the server side, the `BasicInvocationDispatcher` reads this block, constructs a `Subject[]`,
-wraps it in a `UserSubjectImpl` (which implements `ClientUserSubject`), and nests the entire
-invocation inside a chain of `Subject.callAs()` calls — one per received Subject. Service code
-retrieves *all* received user Subjects via:
+On **DirtyChai**, `Subject.currentAll()` (a DirtyChai extension) returns all currently active
+user Subjects so every delegation layer can be transmitted. On a **standard JDK**,
+`Subject.current()` returns the single current Subject, which is wrapped in a one-element array.
+`CURRENT_ALL_METHOD` (a `static final Method` field, `null` on a standard JDK) is cached once at
+class-load time via reflection, so there is zero per-call reflection overhead on a standard JDK.
+
+On the server side, the `BasicInvocationDispatcher` reads this block into a `List<Subject>`,
+stores the full array in a `UserSubjectImpl` (which implements `ClientUserSubject`), and dispatches
+the invocation under those identities. The dispatch strategy differs by JDK:
+
+- **DirtyChai** (where `Subject.callAs(Callable, Subject...)` varargs exists): all user Subjects
+  are passed in a **single** `callAs` call, so the JVM establishes them simultaneously.
+- **Standard JDK** (no varargs `callAs`): only `userSubjects[0]` is used with
+  `Subject.callAs(first, action)`. Nesting multiple single-Subject `callAs` calls is *incorrect*
+  on a standard JDK because each inner call shadows the outer one, leaving only the innermost
+  Subject visible via `Subject.current()`.
+
+`CALL_AS_MULTI_SUBJECT` (a `static final Method` field, `null` on a standard JDK) is cached once
+at class-load time via reflection so there is no per-call reflection overhead.
+
+Service code retrieves *all* received user Subjects from the server context:
 
 ```java
 // inside a dispatched method:
-ServerContext ctx = ServerContext.getServerContext();
-ClientUserSubject cus = (ClientUserSubject) ctx.getServerContextElement(ClientUserSubject.class);
-Subject[] users = cus.getUserSubjects();       // the full Subject[]
-Subject  primary = cus.getUserSubject();        // subjects[0] — convenience for single-user callers
+ClientUserSubject cus = (ClientUserSubject)
+    ServerContext.getServerContextElement(ClientUserSubject.class);
+Subject[] users = cus.getUserSubjects();   // all wire-transferred Subjects, ordered outermost-first
+Subject primary = cus.getUserSubject();    // subjects[0] — convenience for single-user callers
 ```
 
 This makes it possible for a single RPC to carry, for example, both the end-user's JWT identity
-and a delegation chain subject, without any out-of-band negotiation.
+and a delegation-chain Subject, without any out-of-band negotiation.
 
-`Subject.current()` returns only what was bound via `callAs` — it never falls back to the
+`Subject.current()` returns only the first Subject bound via `callAs` — it never falls back to the
 `AccessControlContext`. This ensures the server can always distinguish TLS-verified machine
 identity from wire-asserted human identity.
 
