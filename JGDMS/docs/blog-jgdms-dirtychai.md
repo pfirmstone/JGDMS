@@ -213,8 +213,8 @@ Subject primary = cus.getUserSubject();    // subjects[0] — convenience for si
 ```
 
 This makes it possible for a single RPC to carry, for example, both the end-user's JWT identity
-and a delegation-chain Subject, without any out-of-band negotiation.  Alternatively policy
-can dictate the multiple people must be present for a transaction to complete, if one key user role
+and a delegation-chain Subject, without any out-of-band negotiation.  Alternatively, policy
+can dictate multiple people whom must be present for a transaction to complete, if one key user role
 is missing, the transaction doesn't have permission to complete, permission can only be attained
 when all users are logged in and present.
 
