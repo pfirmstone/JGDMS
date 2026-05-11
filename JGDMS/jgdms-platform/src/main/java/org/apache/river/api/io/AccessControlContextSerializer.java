@@ -28,6 +28,9 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -40,6 +43,7 @@ import java.security.DomainCombiner;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
+import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -98,6 +102,27 @@ public final class AccessControlContextSerializer implements Serializable {
     private static final int MAX_TOTAL_PAYLOAD_BYTES = 16 * 1024 * 1024;
     /** Maximum value that fits in an unsigned 16-bit length field. */
     private static final int MAX_UNSIGNED_SHORT_VALUE = 0xFFFF;
+    /**
+     * Format-version byte written as the first byte of a new-format transport
+     * blob.  The old format (HTTPMD-only) always begins with a 4-byte big-endian
+     * count whose high byte is 0x00 (count ≤ 4096), so a leading byte of 0x01
+     * unambiguously identifies the new typed-record format.
+     */
+    private static final int FORMAT_VERSION_DIGEST = 0x01;
+    /** Record-type byte for an HTTPMD-URL domain record (new typed format). */
+    private static final int RECORD_TYPE_HTTPMD = 0x00;
+    /** Record-type byte for a {@code DigestCodeSource} domain record. */
+    private static final int RECORD_TYPE_DIGEST = 0x01;
+    /** Maximum UTF-8 byte length accepted for a digest algorithm name. */
+    private static final int MAX_ALGORITHM_BYTES = 64;
+    /** Maximum raw byte length accepted for a digest value (SHA-512 = 64 bytes). */
+    private static final int MAX_DIGEST_BYTES = 128;
+    /**
+     * Fully-qualified class name of {@code java.security.DigestCodeSource}
+     * (from DirtyChai JDK).  Used for class-name inspection without a
+     * compile-time dependency on that JDK-specific class.
+     */
+    private static final String DIGEST_CODESOURCE_CLASS_NAME = "java.security.DigestCodeSource";
     private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
     public static SerialForm[] serialForm() {
@@ -115,10 +140,25 @@ public final class AccessControlContextSerializer implements Serializable {
         if (acc == null) return new byte[0];
         DomainIdentityRecord[] records = recordsFromContext(acc, null);
         if (records.length == 0) return new byte[0];
+        // Check whether any record carries a DigestCodeSource digest.
+        // If so, we must use the new typed-record format so that the receiver
+        // can reconstruct the correct CodeSource subtype.
+        boolean hasDigestRecords = false;
+        for (int i = 0; i < records.length; i++) {
+            if (records[i].isDigestRecord()) {
+                hasDigestRecords = true;
+                break;
+            }
+        }
         ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+        if (hasDigestRecords) {
+            // New typed-record format: prefix with a version byte so that the
+            // receiver can distinguish this from the old HTTPMD-only format.
+            baos.write(FORMAT_VERSION_DIGEST);
+        }
         writeInt(baos, records.length);
         for (int i = 0; i < records.length; i++) {
-            records[i].writeTo(baos);
+            records[i].writeTo(baos, hasDigestRecords);
         }
         return baos.toByteArray();
     }
@@ -131,6 +171,26 @@ public final class AccessControlContextSerializer implements Serializable {
             throw new InvalidObjectException("payload size exceeds maximum: " + data.length);
         }
         ByteArrayInputStream in = new ByteArrayInputStream(data);
+        // Auto-detect format version.
+        // The old HTTPMD-only format begins with a 4-byte big-endian record count
+        // (1 ≤ count ≤ 4096) whose high byte is always 0x00.
+        // The new typed-record format begins with a non-zero version byte
+        // (FORMAT_VERSION_DIGEST = 0x01) followed by a 4-byte count.
+        in.mark(1);
+        int firstByte = in.read();
+        if (firstByte == -1) {
+            throw new InvalidObjectException("Unexpected EOF reading format indicator");
+        }
+        boolean newFormat;
+        if (firstByte == FORMAT_VERSION_DIGEST) {
+            newFormat = true;
+        } else if (firstByte == 0x00) {
+            // Old format: the first byte is the high byte of the 4-byte count.
+            in.reset();
+            newFormat = false;
+        } else {
+            throw new InvalidObjectException("Unknown ACC transport format version: " + firstByte);
+        }
         int count = readInt(in);
         if (count < 0 || count > MAX_DOMAIN_COUNT) {
             throw new InvalidObjectException("invalid domain count: " + count);
@@ -141,7 +201,7 @@ public final class AccessControlContextSerializer implements Serializable {
         }
         DomainIdentityRecord[] records = new DomainIdentityRecord[count];
         for (int i = 0; i < count; i++) {
-            records[i] = DomainIdentityRecord.readFrom(in);
+            records[i] = DomainIdentityRecord.readFrom(in, newFormat);
         }
         if (in.read() != -1) {
             throw new InvalidObjectException("unexpected trailing bytes");
@@ -329,13 +389,17 @@ public final class AccessControlContextSerializer implements Serializable {
         private static final String LOCATION = "location";
         private static final String PRINCIPAL_TYPES = "principalTypes";
         private static final String PRINCIPAL_NAMES = "principalNames";
+        private static final String DIGEST_ALGORITHM = "digestAlgorithm";
+        private static final String DIGEST = "digest";
         private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
         static SerialForm[] serialForm() {
             return new SerialForm[]{
                 new SerialForm(LOCATION, String.class),
                 new SerialForm(PRINCIPAL_TYPES, String[].class),
-                new SerialForm(PRINCIPAL_NAMES, String[].class)
+                new SerialForm(PRINCIPAL_NAMES, String[].class),
+                new SerialForm(DIGEST_ALGORITHM, String.class),
+                new SerialForm(DIGEST, byte[].class)
             };
         }
 
@@ -343,11 +407,38 @@ public final class AccessControlContextSerializer implements Serializable {
             arg.put(LOCATION, obj.location);
             arg.put(PRINCIPAL_TYPES, obj.principalTypes);
             arg.put(PRINCIPAL_NAMES, obj.principalNames);
+            arg.put(DIGEST_ALGORITHM, obj.digestAlgorithm);
+            arg.put(DIGEST, obj.digest);
             arg.writeArgs();
         }
 
         static DomainIdentityRecord from(ProtectionDomain pd, Subject authenticatedSubject) {
             CodeSource cs = pd.getCodeSource();
+            // Check for DigestCodeSource first.  We inspect the class name rather
+            // than importing the class, so no compile-time dependency is created.
+            if (cs != null && DIGEST_CODESOURCE_CLASS_NAME.equals(cs.getClass().getName())) {
+                try {
+                    Class<?> csClass = cs.getClass();
+                    Method getAlgorithm = csClass.getMethod("getDigestAlgorithm");
+                    Method getDigestMethod = csClass.getMethod("getDigest");
+                    String algorithm = (String) getAlgorithm.invoke(cs);
+                    byte[] digestBytes = (byte[]) getDigestMethod.invoke(cs);
+                    if (algorithm != null && digestBytes != null && digestBytes.length > 0) {
+                        URL location = cs.getLocation();
+                        String locText = location != null ? location.toExternalForm() : null;
+                        Principal[] principals = principalsFor(pd, authenticatedSubject);
+                        String[] types = new String[principals.length];
+                        String[] names = new String[principals.length];
+                        for (int i = 0; i < principals.length; i++) {
+                            types[i] = principals[i].getClass().getName();
+                            names[i] = principals[i].getName();
+                        }
+                        return new DomainIdentityRecord(locText, types, names, algorithm, digestBytes.clone());
+                    }
+                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                    // Not a usable DigestCodeSource; fall through to HTTPMD check.
+                }
+            }
             URL location = cs != null ? cs.getLocation() : null;
             String locText = location != null ? location.toExternalForm() : null;
             if (!isVerifiableHttpmd(locText)) return null;
@@ -361,13 +452,30 @@ public final class AccessControlContextSerializer implements Serializable {
             return new DomainIdentityRecord(locText, types, names);
         }
 
-        static DomainIdentityRecord readFrom(ByteArrayInputStream in) throws IOException {
+        static DomainIdentityRecord readFrom(ByteArrayInputStream in, boolean newFormat) throws IOException {
+            if (newFormat) {
+                // New typed-record format: a record-type byte precedes the payload.
+                int recordType = in.read();
+                if (recordType == -1) throw new InvalidObjectException("Unexpected EOF reading record type");
+                if (recordType == RECORD_TYPE_HTTPMD) {
+                    return readHttpmdRecord(in);
+                } else if (recordType == RECORD_TYPE_DIGEST) {
+                    return readDigestRecord(in);
+                } else {
+                    throw new InvalidObjectException("Unknown record type: " + recordType);
+                }
+            }
+            // Old format: HTTPMD records only, no type byte.
+            return readHttpmdRecord(in);
+        }
+
+        private static DomainIdentityRecord readHttpmdRecord(ByteArrayInputStream in) throws IOException {
             int locLen = readShort(in);
             if (locLen > MAX_LOCATION_BYTES) {
                 throw new InvalidObjectException("location length exceeds maximum: " + locLen);
             }
             byte[] locationBytes = new byte[locLen];
-            if (in.read(locationBytes) != locLen) throw new InvalidObjectException("Unexpected EOF reading location bytes");
+            if (locLen > 0 && in.read(locationBytes) != locLen) throw new InvalidObjectException("Unexpected EOF reading location bytes");
             String location = new String(locationBytes, StandardCharsets.UTF_8);
             int principalCount = readShort(in);
             if (principalCount > MAX_PRINCIPALS_PER_DOMAIN) {
@@ -394,31 +502,158 @@ public final class AccessControlContextSerializer implements Serializable {
             return new DomainIdentityRecord(location, types, names);
         }
 
+        private static DomainIdentityRecord readDigestRecord(ByteArrayInputStream in) throws IOException {
+            // [2-byte urlLen][urlLen bytes URL UTF-8 (0 = null URL)]
+            int urlLen = readShort(in);
+            if (urlLen > MAX_LOCATION_BYTES) {
+                throw new InvalidObjectException("DigestCodeSource URL length exceeds maximum: " + urlLen);
+            }
+            String urlText = null;
+            if (urlLen > 0) {
+                byte[] urlBytes = new byte[urlLen];
+                if (in.read(urlBytes) != urlLen) throw new InvalidObjectException("Unexpected EOF reading DigestCodeSource URL");
+                urlText = new String(urlBytes, StandardCharsets.UTF_8);
+            }
+            // [2-byte algLen][algLen bytes algorithm UTF-8]
+            int algLen = readShort(in);
+            if (algLen == 0 || algLen > MAX_ALGORITHM_BYTES) {
+                throw new InvalidObjectException("DigestCodeSource algorithm length invalid: " + algLen);
+            }
+            byte[] algBytes = new byte[algLen];
+            if (in.read(algBytes) != algLen) throw new InvalidObjectException("Unexpected EOF reading DigestCodeSource algorithm");
+            String algorithm = new String(algBytes, StandardCharsets.UTF_8);
+            // [4-byte digestLen][digestLen bytes digest raw]
+            int digestLen = readInt(in);
+            if (digestLen <= 0 || digestLen > MAX_DIGEST_BYTES) {
+                throw new InvalidObjectException("DigestCodeSource digest length invalid: " + digestLen);
+            }
+            byte[] digest = new byte[digestLen];
+            if (in.read(digest) != digestLen) throw new InvalidObjectException("Unexpected EOF reading DigestCodeSource digest");
+            // principals
+            int principalCount = readShort(in);
+            if (principalCount > MAX_PRINCIPALS_PER_DOMAIN) {
+                throw new InvalidObjectException("principal count exceeds maximum: " + principalCount);
+            }
+            String[] types = new String[principalCount];
+            String[] names = new String[principalCount];
+            for (int i = 0; i < principalCount; i++) {
+                int typeLen = readShort(in);
+                if (typeLen > MAX_PRINCIPAL_FIELD_BYTES) {
+                    throw new InvalidObjectException("principal type length exceeds maximum: " + typeLen);
+                }
+                byte[] typeBytes = new byte[typeLen];
+                if (in.read(typeBytes) != typeLen) throw new InvalidObjectException("Unexpected EOF reading principal type");
+                types[i] = new String(typeBytes, StandardCharsets.UTF_8);
+                int nameLen = readShort(in);
+                if (nameLen > MAX_PRINCIPAL_FIELD_BYTES) {
+                    throw new InvalidObjectException("principal name length exceeds maximum: " + nameLen);
+                }
+                byte[] nameBytes = new byte[nameLen];
+                if (in.read(nameBytes) != nameLen) throw new InvalidObjectException("Unexpected EOF reading principal name");
+                names[i] = new String(nameBytes, StandardCharsets.UTF_8);
+            }
+            return new DomainIdentityRecord(urlText, types, names, algorithm, digest);
+        }
+
         private final String location;
         private final String[] principalTypes;
         private final String[] principalNames;
+        /** Digest algorithm name, or {@code null} for HTTPMD records. */
+        private final String digestAlgorithm;
+        /**
+         * Raw digest bytes, or {@code null} for HTTPMD records.
+         * Defensive copy on construction.
+         */
+        private final byte[] digest;
 
         DomainIdentityRecord(GetArg arg) throws IOException, ClassNotFoundException {
             this(
                 arg.get(LOCATION, null, String.class),
                 arg.get(PRINCIPAL_TYPES, null, String[].class),
-                arg.get(PRINCIPAL_NAMES, null, String[].class)
+                arg.get(PRINCIPAL_NAMES, null, String[].class),
+                arg.get(DIGEST_ALGORITHM, null, String.class),
+                arg.get(DIGEST, null, byte[].class)
             );
         }
 
+        /**
+         * Creates an HTTPMD-type record (no digest fields).
+         * This 3-arg form is retained for backward compatibility.
+         */
         private DomainIdentityRecord(String location, String[] principalTypes, String[] principalNames) {
+            this(location, principalTypes, principalNames, null, null);
+        }
+
+        /** Creates either an HTTPMD or DigestCodeSource record depending on whether digest fields are non-null. */
+        private DomainIdentityRecord(String location, String[] principalTypes, String[] principalNames,
+                                     String digestAlgorithm, byte[] digest) {
             this.location = location;
             this.principalTypes = principalTypes != null ? principalTypes : new String[0];
             this.principalNames = principalNames != null ? principalNames : new String[0];
+            this.digestAlgorithm = digestAlgorithm;
+            this.digest = digest != null ? digest.clone() : null;
         }
 
-        private void writeTo(ByteArrayOutputStream out) throws IOException {
+        /** Returns {@code true} if this record holds a DigestCodeSource domain. */
+        boolean isDigestRecord() {
+            return digest != null;
+        }
+
+        private void writeTo(ByteArrayOutputStream out, boolean newFormat) throws IOException {
+            if (newFormat) {
+                if (isDigestRecord()) {
+                    writeDigestRecord(out);
+                } else {
+                    out.write(RECORD_TYPE_HTTPMD);
+                    writeHttpmdPayload(out);
+                }
+            } else {
+                // Old format: no type byte, HTTPMD payload only.
+                writeHttpmdPayload(out);
+            }
+        }
+
+        private void writeHttpmdPayload(ByteArrayOutputStream out) throws IOException {
             byte[] loc = location.getBytes(StandardCharsets.UTF_8);
             if (loc.length > MAX_LOCATION_BYTES) {
                 throw new InvalidObjectException("location too long to encode: " + loc.length);
             }
             writeUnsignedShort(out, loc.length);
             out.write(loc);
+            writePrincipals(out);
+        }
+
+        private void writeDigestRecord(ByteArrayOutputStream out) throws IOException {
+            out.write(RECORD_TYPE_DIGEST);
+            // URL (may be null)
+            if (location != null) {
+                byte[] urlBytes = location.getBytes(StandardCharsets.UTF_8);
+                if (urlBytes.length > MAX_LOCATION_BYTES) {
+                    throw new InvalidObjectException("DigestCodeSource URL too long to encode: " + urlBytes.length);
+                }
+                writeUnsignedShort(out, urlBytes.length);
+                out.write(urlBytes);
+            } else {
+                writeUnsignedShort(out, 0);
+            }
+            // Algorithm
+            byte[] algBytes = digestAlgorithm.getBytes(StandardCharsets.UTF_8);
+            if (algBytes.length == 0 || algBytes.length > MAX_ALGORITHM_BYTES) {
+                throw new InvalidObjectException("DigestCodeSource algorithm too long to encode: " + algBytes.length);
+            }
+            writeUnsignedShort(out, algBytes.length);
+            out.write(algBytes);
+            // Digest
+            if (digest.length == 0 || digest.length > MAX_DIGEST_BYTES) {
+                throw new InvalidObjectException("DigestCodeSource digest length invalid: " + digest.length);
+            }
+            writeInt(out, digest.length);
+            out.write(digest);
+            // Principals
+            writePrincipals(out);
+        }
+
+        private void writePrincipals(ByteArrayOutputStream out) throws IOException {
             if (principalTypes.length != principalNames.length) {
                 throw new InvalidObjectException("principal type/name length mismatch");
             }
@@ -444,22 +679,50 @@ public final class AccessControlContextSerializer implements Serializable {
         }
 
         private ProtectionDomain toProtectionDomain(Subject authenticatedSubject) throws IOException {
+            if (isDigestRecord()) {
+                return toDigestProtectionDomain(authenticatedSubject);
+            }
+            // HTTPMD domain
             if (!isVerifiableHttpmd(location)) return null;
             URL url = parseHttpmd(location);
-            Principal[] principals;
-            if (authenticatedSubject != null) {
-                Set<Principal> principalSet = authenticatedSubject.getPrincipals();
-                principals = principalSet.toArray(new Principal[0]);
-            } else {
-                if (principalTypes.length != principalNames.length) {
-                    throw new InvalidObjectException("principal type/name length mismatch");
-                }
-                principals = new Principal[principalTypes.length];
-                for (int i = 0; i < principals.length; i++) {
-                    principals[i] = new NamedPrincipal(principalNames[i]);
+            Principal[] principals = buildPrincipals(authenticatedSubject);
+            return new DomainIdentity(new CodeSource(url, (Certificate[]) null), principals);
+        }
+
+        private ProtectionDomain toDigestProtectionDomain(Subject authenticatedSubject) throws IOException {
+            URL url = null;
+            if (location != null && !location.isEmpty()) {
+                try {
+                    url = new URL(location);
+                } catch (MalformedURLException e) {
+                    // URL unavailable; proceed with null URL.
                 }
             }
-            return new DomainIdentity(new CodeSource(url, (java.security.cert.Certificate[]) null), principals);
+            CodeSource cs = tryCreateDigestCodeSource(url, digestAlgorithm, digest);
+            if (cs == null) {
+                // DigestCodeSource class not available in this JVM; skip this domain.
+                // This is the fail-secure behaviour: the remote domain is dropped from
+                // the reconstructed ACC rather than silently downgraded to a plain
+                // CodeSource that any policy might accidentally match.
+                return null;
+            }
+            Principal[] principals = buildPrincipals(authenticatedSubject);
+            return new DomainIdentity(cs, principals);
+        }
+
+        private Principal[] buildPrincipals(Subject authenticatedSubject) throws IOException {
+            if (authenticatedSubject != null) {
+                Set<Principal> principalSet = authenticatedSubject.getPrincipals();
+                return principalSet.toArray(new Principal[0]);
+            }
+            if (principalTypes.length != principalNames.length) {
+                throw new InvalidObjectException("principal type/name length mismatch");
+            }
+            Principal[] principals = new Principal[principalTypes.length];
+            for (int i = 0; i < principals.length; i++) {
+                principals[i] = new NamedPrincipal(principalNames[i]);
+            }
+            return principals;
         }
 
         private void writeObject(ObjectOutputStream out) throws IOException {
@@ -533,5 +796,28 @@ public final class AccessControlContextSerializer implements Serializable {
         ObjectOutputStream.PutField pf = out.putFields();
         pf.put(TRANSPORT_BYTES, marshalForTransport(context));
         out.writeFields();
+    }
+
+    /**
+     * Attempts to construct a {@code java.security.DigestCodeSource} instance
+     * (from DirtyChai JDK) via reflection.  Returns {@code null} if the class
+     * is not available in the current JVM, allowing the caller to apply a
+     * graceful fallback (e.g. dropping the domain from the reconstructed ACC).
+     *
+     * <p>The class name is inspected at runtime rather than imported at compile
+     * time so that no compile-time dependency on the DirtyChai JDK is created.
+     */
+    private static CodeSource tryCreateDigestCodeSource(URL url, String algorithm, byte[] digest) {
+        try {
+            Class<?> cls = Class.forName(DIGEST_CODESOURCE_CLASS_NAME);
+            Constructor<?> ctor = cls.getConstructor(
+                URL.class, Certificate[].class, String.class, byte[].class);
+            return (CodeSource) ctor.newInstance(url, (Certificate[]) null, algorithm, digest);
+        } catch (ClassNotFoundException e) {
+            return null; // DigestCodeSource not present in this JVM.
+        } catch (NoSuchMethodException | IllegalAccessException
+                | InstantiationException | InvocationTargetException e) {
+            return null; // Unexpected — DigestCodeSource API has changed.
+        }
     }
 }

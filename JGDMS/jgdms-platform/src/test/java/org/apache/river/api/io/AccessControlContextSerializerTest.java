@@ -18,6 +18,7 @@
 
 package org.apache.river.api.io;
 
+import java.io.ByteArrayOutputStream;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import java.security.AccessControlContext;
@@ -226,11 +227,105 @@ public class AccessControlContextSerializerTest {
     }
 
 
+    @Test
+    public void testUnmarshalRejectsUnknownFormatVersion() throws Exception {
+        // A transport blob starting with byte 0x02 is neither old-format (0x00)
+        // nor new-format-v1 (0x01) and should be rejected.
+        byte[] payload = new byte[]{0x02, 0, 0, 1, 0, 0, 0, 0};
+        try {
+            AccessControlContextSerializer.unmarshalForTransport(payload, null);
+            Assert.fail("Expected InvalidObjectException for unknown format version");
+        } catch (java.io.InvalidObjectException expected) {
+            Assert.assertTrue(expected.getMessage().contains("Unknown ACC transport format version"));
+        }
+    }
+
+    /**
+     * Tests that a crafted new-format (version 0x01) transport blob containing a
+     * single DigestCodeSource record is accepted by {@code unmarshalForTransport}.
+     * On a standard JDK (no {@code java.security.DigestCodeSource}), the domain is
+     * dropped (fail-secure) so the result may be {@code null} or an ACC with 0
+     * domains; we only assert that parsing does not throw.
+     */
+    @Test
+    public void testUnmarshalNewFormatDigestRecordDoesNotThrow() throws Exception {
+        // Build a minimal new-format blob:
+        // [0x01][4-byte count=1]
+        // [record-type=0x01 (DigestCodeSource)]
+        // [2-byte urlLen=0]                         -- null URL
+        // [2-byte algLen][algLen bytes "SHA-256"]
+        // [4-byte digestLen=32][32 zero bytes]       -- fake SHA-256 digest
+        // [2-byte principalCount=0]
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        baos.write(0x01);               // FORMAT_VERSION_DIGEST
+        writeInt(baos, 1);              // count = 1
+        baos.write(0x01);               // RECORD_TYPE_DIGEST
+        writeShort(baos, 0);            // urlLen = 0 (null URL)
+        byte[] alg = "SHA-256".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        writeShort(baos, alg.length);   // algLen
+        baos.write(alg);
+        writeInt(baos, 32);             // digestLen = 32
+        baos.write(new byte[32]);       // 32 zero bytes (fake digest)
+        writeShort(baos, 0);            // principalCount = 0
+
+        byte[] payload = baos.toByteArray();
+        // Must not throw (DigestCodeSource absent → domain dropped → null or empty ACC)
+        AccessControlContext result = AccessControlContextSerializer.unmarshalForTransport(payload, null);
+        // result is either null (domain dropped, no remaining domains) or a valid ACC.
+        // Both outcomes are acceptable on a standard JDK.
+    }
+
+    /**
+     * Verifies that the old-format (HTTPMD-only) transport bytes produced by
+     * {@code marshalForTransport} are still parseable after the new format
+     * detection logic was introduced.
+     */
+    @Test
+    public void testOldFormatStillReadableAfterFormatDetectionChange() throws Exception {
+        String oldHandlers = System.getProperty("java.protocol.handler.pkgs");
+        System.setProperty("java.protocol.handler.pkgs", "net.jini.url");
+        try {
+            URL httpmd = new URL(null,
+                    "httpmd://repo.example.org/a.jar;sha-256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    new PassThroughHandler());
+            ProtectionDomain pd = new ProtectionDomain(
+                    new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{pd});
+            byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
+            // Old format: first 4 bytes encode the count (= 1)
+            Assert.assertEquals(1, readInt(encoded));
+            // Must be parseable on round-trip
+            AccessControlContext decoded = AccessControlContextSerializer.unmarshalForTransport(encoded, null);
+            Assert.assertNotNull(decoded);
+        } finally {
+            if (oldHandlers == null) {
+                System.clearProperty("java.protocol.handler.pkgs");
+            } else {
+                System.setProperty("java.protocol.handler.pkgs", oldHandlers);
+            }
+        }
+    }
+
+    // ---- binary helpers used by the test methods above -----------------------
+
     private static int readInt(byte[] bytes) {
         return ((bytes[0] & 0xFF) << 24)
                 | ((bytes[1] & 0xFF) << 16)
                 | ((bytes[2] & 0xFF) << 8)
                 | (bytes[3] & 0xFF);
+    }
+
+    private static void writeInt(ByteArrayOutputStream out, int v) {
+        out.write((v >>> 24) & 0xFF);
+        out.write((v >>> 16) & 0xFF);
+        out.write((v >>> 8)  & 0xFF);
+        out.write(v & 0xFF);
+    }
+
+    private static void writeShort(ByteArrayOutputStream out, int v) {
+        out.write((v >>> 8) & 0xFF);
+        out.write(v & 0xFF);
     }
 
     private static final class PassThroughHandler extends URLStreamHandler {
