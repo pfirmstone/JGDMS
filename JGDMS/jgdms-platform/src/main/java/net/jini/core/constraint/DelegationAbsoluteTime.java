@@ -250,7 +250,7 @@ public final class DelegationAbsoluteTime
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
      */
-    public DelegationAbsoluteTime(GetArg arg) throws IOException{
+    public DelegationAbsoluteTime(GetArg arg) throws IOException, ClassNotFoundException{
 	this(true, 
 	    arg.get("minStart", 0L),
 	    arg.get("maxStart", 0L),

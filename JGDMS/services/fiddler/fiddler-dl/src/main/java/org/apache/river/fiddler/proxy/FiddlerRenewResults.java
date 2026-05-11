@@ -70,7 +70,7 @@ public class FiddlerRenewResults implements java.io.Serializable {
         this.exceptions = exceptions;
     }
     
-    FiddlerRenewResults(GetArg arg) throws IOException {
+    FiddlerRenewResults(GetArg arg) throws IOException, ClassNotFoundException {
 	this(((long[])(arg.get("durations", new long[0]))).clone(),
 	    ( arg.get("exceptions", null) == null ?
 		(Exception[])null : (Exception[])arg.get("exceptions", null)));

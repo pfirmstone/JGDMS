@@ -60,11 +60,11 @@ public final class ConstrainableParticipantProxy extends ParticipantProxy
 	super(constrainServer(space, methodConstraints), spaceUuid);
     }
 
-    ConstrainableParticipantProxy(GetArg arg) throws IOException {
+    ConstrainableParticipantProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	ParticipantProxy pp = new ParticipantProxy(arg);
 	
 	/* Basic validation of space and spaceUuid, was performed by

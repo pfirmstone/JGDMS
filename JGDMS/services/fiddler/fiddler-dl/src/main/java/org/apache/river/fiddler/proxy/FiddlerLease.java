@@ -159,7 +159,7 @@ public class FiddlerLease extends AbstractLease
         this.leaseID        = leaseID;
     }//end constructor
 
-    FiddlerLease(GetArg arg) throws IOException {
+    FiddlerLease(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
 	this.server = (Fiddler) arg.get("server", null);
 	this.serverID = (Uuid) arg.get("serverID", null);
@@ -167,7 +167,7 @@ public class FiddlerLease extends AbstractLease
 	this.leaseID = (Uuid) arg.get("leaseID", null);
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	check((Fiddler) arg.get("server", null),
 		(Uuid) arg.get("serverID", null),
 		(Uuid) arg.get("registrationID", null));
@@ -616,7 +616,7 @@ public class FiddlerLease extends AbstractLease
 	   this(arg, check(arg));
 	}
 	
-	ConstrainableFiddlerLease(GetArg arg, MethodConstraints constraints) throws IOException{
+	ConstrainableFiddlerLease(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
 	    super(arg);
 	    this.methodConstraints = constraints;
 	}

@@ -154,7 +154,7 @@ public class Uuid implements Serializable, Replace, Resolve {
      **/
     private final long bits1;
 
-    private static boolean check(GetArg arg) throws IOException{
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{
 	Class [] serialClasses = arg.serialClasses();
 	for (Class c : serialClasses){
 	    if (Externalizable.class.isAssignableFrom(c))
@@ -166,7 +166,7 @@ public class Uuid implements Serializable, Replace, Resolve {
 	return true;
     }
     
-    public Uuid(GetArg arg) throws IOException{
+    public Uuid(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     }
     

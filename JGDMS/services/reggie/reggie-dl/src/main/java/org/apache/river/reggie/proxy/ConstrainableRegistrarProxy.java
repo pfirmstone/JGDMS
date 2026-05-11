@@ -139,7 +139,7 @@ public final class ConstrainableRegistrarProxy
 	this(arg, check(arg));
     }
     
-    ConstrainableRegistrarProxy(GetArg arg, MethodConstraints constraints) throws IOException{
+    ConstrainableRegistrarProxy(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
 	super(arg);
 	this.constraints = constraints;
     }

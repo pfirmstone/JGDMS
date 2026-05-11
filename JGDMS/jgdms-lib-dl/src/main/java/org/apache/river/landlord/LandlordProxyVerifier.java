@@ -91,7 +91,7 @@ final public class LandlordProxyVerifier
 	this.landlordUuid = landlordUuid;
     }
     
-    LandlordProxyVerifier(GetArg arg) throws IOException {
+    LandlordProxyVerifier(GetArg arg) throws IOException, ClassNotFoundException {
 	this((Landlord) arg.get("landlord", null),
 		(Uuid) arg.get("landlordUuid", null));
     }

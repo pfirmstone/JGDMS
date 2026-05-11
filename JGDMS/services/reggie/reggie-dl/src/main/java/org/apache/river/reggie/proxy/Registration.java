@@ -106,7 +106,7 @@ public class Registration implements ServiceRegistration, ReferentUuid, Serializ
 //	arg.put("lease", lease);
 //    }
     
-    private static boolean check(GetArg arg) throws IOException {
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	Registrar server = (Registrar) arg.get("server", null);
 	if (server == null) throw new InvalidObjectException("null server");
 	ServiceLease lease = (ServiceLease) arg.get("lease", null);
@@ -114,11 +114,11 @@ public class Registration implements ServiceRegistration, ReferentUuid, Serializ
 	return true;
     }
     
-    Registration(GetArg arg) throws IOException {
+    Registration(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg, check(arg));
     }
     
-    private Registration(GetArg arg, boolean check) throws IOException {
+    private Registration(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
 	server = (Registrar) arg.get("server", null);
 	lease = (ServiceLease) arg.get("lease", null);
     }

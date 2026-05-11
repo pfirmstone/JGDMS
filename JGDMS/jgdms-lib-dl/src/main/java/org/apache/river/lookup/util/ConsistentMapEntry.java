@@ -66,7 +66,7 @@ final class ConsistentMapEntry<K,V> implements Map.Entry<K,V>, Serializable {
      * @throws IOException 
      * @throws ClassCastException if types don't match <K,V>
      */
-    public ConsistentMapEntry(GetArg arg) throws IOException {
+    public ConsistentMapEntry(GetArg arg) throws IOException, ClassNotFoundException {
 	this((K) arg.get("key", null), (V) arg.get("value", null));
     }
 

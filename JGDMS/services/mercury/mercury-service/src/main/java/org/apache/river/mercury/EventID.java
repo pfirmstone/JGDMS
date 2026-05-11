@@ -57,7 +57,7 @@ class EventID implements Serializable {
      */
     private final long id;
 
-    public EventID(GetArg arg) throws IOException {
+    public EventID(GetArg arg) throws IOException, ClassNotFoundException {
 	this(null,
 	    arg.get("id", 0L),
 	    check(((RO)arg.getReader()).source, "Null source read from stream")

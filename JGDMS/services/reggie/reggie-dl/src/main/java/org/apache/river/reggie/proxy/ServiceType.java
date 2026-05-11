@@ -103,7 +103,7 @@ public class ServiceType implements Serializable {
      */
     final ServiceType[] interfaces;
     
-    private static long check(GetArg arg) throws IOException {
+    private static long check(GetArg arg) throws IOException, ClassNotFoundException {
 	String name = (String) arg.get("name", null); // Throws ClassCastException
 	if (name == null)
 	    throw new InvalidObjectException("name cannot be null");
@@ -130,11 +130,11 @@ public class ServiceType implements Serializable {
 	return hash;
     }
     
-    ServiceType(GetArg arg) throws IOException {
+    ServiceType(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg,check(arg));
     }
     
-    private ServiceType(GetArg arg, long hash) throws IOException{
+    private ServiceType(GetArg arg, long hash) throws IOException, ClassNotFoundException{
 	name = (String) arg.get("name", null);
 	this.hash = hash;
 	superclass = (ServiceType) arg.get("superclass", null);

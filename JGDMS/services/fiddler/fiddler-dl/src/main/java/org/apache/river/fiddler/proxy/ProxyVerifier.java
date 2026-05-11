@@ -88,7 +88,7 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
      * @param arg
      * @throws IOException 
      */
-    ProxyVerifier(GetArg arg) throws IOException {
+    ProxyVerifier(GetArg arg) throws IOException, ClassNotFoundException {
 	this((Fiddler) arg.get("innerProxy", null), (Uuid) arg.get("proxyID", null));
     }
     

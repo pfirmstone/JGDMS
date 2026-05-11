@@ -100,7 +100,7 @@ public final class Delegation implements InvocationConstraint, Serializable {
 	this.val = val;
     }
     
-    public Delegation(GetArg arg) throws IOException{
+    public Delegation(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("val", false));
     }
 

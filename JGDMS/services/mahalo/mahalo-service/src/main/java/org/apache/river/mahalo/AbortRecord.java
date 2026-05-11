@@ -59,9 +59,9 @@ class AbortRecord implements TxnLogRecord  {
         this(check(parts), parts);
     }
     
-    AbortRecord(GetArg arg) throws IOException {
+    AbortRecord(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg),
-		((ParticipantHandle[]) arg.get("parts", null)).clone());
+		arg.get("parts", null, ParticipantHandle[].class).clone());
     }
     
     private AbortRecord(boolean check,ParticipantHandle[] parts ){
@@ -75,9 +75,9 @@ class AbortRecord implements TxnLogRecord  {
 	return true;
     }
 
-    private static boolean check(GetArg arg) throws IOException {
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	try {
-	    return check(arg.get("parts", null));
+	    return check(arg.get("parts", null, ParticipantHandle[].class));
 	} catch (IllegalArgumentException ex){
 	    InvalidObjectException e = new InvalidObjectException("Invariants unsatisfied");
 	    e.initCause(ex);

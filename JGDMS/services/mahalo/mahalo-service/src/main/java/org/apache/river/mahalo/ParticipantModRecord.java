@@ -54,9 +54,9 @@ class ParticipantModRecord implements TxnLogRecord {
 	this(check(part, result), part, result);
     }
     
-    ParticipantModRecord(GetArg arg) throws IOException {
+    ParticipantModRecord(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg),
-		(ParticipantHandle)arg.get("part", null),
+		arg.get("part", null, ParticipantHandle.class),
 		arg.get("result", 0));
     }
     
@@ -65,9 +65,9 @@ class ParticipantModRecord implements TxnLogRecord {
 	this.result = result;
     }
     
-    private static boolean check(GetArg arg) throws IOException {
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	try {
-	    return check(arg.get("part", null), arg.get("result", 0));
+	    return check(arg.get("part", null, Object.class), arg.get("result", 0));
 	} catch (IllegalArgumentException ex){
 	    InvalidObjectException e = new InvalidObjectException("Invariants unsatisfied");
 	    e.initCause(ex);

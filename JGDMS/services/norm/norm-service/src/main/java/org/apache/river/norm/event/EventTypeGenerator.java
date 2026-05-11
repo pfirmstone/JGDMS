@@ -150,7 +150,7 @@ public class EventTypeGenerator implements Serializable {
 	}
     }
     
-    public EventTypeGenerator(GetArg arg) throws IOException{
+    public EventTypeGenerator(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("nextEvID", 1L));
     }
     

@@ -560,7 +560,6 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 if (cause instanceof Exception) throw (Exception) cause;
                 throw e;
             }
-            }
             if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
                 OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
                     "doInitWithLogin");

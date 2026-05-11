@@ -72,7 +72,7 @@ public final class UnicastSocketTimeout
 	this(timeout, check(timeout));
     }
     
-    UnicastSocketTimeout(GetArg arg) throws IOException {
+    UnicastSocketTimeout(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg.get("timeout", -1));
     }
     

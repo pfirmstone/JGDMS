@@ -90,7 +90,7 @@ public final class Confidentiality
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
      */
-    public Confidentiality(GetArg arg) throws IOException{
+    public Confidentiality(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("val", true));
     }
     

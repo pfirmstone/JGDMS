@@ -118,7 +118,7 @@ public final class ClientAuthentication
 	this.val = val;
     }
 
-    ClientAuthentication(GetArg arg) throws IOException {
+    ClientAuthentication(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg.get("val", true));
     }
 

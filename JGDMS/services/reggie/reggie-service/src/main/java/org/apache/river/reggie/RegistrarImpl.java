@@ -710,9 +710,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 */
 	public volatile long leaseExpiration;
 
-	public SvcReg(GetArg arg) throws IOException{
-	    this( (Item) arg.get("item", null),
-		(Uuid) arg.get("leaseID", null),
+	public SvcReg(GetArg arg) throws IOException, ClassNotFoundException {
+	    this( arg.get("item", null, Item.class),
+		arg.get("leaseID", null, Uuid.class),
 		arg.get("leaseExpiration", 0L)
 	    );
 	}

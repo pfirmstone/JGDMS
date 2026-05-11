@@ -38,7 +38,7 @@ class PrepareAndCommitRecord extends ParticipantModRecord {
 	super(part, result);
     }
     
-    PrepareAndCommitRecord(GetArg arg) throws IOException {
+    PrepareAndCommitRecord(GetArg arg) throws IOException, ClassNotFoundException {
 	super(arg);
 }
 }

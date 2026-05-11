@@ -117,7 +117,7 @@ public class RegistrarProxy
 	return new RO();
     }
     
-    private static boolean check(GetArg arg) throws IOException{
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{
 	Registrar server = (Registrar) arg.get("server", null);
 	if (server == null) throw new InvalidObjectException("null server");
 	RO r = (RO) arg.getReader();
@@ -125,11 +125,11 @@ public class RegistrarProxy
 	return true;
     }
     
-    RegistrarProxy(GetArg arg) throws IOException{
+    RegistrarProxy(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     }
     
-    RegistrarProxy(GetArg arg, boolean check) throws IOException{
+    RegistrarProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException{
 	server = (Registrar) arg.get("server", null);
 	RO r = (RO) arg.getReader();
 	registrarID = r.registrarID;

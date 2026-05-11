@@ -126,6 +126,7 @@ public class BytecodeAnalysisEngineImplTest {
             @Override
             public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
+            @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
         };
     }
 
@@ -697,6 +698,7 @@ public class BytecodeAnalysisEngineImplTest {
             @Override
             public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
+            @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
         };
 
         // Two-thread pool; 400 ms timeout.
@@ -938,6 +940,7 @@ public class BytecodeAnalysisEngineImplTest {
             @Override
             public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
+            @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
         };
     }
 
@@ -1877,6 +1880,7 @@ public class BytecodeAnalysisEngineImplTest {
                     au.net.zeus.jgdms.api.codebase.JarAnalysisReport r) {}
             @Override public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
+            @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
         };
 
         ThreadPoolExecutor executor = new ThreadPoolExecutor(

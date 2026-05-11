@@ -198,18 +198,18 @@ public class AdminProxy
 	return new RO();
     }
     
-    private static boolean check(GetArg arg) throws IOException{
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{
 	Registrar server = (Registrar) arg.get(SERVER, null);
 	if (server == null) throw new NullPointerException();
 	if (((RO) arg.getReader()).registrarID == null) throw new NullPointerException();
 	return true;
     }
 
-    AdminProxy(GetArg arg) throws IOException{
+    AdminProxy(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     }
     
-    private AdminProxy(GetArg arg, boolean check) throws IOException {
+    private AdminProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
 	server = (Registrar) arg.get(SERVER, null);
 	registrarID = ((RO) arg.getReader()).registrarID;
     }

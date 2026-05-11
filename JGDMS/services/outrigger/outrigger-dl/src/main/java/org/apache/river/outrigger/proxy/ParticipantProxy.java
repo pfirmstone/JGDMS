@@ -80,13 +80,13 @@ public class ParticipantProxy implements TransactionParticipant, ReferentUuid,
 	this.spaceUuid = spaceUuid;
     }
     
-    ParticipantProxy(GetArg arg) throws IOException {
+    ParticipantProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	this(serialCheck(arg),
 		(TransactionParticipant)arg.get("space", null),
 		(Uuid) arg.get("spaceUuid", null));
     }
     
-    private static boolean serialCheck(GetArg arg) throws IOException{
+    private static boolean serialCheck(GetArg arg) throws IOException, ClassNotFoundException{
 	try {
 	    return check((TransactionParticipant)arg.get("space", null),
 		    (Uuid) arg.get("spaceUuid", null));

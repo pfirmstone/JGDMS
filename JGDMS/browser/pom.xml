@@ -72,11 +72,14 @@
              <artifactId>jgdms-resources</artifactId>
              <version>${project.version}</version>
          </dependency> 
+       <!--
        <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>groovy-config</artifactId>
             <version>${project.version}</version>
+            <optional>true</optional>
         </dependency>
+        -->
         <dependency>
             <groupId>au.net.zeus.jgdms.outrigger</groupId>
             <artifactId>outrigger-dl</artifactId>

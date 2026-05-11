@@ -78,9 +78,9 @@ public final class ProxyVerifier implements TrustVerifier, Serializable {
         this.proxyID = proxyID;
     }
     
-    ProxyVerifier(GetArg arg) throws IOException {
-	this((MailboxBackEnd)arg.get("serverProxy", null),
-	    (Uuid) arg.get("proxyID", null),
+    ProxyVerifier(GetArg arg) throws IOException, ClassNotFoundException {
+	this(arg.get("serverProxy", null, MailboxBackEnd.class),
+	    arg.get("proxyID", null, Uuid.class),
 	    check(arg));
     }
     
@@ -99,9 +99,9 @@ public final class ProxyVerifier implements TrustVerifier, Serializable {
 	return true;
     }
 
-    private static boolean check(GetArg arg) throws IOException {
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	try {
-	    check((MailboxBackEnd)arg.get("serverProxy", null),(Uuid) arg.get("proxyID", null));
+	    check(arg.get("serverProxy", null, MailboxBackEnd.class),(Uuid) arg.get("proxyID", null, Uuid.class));
 	} catch (UnsupportedOperationException ex){
 	    InvalidObjectException e = new InvalidObjectException("failed invariant validation checks");
 	    e.initCause(ex);

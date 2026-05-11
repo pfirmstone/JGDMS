@@ -79,13 +79,13 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
 	return true;
     }
     
-    ProxyVerifier(GetArg arg) throws IOException {
+    ProxyVerifier(GetArg arg) throws IOException, ClassNotFoundException {
 	this((NormServer) arg.get("serverProxy", null),
 	    (Uuid) arg.get("serverUuid", null),
 	    check(arg));
     }
     
-    private static boolean check(GetArg arg) throws IOException {
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	NormServer serverProxy = (NormServer) arg.get("serverProxy", null);
 	Uuid serverUuid = (Uuid) arg.get("serverUuid", null);
 	try {

@@ -36,7 +36,7 @@ class ParticipantAbortRecord extends ParticipantModRecord {
 	super(part, ABORTED);
     }
     
-    ParticipantAbortRecord(GetArg arg) throws IOException{
+    ParticipantAbortRecord(GetArg arg) throws IOException, ClassNotFoundException{
 	super(arg);
 }
 }

@@ -36,7 +36,7 @@ class ParticipantCommitRecord extends ParticipantModRecord {
 	super(part,COMMITTED);
     }
     
-    ParticipantCommitRecord(GetArg arg) throws IOException {
+    ParticipantCommitRecord(GetArg arg) throws IOException, ClassNotFoundException {
 	super(arg);
 }
 }

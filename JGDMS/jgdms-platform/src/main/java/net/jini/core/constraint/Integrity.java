@@ -116,7 +116,7 @@ public final class Integrity implements InvocationConstraint, Serializable, Reso
 	this.val = val;
     }
 
-    Integrity(GetArg arg) throws IOException {
+    Integrity(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg.get("val", true));
     }
 

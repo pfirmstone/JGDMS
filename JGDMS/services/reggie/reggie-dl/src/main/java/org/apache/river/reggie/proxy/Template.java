@@ -123,7 +123,7 @@ public class Template implements Serializable {
 	    EntryRep.toEntryRep(tmpl.attributeSetTemplates, false);
     }
     
-    private static boolean check(GetArg arg) throws IOException {
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	Object serviceID = arg.get("serviceID", null);
 	if (serviceID != null && !(serviceID instanceof ServiceID)) 
 	    throw new InvalidObjectException("serviceID must be instance of ServiceID");
@@ -136,11 +136,11 @@ public class Template implements Serializable {
 	return true;
 }
     
-    Template(GetArg arg) throws IOException {
+    Template(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg), arg);
     }
     
-    private Template(boolean check, GetArg arg) throws IOException {
+    private Template(boolean check, GetArg arg) throws IOException, ClassNotFoundException {
 	serviceID = (ServiceID) arg.get("serviceID", null);
 	ServiceType [] serviceTypes = (ServiceType[]) arg.get("serviceTypes", null);
 	this.serviceTypes = 

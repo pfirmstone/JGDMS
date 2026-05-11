@@ -101,7 +101,7 @@ public class FiddlerProxy implements Administrable, LookupDiscoveryService,
      * @param arg
      * @throws IOException 
      */
-    FiddlerProxy(GetArg arg) throws IOException {
+    FiddlerProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check((Fiddler) arg.get("server", null),
 		   (Uuid) arg.get("proxyID", null)),
 	     (Uuid) arg.get("proxyID", null));
@@ -438,11 +438,11 @@ public class FiddlerProxy implements Administrable, LookupDiscoveryService,
 	 * @param arg
 	 * @throws IOException 
 	 */
-	ConstrainableFiddlerProxy(GetArg arg) throws IOException {
+	ConstrainableFiddlerProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg, check(arg));
 	}
 	
-	ConstrainableFiddlerProxy(GetArg arg, MethodConstraints constraints) throws IOException{
+	ConstrainableFiddlerProxy(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
 	    super(arg);
 	    this.methodConstraints = constraints;
 	}
@@ -453,7 +453,7 @@ public class FiddlerProxy implements Administrable, LookupDiscoveryService,
 	 * @return
 	 * @throws IOException 
 	 */
-	private static MethodConstraints check(GetArg arg) throws IOException {
+	private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
 	    FiddlerProxy fp = new FiddlerProxy(arg);
 	    MethodConstraints methodConstraints 
 		    = (MethodConstraints) arg.get("methodConstraints", null);

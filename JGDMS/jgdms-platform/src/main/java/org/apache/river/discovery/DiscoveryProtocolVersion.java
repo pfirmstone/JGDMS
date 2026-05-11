@@ -89,7 +89,7 @@ public final class DiscoveryProtocolVersion
 	}
     }
 
-    DiscoveryProtocolVersion(GetArg arg) throws IOException{
+    DiscoveryProtocolVersion(GetArg arg) throws IOException, ClassNotFoundException{
 	this(version(arg.get("version", 0)));
     }
     

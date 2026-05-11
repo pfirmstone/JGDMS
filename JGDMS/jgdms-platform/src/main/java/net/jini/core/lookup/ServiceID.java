@@ -96,21 +96,21 @@ public final class ServiceID implements Serializable {
      */
     private final long leastSig;
 
-    private static long mostSig(GetArg arg) throws IOException{
+    private static long mostSig(GetArg arg) throws IOException, ClassNotFoundException{
 	long mostSig = arg.get("mostSig", 0L);
 //	if (mostSig == 0L) 
 //	    throw new InvalidObjectException("mostSig not allowed to be 0L");
 	return mostSig;
     }
     
-    private static long leastSig(GetArg arg) throws IOException{
+    private static long leastSig(GetArg arg) throws IOException, ClassNotFoundException{
 	long leastSig = arg.get("leastSig", 0L);
 //	if (leastSig == 0L) 
 //	    throw new InvalidObjectException("leastSig not allowed to be 0L");
 	return leastSig;
     }
     
-    public ServiceID(GetArg arg) throws IOException{
+    public ServiceID(GetArg arg) throws IOException, ClassNotFoundException{
 	this(mostSig(arg), leastSig(arg));
     }
 

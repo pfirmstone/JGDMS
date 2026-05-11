@@ -1,0 +1,32 @@
+Manifest-Version: 1.0
+Bnd-LastModified: 1778337843899
+Bundle-Description: Infrastructure for providing secured micro service
+ s, that are dynamically discoverable and searchable over ipv6 network
+ s.
+Bundle-Developers: peter_firmstone;name="Peter Firmstone";roles=Develo
+ per;timezone="+10"
+Bundle-DocURL: https://pfirmstone.github.io/JGDMS/services/codebase-do
+ wnloader/codebase-downloader-service/
+Bundle-License: "Apache Software License 2.0";link="http://www.apache.
+ org/licenses/LICENSE-2.0.txt"
+Bundle-ManifestVersion: 2
+Bundle-Name: Module :: Codebase Downloader Service Implementation
+Bundle-SCM: url="https://github.com/pfirmstone/JGDMS/services/codebase
+ -downloader/codebase-downloader-service",connection="scm:git:git://gi
+ thub.com/pfirmstone/JGDMS.git/services/codebase-downloader/codebase-d
+ ownloader-service",developer-connection="scm:git:git@github.com:pfirm
+ stone/JGDMS.git/services/codebase-downloader/codebase-downloader-serv
+ ice",tag="jgdms-3.1.0"
+Bundle-SymbolicName: codebase-downloader-service
+Bundle-Version: 3.1.1.202605091444
+Created-By: 27-internal (N/A)
+Import-Package: au.net.zeus.jgdms.api.codebase,au.net.zeus.jgdms.servi
+ ce.support,net.jini.activation.arg,net.jini.config,net.jini.core.disc
+ overy,net.jini.core.entry,net.jini.core.lookup,net.jini.discovery,net
+ .jini.export,net.jini.id,net.jini.lease,net.jini.lookup,org.apache.ri
+ ver.api.net,org.apache.river.config,org.apache.river.start.lifecycle,
+ org.apache.river.thread
+Private-Package: au.net.zeus.jgdms.downloader
+Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=1.8))"
+Tool: Bnd-6.4.0.202211291949
+

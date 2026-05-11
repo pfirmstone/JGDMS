@@ -111,7 +111,7 @@ public class EntryClass implements Serializable {
      */
     protected final int numFields;
 
-    private static boolean check(GetArg arg) throws IOException{
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{
 	String name = (String) arg.get("name", null);
 	if (name == null) throw new InvalidObjectException("name cannot be null");
 	long hash = arg.get("hash", 0L);

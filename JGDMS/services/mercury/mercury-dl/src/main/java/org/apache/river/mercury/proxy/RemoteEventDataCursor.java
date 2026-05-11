@@ -39,7 +39,7 @@ public class RemoteEventDataCursor implements Serializable {
         readPosition = cursor;
     }
     
-    public RemoteEventDataCursor(GetArg arg) throws IOException{
+    public RemoteEventDataCursor(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("readCount", 0L),
 	     arg.get("readPosition", 0L));
     }

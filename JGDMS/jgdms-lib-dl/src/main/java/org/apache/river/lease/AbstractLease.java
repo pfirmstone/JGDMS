@@ -109,7 +109,7 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
 	return new RO();
     }
     
-    private static long checkExpiration(GetArg arg) throws IOException{
+    private static long checkExpiration(GetArg arg) throws IOException, ClassNotFoundException{
 	int serialFormat = arg.get("serialFormat", Lease.DURATION);
 	RO r = (RO)arg.getReader();
 	if (r.readNotCalled) throw new InvalidObjectException("ReadObject wasn't called");
@@ -134,7 +134,7 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
      * @param arg
      * @throws IOException 
      */
-    public AbstractLease(GetArg arg) throws IOException{
+    public AbstractLease(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, checkExpiration(arg));
     }
     

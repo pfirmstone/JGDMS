@@ -83,12 +83,12 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 	ourLease = lease;
     }
 
-    SetProxy(GetArg arg) throws IOException {
+    SetProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
 	ourLease = (Lease) arg.get("ourLease", null);
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	Lease ourLease = (Lease) arg.get("ourLease", null);
 	if (ourLease == null) {
 	    throw new InvalidObjectException("ourLease cannot be null");

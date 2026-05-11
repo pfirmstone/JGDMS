@@ -117,7 +117,7 @@ public final class ConstrainableServiceLease
 	this(arg, check(arg));
     }
     
-    ConstrainableServiceLease(AtomicSerial.GetArg arg, MethodConstraints constraints) throws IOException{
+    ConstrainableServiceLease(AtomicSerial.GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException {
 	super(arg);
 	this.constraints = constraints;
     }

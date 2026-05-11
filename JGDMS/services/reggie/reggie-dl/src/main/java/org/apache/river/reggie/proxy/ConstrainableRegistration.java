@@ -58,7 +58,7 @@ public final class ConstrainableRegistration
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
-    private static MethodConstraints check(GetArg arg) throws IOException {
+    private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
 	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
 	Registration reg = new Registration(arg);
 	MethodConstraints proxyCon = null;
@@ -73,11 +73,11 @@ public final class ConstrainableRegistration
 	return constraints;
     }
    
-    ConstrainableRegistration(GetArg arg) throws IOException {
+    ConstrainableRegistration(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg, check(arg));
     }
     
-    ConstrainableRegistration(GetArg arg, MethodConstraints constraints) throws IOException{
+    ConstrainableRegistration(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
 	super(arg);
 	this.constraints = constraints;
     }

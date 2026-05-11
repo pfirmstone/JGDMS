@@ -76,7 +76,7 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
 	this(check(server, uuid), server, uuid);
     }
     
-    ProxyVerifier(GetArg arg) throws IOException {
+    ProxyVerifier(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg),
 		(OutriggerServer) arg.get("server", null),
 		(Uuid) arg.get("uuid", null));
@@ -87,7 +87,7 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
         this.server = (RemoteMethodControl)server;
     }
     
-    private static boolean check(GetArg arg) throws IOException {
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	try {
 	    return check((OutriggerServer) arg.get("server", null),
 		    (Uuid) arg.get("uuid", null));

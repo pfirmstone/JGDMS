@@ -167,7 +167,7 @@ class LeaseSet implements Serializable, LeasedResource {
 	}
     }
 
-    LeaseSet(GetArg arg) throws IOException {
+    LeaseSet(GetArg arg) throws IOException, ClassNotFoundException {
 	this(	arg.get("expiration", 0L),
 		(Uuid) arg.get("ID", null),
 		check((Set<ClientLeaseWrapper>) arg.get("leases", null)),
