@@ -21,7 +21,7 @@ package net.jini.io.context;
 import javax.security.auth.Subject;
 
 /**
- * Server context element that carries the authenticated <em>user</em> Subject
+ * Server context element that carries the authenticated <em>user</em> Subject(s)
  * separately from the server-process <em>worker</em> Subject.
  *
  * <p>On the client side there are two distinct identities:
@@ -31,18 +31,26 @@ import javax.security.auth.Subject;
  *       Its principals travel to the server through the TLS certificate chain
  *       and are available via
  *       {@link ClientSubject#getClientSubject() ClientSubject.getClientSubject()}.</li>
- *   <li>The <em>user Subject</em> — the human user identity, established on
- *       the client via {@code Subject.callAs} and transmitted in-band in the
- *       JERI request header (wire protocol version {@code 0x02}).  Its
- *       principals are available via this interface.</li>
+ *   <li>The <em>user Subject(s)</em> — the human user identit(ies), established
+ *       on the client via {@code Subject.callAs} and transmitted in-band in the
+ *       JERI request header (wire protocol version {@code 0x02}).  When multiple
+ *       user Subjects are present on the client (e.g. a multi-party transaction
+ *       context established via the DirtyChai {@code Subject.currentAll()} array),
+ *       all of them are transmitted and available via {@link #getUserSubjects()}.
+ *       The first (outermost) Subject is also accessible via
+ *       {@link #getUserSubject()} for single-subject callers.</li>
  * </ul>
  *
- * <p>On the server side the dispatcher reconstructs both Subjects and runs the
- * invocation as:
+ * <p>On the server side the dispatcher reconstructs all Subjects and runs the
+ * invocation with each user Subject nested inside the previous via
+ * {@code Subject.callAs}:
  * <pre>
- *   Subject.doAs(workerSubject, () -&gt; {        // ACC; virtual threads inherit
- *       Subject.callAs(userSubject, () -&gt; {    // ScopedValue; dispatch thread only
- *           invoke(...)
+ *   Subject.doAs(workerSubject, () -&gt; {          // ACC; virtual threads inherit
+ *       Subject.callAs(userSubjects[0], () -&gt; {  // outermost user Subject
+ *           Subject.callAs(userSubjects[1], () -&gt; { // next user Subject, if any
+ *               ...
+ *               invoke(...)
+ *           });
  *       });
  *   });
  * </pre>
@@ -67,14 +75,32 @@ import javax.security.auth.Subject;
 public interface ClientUserSubject {
 
     /**
-     * Returns the user Subject assembled from the principals transmitted in
-     * the JERI request header, or {@code null} if no user principals were
-     * present in the request.
+     * Returns all user Subjects assembled from the principals transmitted in
+     * the JERI request header.  The array is ordered outermost-first, matching
+     * the order in which the client established them via {@code Subject.callAs}.
      *
-     * <p>The returned Subject is read-only (i.e., {@code Subject.isReadOnly()
-     * == true}) and contains no credentials.
+     * <p>Each Subject is read-only ({@code Subject.isReadOnly() == true}) and
+     * contains no credentials.
      *
-     * @return the user Subject, or {@code null}
+     * @return a non-null, non-empty array of user Subjects; never {@code null}
+     *         and never empty when this context element is present
      */
-    Subject getUserSubject();
+    Subject[] getUserSubjects();
+
+    /**
+     * Returns the first (outermost) user Subject, or {@code null} if no user
+     * principals were present in the request.
+     *
+     * <p>Convenience method for single-Subject callers; equivalent to
+     * {@code getUserSubjects()[0]} when the array is non-empty.
+     *
+     * <p>The returned Subject is read-only ({@code Subject.isReadOnly() == true})
+     * and contains no credentials.
+     *
+     * @return the first user Subject, or {@code null}
+     */
+    default Subject getUserSubject() {
+        Subject[] subjects = getUserSubjects();
+        return subjects.length > 0 ? subjects[0] : null;
+    }
 }

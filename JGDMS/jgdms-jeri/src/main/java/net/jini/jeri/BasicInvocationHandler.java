@@ -50,7 +50,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.logging.Level;
@@ -841,19 +840,19 @@ public class BasicInvocationHandler
 
 	    OutputStream ros = request.getRequestOutputStream();
 	    // Select marshalling protocol version.
-	    // 0x02 = with serialized remote ACC + user principals
-	    // 0x01 = atomicValidation, no user principals
-	    // 0x00 = legacy, no atomicValidation, no user principals
+	    // 0x02 = with serialized remote ACC + user Subjects (multi-subject)
+	    // 0x01 = atomicValidation, no user Subjects
+	    // 0x00 = legacy, no atomicValidation, no user Subjects
             final AccessControlContext currentAcc = AccessController.getContext();
             byte[] serializedAcc = AccessControlContextSerializer.marshalForTransport(currentAcc);
 	    if (serializedAcc.length > 0) {
-		// Capture user principals (from Subject.callAs scope, JDK 18+).
+		// Capture all user Subjects (from Subject.callAs scope, JDK 18+).
 		// These are sent separately from the TLS-authenticated worker Subject.
-		Set<Principal> userPrincipals = getUserPrincipals();
+		Subject[] userSubjects = getAllUserSubjects();
 		ros.write(0x02);			// marshalling protocol version
 		ros.write(integrity ? 0x01 : 0x00);	// integrity
 		ros.write(atomicValidation ? 0x01 : 0x00); // atomicValidation
-		writeUserPrincipals(ros, userPrincipals);
+		writeUserSubjects(ros, userSubjects);
                 writeByteArrayBlock(ros, serializedAcc);
 	    } else if (atomicValidation){
 		ros.write(0x01);			// marshalling protocol version
@@ -1712,53 +1711,68 @@ public class BasicInvocationHandler
     /* ---------------------------------------------------------------------- */
 
     /**
-     * Returns the set of principals from the user Subject bound to the current
-     * thread via {@code Subject.callAs}, or an empty set if no user Subject is
-     * present.
+     * Returns all user Subjects bound to the current thread via
+     * {@code Subject.callAs}, outermost-first.
+     *
+     * <p>On the DirtyChai JDK, {@code Subject.currentAll()} is called via
+     * reflection to obtain the full {@code Subject[]} array.  On a standard
+     * JDK that only exposes {@code Subject.current()}, a single-element array
+     * is returned.  An empty array is returned when no user Subject is present.
      *
      * <p>The worker Subject established via {@code Subject.doAs} is used for
      * TLS authentication and must NOT be included here; its principals reach
      * the server via the TLS certificate chain.
      */
-    private static Set<Principal> getUserPrincipals() {
-	Subject subject = Subject.current();
-	if (subject == null) {
-	    return Collections.emptySet();
+    @SuppressWarnings("unchecked")
+    private static Subject[] getAllUserSubjects() {
+	try {
+	    // DirtyChai JDK extension: Subject.currentAll() returns Subject[]
+	    Method currentAll = Subject.class.getMethod("currentAll");
+	    Subject[] arr = (Subject[]) currentAll.invoke(null);
+	    if (arr != null && arr.length > 0) return arr;
+	} catch (NoSuchMethodException ignored) {
+	    // Standard JDK — fall through to Subject.current()
+	} catch (Exception ignored) {
+	    // Any other reflective failure — fall through
 	}
-	Set<Principal> principals = new HashSet<>(subject.getPrincipals());
-	if (principals.isEmpty()) {
-	    return Collections.emptySet();
-	}
-	return Collections.unmodifiableSet(principals);
+	Subject single = Subject.current();
+	return single != null ? new Subject[]{single} : new Subject[0];
     }
 
     /**
-     * Writes the user principals to the request output stream using the
-     * compact wire encoding for protocol version {@code 0x02}.
+     * Writes all user Subjects to the request output stream using the
+     * multi-subject encoding for wire protocol version {@code 0x02}.
      *
      * <p>Format (after the version/integrity/atomic bytes):
      * <pre>
-     *   principalCount  : unsigned 16-bit big-endian (max 65535)
-     *   for each principal:
-     *     classNameLength : unsigned 16-bit big-endian
-     *     classNameBytes  : UTF-8, classNameLength bytes
-     *     nameLength      : unsigned 16-bit big-endian
-     *     nameBytes       : UTF-8, nameLength bytes
+     *   subjectCount      : unsigned 16-bit big-endian (number of user Subjects)
+     *   for each Subject:
+     *     principalCount  : unsigned 16-bit big-endian
+     *     for each principal:
+     *       classNameLength : unsigned 16-bit big-endian
+     *       classNameBytes  : UTF-8, classNameLength bytes
+     *       nameLength      : unsigned 16-bit big-endian
+     *       nameBytes       : UTF-8, nameLength bytes
      * </pre>
      */
-    static void writeUserPrincipals(OutputStream out,
-				    Set<? extends Principal> principals)
+    static void writeUserSubjects(OutputStream out, Subject[] subjects)
 	throws IOException
     {
-	int count = Math.min(principals.size(), 0xFFFF);
-	out.write((count >>> 8) & 0xFF);
-	out.write(count & 0xFF);
-	int written = 0;
-	for (Principal p : principals) {
-	    if (written >= count) break;
-	    writeUtf8Prefixed(out, p.getClass().getName());
-	    writeUtf8Prefixed(out, p.getName());
-	    written++;
+	int subjectCount = Math.min(subjects.length, 0xFFFF);
+	out.write((subjectCount >>> 8) & 0xFF);
+	out.write(subjectCount & 0xFF);
+	for (int si = 0; si < subjectCount; si++) {
+	    Set<Principal> principals = subjects[si].getPrincipals();
+	    int count = Math.min(principals.size(), 0xFFFF);
+	    out.write((count >>> 8) & 0xFF);
+	    out.write(count & 0xFF);
+	    int written = 0;
+	    for (Principal p : principals) {
+		if (written >= count) break;
+		writeUtf8Prefixed(out, p.getClass().getName());
+		writeUtf8Prefixed(out, p.getName());
+		written++;
+	    }
 	}
     }
 
