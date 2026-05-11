@@ -67,8 +67,8 @@ granted privileges. Its key design goals are:
 - Community redesign of the Authorization API for potential inclusion in OpenJDK mainline
 - SpiffeX509TrustManager and SpiffeX509KeyManager - SPIFFE/SPIRE Zero Touch Certificate Management.
 
-DirtyChai completes what Sun Microsystems and Bill Joy started. Running JGDMS on DirtyChai restores the full
-authorization semantics and lets the platform evolve beyond the Java 23 ceiling.
+Running JGDMS on DirtyChai restores the full authorization semantics and lets the platform evolve
+beyond the Java 23 ceiling.
 
 ![DirtyChai mascot: a tough chai mug in a hard hat with a SPIFFE badge](images/dirty-chai-mascot.svg)
 
@@ -134,7 +134,7 @@ its own carrier, lifetime, and routing rule:
 │   │     • Never passed to callAs() or doAs() — illegal              │
 │   │                                                                 │
 │   └── UserSubject  (final)                                          │
-│         • Human user identity (JWT/OIDC — see below)               │
+│         • Human user identity (JWT/OIDC — see below)                │
 │         • Carried in SCOPED_SUBJECT ScopedValue<Subject[]>          │
 │         • Installed per-request via Subject.callAs(...)             │
 │         • Injected into ProtectionDomain array by AccessController  │
@@ -213,7 +213,10 @@ Subject primary = cus.getUserSubject();    // subjects[0] — convenience for si
 ```
 
 This makes it possible for a single RPC to carry, for example, both the end-user's JWT identity
-and a delegation-chain Subject, without any out-of-band negotiation.
+and a delegation-chain Subject, without any out-of-band negotiation.  Alternatively policy
+can dictate the multiple people must be present for a transaction to complete, if one key user role
+is missing, the transaction doesn't have permission to complete, permission can only be attained
+when all users are logged in and present.
 
 `Subject.current()` returns only the first Subject bound via `callAs` — it never falls back to the
 `AccessControlContext`. This ensures the server can always distinguish TLS-verified machine
@@ -331,7 +334,7 @@ providers:
 ┌──────────────────────────────────────────────────────────────────────────┐
 │              Three-Way Permission Intersection at Grant Time             │
 │                                                                          │
-│   What the proxy's ClassLoader declares   (META-INF/PERMISSIONS.LIST)   │
+│   What the proxy's ClassLoader declares   (META-INF/PERMISSIONS.LIST)    │
 │                       ∩                                                  │
 │   What the caller is authorised to give   (GrantPermission ceiling       │
 │                                            in RemotePolicyProvider)      │
@@ -403,30 +406,30 @@ library vulnerabilities and transient dependency vulnerabilities.
 │                                                                              │
 │  Host 1 — Jini Lookup Service                                                │
 │    Stores marshalled service items opaquely.                                 │
-│    Fires events when new services register.           ◄──── clients query   │
+│    Fires events when new services register.           ◄──── clients query    │
 │           │                                                                  │
 │           │ new service registered (event)                                   │
 │           ▼                                                                  │
-│  Host 4 — Codebase Downloader  ◄── ONLY component with outbound internet    │
+│  Host 4 — Codebase Downloader  ◄── ONLY component with outbound internet     │
 │    Downloads JARs proactively on new service registrations.                  │
 │           │                                                                  │
 │           │ AnalysisRequest (JAR bytes + SHA-256)                            │
 │           ▼                                                                  │
-│  Host 2 — BAE Pool  (SELinux-isolated, stateless, replicated N×)            │
+│  Host 2 — BAE Pool  (SELinux-isolated, stateless, replicated N×)             │
 │    Analyzes JAR bytecode with ASM visitors.                                  │
 │    Signs JarAnalysisReport with its own private key.                         │
-│    No outbound internet. No exec. No JNI. No FFM.                           │
+│    No outbound internet. No exec. No JNI. No FFM.                            │
 │    Abnormal exit → CrashReport condemns the codebase.                        │
 │           │                                                                  │
-│           │ signed JarAnalysisReport   (NO direct path from Host 2→Host 3   │
-│           │ goes via Host 4 / client)  ← this isolation is intentional      │
+│           │ signed JarAnalysisReport   (NO direct path from Host 2→Host 3    │
+│           │ goes via Host 4 / client)  ← this isolation is intentional       │
 │           ▼                                                                  │
-│  Host 3 — Verdict Registry  ◄──────────────────── clients query before      │
+│  Host 3 — Verdict Registry  ◄──────────────────── clients query before       │
 │    Accumulates signed reports.                         unmarshalling proxy   │
-│    Issues RegistryVerdict (SAFE / DANGEROUS / INCONCLUSIVE)                 │
+│    Issues RegistryVerdict (SAFE / DANGEROUS / INCONCLUSIVE)                  │
 │    only when a quorum of independent BAE engines agrees.                     │
 │                                                                              │
-│  Host 5 — JFR Telemetry Service  (reactive, NO connection to Hosts 2/4)     │
+│  Host 5 — JFR Telemetry Service  (reactive, NO connection to Hosts 2/4)      │
 │    Receives VirtualThreadPinned JFR events from client JVMs.                 │
 │    Triggers re-analysis without letting clients influence verdicts directly. │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -482,8 +485,8 @@ JGDMS service discovery scales from a laptop LAN to a global IPv6 network.
 │    │   ("jini://lookup.x:4160")│                            │              │
 │    │                           │                            │              │
 │    │◄── bootstrap proxy ───────│   (hash-verified unicast)  │              │
-│    │    (trust established      │                            │              │
-│    │     before unmarshalling)  │                            │              │
+│    │    (trust established     │                            │              │
+│    │     before unmarshalling) │                            │              │
 │    │                           │                            │              │
 │    │── query Verdict Registry ─────────────────────────────►│ Host 3       │
 │    │   (SHA-256 hash of proxy JAR)                          │              │
@@ -492,7 +495,7 @@ JGDMS service discovery scales from a laptop LAN to a global IPv6 network.
 │    │── unmarshal full proxy ── (ProxyCodebaseSpi: ClassLoader, BAE gate)   │
 │    │                                                        │              │
 │    │── TLS 1.3 + SPIFFE SVID ──────────────────────────────►│              │
-│    │   (mutual authentication; method constraints enforced)  │              │
+│    │   (mutual authentication; method constraints enforced) │              │
 │    │◄── response ──────────────────────────────────────────►│              │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
