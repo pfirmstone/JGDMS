@@ -1,12 +1,45 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v21)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v22)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v20.
+context. It supersedes and extends v21.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v22 Change Summary
+
+This version documents the **`equals` / `hashCode` additions** to
+`AccessControlContextSerializer` and `DomainIdentityRecord`.  Implementing
+logical equality allows the serialization stream's back-reference handle table
+to deduplicate equal serializer instances that are encountered more than once
+during a single `writeObject` pass, reducing wire-format redundancy.
+
+**New/changed in v22:**
+
+- **`DomainIdentityRecord.equals()`** — compares `location`, `principalTypes`,
+  and `principalNames` fields; consistent with the record's persistent state.
+- **`DomainIdentityRecord.hashCode()`** — hash of `location` combined with
+  `Arrays.hashCode(principalTypes)` and `Arrays.hashCode(principalNames)`.
+- **`AccessControlContextSerializer.cachedDigestBytes`** — new
+  `private transient volatile byte[]` field; lazily populated by `digestBytes()`
+  and reused by `equals` / `hashCode` so that `marshalDigestForTransport` is
+  called at most once per instance.
+- **`AccessControlContextSerializer.digestBytes()`** — private helper that
+  computes and caches the digest transport bytes; returns `new byte[0]` if
+  `marshalDigestForTransport` throws.
+- **`AccessControlContextSerializer.equals()`** — compares `domains` arrays
+  (HTTPMD part, via `DomainIdentityRecord.equals`) and the cached digest bytes
+  (digest part).
+- **`AccessControlContextSerializer.hashCode()`** — `31 * Arrays.hashCode(domains)
+  + Arrays.hashCode(digestBytes())`.
+- `java.util.Arrays` import added.
+- **§1 document table** row for `AccessControlContextSerializer.java` updated.
+- **§12 work items** — item 27 note extended.
+- **§13** one new design-decision row added.
 
 ---
 
@@ -261,7 +294,7 @@ re-establishment for `Subject.current()` in spawned threads.
 | `DefaultPolicyScanner.java` | DirtyChai source | ✅ **Updated (v20):** `GrantEntry` has new `String digest` field + `getDigest()` + updated constructor + `toString()` includes digest; `readGrantEntry()` recognises `"digest"` keyword |
 | `DefaultPolicyParser.java` | DirtyChai source | ✅ **Updated (v20):** `resolveGrant()` reads `ge.getDigest()`, hex-decodes, selects `DIGEST` vs `URI` context; new `hexDecode()` helper; missing methods `getURI()`, `segment()`, `expandURLs()`, `resolvePermission()`, `PermissionExpander`, `resolveSigners()` restored |
 | `SecurityPolicyWriter.java` | DirtyChai source | ✅ **Updated (v20):** Emits `digest "alg:hex",\n` clause for `DigestCodeSource`; new `hexEncode(byte[])` helper; hasDigest \|\| hasPrincipals controls comma placement after codebase |
-| `AccessControlContextSerializer.java` | `JGDMS/jgdms-platform/src/main/java/org/apache/river/api/io/` | ✅ **Updated (v21):** New `digestTransportBytes` serial field carries `DigestCodeSource` domains via `AtomicMarshalOutputStream`/`AtomicMarshalInputStream`; `DomainIdentityRecord.from()` now skips `DigestCodeSource` to prevent httpmd-URL duplication; `buildContext()` merges HTTPMD + digest `ProtectionDomain[]` arrays |
+| `AccessControlContextSerializer.java` | `JGDMS/jgdms-platform/src/main/java/org/apache/river/api/io/` | ✅ **Updated (v21/v22):** New `digestTransportBytes` serial field carries `DigestCodeSource` domains via `AtomicMarshalOutputStream`/`AtomicMarshalInputStream`; `DomainIdentityRecord.from()` now skips `DigestCodeSource` to prevent httpmd-URL duplication; `buildContext()` merges HTTPMD + digest `ProtectionDomain[]` arrays; `DomainIdentityRecord.equals/hashCode` + `AccessControlContextSerializer.equals/hashCode` added (v22); `cachedDigestBytes` transient cache avoids recomputing digest bytes on each equality check |
 
 ---
 
@@ -1439,7 +1472,7 @@ executor.submit(() -> {
     - `DefaultPolicyParser` — `hexDecode()` + `DIGEST` context routing
     - `SecurityPolicyWriter` — `hexEncode()` + `DigestCodeSource` detection
     - Policy file round-trip: write → parse → `DigestGrant` fully functional
-27. **JERI ACC transport for `DigestCodeSource` domains** — ✅ *completed (v21)*
+27. **JERI ACC transport for `DigestCodeSource` domains** — ✅ *completed (v21/v22)*
     - `AccessControlContextSerializer.digestTransportBytes` serial field — separate
       `byte[]` carrying `DigestCodeSource` domains; `transportBytes` (HTTPMD) unchanged
     - `marshalDigestForTransport()` — `cs instanceof Externalizable` + class-name guard;
@@ -1452,6 +1485,9 @@ executor.submit(() -> {
     - `buildContext()` — merges HTTPMD and DigestCodeSource `ProtectionDomain[]` into one
       `AccessControlContext`
     - Backward compatible: peers without `digestTransportBytes` receive `null` and skip it
+    - `DomainIdentityRecord.equals/hashCode` + `AccessControlContextSerializer.equals/hashCode`
+      added (v22) so stream back-references eliminate repeated equal instances;
+      `cachedDigestBytes` avoids recomputing `marshalDigestForTransport` on each check
 
 ---
 
@@ -1546,6 +1582,7 @@ executor.submit(() -> {
 | **Separate `digestTransportBytes` serial field for DigestCodeSource** | ✅ **v21:** Keeping `DigestCodeSource` domains in a dedicated field leaves the existing HTTPMD `transportBytes` wire format completely unchanged; older peers that do not understand the field receive `null` and silently skip it (fail-secure) |
 | **`AtomicMarshalOutputStream`/`AtomicMarshalInputStream` for DigestCodeSource transport** | ✅ **v21:** `DigestCodeSource` implements `Externalizable` and writes only strings and bytes with built-in DOS guards; `AtomicMarshalInputStream` is the project-standard secure deserializer — `ObjectInputStream` is explicitly avoided everywhere in JGDMS |
 | **`DomainIdentityRecord.from()` skips `DigestCodeSource` before httpmd URL test** | ✅ **v21:** A `DigestCodeSource` with an httpmd location must travel exclusively via `digestTransportBytes`; checking for `DigestCodeSource` first (via `cs instanceof Externalizable` + class-name) prevents it from being duplicated into `transportBytes` while adding zero overhead for ordinary `CodeSource` instances |
+| **`equals`/`hashCode` on `AccessControlContextSerializer` + `DomainIdentityRecord`** | ✅ **v22:** Java serialization's handle table deduplicates by reference identity; implementing logical equality allows equal serializer instances to be recognised as the same object once a deduplication layer is applied, avoiding repeated full serialisation of identical ACCs; `cachedDigestBytes` ensures the relatively expensive `marshalDigestForTransport` is called at most once per instance across all `equals`/`hashCode` invocations |
 
 ---
 

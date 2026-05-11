@@ -43,6 +43,7 @@ import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -310,6 +311,15 @@ public final class AccessControlContextSerializer implements Serializable {
 
     private final DomainIdentityRecord[] domains;
     private final transient AccessControlContext context;
+    /**
+     * Cached result of {@link #marshalDigestForTransport} so that
+     * {@link #equals} and {@link #hashCode} do not recompute the digest bytes
+     * on every call.  Computed lazily on first access; {@code context} is
+     * effectively immutable so the cache is safe to share without a lock after
+     * the first write (the worst case is two threads computing the same value
+     * concurrently, which is harmless).
+     */
+    private transient volatile byte[] cachedDigestBytes;
 
     AccessControlContextSerializer(GetArg arg) throws IOException, ClassNotFoundException {
         this(buildContext(
@@ -651,6 +661,24 @@ public final class AccessControlContextSerializer implements Serializable {
             return principals;
         }
 
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof DomainIdentityRecord)) return false;
+            DomainIdentityRecord other = (DomainIdentityRecord) obj;
+            return (location == null ? other.location == null : location.equals(other.location))
+                    && Arrays.equals(principalTypes, other.principalTypes)
+                    && Arrays.equals(principalNames, other.principalNames);
+        }
+
+        @Override
+        public int hashCode() {
+            int h = location != null ? location.hashCode() : 0;
+            h = 31 * h + Arrays.hashCode(principalTypes);
+            h = 31 * h + Arrays.hashCode(principalNames);
+            return h;
+        }
+
         private void writeObject(ObjectOutputStream out) throws IOException {
             throw new NotSerializableException(
                 "DomainIdentityRecord must be serialized using @AtomicSerial transport records only");
@@ -716,6 +744,45 @@ public final class AccessControlContextSerializer implements Serializable {
             throw new NotSerializableException(
                 "NamedPrincipal must not be deserialized outside of AccessControlContextSerializer");
         }
+    }
+
+    /**
+     * Returns the cached digest transport bytes for this serializer, computing
+     * them if not yet cached.  An {@link IOException} during computation is
+     * treated as "no digest domains" ({@code new byte[0]}).
+     */
+    private byte[] digestBytes() {
+        byte[] b = cachedDigestBytes;
+        if (b == null) {
+            try {
+                b = marshalDigestForTransport(context);
+            } catch (IOException e) {
+                b = new byte[0];
+            }
+            cachedDigestBytes = b;
+        }
+        return b;
+    }
+
+    /**
+     * Two {@link AccessControlContextSerializer} instances are equal when they
+     * carry the same set of {@link DomainIdentityRecord} HTTPMD domains and the
+     * same {@code DigestCodeSource} digest domains.  Equal instances will be
+     * back-referenced by the serialization stream rather than written in full a
+     * second time, which is the primary motivation for this implementation.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof AccessControlContextSerializer)) return false;
+        AccessControlContextSerializer other = (AccessControlContextSerializer) obj;
+        return Arrays.equals(domains, other.domains)
+                && Arrays.equals(digestBytes(), other.digestBytes());
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * Arrays.hashCode(domains) + Arrays.hashCode(digestBytes());
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException {
