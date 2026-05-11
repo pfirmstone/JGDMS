@@ -640,11 +640,6 @@ public final class AccessControlContextSerializer implements Serializable {
          * {@link #marshalDigestForTransport} and are explicitly excluded here
          * to avoid duplicating a DigestCodeSource whose location happens to be
          * an httpmd URL in both the HTTPMD and the digest transport streams.
-         *
-         * <p>Returns {@code null} (domain silently dropped) when the domain is
-         * unverifiable — see the security note on
-         * {@link AccessControlContextSerializer#recordsFromContext} for the
-         * privilege-escalation implications and required administrator mitigations.
          */
         static DomainIdentityRecord from(ProtectionDomain pd, Subject authenticatedSubject) {
             CodeSource cs = pd.getCodeSource();

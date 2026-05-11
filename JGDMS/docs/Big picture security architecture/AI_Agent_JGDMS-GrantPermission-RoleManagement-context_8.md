@@ -843,31 +843,27 @@ A `DomainCombiner` on the receiving JVM:
 - Strips any domain whose `SpiffePrincipal` is outside the trusted SPIFFE trust domain
 - Verified domains participate in `RemotePolicy` checks as call stack domains
 
-**⚠ Security note — domain stripping is an implicit privilege escalation:**
+**⚠ Security background — why domain stripping was a privilege escalation:**
 
 Every domain in a caller's `AccessControlContext` acts as a permission ceiling: for a
 `checkPermission` call to succeed, **every** domain in the intersection must hold the
-permission.  When an unverifiable domain is stripped during JERI transport, that ceiling
-disappears.  In the worst case an ACC that was entirely unprivileged on the sender
-side — because it contained at least one domain with no permissions at all — becomes
-fully privileged on the receiver side.  This is structurally identical to an unchecked
-`doPrivileged` call and must be compensated by policy.
+permission.  When an unverifiable domain was silently dropped during JERI transport, that
+ceiling disappeared.  In the worst case an ACC that was entirely unprivileged on the
+sender side — because it contained at least one domain with no permissions at all —
+could become fully privileged on the receiver side.  This is structurally identical to an
+unchecked `doPrivileged` call.
+
+This risk was addressed in v23 — see **§10.2.1** below for the anonymous domain count
+transport format that preserves the ceiling effect without requiring a verifiable identity.
 
 **Unverifiable domains** are `ProtectionDomain`s whose `CodeSource` has:
 - a plain (non-`httpmd:`) URL, or
 - no codebase URL at all (e.g. domains created with `new ProtectionDomain(null, ...)`).
 
-Because their code content cannot be verified at transport time they are silently dropped
-by `AccessControlContextSerializer`.
+**Administrator guidance — `LoadPermission` bootstrapping:**
 
-**Administrator mitigation:**
-
-1. Grant only the **minimal permissions** required to unverifiable domains in policy.
-   If such a domain must never elevate the caller's authority, it should have no grants
-   whatsoever — its absence after stripping will then be harmless.
-
-2. If a domain must eventually obtain **`LoadPermission`** (to load classes from a
-   remote codebase), the following bootstrapping sequence is required:
+If a domain must eventually obtain `LoadPermission` (to load classes from a remote
+codebase), the safe bootstrapping sequence is:
 
    | Step | What happens |
    |---|---|
@@ -876,9 +872,9 @@ by `AccessControlContextSerializer`.
    | 3 | The `DigestCodeSource`-backed domain is verifiable and survives JERI transport via `digestTransportBytes`. |
    | 4 | Only **after** step 3 is complete may `LoadPermission` be granted, scoped to the verified `DigestCodeSource` identity. |
 
-   Granting `LoadPermission` **before** the digest is established is unsafe: the domain
-   remains unverifiable, will be stripped on arrival, and the resulting escalation is
-   equivalent to granting `LoadPermission` with no codebase restriction at all.
+Granting `LoadPermission` **before** the digest is established is unsafe: the domain
+travels only as an anonymous placeholder on the receiver, and the resulting grant is
+effectively unconstrained by codebase identity.
 
 `DomainCombiner` is retained as a **Java API compatibility layer** specifically for this
 receiving-side verification role.  `SubjectDomainCombiner` is deprecated.
