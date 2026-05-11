@@ -145,29 +145,23 @@ public final class AccessControlContextSerializer implements Serializable {
      * {@code acc} into a compact binary payload for JERI transport.
      *
      * <p><b>Transport format:</b>
-     * <ul>
-     *   <li><em>Version-0 (legacy)</em> — produced when there are no anonymous
-     *       domains (all non-verifiable domains were previously silently dropped):
-     *       {@code [count: 4 bytes BE][DomainIdentityRecord...]}
-     *       The first byte is always {@code 0x00} for valid counts ≤ 4096.
-     *   <li><em>Version-1</em> — produced when one or more non-HTTPMD,
-     *       non-{@code DigestCodeSource} ("anonymous") domains are present in the
-     *       sender's ACC:
-     *       {@code [0x01 version byte][count: 4 bytes BE][DomainIdentityRecord...][anonCount: 4 bytes BE]}
-     *       Old receivers see the {@code 0x01} version byte as an impossibly large
-     *       domain count and throw {@link java.io.InvalidObjectException}
-     *       (fail-secure).
-     * </ul>
+     * <pre>
+     *   [httpmdCount: 4 bytes BE][DomainIdentityRecord...][anonCount: 4 bytes BE]
+     * </pre>
+     * {@code httpmdCount} is the number of HTTPMD-verifiable domains that follow.
+     * {@code anonCount} is the number of non-HTTPMD, non-{@code DigestCodeSource}
+     * ("anonymous") domains present in the sender's ACC that could not be
+     * transported with a verifiable identity.
      *
      * <p><b>Anonymous domain preservation:</b> Non-HTTPMD, non-{@code DigestCodeSource}
      * domains in the sender's ACC cannot be transported with a verifiable identity,
      * but they act as <em>permission ceilings</em> — their removal would be an
-     * implicit privilege escalation.  Version-1 encodes their count so the
-     * receiver can reconstruct placeholder domains (null {@code CodeSource},
-     * policy-deferred permissions) that preserve their position in the ACC
-     * without asserting any specific identity claim.
+     * implicit privilege escalation.  The {@code anonCount} field allows the
+     * receiver to reconstruct placeholder domains (null {@code CodeSource},
+     * policy-deferred permissions) that preserve their ceiling effect without
+     * asserting any specific identity claim.
      *
-     * <p>The {@code jrt:/java.base} domain is excluded from the anonymous count
+     * <p>The {@code jrt:/java.base} domain is excluded from {@code anonCount}
      * because it is present in the ACC of every running JVM and carries no
      * diagnostic value.  All other {@code jrt:} module domains are retained:
      * their presence indicates which JDK modules are loaded and can identify
@@ -216,24 +210,11 @@ public final class AccessControlContextSerializer implements Serializable {
             return new byte[0];
         }
         ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
-        if (anonCount == 0) {
-            // Version-0 (legacy) format: backward-compatible with all existing receivers.
-            writeInt(baos, records.size());
-            for (int i = 0; i < records.size(); i++) {
-                records.get(i).writeTo(baos);
-            }
-        } else {
-            // Version-1 format: 0x01 version byte, HTTPMD count, records, anon count.
-            // Old receivers interpret the 0x01 version byte as the MSB of a domain
-            // count exceeding MAX_DOMAIN_COUNT and throw InvalidObjectException
-            // (fail-secure behaviour).
-            baos.write(0x01);
-            writeInt(baos, records.size());
-            for (int i = 0; i < records.size(); i++) {
-                records.get(i).writeTo(baos);
-            }
-            writeInt(baos, anonCount);
+        writeInt(baos, records.size());
+        for (int i = 0; i < records.size(); i++) {
+            records.get(i).writeTo(baos);
         }
+        writeInt(baos, anonCount);
         return baos.toByteArray();
     }
 
@@ -294,19 +275,11 @@ public final class AccessControlContextSerializer implements Serializable {
      * Reads the binary transport payload and returns the resulting
      * {@link ProtectionDomain} array.
      *
-     * <p>Two payload formats are accepted:
-     * <ul>
-     *   <li><em>Version-0 (legacy)</em>: first byte is {@code 0x00} (MSB of the
-     *       4-byte domain count), produced by all pre-v1 senders.  Anonymous
-     *       domain count is implicitly zero.
-     *   <li><em>Version-1</em>: first byte is {@code 0x01} (version discriminator);
-     *       followed by a 4-byte HTTPMD domain count, the records, and a trailing
-     *       4-byte anonymous domain count.  For each anonymous domain, a placeholder
-     *       {@link ProtectionDomain} with {@code null} {@link CodeSource} and
-     *       {@code null} {@link java.security.PermissionCollection} is reconstructed;
-     *       its permissions are determined by the server's security policy at
-     *       run time.
-     * </ul>
+     * <p>Payload format: {@code [httpmdCount: 4B BE][DomainIdentityRecord…][anonCount: 4B BE]}.
+     * For each anonymous domain a placeholder {@link ProtectionDomain} with
+     * {@code null} {@link CodeSource} and {@code null}
+     * {@link java.security.PermissionCollection} is reconstructed; its permissions
+     * are determined by the server's security policy at run time.
      */
     private static ProtectionDomain[] unmarshalHttpmdDomains(byte[] data, Subject authenticatedSubject) throws IOException {
         if (data == null || data.length == 0) {
@@ -316,64 +289,25 @@ public final class AccessControlContextSerializer implements Serializable {
             throw new InvalidObjectException("payload size exceeds maximum: " + data.length);
         }
         ByteArrayInputStream in = new ByteArrayInputStream(data);
-
-        // Read the first byte to determine the transport format version.
-        // Version-0: the first byte is 0x00 (MSB of the 4-byte count for
-        //   counts ≤ MAX_DOMAIN_COUNT = 4096 = 0x00001000).
-        // Version-1: the first byte is 0x01 (explicit version discriminator).
-        // Anything else is rejected as an unsupported format.
-        int firstByte = in.read();
-        if (firstByte < 0) {
-            throw new InvalidObjectException("Unexpected EOF reading transport format byte");
+        int count = readInt(in);
+        if (count < 0 || count > MAX_DOMAIN_COUNT) {
+            throw new InvalidObjectException("invalid domain count: " + count);
         }
-
-        final int count;
-        final boolean isV1;
-        if (firstByte == 0x01) {
-            isV1 = true;
-            count = readInt(in);
-            if (count < 0 || count > MAX_DOMAIN_COUNT) {
-                throw new InvalidObjectException("invalid domain count: " + count);
-            }
-        } else if (firstByte == 0x00) {
-            isV1 = false;
-            // Reconstruct the full 4-byte count: MSB is 0x00 (already consumed),
-            // read the remaining 3 bytes.
-            int b2 = in.read(), b3 = in.read(), b4 = in.read();
-            if ((b2 | b3 | b4) < 0) {
-                throw new InvalidObjectException("Unexpected EOF reading domain count");
-            }
-            count = ((b2 & 0xFF) << 16) | ((b3 & 0xFF) << 8) | (b4 & 0xFF);
-            if (count < 0 || count > MAX_DOMAIN_COUNT) {
-                throw new InvalidObjectException("invalid domain count: " + count);
-            }
-        } else {
-            throw new InvalidObjectException("unsupported transport format version: " + firstByte);
-        }
-
         DomainIdentityRecord[] records = new DomainIdentityRecord[count];
         for (int i = 0; i < count; i++) {
             records[i] = DomainIdentityRecord.readFrom(in);
         }
-
-        // Version-1: read the anonymous domain count that follows the records.
-        int anonCount = 0;
-        if (isV1) {
-            anonCount = readInt(in);
-            if (anonCount < 0 || anonCount > MAX_DOMAIN_COUNT) {
-                throw new InvalidObjectException("invalid anonymous domain count: " + anonCount);
-            }
+        int anonCount = readInt(in);
+        if (anonCount < 0 || anonCount > MAX_DOMAIN_COUNT) {
+            throw new InvalidObjectException("invalid anonymous domain count: " + anonCount);
         }
-
         if (in.read() != -1) {
             throw new InvalidObjectException("unexpected trailing bytes");
         }
-
         if (count == 0 && anonCount == 0) {
             // Normalise: zero-domain payload carries no identity, same as empty data.
             return new ProtectionDomain[0];
         }
-
         List<ProtectionDomain> domains = new ArrayList<ProtectionDomain>(count + anonCount);
         for (ProtectionDomain pd : toProtectionDomains(records, authenticatedSubject)) {
             domains.add(pd);

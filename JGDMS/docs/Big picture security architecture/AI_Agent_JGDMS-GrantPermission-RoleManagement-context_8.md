@@ -814,22 +814,17 @@ Prior to v23 the sender silently dropped every non-HTTPMD, non-`DigestCodeSource
 from the ACC before transmission.  Because those domains act as **permission ceilings**
 in the sender's ACC their removal was an implicit privilege escalation.
 
-`AccessControlContextSerializer.marshalForTransport()` now uses a versioned binary format:
+`AccessControlContextSerializer.marshalForTransport()` now uses a single binary format:
 
-| First byte | Format | Description |
-|---|---|---|
-| `0x00` | **Version-0 (legacy)** | `[count: 4 B BE][DomainIdentityRecord…]` |
-| `0x01` | **Version-1** | `[0x01][count: 4 B BE][DomainIdentityRecord…][anonCount: 4 B BE]` |
+```
+[httpmdCount: 4 B BE][DomainIdentityRecord…][anonCount: 4 B BE]
+```
 
 `anonCount` is the number of non-HTTPMD, non-`DigestCodeSource` domains in the sender's
 ACC that could not be transported with a verifiable identity.  On the receiver,
 `unmarshalHttpmdDomains()` reconstructs one placeholder `ProtectionDomain(null CS, null
 perms)` per anonymous domain.  Placeholder permissions are resolved by the server's
 security policy at `checkPermission` time.
-
-Old receivers see the `0x01` version byte as the MSB of a domain count
-(`0x01xxxxxx > MAX_DOMAIN_COUNT = 4096`) and throw `InvalidObjectException`
-— **fail-secure**.
 
 **`jrt:/java.base` exclusion:** The `java.base` JDK module domain is present in every
 running JVM and carries no useful diagnostic identity.  It is excluded from `anonCount`
