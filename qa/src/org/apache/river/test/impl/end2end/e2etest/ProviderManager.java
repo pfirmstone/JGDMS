@@ -47,6 +47,9 @@ class ProviderManager implements Constants {
     /** if true, the Kerberos provider is used */
     private static boolean doKerberos;
 
+    /** if true, the SPIFFE provider is used */
+    private static boolean doSpiffe;
+
     /** flag for strong encryption supported */
     private static boolean strong;
 
@@ -70,16 +73,21 @@ class ProviderManager implements Constants {
         doHTTPS = System.getProperty("end2end.https") != null;
         doJSSE = System.getProperty("end2end.jsse") != null;
         doKerberos = System.getProperty("end2end.kerberos") != null;
+        doSpiffe = System.getProperty("end2end.spiffe") != null;
         if (!doKerberos) {
             installProviders();
         }
-        if (doJSSE && !doHTTPS && !doKerberos){
+        if (doSpiffe && !doHTTPS && !doJSSE && !doKerberos) {
+            SpiffeSubjectProvider.initialize();
+            subjectProvider = new SpiffeSubjectProvider();
+            System.out.println("Using the SPIFFE provider");
+        } else if (doJSSE && !doHTTPS && !doKerberos && !doSpiffe){
             subjectProvider = new JSSESubjectProvider();
             System.out.println("Using the JSSE provider");
-        } else if (doHTTPS && !doJSSE & !doKerberos) {
+        } else if (doHTTPS && !doJSSE & !doKerberos && !doSpiffe) {
             subjectProvider = new JSSESubjectProvider();
             System.out.println("Using the HTTPS provider");
-        } else if (doKerberos && !doJSSE && !doHTTPS) {
+        } else if (doKerberos && !doJSSE && !doHTTPS && !doSpiffe) {
             KerberosSubjectProvider.initialize();
             subjectProvider = new KerberosSubjectProvider();
             System.out.println("Using the Kerberos provider");

@@ -148,6 +148,8 @@ public class Driver implements LegacyTest {
             command += "-Dend2end.jsse=true ";
         } else if (config.getStringConfigVal("end2end.https",null)!=null){
             command += "-Dend2end.https=true ";
+        } else if (config.getStringConfigVal("end2end.spiffe",null)!=null){
+            command += "-Dend2end.spiffe=true ";
         }
     }
 
