@@ -1,12 +1,55 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v23)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v24)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v22.
+context. It supersedes and extends v23.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v24 Change Summary
+
+This version documents the **multi-Subject JERI wire-protocol implementation** —
+extending `BasicInvocationHandler` and `BasicInvocationDispatcher` to correctly
+send and dispatch all user Subjects on both DirtyChai and standard JDK targets.
+
+**New/changed in v24:**
+
+- **§10.3.1** (Client Side) — `getUserPrincipals()`/`writeUserPrincipals()` replaced
+  by `getAllUserSubjects()`/`writeUserSubjects()`.  `CURRENT_ALL_METHOD` (static final
+  `Method`, null on standard JDK) cached once at class-load via reflection.
+  `getAllUserSubjects()` uses the cached field: zero-reflection cost on standard JDK
+  (returns `Subject.current()` as a one-element array), full `Subject[]` array on
+  DirtyChai.  The "known wire-protocol limitation" note removed — multi-Subject
+  transmission is now fully implemented.
+
+- **§10.3.2** (Server Side) — `CALL_AS_MULTI_SUBJECT` (static final `Method`, null on
+  standard JDK) cached at class-load.  `invokeWithClientSubject()` now:
+  - on DirtyChai with >1 Subject: single `Subject.callAs(Callable, Subject[])` varargs
+    call passes all user Subjects simultaneously;
+  - on standard JDK (or ≤1 Subject): falls back to `Subject.callAs(first, action)`;
+  - `IllegalAccessException` from `Method.invoke()` re-thrown as `IllegalStateException`
+    (should never occur — the method is public).
+
+- **§10.10** key files table — updated method names.
+
+- **§12 work item 29** added — multi-Subject JERI dispatch (✅ completed).
+
+- **§13** new design decision rows added for `CURRENT_ALL_METHOD` caching,
+  `CALL_AS_MULTI_SUBJECT` dispatch path, and `AccessControlContextSerializer`
+  unreachable-catch fix.
+
+- **Bug fix:** removed unreachable outer `catch (ClassNotFoundException)` in
+  `AccessControlContextSerializer.unmarshalDigestFromTransport()` — the exception is
+  already caught by the inner per-domain try-catch; the outer catch was a compile error
+  on JDK 27.
+
+- **Tests:** `MultiSubjectWireProtocolTest` extended with two new tests:
+  `testCurrentAllMethodCachedCorrectly` and `testGetAllUserSubjectsReturnsCurrentSubject`
+  (6 tests total pass).
 
 ---
 
@@ -914,55 +957,88 @@ grant codeBase "httpmd://repo.example.org/client-stub.jar#SHA256:abc123"
 ### 10.3 Invocation Layer Handling and Dispatch
 #### 10.3.1 Client Side — `BasicInvocationHandler`
 
-**`getUserPrincipals()` (private static):**
+**`CURRENT_ALL_METHOD` (static final, cached at class-load):**
 ```java
-private static Set<Principal> getUserPrincipals() {
-    Subject subject = Subject.current();  // reads ScopedValue set by callAs
-    if (subject == null) return Collections.emptySet();
-    return Collections.unmodifiableSet(new HashSet<>(subject.getPrincipals()));
+private static final Method CURRENT_ALL_METHOD;
+static {
+    Method m = null;
+    try {
+        m = Subject.class.getMethod("currentAll");
+    } catch (NoSuchMethodException | SecurityException ignored) { }
+    CURRENT_ALL_METHOD = m;
 }
 ```
-- Reads `Subject.current()` directly (not via reflection) — requires `--release 21`.
-- The worker Subject's principals are **not** included here; they reach the server
-  through the TLS handshake.
-- **Known wire-protocol limitation:** Only the first (outermost) user Subject's
-  principals are sent over the wire.  When multiple `UserSubject` instances are present
-  in `SCOPED_SUBJECT` (multi-party transaction context), only `Subject.current()`
-  (element 0) is serialised.  If the wire protocol is extended in future to support
-  multiple user-principal blocks, `Subject.currentAll()` should be iterated and all
-  principal sets unioned.
+- `null` on a standard JDK (no `Subject.currentAll()`).
+- Non-null on DirtyChai JDK 27 (where `Subject.currentAll()` exists).
 
-**Wire protocol version selection:**
+**`getAllUserSubjects()` (private static):**
+```java
+private static Subject[] getAllUserSubjects() {
+    if (CURRENT_ALL_METHOD != null) {
+        try {
+            Subject[] arr = (Subject[]) CURRENT_ALL_METHOD.invoke(null);
+            if (arr != null && arr.length > 0) return arr;
+        } catch (Exception ignored) { }
+    }
+    Subject single = Subject.current();
+    return single != null ? new Subject[]{single} : new Subject[0];
+}
 ```
-if (!userPrincipals.isEmpty())  → write 0x02 + integrity + atomicValidation + user-principal block
-else if (atomicValidation)      → write 0x01 + integrity + atomicValidation
-else                            → write 0x00 + integrity   (legacy compatibility)
-```
+- On DirtyChai: calls the cached `Subject.currentAll()` — returns all user Subjects
+  bound via `Subject.callAs`, outermost-first, with zero per-call reflection lookup.
+- On standard JDK: `Subject.current()` is called directly; returns single-element array.
+- Worker Subject is **not** included; its principals reach the server via the TLS
+  certificate chain.
 
-**`writeUserPrincipals()` (package-private static) — wire encoding:**
+**`writeUserSubjects()` (static, package-private) — wire encoding:**
 ```
-principalCount        : u16 big-endian  (max 65535, capped to actual size)
-for each principal:
-  classNameLength     : u16 big-endian
-  classNameBytes      : UTF-8
-  nameLength          : u16 big-endian
-  nameBytes           : UTF-8
+subjectCount          : unsigned 16-bit big-endian  (number of user Subjects; max MAX_USER_SUBJECTS=16)
+for each Subject:
+  principalCount      : unsigned 16-bit big-endian
+  for each principal:
+    classNameLength   : unsigned 16-bit big-endian
+    classNameBytes    : UTF-8
+    nameLength        : unsigned 16-bit big-endian
+    nameBytes         : UTF-8
 ```
 Each principal serialises to `(p.getClass().getName(), p.getName())`.
 
+**Wire protocol version selection** (unchanged):**
+```
+if (!userSubjects.isEmpty())  → write 0x02 + integrity + atomicValidation + user-Subject block
+else if (atomicValidation)    → write 0x01 + integrity + atomicValidation
+else                          → write 0x00 + integrity   (legacy compatibility)
+```
+
 #### 10.3.2 Server Side — `BasicInvocationDispatcher`
 
+**`CALL_AS_MULTI_SUBJECT` (static final, cached at class-load):**
+```java
+private static final Method CALL_AS_MULTI_SUBJECT;
+static {
+    Method m = null;
+    try {
+        m = Subject.class.getMethod("callAs", Callable.class, Subject[].class);
+    } catch (NoSuchMethodException | SecurityException ignored) { }
+    CALL_AS_MULTI_SUBJECT = m;
+}
+```
+- `null` on a standard JDK.
+- Non-null on DirtyChai JDK 27 (where `Subject.callAs(Callable, Subject[])` exists).
+
 **Security limits (constants):**
-- `MAX_USER_PRINCIPALS = 64` — rejects requests claiming more principals.
+- `MAX_USER_SUBJECTS = 16` — rejects requests claiming more Subjects.
+- `MAX_USER_PRINCIPALS = 64` — rejects requests claiming more principals per Subject.
 - `MAX_STRING_BYTES = 8192` — rejects any single class-name or principal-name field
   exceeding this byte length.
 
-**`readUserPrincipals()` — wire parsing:**
-- Reads count; throws `IOException` if `> MAX_USER_PRINCIPALS`.
+**`readUserSubjects()` — wire parsing:**
+- Reads `subjectCount`; throws `IOException` if `> MAX_USER_SUBJECTS`.
+- For each Subject: reads `principalCount`; throws `IOException` if `> MAX_USER_PRINCIPALS`.
 - For each principal: reads `className` + `name` (both length-prefixed, bounded by
   `MAX_STRING_BYTES`).
 - Calls `instantiatePrincipal(className, name)`.
-- Collects into `LinkedHashSet` (insertion order preserved).
+- Collects into `List<Subject>` (one read-only `Subject` per Subject block).
 
 **`instantiatePrincipal()` — classloading restriction:**
 - Step 1: `Class.forName(className, false, null)` — bootstrap classloader only.
@@ -982,24 +1058,19 @@ static final class RemotePrincipal implements Principal {
 ```
 Preserves the wire data for logging / auditing without loading untrusted code.
 
-**`addUserSubjectToContext()` — context injection:**
+**`addUserSubjectsToContext()` — context injection:**
 ```java
-// Deliberate choice: wire-reconstructed user identity is a vanilla Subject, not
-// UserSubject. The principals were asserted over the wire by the remote client and
-// are not independently verified; they are vouched for by the TLS-authenticated
-// workerSubject only. Using a vanilla Subject signals untrusted/asserted identity.
-// Policy should condition grants on both a trusted SpiffePrincipal (worker) AND
+// One UserSubjectImpl per request; holds all wire-reconstructed user Subjects.
+// Wire-reconstructed user identity is a vanilla Subject (not UserSubject).
+// The principals were asserted over the wire by the remote client and are not
+// independently verified; they are vouched for by the TLS-authenticated workerSubject
+// only.  Policy should condition grants on both a trusted SpiffePrincipal (worker) AND
 // the asserted user principal to prevent impersonation.
-Subject userSubject = new Subject(
-    true,              // read-only
-    userPrincipals,    // from readUserPrincipals()
-    emptySet(),        // no public credentials
-    emptySet());       // no private credentials
-context.add(new UserSubjectImpl(userSubject));
+context.add(new UserSubjectImpl(userSubjects));  // userSubjects is List<Subject>
 ```
-The user Subject is read-only, contains no credentials, and is kept completely separate
-from the worker Subject in the existing `ClientSubject` context element.
-
+Each Subject in the list is read-only, contains no credentials, and is kept completely
+separate from the worker Subject in the `ClientSubject` context element.  Multiple
+Subjects represent multiple authenticated users in a multi-party transaction context.
 **`invokeWithClientSubject()` — dispatch nesting:**
 
 The `workerSubject` retrieved from the `ClientSubject` context element on the server side
@@ -1012,16 +1083,32 @@ rejected for any `WorkerSubject` instance (`IllegalArgumentException`).
 ```
 workerSubject  = ClientSubject context element  (TLS-verified remote client Subject;
                  vanilla Subject with SpiffePrincipal — NOT a WorkerSubject)
-userSubject    = ClientUserSubject context element  (wire-asserted human identity)
+userSubjects[] = ClientUserSubject context element  (wire-asserted human identities;
+                 may be empty)
 
-case: user present (preferred path)
-    Subject.callAs(userSubject, () -> {        // ScopedValue; user identity per-request
-        invoke(impl, method, args, context)
+case: >1 user Subjects AND DirtyChai JDK (CALL_AS_MULTI_SUBJECT != null)
+    Subject.doAs(workerSubject, () -> {                          // ACC; thread-inherited
+        Subject.callAs(dispatchAction, userSubjects[0..n]);      // all Subjects at once
     });
 
-case: neither user nor remote worker context element
+case: exactly 1 user Subject (any JDK)
+    Subject.doAs(workerSubject, () -> {                          // ACC; thread-inherited
+        Subject.callAs(userSubjects[0], () -> {                  // ScopedValue
+            invoke(impl, method, args, context)
+        });
+    });
+
+case: 0 user Subjects, workerSubject present
+    Subject.doAs(workerSubject, () -> { invoke(...); });
+
+case: no workerSubject, no userSubjects
     invoke(impl, method, args, context);
 ```
+
+On DirtyChai the single-varargs `callAs(Callable, Subject[])` call passes all user
+Subjects simultaneously; nesting individual `callAs` calls (as on a standard JDK) is
+incorrect because each inner call shadows the outer, leaving only the innermost Subject
+visible via `Subject.current()`.
 
 The remote client's `workerSubject` (from `ClientSubject.getClientSubject()`) is
 available via `ServerContext` for auditing and authorisation decisions; it is not
@@ -1041,10 +1128,12 @@ ClientSubject cs = (ClientSubject)
     ServerContext.getServerContextElement(ClientSubject.class);
 Subject workerSubject = cs != null ? cs.getClientSubject() : null;
 
-// User Subject — wire-asserted human identity (v0x02 only, may be null)
+// User Subjects — wire-asserted human identities (v0x02 only; empty array if absent)
 ClientUserSubject cus = (ClientUserSubject)
     ServerContext.getServerContextElement(ClientUserSubject.class);
-Subject userSubject = cus != null ? cus.getUserSubject() : null;
+Subject[] userSubjects = cus != null ? cus.getUserSubjects() : new Subject[0];
+// For single-Subject callers, the convenience default method:
+Subject userSubject = cus != null ? cus.getUserSubject() : null; // = userSubjects[0]
 ```
 
 ### 10.5 `ClientUserSubject` Interface
@@ -1185,8 +1274,8 @@ Jini services.
 
 | File | Role |
 |---|---|
-| `JGDMS/jgdms-jeri/.../BasicInvocationHandler.java` | Client: `getUserPrincipals()`, `writeUserPrincipals()`, wire version selection |
-| `JGDMS/jgdms-jeri/.../BasicInvocationDispatcher.java` | Server: `readUserPrincipals()`, `instantiatePrincipal()`, `addUserSubjectToContext()`, `invokeWithClientSubject()`, `RemotePrincipal`, `UserSubjectImpl` |
+| `JGDMS/jgdms-jeri/.../BasicInvocationHandler.java` | Client: `CURRENT_ALL_METHOD`, `getAllUserSubjects()`, `writeUserSubjects()`, wire version selection |
+| `JGDMS/jgdms-jeri/.../BasicInvocationDispatcher.java` | Server: `CALL_AS_MULTI_SUBJECT`, `readUserSubjects()`, `instantiatePrincipal()`, `addUserSubjectsToContext()`, `invokeWithClientSubject()`, `RemotePrincipal`, `UserSubjectImpl` |
 | `JGDMS/jgdms-platform/.../net/jini/io/context/ClientUserSubject.java` | Public interface: `getUserSubject()` |
 | `JGDMS/jgdms-platform/.../net/jini/io/context/ClientSubject.java` | Public interface: `getClientSubject()` (worker Subject) |
 | `JGDMS/jgdms-platform/.../net/jini/io/context/MutableClientSubject.java` | `@Deprecated`, `mergeUserPrincipals()` no longer called |
@@ -1593,6 +1682,29 @@ executor.submit(() -> {
     - `DomainIdentityRecord.equals/hashCode` + `AccessControlContextSerializer.equals/hashCode`
       added (v22) so stream back-references eliminate repeated equal instances;
       `cachedDigestBytes` avoids recomputing `marshalDigestForTransport` on each check
+29. **Multi-Subject JERI dispatch** — ✅ *completed (v24)*
+    - `BasicInvocationHandler`: `CURRENT_ALL_METHOD` (static final `Method`) cached at class-load
+      via `Subject.class.getMethod("currentAll")`; null on standard JDK.
+    - `getAllUserSubjects()` uses the cached field (zero per-call reflection on std JDK);
+      returns `Subject[]` outermost-first; falls back to `Subject.current()` single-element
+      array on standard JDK.
+    - `writeUserSubjects()` encodes `subjectCount:u16` + per-Subject `principalCount:u16 +
+      (className:u16-prefixed-UTF8 + name:u16-prefixed-UTF8)` per principal.
+    - `BasicInvocationDispatcher`: `CALL_AS_MULTI_SUBJECT` (static final `Method`) cached at
+      class-load via `Subject.class.getMethod("callAs", Callable.class, Subject[].class)`;
+      null on standard JDK.
+    - `invokeWithClientSubject()`: on DirtyChai with >1 Subject, single varargs
+      `CALL_AS_MULTI_SUBJECT.invoke(null, action, userSubjects)` call; on std JDK or 1
+      Subject, `Subject.callAs(first, action)`.  `IllegalAccessException` re-thrown as
+      `IllegalStateException` (should never occur — method is public).
+    - `readUserSubjects()` decodes `subjectCount:u16` + per-Subject principal list; bounded
+      by `MAX_USER_SUBJECTS=16` and `MAX_USER_PRINCIPALS=64`.
+    - `UserSubjectImpl` now holds `Subject[]` (all wire-reconstructed user Subjects);
+      `getUserSubjects()` returns a clone.
+    - Bug fix: removed unreachable outer `catch (ClassNotFoundException)` in
+      `AccessControlContextSerializer.unmarshalDigestFromTransport()`.
+    - Tests: `MultiSubjectWireProtocolTest` — 6 tests pass (wire-protocol round-trip +
+      `CURRENT_ALL_METHOD` caching + `getAllUserSubjects()` under `Subject.callAs`).
 
 ---
 
@@ -1690,9 +1802,15 @@ executor.submit(() -> {
 | **`equals`/`hashCode` on `AccessControlContextSerializer` + `DomainIdentityRecord`** | ✅ **v22:** Java serialization's handle table deduplicates by reference identity; implementing logical equality allows equal serializer instances to be recognised as the same object once a deduplication layer is applied, avoiding repeated full serialisation of identical ACCs; `cachedDigestBytes` ensures the relatively expensive `marshalDigestForTransport` is called at most once per instance across all `equals`/`hashCode` invocations |
 | **Domain stripping is an implicit `doPrivileged`; fixed via `anonCount`** | ✅ **v23:** Every unverifiable `ProtectionDomain` stripped from a transmitted ACC removes a permission ceiling; the receiving JVM sees a strictly wider effective permission set — equivalent to an unchecked `doPrivileged` call.  Fixed in v23: `marshalForTransport()` appends `anonCount` so the receiver reconstructs anonymous placeholder domains that preserve the ceiling without asserting a specific identity claim.  `jrt:/java.base` excluded from `anonCount`. |
 | **Unverifiable domains must have minimal permissions; `URLPermission` before `LoadPermission`** | ✅ **v23:** An unverifiable domain (plain URL or no codebase) cannot survive JERI transport with a verified identity; it is counted as anonymous on the wire.  The safe bootstrapping order is: (1) grant `URLPermission` so the code can be fetched; (2) let `SecureClassLoader` compute the SHA-256 into a `DigestCodeSource`; (3) grant `LoadPermission` only after the verified digest identity is established.  Granting `LoadPermission` before the digest exists is unsafe because the domain travels only as an anonymous placeholder on the receiver. |
-| **ACC binary transport is a purpose-built compact encoding, not Java object serialization** | ✅ **v23:** The `transportBytes` format (4-byte count + per-domain records) and `writeUserPrincipals()` format (u16 count + u16-prefixed UTF-8 fields) avoid ObjectOutputStream overhead entirely; typical payload ~444 bytes/call; wire overhead is minor compared to TLS record framing |
+| **ACC binary transport is a purpose-built compact encoding, not Java object serialization** | ✅ **v23:** The `transportBytes` format (4-byte count + per-domain records) and `writeUserSubjects()` format (u16 subjectCount + per-Subject u16 principalCount + u16-prefixed UTF-8 fields) avoid ObjectOutputStream overhead entirely; typical payload ~444 bytes/call; wire overhead is minor compared to TLS record framing |
 | **`extractDomains()` uses a side-effect `doPrivileged`+`checkPermission` to drive `DomainCombiner.combine()`** | ✅ **v23:** The JVM only invokes `DomainCombiner.combine()` during a security stack walk; the innocuous `RuntimePermission("accessClassInPackage...")` check inside a restricted `doPrivileged` is the only portable way to trigger the walk without JDK internals; the `SecurityException` is intentionally swallowed; cost is 5–20 µs per call and is the dominant serialization overhead |
 | **Pack200 (`.pack.gz`) for `-dl` proxy JAR download** | ✅ **v23:** Pack200+gzip achieves 40–60% size reduction over deflate-only JAR for class-file-heavy proxy JARs; decompression cost (~5–20 ms) is paid once per JVM lifetime per proxy class; `HttpmdURLConnection` SHA-256 verifies the packed stream before unpacking; the `httpmd:` URL in `DomainIdentityRecord` therefore references the packed artifact |
+| **`CURRENT_ALL_METHOD` cached at class-load; null on standard JDK** | ✅ **v24:** `Subject.class.getMethod("currentAll")` cached once in a static initializer block; `NoSuchMethodException` → null (standard JDK). Zero per-call reflection cost on standard JDK; `Subject.current()` called directly. On DirtyChai the cached method returns the full `Subject[]` without allocation overhead. |
+| **`getAllUserSubjects()` falls back to `Subject.current()` on std JDK** | ✅ **v24:** On a standard JDK where `CURRENT_ALL_METHOD == null`, returns `new Subject[]{Subject.current()}` (or empty array if null). Correct single-Subject behaviour maintained without code duplication. |
+| **`CALL_AS_MULTI_SUBJECT` cached at class-load; null on standard JDK** | ✅ **v24:** `Subject.class.getMethod("callAs", Callable.class, Subject[].class)` cached once at class-load; null on standard JDK. Single-Subject path (`Subject.callAs(first, action)`) is used when the method is absent or there is only one Subject. |
+| **Multi-Subject dispatch on DirtyChai uses single varargs `callAs`; nesting is wrong** | ✅ **v24:** Each nested `Subject.callAs(Subject, Callable)` call shadows the outer one; only the innermost Subject is visible via `Subject.current()`. DirtyChai's `Subject.callAs(Callable, Subject[])` varargs call passes all Subjects simultaneously to the JVM so `Subject.currentAll()` returns the full array. |
+| **`IllegalAccessException` from `CALL_AS_MULTI_SUBJECT.invoke()` wrapped as `IllegalStateException`** | ✅ **v24:** The method is public; `IllegalAccessException` should never occur. Re-wrapping it as `IllegalStateException` (an `Exception`) honours the `Callable<Void>` contract and preserves the original cause in the stack trace. |
+| **Unreachable outer `catch (ClassNotFoundException)` removed from `unmarshalDigestFromTransport()`** | ✅ **v24:** The exception is already caught per-domain by the inner try-catch around `amis.readObject()`; an outer catch is unreachable and is a compile error on JDK 27 (`-Werror`). Fixed by removing the outer try-wrapper; method already declares `throws IOException`. |
 
 ---
 
