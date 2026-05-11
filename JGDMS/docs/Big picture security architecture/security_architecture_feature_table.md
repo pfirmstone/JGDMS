@@ -1,7 +1,7 @@
 # JGDMS Security Architecture — Feature Reference Table
 
-**Last updated:** 2026-05-07  
-**Sources:** `AI_Agent_JGDMS-GrantPermission-RoleManagement-context_8.md` (v10) and
+**Last updated:** 2026-05-11  
+**Sources:** `AI_Agent_JGDMS-GrantPermission-RoleManagement-context_8.md` (v24) and
 `AI_Agent_JGDMS-SpiffePolicyFile-context_6.md` (v6)  
 **Diagram:** `diagram5_full_security_architecture.svg`
 
@@ -104,6 +104,8 @@
 | Two-Subject class-level javadoc | `Subject.java` | Documents the two-Subject identity model for service authors: workload identity on ACC (`doAs`), human identity on ScopedValue (`callAs`), additive merging by combiner, and structural discipline for daemon threads. | ✅ Complete |
 | `ClassSet` uses `LinkedHashSet` | `Subject.java` | Preserves certificate chain ordering in the `Subject` principal set. `HashSet` broke ordering; `LinkedHashSet` restores it for trust evaluation. | ✅ Complete |
 | ServiceUI human identity bridging | ServiceUI design | `callAs(kerberosSubject, ...)` inside `doAsPrivileged(spiffeSubject, ...)` allows policy to condition ServiceUI grants on both which JAR is executing and which human user is present. No further design work needed; implementation follows standard Subject API. | ✅ Complete (design) |
+| Multi-Subject JERI wire protocol (client) | `BasicInvocationHandler` (JGDMS) | `CURRENT_ALL_METHOD` (`Subject.currentAll()`) cached at class-load; null on standard JDK. `getAllUserSubjects()` returns full `Subject[]` array on DirtyChai; single-element array via `Subject.current()` on standard JDK. `writeUserSubjects()` encodes `subjectCount:u16` + per-Subject principal block. | ✅ Complete |
+| Multi-Subject JERI wire protocol (server) | `BasicInvocationDispatcher` (JGDMS) | `CALL_AS_MULTI_SUBJECT` (`Subject.callAs(Callable, Subject[])`) cached at class-load; null on standard JDK. On DirtyChai with >1 Subject, single varargs `callAs` passes all Subjects simultaneously. On standard JDK, only first Subject used (`Subject.callAs(first, action)`). `readUserSubjects()` decodes the multi-Subject block. | ✅ Complete |
 
 ---
 
