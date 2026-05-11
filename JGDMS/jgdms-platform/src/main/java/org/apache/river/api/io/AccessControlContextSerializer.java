@@ -344,6 +344,37 @@ public final class AccessControlContextSerializer implements Serializable {
         return context;
     }
 
+    /**
+     * Extracts the {@link ProtectionDomain}s from the given
+     * {@link AccessControlContext} that can be represented as
+     * {@link DomainIdentityRecord}s (HTTPMD-verifiable, non-{@code DigestCodeSource}
+     * domains).  Unverifiable domains are silently dropped.
+     *
+     * <p><strong>Security note — domain stripping is an implicit privilege
+     * escalation.</strong>  Every domain in an ACC acts as a permission ceiling:
+     * {@link java.security.AccessController#checkPermission checkPermission} succeeds
+     * only if <em>all</em> domains in the intersection hold the permission.  When an
+     * unverifiable domain is absent from the reconstructed ACC on the receiving JVM,
+     * that ceiling disappears.  In the worst case an ACC that was entirely
+     * unprivileged on the sender side (because it contained at least one
+     * zero-permission domain) becomes fully privileged on the receiver — equivalent
+     * to an unchecked {@code doPrivileged} call.
+     *
+     * <p>Administrators must compensate by granting only minimal permissions to
+     * domains whose code location is a plain (non-{@code httpmd:}) URL or has no
+     * codebase URL at all.  If {@code LoadPermission} is eventually required, the
+     * safe bootstrapping order is:
+     * <ol>
+     *   <li>Grant {@code URLPermission} (or {@link java.net.URLPermission}) so the
+     *       code can be fetched over HTTP/HTTPS.</li>
+     *   <li>The fetch succeeds and {@code SecureClassLoader} records the SHA-256
+     *       content hash in a {@code DigestCodeSource}.</li>
+     *   <li>The {@code DigestCodeSource} domain is verifiable and survives JERI
+     *       transport via the {@value #DIGEST_TRANSPORT_BYTES} serial field.</li>
+     *   <li>Only <em>after</em> step 3 may {@code LoadPermission} be granted,
+     *       scoped to the verified {@code DigestCodeSource} identity.</li>
+     * </ol>
+     */
     private static DomainIdentityRecord[] recordsFromContext(AccessControlContext acc, Subject subjectOverride) {
         ProtectionDomain[] extracted = extractDomains(acc);
         if (extracted.length == 0) return new DomainIdentityRecord[0];
@@ -523,6 +554,11 @@ public final class AccessControlContextSerializer implements Serializable {
          * {@link #marshalDigestForTransport} and are explicitly excluded here
          * to avoid duplicating a DigestCodeSource whose location happens to be
          * an httpmd URL in both the HTTPMD and the digest transport streams.
+         *
+         * <p>Returns {@code null} (domain silently dropped) when the domain is
+         * unverifiable — see the security note on
+         * {@link AccessControlContextSerializer#recordsFromContext} for the
+         * privilege-escalation implications and required administrator mitigations.
          */
         static DomainIdentityRecord from(ProtectionDomain pd, Subject authenticatedSubject) {
             CodeSource cs = pd.getCodeSource();

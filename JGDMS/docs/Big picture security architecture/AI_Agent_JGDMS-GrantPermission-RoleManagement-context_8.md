@@ -1,12 +1,33 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v22)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v23)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v21.
+context. It supersedes and extends v22.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v23 Change Summary
+
+This version documents the **domain-stripping privilege-escalation risk** that arises
+when unverifiable `ProtectionDomain`s are stripped from a transmitted
+`AccessControlContext` over a JERI connection, and the **administrator mitigation**
+(minimal-permission policy for unverifiable domains + the
+`URLPermission → digest → LoadPermission` bootstrapping sequence).
+
+**New/changed in v23:**
+
+- **§10.2** — new *⚠ Security note* block explaining that domain stripping is
+  structurally equivalent to an unchecked `doPrivileged` call, with concrete
+  administrator mitigation and the bootstrapping order for `LoadPermission`.
+- **§13** — two new design-decision rows:
+  *Domain stripping is an implicit `doPrivileged`* and
+  *Unverifiable domains must have minimal permissions in policy*.
+- `AccessControlContextSerializer.java` — security Javadoc added to
+  `recordsFromContext()` / `DomainIdentityRecord.from()` documenting the same risk.
 
 ---
 
@@ -804,6 +825,43 @@ A `DomainCombiner` on the receiving JVM:
 - Strips any domain whose `SpiffePrincipal` is outside the trusted SPIFFE trust domain
 - Verified domains participate in `RemotePolicy` checks as call stack domains
 
+**⚠ Security note — domain stripping is an implicit privilege escalation:**
+
+Every domain in a caller's `AccessControlContext` acts as a permission ceiling: for a
+`checkPermission` call to succeed, **every** domain in the intersection must hold the
+permission.  When an unverifiable domain is stripped during JERI transport, that ceiling
+disappears.  In the worst case an ACC that was entirely unprivileged on the sender
+side — because it contained at least one domain with no permissions at all — becomes
+fully privileged on the receiver side.  This is structurally identical to an unchecked
+`doPrivileged` call and must be compensated by policy.
+
+**Unverifiable domains** are `ProtectionDomain`s whose `CodeSource` has:
+- a plain (non-`httpmd:`) URL, or
+- no codebase URL at all (e.g. domains created with `new ProtectionDomain(null, ...)`).
+
+Because their code content cannot be verified at transport time they are silently dropped
+by `AccessControlContextSerializer`.
+
+**Administrator mitigation:**
+
+1. Grant only the **minimal permissions** required to unverifiable domains in policy.
+   If such a domain must never elevate the caller's authority, it should have no grants
+   whatsoever — its absence after stripping will then be harmless.
+
+2. If a domain must eventually obtain **`LoadPermission`** (to load classes from a
+   remote codebase), the following bootstrapping sequence is required:
+
+   | Step | What happens |
+   |---|---|
+   | 1 | Grant `URLPermission` (or `java.net.URLPermission`) to the unverified domain so it can fetch the codebase URL over HTTP/HTTPS. |
+   | 2 | The fetch succeeds; `SecureClassLoader` computes the SHA-256 content hash and records it in a `DigestCodeSource`. |
+   | 3 | The `DigestCodeSource`-backed domain is verifiable and survives JERI transport via `digestTransportBytes`. |
+   | 4 | Only **after** step 3 is complete may `LoadPermission` be granted, scoped to the verified `DigestCodeSource` identity. |
+
+   Granting `LoadPermission` **before** the digest is established is unsafe: the domain
+   remains unverifiable, will be stripped on arrival, and the resulting escalation is
+   equivalent to granting `LoadPermission` with no codebase restriction at all.
+
 `DomainCombiner` is retained as a **Java API compatibility layer** specifically for this
 receiving-side verification role.  `SubjectDomainCombiner` is deprecated.
 `CombinerSecurityManager` refactoring is deferred.
@@ -1583,6 +1641,8 @@ executor.submit(() -> {
 | **`AtomicMarshalOutputStream`/`AtomicMarshalInputStream` for DigestCodeSource transport** | ✅ **v21:** `DigestCodeSource` implements `Externalizable` and writes only strings and bytes with built-in DOS guards; `AtomicMarshalInputStream` is the project-standard secure deserializer — `ObjectInputStream` is explicitly avoided everywhere in JGDMS |
 | **`DomainIdentityRecord.from()` skips `DigestCodeSource` before httpmd URL test** | ✅ **v21:** A `DigestCodeSource` with an httpmd location must travel exclusively via `digestTransportBytes`; checking for `DigestCodeSource` first (via `cs instanceof Externalizable` + class-name) prevents it from being duplicated into `transportBytes` while adding zero overhead for ordinary `CodeSource` instances |
 | **`equals`/`hashCode` on `AccessControlContextSerializer` + `DomainIdentityRecord`** | ✅ **v22:** Java serialization's handle table deduplicates by reference identity; implementing logical equality allows equal serializer instances to be recognised as the same object once a deduplication layer is applied, avoiding repeated full serialisation of identical ACCs; `cachedDigestBytes` ensures the relatively expensive `marshalDigestForTransport` is called at most once per instance across all `equals`/`hashCode` invocations |
+| **Domain stripping is an implicit `doPrivileged`** | ✅ **v23:** Every unverifiable `ProtectionDomain` stripped from a transmitted ACC removes a permission ceiling; the receiving JVM sees a strictly wider effective permission set — equivalent to an unchecked `doPrivileged` call.  Policy must compensate by granting minimal authority to unverifiable domains so that their absence cannot escalate privileges. |
+| **Unverifiable domains must have minimal permissions; `URLPermission` before `LoadPermission`** | ✅ **v23:** An unverifiable domain (plain URL or no codebase) cannot survive JERI transport.  If it is not harmless by construction (empty grants), its stripping is a privilege escalation.  The safe bootstrapping order is: (1) grant `URLPermission` so the code can be fetched; (2) let `SecureClassLoader` compute the SHA-256 into a `DigestCodeSource`; (3) grant `LoadPermission` only after the verified digest identity is established.  Granting `LoadPermission` before the digest exists is unsafe. |
 
 ---
 
@@ -1603,6 +1663,18 @@ spiffe://jgdms.example.org/svc/<name>           → service proxies (example pat
 Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.replace()`.
 
 ---
+
+*Hand this document (along with source files as needed) to a future AI agent to
+continue without loss of context. This is version 23, updated to document:*
+
+- *Domain-stripping privilege-escalation risk in JERI ACC transport*
+- *Administrator mitigation: minimal-permission policy for unverifiable domains*
+- *URLPermission → digest → LoadPermission bootstrapping sequence*
+- *Security Javadoc added to `AccessControlContextSerializer`*
+
+---
+
+*Previous version (v19) notes — hand-off summary:*
 
 *Hand this document (along with source files as needed) to a future AI agent to
 continue without loss of context. This is version 19, updated to document:*
