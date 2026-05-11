@@ -183,6 +183,13 @@ public abstract class PermissionGrantBuilder {
      */
     public static final int URI = 5;
     
+    /**
+     * Grant applies to a {@code java.security.DigestCodeSource} with a
+     * matching digest algorithm and digest value.  Any domain backed by a
+     * plain {@link CodeSource} is not implied.
+     */
+    public static final int DIGEST = 6;
+    
     public static PermissionGrantBuilder newBuilder(){
         return new PermissionGrantBuilderImp();
     }
@@ -284,4 +291,13 @@ public abstract class PermissionGrantBuilder {
      * @return a PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder setDomain(WeakReference<ProtectionDomain> domain);
+
+    /**
+     * Specifies the content digest that the grant target must match.
+     *
+     * @param algorithm the digest algorithm name (e.g. {@code "SHA-256"})
+     * @param digestValue the raw digest bytes (defensively copied)
+     * @return this builder
+     */
+    public abstract PermissionGrantBuilder digest(String algorithm, byte[] digestValue);
 }

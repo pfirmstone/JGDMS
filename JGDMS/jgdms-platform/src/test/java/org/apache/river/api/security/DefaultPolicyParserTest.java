@@ -25,6 +25,7 @@ package org.apache.river.api.security;
 import java.security.KeyStore;
 import java.security.Permission;
 import java.security.Principal;
+import java.security.SecurityPermission;
 import java.security.UnresolvedPermission;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,6 +34,7 @@ import java.util.Properties;
 
 import junit.framework.TestCase;
 import org.apache.river.api.security.DefaultPolicyScanner.GrantEntry;
+import org.apache.river.api.security.DefaultPolicyScanner.InvalidFormatException;
 import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
 import org.apache.river.api.security.*;
 import org.junit.Before;
@@ -78,7 +80,7 @@ public class DefaultPolicyParserTest extends TestCase {
        pec.add(1, pe1);
        pec.add(2, pe2);
        pec.add(3, pe3);
-       ge = new GrantEntry( null, "file:${org.apache.river.jsk.home}${/}lib${/}group.jar", null, pec );
+       ge = new GrantEntry( null, "file:${org.apache.river.jsk.home}${/}lib${/}group.jar", null, null, pec );
        perm0 = new UnresolvedPermission("permission org.apache.river.start.SharedActivationPolicyPermission",
                "jar:file:/opt/src/river/trunk/qa/lib/harness.jar!/harness/policy/sec-jeri-group.policy",
                "", null);
@@ -220,6 +222,122 @@ public class DefaultPolicyParserTest extends TestCase {
         assertEquals(expResult, result);
         // TODO review the generated test code and remove the default call to fail.
 //        fail("The test case is a prototype.");
+    }
+
+    // -----------------------------------------------------------------------
+    // resolveGrant — digest clause produces a DigestGrant
+    // -----------------------------------------------------------------------
+
+    /**
+     * When a GrantEntry carries a digest clause, resolveGrant() must return a
+     * DigestGrant rather than a plain URIGrant.
+     */
+    @Test
+    public void testResolveGrantWithDigestProducesDigestGrant() throws Exception {
+        System.out.println("testResolveGrantWithDigestProducesDigestGrant");
+        DefaultPolicyParser parser = new DefaultPolicyParser();
+        // SHA-256 of a single zero byte
+        String hexDigest = "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d";
+        GrantEntry digestGe = new GrantEntry(null, "file:/app/lib.jar",
+                "SHA-256:" + hexDigest, null, null);
+        PermissionGrant result = parser.resolveGrant(digestGe, null, system, false);
+        assertNotNull(result);
+        assertTrue("resolveGrant with digest clause must return DigestGrant",
+                result instanceof DigestGrant);
+    }
+
+    /**
+     * A GrantEntry without a digest must still produce a URIGrant (not a DigestGrant).
+     */
+    @Test
+    public void testResolveGrantWithoutDigestProducesURIGrant() throws Exception {
+        System.out.println("testResolveGrantWithoutDigestProducesURIGrant");
+        DefaultPolicyParser parser = new DefaultPolicyParser();
+        GrantEntry plainGe = new GrantEntry(null, "file:/app/lib.jar",
+                null, null, null);
+        PermissionGrant result = parser.resolveGrant(plainGe, null, system, false);
+        assertNotNull(result);
+        assertFalse("resolveGrant without digest clause must NOT return DigestGrant",
+                result instanceof DigestGrant);
+    }
+
+    /**
+     * A digest string without a colon separator must throw InvalidFormatException.
+     */
+    @Test
+    public void testResolveGrantBadDigestFormatThrows() throws Exception {
+        System.out.println("testResolveGrantBadDigestFormatThrows");
+        DefaultPolicyParser parser = new DefaultPolicyParser();
+        GrantEntry badGe = new GrantEntry(null, null, "NODIVIDER", null, null);
+        try {
+            parser.resolveGrant(badGe, null, system, false);
+            fail("Expected InvalidFormatException for digest without ':'");
+        } catch (DefaultPolicyScanner.InvalidFormatException e) {
+            // expected
+        }
+    }
+
+    /**
+     * A digest hex value with an odd number of characters must throw
+     * InvalidFormatException.
+     */
+    @Test
+    public void testResolveGrantOddLengthHexThrows() throws Exception {
+        System.out.println("testResolveGrantOddLengthHexThrows");
+        DefaultPolicyParser parser = new DefaultPolicyParser();
+        // "SHA-256:abc" — 3 hex chars is odd
+        GrantEntry oddGe = new GrantEntry(null, null, "SHA-256:abc", null, null);
+        try {
+            parser.resolveGrant(oddGe, null, system, false);
+            fail("Expected InvalidFormatException for odd-length hex digest");
+        } catch (DefaultPolicyScanner.InvalidFormatException e) {
+            // expected
+        }
+    }
+
+    /**
+     * A digest hex value with an invalid hex character must throw
+     * InvalidFormatException.
+     */
+    @Test
+    public void testResolveGrantInvalidHexCharThrows() throws Exception {
+        System.out.println("testResolveGrantInvalidHexCharThrows");
+        DefaultPolicyParser parser = new DefaultPolicyParser();
+        // "SHA-256:zz" — 'z' is not a hex digit
+        GrantEntry hexGe = new GrantEntry(null, null, "SHA-256:zz", null, null);
+        try {
+            parser.resolveGrant(hexGe, null, system, false);
+            fail("Expected InvalidFormatException for non-hex characters");
+        } catch (DefaultPolicyScanner.InvalidFormatException e) {
+            // expected
+        }
+    }
+
+    /**
+     * Uppercase hex digits must be accepted by hexDecode.
+     */
+    @Test
+    public void testResolveGrantUppercaseHexAccepted() throws Exception {
+        System.out.println("testResolveGrantUppercaseHexAccepted");
+        DefaultPolicyParser parser = new DefaultPolicyParser();
+        // "SHA-256:DEADBEEF" — all uppercase
+        GrantEntry upperGe = new GrantEntry(null, null, "SHA-256:DEADBEEF", null, null);
+        PermissionGrant result = parser.resolveGrant(upperGe, null, system, false);
+        assertNotNull(result);
+        assertTrue(result instanceof DigestGrant);
+    }
+
+    /**
+     * Mixed-case hex digits must be accepted.
+     */
+    @Test
+    public void testResolveGrantMixedCaseHexAccepted() throws Exception {
+        System.out.println("testResolveGrantMixedCaseHexAccepted");
+        DefaultPolicyParser parser = new DefaultPolicyParser();
+        GrantEntry mixedGe = new GrantEntry(null, null, "SHA-256:DeAdBeEf", null, null);
+        PermissionGrant result = parser.resolveGrant(mixedGe, null, system, false);
+        assertNotNull(result);
+        assertTrue(result instanceof DigestGrant);
     }
 
 //    /**

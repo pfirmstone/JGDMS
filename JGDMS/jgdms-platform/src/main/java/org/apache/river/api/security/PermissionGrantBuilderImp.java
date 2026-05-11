@@ -64,6 +64,9 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     private boolean hasDomain;
     /*@serial */
     private String[] aliases;
+    // New serial state fields:
+    /* @serial */ private String digestAlgorithm;
+    /* @serial */ private byte[] digest;
     // Transient Fields
     private transient Collection<String> uris;
     private transient WeakReference<ProtectionDomain> domain;
@@ -86,6 +89,8 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         hasDomain = false;
         principals = null;
         permissions = null;
+        digestAlgorithm = null;
+        digest = null;
         context = -1;
         return this;
     }
@@ -94,8 +99,8 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         if (context < 0) {
             throw new IllegalStateException("context must be >= 0");
         }
-        if (context > 5) {
-            throw new IllegalStateException("context must be <= 5");
+        if (context > 6) {
+            throw new IllegalStateException("context must be <= 6");
         }
         this.context = context;
         return this;
@@ -149,6 +154,13 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         return this;
     }
 
+    @Override
+    public PermissionGrantBuilder digest(String algorithm, byte[] value) {
+        this.digestAlgorithm = algorithm;
+        this.digest = value != null ? value.clone() : null;
+        return this;
+    }
+
     public PermissionGrant build() {
         switch (context) {
             case CLASSLOADER: //Dynamic grant
@@ -165,6 +177,11 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
                 return new ProtectionDomainGrant(domain, principals, permissions );
             case PRINCIPAL:
                 return new PrincipalGrant(principals, permissions);
+            case DIGEST:
+                if (uris != null && !uris.isEmpty()) uri = uris.toArray(new String[uris.size()]);
+                if (uri == null) uri = new String[0];
+                return new DigestGrant(uri, digestAlgorithm, digest,
+                                       certs, aliases, principals, permissions);
             default:
                 return nullGrant;
         }
