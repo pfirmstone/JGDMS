@@ -379,6 +379,8 @@ class SpiffeCredentialManager {
 - BAE implementation: `JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/main/java/au/net/zeus/jgdms/bae/BytecodeAnalysisEngineImpl.java`
 - AtomicSerial: `JGDMS/jgdms-platform/src/main/java/org/apache/river/api/io/AtomicSerial.java`
 - x500 discovery providers: `JGDMS/jgdms-discovery-providers/src/main/java/org/apache/river/discovery/x500/`
+- **JERI ACC transport for DigestCodeSource:** `JGDMS/jgdms-platform/src/main/java/org/apache/river/api/io/AccessControlContextSerializer.java`
+  — new `digestTransportBytes` serial field; `DigestCodeSource` serialized via `AtomicMarshalOutputStream`/`AtomicMarshalInputStream`; `DomainIdentityRecord.from()` skips `DigestCodeSource` to prevent httpmd-URL duplication; fail-secure on standard JDK (ClassNotFoundException → domain dropped)
 - Issue #204: https://github.com/pfirmstone/JGDMS/issues/204
 - Issue #205: https://github.com/pfirmstone/JGDMS/issues/205
 

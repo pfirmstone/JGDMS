@@ -20,6 +20,7 @@ package org.apache.river.api.io;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Externalizable;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.NotSerializableException;
@@ -40,7 +41,9 @@ import java.security.DomainCombiner;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
+import java.security.cert.Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -58,16 +61,25 @@ import org.apache.river.api.net.Uri;
 @AtomicSerial
 public final class AccessControlContextSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
-    private static final String DOMAINS = "domains";
     /**
-     * Field name used in the serialized form.  The serial representation stores
-     * the binary transport bytes rather than the {@code DomainIdentityRecord[]}
-     * array, so that standard Java {@code ObjectOutputStream} (used by
-     * {@link AtomicMarshalOutputStream}) can write the field without triggering
-     * the block that {@code DomainIdentityRecord.writeObject} places on
-     * direct Java-serialisation of that class.
+     * Serial field name for the HTTPMD-URL transport bytes.
+     * The serial representation stores the binary transport bytes rather than
+     * the {@code DomainIdentityRecord[]} array, so that standard Java
+     * {@code ObjectOutputStream} (used by {@link AtomicMarshalOutputStream})
+     * can write the field without triggering the block that
+     * {@code DomainIdentityRecord.writeObject} places on direct
+     * Java-serialisation of that class.
      */
     private static final String TRANSPORT_BYTES = "transportBytes";
+    /**
+     * Serial field name for {@code DigestCodeSource} domains.
+     * Stores the output of {@link AtomicMarshalOutputStream} written by
+     * {@link #marshalDigestForTransport}.  Old receivers that do not have this
+     * field in their serial form will silently receive {@code null} and skip it
+     * (fail-secure: no digest domains are reconstructed, which is correct
+     * behaviour on a JVM without {@code java.security.DigestCodeSource}).
+     */
+    private static final String DIGEST_TRANSPORT_BYTES = "digestTransportBytes";
     /**
      * A minimal {@link URLStreamHandler} used when the real {@code httpmd:}
      * handler ({@code net.jini.url.httpmd.Handler}) is not available on the
@@ -98,16 +110,24 @@ public final class AccessControlContextSerializer implements Serializable {
     private static final int MAX_TOTAL_PAYLOAD_BYTES = 16 * 1024 * 1024;
     /** Maximum value that fits in an unsigned 16-bit length field. */
     private static final int MAX_UNSIGNED_SHORT_VALUE = 0xFFFF;
+    /**
+     * Fully-qualified class name of {@code java.security.DigestCodeSource}
+     * (from DirtyChai JDK).  Used for class-name inspection without a
+     * compile-time dependency on that JDK-specific class.
+     */
+    private static final String DIGEST_CODESOURCE_CLASS_NAME = "java.security.DigestCodeSource";
     private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
     public static SerialForm[] serialForm() {
         return new SerialForm[]{
-            new SerialForm(TRANSPORT_BYTES, byte[].class)
+            new SerialForm(TRANSPORT_BYTES, byte[].class),
+            new SerialForm(DIGEST_TRANSPORT_BYTES, byte[].class)
         };
     }
 
     public static void serialize(PutArg arg, AccessControlContextSerializer obj) throws IOException {
         arg.put(TRANSPORT_BYTES, marshalForTransport(obj.context));
+        arg.put(DIGEST_TRANSPORT_BYTES, marshalDigestForTransport(obj.context));
         arg.writeArgs();
     }
 
@@ -123,9 +143,66 @@ public final class AccessControlContextSerializer implements Serializable {
         return baos.toByteArray();
     }
 
+    /**
+     * Serialises the {@code DigestCodeSource} domains from {@code acc} into a
+     * byte array using {@link AtomicMarshalOutputStream}.
+     *
+     * <p>Because {@code DigestCodeSource} implements {@link Externalizable},
+     * {@code writeObject(cs)} causes the stream to call
+     * {@code cs.writeExternal(out)} — no reflection is used in our code.
+     * The resulting bytes are stored in the {@value #DIGEST_TRANSPORT_BYTES}
+     * serial field and decoded on the receiver side by
+     * {@link #unmarshalDigestFromTransport}.
+     *
+     * @return the serialised bytes, or an empty array when no
+     *         {@code DigestCodeSource} domains are present
+     */
+    static byte[] marshalDigestForTransport(AccessControlContext acc) throws IOException {
+        if (acc == null) return new byte[0];
+        ProtectionDomain[] extracted = extractDomains(acc);
+        List<ProtectionDomain> digestDomains = new ArrayList<ProtectionDomain>(extracted.length);
+        for (int i = 0; i < extracted.length; i++) {
+            CodeSource cs = extracted[i].getCodeSource();
+            if (cs instanceof Externalizable
+                    && DIGEST_CODESOURCE_CLASS_NAME.equals(cs.getClass().getName())) {
+                digestDomains.add(extracted[i]);
+            }
+        }
+        if (digestDomains.isEmpty()) return new byte[0];
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+        // AtomicMarshalOutputStream with no codebase annotations is compatible
+        // with ObjectOutputStream wire format for reading by AtomicMarshalInputStream.
+        AtomicMarshalOutputStream aoos = new AtomicMarshalOutputStream(baos, Collections.emptyList());
+        aoos.writeInt(digestDomains.size());
+        for (int i = 0; i < digestDomains.size(); i++) {
+            ProtectionDomain pd = digestDomains.get(i);
+            // writeObject calls cs.writeExternal(out) because DigestCodeSource implements
+            // Externalizable — the Externalizable interface is used directly, no reflection.
+            aoos.writeObject(pd.getCodeSource());
+            Principal[] principals = pd.getPrincipals();
+            int principalCount = principals != null ? principals.length : 0;
+            aoos.writeInt(principalCount);
+            for (int j = 0; j < principalCount; j++) {
+                aoos.writeUTF(principals[j].getClass().getName());
+                aoos.writeUTF(principals[j].getName());
+            }
+        }
+        aoos.close();
+        return baos.toByteArray();
+    }
+
     public static AccessControlContext unmarshalForTransport(byte[] data, Subject authenticatedSubject) throws IOException {
+        ProtectionDomain[] domains = unmarshalHttpmdDomains(data, authenticatedSubject);
+        return domains.length == 0 ? null : new AccessControlContext(domains);
+    }
+
+    /**
+     * Reads the HTTPMD-only binary transport payload and returns the
+     * resulting {@link ProtectionDomain} array.
+     */
+    private static ProtectionDomain[] unmarshalHttpmdDomains(byte[] data, Subject authenticatedSubject) throws IOException {
         if (data == null || data.length == 0) {
-            return null;
+            return new ProtectionDomain[0];
         }
         if (data.length > MAX_TOTAL_PAYLOAD_BYTES) {
             throw new InvalidObjectException("payload size exceeds maximum: " + data.length);
@@ -137,7 +214,7 @@ public final class AccessControlContextSerializer implements Serializable {
         }
         if (count == 0) {
             // Normalise: zero-domain payload carries no identity, same as empty data.
-            return null;
+            return new ProtectionDomain[0];
         }
         DomainIdentityRecord[] records = new DomainIdentityRecord[count];
         for (int i = 0; i < count; i++) {
@@ -146,15 +223,108 @@ public final class AccessControlContextSerializer implements Serializable {
         if (in.read() != -1) {
             throw new InvalidObjectException("unexpected trailing bytes");
         }
-        ProtectionDomain[] domains = toProtectionDomains(records, authenticatedSubject);
-        return domains.length == 0 ? null : new AccessControlContext(domains);
+        return toProtectionDomains(records, authenticatedSubject);
+    }
+
+    /**
+     * Deserialises the {@code DigestCodeSource} domains stored in the
+     * {@value #DIGEST_TRANSPORT_BYTES} serial field using
+     * {@link AtomicMarshalInputStream}.
+     *
+     * <p>{@link AtomicMarshalInputStream} is used because it is hardened
+     * against denial-of-service attacks, unlike the standard
+     * {@link java.io.ObjectInputStream}.  Since {@code DigestCodeSource}
+     * implements {@link Externalizable} and writes only strings and primitive
+     * bytes, it is safely handled by {@code AtomicMarshalInputStream}.
+     *
+     * <p>If {@code DigestCodeSource} is not available on this JVM (e.g. a
+     * standard JDK without the DirtyChai patch), the {@code ClassNotFoundException}
+     * is caught and no digest domains are added — fail-secure behaviour.
+     *
+     * @return the reconstructed digest {@link ProtectionDomain} array, or an
+     *         empty array when no digest domains are present or the class is absent
+     */
+    static ProtectionDomain[] unmarshalDigestFromTransport(byte[] data, Subject authenticatedSubject) throws IOException {
+        if (data == null || data.length == 0) return new ProtectionDomain[0];
+        if (data.length > MAX_TOTAL_PAYLOAD_BYTES) {
+            throw new InvalidObjectException("digest transport payload size exceeds maximum: " + data.length);
+        }
+        List<ProtectionDomain> result = new ArrayList<ProtectionDomain>();
+        try {
+            ObjectInputStream amis = AtomicMarshalInputStream.create(
+                    new ByteArrayInputStream(data), null, false, null, Collections.emptyList(), false);
+            int count = amis.readInt();
+            if (count < 0 || count > MAX_DOMAIN_COUNT) {
+                throw new InvalidObjectException("invalid digest domain count: " + count);
+            }
+            for (int i = 0; i < count; i++) {
+                try {
+                    CodeSource cs = (CodeSource) amis.readObject();
+                    int principalCount = amis.readInt();
+                    if (principalCount < 0 || principalCount > MAX_PRINCIPALS_PER_DOMAIN) {
+                        throw new InvalidObjectException("invalid principal count in digest transport: " + principalCount);
+                    }
+                    Principal[] principals;
+                    if (authenticatedSubject != null) {
+                        // Discard stream principals; use the authenticated subject's instead.
+                        for (int j = 0; j < principalCount; j++) {
+                            amis.readUTF(); // type  (discard)
+                            amis.readUTF(); // name  (discard)
+                        }
+                        Set<Principal> ps = authenticatedSubject.getPrincipals();
+                        principals = ps.toArray(new Principal[0]);
+                    } else {
+                        principals = new Principal[principalCount];
+                        for (int j = 0; j < principalCount; j++) {
+                            amis.readUTF(); // type class name (not stored in NamedPrincipal)
+                            String name = amis.readUTF();
+                            principals[j] = new NamedPrincipal(name);
+                        }
+                    }
+                    result.add(new DomainIdentity(cs, principals));
+                } catch (ClassNotFoundException e) {
+                    // DigestCodeSource is not available in this JVM — stop reading
+                    // further domains (stream position after ClassNotFoundException is
+                    // not guaranteed, so we cannot safely resume).
+                    break;
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            // Unexpected class not found outside of readObject — treat as invalid.
+            InvalidObjectException ex = new InvalidObjectException(
+                    "unexpected ClassNotFoundException reading digest transport");
+            ex.initCause(e);
+            throw ex;
+        }
+        return result.toArray(new ProtectionDomain[0]);
+    }
+
+    /** Merges HTTPMD and DigestCodeSource domains into a single {@link AccessControlContext}. */
+    private static AccessControlContext buildContext(ProtectionDomain[] httpmd, ProtectionDomain[] digest) {
+        int total = httpmd.length + digest.length;
+        if (total == 0) return null;
+        ProtectionDomain[] all = new ProtectionDomain[total];
+        System.arraycopy(httpmd, 0, all, 0, httpmd.length);
+        System.arraycopy(digest, 0, all, httpmd.length, digest.length);
+        return new AccessControlContext(all);
     }
 
     private final DomainIdentityRecord[] domains;
     private final transient AccessControlContext context;
+    /**
+     * Cached result of {@link #marshalDigestForTransport} so that
+     * {@link #equals} and {@link #hashCode} do not recompute the digest bytes
+     * on every call.  Computed lazily on first access; {@code context} is
+     * effectively immutable so the cache is safe to share without a lock after
+     * the first write (the worst case is two threads computing the same value
+     * concurrently, which is harmless).
+     */
+    private transient volatile byte[] cachedDigestBytes;
 
     AccessControlContextSerializer(GetArg arg) throws IOException, ClassNotFoundException {
-        this(unmarshalForTransport(arg.get(TRANSPORT_BYTES, null, byte[].class), null));
+        this(buildContext(
+                unmarshalHttpmdDomains(arg.get(TRANSPORT_BYTES, null, byte[].class), null),
+                unmarshalDigestFromTransport(arg.get(DIGEST_TRANSPORT_BYTES, null, byte[].class), null)));
     }
 
     AccessControlContextSerializer(AccessControlContext context) {
@@ -346,8 +516,22 @@ public final class AccessControlContextSerializer implements Serializable {
             arg.writeArgs();
         }
 
+        /**
+         * Creates a {@link DomainIdentityRecord} for the given
+         * {@link ProtectionDomain} if it has a verifiable HTTPMD location.
+         * DigestCodeSource domains are handled separately by
+         * {@link #marshalDigestForTransport} and are explicitly excluded here
+         * to avoid duplicating a DigestCodeSource whose location happens to be
+         * an httpmd URL in both the HTTPMD and the digest transport streams.
+         */
         static DomainIdentityRecord from(ProtectionDomain pd, Subject authenticatedSubject) {
             CodeSource cs = pd.getCodeSource();
+            // DigestCodeSource is handled exclusively by marshalDigestForTransport();
+            // skip it here even if its location is an httpmd URL.
+            if (cs instanceof Externalizable
+                    && DIGEST_CODESOURCE_CLASS_NAME.equals(cs.getClass().getName())) {
+                return null;
+            }
             URL location = cs != null ? cs.getLocation() : null;
             String locText = location != null ? location.toExternalForm() : null;
             if (!isVerifiableHttpmd(locText)) return null;
@@ -362,12 +546,16 @@ public final class AccessControlContextSerializer implements Serializable {
         }
 
         static DomainIdentityRecord readFrom(ByteArrayInputStream in) throws IOException {
+            return readHttpmdRecord(in);
+        }
+
+        private static DomainIdentityRecord readHttpmdRecord(ByteArrayInputStream in) throws IOException {
             int locLen = readShort(in);
             if (locLen > MAX_LOCATION_BYTES) {
                 throw new InvalidObjectException("location length exceeds maximum: " + locLen);
             }
             byte[] locationBytes = new byte[locLen];
-            if (in.read(locationBytes) != locLen) throw new InvalidObjectException("Unexpected EOF reading location bytes");
+            if (locLen > 0 && in.read(locationBytes) != locLen) throw new InvalidObjectException("Unexpected EOF reading location bytes");
             String location = new String(locationBytes, StandardCharsets.UTF_8);
             int principalCount = readShort(in);
             if (principalCount > MAX_PRINCIPALS_PER_DOMAIN) {
@@ -413,12 +601,20 @@ public final class AccessControlContextSerializer implements Serializable {
         }
 
         private void writeTo(ByteArrayOutputStream out) throws IOException {
+            writeHttpmdPayload(out);
+        }
+
+        private void writeHttpmdPayload(ByteArrayOutputStream out) throws IOException {
             byte[] loc = location.getBytes(StandardCharsets.UTF_8);
             if (loc.length > MAX_LOCATION_BYTES) {
                 throw new InvalidObjectException("location too long to encode: " + loc.length);
             }
             writeUnsignedShort(out, loc.length);
             out.write(loc);
+            writePrincipals(out);
+        }
+
+        private void writePrincipals(ByteArrayOutputStream out) throws IOException {
             if (principalTypes.length != principalNames.length) {
                 throw new InvalidObjectException("principal type/name length mismatch");
             }
@@ -446,20 +642,41 @@ public final class AccessControlContextSerializer implements Serializable {
         private ProtectionDomain toProtectionDomain(Subject authenticatedSubject) throws IOException {
             if (!isVerifiableHttpmd(location)) return null;
             URL url = parseHttpmd(location);
-            Principal[] principals;
+            Principal[] principals = buildPrincipals(authenticatedSubject);
+            return new DomainIdentity(new CodeSource(url, (Certificate[]) null), principals);
+        }
+
+        private Principal[] buildPrincipals(Subject authenticatedSubject) throws IOException {
             if (authenticatedSubject != null) {
                 Set<Principal> principalSet = authenticatedSubject.getPrincipals();
-                principals = principalSet.toArray(new Principal[0]);
-            } else {
-                if (principalTypes.length != principalNames.length) {
-                    throw new InvalidObjectException("principal type/name length mismatch");
-                }
-                principals = new Principal[principalTypes.length];
-                for (int i = 0; i < principals.length; i++) {
-                    principals[i] = new NamedPrincipal(principalNames[i]);
-                }
+                return principalSet.toArray(new Principal[0]);
             }
-            return new DomainIdentity(new CodeSource(url, (java.security.cert.Certificate[]) null), principals);
+            if (principalTypes.length != principalNames.length) {
+                throw new InvalidObjectException("principal type/name length mismatch");
+            }
+            Principal[] principals = new Principal[principalTypes.length];
+            for (int i = 0; i < principals.length; i++) {
+                principals[i] = new NamedPrincipal(principalNames[i]);
+            }
+            return principals;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof DomainIdentityRecord)) return false;
+            DomainIdentityRecord other = (DomainIdentityRecord) obj;
+            return (location == null ? other.location == null : location.equals(other.location))
+                    && Arrays.equals(principalTypes, other.principalTypes)
+                    && Arrays.equals(principalNames, other.principalNames);
+        }
+
+        @Override
+        public int hashCode() {
+            int h = location != null ? location.hashCode() : 0;
+            h = 31 * h + Arrays.hashCode(principalTypes);
+            h = 31 * h + Arrays.hashCode(principalNames);
+            return h;
         }
 
         private void writeObject(ObjectOutputStream out) throws IOException {
@@ -529,9 +746,49 @@ public final class AccessControlContextSerializer implements Serializable {
         }
     }
 
+    /**
+     * Returns the cached digest transport bytes for this serializer, computing
+     * them if not yet cached.  An {@link IOException} during computation is
+     * treated as "no digest domains" ({@code new byte[0]}).
+     */
+    private byte[] digestBytes() {
+        byte[] b = cachedDigestBytes;
+        if (b == null) {
+            try {
+                b = marshalDigestForTransport(context);
+            } catch (IOException e) {
+                b = new byte[0];
+            }
+            cachedDigestBytes = b;
+        }
+        return b;
+    }
+
+    /**
+     * Two {@link AccessControlContextSerializer} instances are equal when they
+     * carry the same set of {@link DomainIdentityRecord} HTTPMD domains and the
+     * same {@code DigestCodeSource} digest domains.  Equal instances will be
+     * back-referenced by the serialization stream rather than written in full a
+     * second time, which is the primary motivation for this implementation.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof AccessControlContextSerializer)) return false;
+        AccessControlContextSerializer other = (AccessControlContextSerializer) obj;
+        return Arrays.equals(domains, other.domains)
+                && Arrays.equals(digestBytes(), other.digestBytes());
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * Arrays.hashCode(domains) + Arrays.hashCode(digestBytes());
+    }
+
     private void writeObject(ObjectOutputStream out) throws IOException {
         ObjectOutputStream.PutField pf = out.putFields();
         pf.put(TRANSPORT_BYTES, marshalForTransport(context));
+        pf.put(DIGEST_TRANSPORT_BYTES, marshalDigestForTransport(context));
         out.writeFields();
     }
 }

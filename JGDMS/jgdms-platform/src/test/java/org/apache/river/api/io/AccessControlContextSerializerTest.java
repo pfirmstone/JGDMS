@@ -226,6 +226,71 @@ public class AccessControlContextSerializerTest {
     }
 
 
+    @Test
+    public void testDigestTransportFieldEmptyForStandardJdkAcc() throws Exception {
+        // On a standard JDK (no java.security.DigestCodeSource), an ACC built
+        // from a plain HTTPMD domain produces empty digestTransportBytes.
+        String oldHandlers = System.getProperty("java.protocol.handler.pkgs");
+        System.setProperty("java.protocol.handler.pkgs", "net.jini.url");
+        try {
+            URL httpmd = new URL(null,
+                    "httpmd://repo.example.org/a.jar;sha-256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    new PassThroughHandler());
+            ProtectionDomain pd = new ProtectionDomain(
+                    new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{pd});
+
+            byte[] digestBytes = AccessControlContextSerializer.marshalDigestForTransport(acc);
+            Assert.assertEquals("no DigestCodeSource domains → empty digestTransportBytes",
+                    0, digestBytes.length);
+
+            ProtectionDomain[] domains =
+                    AccessControlContextSerializer.unmarshalDigestFromTransport(digestBytes, null);
+            Assert.assertEquals("empty bytes → no digest domains", 0, domains.length);
+        } finally {
+            if (oldHandlers == null) {
+                System.clearProperty("java.protocol.handler.pkgs");
+            } else {
+                System.setProperty("java.protocol.handler.pkgs", oldHandlers);
+            }
+        }
+    }
+
+    /**
+     * Verifies that the HTTPMD-only transport bytes produced by
+     * {@code marshalForTransport} round-trip correctly.
+     * The first 4 bytes of the transport payload encode the domain count.
+     */
+    @Test
+    public void testHttpmdTransportRoundTrip() throws Exception {
+        String oldHandlers = System.getProperty("java.protocol.handler.pkgs");
+        System.setProperty("java.protocol.handler.pkgs", "net.jini.url");
+        try {
+            URL httpmd = new URL(null,
+                    "httpmd://repo.example.org/a.jar;sha-256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    new PassThroughHandler());
+            ProtectionDomain pd = new ProtectionDomain(
+                    new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{pd});
+            byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
+            // First 4 bytes encode the count (= 1)
+            Assert.assertEquals(1, readInt(encoded));
+            // Must be parseable on round-trip
+            AccessControlContext decoded = AccessControlContextSerializer.unmarshalForTransport(encoded, null);
+            Assert.assertNotNull(decoded);
+        } finally {
+            if (oldHandlers == null) {
+                System.clearProperty("java.protocol.handler.pkgs");
+            } else {
+                System.setProperty("java.protocol.handler.pkgs", oldHandlers);
+            }
+        }
+    }
+
+    // ---- binary helpers used by the test methods above -----------------------
+
     private static int readInt(byte[] bytes) {
         return ((bytes[0] & 0xFF) << 24)
                 | ((bytes[1] & 0xFF) << 16)
