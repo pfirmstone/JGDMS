@@ -1,12 +1,45 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v20)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v21)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v19.
+context. It supersedes and extends v20.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v21 Change Summary
+
+This version documents the **JERI `AccessControlContextSerializer` extension** for
+`DigestCodeSource` domains.  When a JERI endpoint transmits an
+`AccessControlContext`, it now includes `DigestCodeSource`-backed `ProtectionDomain`s
+so that the remote end can apply `DigestGrant` policy grants.  No compile-time
+dependency on DirtyChai is introduced.
+
+**New/changed in v21:**
+
+- **`AccessControlContextSerializer`** — new serial field `digestTransportBytes`
+  (`byte[]`) stores `DigestCodeSource` domains separately from the existing
+  `transportBytes` (HTTPMD-URL-only) field.
+- **`marshalDigestForTransport()`** — detects `DigestCodeSource` by
+  `cs instanceof Externalizable` + class-name check; calls
+  `AtomicMarshalOutputStream.writeObject(cs)` which invokes `writeExternal()` via
+  the `Externalizable` protocol — no reflection.
+- **`unmarshalDigestFromTransport()`** — reads via
+  `AtomicMarshalInputStream.create(…, readAnnotations=false)` (secure, DOS-resistant);
+  `ClassNotFoundException` → `break` (fail-secure domain drop on standard JDK).
+- **`DomainIdentityRecord.from()`** — now explicitly skips `DigestCodeSource`
+  instances before the httpmd URL test, preventing a `DigestCodeSource` whose
+  location happens to be an httpmd URL from being duplicated in both transport fields.
+- **`buildContext()`** — merges HTTPMD and `DigestCodeSource` `ProtectionDomain[]`
+  arrays into a single `AccessControlContext`.
+- **`AccessControlContextSerializerTest`** — two new regression tests:
+  `testDigestTransportFieldEmptyForStandardJdkAcc` and `testHttpmdTransportRoundTrip`.
+- **§1 document table** updated with `AccessControlContextSerializer.java`.
+- **§12 work items** — item 27 added (JERI ACC transport for `DigestCodeSource`).
+- **§13** three new design-decision rows added.
 
 ---
 
@@ -228,6 +261,7 @@ re-establishment for `Subject.current()` in spawned threads.
 | `DefaultPolicyScanner.java` | DirtyChai source | ✅ **Updated (v20):** `GrantEntry` has new `String digest` field + `getDigest()` + updated constructor + `toString()` includes digest; `readGrantEntry()` recognises `"digest"` keyword |
 | `DefaultPolicyParser.java` | DirtyChai source | ✅ **Updated (v20):** `resolveGrant()` reads `ge.getDigest()`, hex-decodes, selects `DIGEST` vs `URI` context; new `hexDecode()` helper; missing methods `getURI()`, `segment()`, `expandURLs()`, `resolvePermission()`, `PermissionExpander`, `resolveSigners()` restored |
 | `SecurityPolicyWriter.java` | DirtyChai source | ✅ **Updated (v20):** Emits `digest "alg:hex",\n` clause for `DigestCodeSource`; new `hexEncode(byte[])` helper; hasDigest \|\| hasPrincipals controls comma placement after codebase |
+| `AccessControlContextSerializer.java` | `JGDMS/jgdms-platform/src/main/java/org/apache/river/api/io/` | ✅ **Updated (v21):** New `digestTransportBytes` serial field carries `DigestCodeSource` domains via `AtomicMarshalOutputStream`/`AtomicMarshalInputStream`; `DomainIdentityRecord.from()` now skips `DigestCodeSource` to prevent httpmd-URL duplication; `buildContext()` merges HTTPMD + digest `ProtectionDomain[]` arrays |
 
 ---
 
@@ -1405,6 +1439,19 @@ executor.submit(() -> {
     - `DefaultPolicyParser` — `hexDecode()` + `DIGEST` context routing
     - `SecurityPolicyWriter` — `hexEncode()` + `DigestCodeSource` detection
     - Policy file round-trip: write → parse → `DigestGrant` fully functional
+27. **JERI ACC transport for `DigestCodeSource` domains** — ✅ *completed (v21)*
+    - `AccessControlContextSerializer.digestTransportBytes` serial field — separate
+      `byte[]` carrying `DigestCodeSource` domains; `transportBytes` (HTTPMD) unchanged
+    - `marshalDigestForTransport()` — `cs instanceof Externalizable` + class-name guard;
+      `AtomicMarshalOutputStream.writeObject(cs)` → `writeExternal()` via Externalizable
+      protocol; no reflection
+    - `unmarshalDigestFromTransport()` — `AtomicMarshalInputStream.create()` (secure,
+      DOS-resistant); `ClassNotFoundException` → `break` (fail-secure domain drop)
+    - `DomainIdentityRecord.from()` — early-exit on `DigestCodeSource` before httpmd URL
+      test; prevents duplication when location is an httpmd URL
+    - `buildContext()` — merges HTTPMD and DigestCodeSource `ProtectionDomain[]` into one
+      `AccessControlContext`
+    - Backward compatible: peers without `digestTransportBytes` receive `null` and skip it
 
 ---
 
@@ -1496,6 +1543,9 @@ executor.submit(() -> {
 | **`digest "algorithm:hexValue"` single-token policy syntax** | ✅ **v20:** Algorithm and hex value colon-separated inside one quoted string; mirrors `httpmd:` URL convention; scanner stores raw string, parser splits on first `:` and hex-decodes; no grammar ambiguity — colon cannot appear unquoted in a grant header |
 | **`DigestGrant.implies(ClassLoader, Principal[])` returns `false`** | ✅ **v20:** A `ClassLoader` carries no content hash; returning `false` (indeterminate) rather than delegating to `URIGrant` is the correct fail-secure behaviour; `URIGrant`'s existing override already handles that path correctly for plain URI grants |
 | **`SecurityPolicyWriter` detects `DigestCodeSource` at write time** | ✅ **v20:** `DigestCodeSource instanceof` check at write time enables policy round-trip; `hasDigest \|\| hasPrincipals` controls comma placement ensuring valid grant header syntax regardless of which optional clauses are present |
+| **Separate `digestTransportBytes` serial field for DigestCodeSource** | ✅ **v21:** Keeping `DigestCodeSource` domains in a dedicated field leaves the existing HTTPMD `transportBytes` wire format completely unchanged; older peers that do not understand the field receive `null` and silently skip it (fail-secure) |
+| **`AtomicMarshalOutputStream`/`AtomicMarshalInputStream` for DigestCodeSource transport** | ✅ **v21:** `DigestCodeSource` implements `Externalizable` and writes only strings and bytes with built-in DOS guards; `AtomicMarshalInputStream` is the project-standard secure deserializer — `ObjectInputStream` is explicitly avoided everywhere in JGDMS |
+| **`DomainIdentityRecord.from()` skips `DigestCodeSource` before httpmd URL test** | ✅ **v21:** A `DigestCodeSource` with an httpmd location must travel exclusively via `digestTransportBytes`; checking for `DigestCodeSource` first (via `cs instanceof Externalizable` + class-name) prevents it from being duplicated into `transportBytes` while adding zero overhead for ordinary `CodeSource` instances |
 
 ---
 
