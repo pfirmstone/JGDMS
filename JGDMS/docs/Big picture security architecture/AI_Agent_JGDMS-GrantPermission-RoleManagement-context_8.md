@@ -1,8 +1,8 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v24)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v25)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v23.
+context. It supersedes and extends v24.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
@@ -10,7 +10,26 @@ context. It supersedes and extends v23.
 
 ---
 
-## v24 Change Summary
+## v25 Change Summary
+
+This version documents an **in-depth review of DoS vectors and bugs** identified in
+the codebase, along with **architectural fix options and recommendations** for each.
+Virtual-thread opportunities (JDK 21+) are evaluated for the policy-service event
+dispatcher and JERI dispatch.  Seven distinct issues are covered across three modules:
+`InMemoryPolicyServiceImpl`, `BasicInvocationHandler/Dispatcher`, and
+`AccessControlContextSerializer`.
+
+**New/changed in v25:**
+
+- **§16 DoS Vectors and Architectural Fixes** — new section documenting seven issues
+  with multiple architectural fix options and a ranked recommendation per issue.
+- **§12 work items 30–32** — three new work items derived from the review.
+- **§13** — four new design-decision rows (principal-string overflow, ACC ceiling
+  drop, virtual-thread event dispatch, bounded listener registrations).
+
+---
+
+
 
 This version documents the **multi-Subject JERI wire-protocol implementation** —
 extending `BasicInvocationHandler` and `BasicInvocationDispatcher` to correctly
@@ -1658,7 +1677,7 @@ executor.submit(() -> {
     - `SecurityPolicyWriter` — `hexEncode()` + `DigestCodeSource` detection
     - Policy file round-trip: write → parse → `DigestGrant` fully functional
 27. **JERI ACC transport for `DigestCodeSource` domains** — ✅ *completed (v21/v22)*
-28. **Connection-level serialized-ACC cache** — *(not yet started; identified in v23 performance analysis)*
+28. **Connection-level serialized-ACC cache** — *(not yet started; identified in v23 performance analysis; detailed in v25 §16.5)*
     - `BasicInvocationHandler.invoke()` currently calls `marshalForTransport(currentAcc)` on
       **every** outbound call, triggering a JVM security stack walk (~5–20 µs) each time.
     - When the ACC is stable across multiple calls on the same connection (the common case),
@@ -1683,6 +1702,46 @@ executor.submit(() -> {
       added (v22) so stream back-references eliminate repeated equal instances;
       `cachedDigestBytes` avoids recomputing `marshalDigestForTransport` on each check
 29. **Multi-Subject JERI dispatch** — ✅ *completed (v24)*
+    - `BasicInvocationHandler`: `CURRENT_ALL_METHOD` (static final `Method`) cached at class-load
+      via `Subject.class.getMethod("currentAll")`; null on standard JDK.
+    - `getAllUserSubjects()` uses the cached field (zero per-call reflection on std JDK);
+      returns `Subject[]` outermost-first; falls back to `Subject.current()` single-element
+      array on standard JDK.
+    - `writeUserSubjects()` encodes `subjectCount:u16` + per-Subject `principalCount:u16 +
+      (className:u16-prefixed-UTF8 + name:u16-prefixed-UTF8)` per principal.
+    - `BasicInvocationDispatcher`: `CALL_AS_MULTI_SUBJECT` (static final `Method`) cached at
+      class-load via `Subject.class.getMethod("callAs", Callable.class, Subject[].class)`;
+      null on standard JDK.
+    - `invokeWithClientSubject()`: on DirtyChai with >1 Subject, single varargs
+      `CALL_AS_MULTI_SUBJECT.invoke(null, action, userSubjects)` call; on std JDK or 1
+      Subject, `Subject.callAs(first, action)`.  `IllegalAccessException` re-thrown as
+      `IllegalStateException` (should never occur — method is public).
+    - `readUserSubjects()` decodes `subjectCount:u16` + per-Subject principal list; bounded
+      by `MAX_USER_SUBJECTS=16` and `MAX_USER_PRINCIPALS=64`.
+    - `UserSubjectImpl` now holds `Subject[]` (all wire-reconstructed user Subjects);
+      `getUserSubjects()` returns a clone.
+    - Bug fix: removed unreachable outer `catch (ClassNotFoundException)` in
+      `AccessControlContextSerializer.unmarshalDigestFromTransport()`.
+    - Tests: `MultiSubjectWireProtocolTest` — 6 tests pass (wire-protocol round-trip +
+      `CURRENT_ALL_METHOD` caching + `getAllUserSubjects()` under `Subject.callAs`).
+30. **Policy-service DoS hardening (v25)** — *(not yet started)*
+    - Fix 1 (§16.1): Replace `LinkedBlockingQueue` (unbounded) with bounded variant or
+      virtual-thread executor + semaphore cap.  Recommended: Option D (virtual-thread +
+      semaphore 500).  Requires `<release>21</release>` in module `pom.xml`.
+    - Fix 2 (§16.2): Add `MAX_LISTENER_REGISTRATIONS = 1000` cap in `registerForPolicyUpdates()`;
+      add daemon virtual-thread sweep for expired leases.
+31. **`instantiatePrincipal()` allowlist + constructor cache (v25)** — *(not yet started)*
+    - Replace per-request `Class.forName` + `Constructor.newInstance` with a static
+      `Map<String, Constructor<? extends Principal>>` populated at class-load from an
+      explicit allowlist of known-safe Principal class names (§16.4 Option A).
+    - Eliminates class-loading contention and virtual-thread carrier pinning on JDK < 24.
+32. **Correctness fixes from v25 review** — *(not yet started)*
+    - Fix 1 (§16.6, HIGH): `marshalForTransport()` early-return when `records.isEmpty()`
+      must check `anonCount == 0` too; otherwise anonymous ceilings are silently dropped.
+    - Fix 2 (§16.7, MEDIUM): `writeUtf8Prefixed()` must throw `IOException` instead of
+      silently truncating strings that exceed 65 535 UTF-8 bytes.
+    - Fix 3 (§16.3, HIGH): `HttpmdURLConnection.getInputStream()` Pack200 unpack must use
+      a `CappedOutputStream` (e.g. 64 MB max) to prevent heap amplification.
     - `BasicInvocationHandler`: `CURRENT_ALL_METHOD` (static final `Method`) cached at class-load
       via `Subject.class.getMethod("currentAll")`; null on standard JDK.
     - `getAllUserSubjects()` uses the cached field (zero per-call reflection on std JDK);
@@ -1811,6 +1870,10 @@ executor.submit(() -> {
 | **Multi-Subject dispatch on DirtyChai uses single varargs `callAs`; nesting is wrong** | ✅ **v24:** Each nested `Subject.callAs(Subject, Callable)` call shadows the outer one; only the innermost Subject is visible via `Subject.current()`. DirtyChai's `Subject.callAs(Callable, Subject[])` varargs call passes all Subjects simultaneously to the JVM so `Subject.currentAll()` returns the full array. |
 | **`IllegalAccessException` from `CALL_AS_MULTI_SUBJECT.invoke()` wrapped as `IllegalStateException`** | ✅ **v24:** The method is public; `IllegalAccessException` should never occur. Re-wrapping it as `IllegalStateException` (an `Exception`) honours the `Callable<Void>` contract and preserves the original cause in the stack trace. |
 | **Unreachable outer `catch (ClassNotFoundException)` removed from `unmarshalDigestFromTransport()`** | ✅ **v24:** The exception is already caught per-domain by the inner try-catch around `amis.readObject()`; an outer catch is unreachable and is a compile error on JDK 27 (`-Werror`). Fixed by removing the outer try-wrapper; method already declares `throws IOException`. |
+| **`writeUtf8Prefixed()` must reject strings > 65 535 UTF-8 bytes** | ✅ **v25 (pending):** Silent `Math.min` truncation can produce a different string at the receiver — a security ambiguity.  `IOException` is the correct response; no legitimate `Principal` implementation produces a name this long. |
+| **`marshalForTransport()` early-return must check `anonCount == 0`** | ✅ **v25 (pending):** Returning empty bytes when `records.isEmpty()` but `anonCount > 0` silently drops anonymous-domain permission ceilings — same class of privilege escalation as §10.2.1.  Fix: guard on `records.isEmpty() && anonCount == 0`. |
+| **Virtual-thread executor + semaphore cap for policy-service event delivery** | ✅ **v25 (recommended, pending):** `newVirtualThreadPerTaskExecutor()` prevents I/O blocking on platform threads; semaphore cap (500 permits) bounds in-flight deliveries; requires `<release>21</release>` in module `pom.xml`. |
+| **`MAX_LISTENER_REGISTRATIONS` cap in `registerForPolicyUpdates()`** | ✅ **v25 (recommended, pending):** Any authenticated caller can flood the listener map; a hard cap (1 000) plus a daemon virtual-thread lease-expiry sweep are the two necessary controls. |
 
 ---
 
@@ -2164,30 +2227,461 @@ callers.
 
 ---
 
+## 16. DoS Vectors and Architectural Fixes (v25 Analysis)
+
+This section documents seven issues identified during an in-depth security and
+correctness review of the v24 codebase.  For each issue multiple architectural fix
+options are presented with their trade-offs; the **recommended** option is highlighted.
+
+---
+
+### 16.1 Unbounded Event Dispatch Queue (Policy Service) — HIGH
+
+**Location:** `InMemoryPolicyServiceImpl` constructor, line 237–241.
+
+**Problem:** The `ThreadPoolExecutor` uses `new LinkedBlockingQueue<Runnable>()`
+(unbounded).  Every call to `replace()` enqueues one task per registered listener.
+If listeners are slow (slow network path to remote `RemoteEventListener`), tasks
+accumulate without limit, exhausting heap memory and hiding the true backlog depth.
+
+**Option A — Bounded queue + `CallerRunsPolicy`**
+Replace with `new LinkedBlockingQueue<>(MAX_DISPATCH_QUEUE)` (e.g. 10 000) and set
+`RejectedExecutionHandler` to `CallerRunsPolicy`.  When the queue is full the calling
+thread (the `replace()` caller's JERI dispatch thread) performs the delivery inline,
+applying natural back-pressure to the `replace()` rate.
+
+- **Pro:** simple, auto-throttles callers.
+- **Con:** ties up a JERI dispatch thread during slow delivery; potential priority inversion.
+
+**Option B — Bounded queue + `DiscardOldestPolicy` + warning log**
+Use a bounded queue; silently drop the oldest pending task when the queue fills.
+This is appropriate when events are purely notifications (clients poll `getCurrentGrants()`
+anyway) and losing a notification is safe — clients will catch up on the next event.
+
+- **Pro:** caller is never blocked; pool threads are never starved by slow receivers.
+- **Con:** a slow listener may miss multiple notifications (acceptable given the
+  pull-on-notification design: the next event will still trigger a `getCurrentGrants()` call).
+
+**Option C — Virtual-thread-per-task executor (JDK 21+)**
+Replace `ThreadPoolExecutor` with `Executors.newVirtualThreadPerTaskExecutor()`.
+Each delivery task runs on a dedicated virtual thread; blocking I/O inside
+`RemoteEventListener.notify()` does not pin a platform thread.  The executor's
+internal queue is still unbounded in the default JDK implementation, but each
+virtual thread is cheap (≈200 B heap) so the practical DoS threshold is much higher.
+
+- **Pro:** maximally concurrent; no I/O blocking on platform threads; idiomatic JDK 21+.
+- **Con:** unbounded virtual-thread count can still exhaust heap on a genuine flood;
+  requires JDK 21 source/runtime compatibility in this module (currently `<release>8</release>`
+  in root pom; override in module pom required as done for `jfr-telemetry-service`).
+
+**Option D — Virtual-thread executor + semaphore limit (JDK 21+) — RECOMMENDED**
+Use `Executors.newVirtualThreadPerTaskExecutor()` with an in-flight-task semaphore
+(e.g. 500 permits).  The semaphore is acquired before `submit()`; if full,
+`dispatchUpdateEvent()` skips that listener and logs a `WARNING`.
+
+```java
+// Sketch
+private static final int MAX_IN_FLIGHT_DELIVERIES = 500;
+private final Semaphore inFlight = new Semaphore(MAX_IN_FLIGHT_DELIVERIES);
+// ExecutorService eventDispatcher = Executors.newVirtualThreadPerTaskExecutor();
+
+private void dispatchUpdateEvent() {
+    for (ListenerRegistration reg : listenerRegistrations.values()) {
+        if (!inFlight.tryAcquire()) {
+            logger.warning("Event dispatch overloaded; skipping listener " + reg.leaseId);
+            continue;
+        }
+        long seqNum = reg.seqNum.incrementAndGet();
+        eventDispatcher.submit(() -> {
+            try { new SendPolicyUpdateTask(reg, seqNum).run(); }
+            finally { inFlight.release(); }
+        });
+    }
+}
+```
+
+- **Pro:** bounded in-flight count; I/O does not pin platform threads; straightforward.
+- **Con:** requires JDK 21 module compatibility.  Module `pom.xml` compiler release
+  must be updated to 21 (same pattern as `jfr-telemetry-service`).
+
+**Recommendation:** Implement Option D in a JDK-21-targeted sub-module or behind a
+`Runtime.version()` guard.  As an interim for Java-8-compatible builds, use Option B
+(bounded + `DiscardOldestPolicy`) since events are already pull-on-notification.
+
+---
+
+### 16.2 Unbounded Listener Registrations + Stale Expiry Retention — HIGH
+
+**Location:** `InMemoryPolicyServiceImpl.registerForPolicyUpdates()`, line 348–364;
+`listenerRegistrations` field, line 129–130.
+
+**Problem:**
+1. Any authenticated caller may register unlimited listeners.  Each registration
+   occupies a `ConcurrentHashMap` entry.  A malicious or buggy client can call
+   `registerForPolicyUpdates()` in a tight loop to exhaust heap; this does not require
+   `PolicyPermission("Remote")` — only `replace()` does.
+2. Expired registrations are only evicted when `SendPolicyUpdateTask.run()` finds
+   `System.currentTimeMillis() > reg.leaseExpiration`.  If updates stop, the map retains
+   expired entries indefinitely.
+
+**Option A — Hard registration cap — RECOMMENDED**
+Add `private static final int MAX_LISTENER_REGISTRATIONS = 1000;` and check at
+entry to `registerForPolicyUpdates()`.  If the cap is reached, throw
+`RemoteException("Too many listener registrations")`.
+
+```java
+if (listenerRegistrations.size() >= MAX_LISTENER_REGISTRATIONS) {
+    throw new RemoteException("listener registration limit reached");
+}
+```
+
+- **Pro:** immediate DoS bound; no background thread needed.
+- **Con:** legitimate high-fan-out deployments may need a larger cap (should be configurable).
+
+**Option B — Scheduled expiry-sweep virtual thread**
+Add a daemon virtual thread (`Thread.ofVirtual().daemon(true).start(runnable)`) that
+sweeps `listenerRegistrations` every 60 seconds and removes entries where
+`leaseExpiration < System.currentTimeMillis()`.
+
+```java
+Thread.ofVirtual().daemon(true).name("JGDMS-PolicyService-LeaseSweep").start(() -> {
+    while (!Thread.currentThread().isInterrupted()) {
+        try { Thread.sleep(Duration.ofMinutes(1)); } catch (InterruptedException e) { return; }
+        long now = System.currentTimeMillis();
+        listenerRegistrations.values().removeIf(r -> r.leaseExpiration < now);
+    }
+});
+```
+
+- **Pro:** handles stale-expiry retention cleanly; idiomatic JDK 21+.
+- **Con:** the registration-flood DoS remains without Option A.
+
+**Option C — Require `PolicyPermission("Remote")` for registration too**
+Restrict `registerForPolicyUpdates()` to callers that hold `PolicyPermission("Remote")`.
+
+- **Pro:** minimal code change; aligns permissions with operational intent.
+- **Con:** may be too restrictive — service-tier clients legitimately register for
+  updates and may not hold `PolicyPermission("Remote")`.
+
+**Recommendation:** Implement **both A and B** (cap + sweep).  The cap is the primary
+DoS defence; the sweep is hygiene.  Option C is a supplementary hardening step
+appropriate once operational roles are clarified.
+
+---
+
+### 16.3 Pack200 Decompression Heap Amplification — HIGH
+
+**Location:** `HttpmdURLConnection.getInputStream()`, line 140–146.
+
+**Problem:** After SHA-256 verification passes, `Pack200.Unpacker.unpack()` writes the
+decompressed JAR into a `ByteArrayOutputStream(102400)` with no upper bound.  A
+legitimately-signed but large `.pack.gz` file can expand 3–5× on unpack, causing a
+multi-hundred-megabyte heap spike during class loading.
+
+**Option A — Capped `OutputStream` wrapper — RECOMMENDED**
+Wrap `baos` in a size-capping `OutputStream` that throws `IOException` if the total
+bytes written exceed `MAX_UNPACKED_JAR_BYTES` (e.g. 64 MB).
+
+```java
+private static final int MAX_UNPACKED_JAR_BYTES = 64 * 1024 * 1024; // 64 MB
+
+static final class CappedOutputStream extends OutputStream {
+    private final OutputStream delegate;
+    private long written;
+    private final long cap;
+    CappedOutputStream(OutputStream delegate, long cap) {
+        this.delegate = delegate; this.cap = cap;
+    }
+    @Override public void write(int b) throws IOException {
+        if (++written > cap)
+            throw new IOException("Unpacked JAR exceeds " + cap + " bytes");
+        delegate.write(b);
+    }
+    @Override public void write(byte[] b, int off, int len) throws IOException {
+        if ((written += len) > cap)
+            throw new IOException("Unpacked JAR exceeds " + cap + " bytes");
+        delegate.write(b, off, len);
+    }
+}
+// Usage:
+ByteArrayOutputStream baos = new ByteArrayOutputStream(102400);
+JarOutputStream jout = new JarOutputStream(new CappedOutputStream(baos, MAX_UNPACKED_JAR_BYTES));
+unpacker.unpack(result, jout);
+```
+
+- **Pro:** minimal change; fail-secure on oversized input.
+- **Con:** cap must be generous enough for legitimate proxy JARs (typical < 5 MB packed → < 20 MB unpacked; 64 MB is safe headroom).
+
+**Option B — Pre-check Content-Length before download**
+Reject if `Content-Length > MAX_PACKED_JAR_BYTES` (e.g. 20 MB) before allocating.
+
+- **Pro:** early rejection without allocating memory.
+- **Con:** `Content-Length` is not guaranteed; server may not send it.
+
+**Option C — Streaming unpacker (avoid full materialisation)**
+Pipe the unpack output to a `PipedOutputStream`; return a `PipedInputStream`.
+
+- **Pro:** eliminates full-JAR materialisation.
+- **Con:** complex threading; deadlock risk; SHA-256 verification upstream already
+  materialises the packed bytes.  Deferred to a later quality-of-implementation session.
+
+**Recommendation:** Implement Option A immediately; add Option B as a cheap pre-check.
+
+---
+
+### 16.4 Remote-Controlled Principal Class Instantiation (CPU DoS) — MEDIUM/HIGH
+
+**Location:** `BasicInvocationDispatcher.instantiatePrincipal()`, line 1867–1893.
+
+**Problem:** For each principal in the wire block the server calls
+`Class.forName(className, false, classLoader)` then `cls.getConstructor(String.class)
+.newInstance(name)`.  With `MAX_USER_PRINCIPALS = 64` and `MAX_USER_SUBJECTS = 16`,
+a single request can trigger up to 1 024 constructor invocations.  If any
+bootstrap/system-classpath `Principal` implementation has an expensive `(String)`
+constructor (e.g. one that performs hostname resolution or cryptographic parsing), an
+attacker causes disproportionate CPU work per connection.
+
+Additionally, `Class.forName` acquires the class-loading lock even for already-loaded
+classes on some JVM implementations, creating contention under high concurrency.  On
+JDK < 24, class-loading is `synchronized` and will pin a virtual-thread carrier if the
+dispatch thread runs as a virtual thread.
+
+**Option A — Allowlist + constructor cache — RECOMMENDED**
+Maintain a `Map<String, Constructor<? extends Principal>>` populated eagerly at
+class-load time from a set of permitted class names.  Wire lookups hit the map; unknown
+names fall back to `RemotePrincipal` immediately with no `Class.forName` call.
+
+```java
+private static final Map<String, Constructor<? extends Principal>> PRINCIPAL_CTORS;
+static {
+    Set<String> allowed = Set.of(
+        "javax.security.auth.x500.X500Principal",
+        "javax.security.auth.kerberos.KerberosPrincipal",
+        "net.jini.security.principal.SpiffePrincipal",
+        "net.jini.security.principal.JwtPrincipal"
+    );
+    Map<String, Constructor<? extends Principal>> map = new HashMap<>();
+    for (String name : allowed) {
+        try {
+            @SuppressWarnings("unchecked")
+            Class<? extends Principal> cls =
+                (Class<? extends Principal>) Class.forName(name, false,
+                    ClassLoader.getSystemClassLoader());
+            map.put(name, cls.getConstructor(String.class));
+        } catch (Exception ignored) { /* class not present on this JDK/classpath */ }
+    }
+    PRINCIPAL_CTORS = Collections.unmodifiableMap(map);
+}
+
+private static Principal instantiatePrincipal(String className, String name) {
+    Constructor<? extends Principal> ctor = PRINCIPAL_CTORS.get(className);
+    if (ctor == null) return new RemotePrincipal(className, name);
+    try { return ctor.newInstance(name); }
+    catch (Exception e) { return new RemotePrincipal(className, name); }
+}
+```
+
+- **Pro:** zero per-request class-loading; no virtual-thread carrier pinning;
+  `RemotePrincipal` fallback preserves wire data for auditing.
+- **Con:** administrators using custom `Principal` types must add names to the set
+  (can be made configurable via a system property).
+
+**Option B — Drop class instantiation entirely; always use `RemotePrincipal`**
+Never attempt `Class.forName`.  Return `RemotePrincipal(className, name)` always.
+
+- **Pro:** zero class-loading risk; simplest code.
+- **Con:** **Breaking policy change** — existing policy files that match on
+  `principal X500Principal "..."` will not match `RemotePrincipal` instances.
+
+**Recommendation:** Implement **Option A**.  It eliminates the DoS vector and virtual-
+thread pinning risk while preserving full policy compatibility.
+
+---
+
+### 16.5 Per-Call ACC Stack-Walk (CPU Amplification) — MEDIUM (Work Item 28 Extension)
+
+**Location:** `BasicInvocationHandler.invokeRemoteMethodOnce()` lines 865–875;
+both `marshalForTransport()` and `marshalDigestForTransport()` in
+`AccessControlContextSerializer` independently call `extractDomains()`.
+
+**Problem (extends §15.1.9):** On DirtyChai JVMs with `DigestCodeSource` domains
+in the ACC, two independent stack walks occur per outbound call.  At 10 000 calls/s
+per thread this costs 100–400 ms/s of stack-walk CPU.
+
+**Option A — Single-pass domain partition**
+Merge `marshalForTransport` and `marshalDigestForTransport` into a single
+`marshalAllForTransport(acc)` that calls `extractDomains(acc)` once, partitions
+the resulting array, then writes both byte arrays.
+
+- **Pro:** halves stack-walk cost; small, focused refactor.
+- **Con:** does not eliminate repeated walks across calls; no help for stable-ACC case.
+
+**Option B — Connection-level ACC cache (Work Item 28 implementation) — RECOMMENDED**
+Add three `volatile` fields to `BasicInvocationHandler`:
+
+```java
+private volatile AccessControlContext cachedAccRef;
+private volatile byte[] cachedTransportBytes = new byte[0];
+private volatile byte[] cachedDigestBytes    = new byte[0];
+```
+
+In `invokeRemoteMethodOnce()`, before marshal:
+
+```java
+final AccessControlContext currentAcc = AccessController.getContext();
+if (currentAcc != cachedAccRef) {                       // reference comparison ~10 ns
+    byte[] tb = AccessControlContextSerializer.marshalForTransport(currentAcc);
+    byte[] db = AccessControlContextSerializer.marshalDigestForTransport(currentAcc);
+    cachedTransportBytes = tb;
+    cachedDigestBytes    = db;
+    cachedAccRef         = currentAcc;                  // publish last
+}
+byte[] serializedAcc = cachedTransportBytes;
+```
+
+At 1 000 calls/s steady state: one stack walk per ACC change (rare) vs. 1 000 stack
+walks per second today.  The volatile read + reference comparison costs < 10 ns.
+
+**Note:** Implement Option A first (lowest risk, immediate halving for DigestCodeSource
+paths), then Option B as the full Work Item 28.
+
+---
+
+### 16.6 ACC Ceiling Dropped When No Verifiable Domain Exists — HIGH Security Bug
+
+**Location:** `AccessControlContextSerializer.marshalForTransport()`, lines 207–211.
+
+**Problem:** When no HTTPMD-verifiable domain exists (e.g. the caller's ACC has only
+unverifiable domains), `marshalForTransport()` returns an empty byte array early,
+**before writing `anonCount`**.  The receiver sees empty bytes and calls
+`unmarshalForTransport` → returns `null` → `invokeWithClientSubject` receives
+`remoteIdentityContext = null` → no `doPrivileged` restriction applied.  The
+`anonCount` anonymous-domain placeholder domains are silently lost, opening the same
+privilege-escalation window that §10.2.1 closed.
+
+**Early-return guard (the bug):**
+```java
+if (records.isEmpty()) {
+    // No HTTPMD-verifiable domains to anchor the remote identity.
+    return new byte[0];   // ← anonCount is never written
+}
+```
+
+**Option A — Encode `anonCount` even when no HTTPMD records — RECOMMENDED**
+Change the guard to only return early when **both** `records` and `anonCount` are zero:
+
+```java
+if (records.isEmpty() && anonCount == 0) {
+    return new byte[0];  // truly empty — nothing to send
+}
+// Fall through: encode [httpmdCount=0][anonCount=N] or [httpmdCount=M][...][anonCount=N]
+ByteArrayOutputStream baos = new ByteArrayOutputStream(8);
+writeInt(baos, records.size());
+for (DomainIdentityRecord r : records) r.writeTo(baos);
+writeInt(baos, anonCount);
+return baos.toByteArray();
+```
+
+The receiver's `unmarshalHttpmdDomains()` already handles `count == 0, anonCount > 0`
+(reconstructs N placeholder domains).
+
+- **Pro:** closes the privilege-escalation gap; backward compatible (old receivers
+  already return empty payloads when no HTTPMD records exist — this is additive).
+- **Con:** adds ≤ 8 bytes to the wire payload in the uncommon case; negligible.
+
+**Option B — Transmit `anonCount` as a new always-present field**
+Wire-format change adding a mandatory anonymous-count field.
+
+- **Pro:** explicit and clean.
+- **Con:** wire format change; backward-compatibility complexity; strictly more work
+  than Option A.
+
+**Recommendation:** Implement **Option A** as a high-priority security fix (same
+class as the §10.2.1 bug).
+
+---
+
+### 16.7 Silent Wire Truncation of Principal/Class-Name Strings — MEDIUM Bug
+
+**Location:** `BasicInvocationHandler.writeUtf8Prefixed()`, line 1800–1804.
+
+**Problem:** `Math.min(bytes.length, 0xFFFF)` silently truncates strings longer than
+65 535 UTF-8 bytes.  The receiver reconstructs a different string, potentially causing
+a wrong `RemotePrincipal` class name or matching an unintended policy principal.
+
+**Current code:**
+```java
+int len = Math.min(bytes.length, 0xFFFF);
+out.write((len >>> 8) & 0xFF);
+out.write(len & 0xFF);
+out.write(bytes, 0, len);        // truncated if bytes.length > 65535
+```
+
+**Option A — Reject at write time — RECOMMENDED**
+```java
+if (bytes.length > 0xFFFF) {
+    throw new IOException(
+        "Principal field too long for wire encoding (" + bytes.length + " bytes): "
+        + s.substring(0, Math.min(40, s.length())) + "...");
+}
+```
+
+- **Pro:** fail-fast; no ambiguous state.  All known `Principal` implementations use
+  short names; the scenario cannot arise with legitimate data.
+- **Con:** outbound call fails — appropriate because silent truncation is more dangerous.
+
+**Option B — Sanitise (truncate + marker)**
+Truncate to 65 500 bytes and append a `…` marker.
+
+- **Pro:** call succeeds.
+- **Con:** a truncated class name may silently match an unrelated class.  Worse than
+  Option A from a security standpoint.
+
+**Recommendation:** Implement **Option A**.
+
+---
+
+### 16.8 Virtual Thread Opportunities Summary (JDK 21+)
+
+| Area | Current design | Virtual-thread option |
+|---|---|---|
+| Policy-service event delivery | Platform `ThreadPoolExecutor` (max 10 threads) | `newVirtualThreadPerTaskExecutor()` + semaphore cap (§16.1 Option D) |
+| JERI dispatch thread | Platform thread pool (JERI-managed) | Transparent; blocking inside `invokeWithClientSubject` does not pin a carrier on JDK 24+ |
+| `instantiatePrincipal()` class-loading | Blocks class-loading lock (pinning carrier on JDK < 24) | Eliminated by allowlist + constructor cache (§16.4 Option A) |
+| Lease expiry sweep | Not implemented | Daemon virtual thread: `Thread.ofVirtual().daemon(true).start(sweepRunnable)` |
+| Pack200 decompression | Full materialisation (`ByteArrayOutputStream`) | Bounded output stream cap (§16.3); streaming deferred |
+
+**Module compatibility note:** To use `Executors.newVirtualThreadPerTaskExecutor()`
+and `Thread.ofVirtual()`, the policy-service Maven module must declare
+`<release>21</release>` in its `maven-compiler-plugin` configuration, overriding
+the root pom's `<release>8</release>`, matching the pattern used by
+`jfr-telemetry-service/pom.xml`.
+
+---
+
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 23, updated to document:*
+continue without loss of context. This is version 25, updated to document:*
 
-- *§15 Performance Analysis — ACC Transmission & Pack200*
-- *Work Item 28 — connection-level serialized-ACC cache*
-- *§13 — new design-decision rows for compact binary ACC transport, `extractDomains()` stack-walk rationale, Pack200 trade-offs*
-
----
-
-*Previous version (v22) notes:*
-- *`equals`/`hashCode` added to `AccessControlContextSerializer` and `DomainIdentityRecord`*
-- *`cachedDigestBytes` transient field avoids recomputing digest bytes on each equality check*
+- *§16 DoS Vectors and Architectural Fixes — seven issues with options and recommendations*
+- *§12 work items 30–32 — three new work items*
+- *§13 — four new design-decision rows*
+- *§15.1.9 and §15.3 updated to reference the §16.5 extension of Work Item 28*
 
 ---
 
-*Previous version (v21) notes:*
-- *`digestTransportBytes` serial field for `DigestCodeSource` domains*
-- *`DomainIdentityRecord.from()` skips `DigestCodeSource` before httpmd URL test*
+*Previous version (v24) notes:*
+- *Multi-Subject JERI dispatch completed (work item 29)*
+- *`MultiSubjectWireProtocolTest` — 6 tests*
+- *`UserSubjectImpl` holds `Subject[]`; `getUserSubjects()` returns clone*
+- *Unreachable outer `catch (ClassNotFoundException)` removed from `unmarshalDigestFromTransport()`*
 
 ---
 
-*Previous version (v20) notes:*
-- *`DigestGrant extends URIGrant`, `DigestCodeSource`, `PermissionGrantBuilder.DIGEST`*
-- *Policy file round-trip: write → parse → `DigestGrant`*
+*Previous version (v23) notes:*
+- *`AccessControlContextSerializer.marshalForTransport()` — `anonCount` transport for non-verifiable domains*
+- *`jrt:/java.base` excluded from anonCount; other jrt: domains retained*
+- *§15 Performance Analysis added (ACC transmission, Pack200)*
+- *Work Item 28 — connection-level ACC cache identified*
 
 ---
 
