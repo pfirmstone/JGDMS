@@ -340,14 +340,59 @@ public class DefaultPolicyParser implements PolicyParser {
             pgb.uri(iter.next());
         }
 	
-        return pgb
-            .certificates(signers, aliases)
-            .principals(principals.toArray(new Principal[principals.size()]))
-            .permissions(permissions.toArray(new Permission[permissions.size()]))
-            .context(PermissionGrantBuilder.URI)
-            .build();
+        pgb.certificates(signers, aliases)
+           .principals(principals.toArray(new Principal[principals.size()]))
+           .permissions(permissions.toArray(new Permission[permissions.size()]));
+
+        // If a digest clause was present, decode it and produce a DigestGrant.
+        // Otherwise fall back to a plain URIGrant.
+        String rawDigest = ge.getDigest();
+        if (rawDigest != null) {
+            int colon = rawDigest.indexOf(':');
+            if (colon < 1) {
+                throw new DefaultPolicyScanner.InvalidFormatException(
+                        "Invalid digest format (expected \"algorithm:hexValue\"): "
+                        + rawDigest);
+            }
+            String algorithm = rawDigest.substring(0, colon);
+            String hexValue   = rawDigest.substring(colon + 1);
+            pgb.digest(algorithm, hexDecode(hexValue))
+               .context(PermissionGrantBuilder.DIGEST);
+        } else {
+            pgb.context(PermissionGrantBuilder.URI);
+        }
+
+        return pgb.build();
     }
     
+    /**
+     * Decodes a lowercase or uppercase hexadecimal string to a byte array.
+     *
+     * @param hex even-length hex string
+     * @return decoded bytes
+     * @throws DefaultPolicyScanner.InvalidFormatException if the string is
+     *         not valid hex or has an odd length
+     */
+    private static byte[] hexDecode(String hex)
+            throws DefaultPolicyScanner.InvalidFormatException {
+        int len = hex.length();
+        if ((len & 1) != 0) {
+            throw new DefaultPolicyScanner.InvalidFormatException(
+                    "Digest hex value must have even length: " + hex);
+        }
+        byte[] result = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            int hi = Character.digit(hex.charAt(i),     16);
+            int lo = Character.digit(hex.charAt(i + 1), 16);
+            if (hi < 0 || lo < 0) {
+                throw new DefaultPolicyScanner.InvalidFormatException(
+                        "Invalid hex character in digest value: " + hex);
+            }
+            result[i / 2] = (byte) ((hi << 4) | lo);
+        }
+        return result;
+    }
+
     String getURI(String uriString) throws MalformedURLException, URISyntaxException{
         // We do this to support windows, this is to ensure that path
         // capitalisation is correct and illegal strings are escaped correctly.

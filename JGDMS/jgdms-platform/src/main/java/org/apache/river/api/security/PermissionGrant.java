@@ -18,6 +18,7 @@
 
 package org.apache.river.api.security;
 
+import java.net.SocketPermission;
 import java.security.AllPermission;
 import java.security.CodeSource;
 import java.security.Guard;
@@ -94,6 +95,31 @@ public abstract class PermissionGrant {
     private final boolean privileged;
     private final PermissionGrant decorated;
     private final int hash;
+
+    /**
+     * {@code java.net.SocketPermission.init()} was added as a public method in
+     * DirtyChai to eagerly perform DNS lookup and cache the result.  Accessed via
+     * reflection so this class compiles and runs on standard JDK 17+.
+     */
+    private static final java.lang.reflect.Method SOCKET_PERMISSION_INIT;
+    static {
+        java.lang.reflect.Method m = null;
+        try {
+            m = SocketPermission.class.getMethod("init");
+        } catch (NoSuchMethodException e) {
+            // Not available on standard JDK — only present in DirtyChai
+        }
+        SOCKET_PERMISSION_INIT = m;
+    }
+
+    private static void initSocketPermission(SocketPermission sp) {
+        if (SOCKET_PERMISSION_INIT == null) return;
+        try {
+            SOCKET_PERMISSION_INIT.invoke(sp);
+        } catch (Exception e) {
+            // DNS lookup failed; SocketPermission.init() swallows this too
+        }
+    }
     
     /**
      * Public constructor to enable serialization support?  No a serialization
@@ -129,6 +155,7 @@ public abstract class PermissionGrant {
                 perm[i].getActions(); 
                 perms.add(perm[i]);
                 if (perm[i] instanceof AllPermission) privileged = true;
+                if (perm[i] instanceof SocketPermission) initSocketPermission((SocketPermission) perm[i]);
             }
 	    this.perms = Collections.unmodifiableSet(perms);
             this.privileged = privileged;
