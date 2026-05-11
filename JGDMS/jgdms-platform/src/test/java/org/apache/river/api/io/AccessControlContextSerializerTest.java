@@ -18,7 +18,6 @@
 
 package org.apache.river.api.io;
 
-import java.io.ByteArrayOutputStream;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import java.security.AccessControlContext;
@@ -228,62 +227,43 @@ public class AccessControlContextSerializerTest {
 
 
     @Test
-    public void testUnmarshalRejectsUnknownFormatVersion() throws Exception {
-        // A transport blob starting with byte 0x02 is neither old-format (0x00)
-        // nor new-format-v1 (0x01) and should be rejected.
-        byte[] payload = new byte[]{0x02, 0, 0, 1, 0, 0, 0, 0};
+    public void testDigestTransportFieldEmptyForStandardJdkAcc() throws Exception {
+        // On a standard JDK (no java.security.DigestCodeSource), an ACC built
+        // from a plain HTTPMD domain produces empty digestTransportBytes.
+        String oldHandlers = System.getProperty("java.protocol.handler.pkgs");
+        System.setProperty("java.protocol.handler.pkgs", "net.jini.url");
         try {
-            AccessControlContextSerializer.unmarshalForTransport(payload, null);
-            Assert.fail("Expected InvalidObjectException for unknown format version");
-        } catch (java.io.InvalidObjectException expected) {
-            Assert.assertTrue(expected.getMessage().contains("Unknown ACC transport format version"));
+            URL httpmd = new URL(null,
+                    "httpmd://repo.example.org/a.jar;sha-256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    new PassThroughHandler());
+            ProtectionDomain pd = new ProtectionDomain(
+                    new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{pd});
+
+            byte[] digestBytes = AccessControlContextSerializer.marshalDigestForTransport(acc);
+            Assert.assertEquals("no DigestCodeSource domains → empty digestTransportBytes",
+                    0, digestBytes.length);
+
+            ProtectionDomain[] domains =
+                    AccessControlContextSerializer.unmarshalDigestFromTransport(digestBytes, null);
+            Assert.assertEquals("empty bytes → no digest domains", 0, domains.length);
+        } finally {
+            if (oldHandlers == null) {
+                System.clearProperty("java.protocol.handler.pkgs");
+            } else {
+                System.setProperty("java.protocol.handler.pkgs", oldHandlers);
+            }
         }
     }
 
     /**
-     * Tests that a crafted new-format (version 0x01) transport blob containing a
-     * single DigestCodeSource record is accepted by {@code unmarshalForTransport}.
-     * The externalized bytes in this test hold a serialized plain {@code CodeSource}
-     * (so ObjectInputStream finds the class).  On a real DirtyChai JDK, the bytes
-     * would hold a serialized {@code DigestCodeSource} and the ClassNotFoundException
-     * path would be exercised on any peer without that class.
-     * We only assert that parsing does not throw.
+     * Verifies that the HTTPMD-only transport bytes produced by
+     * {@code marshalForTransport} round-trip correctly.
+     * The first 4 bytes of the transport payload encode the domain count.
      */
     @Test
-    public void testUnmarshalNewFormatDigestRecordDoesNotThrow() throws Exception {
-        // Produce minimal Java-serialization bytes for a plain CodeSource
-        // (simulates the externalized bytes a DigestCodeSource.writeExternal() would produce).
-        java.security.CodeSource cs = new java.security.CodeSource(
-                null, (java.security.cert.Certificate[]) null);
-        ByteArrayOutputStream extBaos = new ByteArrayOutputStream();
-        try (java.io.ObjectOutputStream extOut = new java.io.ObjectOutputStream(extBaos)) {
-            extOut.writeObject(cs);
-        }
-        byte[] extBytes = extBaos.toByteArray();
-
-        // Build a new-format blob:
-        // [0x01][4-byte count=1][record-type=0x01][4-byte extLen][extLen bytes][2-byte principalCount=0]
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        baos.write(0x01);               // FORMAT_VERSION_DIGEST
-        writeInt(baos, 1);              // count = 1
-        baos.write(0x01);               // RECORD_TYPE_DIGEST
-        writeInt(baos, extBytes.length);// extLen
-        baos.write(extBytes);           // Java-serialization stream
-        writeShort(baos, 0);            // principalCount = 0
-
-        byte[] payload = baos.toByteArray();
-        // Must not throw; result is a non-null ACC (CodeSource found) or null (domain dropped).
-        AccessControlContext result = AccessControlContextSerializer.unmarshalForTransport(payload, null);
-        // Both null and non-null are acceptable — we're verifying the parser does not crash.
-    }
-
-    /**
-     * Verifies that the old-format (HTTPMD-only) transport bytes produced by
-     * {@code marshalForTransport} are still parseable after the new format
-     * detection logic was introduced.
-     */
-    @Test
-    public void testOldFormatStillReadableAfterFormatDetectionChange() throws Exception {
+    public void testHttpmdTransportRoundTrip() throws Exception {
         String oldHandlers = System.getProperty("java.protocol.handler.pkgs");
         System.setProperty("java.protocol.handler.pkgs", "net.jini.url");
         try {
@@ -295,7 +275,7 @@ public class AccessControlContextSerializerTest {
                     null, null, new java.security.Principal[0]);
             AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{pd});
             byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
-            // Old format: first 4 bytes encode the count (= 1)
+            // First 4 bytes encode the count (= 1)
             Assert.assertEquals(1, readInt(encoded));
             // Must be parseable on round-trip
             AccessControlContext decoded = AccessControlContextSerializer.unmarshalForTransport(encoded, null);
@@ -316,18 +296,6 @@ public class AccessControlContextSerializerTest {
                 | ((bytes[1] & 0xFF) << 16)
                 | ((bytes[2] & 0xFF) << 8)
                 | (bytes[3] & 0xFF);
-    }
-
-    private static void writeInt(ByteArrayOutputStream out, int v) {
-        out.write((v >>> 24) & 0xFF);
-        out.write((v >>> 16) & 0xFF);
-        out.write((v >>> 8)  & 0xFF);
-        out.write(v & 0xFF);
-    }
-
-    private static void writeShort(ByteArrayOutputStream out, int v) {
-        out.write((v >>> 8) & 0xFF);
-        out.write(v & 0xFF);
     }
 
     private static final class PassThroughHandler extends URLStreamHandler {
