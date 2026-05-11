@@ -142,7 +142,8 @@ grant [signedby "<alias-list>"] [, codebase "<URL>"]
 };
 ```
 
-The `digest` field is a new, **optional** token in the grant header.
+The `digest` field is a new, **optional** token in the grant header.  **At most one
+`digest` field is permitted per grant clause** (see §3.3 for the reason).
 
 | Token | Type | Description |
 |-------|------|-------------|
@@ -150,30 +151,31 @@ The `digest` field is a new, **optional** token in the grant header.
 | `"<algorithm>"` | quoted string | JCA `MessageDigest` algorithm name (e.g. `"SHA-256"`). Case-insensitive. |
 | `"<hex-digest>"` | quoted string | Lowercase hex encoding of the computed digest.  Length must match the algorithm's output size. |
 
-Multiple `digest` fields **may** appear in a single grant header to require agreement
-across two independent algorithms:
-
-```
-grant codebase "https://repo.example.com/lib/proxy-1.2.jar",
-      digest "SHA-256" "a3b4c5d6e7f8...",
-      digest "SHA-512" "001122334455..." {
-    permission java.net.SocketPermission "backend.internal:9090", "connect";
-};
-```
-
 ### 3.3 Semantics
 
-At policy-load time the engine resolves each `digest` field to a
-`java.security.MessageDigest` instance (algorithm + bytes) and creates a
-`DigestCodeSource` whose identity is the set of those digests (and, if present,
-the `codebase` URL).
+`java.security.DigestCodeSource` carries exactly **one** `(String algorithm, byte[]
+digest)` pair — it is structurally a single-digest object.  Consequently:
 
-During `implies` evaluation the engine computes the digest of the code being checked
-and compares it against the stored values.  **All** specified digests must match.
+*   A grant clause **must not** contain more than one `digest` field.  A parser that
+    encounters two or more `digest` fields in the same grant header **must** reject
+    the clause with a parse error (or silently skip it, treating it as unsatisfiable).
+
+*   A grant with two `digest` fields could never be matched by any
+    `DigestCodeSource` instance (because no single instance can satisfy two
+    independent `(algorithm, value)` pairs simultaneously), so it is permanently
+    unsatisfiable — a latent security misconfiguration that must be caught at parse
+    time rather than silently producing a dead grant.
+
+At policy-load time the engine resolves the single `digest` field to a
+`java.security.DigestCodeSource` value `(algorithm, hex-decoded bytes)` (and, if
+present, the `codebase` URL).
+
+During `implies` evaluation the code's `DigestCodeSource` must carry the **same**
+algorithm and a matching digest byte array.
 
 If a `codebase` URL is also present, the URL is used as an additional (non-digest)
 identity constraint: the code's `CodeSource` URL must imply the grant's URL, **and**
-all digest values must match.
+the digest must match.
 
 If only `digest` is present (no `codebase`), the grant applies to any code whose
 content matches the digest, regardless of where it was loaded from.
@@ -374,17 +376,22 @@ keystore-clause = "keystore" SP quoted-string
 ; ── Grant ─────────────────────────────────────────────────────────────────────
 grant-clause   = "grant" SP grant-header SP "{" *(permission-entry) "}" ";"
 
-grant-header   = [grant-field *("," SP grant-field)]
+; At most one digest-field is permitted per grant header (DigestCodeSource holds
+; exactly one (algorithm, bytes) pair; two digest fields would be unsatisfiable).
+grant-header   = [non-digest-field *("," SP non-digest-field)]
+                 ["," SP digest-field]
+               / [digest-field *("," SP non-digest-field)]
 
-grant-field    = signedby-field
-               / codebase-field
-               / digest-field           ; NEW in JGDMS-STD-004
-               / principal-field
+non-digest-field = signedby-field
+                 / codebase-field
+                 / principal-field
 
 signedby-field  = "signedby" SP quoted-string
 codebase-field  = "codebase" SP quoted-string
 digest-field    = "digest" SP quoted-string SP quoted-string
+                  ; NEW in JGDMS-STD-004
                   ; first string = algorithm, second = hex digest
+                  ; MUST appear at most once per grant header
 principal-field = "principal" SP [class-name SP] quoted-string
 
 ; ── Permission entry ──────────────────────────────────────────────────────────
@@ -454,8 +461,8 @@ For each `AccessController.checkPermission` call, the engine iterates over all
 | Grant field present | Match condition |
 |---|---|
 | `codebase` only | `grant.codebase.implies(pd.codeSource.location)` |
-| `digest` only | `pd.codeSource instanceof DigestCodeSource` AND all digests match |
-| `codebase` + `digest` | Both conditions must hold |
+| `digest` only | `pd.codeSource instanceof DigestCodeSource` AND algorithm matches AND digest bytes match |
+| `codebase` + `digest` | Both URL and digest conditions must hold |
 | `signedby` only | All certificates in the grant are in `pd.codeSource.certificates` |
 | `principal` | All specified principals are in the executing `Subject` |
 
@@ -533,8 +540,7 @@ identity matches the audit record** receives the permissions declared in
 A conforming JGDMS policy engine (parser + provider) **MUST**:
 
 - [x] Accept all grant-header field orders (codebase, signedby, digest, principal).
-- [x] Parse `digest "<algorithm>" "<hex>"` in grant headers.
-- [x] Support multiple `digest` fields in a single grant header.
+- [x] Parse exactly one `digest "<algorithm>" "<hex>"` field per grant header; reject (log + skip the entire clause) if more than one `digest` field appears in the same header.
 - [x] Create `DigestCodeSource`-backed `ProtectionDomain`s when `digest` is present
       and `java.security.DigestCodeSource` is available.
 - [x] Silently drop `digest`-only grants (with a `WARNING` log entry) when
