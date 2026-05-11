@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 468">
+  <!-- Dark nightclub background -->
+  <rect width="720" height="468" fill="#12002e" rx="10"/>
+  <!-- Floor -->
+  <rect y="370" width="720" height="98" fill="#1c0040" rx="10"/>
+  <rect y="370" width="720" height="10" fill="#2a0060"/>
+  <!-- Red carpet -->
+  <rect x="270" y="370" width="180" height="98" fill="#4a0010"/>
+  <rect x="270" y="370" width="180" height="4" fill="#800020"/>
+
+  <!-- Neon club sign glow (layered for halo effect) -->
+  <text x="360" y="48" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="28" font-weight="900"
+        fill="#FFE000" opacity="0.15" stroke="#FFE000" stroke-width="12">THE JVM CLUB</text>
+  <text x="360" y="48" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="28" font-weight="900"
+        fill="#FFE000" opacity="0.3" stroke="#FFE000" stroke-width="6">THE JVM CLUB</text>
+  <text x="360" y="48" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="28" font-weight="900"
+        fill="#FFE000">THE JVM CLUB</text>
+
+  <!-- Subtitle -->
+  <text x="360" y="70" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="13" fill="#cc88ff">
+    Powered by SCAP · Quorum verdicts required · No suspicious bytecode
+  </text>
+
+  <!-- Door frame -->
+  <rect x="268" y="108" width="184" height="262" rx="8" fill="#3d1e00"/>
+  <!-- Door opening (dark interior) -->
+  <rect x="280" y="116" width="160" height="250" fill="#0a0018"/>
+  <!-- Door frame inner glow -->
+  <rect x="280" y="116" width="160" height="250" fill="none"
+        stroke="#9b59b6" stroke-width="3" opacity="0.6"/>
+
+  <!-- Velvet rope posts -->
+  <rect x="240" y="230" width="16" height="140" rx="4" fill="#c8a800"/>
+  <rect x="464" y="230" width="16" height="140" rx="4" fill="#c8a800"/>
+  <!-- Velvet rope -->
+  <path d="M256 290 Q360 260 464 290"
+        fill="none" stroke="#880000" stroke-width="7" stroke-linecap="round"/>
+  <!-- Rope tassels -->
+  <circle cx="256" cy="290" r="8" fill="#c8a800"/>
+  <circle cx="464" cy="290" r="8" fill="#c8a800"/>
+
+  <!-- ===== BOUNCER ===== -->
+  <!-- Body (dark suit) -->
+  <rect x="324" y="208" width="72" height="110" rx="8" fill="#222244"/>
+  <!-- Lapels -->
+  <polygon points="324,208 348,208 360,228 360,208 348,208" fill="#1a1a36"/>
+  <polygon points="396,208 372,208 360,228 360,208 372,208" fill="#1a1a36"/>
+  <!-- Tie -->
+  <polygon points="360,218 356,240 360,252 364,240" fill="#cc0000"/>
+  <!-- SCAP badge on chest -->
+  <rect x="338" y="238" width="44" height="28" rx="4" fill="#2255aa"/>
+  <text x="360" y="252" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" font-weight="bold" fill="white">SCAP</text>
+  <text x="360" y="262" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="7" fill="#aaddff">CERTIFIED</text>
+
+  <!-- Left arm (blocking bad JAR) -->
+  <rect x="260" y="214" width="64" height="22" rx="10" fill="#222244"/>
+  <!-- Right arm (welcoming good JAR) -->
+  <rect x="396" y="214" width="64" height="22" rx="10" fill="#222244"/>
+
+  <!-- Neck -->
+  <rect x="350" y="182" width="20" height="28" rx="6" fill="#d4956a"/>
+  <!-- Head -->
+  <ellipse cx="360" cy="168" rx="36" ry="38" fill="#d4956a"/>
+  <!-- Ear left -->
+  <ellipse cx="324" cy="170" rx="8" ry="11" fill="#c4855a"/>
+  <!-- Ear right -->
+  <ellipse cx="396" cy="170" rx="8" ry="11" fill="#c4855a"/>
+  <!-- Sunglasses (2 dark lenses) -->
+  <rect x="328" y="156" width="28" height="18" rx="6" fill="#111133"/>
+  <rect x="362" y="156" width="28" height="18" rx="6" fill="#111133"/>
+  <line x1="356" y1="163" x2="362" y2="163" stroke="#444" stroke-width="3"/>
+  <!-- Sunglasses shine -->
+  <rect x="330" y="158" width="10" height="6" rx="3" fill="#334488" opacity="0.6"/>
+  <rect x="364" y="158" width="10" height="6" rx="3" fill="#334488" opacity="0.6"/>
+  <!-- Ear ring -->
+  <circle cx="396" cy="174" r="4" fill="#FFD700" stroke="#c8a800" stroke-width="1"/>
+  <!-- Frown / stern mouth -->
+  <path d="M344 188 Q360 183 376 188"
+        fill="none" stroke="#9a5535" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Bouncer speech bubble (above head, left-pointing) -->
+  <path d="M136 84
+           L345 84 Q356 84 356 95
+           L356 142 Q356 153 345 153
+           L156 153 Q145 153 145 142
+           L145 130 L136 140 L145 115
+           L145 95 Q145 84 156 84 Z"
+        fill="#FFFDE0" stroke="#c8a800" stroke-width="2"/>
+  <text x="250" y="108" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#330000">Your &lt;clinit&gt; blocks virtual</text>
+  <text x="250" y="124" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#330000">threads. Not tonight.</text>
+  <text x="250" y="142" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" fill="#660000">— Head of SCAP Security</text>
+
+  <!-- ===== BAD JAR (left) ===== -->
+  <!-- JAR body -->
+  <rect x="30" y="198" width="160" height="120" rx="14" fill="#cc2222"/>
+  <!-- JAR inner label area -->
+  <rect x="44" y="212" width="132" height="94" rx="8" fill="#ee4444"/>
+  <!-- JAR lid -->
+  <rect x="38" y="192" width="144" height="18" rx="9" fill="#aa1a1a"/>
+  <!-- Skull icon (simplified) -->
+  <circle cx="110" cy="243" r="20" fill="#fff0f0"/>
+  <circle cx="102" cy="240" r="5" fill="#880000"/>
+  <circle cx="118" cy="240" r="5" fill="#880000"/>
+  <path d="M101 253 L102 259 L107 259 L107 253 M113 253 L113 259 L118 259 L118 253"
+        fill="none" stroke="#880000" stroke-width="3" stroke-linecap="round"/>
+  <path d="M101 253 L119 253" fill="none" stroke="#880000" stroke-width="2"/>
+  <!-- BAD JAR labels -->
+  <text x="110" y="279" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="11" font-weight="900"
+        fill="#550000">DANGEROUS</text>
+  <text x="110" y="295" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#ff9999">
+    blocking &lt;clinit&gt; detected
+  </text>
+  <!-- Bad JAR speech bubble (smaller, above) -->
+  <path d="M38 140
+           L182 140 Q192 140 192 150
+           L192 186 Q192 196 182 196
+           L102 196 Q92 196 92 186
+           L92 176 L80 186 L92 168
+           L92 150 Q92 140 102 140 Z"
+        fill="#ffeeee" stroke="#cc5555" stroke-width="1.5"/>
+  <text x="142" y="160" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" fill="#660000">But I'm open</text>
+  <text x="142" y="174" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" fill="#660000">source... :(</text>
+  <text x="142" y="188" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#aa3333">Sorry, rules are rules.</text>
+  <!-- Red X blocking sign -->
+  <circle cx="220" cy="265" r="24" fill="#cc0000" opacity="0.9"/>
+  <line x1="206" y1="251" x2="234" y2="279" stroke="white" stroke-width="5" stroke-linecap="round"/>
+  <line x1="234" y1="251" x2="206" y2="279" stroke="white" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- ===== GOOD JAR (right) ===== -->
+  <!-- JAR body -->
+  <rect x="530" y="198" width="160" height="120" rx="14" fill="#197b3a"/>
+  <!-- JAR inner label area -->
+  <rect x="544" y="212" width="132" height="94" rx="8" fill="#22aa54"/>
+  <!-- JAR lid -->
+  <rect x="538" y="192" width="144" height="18" rx="9" fill="#115c2a"/>
+  <!-- Smiley face on good JAR -->
+  <circle cx="610" cy="243" r="20" fill="#d4f5e0"/>
+  <circle cx="602" cy="238" r="4" fill="#115c2a"/>
+  <circle cx="618" cy="238" r="4" fill="#115c2a"/>
+  <path d="M601 252 Q610 262 619 252"
+        fill="none" stroke="#115c2a" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Checkmark badge -->
+  <circle cx="610" cy="282" r="11" fill="#005520"/>
+  <path d="M603 282 L608 288 L618 275"
+        fill="none" stroke="#88ffbb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- GOOD JAR labels -->
+  <text x="610" y="302" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="11" font-weight="900" fill="#003318">SAFE</text>
+  <text x="610" y="314" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#aaffcc">SHA-256 verified ✓</text>
+  <!-- Good JAR speech bubble -->
+  <path d="M538 140
+           L682 140 Q692 140 692 150
+           L692 186 Q692 196 682 196
+           L618 196 Q608 196 608 186
+           L608 178 L596 186 L608 168
+           L608 150 Q608 140 618 140 Z"
+        fill="#eeffee" stroke="#44aa66" stroke-width="1.5"/>
+  <text x="615" y="160" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" fill="#004418">Quorum of BAE</text>
+  <text x="615" y="174" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" fill="#004418">engines approved me!</text>
+  <text x="615" y="188" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#006622">Right this way, sir.</text>
+  <!-- Green checkmark entry indicator -->
+  <circle cx="498" cy="265" r="24" fill="#009933" opacity="0.9"/>
+  <path d="M487 265 L496 275 L512 252"
+        fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Bottom caption -->
+  <text x="360" y="434" text-anchor="middle"
+        font-family="Georgia,serif" font-size="14" font-weight="bold" fill="#cc88ff">
+    SCAP: Safe Codebase Audit Pipeline
+  </text>
+  <text x="360" y="454" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="11" fill="#9966cc">
+    Every JAR audited by the BAE pool before any client unmarshals it.
+  </text>
+</svg>

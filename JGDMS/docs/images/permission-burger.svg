@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 530">
+  <!-- Light background -->
+  <rect width="700" height="530" fill="#FEFDF8" rx="10"/>
+
+  <!-- Title -->
+  <text x="350" y="40" text-anchor="middle"
+        font-family="Georgia,serif" font-size="26" font-weight="bold" fill="#2c1a00">
+    The Permission Burger&#8482;
+  </text>
+  <text x="350" y="64" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="13" fill="#666">
+    All layers must agree. No impersonation allowed.
+  </text>
+
+  <!-- ===== BURGER LAYERS (left-to-right center: x=40..440, labels x=460..680) ===== -->
+  <!-- Each layer: x=40, width=400 -->
+
+  <!-- Layer 1 — TOP BUN: DynamicPolicyProvider (purple) -->
+  <!-- Rounded top bun shape using path -->
+  <path d="M70 90 Q70 82 80 82 L420 82 Q430 82 430 90
+           L430 132 L70 132 Z"
+        fill="#9B59B6"/>
+  <!-- Sesame seeds on top bun -->
+  <ellipse cx="150" cy="92" rx="8" ry="4" fill="#7d2fa0" transform="rotate(-20,150,92)"/>
+  <ellipse cx="210" cy="88" rx="8" ry="4" fill="#7d2fa0" transform="rotate(10,210,88)"/>
+  <ellipse cx="270" cy="91" rx="8" ry="4" fill="#7d2fa0" transform="rotate(-10,270,91)"/>
+  <ellipse cx="330" cy="88" rx="8" ry="4" fill="#7d2fa0" transform="rotate(15,330,88)"/>
+  <ellipse cx="380" cy="92" rx="8" ry="4" fill="#7d2fa0" transform="rotate(-25,380,92)"/>
+  <!-- Layer text -->
+  <text x="250" y="110" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="11" font-weight="900" fill="white">
+    DynamicPolicyProvider
+  </text>
+  <text x="250" y="126" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#e8ccff">
+    per-proxy · GC-scoped · auto-cleanup
+  </text>
+  <!-- Connecting line + label -->
+  <line x1="432" y1="107" x2="456" y2="107" stroke="#9B59B6" stroke-width="2"/>
+  <text x="460" y="101" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#9B59B6">Outermost layer</text>
+  <text x="460" y="116" font-family="Arial,sans-serif" font-size="10" fill="#666">Grant dies with proxy GC</text>
+
+  <!-- Layer 2 — CHEESE: GrantPermission Ceiling (yellow) -->
+  <rect x="55" y="132" width="390" height="22" fill="#F4D03F"/>
+  <!-- Melting cheese edges -->
+  <path d="M55 154 Q65 162 75 154 Q85 162 95 154 Q105 162 115 154 Q125 162 135 154 Q145 162 155 154 Q165 162 175 154 Q185 162 195 154 Q205 162 215 154 Q225 162 235 154 Q245 162 255 154 Q265 162 275 154 Q285 162 295 154 Q305 162 315 154 Q325 162 335 154 Q345 162 355 154 Q365 162 375 154 Q385 162 395 154 Q405 162 415 154 Q425 162 435 154 Q445 162 445 154"
+        fill="#F4D03F"/>
+  <text x="250" y="148" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" font-weight="bold" fill="#5a3a00">
+    GrantPermission Ceiling — the most you can give
+  </text>
+  <!-- Label -->
+  <line x1="445" y1="148" x2="456" y2="148" stroke="#c8a800" stroke-width="2"/>
+  <text x="460" y="145" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="#a07800">GrantPermission</text>
+  <text x="460" y="158" font-family="Arial,sans-serif" font-size="9" fill="#666">self-limiting by design</text>
+
+  <!-- Layer 3 — PATTY: RemotePolicyProvider (dark orange-brown, like a burger) -->
+  <rect x="40" y="165" width="420" height="60" rx="4" fill="#C0392B"/>
+  <!-- Patty texture marks -->
+  <line x1="70"  y1="178" x2="180" y2="178" stroke="#a02a1e" stroke-width="2" opacity="0.5"/>
+  <line x1="200" y1="178" x2="310" y2="178" stroke="#a02a1e" stroke-width="2" opacity="0.5"/>
+  <line x1="330" y1="178" x2="420" y2="178" stroke="#a02a1e" stroke-width="2" opacity="0.5"/>
+  <text x="250" y="192" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="11" font-weight="900" fill="white">
+    RemotePolicyProvider
+  </text>
+  <text x="250" y="210" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#ffcccc">
+    session grants · pushed live · no JVM restart needed
+  </text>
+  <!-- Label -->
+  <line x1="462" y1="195" x2="456" y2="195" stroke="#C0392B" stroke-width="2"/>
+  <text x="460" y="189" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#C0392B">Middle layer</text>
+  <text x="460" y="203" font-family="Arial,sans-serif" font-size="10" fill="#666">InMemoryPolicyService</text>
+
+  <!-- Layer 4 — LETTUCE: PERMISSIONS.LIST (bright green) -->
+  <!-- Wavy lettuce shape -->
+  <path d="M40 225 Q55 218 70 225 Q85 218 100 225 Q115 218 130 225 Q145 218 160 225 Q175 218 190 225 Q205 218 220 225 Q235 218 250 225 Q265 218 280 225 Q295 218 310 225 Q325 218 340 225 Q355 218 370 225 Q385 218 400 225 Q415 218 430 225 Q445 218 460 225 L460 246 Q445 253 430 246 Q415 253 400 246 Q385 253 370 246 Q355 253 340 246 Q325 253 310 246 Q295 253 280 246 Q265 253 250 246 Q235 253 220 246 Q205 253 190 246 Q175 253 160 246 Q145 253 130 246 Q115 253 100 246 Q85 253 70 246 Q55 253 40 246 Z"
+        fill="#27AE60"/>
+  <text x="250" y="240" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" font-weight="bold" fill="white">
+    META-INF/PERMISSIONS.LIST — code declares its own needs
+  </text>
+  <!-- Label -->
+  <line x1="462" y1="236" x2="456" y2="236" stroke="#27AE60" stroke-width="2"/>
+  <text x="460" y="233" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="#1a7a3a">PERMISSIONS.LIST</text>
+  <text x="460" y="246" font-family="Arial,sans-serif" font-size="9" fill="#666">advisory permission list</text>
+
+  <!-- Layer 5 — BOTTOM PATTY: SpiffePolicyFile (teal/blue) -->
+  <rect x="40" y="248" width="420" height="55" rx="4" fill="#2471A3"/>
+  <text x="250" y="272" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="11" font-weight="900" fill="white">
+    SpiffePolicyFile
+  </text>
+  <text x="250" y="290" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#aaddff">
+    bootstrap grants · fail-secure · refreshes on SVID rotation
+  </text>
+  <!-- Label -->
+  <line x1="462" y1="270" x2="456" y2="270" stroke="#2471A3" stroke-width="2"/>
+  <text x="460" y="264" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#2471A3">Innermost layer</text>
+  <text x="460" y="278" font-family="Arial,sans-serif" font-size="10" fill="#666">JVM won't start if</text>
+  <text x="460" y="291" font-family="Arial,sans-serif" font-size="10" fill="#666">policy server is down</text>
+
+  <!-- Layer 6 — BOTTOM BUN (dark, the deny-all baseline) -->
+  <path d="M70 303 L430 303 L430 338
+           Q430 346 420 346 L80 346 Q70 346 70 338 Z"
+        fill="#784212"/>
+  <!-- Bun sheen -->
+  <path d="M90 310 Q250 305 410 310" fill="none" stroke="#a05a20" stroke-width="3" opacity="0.5"/>
+  <text x="250" y="322" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="#ffddaa">
+    deny-all baseline
+  </text>
+  <text x="250" y="338" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#cc9966">Java security starts here: nothing is allowed by default</text>
+  <!-- Label -->
+  <line x1="432" y1="324" x2="456" y2="324" stroke="#784212" stroke-width="2"/>
+  <text x="460" y="320" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="#784212">The floor</text>
+  <text x="460" y="334" font-family="Arial,sans-serif" font-size="9" fill="#666">can't go below this</text>
+
+  <!-- Plate (JVM) -->
+  <ellipse cx="250" cy="354" rx="210" ry="16" fill="#BDC3C7"/>
+  <ellipse cx="250" cy="354" rx="190" ry="10" fill="#D5DBDB"/>
+  <text x="250" y="358" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="#555">JVM</text>
+
+  <!-- Intersection arrow and label -->
+  <text x="18" y="215" text-anchor="middle"
+        font-family="Georgia,serif" font-size="22" font-weight="bold" fill="#C0392B">∩</text>
+  <text x="18" y="255" text-anchor="middle"
+        font-family="Georgia,serif" font-size="22" font-weight="bold" fill="#C0392B">∩</text>
+
+  <!-- Bottom humorous note -->
+  <rect x="40" y="382" width="620" height="54" rx="8" fill="#FFF9E6" stroke="#F0C040" stroke-width="1.5"/>
+  <text x="350" y="403" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#7a5a00">
+    Effective permission = intersection of ALL layers.
+  </text>
+  <text x="350" y="420" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="11" fill="#5a4000">
+    No single layer controls the outcome unilaterally.
+  </text>
+  <text x="350" y="434" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" font-style="italic" fill="#aaa">
+    Warning: may cause supply-chain attackers to cry. Serve with TLSv1.3.
+  </text>
+
+  <!-- Small chef hat decoration -->
+  <rect x="608" y="80" width="44" height="28" rx="4" fill="#fff" stroke="#ddd" stroke-width="1"/>
+  <path d="M608 80 Q630 60 652 80 Z" fill="#fff" stroke="#ddd" stroke-width="1"/>
+  <ellipse cx="630" cy="80" rx="24" ry="14" fill="#fff" stroke="#ddd" stroke-width="1"/>
+  <!-- Chef face -->
+  <circle cx="621" cy="96" r="3" fill="#555"/>
+  <circle cx="633" cy="96" r="3" fill="#555"/>
+  <path d="M620 104 Q630 110 640 104" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round"/>
+  <!-- Chef speech bubble -->
+  <path d="M550 74 L604 74 Q610 74 610 80 L610 112 Q610 118 604 118 L564 118 Q558 118 558 112 L558 106 L548 113 L558 100 L558 80 Q558 74 564 74 Z"
+        fill="#fffce8" stroke="#c8c840" stroke-width="1.5"/>
+  <text x="584" y="91" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#333">Bon appetit!</text>
+  <text x="584" y="105" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="8" fill="#888">(no impersonation</text>
+  <text x="584" y="115" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="8" fill="#888">in my kitchen)</text>
+</svg>

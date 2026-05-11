@@ -70,6 +70,8 @@ granted privileges. Its key design goals are:
 DirtyChai completes what Sun Microsystems and Bill Joy started. Running JGDMS on DirtyChai restores the full
 authorization semantics and lets the platform evolve beyond the Java 23 ceiling.
 
+![DirtyChai mascot: a tough chai mug in a hard hat with a SPIFFE badge](images/dirty-chai-mascot.svg)
+
 ---
 
 ## Security: Baked In, Not Bolted On
@@ -115,59 +117,138 @@ The `SpiffeCredentialManager` component:
 No `keytool`, no PKCS#12 files, no manual certificate renewal. Each service's identity is managed
 by the SPIRE control plane — revocation and rotation happen without JVM restarts.
 
-### User Subjects and Process Worker Subjects
+### Sealed Subject Hierarchy: Three Identity Layers
 
-JGDMS distinguishes clearly between two kinds of JAAS `Subject`:
+DirtyChai introduces a sealed `Subject` hierarchy with three distinct identity layers, each with
+its own carrier, lifetime, and routing rule:
 
-**User Subject** — represents a human user authenticated at login time. The user's client JVM
-performs a JAAS login (e.g., Kerberos, X.509 certificate, or username/password) and wraps the
-result in a `Subject` containing that user's `Principal` set and credentials.
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    DirtyChai Subject Hierarchy                      │
+│                                                                     │
+│  Subject (vanilla, legacy)                                          │
+│   ├── WorkerSubject  (sealed, permits SpiffeSubject only)           │
+│   │     • Process workload identity (SPIFFE SVID)                   │
+│   │     • Baked into every ProtectionDomain at class-load time      │
+│   │     • AMBIENT — survives all doPrivileged boundaries            │
+│   │     • Never passed to callAs() or doAs() — illegal              │
+│   │                                                                 │
+│   └── UserSubject  (final)                                          │
+│         • Human user identity (JWT/OIDC — see below)               │
+│         • Carried in SCOPED_SUBJECT ScopedValue<Subject[]>          │
+│         • Installed per-request via Subject.callAs(...)             │
+│         • Injected into ProtectionDomain array by AccessController  │
+└─────────────────────────────────────────────────────────────────────┘
 
-On JDK 18+ (and DirtyChai), user identity is established via `Subject.callAs(userSubject, callable)`,
-which binds the user Subject to the thread's `ScopedValue` for the duration of the callable.
-JGDMS's JERI layer reads this via `Subject.current()` and transmits the user's `Principal` set to
-the server in JERI wire protocol version 0x02 — an in-band channel that is distinct from and
-independent of the TLS handshake. On the server side, the dispatcher merges the received user
-principals into the server context, where service code can inspect both *which process* is calling
-(from the TLS certificate) and *which human* is acting (from the transmitted user principals).
+┌─────────────────────────────────────────────────────────────────────┐
+│               Three Identity Layers on a Dispatch Thread            │
+│                                                                     │
+│  Layer 1 — Process Worker  (WorkerSubject, ambient)                 │
+│    SpiffeSubject baked into every ProtectionDomain by               │
+│    SecureClassLoader. Always present at every checkPermission.      │
+│    Never reinstalled per-request.                                   │
+│                                                                     │
+│  Layer 2 — Remote Process  (serialized ACC ProtectionDomains)       │
+│    Remote client's WorkerSubject principals travel inside a         │
+│    serialized AccessControlContext over the JERI wire.              │
+│    A DomainCombiner on the receiving JVM verifies and strips        │
+│    unverifiable domains. Shed at doPrivileged boundaries.           │
+│                                                                     │
+│  Layer 3 — User  (UserSubject via callAs)                           │
+│    Per-request human identity bound by JERI dispatcher via          │
+│    Subject.callAs(userSubject, () -> invoke(...)).                  │
+│    AccessController.getContext() bakes user principals directly     │
+│    into the ProtectionDomain array. Survives doPrivileged.          │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-DirtyChai enforces a strict separation: `Subject.callAs()` (user identity) and
-`Subject.doAs()`/`Subject.doAsPrivileged()` (worker/TLS identity) use completely independent
-channels. `Subject.current()` returns only what was explicitly bound via `callAs` — it never falls
-back to the `AccessControlContext`. This separation prevents worker credentials from accidentally
-appearing in user-principal checks and ensures that the server can trust which principals came from
-TLS mutual authentication and which came from the human user session.
+**User Subject** (`UserSubject`) — represents a human user. User identity is established via
+**JWT/OIDC** using `JwtLoginModule` from the `jgdms-security-jwt` module. The resulting
+`UserSubject` carries `JwtPrincipal` instances (e.g. `"sub:alice@example.org"`,
+`"group:admins"`) and is installed per-request via `Subject.callAs(jwtUserSubject, () -> ...)`.
+Kerberos (`KerberosPrincipal` / `KerberosEndpoint`) is supported for **legacy deployments only**.
 
-**Process Worker Subject** — represents the JVM process itself, not any particular end user. With
-SPIFFE/SPIRE, `SpiffeCredentialManager` populates a process-wide `Subject` held in
-`SpiffeSubjectHolder`. This Subject contains:
+JGDMS's JERI layer gathers user Subjects and transmits them to the server in **JERI wire protocol
+version `0x02`** — an in-band channel distinct from and independent of the TLS handshake. The
+protocol supports up to **16 user `Subject`s per call**, each carrying up to **64 principals**:
 
-- An `X500Principal` derived from the certificate's Subject Distinguished Name (e.g.,
-  `CN=bae-engine-2,O=example.org`)
-- A `SpiffePrincipal` derived from the certificate's URI Subject Alternative Name (e.g.,
+```
+0x02 user-Subject block:
+  subjectCount : u16          (max 16)
+  per Subject:
+    principalCount : u16      (max 64)
+    per Principal:
+      className : UTF-8
+      name      : UTF-8
+```
+
+On **DirtyChai**, `Subject.currentAll()` (a DirtyChai extension) returns all currently active
+user Subjects so every delegation layer can be transmitted. On a **standard JDK**,
+`Subject.current()` returns the single current Subject, which is wrapped in a one-element array.
+`CURRENT_ALL_METHOD` (a `static final Method` field, `null` on a standard JDK) is cached once at
+class-load time via reflection, so there is zero per-call reflection overhead on a standard JDK.
+
+On the server side, the `BasicInvocationDispatcher` reads this block into a `List<Subject>`,
+stores the full array in a `UserSubjectImpl` (which implements `ClientUserSubject`), and dispatches
+the invocation under those identities. The dispatch strategy differs by JDK:
+
+- **DirtyChai** (where `Subject.callAs(Callable, Subject...)` varargs exists): all user Subjects
+  are passed in a **single** `callAs` call, so the JVM establishes them simultaneously.
+- **Standard JDK** (no varargs `callAs`): only `userSubjects[0]` is used with
+  `Subject.callAs(first, action)`. Nesting multiple single-Subject `callAs` calls is *incorrect*
+  on a standard JDK because each inner call shadows the outer one, leaving only the innermost
+  Subject visible via `Subject.current()`.
+
+`CALL_AS_MULTI_SUBJECT` (a `static final Method` field, `null` on a standard JDK) is cached once
+at class-load time via reflection so there is no per-call reflection overhead.
+
+Service code retrieves *all* received user Subjects from the server context:
+
+```java
+// inside a dispatched method:
+ClientUserSubject cus = (ClientUserSubject)
+    ServerContext.getServerContextElement(ClientUserSubject.class);
+Subject[] users = cus.getUserSubjects();   // all wire-transferred Subjects, ordered outermost-first
+Subject primary = cus.getUserSubject();    // subjects[0] — convenience for single-user callers
+```
+
+This makes it possible for a single RPC to carry, for example, both the end-user's JWT identity
+and a delegation-chain Subject, without any out-of-band negotiation.
+
+`Subject.current()` returns only the first Subject bound via `callAs` — it never falls back to the
+`AccessControlContext`. This ensures the server can always distinguish TLS-verified machine
+identity from wire-asserted human identity.
+
+![JERI multi-Subject party bus: 16 JWT-wielding passengers arrive at the service endpoint](images/multi-subject-party-bus.svg)
+
+**Process Worker Subject** (`WorkerSubject`) — represents the JVM process itself, not any
+particular end user. With SPIFFE/SPIRE, DirtyChai's `SpiffeCredentialManager` constructs a sealed
+`SpiffeSubject extends WorkerSubject` and bakes it into every `ProtectionDomain` via
+`SecureClassLoader` at class-load time. This Subject contains:
+
+- A `SpiffePrincipal` derived from the SVID URI SAN (e.g.
   `spiffe://jgdms.example.org/host/bae/engine-2`)
+- An `X500Principal` derived from the certificate Subject DN (e.g.
+  `CN=bae-engine-2,O=example.org`)
 - The short-lived X.509 credential (certificate chain + private key) — never written to disk
 
-The process worker Subject is the identity that the server presents during TLS handshake. It is
-used for outbound calls made by the service itself (not on behalf of any user). When a service
-calls another service — for example, the Codebase Downloader submitting a JAR to a BAE instance —
-it does so under its own worker Subject, not under any user's credentials.
+Because the `WorkerSubject` is **ambient** — present in every `ProtectionDomain` regardless of
+`doPrivileged` nesting — the server never needs to reinstall it per request. When a service calls
+another service (e.g. the Codebase Downloader submitting a JAR to a BAE instance), the JERI SSL
+endpoint locates the outbound TLS credential via `SpiffeSubjectHolder` automatically.
 
-**Remote worker Subject on dispatch threads** — When a remote client connects and authenticates,
-the JERI SSL endpoint extracts the client's authenticated `Subject` from the completed TLS
-handshake and places it on the server-side dispatch thread for the entire duration of the remote
-method invocation. Service implementations receive this Subject automatically — they call
-`Subject.getSubject(AccessController.getContext())` to inspect who is calling, or simply rely on
-the `AccessController` policy check which already incorporates the client's `Principal` set.
-When the method returns, the client Subject is cleared from the thread; the thread returns to the
-pool carrying only the server's own worker Subject.
+**Remote process identity** travels differently: the remote client's `WorkerSubject` principals
+are carried inside a serialized `AccessControlContext` transmitted over the JERI wire. A
+`DomainCombiner` on the receiving JVM strips any domain whose `httpmd:` SHA-256 hash does not
+verify or whose `SpiffePrincipal` is outside the trusted SPIFFE trust domain. Verified domains
+participate in `RemotePolicy` checks as call-stack domains and are shed at `doPrivileged`
+boundaries — they are scoped to *where the call came from*, not *who the local process is*.
 
-This layering means a single server JVM can simultaneously hold:
+This layering means a single server JVM simultaneously holds:
 
-- Its own process worker Subject (SPIFFE SVID, used for outbound connections and TLS server
-  authentication)
-- Zero or more dispatch threads, each carrying a different remote caller's authenticated Subject
-  for the duration of their respective calls
+- Its own process worker identity (ambient `WorkerSubject` in every `ProtectionDomain`)
+- Zero or more dispatch threads, each running a `UserSubject` scope for the human caller and
+  carrying verified remote-process domains from the serialized incoming ACC
 
 No session state, no thread-local leakage between calls, and no boilerplate in service code.
 
@@ -189,23 +270,110 @@ When the `AtomicInputValidation.YES` constraint is in effect, the JERI dispatche
 `AtomicMarshalInputStream`, ensuring every deserialized argument across the wire has passed its
 invariant checks.
 
+### Content-Hash Policy Grants: `DigestGrant` and `DigestCodeSource`
+
+A URL is not a reliable security boundary — the same URL can serve different bytes after a CDN
+update or supply-chain compromise. DirtyChai extends the policy language with two new types that
+condition grants on the **SHA-256 content hash of the JAR**, not merely its URL:
+
+- **`DigestCodeSource`** — a `CodeSource` subclass that carries the JAR's `byte[] digest` and
+  `String digestAlgorithm`. `SecureClassLoader` populates this when loading from a
+  content-verified JAR.
+- **`DigestGrant extends URIGrant`** — a policy grant that checks the URI first and then verifies
+  `DigestCodeSource.getDigest()` matches. Expressed in policy files as:
+
+```
+grant digest "SHA-256:4e07408562bedb8b60ce05c1decafe11",
+      codeBase "https://repo.example.org/order-processor.jar"
+      principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org" {
+    permission net.jini.security.AccessPermission "submitOrder";
+};
+```
+
+Even if an attacker replaces the JAR at the same URL, the content hash does not match and the
+grant simply does not apply. `DigestGrant` is integrated with `PermissionGrantBuilder` and
+`DefaultPolicyScanner`/`DefaultPolicyParser` so the full `SecurityPolicyWriter` → policy-file
+round-trip works transparently.
+
+The JERI transport also carries `DigestCodeSource`-backed `ProtectionDomain`s inside the
+serialized `AccessControlContext` (`AccessControlContextSerializer`, v21+), so that
+`DigestGrant` policy checks work correctly on the receiving JVM without any compile-time
+dependency on DirtyChai.
+
 ### Three-Layer Authorization Stack
 
 Authorization in JGDMS is not a single on/off switch. It is a composable stack of three policy
 providers:
 
-1. **`SpiffePolicyFile`** (innermost/bootstrap) — fetches baseline grants from an HTTPS server
-   authenticated with the JVM's own SVID. Fail-secure: the JVM will not start if the policy server
-   is unreachable. Refreshes on every SVID rotation.
-2. **`RemotePolicyProvider`** (middle) — holds session grants pushed from a central
-   `InMemoryPolicyService`. Enables dynamic permission management without restarting services.
-3. **`DynamicPolicyProvider`** (outermost) — holds per-proxy, GC-scoped grants. When a proxy is
-   garbage-collected, its grants are automatically swept. Keeps the hot path write-free.
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                  Three-Layer Policy Stack (outermost first)              │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │  DynamicPolicyProvider  (per-proxy, GC-scoped grants)              │  │
+│  │    • Security.grant() called at proxy-preparation time             │  │
+│  │    • Grant dies when proxy is garbage-collected (auto-cleanup)     │  │
+│  │    • Hot path is write-free (sweeper runs every 60 s)              │  │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │  │
+│  │  │  RemotePolicyProvider  (djinn-wide, session grants)          │  │  │
+│  │  │    • Grants pushed live from InMemoryPolicyService           │  │  │
+│  │  │    • replace() via RemoteEvent — no service restart needed   │  │  │
+│  │  │  ┌────────────────────────────────────────────────────────┐  │  │  │
+│  │  │  │  SpiffePolicyFile  (bootstrap, JVM lifetime)           │  │  │  │
+│  │  │  │    • Fetched from HTTPS server authenticated by SVID   │  │  │  │
+│  │  │  │    • Fail-secure: JVM won't start if server down       │  │  │  │
+│  │  │  │    • Refreshes on every SVID rotation (~1 hour)        │  │  │  │
+│  │  │  └────────────────────────────────────────────────────────┘  │  │  │
+│  │  └──────────────────────────────────────────────────────────────┘  │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│              Three-Way Permission Intersection at Grant Time             │
+│                                                                          │
+│   What the proxy's ClassLoader declares   (META-INF/PERMISSIONS.LIST)   │
+│                       ∩                                                  │
+│   What the caller is authorised to give   (GrantPermission ceiling       │
+│                                            in RemotePolicyProvider)      │
+│                       ∩                                                  │
+│   What the SPIFFE principal scope permits (principal scoping on          │
+│                                            DynamicPolicyProvider grant)  │
+│                       =                                                  │
+│   Effective dynamic grant, scoped to this specific authenticated         │
+│   endpoint instance.  No single party controls the outcome.              │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+| Layer | Grant issuer | Grant lifetime | Revocation |
+|---|---|---|---|
+| `SpiffePolicyFile` | Operator (HTTPS bootstrap server) | JVM lifetime | `refresh()` on SVID rotation |
+| `RemotePolicyProvider` | Administrator via `InMemoryPolicyService` | Djinn session | `replace()` via `RemoteEvent` |
+| `DynamicPolicyProvider` | Client via `VerifyingProxyPreparer` + `GrantPermission` | Proxy reachability | Automatic on GC |
 
 The effective permission for any codebase is the **intersection** of what the code declares it
 needs (`PERMISSIONS.LIST`), what the grant ceiling allows (`GrantPermission`), and what the SPIFFE
 principal scope permits. No single party controls the outcome unilaterally — a supply-chain
 compromise of one component cannot silently escalate its own privileges.
+
+A grant targeting both a SPIFFE workload principal and a human JWT principal prevents privilege
+escalation even if one axis is compromised:
+
+```
+// JWT/OIDC — preferred user identity
+grant codeBase "httpmd://repo.example.org/order-processor.jar#SHA256:abc123"
+      principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org"
+      principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://.../svc/order-processor" {
+    permission net.jini.security.AccessPermission "submitOrder";
+};
+```
+
+This grant applies only when *alice* is using *specifically the order-processor workload* to access
+the JAR with that exact SHA-256 content hash. An attacker who controls one axis (e.g. replaces the
+JAR at the same URL) still cannot match all three.
+
+![The Permission Burger: three-layer authorization stack as a colorful stacked burger](images/permission-burger.svg)
+
+> **See also:** [Diagram 2 — Three-layer policy stack](<Big picture security architecture/diagram2_three_layer_policy_stack.svg>) · [Diagram 4 — GrantPermission & role management](<Big picture security architecture/diagram4_grantpermission_role_management.svg>)
 
 ---
 
@@ -225,28 +393,48 @@ as few concurrent requests as `Runtime.availableProcessors()`.
 It's worth noting that code repositories assembled prior to runtime are also subject to 
 library vulnerabilities and transient dependency vulnerabilities.
 
+![The JVM Club bouncer: SCAP turning away dangerous JARs at the door](images/jar-bouncer.svg)
+
 ### The Five Hosts
 
 ```
-Host 1 — Jini Lookup Service
-  Stores marshalled service items opaquely. Fires events when new services register.
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                  Safe Codebase Audit Pipeline (SCAP)                         │
+│                                                                              │
+│  Host 1 — Jini Lookup Service                                                │
+│    Stores marshalled service items opaquely.                                 │
+│    Fires events when new services register.           ◄──── clients query   │
+│           │                                                                  │
+│           │ new service registered (event)                                   │
+│           ▼                                                                  │
+│  Host 4 — Codebase Downloader  ◄── ONLY component with outbound internet    │
+│    Downloads JARs proactively on new service registrations.                  │
+│           │                                                                  │
+│           │ AnalysisRequest (JAR bytes + SHA-256)                            │
+│           ▼                                                                  │
+│  Host 2 — BAE Pool  (SELinux-isolated, stateless, replicated N×)            │
+│    Analyzes JAR bytecode with ASM visitors.                                  │
+│    Signs JarAnalysisReport with its own private key.                         │
+│    No outbound internet. No exec. No JNI. No FFM.                           │
+│    Abnormal exit → CrashReport condemns the codebase.                        │
+│           │                                                                  │
+│           │ signed JarAnalysisReport   (NO direct path from Host 2→Host 3   │
+│           │ goes via Host 4 / client)  ← this isolation is intentional      │
+│           ▼                                                                  │
+│  Host 3 — Verdict Registry  ◄──────────────────── clients query before      │
+│    Accumulates signed reports.                         unmarshalling proxy   │
+│    Issues RegistryVerdict (SAFE / DANGEROUS / INCONCLUSIVE)                 │
+│    only when a quorum of independent BAE engines agrees.                     │
+│                                                                              │
+│  Host 5 — JFR Telemetry Service  (reactive, NO connection to Hosts 2/4)     │
+│    Receives VirtualThreadPinned JFR events from client JVMs.                 │
+│    Triggers re-analysis without letting clients influence verdicts directly. │
+└──────────────────────────────────────────────────────────────────────────────┘
 
-Host 2 — BAE Pool (SELinux-isolated, stateless, replicated N times)
-  Analyzes JAR bytecode. Signs JarAnalysisReport with its private key.
-  No outbound internet. No exec. No JNI. No FFM.
-
-Host 3 — Verdict Registry
-  Accumulates signed reports. Issues a RegistryVerdict (SAFE / DANGEROUS / INCONCLUSIVE)
-  only when a quorum of independent engines agrees.
-  Clients query here before unmarshalling any proxy.
-
-Host 4 — Codebase Downloader (proactive)
-  The ONLY component with outbound internet access.
-  Downloads JARs on new service registrations and submits them to the BAE pool.
-
-Host 5 — JFR Telemetry Service (reactive)
-  Receives VirtualThreadPinned JFR events from client JVMs.
-  Triggers re-analysis without allowing clients to directly influence verdicts.
+Key isolation invariants:
+  Host 2 → Host 3: NO direct connection  (compromised BAE cannot write verdicts)
+  Host 4 ↔ Host 5: NO connection         (JFR flood cannot DoS analysis pipeline)
+  Clients never interact with Host 2 or Host 4 directly
 ```
 
 **Crucially:**
@@ -256,6 +444,8 @@ Host 5 — JFR Telemetry Service (reactive)
   cannot DoS the analysis pipeline.
 - An abnormal JVM exit (Phoenix crash) on Host 2 is itself a security signal: Phoenix submits a
   `CrashReport` directly to the Verdict Registry, condemning the codebase that caused the crash.
+
+> **See also:** [Diagram 1 — SCAP five-host pipeline](<Big picture security architecture/diagram1_scap_five_hosts.svg>)
 
 ### The Bytecode Analysis Engine
 
@@ -281,6 +471,31 @@ trusts the BAE directly; they trust only the Verdict Registry's quorum-based `Re
 ## Discovery: Zero-Infrastructure to Enterprise Scale
 
 JGDMS service discovery scales from a laptop LAN to a global IPv6 network.
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                     JGDMS Service Discovery Flow                           │
+│                                                                            │
+│  Client                  Lookup Service (Host 1)       Target Service      │
+│    │                           │                            │              │
+│    │── LookupLocator ─────────►│                            │              │
+│    │   ("jini://lookup.x:4160")│                            │              │
+│    │                           │                            │              │
+│    │◄── bootstrap proxy ───────│   (hash-verified unicast)  │              │
+│    │    (trust established      │                            │              │
+│    │     before unmarshalling)  │                            │              │
+│    │                           │                            │              │
+│    │── query Verdict Registry ─────────────────────────────►│ Host 3       │
+│    │   (SHA-256 hash of proxy JAR)                          │              │
+│    │◄── RegistryVerdict: SAFE ─────────────────────────────►│              │
+│    │                                                        │              │
+│    │── unmarshal full proxy ── (ProxyCodebaseSpi: ClassLoader, BAE gate)   │
+│    │                                                        │              │
+│    │── TLS 1.3 + SPIFFE SVID ──────────────────────────────►│              │
+│    │   (mutual authentication; method constraints enforced)  │              │
+│    │◄── response ──────────────────────────────────────────►│              │
+└────────────────────────────────────────────────────────────────────────────┘
+```
 
 ### Entry Point: `lookup.<domain>:4160`
 
@@ -310,6 +525,8 @@ fully-unmarshaled service proxies. The client establishes cryptographic trust be
 deserialization, not after. Only once trust is confirmed — and the Verdict Registry gives a `SAFE`
 verdict for the JAR — does the client unmarshal the full proxy and connect directly to the service
 over IPv6.
+
+> **See also:** [Diagram 3 — Proxy lifecycle (export → dynamic grant)](<Big picture security architecture/diagram3_proxy_lifecycle.svg>)
 
 ---
 
@@ -446,6 +663,16 @@ gaps that authorization cannot defend against.
 
 ---
 
+## Full Security Architecture
+
+The diagram below shows how all the pieces fit together — SCAP pipeline, SPIFFE/SPIRE workload
+identity, three-layer policy stack, proxy lifecycle, `GrantPermission` intersection, and the
+`Subject` identity model — in a single view:
+
+![](<Big picture security architecture/diagram5_full_security_architecture.svg>)
+
+---
+
 ## Summary
 
 | Concern | JGDMS / DirtyChai Answer |
@@ -454,6 +681,10 @@ gaps that authorization cannot defend against.
 | Deserialization safety | `@AtomicSerial`: validation before construction, atomic invariant checking |
 | Authorization | Three-layer policy stack, lock-free `ConcurrentPolicyFile`, dynamic grants |
 | Code integrity | SCAP five-host pipeline, quorum-based `RegistryVerdict`, signed `JarAnalysisReport` |
+| Content-hash grants | `DigestGrant` + `DigestCodeSource`: grants conditioned on SHA-256 JAR hash, not just URL |
+| User identity | JWT/OIDC via `JwtLoginModule`/`JwtPrincipal`; sealed `UserSubject`; per-request `callAs` |
+| Multi-user calls | JERI protocol `0x02`: up to 16 `UserSubject`s × 64 principals per call; `ClientUserSubject.getUserSubjects()` |
+| Workload identity | Sealed `WorkerSubject` (SPIFFE SVID), ambient in every `ProtectionDomain` |
 | Credential management | SPIFFE/SPIRE: short-lived SVIDs, automatic rotation, no keystores |
 | Service discovery | IPv6 unicast + multicast, `LookupLocator("jini://lookup.domain:4160")` |
 | Horizontal scale | Stateless BAE pool (add instances freely), replicated Lookup Services |

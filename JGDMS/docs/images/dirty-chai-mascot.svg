@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 440">
+  <!-- Background: warm cream -->
+  <rect width="700" height="440" fill="#FFF8F0" rx="10"/>
+
+  <!-- Title banner -->
+  <rect width="700" height="54" fill="#7B3500" rx="10"/>
+  <rect y="44" width="700" height="10" fill="#7B3500"/>
+  <text x="350" y="36" text-anchor="middle"
+        font-family="Georgia,serif" font-size="24" font-weight="bold"
+        fill="#FFD700" letter-spacing="2">DirtyChai</text>
+
+  <!-- Steam wisps -->
+  <g stroke="#C8C8C8" stroke-linecap="round" fill="none">
+    <path d="M183 106 C179 88 189 70 181 52 C174 35 183 22 178 10" stroke-width="4"/>
+    <path d="M215 104 C211 86 221 68 213 50 C207 33 216 20 211 8"  stroke-width="4"/>
+    <path d="M248 106 C244 88 254 70 246 52 C240 35 248 22 243 10" stroke-width="3"/>
+  </g>
+
+  <!-- Hard hat brim -->
+  <ellipse cx="215" cy="110" rx="108" ry="14" fill="#E6B800"/>
+  <!-- Hard hat dome -->
+  <path d="M122 110 Q130 64 215 58 Q300 64 308 110 Z" fill="#FFD700"/>
+  <!-- Hard hat stripe -->
+  <path d="M140 90 Q215 84 290 90" fill="none" stroke="#E6B800" stroke-width="4"/>
+  <!-- Hard hat label -->
+  <text x="215" y="93" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="13" font-weight="900"
+        fill="#3d1a00">SEC</text>
+
+  <!-- Mug body -->
+  <rect x="120" y="108" width="190" height="192" rx="20" fill="#8B4513"/>
+  <!-- Mug inner rim (surface of liquid) -->
+  <ellipse cx="215" cy="118" rx="82" ry="12" fill="#6B3410"/>
+  <!-- Mug sheen -->
+  <ellipse cx="185" cy="118" rx="30" ry="7" fill="#7a3a15" opacity="0.6"/>
+
+  <!-- Mug handle: outer dark stroke + inner lighter stroke = 3D effect -->
+  <path d="M310 150 Q375 150 375 203 Q375 260 310 260"
+        fill="none" stroke="#5a2808" stroke-width="26" stroke-linecap="round"/>
+  <path d="M310 150 Q369 150 369 203 Q369 260 310 260"
+        fill="none" stroke="#A0522D" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- Eyebrows (furrowed = tough) -->
+  <g stroke="#1a0800" stroke-width="3.5" stroke-linecap="round" fill="none">
+    <path d="M162 176 Q178 167 196 174"/>
+    <path d="M234 171 Q252 164 268 172"/>
+  </g>
+
+  <!-- Eyes (dark with white shine dot) -->
+  <circle cx="180" cy="196" r="14" fill="#1a0800"/>
+  <circle cx="253" cy="196" r="14" fill="#1a0800"/>
+  <circle cx="185" cy="191"  r="5"  fill="white"/>
+  <circle cx="258" cy="191"  r="5"  fill="white"/>
+
+  <!-- Smirk (asymmetric: rises more on right) -->
+  <path d="M168 228 Q205 252 278 224"
+        fill="none" stroke="#1a0800" stroke-width="4.5" stroke-linecap="round"/>
+
+  <!-- SPIFFE shield badge on left side of mug -->
+  <path d="M106 174 L106 228 Q106 250 128 255 Q150 250 150 228 L150 174 Q128 165 106 174 Z"
+        fill="#1B3D8A"/>
+  <path d="M108 176 L108 227 Q108 247 128 252 Q148 247 148 227 L148 176 Q128 168 108 176 Z"
+        fill="none" stroke="#3a6adc" stroke-width="1.5"/>
+  <text x="128" y="200" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="8" font-weight="bold" fill="#aad4ff">SPIFFE</text>
+  <!-- Lock body on badge -->
+  <rect x="118" y="210" width="20" height="15" rx="3" fill="#FFD700"/>
+  <!-- Lock shackle -->
+  <path d="M122 210 Q122 200 128 200 Q134 200 134 210"
+        fill="none" stroke="#FFD700" stroke-width="3.5"/>
+
+  <!-- Mug saucer -->
+  <ellipse cx="215" cy="304" rx="116" ry="13" fill="#6B3410"/>
+  <ellipse cx="215" cy="304" rx="90"  ry="9"  fill="#7a3a15"/>
+
+  <!-- Coffee drip for "dirty" flair -->
+  <path d="M290 300 Q293 314 290 325" fill="none" stroke="#5a2800" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Speech bubble (right side, tail pointing toward mug face) -->
+  <!--  Rect: x=396 to x=685, y=82 to y=218  |  Tail tip: (383, 193)  -->
+  <path d="M410 82
+           L673 82 Q685 82 685 94
+           L685 206 Q685 218 673 218
+           L410 218 Q398 218 398 206
+           L398 172 L383 191 L398 158
+           L398 94 Q398 82 410 82 Z"
+        fill="white" stroke="#b0a0a0" stroke-width="2"/>
+  <text x="542" y="110" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="13" fill="#333">I fix what OpenJDK</text>
+  <text x="542" y="130" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="13" fill="#333">removed in Java 17.</text>
+  <text x="542" y="156" text-anchor="middle"
+        font-family="Georgia,serif" font-size="14" font-weight="bold"
+        font-style="italic" fill="#7B3500">You're welcome.</text>
+  <text x="542" y="180" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="12" fill="#666">— SecurityManager, reborn</text>
+  <text x="542" y="200" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="11" fill="#aaa">(tougher than ever)</text>
+
+  <!-- Bottom tagline -->
+  <text x="350" y="348" text-anchor="middle"
+        font-family="Georgia,serif" font-size="16" font-weight="bold" fill="#4a1a00">Strong Brew. Stronger Security.</text>
+  <text x="350" y="374" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="12" fill="#7a4a20">Restoring fine-grained authorization since Java 17 deprecated it.</text>
+  <text x="350" y="412" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" fill="#bbb">github.com/pfirmstone/DirtyChai — Community fork of OpenJDK</text>
+</svg>
