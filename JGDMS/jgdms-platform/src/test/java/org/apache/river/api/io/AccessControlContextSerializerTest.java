@@ -243,36 +243,38 @@ public class AccessControlContextSerializerTest {
     /**
      * Tests that a crafted new-format (version 0x01) transport blob containing a
      * single DigestCodeSource record is accepted by {@code unmarshalForTransport}.
-     * On a standard JDK (no {@code java.security.DigestCodeSource}), the domain is
-     * dropped (fail-secure) so the result may be {@code null} or an ACC with 0
-     * domains; we only assert that parsing does not throw.
+     * The externalized bytes in this test hold a serialized plain {@code CodeSource}
+     * (so ObjectInputStream finds the class).  On a real DirtyChai JDK, the bytes
+     * would hold a serialized {@code DigestCodeSource} and the ClassNotFoundException
+     * path would be exercised on any peer without that class.
+     * We only assert that parsing does not throw.
      */
     @Test
     public void testUnmarshalNewFormatDigestRecordDoesNotThrow() throws Exception {
-        // Build a minimal new-format blob:
-        // [0x01][4-byte count=1]
-        // [record-type=0x01 (DigestCodeSource)]
-        // [2-byte urlLen=0]                         -- null URL
-        // [2-byte algLen][algLen bytes "SHA-256"]
-        // [4-byte digestLen=32][32 zero bytes]       -- fake SHA-256 digest
-        // [2-byte principalCount=0]
+        // Produce minimal Java-serialization bytes for a plain CodeSource
+        // (simulates the externalized bytes a DigestCodeSource.writeExternal() would produce).
+        java.security.CodeSource cs = new java.security.CodeSource(
+                null, (java.security.cert.Certificate[]) null);
+        ByteArrayOutputStream extBaos = new ByteArrayOutputStream();
+        try (java.io.ObjectOutputStream extOut = new java.io.ObjectOutputStream(extBaos)) {
+            extOut.writeObject(cs);
+        }
+        byte[] extBytes = extBaos.toByteArray();
+
+        // Build a new-format blob:
+        // [0x01][4-byte count=1][record-type=0x01][4-byte extLen][extLen bytes][2-byte principalCount=0]
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         baos.write(0x01);               // FORMAT_VERSION_DIGEST
         writeInt(baos, 1);              // count = 1
         baos.write(0x01);               // RECORD_TYPE_DIGEST
-        writeShort(baos, 0);            // urlLen = 0 (null URL)
-        byte[] alg = "SHA-256".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        writeShort(baos, alg.length);   // algLen
-        baos.write(alg);
-        writeInt(baos, 32);             // digestLen = 32
-        baos.write(new byte[32]);       // 32 zero bytes (fake digest)
+        writeInt(baos, extBytes.length);// extLen
+        baos.write(extBytes);           // Java-serialization stream
         writeShort(baos, 0);            // principalCount = 0
 
         byte[] payload = baos.toByteArray();
-        // Must not throw (DigestCodeSource absent → domain dropped → null or empty ACC)
+        // Must not throw; result is a non-null ACC (CodeSource found) or null (domain dropped).
         AccessControlContext result = AccessControlContextSerializer.unmarshalForTransport(payload, null);
-        // result is either null (domain dropped, no remaining domains) or a valid ACC.
-        // Both outcomes are acceptable on a standard JDK.
+        // Both null and non-null are acceptable — we're verifying the parser does not crash.
     }
 
     /**

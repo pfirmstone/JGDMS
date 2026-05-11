@@ -20,6 +20,7 @@ package org.apache.river.api.io;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Externalizable;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.NotSerializableException;
@@ -28,9 +29,6 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -113,10 +111,13 @@ public final class AccessControlContextSerializer implements Serializable {
     private static final int RECORD_TYPE_HTTPMD = 0x00;
     /** Record-type byte for a {@code DigestCodeSource} domain record. */
     private static final int RECORD_TYPE_DIGEST = 0x01;
-    /** Maximum UTF-8 byte length accepted for a digest algorithm name. */
-    private static final int MAX_ALGORITHM_BYTES = 64;
-    /** Maximum raw byte length accepted for a digest value (SHA-512 = 64 bytes). */
-    private static final int MAX_DIGEST_BYTES = 128;
+    /**
+     * Maximum byte length accepted for the externalized form of a
+     * {@code DigestCodeSource} record.  64 KB is generous enough to hold
+     * any realistic URL, algorithm name, digest value, and associated
+     * certificate chain that {@code DigestCodeSource.writeExternal()} emits.
+     */
+    private static final int MAX_EXTERNALIZABLE_BYTES = 65536;
     /**
      * Fully-qualified class name of {@code java.security.DigestCodeSource}
      * (from DirtyChai JDK).  Used for class-name inspection without a
@@ -389,8 +390,11 @@ public final class AccessControlContextSerializer implements Serializable {
         private static final String LOCATION = "location";
         private static final String PRINCIPAL_TYPES = "principalTypes";
         private static final String PRINCIPAL_NAMES = "principalNames";
-        private static final String DIGEST_ALGORITHM = "digestAlgorithm";
-        private static final String DIGEST = "digest";
+        /**
+         * Field name for the externalized bytes of a {@code DigestCodeSource}
+         * record.  Null for HTTPMD records.
+         */
+        private static final String EXTERNALIZABLE_BYTES = "externalizableBytes";
         private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
         static SerialForm[] serialForm() {
@@ -398,8 +402,7 @@ public final class AccessControlContextSerializer implements Serializable {
                 new SerialForm(LOCATION, String.class),
                 new SerialForm(PRINCIPAL_TYPES, String[].class),
                 new SerialForm(PRINCIPAL_NAMES, String[].class),
-                new SerialForm(DIGEST_ALGORITHM, String.class),
-                new SerialForm(DIGEST, byte[].class)
+                new SerialForm(EXTERNALIZABLE_BYTES, byte[].class)
             };
         }
 
@@ -407,36 +410,36 @@ public final class AccessControlContextSerializer implements Serializable {
             arg.put(LOCATION, obj.location);
             arg.put(PRINCIPAL_TYPES, obj.principalTypes);
             arg.put(PRINCIPAL_NAMES, obj.principalNames);
-            arg.put(DIGEST_ALGORITHM, obj.digestAlgorithm);
-            arg.put(DIGEST, obj.digest);
+            arg.put(EXTERNALIZABLE_BYTES, obj.externalizableBytes);
             arg.writeArgs();
         }
 
         static DomainIdentityRecord from(ProtectionDomain pd, Subject authenticatedSubject) {
             CodeSource cs = pd.getCodeSource();
-            // Check for DigestCodeSource first.  We inspect the class name rather
-            // than importing the class, so no compile-time dependency is created.
-            if (cs != null && DIGEST_CODESOURCE_CLASS_NAME.equals(cs.getClass().getName())) {
+            // Check for DigestCodeSource by class name (no compile-time dependency).
+            // DigestCodeSource implements Externalizable, so we can use the interface
+            // directly after the class-name check — no method-level reflection needed.
+            if (cs != null
+                    && cs instanceof Externalizable
+                    && DIGEST_CODESOURCE_CLASS_NAME.equals(cs.getClass().getName())) {
                 try {
-                    Class<?> csClass = cs.getClass();
-                    Method getAlgorithm = csClass.getMethod("getDigestAlgorithm");
-                    Method getDigestMethod = csClass.getMethod("getDigest");
-                    String algorithm = (String) getAlgorithm.invoke(cs);
-                    byte[] digestBytes = (byte[]) getDigestMethod.invoke(cs);
-                    if (algorithm != null && digestBytes != null && digestBytes.length > 0) {
-                        URL location = cs.getLocation();
-                        String locText = location != null ? location.toExternalForm() : null;
-                        Principal[] principals = principalsFor(pd, authenticatedSubject);
-                        String[] types = new String[principals.length];
-                        String[] names = new String[principals.length];
-                        for (int i = 0; i < principals.length; i++) {
-                            types[i] = principals[i].getClass().getName();
-                            names[i] = principals[i].getName();
-                        }
-                        return new DomainIdentityRecord(locText, types, names, algorithm, digestBytes.clone());
+                    ByteArrayOutputStream extBaos = new ByteArrayOutputStream(256);
+                    try (ObjectOutputStream extOut = new ObjectOutputStream(extBaos)) {
+                        // ObjectOutputStream calls cs.writeExternal(extOut) because
+                        // cs implements Externalizable — no reflection in our code.
+                        extOut.writeObject(cs);
                     }
-                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                    // Not a usable DigestCodeSource; fall through to HTTPMD check.
+                    byte[] extBytes = extBaos.toByteArray();
+                    Principal[] principals = principalsFor(pd, authenticatedSubject);
+                    String[] types = new String[principals.length];
+                    String[] names = new String[principals.length];
+                    for (int i = 0; i < principals.length; i++) {
+                        types[i] = principals[i].getClass().getName();
+                        names[i] = principals[i].getName();
+                    }
+                    return new DomainIdentityRecord(null, types, names, extBytes);
+                } catch (IOException e) {
+                    // Unexpected — fall through to HTTPMD check.
                 }
             }
             URL location = cs != null ? cs.getLocation() : null;
@@ -449,7 +452,7 @@ public final class AccessControlContextSerializer implements Serializable {
                 types[i] = principals[i].getClass().getName();
                 names[i] = principals[i].getName();
             }
-            return new DomainIdentityRecord(locText, types, names);
+            return new DomainIdentityRecord(locText, types, names, null);
         }
 
         static DomainIdentityRecord readFrom(ByteArrayInputStream in, boolean newFormat) throws IOException {
@@ -503,32 +506,15 @@ public final class AccessControlContextSerializer implements Serializable {
         }
 
         private static DomainIdentityRecord readDigestRecord(ByteArrayInputStream in) throws IOException {
-            // [2-byte urlLen][urlLen bytes URL UTF-8 (0 = null URL)]
-            int urlLen = readShort(in);
-            if (urlLen > MAX_LOCATION_BYTES) {
-                throw new InvalidObjectException("DigestCodeSource URL length exceeds maximum: " + urlLen);
+            // [4-byte extLen][extLen bytes — full Java serialization stream of DigestCodeSource]
+            int extLen = readInt(in);
+            if (extLen <= 0 || extLen > MAX_EXTERNALIZABLE_BYTES) {
+                throw new InvalidObjectException("DigestCodeSource externalized bytes length invalid: " + extLen);
             }
-            String urlText = null;
-            if (urlLen > 0) {
-                byte[] urlBytes = new byte[urlLen];
-                if (in.read(urlBytes) != urlLen) throw new InvalidObjectException("Unexpected EOF reading DigestCodeSource URL");
-                urlText = new String(urlBytes, StandardCharsets.UTF_8);
+            byte[] extBytes = new byte[extLen];
+            if (in.read(extBytes) != extLen) {
+                throw new InvalidObjectException("Unexpected EOF reading DigestCodeSource externalized bytes");
             }
-            // [2-byte algLen][algLen bytes algorithm UTF-8]
-            int algLen = readShort(in);
-            if (algLen == 0 || algLen > MAX_ALGORITHM_BYTES) {
-                throw new InvalidObjectException("DigestCodeSource algorithm length invalid: " + algLen);
-            }
-            byte[] algBytes = new byte[algLen];
-            if (in.read(algBytes) != algLen) throw new InvalidObjectException("Unexpected EOF reading DigestCodeSource algorithm");
-            String algorithm = new String(algBytes, StandardCharsets.UTF_8);
-            // [4-byte digestLen][digestLen bytes digest raw]
-            int digestLen = readInt(in);
-            if (digestLen <= 0 || digestLen > MAX_DIGEST_BYTES) {
-                throw new InvalidObjectException("DigestCodeSource digest length invalid: " + digestLen);
-            }
-            byte[] digest = new byte[digestLen];
-            if (in.read(digest) != digestLen) throw new InvalidObjectException("Unexpected EOF reading DigestCodeSource digest");
             // principals
             int principalCount = readShort(in);
             if (principalCount > MAX_PRINCIPALS_PER_DOMAIN) {
@@ -552,51 +538,53 @@ public final class AccessControlContextSerializer implements Serializable {
                 if (in.read(nameBytes) != nameLen) throw new InvalidObjectException("Unexpected EOF reading principal name");
                 names[i] = new String(nameBytes, StandardCharsets.UTF_8);
             }
-            return new DomainIdentityRecord(urlText, types, names, algorithm, digest);
+            return new DomainIdentityRecord(null, types, names, extBytes);
         }
 
         private final String location;
         private final String[] principalTypes;
         private final String[] principalNames;
-        /** Digest algorithm name, or {@code null} for HTTPMD records. */
-        private final String digestAlgorithm;
         /**
-         * Raw digest bytes, or {@code null} for HTTPMD records.
-         * Defensive copy on construction.
+         * The Java-serialization bytes of a {@code DigestCodeSource} object
+         * produced by {@code ObjectOutputStream.writeObject()}, which invokes
+         * {@code DigestCodeSource.writeExternal()} because that class implements
+         * {@code Externalizable}.  {@code null} for HTTPMD records.
          */
-        private final byte[] digest;
+        private final byte[] externalizableBytes;
 
         DomainIdentityRecord(GetArg arg) throws IOException, ClassNotFoundException {
             this(
                 arg.get(LOCATION, null, String.class),
                 arg.get(PRINCIPAL_TYPES, null, String[].class),
                 arg.get(PRINCIPAL_NAMES, null, String[].class),
-                arg.get(DIGEST_ALGORITHM, null, String.class),
-                arg.get(DIGEST, null, byte[].class)
+                arg.get(EXTERNALIZABLE_BYTES, null, byte[].class)
             );
         }
 
         /**
-         * Creates an HTTPMD-type record (no digest fields).
-         * This 3-arg form is retained for backward compatibility.
+         * Creates an HTTPMD-type record (no DigestCodeSource bytes).
+         * This 3-arg form is retained for backward compatibility with tests
+         * that use the package-private constructor via reflection.
          */
         private DomainIdentityRecord(String location, String[] principalTypes, String[] principalNames) {
-            this(location, principalTypes, principalNames, null, null);
+            this(location, principalTypes, principalNames, null);
         }
 
-        /** Creates either an HTTPMD or DigestCodeSource record depending on whether digest fields are non-null. */
+        /**
+         * Creates either an HTTPMD or DigestCodeSource record depending on
+         * whether {@code externalizableBytes} is non-null.
+         */
         private DomainIdentityRecord(String location, String[] principalTypes, String[] principalNames,
-                                     String digestAlgorithm, byte[] digest) {
+                                     byte[] externalizableBytes) {
             this.location = location;
             this.principalTypes = principalTypes != null ? principalTypes : new String[0];
             this.principalNames = principalNames != null ? principalNames : new String[0];
-            this.digestAlgorithm = digestAlgorithm;
-            this.digest = digest != null ? digest.clone() : null;
+            this.externalizableBytes = externalizableBytes != null ? externalizableBytes.clone() : null;
         }
 
         /** Returns {@code true} if this record holds a DigestCodeSource domain. */
         boolean isDigestRecord() {
-            return digest != null;
+            return externalizableBytes != null;
         }
 
         private void writeTo(ByteArrayOutputStream out, boolean newFormat) throws IOException {
@@ -625,31 +613,12 @@ public final class AccessControlContextSerializer implements Serializable {
 
         private void writeDigestRecord(ByteArrayOutputStream out) throws IOException {
             out.write(RECORD_TYPE_DIGEST);
-            // URL (may be null)
-            if (location != null) {
-                byte[] urlBytes = location.getBytes(StandardCharsets.UTF_8);
-                if (urlBytes.length > MAX_LOCATION_BYTES) {
-                    throw new InvalidObjectException("DigestCodeSource URL too long to encode: " + urlBytes.length);
-                }
-                writeUnsignedShort(out, urlBytes.length);
-                out.write(urlBytes);
-            } else {
-                writeUnsignedShort(out, 0);
+            if (externalizableBytes.length > MAX_EXTERNALIZABLE_BYTES) {
+                throw new InvalidObjectException(
+                    "DigestCodeSource externalized bytes too long: " + externalizableBytes.length);
             }
-            // Algorithm
-            byte[] algBytes = digestAlgorithm.getBytes(StandardCharsets.UTF_8);
-            if (algBytes.length == 0 || algBytes.length > MAX_ALGORITHM_BYTES) {
-                throw new InvalidObjectException("DigestCodeSource algorithm too long to encode: " + algBytes.length);
-            }
-            writeUnsignedShort(out, algBytes.length);
-            out.write(algBytes);
-            // Digest
-            if (digest.length == 0 || digest.length > MAX_DIGEST_BYTES) {
-                throw new InvalidObjectException("DigestCodeSource digest length invalid: " + digest.length);
-            }
-            writeInt(out, digest.length);
-            out.write(digest);
-            // Principals
+            writeInt(out, externalizableBytes.length);
+            out.write(externalizableBytes);
             writePrincipals(out);
         }
 
@@ -690,24 +659,22 @@ public final class AccessControlContextSerializer implements Serializable {
         }
 
         private ProtectionDomain toDigestProtectionDomain(Subject authenticatedSubject) throws IOException {
-            URL url = null;
-            if (location != null && !location.isEmpty()) {
-                try {
-                    url = new URL(location);
-                } catch (MalformedURLException e) {
-                    // URL unavailable; proceed with null URL.
-                }
-            }
-            CodeSource cs = tryCreateDigestCodeSource(url, digestAlgorithm, digest);
-            if (cs == null) {
-                // DigestCodeSource class not available in this JVM; skip this domain.
-                // This is the fail-secure behaviour: the remote domain is dropped from
-                // the reconstructed ACC rather than silently downgraded to a plain
-                // CodeSource that any policy might accidentally match.
+            // Reconstruct the DigestCodeSource using the Externalizable protocol:
+            // ObjectInputStream calls readExternal() because DigestCodeSource
+            // implements Externalizable.  No reflection is needed in our code;
+            // the JDK's deserialization machinery handles it.
+            try {
+                ObjectInputStream extIn =
+                    new ObjectInputStream(new ByteArrayInputStream(externalizableBytes));
+                CodeSource cs = (CodeSource) extIn.readObject();
+                Principal[] principals = buildPrincipals(authenticatedSubject);
+                return new DomainIdentity(cs, principals);
+            } catch (ClassNotFoundException e) {
+                // DigestCodeSource is not available in this JVM (e.g. standard JDK).
+                // Fail-secure: drop the domain from the reconstructed ACC rather than
+                // downgrading it to a plain CodeSource that policy might accidentally match.
                 return null;
             }
-            Principal[] principals = buildPrincipals(authenticatedSubject);
-            return new DomainIdentity(cs, principals);
         }
 
         private Principal[] buildPrincipals(Subject authenticatedSubject) throws IOException {
@@ -796,28 +763,5 @@ public final class AccessControlContextSerializer implements Serializable {
         ObjectOutputStream.PutField pf = out.putFields();
         pf.put(TRANSPORT_BYTES, marshalForTransport(context));
         out.writeFields();
-    }
-
-    /**
-     * Attempts to construct a {@code java.security.DigestCodeSource} instance
-     * (from DirtyChai JDK) via reflection.  Returns {@code null} if the class
-     * is not available in the current JVM, allowing the caller to apply a
-     * graceful fallback (e.g. dropping the domain from the reconstructed ACC).
-     *
-     * <p>The class name is inspected at runtime rather than imported at compile
-     * time so that no compile-time dependency on the DirtyChai JDK is created.
-     */
-    private static CodeSource tryCreateDigestCodeSource(URL url, String algorithm, byte[] digest) {
-        try {
-            Class<?> cls = Class.forName(DIGEST_CODESOURCE_CLASS_NAME);
-            Constructor<?> ctor = cls.getConstructor(
-                URL.class, Certificate[].class, String.class, byte[].class);
-            return (CodeSource) ctor.newInstance(url, (Certificate[]) null, algorithm, digest);
-        } catch (ClassNotFoundException e) {
-            return null; // DigestCodeSource not present in this JVM.
-        } catch (NoSuchMethodException | IllegalAccessException
-                | InstantiationException | InvocationTargetException e) {
-            return null; // Unexpected — DigestCodeSource API has changed.
-        }
     }
 }
