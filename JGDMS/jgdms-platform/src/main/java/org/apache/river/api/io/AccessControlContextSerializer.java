@@ -116,6 +116,15 @@ public final class AccessControlContextSerializer implements Serializable {
      * compile-time dependency on that JDK-specific class.
      */
     private static final String DIGEST_CODESOURCE_CLASS_NAME = "java.security.DigestCodeSource";
+    /**
+     * The {@code jrt:} CodeSource location of the {@code java.base} JDK module.
+     * This domain is present in the ACC of every running JVM and carries no
+     * useful diagnostic identity; it is excluded from the anonymous domain count
+     * to avoid inflating the transport payload.  All other {@code jrt:} module
+     * domains (e.g. {@code jrt:/jdk.crypto.ec}) are retained because their
+     * presence can identify processes running a vulnerable JDK module.
+     */
+    private static final String JRT_JAVA_BASE_LOCATION = "jrt:/java.base";
     private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
     public static SerialForm[] serialForm() {
@@ -158,6 +167,12 @@ public final class AccessControlContextSerializer implements Serializable {
      * policy-deferred permissions) that preserve their position in the ACC
      * without asserting any specific identity claim.
      *
+     * <p>The {@code jrt:/java.base} domain is excluded from the anonymous count
+     * because it is present in the ACC of every running JVM and carries no
+     * diagnostic value.  All other {@code jrt:} module domains are retained:
+     * their presence indicates which JDK modules are loaded and can identify
+     * processes running a specific (potentially vulnerable) module version.
+     *
      * @param acc the {@link AccessControlContext} to marshal; {@code null} returns
      *            an empty byte array
      * @return the binary transport payload, or an empty byte array when {@code acc}
@@ -178,11 +193,20 @@ public final class AccessControlContextSerializer implements Serializable {
                 // with a verifiable identity but still act as permission ceilings in
                 // the sender's ACC; count them so the receiver can reconstruct
                 // placeholder domains to preserve their ceiling effect.
+                //
+                // Exception: jrt:/java.base is present in every JVM ACC and carries
+                // no diagnostic value, so it is excluded to keep the payload compact.
+                // All other jrt: module domains are retained (they identify which JDK
+                // modules are loaded and may flag vulnerable-module processes).
                 CodeSource cs = extracted[i].getCodeSource();
                 boolean isDigest = cs instanceof Externalizable
                         && DIGEST_CODESOURCE_CLASS_NAME.equals(cs.getClass().getName());
                 if (!isDigest) {
-                    anonCount++;
+                    URL loc = cs != null ? cs.getLocation() : null;
+                    String locText = loc != null ? loc.toExternalForm() : null;
+                    if (!JRT_JAVA_BASE_LOCATION.equals(locText)) {
+                        anonCount++;
+                    }
                 }
             }
         }
