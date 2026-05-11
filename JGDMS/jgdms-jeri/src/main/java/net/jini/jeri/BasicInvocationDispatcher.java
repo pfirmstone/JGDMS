@@ -270,8 +270,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    m = Subject.class.getMethod("callAs", Callable.class, Subject[].class);
 	} catch (NoSuchMethodException ignored) {
 	    // Standard JDK — multi-Subject callAs not available
-	} catch (Exception ignored) {
-	    // Any other reflective failure — treat as not available
+	} catch (SecurityException ignored) {
+	    // Security manager denied reflective access — treat as not available
 	}
 	CALL_AS_MULTI_SUBJECT = m;
     }
@@ -1727,6 +1727,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    dispatchWithUsers = dispatchWithContext;
 	} else if (CALL_AS_MULTI_SUBJECT != null && userSubjects.length > 1) {
 	    // DirtyChai path: single varargs call with all subjects.
+	    // The single-Subject case (length == 1) is handled by the else branch
+	    // below, which is identical in effect whether or not DirtyChai is present.
 	    dispatchWithUsers = () -> {
 		try {
 		    CALL_AS_MULTI_SUBJECT.invoke(null, dispatchWithContext,
@@ -1735,6 +1737,9 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    Throwable cause = ite.getCause();
 		    if (cause instanceof Exception) throw (Exception) cause;
 		    if (cause instanceof Error)     throw (Error)     cause;
+		    // Rare: cause is a raw Throwable (neither Exception nor Error).
+		    // Wrap in InvocationTargetException (itself an Exception) so the
+		    // caller still receives a meaningful stack trace.
 		    throw ite;
 		}
 		return null;
