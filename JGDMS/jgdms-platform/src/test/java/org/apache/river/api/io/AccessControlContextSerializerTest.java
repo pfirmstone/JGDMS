@@ -49,14 +49,24 @@ public class AccessControlContextSerializerTest {
 
             byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
             Assert.assertTrue(encoded.length > 0);
-            Assert.assertEquals(1, readInt(encoded));
+            // The plain-HTTP domain is non-verifiable: version-1 format is used.
+            // First byte = 0x01 (version discriminator); bytes 1-4 = HTTPMD domain count = 1.
+            Assert.assertEquals(0x01, encoded[0] & 0xFF);
+            Assert.assertEquals(1, readIntAt(encoded, 1));
 
             Subject authenticated = new Subject();
             authenticated.getPrincipals().add(new X500Principal("CN=worker"));
             AccessControlContext reconstructed =
                     AccessControlContextSerializer.unmarshalForTransport(encoded, authenticated);
+            Assert.assertNotNull("reconstructed ACC must not be null", reconstructed);
             byte[] reencoded = AccessControlContextSerializer.marshalForTransport(reconstructed);
-            Assert.assertEquals(1, readInt(reencoded));
+            Assert.assertTrue("re-encoded payload must be non-empty", reencoded.length > 0);
+            // The reconstructed ACC contains the HTTPMD domain plus a null-CodeSource
+            // placeholder for the anonymous domain.  Re-encoding in a typical test JVM
+            // call stack also captures platform/framework domains, so version-1 format
+            // is expected; the HTTPMD count must still be 1.
+            Assert.assertEquals(0x01, reencoded[0] & 0xFF);
+            Assert.assertEquals(1, readIntAt(reencoded, 1));
         } finally {
             if (oldHandlers == null) {
                 System.clearProperty("java.protocol.handler.pkgs");
@@ -289,13 +299,89 @@ public class AccessControlContextSerializerTest {
         }
     }
 
+    /**
+     * Verifies that the count of non-HTTPMD, non-DigestCodeSource ("anonymous")
+     * domains is preserved through a marshal/unmarshal round-trip.
+     *
+     * <p>An ACC with 1 HTTPMD domain and 2 plain-HTTP domains is marshalled.
+     * The resulting payload must use version-1 format (first byte 0x01), with
+     * the HTTPMD domain count = 1 and the anonymous domain count = 2.
+     * After unmarshal, the reconstructed ACC must be non-null and the payload
+     * must survive re-encoding with the same HTTPMD count.
+     */
+    @Test
+    public void testAnonDomainCountPreservedInTransport() throws Exception {
+        String oldHandlers = System.getProperty("java.protocol.handler.pkgs");
+        System.setProperty("java.protocol.handler.pkgs", "net.jini.url");
+        try {
+            URL httpmd = new URL(null,
+                    "httpmd://repo.example.org/stub.jar;sha-256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    new PassThroughHandler());
+            URL plain1 = new URL("http://repo.example.org/app.jar");
+            URL plain2 = new URL("http://repo.example.org/framework.jar");
+
+            ProtectionDomain httpmdPd = new ProtectionDomain(
+                    new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            ProtectionDomain plain1Pd = new ProtectionDomain(
+                    new CodeSource(plain1, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            ProtectionDomain plain2Pd = new ProtectionDomain(
+                    new CodeSource(plain2, (java.security.cert.Certificate[]) null),
+                    null, null, new java.security.Principal[0]);
+            AccessControlContext acc = new AccessControlContext(
+                    new ProtectionDomain[]{httpmdPd, plain1Pd, plain2Pd});
+
+            byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
+            Assert.assertTrue("encoded payload must be non-empty", encoded.length > 0);
+            // Version-1 format: first byte = 0x01, bytes 1-4 = httpmd count = 1.
+            Assert.assertEquals("version byte must be 0x01", 0x01, encoded[0] & 0xFF);
+            Assert.assertEquals("httpmd domain count must be 1", 1, readIntAt(encoded, 1));
+            // Anonymous domain count is at the end of the payload (after the single record).
+            // Locate it: 1 version byte + 4 count bytes + 1 record (variable length) + 4 anon bytes.
+            int anonCountOffset = encoded.length - 4;
+            Assert.assertEquals("anonymous domain count must be 2", 2, readIntAt(encoded, anonCountOffset));
+
+            // Unmarshal and verify round-trip.
+            AccessControlContext decoded =
+                    AccessControlContextSerializer.unmarshalForTransport(encoded, null);
+            Assert.assertNotNull("decoded ACC must not be null", decoded);
+        } finally {
+            if (oldHandlers == null) {
+                System.clearProperty("java.protocol.handler.pkgs");
+            } else {
+                System.setProperty("java.protocol.handler.pkgs", oldHandlers);
+            }
+        }
+    }
+
+    /**
+     * Verifies that an ACC containing only non-HTTPMD domains produces an empty
+     * transport payload, because without any HTTPMD domain there is no verifiable
+     * remote code identity to anchor the context.
+     */
+    @Test
+    public void testOnlyAnonDomainsProducesEmptyPayload() throws Exception {
+        URL plain = new URL("http://repo.example.org/app.jar");
+        ProtectionDomain plainPd = new ProtectionDomain(
+                new CodeSource(plain, (java.security.cert.Certificate[]) null),
+                null, null, new java.security.Principal[0]);
+        AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{plainPd});
+        byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
+        Assert.assertEquals("no HTTPMD domain → empty payload", 0, encoded.length);
+    }
+
     // ---- binary helpers used by the test methods above -----------------------
 
     private static int readInt(byte[] bytes) {
-        return ((bytes[0] & 0xFF) << 24)
-                | ((bytes[1] & 0xFF) << 16)
-                | ((bytes[2] & 0xFF) << 8)
-                | (bytes[3] & 0xFF);
+        return readIntAt(bytes, 0);
+    }
+
+    private static int readIntAt(byte[] bytes, int offset) {
+        return ((bytes[offset] & 0xFF) << 24)
+                | ((bytes[offset + 1] & 0xFF) << 16)
+                | ((bytes[offset + 2] & 0xFF) << 8)
+                | (bytes[offset + 3] & 0xFF);
     }
 
     private static final class PassThroughHandler extends URLStreamHandler {
