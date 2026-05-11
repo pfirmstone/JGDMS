@@ -151,8 +151,8 @@ its own carrier, lifetime, and routing rule:
 │  Layer 2 — Remote Process  (serialized ACC ProtectionDomains)       │
 │    Remote client's WorkerSubject principals travel inside a         │
 │    serialized AccessControlContext over the JERI wire.              │
-│    A DomainCombiner on the receiving JVM verifies and strips        │
-│    unverifiable domains. Shed at doPrivileged boundaries.           │
+│    Unverifiable domains are encoded as anonCount; the receiver      │
+│    reconstructs anonymous placeholder domains. Shed at doPrivileged.│
 │                                                                     │
 │  Layer 3 — User  (UserSubject via callAs)                           │
 │    Per-request human identity bound by JERI dispatcher via          │
@@ -241,17 +241,20 @@ another service (e.g. the Codebase Downloader submitting a JAR to a BAE instance
 endpoint locates the outbound TLS credential via `SpiffeSubjectHolder` automatically.
 
 **Remote process identity** travels differently: the remote client's `WorkerSubject` principals
-are carried inside a serialized `AccessControlContext` transmitted over the JERI wire. A
-`DomainCombiner` on the receiving JVM strips any domain whose `httpmd:` SHA-256 hash does not
-verify or whose `SpiffePrincipal` is outside the trusted SPIFFE trust domain. Verified domains
-participate in `RemotePolicy` checks as call-stack domains and are shed at `doPrivileged`
-boundaries — they are scoped to *where the call came from*, not *who the local process is*.
+are carried inside a serialized `AccessControlContext` transmitted over the JERI wire.
+`AccessControlContextSerializer` encodes verifiable (`httpmd:` / `DigestCodeSource`) domains
+by identity and counts unverifiable domains as `anonCount`. On the receiving JVM, verifiable
+domains are SHA-256–checked and unverifiable ones are reconstructed as anonymous placeholder
+`ProtectionDomain`s — preserving their permission ceilings without asserting a specific
+identity. All domains participate in `RemotePolicy` checks as call-stack domains and are shed
+at `doPrivileged` boundaries — they are scoped to *where the call came from*, not *who the
+local process is*.
 
 This layering means a single server JVM simultaneously holds:
 
 - Its own process worker identity (ambient `WorkerSubject` in every `ProtectionDomain`)
 - Zero or more dispatch threads, each running a `UserSubject` scope for the human caller and
-  carrying verified remote-process domains from the serialized incoming ACC
+  carrying verified and anonymous-placeholder remote-process domains from the serialized incoming ACC
 
 No session state, no thread-local leakage between calls, and no boilerplate in service code.
 
