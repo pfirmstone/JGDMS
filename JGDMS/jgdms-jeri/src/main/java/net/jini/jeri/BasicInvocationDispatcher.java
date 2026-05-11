@@ -257,6 +257,24 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     /** Cached getClassLoader permission */
     private static final Permission getClassLoaderPermission =
 	new RuntimePermission("getClassLoader");
+
+    /**
+     * DirtyChai JDK extension: {@code Subject.callAs(Callable, Subject...)}
+     * varargs method, or {@code null} on a standard JDK.  Cached once at
+     * class-load time via reflection.
+     */
+    private static final Method CALL_AS_MULTI_SUBJECT;
+    static {
+	Method m = null;
+	try {
+	    m = Subject.class.getMethod("callAs", Callable.class, Subject[].class);
+	} catch (NoSuchMethodException ignored) {
+	    // Standard JDK — multi-Subject callAs not available
+	} catch (Exception ignored) {
+	    // Any other reflective failure — treat as not available
+	}
+	CALL_AS_MULTI_SUBJECT = m;
+    }
     
     /**
      * Creates an invocation dispatcher to receive incoming remote calls
@@ -1608,15 +1626,24 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 
     /**
      * Invokes the specified method under the server's worker Subject and, where
-     * present, all of the client's user Subjects, using the following nesting:
+     * present, the client's user Subject(s).
      *
+     * <p>On <b>DirtyChai</b> JDK (where {@code Subject.callAs(Callable, Subject...)}
+     * exists), all user Subjects are passed in a single call:
      * <pre>
-     *   Subject.doAs(workerSubject, () -&gt; {          // ACC; inherited by virtual threads
-     *       Subject.callAs(userSubjects[0], () -&gt; {  // outermost user Subject
-     *           Subject.callAs(userSubjects[1], () -&gt; { // next, if present
-     *               ...
-     *               invoke(...)
-     *           });
+     *   Subject.doAs(workerSubject, () -&gt; {              // ACC; inherited by virtual threads
+     *       Subject.callAs(action, userSubjects[0..n]);  // all user Subjects at once
+     *   });
+     * </pre>
+     *
+     * <p>On a <b>standard JDK</b> (no varargs {@code callAs}), only the first
+     * user Subject is used.  Nesting multiple single-Subject {@code callAs}
+     * calls is incorrect because each inner call shadows the outer one,
+     * leaving only the innermost Subject visible via {@code Subject.current()}:
+     * <pre>
+     *   Subject.doAs(workerSubject, () -&gt; {         // ACC; inherited by virtual threads
+     *       Subject.callAs(userSubjects[0], () -&gt; { // first (only) user Subject
+     *           invoke(...)
      *       });
      *   });
      * </pre>
@@ -1625,12 +1652,6 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * worker identity into the {@code AccessControlContext}.  Any virtual
      * threads spawned during {@link #invoke} inherit that ACC and therefore
      * observe the <em>server's</em> worker identity, not the client's.
-     *
-     * <p>Each {@code Subject.callAs} wraps the previous innermost action so
-     * that on DirtyChai JDK the full {@code Subject[]} array is established in
-     * {@code SCOPED_SUBJECT}, making all user Subjects visible to
-     * {@code Subject.currentAll()}.  On a standard JDK only the innermost
-     * (last in the chain) is visible via {@code Subject.current()}.
      *
      * <p>When no subjects are present, {@link #invoke} is called directly.
      *
@@ -1691,18 +1712,38 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
             dispatchWithContext = dispatchAction;
         }
 
-	// Wrap dispatchWithContext with Subject.callAs for each user Subject,
-	// innermost-first (last Subject in array is the innermost callAs).
-	// The outermost callAs (userSubjects[0]) is therefore the last wrapper
-	// applied here but the first Subject visible via Subject.current() on
-	// DirtyChai, matching the original client-side ordering.
-	Callable<Void> withUsers = dispatchWithContext;
-	for (int i = userSubjects.length - 1; i >= 0; i--) {
-	    final Subject s = userSubjects[i];
-	    final Callable<Void> inner = withUsers;
-	    withUsers = () -> Subject.callAs(s, inner);
+	// Build the Subject.callAs wrapper around dispatchWithContext.
+	//
+	// On DirtyChai the varargs Subject.callAs(Callable, Subject...) method
+	// is available: invoke it once with all user Subjects so the JVM can
+	// establish them together rather than nesting single-Subject calls.
+	//
+	// On a standard JDK only Subject.callAs(Callable, Subject) exists.
+	// Nesting multiple callAs calls is incorrect because each inner call
+	// shadows the outer one; only the first (outermost) Subject is visible
+	// via Subject.current().  We therefore use only userSubjects[0].
+	final Callable<Void> dispatchWithUsers;
+	if (userSubjects.length == 0) {
+	    dispatchWithUsers = dispatchWithContext;
+	} else if (CALL_AS_MULTI_SUBJECT != null && userSubjects.length > 1) {
+	    // DirtyChai path: single varargs call with all subjects.
+	    dispatchWithUsers = () -> {
+		try {
+		    CALL_AS_MULTI_SUBJECT.invoke(null, dispatchWithContext,
+						(Object) userSubjects);
+		} catch (InvocationTargetException ite) {
+		    Throwable cause = ite.getCause();
+		    if (cause instanceof Exception) throw (Exception) cause;
+		    if (cause instanceof Error)     throw (Error)     cause;
+		    throw ite;
+		}
+		return null;
+	    };
+	} else {
+	    // Standard JDK path: use only the first Subject.
+	    final Subject first = userSubjects[0];
+	    dispatchWithUsers = () -> Subject.callAs(first, dispatchWithContext);
 	}
-	final Callable<Void> dispatchWithUsers = withUsers;
 
 	if (workerSubject != null) {
 	    /*

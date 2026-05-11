@@ -41,19 +41,13 @@ import javax.security.auth.Subject;
  *       {@link #getUserSubject()} for single-subject callers.</li>
  * </ul>
  *
- * <p>On the server side the dispatcher reconstructs all Subjects and runs the
- * invocation with each user Subject nested inside the previous via
- * {@code Subject.callAs}:
- * <pre>
- *   Subject.doAs(workerSubject, () -&gt; {          // ACC; virtual threads inherit
- *       Subject.callAs(userSubjects[0], () -&gt; {  // outermost user Subject
- *           Subject.callAs(userSubjects[1], () -&gt; { // next user Subject, if any
- *               ...
- *               invoke(...)
- *           });
- *       });
- *   });
- * </pre>
+ * <p>On the server side the dispatcher reconstructs all Subjects.  On a
+ * DirtyChai JDK (where {@code Subject.callAs(Callable, Subject...)} is
+ * available) all Subjects are established in a single call so that
+ * {@code Subject.currentAll()} returns them all.  On a standard JDK only
+ * the first Subject is established via {@code Subject.callAs}; nesting
+ * multiple single-Subject calls is incorrect because each inner call would
+ * shadow the outer one.
  *
  * <p>The user principals are <em>asserted</em> by the authenticated client
  * worker; they are not independently verified by TLS.  Callers should
