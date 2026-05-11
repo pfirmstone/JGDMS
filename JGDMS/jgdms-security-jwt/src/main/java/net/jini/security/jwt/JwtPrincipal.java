@@ -52,7 +52,7 @@ import java.util.Objects;
  *
  * <h2>Wire transmission</h2>
  * {@code JwtPrincipal} is transmitted over JERI by
- * {@code BasicInvocationHandler.writeUserPrincipals} as a
+ * {@code BasicInvocationHandler.writeUserSubjects} as a
  * {@code (className, name)} pair and reconstructed on the receiving JVM by
  * {@code BasicInvocationDispatcher.instantiatePrincipal} via the public
  * {@code JwtPrincipal(String)} constructor.  No dispatcher changes are

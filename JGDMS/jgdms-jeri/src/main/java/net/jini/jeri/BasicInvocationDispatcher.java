@@ -53,13 +53,16 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
@@ -83,7 +86,6 @@ import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.io.context.ClientUserSubject;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashSet;
 import java.util.concurrent.Callable;
 import org.apache.river.api.io.AccessControlContextSerializer;
 
@@ -173,10 +175,17 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     static final byte VERSION_WITH_PRINCIPALS_AND_ACC = 0x02;
 
     /**
-     * Maximum number of user principals accepted from the wire in a single
-     * request (protocol version 0x02).  A real Subject rarely carries more
-     * than a handful of principals; this cap prevents a malicious peer from
-     * forcing unbounded allocation.
+     * Maximum number of user Subjects accepted from the wire in a single
+     * request (protocol version 0x02).  A real multi-party transaction rarely
+     * carries more than a handful of Subjects; this cap prevents a malicious
+     * peer from forcing unbounded allocation.
+     */
+    private static final int MAX_USER_SUBJECTS = 16;
+    /**
+     * Maximum number of user principals accepted per Subject from the wire in
+     * a single request (protocol version 0x02).  A real Subject rarely carries
+     * more than a handful of principals; this cap prevents a malicious peer
+     * from forcing unbounded allocation.
      */
     private static final int MAX_USER_PRINCIPALS = 64;
     private static final int MAX_ACC_BLOCK_BYTES = 1024 * 1024;
@@ -522,10 +531,26 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * is being enforced.
      *
      * <li>If the version byte is <code>0x02</code>, integrity, atomicValidation,
-     * user principals, and a serialized {@link java.security.AccessControlContext}
-     * are read in addition to the above. The user principals are reconstructed
-     * into a read-only {@link javax.security.auth.Subject} stored in the server
-     * context as a {@link net.jini.jeri.ClientUserSubject}.
+     * one or more user Subject blocks, and a serialized
+     * {@link java.security.AccessControlContext} are read in addition to the
+     * above.  The user Subjects are reconstructed into read-only
+     * {@link javax.security.auth.Subject} instances stored together in the
+     * server context as a single {@link net.jini.jeri.ClientUserSubject}
+     * element; all Subjects are accessible via
+     * {@link net.jini.io.context.ClientUserSubject#getUserSubjects()} and
+     * the outermost (first) Subject via
+     * {@link net.jini.io.context.ClientUserSubject#getUserSubject()}.
+     * The wire format of the user-Subject block is:
+     * <pre>
+     *   subjectCount    : unsigned 16-bit big-endian
+     *   for each Subject:
+     *     principalCount  : unsigned 16-bit big-endian
+     *     for each principal:
+     *       classNameLength : unsigned 16-bit big-endian
+     *       classNameBytes  : UTF-8
+     *       nameLength      : unsigned 16-bit big-endian
+     *       nameBytes       : UTF-8
+     * </pre>
      *
      * <li>The {@link #createMarshalInputStream createMarshalInputStream}
      * method of this invocation dispatcher is called, passing the remote
@@ -629,7 +654,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	boolean integrity;
 	boolean supportsAtomicValidation;
 	boolean atomicValidation = false;
-	boolean hasUserPrincipals = false;
+	boolean hasUserSubjects = false;
         boolean hasSerializedAcc = false;
         AccessControlContext remoteIdentityContext = null;
 	try {
@@ -638,7 +663,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    switch (versionByte) {
 		case VERSION_WITH_PRINCIPALS_AND_ACC:
 		    supportsAtomicValidation = true;
-		    hasUserPrincipals = true;
+		    hasUserSubjects = true;
                     hasSerializedAcc = true;
 		    break;
 		case VERSION:
@@ -679,10 +704,10 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    atomicValidation = true;
 		}
 	    }
-	    if (hasUserPrincipals) {
-		Set<Principal> userPrincipals = readUserPrincipals(rin);
-		if (!userPrincipals.isEmpty()) {
-		    addUserSubjectToContext(context, userPrincipals);
+	    if (hasUserSubjects) {
+		List<Subject> userSubjects = readUserSubjects(rin);
+		if (!userSubjects.isEmpty()) {
+		    addUserSubjectsToContext(context, userSubjects);
 		}
 	    }
             if (hasSerializedAcc) {
@@ -758,17 +783,19 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	
 	    /*
 	     * Invoke method on remote object under both the server's worker
-	     * Subject and (where present) the client's user Subject.
+	     * Subject and (where present) all of the client's user Subjects.
 	     *
-	     * Subject.doAs(workerSubject, ...)  ← sets ACC; virtual threads inherit
-	     *   Subject.callAs(userSubject, ...)  ← ScopedValue; dispatch thread only
-	     *     invoke(...)
+	     * Subject.doAs(workerSubject, ...)           ← sets ACC; virtual threads inherit
+	     *   Subject.callAs(userSubjects[0], ...)     ← outermost user Subject; dispatch thread only
+	     *     Subject.callAs(userSubjects[1], ...)   ← next user Subject, if present
+	     *       ...
+	     *         invoke(...)
 	     *
 	     * Virtual threads spawned during the invocation therefore inherit the
 	     * SERVER's worker identity (from the ACC), not the client's user
-	     * identity.  Server code that needs to propagate the user Subject
-	     * across a thread boundary must capture Subject.current() and
-	     * re-establish it with a nested Subject.callAs in the new thread.
+	     * identity.  Server code that needs to propagate user Subjects
+	     * across a thread boundary must capture Subject.currentAll() and
+	     * re-establish them with nested Subject.callAs calls in the new thread.
 	     */
 	    try {
 		returnValue = invokeWithClientSubject(impl, method, args, context, remoteIdentityContext);
@@ -1563,30 +1590,33 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Returns the user Subject assembled from the principals transmitted in
-     * the wire-protocol header, or {@code null} if no user principals were
+     * Returns all user Subjects assembled from the principals transmitted in
+     * the wire-protocol header, or an empty array if no user Subjects were
      * present in the request.
      */
-    private static Subject getUserSubject() {
-	return AccessController.doPrivileged((PrivilegedAction<Subject>) () -> {
+    private static Subject[] getUserSubjects() {
+	return AccessController.doPrivileged((PrivilegedAction<Subject[]>) () -> {
 	    try {
 		ClientUserSubject cus = (ClientUserSubject)
 		    ServerContext.getServerContextElement(ClientUserSubject.class);
-		return cus != null ? cus.getUserSubject() : null;
+		return cus != null ? cus.getUserSubjects() : new Subject[0];
 	    } catch (ServerNotActiveException e) {
-		return null;
+		return new Subject[0];
 	    }
 	});
     }
 
     /**
-     * Invokes the specified method under both the server's worker Subject and
-     * (where present) the client's user Subject, using the following nesting:
+     * Invokes the specified method under the server's worker Subject and, where
+     * present, all of the client's user Subjects, using the following nesting:
      *
      * <pre>
-     *   Subject.doAs(workerSubject, () -&gt; {     // ACC; inherited by virtual threads
-     *       Subject.callAs(userSubject, () -&gt; { // ScopedValue; dispatch thread only
-     *           invoke(...)
+     *   Subject.doAs(workerSubject, () -&gt; {          // ACC; inherited by virtual threads
+     *       Subject.callAs(userSubjects[0], () -&gt; {  // outermost user Subject
+     *           Subject.callAs(userSubjects[1], () -&gt; { // next, if present
+     *               ...
+     *               invoke(...)
+     *           });
      *       });
      *   });
      * </pre>
@@ -1596,11 +1626,11 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * threads spawned during {@link #invoke} inherit that ACC and therefore
      * observe the <em>server's</em> worker identity, not the client's.
      *
-     * <p>The inner {@code Subject.callAs} establishes {@code Subject.current()}
-     * for the dispatch thread only via a {@code ScopedValue}.  It does not
-     * propagate to new threads.  Server code that needs the user Subject
-     * across a thread boundary must capture {@code Subject.current()} and
-     * re-establish it with a nested {@code Subject.callAs} in the spawned thread.
+     * <p>Each {@code Subject.callAs} wraps the previous innermost action so
+     * that on DirtyChai JDK the full {@code Subject[]} array is established in
+     * {@code SCOPED_SUBJECT}, making all user Subjects visible to
+     * {@code Subject.currentAll()}.  On a standard JDK only the innermost
+     * (last in the chain) is visible via {@code Subject.current()}.
      *
      * <p>When no subjects are present, {@link #invoke} is called directly.
      *
@@ -1621,9 +1651,9 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	throws Throwable
     {
 	final Subject workerSubject = getClientSubject();
-	final Subject userSubject   = getUserSubject();
+	final Subject[] userSubjects = getUserSubjects();
 
-	if (workerSubject == null && userSubject == null) {
+	if (workerSubject == null && userSubjects.length == 0) {
 	    return invoke(impl, method, args, context);
 	}
 
@@ -1661,6 +1691,19 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
             dispatchWithContext = dispatchAction;
         }
 
+	// Wrap dispatchWithContext with Subject.callAs for each user Subject,
+	// innermost-first (last Subject in array is the innermost callAs).
+	// The outermost callAs (userSubjects[0]) is therefore the last wrapper
+	// applied here but the first Subject visible via Subject.current() on
+	// DirtyChai, matching the original client-side ordering.
+	Callable<Void> withUsers = dispatchWithContext;
+	for (int i = userSubjects.length - 1; i >= 0; i--) {
+	    final Subject s = userSubjects[i];
+	    final Callable<Void> inner = withUsers;
+	    withUsers = () -> Subject.callAs(s, inner);
+	}
+	final Callable<Void> dispatchWithUsers = withUsers;
+
 	if (workerSubject != null) {
 	    /*
 	     * Worker subject is present: Subject.doAs places the server's TLS
@@ -1669,27 +1712,22 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	     * This ACC-inheritance semantic is precisely why doAs is used here;
 	     * Subject.callAs (ScopedValue-based) does not propagate to new threads.
 	     *
-	     * When a user subject is also present, wrap dispatchAction in an
-	     * additional Subject.callAs so that Subject.current() returns the
-	     * user Subject on the dispatch thread, while virtual threads still
-	     * inherit the worker identity from the ACC.
+	     * When user subjects are also present, wrap dispatchWithContext in
+	     * the chain of Subject.callAs calls built above.
 	     */
-	    final Callable<Void> withUser = (userSubject != null)
-		? () -> Subject.callAs(userSubject, dispatchWithContext)
-		: dispatchWithContext;
 	    Subject.doAs(workerSubject, (PrivilegedAction<Void>) () -> {
 		try {
-		    withUser.call();
+		    dispatchWithUsers.call();
 		} catch (Exception e) {
 		    if (thrown[0] == null) thrown[0] = e;
 		}
 		return null;
 	    });
 	} else {
-	    // User subject only: Subject.callAs establishes Subject.current()
+	    // User subjects only: callAs chain establishes Subject.current()
 	    // via ScopedValue for the dispatch thread.
 	    try {
-		Subject.callAs(userSubject, dispatchWithContext);
+		dispatchWithUsers.call();
 	    } catch (Exception e) {
 		if (thrown[0] == null) thrown[0] = e;
 	    }
@@ -1702,20 +1740,22 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /* ---------------------------------------------------------------------- */
-    /* User-principal helpers for protocol version 0x02                        */
+    /* User-Subject helpers for protocol version 0x02                          */
     /* ---------------------------------------------------------------------- */
 
     /**
-     * Reads the user-principal block written by
-     * {@link BasicInvocationHandler#writeUserPrincipals} from the request
+     * Reads the multi-Subject block written by
+     * {@link BasicInvocationHandler#writeUserSubjects} from the request
      * input stream.  The format is:
      * <pre>
-     *   principalCount  : unsigned 16-bit big-endian
-     *   for each principal:
-     *     classNameLength : unsigned 16-bit big-endian
-     *     classNameBytes  : UTF-8
-     *     nameLength      : unsigned 16-bit big-endian
-     *     nameBytes       : UTF-8
+     *   subjectCount      : unsigned 16-bit big-endian
+     *   for each Subject:
+     *     principalCount  : unsigned 16-bit big-endian
+     *     for each principal:
+     *       classNameLength : unsigned 16-bit big-endian
+     *       classNameBytes  : UTF-8
+     *       nameLength      : unsigned 16-bit big-endian
+     *       nameBytes       : UTF-8
      * </pre>
      *
      * <p>Each principal is reconstructed by calling
@@ -1726,33 +1766,45 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * without loading untrusted code.
      *
      * <p>To guard against malicious or malformed input, at most
-     * {@value #MAX_USER_PRINCIPALS} principals are accepted and each UTF-8
-     * string field is limited to {@value #MAX_STRING_BYTES} bytes. Insertion
-     * order is preserved via {@link java.util.LinkedHashSet}.
+     * {@value #MAX_USER_SUBJECTS} Subjects and at most
+     * {@value #MAX_USER_PRINCIPALS} principals per Subject are accepted; each
+     * UTF-8 string field is limited to {@value #MAX_STRING_BYTES} bytes.
+     * Insertion order is preserved via {@link java.util.LinkedHashSet}.
      *
-     * @throws IOException if the count or any string length exceeds the
+     * @throws IOException if any count or string length exceeds the
      *         respective limit, or if the stream ends prematurely
      */
-    private static Set<Principal> readUserPrincipals(InputStream in)
+    private static List<Subject> readUserSubjects(InputStream in)
 	throws IOException
     {
-	int count = readUnsignedShort(in);
-	if (count == 0) {
-	    return Collections.emptySet();
+	int subjectCount = readUnsignedShort(in);
+	if (subjectCount == 0) {
+	    return Collections.emptyList();
 	}
-	if (count > MAX_USER_PRINCIPALS) {
+	if (subjectCount > MAX_USER_SUBJECTS) {
 	    throw new IOException(
-		"User-principal count " + count
-		+ " exceeds limit of " + MAX_USER_PRINCIPALS);
+		"User-Subject count " + subjectCount
+		+ " exceeds limit of " + MAX_USER_SUBJECTS);
 	}
-	Set<Principal> principals = new LinkedHashSet<>((int)(count / 0.75) + 1);
-	for (int i = 0; i < count; i++) {
-	    String className = readUtf8Prefixed(in, MAX_STRING_BYTES);
-	    String name      = readUtf8Prefixed(in, MAX_STRING_BYTES);
-	    Principal p = instantiatePrincipal(className, name);
-	    principals.add(p);
+	List<Subject> subjects = new ArrayList<>(subjectCount);
+	for (int si = 0; si < subjectCount; si++) {
+	    int principalCount = readUnsignedShort(in);
+	    if (principalCount > MAX_USER_PRINCIPALS) {
+		throw new IOException(
+		    "User-principal count " + principalCount
+		    + " in Subject " + si + " exceeds limit of " + MAX_USER_PRINCIPALS);
+	    }
+	    Set<Principal> principals = new LinkedHashSet<>((int)(principalCount / 0.75) + 1);
+	    for (int i = 0; i < principalCount; i++) {
+		String className = readUtf8Prefixed(in, MAX_STRING_BYTES);
+		String name      = readUtf8Prefixed(in, MAX_STRING_BYTES);
+		Principal p = instantiatePrincipal(className, name);
+		principals.add(p);
+	    }
+	    subjects.add(new Subject(true, principals,
+				     Collections.emptySet(), Collections.emptySet()));
 	}
-	return principals;
+	return subjects;
     }
 
     /**
@@ -1791,36 +1843,32 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Server context element carrying the user Subject assembled from the
+     * Server context element carrying all user Subjects assembled from the
      * principals transmitted in the JERI request header.
      */
     private static final class UserSubjectImpl implements ClientUserSubject {
-	private final Subject userSubject;
-	UserSubjectImpl(Subject userSubject) { this.userSubject = userSubject; }
-	public Subject getUserSubject() { return userSubject; }
+	private final Subject[] userSubjects;
+	UserSubjectImpl(List<Subject> userSubjects) {
+	    this.userSubjects = userSubjects.toArray(new Subject[0]);
+	}
+	public Subject[] getUserSubjects() { return userSubjects.clone(); }
     }
 
     /**
-     * Creates a read-only user Subject from {@code userPrincipals} and adds it
-     * to {@code context} as a {@link ClientUserSubject} element.
+     * Creates read-only user Subjects from {@code userSubjectList} and adds a
+     * {@link ClientUserSubject} element to {@code context}.
      *
-     * <p>The user Subject is kept completely separate from the worker Subject
-     * held in the existing {@link ClientSubject} context element.  The
-     * dispatcher later wraps the invocation with
-     * {@code Subject.doAs(workerSubject, () -> Subject.callAs(userSubject,
-     * () -> invoke(...)))}, ensuring virtual threads inherit only the server's
-     * worker identity.
+     * <p>Each Subject in the list is already read-only and principal-only;
+     * they are kept completely separate from the worker Subject held in the
+     * existing {@link ClientSubject} context element.  The dispatcher later
+     * wraps the invocation in a chain of {@code Subject.callAs} calls,
+     * ensuring virtual threads inherit only the server's worker identity.
      */
     @SuppressWarnings("unchecked")
-    private static void addUserSubjectToContext(Collection context,
-						Set<Principal> userPrincipals)
+    private static void addUserSubjectsToContext(Collection context,
+						 List<Subject> userSubjectList)
     {
-	Subject userSubject = new Subject(
-		true, /* read-only */
-		userPrincipals,
-		Collections.emptySet(),
-		Collections.emptySet());
-	context.add(new UserSubjectImpl(userSubject));
+	context.add(new UserSubjectImpl(userSubjectList));
     }
 
     private static int readUnsignedShort(InputStream in) throws IOException {
