@@ -143,6 +143,16 @@ public class InMemoryPolicyServiceImpl {
     private final Semaphore dispatchSemaphore = new Semaphore(MAX_CONCURRENT_DISPATCHES);
 
     /**
+     * Guards the size check + map insertion in
+     * {@link #registerForPolicyUpdates} to prevent TOCTOU races when multiple
+     * threads race to register near the {@link #MAX_LISTENER_REGISTRATIONS} cap.
+     */
+    private final Object registrationLock = new Object();
+
+    /** Reference to the lease-sweep daemon thread; interrupted on {@link #shutdown()}. */
+    private volatile Thread leaseSweepThread;
+
+    /**
      * Parser used to convert String[] grants to PermissionGrant[].
      * DefaultPolicyParser is effectively thread-safe (stateless per parse call).
      */
@@ -252,7 +262,7 @@ public class InMemoryPolicyServiceImpl {
      * bound.
      */
     private void startLeaseSweepDaemon() {
-        Thread.ofVirtual()
+        leaseSweepThread = Thread.ofVirtual()
               .name("JGDMS-PolicyService-LeaseSweep")
               .start(() -> {
                   while (!Thread.currentThread().isInterrupted()) {
@@ -378,23 +388,26 @@ public class InMemoryPolicyServiceImpl {
                                                       long duration)
             throws RemoteException {
         if (listener == null) throw new NullPointerException("listener");
-        // §16.2 Option A: hard cap prevents unbounded map growth under flooding.
-        if (listenerRegistrations.size() >= MAX_LISTENER_REGISTRATIONS) {
-            throw new RemoteException("listener registration limit reached");
+        // §16.2 Option A: synchronized check + put prevents TOCTOU races that
+        // could allow the map to slightly exceed MAX_LISTENER_REGISTRATIONS.
+        synchronized (registrationLock) {
+            if (listenerRegistrations.size() >= MAX_LISTENER_REGISTRATIONS) {
+                throw new RemoteException("listener registration limit reached");
+            }
+            if (duration <= 0) duration = MAX_LISTENER_LEASE_DURATION;
+            long granted = Math.min(duration, MAX_LISTENER_LEASE_DURATION);
+            long expiration = System.currentTimeMillis() + granted;
+
+            Uuid leaseId  = UuidFactory.generate();
+            long eventId  = nextEventId.getAndIncrement();
+
+            ListenerRegistration reg = new ListenerRegistration(
+                    leaseId, eventId, expiration, listener, handback);
+            listenerRegistrations.put(leaseId, reg);
+
+            PolicyEventLease lease = new PolicyEventLease(eventSource, leaseId, expiration);
+            return new EventRegistration(eventId, eventSource, lease, 0L);
         }
-        if (duration <= 0) duration = MAX_LISTENER_LEASE_DURATION;
-        long granted = Math.min(duration, MAX_LISTENER_LEASE_DURATION);
-        long expiration = System.currentTimeMillis() + granted;
-
-        Uuid leaseId  = UuidFactory.generate();
-        long eventId  = nextEventId.getAndIncrement();
-
-        ListenerRegistration reg = new ListenerRegistration(
-                leaseId, eventId, expiration, listener, handback);
-        listenerRegistrations.put(leaseId, reg);
-
-        PolicyEventLease lease = new PolicyEventLease(eventSource, leaseId, expiration);
-        return new EventRegistration(eventId, eventSource, lease, 0L);
     }
 
     /**
@@ -439,11 +452,13 @@ public class InMemoryPolicyServiceImpl {
     }
 
     /**
-     * Shuts down the event-dispatch thread pool.  Should be called on service
-     * destroy.
+     * Shuts down the event-dispatch executor and the lease-sweep daemon thread.
+     * Should be called on service destroy.
      */
     public void shutdown() {
         eventDispatcher.shutdown();
+        Thread sweeper = leaseSweepThread;
+        if (sweeper != null) sweeper.interrupt();
     }
 
     // -------------------------------------------------------------------------
@@ -484,19 +499,26 @@ public class InMemoryPolicyServiceImpl {
                 continue;
             }
             try {
-                final SendPolicyUpdateTask task = new SendPolicyUpdateTask(reg, seqNum);
-                eventDispatcher.submit(() -> {
-                    try {
-                        task.run();
-                    } finally {
-                        dispatchSemaphore.release();
-                    }
-                });
+                eventDispatcher.submit(withSemaphoreRelease(new SendPolicyUpdateTask(reg, seqNum)));
             } catch (Exception e) {
                 dispatchSemaphore.release();
                 logger.log(Level.WARNING,
                         "Could not submit PolicyUpdateEvent dispatch task", e);
             }
         }
+    }
+
+    /**
+     * Wraps a task so that {@link #dispatchSemaphore} is released in a
+     * {@code finally} block regardless of how the task completes.
+     */
+    private Runnable withSemaphoreRelease(Runnable task) {
+        return () -> {
+            try {
+                task.run();
+            } finally {
+                dispatchSemaphore.release();
+            }
+        };
     }
 }
