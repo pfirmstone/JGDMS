@@ -12,8 +12,22 @@ context. It supersedes and extends v26.
 
 ## v27 Change Summary
 
-This version documents the **security fix for a TOCTOU context-confusion race** in
-the Work Item 28 ACC serialisation cache, and marks Work Item 28 and §16.5 complete.
+This version documents two independent changes:
+
+1. **Security fix for a TOCTOU context-confusion race** in the Work Item 28 ACC
+   serialisation cache — marks Work Item 28 and §16.5 complete.
+2. **ThreadGroup removal plan** — a full architectural analysis of every JGDMS site
+   that currently holds a `ThreadGroup` reference for security or isolation purposes,
+   and a concrete migration plan.
+
+**Platform context (ThreadGroup / SecurityManager):**  `SecurityManager` is deprecated
+for removal in JDK 17–23 and is fully disabled in JDK 24+, so neither
+`modifyThreadGroup` nor `createPlatformThread` is enforced at runtime on standard JDK
+builds.  **DirtyChai** is the preferred high-security platform, where `SecurityManager`
+remains active; `Thread.ofPlatform().unstarted()` / `Thread.ofVirtual().unstarted()` are
+guarded by `RuntimePermission("createPlatformThread")` / `"createVirtualThread"`
+respectively, already tracked by `BlockingSinkRegistry`.  The ThreadGroup removal is
+code hygiene on standard JDK and a real security-gate improvement on DirtyChai.
 
 **New/changed in v27:**
 
@@ -25,6 +39,14 @@ the Work Item 28 ACC serialisation cache, and marks Work Item 28 and §16.5 comp
 - **§16.5** — marked ✅ COMPLETED (HIGH Security Bug, v27).  Documents the
   context-confusion / impersonation vulnerability in the previous three-field design
   and describes the `AccSerialCache` holder fix.
+
+- **§17 ThreadGroup Removal — Security Enforcement Migration** — new section with
+  per-site analysis, three architecture options per site, ranked recommendations, and
+  an updated policy-file change table.  §17.1 explicitly documents the JDK 17–23
+  (deprecated) / JDK 24+ (disabled) / DirtyChai (active) enforcement distinction.
+- **§12 work item 33** — new work item for the ThreadGroup removal.
+- **§13** — one new design-decision row (`ThreadGroup` not a security boundary;
+  `createPlatformThread` gate on DirtyChai).
 
 ---
 
@@ -1798,6 +1820,20 @@ executor.submit(() -> {
       `AccessControlContextSerializer.unmarshalDigestFromTransport()`.
     - Tests: `MultiSubjectWireProtocolTest` — 6 tests pass (wire-protocol round-trip +
       `CURRENT_ALL_METHOD` caching + `getAllUserSubjects()` under `Subject.callAs`).
+33. **ThreadGroup removal — migrate to `createPlatformThread`/`createVirtualThread`** — *(not yet started; documented in §17)*
+    - Remove `systemThreadGroup` / `userThreadGroup` static fields from `NewThreadAction`;
+      replace `new Thread(group, …)` in `run()` with `Thread.ofPlatform().name(…).stackSize(…).daemon(…).unstarted(runnable)`.
+    - Drop `ThreadGroup` parameter from `TPThreadFactory` and `ThreadPool(ThreadGroup)` constructor;
+      `GetThreadPoolAction` constructs `ThreadPool()` directly.
+    - Delete `ThreadGroupAction` + `CreateThread` inner classes from `ReferenceProcessor.SystemThreadFactory`;
+      replace with a single `AccessController.doPrivileged` block using `Thread.ofPlatform()`.
+    - Remove `ThreadGroup group` field, `ThreadDesc(ThreadGroup, boolean[, int])` constructors, and `getGroup()`
+      from `WakeupManager.ThreadDesc` (all callers already pass `null`).
+    - Deprecate (`forRemoval=true`) the four `ThreadGroup`-accepting constructors in `InterruptedStatusThread`.
+    - In all 16 QA harness `.policy` files: replace `RuntimePermission "modifyThreadGroup"` grants on
+      `collections.jar` / `jeri.jar` with `RuntimePermission "createPlatformThread"`.
+    - Update `ThreadPoolPermission` Javadoc — remove the never-implemented claim about
+      `SecurityManager.checkAccess(ThreadGroup)`.
 
 ---
 
@@ -1908,6 +1944,7 @@ executor.submit(() -> {
 | **`marshalForTransport()` early-return must check `anonCount == 0`** | ✅ **v25 (pending):** Returning empty bytes when `records.isEmpty()` but `anonCount > 0` silently drops anonymous-domain permission ceilings — same class of privilege escalation as §10.2.1.  Fix: guard on `records.isEmpty() && anonCount == 0`. |
 | **Virtual-thread executor + semaphore cap for policy-service event delivery** | ✅ **v25 (recommended, pending):** `newVirtualThreadPerTaskExecutor()` prevents I/O blocking on platform threads; semaphore cap (500 permits) bounds in-flight deliveries; requires `<release>21</release>` in module `pom.xml`. |
 | **`MAX_LISTENER_REGISTRATIONS` cap in `registerForPolicyUpdates()`** | ✅ **v25 (recommended, pending):** Any authenticated caller can flood the listener map; a hard cap (1 000) plus a daemon virtual-thread lease-expiry sweep are the two necessary controls. |
+| **`ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup` on DirtyChai** | ✅ **v27:** `ThreadGroup` was designed for applet sandbox isolation and was never an effective security boundary. On JDK 17–23, `SecurityManager` is deprecated for removal; on JDK 24+, `SecurityManager` is disabled — neither `modifyThreadGroup` nor `createPlatformThread` is checked at runtime on standard JDK builds; the cleanup is code hygiene. On **DirtyChai** (the preferred high-security platform), `SecurityManager` is still active; `Thread.ofPlatform().unstarted()` triggers `RuntimePermission("createPlatformThread")` and `Thread.ofVirtual().unstarted()` triggers `RuntimePermission("createVirtualThread")`. `BlockingSinkRegistry` already maps both `ThreadBuilders$PlatformThreadBuilder/unstarted` and `ThreadBuilders$VirtualThreadBuilder/unstarted` to those permissions. Replacing `new Thread(group, …)` with `Thread.ofPlatform().unstarted(…)` removes dead applet-era boilerplate on all platforms and creates the explicit DirtyChai policy gate. |
 
 ---
 
@@ -2729,6 +2766,360 @@ the root pom's `<release>8</release>`, matching the pattern used by
 
 ---
 
+## 17. ThreadGroup Removal — Security Enforcement Migration
+
+### 17.1 Background and Motivation
+
+`ThreadGroup` was designed for applet sandbox isolation and was **never an effective
+security boundary**.  The relevant method, `SecurityManager.checkAccess(ThreadGroup)`,
+has been a no-op in every standard JDK since JDK 17 (and is only non-trivial if a
+`SecurityManager` is installed).  `ThreadGroup.getParent()` traversal (used in
+`NewThreadAction` and `ReferenceProcessor`) requires `RuntimePermission("modifyThreadGroup")`,
+but the only thing that privilege buys is the ability to name the thread group that a
+new thread is placed in — a completely irrelevant capability for a middleware security
+framework.
+
+**Platform context: three distinct states across JDK versions**
+
+| Deployment target | SecurityManager status | `createPlatformThread` enforced? |
+|---|---|---|
+| **JDK 17–23** | Deprecated for removal (present but no-op unless explicitly installed) | **No** — permission is never checked; cleanup is code hygiene only |
+| **JDK 24+** | Disabled — `SecurityManager` API throws `UnsupportedOperationException` | **No** — permission is never checked; cleanup is code hygiene only |
+| **DirtyChai (preferred high-security platform)** | Active; all `AccessController` and `SecurityManager` checks are functional | **Yes** — `Thread.ofPlatform().unstarted()` triggers `RuntimePermission("createPlatformThread")` via DirtyChai's SecurityManager |
+
+JGDMS's high-security deployment model targets **DirtyChai** as the primary platform.
+Standard JDK deployments still benefit from removing the dead `ThreadGroup` code
+(simpler, no root-group walk, no applet-era `PrivilegedAction` boilerplate), but the
+permission-gate motivation below applies to DirtyChai deployments.
+
+**Security gates in JGDMS for thread creation**
+
+- `GetThreadPoolAction` and `ThreadPoolPermission` enforce that only code holding
+  `ThreadPoolPermission("getSystemThreadPool")` or `ThreadPoolPermission("getUserThreadPool")`
+  can obtain a thread pool.  That gate is `AccessController`-based and is enforced on
+  both DirtyChai and vanilla JDK deployments.
+- On **DirtyChai**: JDK 21 `Thread.ofPlatform()` / `Thread.ofVirtual()` builders call
+  `ThreadBuilders$PlatformThreadBuilder.unstarted()` /
+  `ThreadBuilders$VirtualThreadBuilder.unstarted()`, which DirtyChai guards with
+  `RuntimePermission("createPlatformThread")` and `RuntimePermission("createVirtualThread")`
+  respectively.
+- `BlockingSinkRegistry` (bytecode-analysis-engine) already maps both sink methods to
+  those permissions (see `SINK_TO_PERMISSION_CLASS`), so the static-analysis pipeline
+  flags code that calls them without the matching grant.
+
+Replacing `new Thread(group, …)` with `Thread.ofPlatform().unstarted(…)` therefore
+**removes dead applet-era boilerplate** on all platforms and **automatically creates
+an explicit DirtyChai policy gate** without any additional change.  No
+`modifyThreadGroup` grant is needed in any policy file once this migration is complete.
+
+---
+
+### 17.2 Affected Sites
+
+| File | ThreadGroup role | Line(s) |
+|---|---|---|
+| `jgdms-collections/…/thread/NewThreadAction.java` | `systemThreadGroup` / `userThreadGroup` static fields (root-group walk at class-load); `group` instance field; `new Thread(group, r, name, stackSize)` | 49–71, 77, 140 |
+| `jgdms-collections/…/thread/ThreadPool.java` | `TPThreadFactory(ThreadGroup)` constructor; `threadGroup` field; delegates to `NewThreadAction(threadGroup, r, …)` | 97, 197–208 |
+| `jgdms-collections/…/thread/GetThreadPoolAction.java` | `new ThreadPool(NewThreadAction.systemThreadGroup)` / `new ThreadPool(NewThreadAction.userThreadGroup)` | 53, 57 |
+| `jgdms-collections/…/thread/ThreadPoolPermission.java` | Javadoc: *"permission to access the thread group"* / *"SecurityManager.checkAccess(ThreadGroup)"* | 36–38 |
+| `jgdms-collections/…/concurrent/ReferenceProcessor.java` | `SystemThreadFactory`: `ThreadGroupAction` (privileged root-group walk) + `CreateThread` (group-bound `new Thread`) | 267–322 |
+| `jgdms-platform/…/thread/wakeup/WakeupManager.java` | `ThreadDesc.group` field; `ThreadDesc(ThreadGroup, boolean)` / `ThreadDesc(ThreadGroup, boolean, int)` constructors; `getGroup()` method; `ThreadDesc.thread()` branches on `getGroup() == null` | 179–268 |
+| `jgdms-collections/…/thread/InterruptedStatusThread.java` | Public `InterruptedStatusThread(ThreadGroup, …)` constructors | (public API — deprecate only) |
+| 16 × `qa/harness/policy/*.policy` | `permission java.lang.RuntimePermission "modifyThreadGroup"` on `collections.jar` / `jeri.jar` | see §17.7 |
+
+---
+
+### 17.3 Site-by-Site Analysis and Options
+
+#### 17.3.1 `NewThreadAction` + `ThreadPool` + `GetThreadPoolAction`
+
+These three classes form a single unit.  `NewThreadAction.run()` is the only place
+the actual `Thread` is constructed.
+
+**Option A — `Thread.ofPlatform()` builder (recommended)**
+
+Replace the `new Thread(group, r, name, stackSize)` call in `NewThreadAction.run()` with:
+
+```java
+Thread t = Thread.ofPlatform()
+    .name(NAME_PREFIX + name)
+    .stackSize(stackSize)
+    .daemon(daemon)
+    .unstarted(runnable);
+t.setContextClassLoader(ClassLoader.getSystemClassLoader());
+```
+
+- The `Thread.ofPlatform()` call triggers `RuntimePermission("createPlatformThread")`
+  in DirtyChai — the correct explicit gate.
+- Remove `systemThreadGroup` / `userThreadGroup` static fields.  The root-group walk
+  `AccessController.doPrivileged` block in their initializers is eliminated.
+- Remove the `ThreadGroup group` instance field and the two package-private
+  `NewThreadAction(ThreadGroup, …)` constructors.  The two public constructors
+  retain their signatures unchanged; the `user` boolean parameter becomes a no-op
+  (document in Javadoc for backward source-compatibility).
+- Remove `getClassLoaderPermission` field and the `sm.checkPermission(…)` call in
+  `run()` — it existed solely to satisfy the `ThreadGroup` access check and
+  duplicates the `createPlatformThread` guard now provided by the builder.
+- `TPThreadFactory.newThread(r)` removes the `ThreadGroup threadGroup` field and
+  constructor parameter; delegates to the parameterless two-arg form.
+- `ThreadPool(ThreadGroup)` → replaced by `ThreadPool()` (calls the private
+  `ThreadPool(ExecutorService)` with `Executors.newCachedThreadPool(new TPThreadFactory())`).
+- `GetThreadPoolAction`: both `systemPool` and `userPool` singletons call `new ThreadPool()`.
+
+*Pros:* Minimal change; two-pool split and `ThreadPoolPermission` gate preserved;
+no caller API changes; `jgdms-collections` module release stays at Java 8 (builder
+API is back-compiled-compatible if the JDK 21 method reference is behind a conditional
+or detected via reflection; alternatively bump the module release to 21).
+
+*Cons:* `jgdms-collections` must target Java 21 (or use a reflection shim) for
+`Thread.ofPlatform()`.
+
+**Option B — Remove `user` boolean and merge into single pool**
+
+Abolish the two-pool distinction entirely: both `getSystemThreadPool` and
+`getUserThreadPool` return the same `ExecutorService` backed by a single
+`newCachedThreadPool`.  The `ThreadPoolPermission` names are kept for policy
+compatibility.
+
+*Pros:* Simplest code; no ThreadGroup or group walk at all.
+*Cons:* Loses the observable naming distinction in thread dumps.  The `user` flag was
+never a security boundary so this is a no-op security-wise, but it is a visible
+behavioral change.
+
+**Option C — Reflect `Thread.ofPlatform()` for JDK 8–20 compatibility**
+
+Use `Method` reflection (`Thread.class.getMethod("ofPlatform")`) at class-load,
+falling back to `new Thread(r, name)` on older JDKs.
+
+*Pros:* Zero module-release bump.
+*Cons:* Adds complexity; JGDMS already requires JDK 21 for the `jgdms-platform`
+module; inconsistency is confusing.  Not recommended.
+
+**Recommendation: Option A.**  Bump `jgdms-collections` module `pom.xml` from
+`<release>8</release>` to `<release>21</release>` matching the pattern already used
+by `jgdms-platform` and `policy-service`.
+
+---
+
+#### 17.3.2 `ReferenceProcessor.SystemThreadFactory`
+
+`SystemThreadFactory` contains two private inner classes — `ThreadGroupAction`
+(performs a privileged root-group `getParent()` walk) and `CreateThread` (constructs
+`new Thread(g, r, "Reference collection cleaner")`).
+
+**Option A — `Thread.ofPlatform()` (recommended)**
+
+Delete `ThreadGroupAction` and `CreateThread`.  Replace `newThread(r)` with:
+
+```java
+public Thread newThread(Runnable r) {
+    return AccessController.doPrivileged((PrivilegedAction<Thread>) () -> {
+        Thread t = Thread.ofPlatform()
+            .name("Reference collection cleaner")
+            .priority(Thread.MAX_PRIORITY)
+            .unstarted(r);
+        t.setContextClassLoader(null);
+        return t;
+    });
+}
+```
+
+The `AccessController.doPrivileged` is still required so that the
+`createPlatformThread` check uses the system domain (not caller code's domain).
+The `SecurityException` catch blocks in `CreateThread.run()` become unnecessary
+because `Thread.ofPlatform()` does not throw them on attribute setting.
+
+**Option B — Delegate to `NewThreadAction`**
+
+Use `AccessController.doPrivileged(new NewThreadAction(r, "GC", false))`.  This
+keeps all thread-creation logic in one place.
+
+*Pros:* Consistent; any future changes to `NewThreadAction` propagate automatically.
+*Cons:* `NewThreadAction` is in a different package; requires a cross-package
+dependency that already exists.
+
+**Recommendation: Option B.**  Delegating to `NewThreadAction` keeps thread-creation
+policy centralised and ensures both the `ReferenceProcessor` and the JERI thread pool
+go through exactly the same `createPlatformThread` gate.  Update `priority` and
+`contextClassLoader` on the returned `Thread` after the `doPrivileged` call.
+
+---
+
+#### 17.3.3 `WakeupManager.ThreadDesc`
+
+`ThreadDesc` exposes a `ThreadGroup group` field (always `null` in every call site
+in the codebase) and two constructors that accept it.  The `thread(Runnable)` method
+branches on `getGroup() == null`:
+
+```java
+if (getGroup() == null)
+    thr = new Thread(r);
+else
+    thr = new Thread(getGroup(), r);
+```
+
+Since every call site passes `null`, the `getGroup()` branch is never taken in
+production.
+
+**Option A — Remove `ThreadGroup` field and dead constructors (recommended)**
+
+- Remove `ThreadGroup group` field, `ThreadDesc(ThreadGroup, boolean)`,
+  `ThreadDesc(ThreadGroup, boolean, int)`, and `getGroup()`.
+- Replace both `new Thread(…)` lines with:
+  ```java
+  Thread thr = Thread.ofPlatform()
+      .name("WakeupManager-kicker")
+      .daemon(isDaemon())
+      .priority(getPriority())
+      .unstarted(r);
+  ```
+- The no-arg `ThreadDesc()` constructor and the `isDaemon()` / `getPriority()`
+  accessors remain unchanged.
+
+*Pros:* Dead code eliminated; `thread(Runnable)` becomes a single-branch method;
+`createPlatformThread` gate is enforced where previously there was no check at all.
+
+**Option B — Keep constructors, deprecate `ThreadGroup` parameter**
+
+Annotate the two `ThreadGroup`-accepting constructors with
+`@Deprecated(since="3.1.0", forRemoval=true)`, ignore the `group` parameter
+internally, and add a Javadoc note.
+
+*Pros:* Binary + source compatibility if external code uses these constructors.
+*Cons:* Leaves dead code; still needs `Thread.ofPlatform()` for the `thread()`
+method.
+
+**Option C — Virtual thread**
+
+Replace `Thread.ofPlatform()` with `Thread.ofVirtual()` for kicker threads.
+Kicker threads are short-lived and mostly sleeping; virtual threads are ideal.
+The gate becomes `createVirtualThread`.
+
+*Pros:* Lower memory footprint for many timers.
+*Cons:* Changes observable behavior (thread dump appearance, thread type).
+
+**Recommendation: Option A** — remove dead code; use `Thread.ofPlatform()`.
+Option C (virtual threads) is a desirable follow-on but should be a separate
+work item.
+
+---
+
+#### 17.3.4 `InterruptedStatusThread`
+
+`InterruptedStatusThread` has four public constructors that accept a `ThreadGroup`:
+
+```java
+public InterruptedStatusThread(ThreadGroup group, Runnable target, String name)
+public InterruptedStatusThread(ThreadGroup group, String name)
+// … two more
+```
+
+No production code in JGDMS calls these constructors.  They are part of the public
+API surface.
+
+**Option A — Deprecate (`forRemoval=true`) immediately; remove in next major version**
+
+Annotate each constructor with `@Deprecated(since="3.1.0", forRemoval=true)` and
+document the group-free alternatives.
+
+*Pros:* Standard deprecation cycle; no binary break.
+*Cons:* Dead code persists for one release cycle.
+
+**Option B — Remove immediately**
+
+No known external consumers; `grep` of the entire JGDMS tree confirms zero calls.
+
+*Pros:* Clean.
+*Cons:* Potentially breaks third-party code compiled against JGDMS.
+
+**Recommendation: Option A** — deprecate now, remove in the next major API version.
+
+---
+
+### 17.4 Policy File Changes
+
+Every `.policy` file that grants `RuntimePermission "modifyThreadGroup"` to
+`collections.jar` and/or `jeri.jar` must be updated.  The grant is replaced by
+`RuntimePermission "createPlatformThread"`.  The `RuntimePermission "modifyThread"`
+grants (for `Thread.interrupt()` / priority adjustment) are **not changed**.
+
+| Policy file | Current grant | Replacement |
+|---|---|---|
+| `qa/harness/policy/defaultsecuretest.policy` (lines 155, 515, 974) | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultsecuregroup.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultsharedvm.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultsecuresharedvm.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaulttest.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultnonactvm.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultsecuremahalo.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultsecurephoenix.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultsecureoutrigger.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultspiffesharedvm.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultspiffetest.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultspiffegroup.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultspiffemahalo.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultspiffephoenix.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `defaultspiffeoutrigger.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+| `qa.policy` | `"modifyThreadGroup"` | `"createPlatformThread"` |
+
+---
+
+### 17.5 What Does NOT Change
+
+| Component | Reason |
+|---|---|
+| `ThreadPoolPermission` permission names (`getSystemThreadPool`/`getUserThreadPool`) | These are the real ACC-based security gates; they are preserved unchanged. |
+| Two-pool split (`systemPool` / `userPool`) | Still useful for thread-dump diagnostics; the naming is preserved via `Thread.ofPlatform().name(…)`. |
+| `RuntimePermission "modifyThread"` grants | Unrelated — covers `Thread.interrupt()` and `Thread.setPriority()`; nothing in this plan requires changing them. |
+| JERI caller sites (`JvmLifeSupport`, `AbstractDgcClient`, `ImplRefManager`, `ObjectTable`) | All already call the group-free two-arg `NewThreadAction(Runnable, String, boolean)` public constructor; no caller-side changes needed. |
+| `jgdms-platform` module release | Already at 21; no change needed. |
+
+---
+
+### 17.6 Module Release Requirements
+
+| Module | Current `<release>` | Required after change |
+|---|---|---|
+| `jgdms-collections` | 8 | **21** (for `Thread.ofPlatform()`) |
+| `jgdms-platform` | 21 | 21 (unchanged) |
+| All service modules using `jgdms-collections` | depends | 21 via transitive dep; no source change |
+
+---
+
+### 17.7 Summary of Permission Change
+
+On **DirtyChai** deployments, code that formerly required:
+```
+permission java.lang.RuntimePermission "modifyThreadGroup";
+```
+will instead require:
+```
+permission java.lang.RuntimePermission "createPlatformThread";
+```
+
+This is strictly more expressive: `modifyThreadGroup` described an applet-era
+capability that was never a meaningful security gate in this context.
+`createPlatformThread` describes exactly what the code does — creates a new
+OS-scheduled thread — and is enforced by DirtyChai's SecurityManager.
+
+On **standard JDK 17–23** deployments, `SecurityManager` is deprecated for removal and
+neither `modifyThreadGroup` nor `createPlatformThread` is checked at runtime.  On
+**JDK 24+**, `SecurityManager` is fully disabled and throws `UnsupportedOperationException`
+if instantiated.  The policy-file change is nonetheless made for consistency and
+correctness on all standard JDK builds: the grants reflect actual capabilities rather
+than obsolete applet-era constructs.
+
+For future virtual-thread adoption (e.g., kicker threads in `WakeupManager`,
+lease-expiry sweepers), the matching DirtyChai permission is
+`RuntimePermission "createVirtualThread"`.
+
+---
+
+
+- *§17 new: ThreadGroup removal plan — three architecture options per site, ranked recommendations, policy-file change table*
+- *§12 work item 33 added — ThreadGroup removal (not yet started)*
+- *§13 new row — `ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup`*
+
 *Hand this document (along with source files as needed) to a future AI agent to
 continue without loss of context. This is version 27, updated to document:*
 
@@ -2746,14 +3137,6 @@ continue without loss of context. This is version 27, updated to document:*
 - *§16.7 ✅ completed: `BasicInvocationHandler.writeUtf8Prefixed()` — throws `IOException` instead of silently truncating strings > 65 535 UTF-8 bytes (§16.7 Option A)*
 - *§16.5 (MEDIUM) remains not yet started*
 - *Work items 30 (partially), 31, and 32 (partially) marked complete in §12*
-
----
-
-*Previous version (v25) notes:*
-- *§16 DoS Vectors and Architectural Fixes — seven issues with options and recommendations*
-- *§12 work items 30–32 — three new work items*
-- *§13 — four new design-decision rows*
-- *§15.1.9 and §15.3 updated to reference the §16.5 extension of Work Item 28*
 
 ---
 
