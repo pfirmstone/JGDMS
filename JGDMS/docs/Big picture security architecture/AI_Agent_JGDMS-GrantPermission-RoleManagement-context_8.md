@@ -16,13 +16,14 @@ This version documents the **ThreadGroup removal plan** — a full architectural
 analysis of every JGDMS site that currently holds a `ThreadGroup` reference for
 security or isolation purposes, and a concrete migration plan.
 
-**Platform context:**  `SecurityManager` is deprecated for removal in vanilla Java 17+,
-so neither `modifyThreadGroup` nor `createPlatformThread` is enforced at runtime there.
-**DirtyChai** is the supported high-security platform, where `SecurityManager` remains
-active; `Thread.ofPlatform().unstarted()` / `Thread.ofVirtual().unstarted()` are guarded
-by `RuntimePermission("createPlatformThread")` / `"createVirtualThread"` respectively,
-already tracked by `BlockingSinkRegistry`.  The removal is code hygiene on vanilla JDK
-and a real security-gate improvement on DirtyChai.
+**Platform context:**  `SecurityManager` is deprecated for removal in JDK 17–23 and is
+fully disabled in JDK 24+, so neither `modifyThreadGroup` nor `createPlatformThread` is
+enforced at runtime on standard JDK builds.  **DirtyChai** is the supported
+high-security platform, where `SecurityManager` remains active; `Thread.ofPlatform().unstarted()`
+/ `Thread.ofVirtual().unstarted()` are guarded by `RuntimePermission("createPlatformThread")`
+/ `"createVirtualThread"` respectively, already tracked by `BlockingSinkRegistry`.
+The removal is code hygiene on standard JDK and a real security-gate improvement on
+DirtyChai.
 
 **New/changed in v27:**
 
@@ -1934,7 +1935,7 @@ executor.submit(() -> {
 | **`marshalForTransport()` early-return must check `anonCount == 0`** | ✅ **v25 (pending):** Returning empty bytes when `records.isEmpty()` but `anonCount > 0` silently drops anonymous-domain permission ceilings — same class of privilege escalation as §10.2.1.  Fix: guard on `records.isEmpty() && anonCount == 0`. |
 | **Virtual-thread executor + semaphore cap for policy-service event delivery** | ✅ **v25 (recommended, pending):** `newVirtualThreadPerTaskExecutor()` prevents I/O blocking on platform threads; semaphore cap (500 permits) bounds in-flight deliveries; requires `<release>21</release>` in module `pom.xml`. |
 | **`MAX_LISTENER_REGISTRATIONS` cap in `registerForPolicyUpdates()`** | ✅ **v25 (recommended, pending):** Any authenticated caller can flood the listener map; a hard cap (1 000) plus a daemon virtual-thread lease-expiry sweep are the two necessary controls. |
-| **`ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup` on DirtyChai** | ✅ **v27:** `ThreadGroup` was designed for applet sandbox isolation and was never an effective security boundary. On vanilla Java 17+, `SecurityManager` is deprecated for removal — neither `modifyThreadGroup` nor `createPlatformThread` is checked at runtime; the cleanup is code hygiene. On **DirtyChai** (the supported high-security platform), `SecurityManager` is still active; `Thread.ofPlatform().unstarted()` triggers `RuntimePermission("createPlatformThread")` and `Thread.ofVirtual().unstarted()` triggers `RuntimePermission("createVirtualThread")`. `BlockingSinkRegistry` already maps both `ThreadBuilders$PlatformThreadBuilder/unstarted` and `ThreadBuilders$VirtualThreadBuilder/unstarted` to those permissions. Replacing `new Thread(group, …)` with `Thread.ofPlatform().unstarted(…)` removes dead applet-era boilerplate on all platforms and creates the explicit DirtyChai policy gate. |
+| **`ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup` on DirtyChai** | ✅ **v27:** `ThreadGroup` was designed for applet sandbox isolation and was never an effective security boundary. On JDK 17–23, `SecurityManager` is deprecated for removal; on JDK 24+, `SecurityManager` is disabled — neither `modifyThreadGroup` nor `createPlatformThread` is checked at runtime on standard JDK builds; the cleanup is code hygiene. On **DirtyChai** (the preferred high-security platform), `SecurityManager` is still active; `Thread.ofPlatform().unstarted()` triggers `RuntimePermission("createPlatformThread")` and `Thread.ofVirtual().unstarted()` triggers `RuntimePermission("createVirtualThread")`. `BlockingSinkRegistry` already maps both `ThreadBuilders$PlatformThreadBuilder/unstarted` and `ThreadBuilders$VirtualThreadBuilder/unstarted` to those permissions. Replacing `new Thread(group, …)` with `Thread.ofPlatform().unstarted(…)` removes dead applet-era boilerplate on all platforms and creates the explicit DirtyChai policy gate. |
 
 ---
 
@@ -2726,23 +2727,23 @@ the root pom's `<release>8</release>`, matching the pattern used by
 
 `ThreadGroup` was designed for applet sandbox isolation and was **never an effective
 security boundary**.  The relevant method, `SecurityManager.checkAccess(ThreadGroup)`,
-has been a no-op in every standard JDK since JDK 17+ (and is only non-trivial if a
-`SecurityManager` is installed — a pattern that is deprecated for removal in vanilla
-JDK and absent in standard JDK 17+).  `ThreadGroup.getParent()` traversal (used in
+has been a no-op in every standard JDK since JDK 17 (and is only non-trivial if a
+`SecurityManager` is installed).  `ThreadGroup.getParent()` traversal (used in
 `NewThreadAction` and `ReferenceProcessor`) requires `RuntimePermission("modifyThreadGroup")`,
 but the only thing that privilege buys is the ability to name the thread group that a
 new thread is placed in — a completely irrelevant capability for a middleware security
 framework.
 
-**Platform context: two distinct deployment targets**
+**Platform context: three distinct states across JDK versions**
 
 | Deployment target | SecurityManager status | `createPlatformThread` enforced? |
 |---|---|---|
-| **Vanilla Java 17+** | Deprecated for removal; absent (no-op) | **No** — permission is never checked; cleanup is code hygiene only |
-| **DirtyChai (high-security platform)** | Active; all `AccessController` and `SecurityManager` checks are functional | **Yes** — `Thread.ofPlatform().unstarted()` triggers `RuntimePermission("createPlatformThread")` via DirtyChai's SecurityManager |
+| **JDK 17–23** | Deprecated for removal (present but no-op unless explicitly installed) | **No** — permission is never checked; cleanup is code hygiene only |
+| **JDK 24+** | Disabled — `SecurityManager` API throws `UnsupportedOperationException` | **No** — permission is never checked; cleanup is code hygiene only |
+| **DirtyChai (preferred high-security platform)** | Active; all `AccessController` and `SecurityManager` checks are functional | **Yes** — `Thread.ofPlatform().unstarted()` triggers `RuntimePermission("createPlatformThread")` via DirtyChai's SecurityManager |
 
 JGDMS's high-security deployment model targets **DirtyChai** as the primary platform.
-Vanilla JDK 17+ deployments still benefit from removing the dead `ThreadGroup` code
+Standard JDK deployments still benefit from removing the dead `ThreadGroup` code
 (simpler, no root-group walk, no applet-era `PrivilegedAction` boilerplate), but the
 permission-gate motivation below applies to DirtyChai deployments.
 
@@ -3056,10 +3057,12 @@ capability that was never a meaningful security gate in this context.
 `createPlatformThread` describes exactly what the code does — creates a new
 OS-scheduled thread — and is enforced by DirtyChai's SecurityManager.
 
-On **vanilla Java 17+** deployments, SecurityManager is deprecated for removal and
-neither `modifyThreadGroup` nor `createPlatformThread` is checked at runtime.  The
-policy-file change is nonetheless made for consistency and correctness: the grants
-reflect actual capabilities rather than obsolete applet-era constructs.
+On **standard JDK 17–23** deployments, `SecurityManager` is deprecated for removal and
+neither `modifyThreadGroup` nor `createPlatformThread` is checked at runtime.  On
+**JDK 24+**, `SecurityManager` is fully disabled and throws `UnsupportedOperationException`
+if instantiated.  The policy-file change is nonetheless made for consistency and
+correctness on all standard JDK builds: the grants reflect actual capabilities rather
+than obsolete applet-era constructs.
 
 For future virtual-thread adoption (e.g., kicker threads in `WakeupManager`,
 lease-expiry sweepers), the matching DirtyChai permission is
