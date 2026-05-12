@@ -1,12 +1,48 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v32)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v33)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v31.
+context. It supersedes and extends v32.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v33 Change Summary
+
+This version repeats and updates **§15 Performance Analysis** to reflect all changes
+made since the section was originally written.
+
+**New/changed in v33:**
+
+- **§15.1.2** — Wire payload format corrected:
+  - HTTPMD stream layout now shows the trailing `anonCount` 4-byte field (anonymous
+    domain ceiling, added v23).
+  - User-principal block now shows the `subjectCount:u16` outer frame (multi-Subject
+    wire protocol, v24); inner `principalCount:u16` is per-Subject.
+  - Byte-count examples updated: ~158 bytes user-principal block (was ~154); ~454 bytes
+    ACC payload (was ~450); complete header ~619 bytes (was ~611).
+- **§15.1.3** — CPU cost model updated to two-tier: cache hit **~10 ns/call**
+  (volatile read + pointer compare only); cache miss **~10–40 µs/call** (two stack
+  walks + encoding).
+- **§15.1.5** — Multi-Subject dispatch note added: `CALL_AS_MULTI_SUBJECT` reflective
+  call overhead (< 1 µs; Method cached at class-load time).
+- **§15.1.6** — Throughput table updated: cache-hit and cache-miss rows distinguished;
+  1 000 calls/s steady-state sender cost drops from ~5–20 ms/s to **~10 µs/s**.
+- **§15.1.9** — "Proposed mitigation (Work Item 28)" → **✅ Resolved (Work Item 28,
+  v27)**: documents `AccSerialCache` immutable holder design, TOCTOU security rationale
+  for single-volatile-reference approach, and steady-state performance effect.
+- **§15.1.10** — New subsection: Virtual thread interaction (v32). `extractDomains()`
+  does not pin virtual threads; `newVirtualThreadPerTaskExecutor()` (Work Items 34–43)
+  enables high-concurrency dispatch without ACC serialization becoming a bottleneck.
+- **§15.2.3** — Note updated: "Work Item 28 is higher priority" corrected to reflect
+  that Work Item 28 is now resolved; streaming-unpacker opportunity remains open.
+- **§15.3.2** — Double-stack-walk note updated: with `AccSerialCache`, cache hits
+  have zero stack-walk cost; the merging optimisation is no longer on the critical path.
+- **§15.3.3** — First-proxy-lookup profile updated: "steady-state overhead is the ACC
+  stack-walk only" corrected to "steady-state overhead is **~10 ns/call** (cache hit)".
 
 ---
 
@@ -2106,7 +2142,7 @@ Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.
 
 ---
 
-## 15. Performance Analysis — ACC Transmission & Pack200
+## 15. Performance Analysis — ACC Transmission & Pack200 (v33 Update)
 
 ### 15.1 ACC Transmission on Outbound JERI Calls
 
@@ -2127,7 +2163,7 @@ compact encoding — **not** Java object serialization.
 
 **HTTPMD stream (`transportBytes`) layout:**
 ```
-4 bytes  : domain count (big-endian int)
+4 bytes  : httpmd domain count (big-endian int)
 per domain:
   2 bytes : location URL byte length  (UTF-8, max 4 096 bytes)
   N bytes : location URL bytes
@@ -2137,38 +2173,48 @@ per domain:
     N bytes : type class name bytes
     2 bytes : principal name byte length
     N bytes : principal name bytes
+4 bytes  : anonymous domain count (big-endian int)
 ```
+
+The trailing `anonCount` field (v23) records non-HTTPMD, non-`DigestCodeSource`
+domains present in the sender's ACC that could not be transported with a verifiable
+identity but still act as permission ceilings.  `jrt:/java.base` is excluded from
+`anonCount` (present in every JVM, carries no diagnostic value); all other `jrt:`
+module domains are included so that vulnerable-module processes can be identified.
 
 **Typical real payload — 2 domains, 1 `SpiffePrincipal` each:**
 - Location URL ≈ 115 bytes (`httpmd://repo.example.org/client-stub.jar#SHA256:…`)
 - `SpiffePrincipal` class name ≈ 40 bytes; SPIFFE URI ≈ 60 bytes
 - Per-domain size ≈ 2 + 115 + 2 + 2 + 40 + 2 + 60 = **223 bytes**
-- 2 domains → 4-byte count prefix + 446 bytes ≈ **450 bytes** (`transportBytes`)
+- 2 domains → 4 (httpmdCount) + 446 (records) + 4 (anonCount) ≈ **454 bytes** (`transportBytes`)
 
-**User-principal block** (separate from ACC; only present when `Subject.current()` is
+**User-principal block** (multi-Subject format, v24+; only present when `Subject.current()` is
 set via `Subject.callAs()`):
 ```
-2 bytes  : principal count (u16, max 65 535; capped by MAX_USER_PRINCIPALS = 64)
-per principal:
-  2 bytes : class name byte length
-  N bytes : class name bytes (UTF-8)
-  2 bytes : principal name byte length
-  N bytes : principal name bytes (UTF-8)
+2 bytes  : subject count (u16, max 65 535; capped by MAX_USER_SUBJECTS = 16)
+per subject:
+  2 bytes  : principal count (u16, max 65 535; capped by MAX_USER_PRINCIPALS = 64)
+  per principal:
+    2 bytes : class name byte length
+    N bytes : class name bytes (UTF-8)
+    2 bytes : principal name byte length
+    N bytes : principal name bytes (UTF-8)
 ```
-Typical JWT user: 1 principal, class name ≈ 50 bytes, JWT claim ≈ 100 bytes → ~154 bytes.
+Typical single JWT user (1 Subject, 1 principal):
+2 (subjectCount) + 2 (principalCount) + 2 + ~50 (class) + 2 + ~100 (name) = **~158 bytes**.
 
 **Complete protocol-`0x02` header per request (example):**
 ```
 1 byte  : version (0x02)
 1 byte  : integrity flag
 1 byte  : atomicValidation flag
-154 bytes : user-principal block (1 JWT principal)
+158 bytes : user-principal block (1 Subject, 1 JWT principal)
 4 bytes : ACC block length prefix
-450 bytes : ACC binary payload
-= ~611 bytes added before the method + arguments
+454 bytes : ACC binary payload
+= ~619 bytes added before the method + arguments
 ```
 
-At 10 KB method arguments this is < 6% wire overhead.  At 100-byte micro-RPC arguments
+At 10 KB method arguments this is < 7% wire overhead.  At 100-byte micro-RPC arguments
 it doubles the frame, but the absolute extra bytes are still within a single TLS record.
 
 `MAX_ACC_BLOCK_BYTES = 1 MB` on the receiver side prevents denial-of-service
@@ -2179,9 +2225,18 @@ zero overhead unless the DirtyChai JDK's `DigestCodeSource` is in the ACC.
 
 #### 15.1.3 CPU cost — sender (serialization)
 
-`BasicInvocationHandler.invoke()` calls `AccessControlContextSerializer.marshalForTransport(currentAcc)`
-once per outbound call.  The dominant cost is `extractDomains(acc)`, which forces a
-JVM **security stack walk** to drive `DomainCombiner.combine()`:
+`BasicInvocationHandler.invokeRemoteMethodOnce()` uses a two-tier cost model since
+Work Item 28 (v27).
+
+**Cache hit (common case):** A single `volatile` read of `accSerialCache` is performed.
+If `cache.acc == currentAcc` (reference equality; typically ~10 ns on modern JIT-warmed
+HotSpot, though exact timings vary by hardware and JVM state), the precomputed
+`cache.transportBytes` is used directly — no stack walk, no encoding.
+
+**Cache miss (first call or ACC reference change):**
+`AccessControlContextSerializer.marshalForTransport(currentAcc)` and
+`marshalDigestForTransport(currentAcc)` are both called.  Each calls `extractDomains(acc)`,
+which forces a JVM **security stack walk** to drive `DomainCombiner.combine()`:
 
 ```java
 // extractDomains() — the stack walk
@@ -2205,7 +2260,9 @@ Measured cost of `AccessController.checkPermission` on HotSpot JDK 17–21:
 
 The byte-encoding loop (O(domains × principals), pure array copies) is sub-microsecond.
 
-**Total serialization CPU: ~5–20 µs per outbound call.**
+**Total serialization CPU:**
+- **Cache hit:** ~10 ns/call (dominant case in steady state)
+- **Cache miss:** ~10–40 µs/call (two stack walks + encoding; see §15.3.2)
 
 #### 15.1.4 CPU cost — receiver (deserialization)
 
@@ -2243,17 +2300,24 @@ In `invokeWithClientSubject`, when a valid ACC was received, the dispatch nestin
 Each lambda is a small heap allocation; on JDK 21+ HotSpot they are typically
 escape-analysed away.  The `doPrivileged` scope push/pop costs < 1 µs.
 
+**Multi-Subject path (DirtyChai, v24+):** When >1 user Subject is present, dispatch
+uses `CALL_AS_MULTI_SUBJECT.invoke(null, action, userSubjects)` — a single reflective
+call wrapping all user Subjects in a nested `callAs` chain.  The `Method` object is
+cached at class-load time (zero per-call class-loading); per-call cost is sub-microsecond
+after JIT warmup (interpreted mode may be a few microseconds on early calls).
+
 #### 15.1.6 Throughput summary
 
 | Dimension | Cost | Notes |
 |-----------|------|-------|
-| Wire bytes added per request | ~450 bytes (ACC) + ~154 bytes (user principal) | < 1 TLS record overhead |
-| Sender CPU — stack walk + encode | 5–20 µs/call | Stack walk dominates |
+| Wire bytes added per request | ~454 bytes (ACC) + ~158 bytes (user-principal, 1 Subject) | < 1 TLS record overhead |
+| Sender CPU — **cache hit** | **~10 ns/call** (JIT-warmed HotSpot) | volatile read + pointer compare only |
+| Sender CPU — **cache miss** (first call / ACC change) | 10–40 µs/call | Two stack walks + encoding |
 | Receiver CPU — parse + construct | 10–50 µs/call | URI parsing dominates |
 | `doPrivileged` dispatch nesting | < 1 µs/call | JIT-optimized |
-| `digestTransportBytes` (DigestCodeSource) | Cached after first call | Zero marginal cost |
-| At 1 000 calls/s per thread | ~5–20 ms/s sender CPU | Acceptable |
-| At 10 000 calls/s per thread | ~50–200 ms/s sender CPU | Noticeable; cache needed |
+| `digestTransportBytes` (DigestCodeSource) | Cached in `AccSerialCache` | Zero marginal cost on hit |
+| At 1 000 calls/s per thread (cache hits) | **~10 µs/s sender CPU** | Negligible |
+| At 10 000 calls/s per thread (cache hits) | **~100 µs/s sender CPU** | Negligible |
 
 #### 15.1.7 `ContextCache` interaction (DirtyChai)
 
@@ -2282,18 +2346,76 @@ back-references instead of full records when equal `AccessControlContextSerializ
 instances are encountered more than once in a `writeObject` pass (e.g., multiple
 proxies sharing the same codebase ACC).
 
-#### 15.1.9 Identified performance gap — connection-level ACC cache
+#### 15.1.9 Connection-level ACC cache — ✅ Resolved (Work Item 28, v27)
 
-**Problem:** `extractDomains()` triggers a security stack walk on every outbound
-JERI call, even when the caller's ACC is identical across calls.  For a long-lived
-connection carrying many RPCs from the same client process, the ACC identity is stable
-and the stack walk is redundant work.
+**Problem:** `extractDomains()` was called on every outbound JERI call, triggering a
+JVM security stack walk (~5–20 µs) each time, even when the caller's ACC was stable
+across calls.  For a long-lived connection carrying many RPCs from the same client
+process, the ACC identity is stable and the stack walk was redundant.
 
-**Proposed mitigation (Work Item 28):** Cache the serialized ACC bytes alongside a
-weak reference to the source `AccessControlContext` in the connection/session state.
-Invalidate only when the ACC reference changes (which happens when the user Subject
-changes via `Subject.callAs()`).  This reduces per-call overhead to a single reference
-comparison in the common case.
+**Resolution:** `BasicInvocationHandler` holds a single `transient volatile AccSerialCache accSerialCache`
+field.  `AccSerialCache` is a private immutable inner class bundling three values into
+a single atomically-published holder:
+
+```java
+private static final class AccSerialCache {
+    final AccessControlContext acc;
+    /** HTTPMD-domain transport bytes; used by protocol version 0x02. */
+    final byte[] transportBytes;
+    /**
+     * DigestCodeSource transport bytes (DirtyChai JDK only).
+     * Precomputed here so future protocol versions can read the cache
+     * without an extra stack-walk per call.
+     */
+    final byte[] digestBytes;
+    AccSerialCache(AccessControlContext acc, byte[] tb, byte[] db) { ... }
+}
+```
+
+`invokeRemoteMethodOnce()` uses the cache as follows:
+1. One volatile read: `AccSerialCache cache = accSerialCache`.
+2. If `cache == null || cache.acc != currentAcc` (reference compare, ~10 ns): recompute
+   `tb = marshalForTransport(currentAcc)`, `db = marshalDigestForTransport(currentAcc)`,
+   then publish all three values atomically via **one** volatile write:
+   `accSerialCache = new AccSerialCache(currentAcc, tb, db)`.
+3. Otherwise: use `cache.transportBytes` directly — **zero stack-walk cost**.
+
+**Security rationale for single-holder design (TOCTOU):** Three separate `volatile`
+fields would require "publish last" ordering (writing `cachedAccRef` after the byte
+arrays).  The JMM's synchronisation order applies *per field* and is **not** jointly
+atomic across fields.  A concurrent thread could read `cachedTransportBytes` from a
+*different* thread's concurrent write — after a successful identity check on
+`cachedAccRef` but before the corresponding byte-array fields have been updated —
+causing it to send another thread's (potentially higher-privilege) serialised ACC bytes
+to the server: a context-confusion / impersonation vulnerability.  The single immutable
+holder eliminates this TOCTOU window entirely.
+
+**Effect:** In steady state (ACC stable across calls), sender CPU falls from ~5–20 µs/call
+to **~10 ns/call**.  Cache invalidation occurs only when the `AccessControlContext`
+reference changes — typically when `Subject.callAs()` scoping changes, which is rare
+compared to individual RPC frequency.
+
+The `accSerialCache` field is `transient`, so it defaults to `null` after
+deserialization and is repopulated on the first outbound call.
+
+#### 15.1.10 Virtual thread interaction (v32)
+
+Work Items 34–43 (v32) migrate all JERI dispatch (`ThreadPool`) and service-executor
+infrastructure to `Executors.newVirtualThreadPerTaskExecutor()`.  Two performance
+implications follow for the ACC serialization path:
+
+1. **`extractDomains()` and virtual thread pinning:** The security stack walk inside
+   `extractDomains()` is driven by `AccessController.doPrivileged()` +
+   `checkPermission()`.  Neither holds a `synchronized` monitor nor calls blocking
+   native code.  Virtual threads are **not pinned** to their carrier thread by this
+   code path on any JDK version.
+
+2. **Throughput scaling:** Virtual threads eliminate the fixed platform-thread-pool
+   ceiling of the former `ThreadPool` implementation.  With
+   `newVirtualThreadPerTaskExecutor()`, thousands of concurrent inbound dispatches can
+   run simultaneously.  Because `AccSerialCache` (§15.1.9) reduces per-call sender
+   cost to ~10 ns, the ACC serialization path does not become a throughput bottleneck
+   even under high concurrency.
 
 ---
 
@@ -2379,7 +2501,8 @@ decompression.  For typical proxy JARs (< 200 KB packed), peak allocation is < 6
 **Note:** `HttpmdURLConnection` buffers the entire unpacked JAR before returning the
 stream.  A streaming unpacker that lazily decompresses would reduce peak memory for
 large proxy JARs.  This is a quality-of-implementation opportunity, not a correctness
-issue (Work Item 28 is higher priority).
+issue (Work Item 28 is now resolved; streaming unpacker is a separate lower-priority
+improvement).
 
 #### 15.2.4 JDK compatibility — `pfirmstone/Pack200-ex-openjdk`
 
@@ -2422,19 +2545,21 @@ callers.
 
 2. **`DigestCodeSource` dual-path traversal.**
    `marshalForTransport()` and `marshalDigestForTransport()` both call
-   `extractDomains(acc)`, each triggering one security stack walk per call.  On JVMs
-   with `DigestCodeSource` domains in the ACC, this means two stack walks per outbound
-   call.  Merging into a single pass (partition the domain list once, then write both
-   streams) would halve the stack-walk overhead.  This is a straightforward
-   optimization left for Work Item 28 / a future session.
+   `extractDomains(acc)`, each triggering one security stack walk per **cache miss**.
+   On JVMs with `DigestCodeSource` domains in the ACC, a cache miss therefore costs
+   two stack walks.  With `AccSerialCache` (§15.1.9), **cache hits incur zero
+   stack-walk cost**, making the double-walk concern relevant only on the first call
+   or when the `Subject.callAs()` scope changes.  Merging into a single
+   `extractDomains()` pass — which would halve cache-miss cost — remains a valid
+   quality-of-implementation improvement but is no longer on the critical path.
 
 3. **First-proxy-lookup cost profile.**
    The most expensive moment in a client's lifecycle is the first proxy lookup from the
    LUS.  At that point the client pays: (a) proxy JAR download + Pack200 decompression
    (~5–20 ms), (b) httpmd SHA-256 verification (amortized over one connection),
-   (c) `VerifyingProxyPreparer` ACC serialization (~5–20 µs), and (d) a
-   `RemotePolicyService.replace()` grant call.  All of these are one-time costs;
-   steady-state per-call overhead is the ACC stack-walk only.
+   (c) `VerifyingProxyPreparer` ACC serialization (~10–40 µs — a cache miss on first
+   call), and (d) a `RemotePolicyService.replace()` grant call.  All of these are
+   one-time costs; steady-state per-call overhead is **~10 ns/call** (ACC cache hit).
 
 ---
 
