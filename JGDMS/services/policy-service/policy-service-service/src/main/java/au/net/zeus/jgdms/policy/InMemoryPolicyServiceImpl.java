@@ -272,6 +272,10 @@ public class InMemoryPolicyServiceImpl {
                           return;
                       }
                       long now = System.currentTimeMillis();
+                      // ConcurrentHashMap.values().removeIf() is safe for concurrent use:
+                      // ConcurrentHashMap's iterator never throws ConcurrentModificationException
+                      // and the removeIf() implementation on ConcurrentHashMap.values() is
+                      // backed by the map's own thread-safe iterator contract.
                       listenerRegistrations.values().removeIf(r -> r.leaseExpiration < now);
                   }
               });

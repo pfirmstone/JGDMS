@@ -209,7 +209,10 @@ public final class AccessControlContextSerializer implements Serializable {
             return new byte[0];
         }
         // Encode: [httpmdCount=N][...records...][anonCount=M]
-        // When records is empty, httpmdCount=0 and anonCount>0 encodes the ceiling.
+        // When records is empty, httpmdCount=0 and anonCount>0 encodes anonymous domain
+        // ceilings.  These ceilings must be preserved: unverifiable domains still restrict
+        // permissions in the sender's ACC, and dropping them silently grants extra privileges
+        // to the receiver — the same privilege-escalation window closed in §10.2.1.
         ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
         writeInt(baos, records.size());
         for (int i = 0; i < records.size(); i++) {

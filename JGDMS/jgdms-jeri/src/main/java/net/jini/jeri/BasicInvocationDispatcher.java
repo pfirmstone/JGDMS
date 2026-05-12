@@ -219,6 +219,10 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                 @SuppressWarnings("unchecked")
                 Class<? extends Principal> cls =
                     (Class<? extends Principal>) Class.forName(cname, false,
+                        // System classloader is required: SpiffePrincipal and JwtPrincipal are
+                        // JGDMS application-classpath classes, not JDK built-ins.  The allowlist
+                        // (not the classloader) is the security boundary — unknown names return
+                        // RemotePrincipal without any classloading.
                         ClassLoader.getSystemClassLoader());
                 ctorMap.put(cname, cls.getConstructor(String.class));
             } catch (Exception ignored) { /* class not present on this JDK/classpath */ }
