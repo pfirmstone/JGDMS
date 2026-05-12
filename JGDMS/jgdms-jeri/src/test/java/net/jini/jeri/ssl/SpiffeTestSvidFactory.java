@@ -58,6 +58,12 @@ public final class SpiffeTestSvidFactory {
     /** Subject DN embedded in the generated reggie SVID leaf certificate. */
     public static final String REGGIE_SUBJECT_DN = "CN=Reggie";
 
+    /** SPIFFE ID embedded in the generated tester SVID. */
+    public static final String TESTER_SPIFFE_ID = "spiffe://test.jgdms.local/client/test";
+
+    /** Subject DN embedded in the generated tester SVID leaf certificate. */
+    public static final String TESTER_SUBJECT_DN = "CN=Tester";
+
     private static final String CA_ALIAS      = "ca";
     private static final String REGGIE_ALIAS  = "reggie";
     private static final String STORE_PASS    = "changeit";
@@ -66,6 +72,7 @@ public final class SpiffeTestSvidFactory {
     private static final String GROUP_NAME    = "secp256r1";
     private static final String SIG_ALG       = "SHA256withECDSA";
     private static final int    VALIDITY_DAYS = 1;
+    private static final String TRUSTSTORE_TYPE = "JKS";
     private static final String NL            = "\n";
     private static final Base64.Encoder PEM_ENCODER =
             Base64.getMimeEncoder(64, NL.getBytes(StandardCharsets.US_ASCII));
@@ -84,11 +91,40 @@ public final class SpiffeTestSvidFactory {
         public final Path svidKeyPem;
         /** Directory that contains both PEM files (temp dir). */
         public final Path dir;
+        /** Subject DN embedded in the leaf certificate. */
+        public final String subjectDn;
+        /** SPIFFE URI embedded in the leaf certificate. */
+        public final String spiffeId;
 
-        private Fixture(Path dir, Path svidPem, Path svidKeyPem) {
+        private Fixture(Path dir, Path svidPem, Path svidKeyPem,
+                        String subjectDn, String spiffeId)
+        {
             this.dir        = dir;
             this.svidPem    = svidPem;
             this.svidKeyPem = svidKeyPem;
+            this.subjectDn  = subjectDn;
+            this.spiffeId   = spiffeId;
+        }
+    }
+
+    /**
+     * Holds a shared CA/truststore plus multiple role-specific fixtures.
+     */
+    public static final class FixtureSet {
+        public final Path dir;
+        public final Path trustStore;
+        public final String trustStorePassword;
+        public final Fixture reggie;
+        public final Fixture tester;
+
+        private FixtureSet(Path dir, Path trustStore, String trustStorePassword,
+                           Fixture reggie, Fixture tester)
+        {
+            this.dir = dir;
+            this.trustStore = trustStore;
+            this.trustStorePassword = trustStorePassword;
+            this.reggie = reggie;
+            this.tester = tester;
         }
     }
 
@@ -221,7 +257,73 @@ public final class SpiffeTestSvidFactory {
         Path svidKeyPemPath = tempDir.resolve("svid_key.pem");
         Files.write(svidKeyPemPath, keyPemContent.getBytes(StandardCharsets.US_ASCII));
 
-        return new Fixture(tempDir, svidPemPath, svidKeyPemPath);
+        return new Fixture(tempDir, svidPemPath, svidKeyPemPath,
+                REGGIE_SUBJECT_DN, REGGIE_SPIFFE_ID);
+    }
+
+    /**
+     * Creates a shared test CA, truststore, and both tester/reggie SPIFFE
+     * fixtures under the supplied root directory.
+     */
+    public static FixtureSet createTesterReggieFixtureSet(Path tempDir)
+        throws Exception
+    {
+        Path caDir = tempDir.resolve("ca");
+        Files.createDirectories(caDir);
+        Path caP12 = caDir.resolve("ca.p12");
+        Path caCerFile = caDir.resolve("ca.cer");
+        Path trustStore = tempDir.resolve("truststore.jks");
+
+        keytool(
+            "-genkeypair",
+            "-alias",    CA_ALIAS,
+            "-keyalg",   KEY_ALG,
+            "-groupname", GROUP_NAME,
+            "-dname",    "CN=JGDMS Test CA",
+            "-sigalg",   SIG_ALG,
+            "-validity", String.valueOf(VALIDITY_DAYS),
+            "-keystore", caP12.toString(),
+            "-storetype", STORE_TYPE,
+            "-storepass", STORE_PASS,
+            "-noprompt"
+        );
+
+        keytool(
+            "-exportcert",
+            "-alias",    CA_ALIAS,
+            "-keystore", caP12.toString(),
+            "-storetype", STORE_TYPE,
+            "-storepass", STORE_PASS,
+            "-rfc",
+            "-file",     caCerFile.toString()
+        );
+
+        keytool(
+            "-importcert",
+            "-alias",    CA_ALIAS,
+            "-keystore", trustStore.toString(),
+            "-storetype", TRUSTSTORE_TYPE,
+            "-storepass", STORE_PASS,
+            "-file",     caCerFile.toString(),
+            "-noprompt"
+        );
+
+        Fixture reggie = createFixture(
+            tempDir.resolve("reggie"),
+            caP12,
+            caCerFile,
+            REGGIE_ALIAS,
+            REGGIE_SUBJECT_DN,
+            REGGIE_SPIFFE_ID);
+        Fixture tester = createFixture(
+            tempDir.resolve("tester"),
+            caP12,
+            caCerFile,
+            "tester",
+            TESTER_SUBJECT_DN,
+            TESTER_SPIFFE_ID);
+
+        return new FixtureSet(tempDir, trustStore, STORE_PASS, reggie, tester);
     }
 
     // -----------------------------------------------------------------------
@@ -254,5 +356,99 @@ public final class SpiffeTestSvidFactory {
         }
         // Fall back to PATH
         return "keytool";
+    }
+
+    private static Fixture createFixture(Path roleDir,
+                                         Path caP12,
+                                         Path caCerFile,
+                                         String alias,
+                                         String subjectDn,
+                                         String spiffeId)
+        throws Exception
+    {
+        Files.createDirectories(roleDir);
+        Path roleP12 = roleDir.resolve(alias + ".p12");
+        Path csrFile = roleDir.resolve(alias + ".csr");
+        Path signedCer = roleDir.resolve(alias + "-signed.cer");
+
+        keytool(
+            "-genkeypair",
+            "-alias",    alias,
+            "-keyalg",   KEY_ALG,
+            "-groupname", GROUP_NAME,
+            "-dname",    subjectDn,
+            "-sigalg",   SIG_ALG,
+            "-validity", String.valueOf(VALIDITY_DAYS),
+            "-keystore", roleP12.toString(),
+            "-storetype", STORE_TYPE,
+            "-storepass", STORE_PASS,
+            "-noprompt"
+        );
+
+        keytool(
+            "-certreq",
+            "-alias",    alias,
+            "-keystore", roleP12.toString(),
+            "-storetype", STORE_TYPE,
+            "-storepass", STORE_PASS,
+            "-file",     csrFile.toString()
+        );
+
+        keytool(
+            "-gencert",
+            "-alias",    CA_ALIAS,
+            "-keystore", caP12.toString(),
+            "-storetype", STORE_TYPE,
+            "-storepass", STORE_PASS,
+            "-infile",   csrFile.toString(),
+            "-outfile",  signedCer.toString(),
+            "-ext",      "san=uri:" + spiffeId,
+            "-validity", String.valueOf(VALIDITY_DAYS),
+            "-rfc"
+        );
+
+        keytool(
+            "-importcert",
+            "-alias",    CA_ALIAS,
+            "-keystore", roleP12.toString(),
+            "-storetype", STORE_TYPE,
+            "-storepass", STORE_PASS,
+            "-file",     caCerFile.toString(),
+            "-noprompt"
+        );
+
+        keytool(
+            "-importcert",
+            "-alias",    alias,
+            "-keystore", roleP12.toString(),
+            "-storetype", STORE_TYPE,
+            "-storepass", STORE_PASS,
+            "-file",     signedCer.toString(),
+            "-noprompt"
+        );
+
+        KeyStore ks = KeyStore.getInstance(STORE_TYPE);
+        try (InputStream in = Files.newInputStream(roleP12)) {
+            ks.load(in, STORE_PASS.toCharArray());
+        }
+        PrivateKey key = (PrivateKey) ks.getKey(alias, STORE_PASS.toCharArray());
+        Certificate[] chain = ks.getCertificateChain(alias);
+
+        StringBuilder svidPemContent = new StringBuilder();
+        for (Certificate c : chain) {
+            svidPemContent.append("-----BEGIN CERTIFICATE-----").append(NL);
+            svidPemContent.append(PEM_ENCODER.encodeToString(c.getEncoded())).append(NL);
+            svidPemContent.append("-----END CERTIFICATE-----").append(NL);
+        }
+        Path svidPemPath = roleDir.resolve("svid.pem");
+        Files.write(svidPemPath, svidPemContent.toString().getBytes(StandardCharsets.US_ASCII));
+
+        String keyPemContent = "-----BEGIN PRIVATE KEY-----" + NL
+                + PEM_ENCODER.encodeToString(key.getEncoded()) + NL
+                + "-----END PRIVATE KEY-----" + NL;
+        Path svidKeyPemPath = roleDir.resolve("svid_key.pem");
+        Files.write(svidKeyPemPath, keyPemContent.getBytes(StandardCharsets.US_ASCII));
+
+        return new Fixture(roleDir, svidPemPath, svidKeyPemPath, subjectDn, spiffeId);
     }
 }

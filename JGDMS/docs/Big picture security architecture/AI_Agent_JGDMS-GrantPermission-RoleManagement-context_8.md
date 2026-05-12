@@ -12,41 +12,55 @@ context. It supersedes and extends v26.
 
 ## v27 Change Summary
 
-This version documents the **ThreadGroup removal plan** — a full architectural
-analysis of every JGDMS site that currently holds a `ThreadGroup` reference for
-security or isolation purposes, and a concrete migration plan.
+This version documents two independent changes:
 
-**Platform context:**  `SecurityManager` is deprecated for removal in JDK 17–23 and is
-fully disabled in JDK 24+, so neither `modifyThreadGroup` nor `createPlatformThread` is
-enforced at runtime on standard JDK builds.  **DirtyChai** is the supported
-high-security platform, where `SecurityManager` remains active; `Thread.ofPlatform().unstarted()`
-/ `Thread.ofVirtual().unstarted()` are guarded by `RuntimePermission("createPlatformThread")`
-/ `"createVirtualThread"` respectively, already tracked by `BlockingSinkRegistry`.
-The removal is code hygiene on standard JDK and a real security-gate improvement on
-DirtyChai.
+1. **Security fix for a TOCTOU context-confusion race** in the Work Item 28 ACC
+   serialisation cache — marks Work Item 28 and §16.5 complete.
+2. **ThreadGroup removal plan** — a full architectural analysis of every JGDMS site
+   that currently holds a `ThreadGroup` reference for security or isolation purposes,
+   and a concrete migration plan.
+
+**Platform context (ThreadGroup / SecurityManager):**  `SecurityManager` is deprecated
+for removal in JDK 17–23 and is fully disabled in JDK 24+, so neither
+`modifyThreadGroup` nor `createPlatformThread` is enforced at runtime on standard JDK
+builds.  **DirtyChai** is the preferred high-security platform, where `SecurityManager`
+remains active; `Thread.ofPlatform().unstarted()` / `Thread.ofVirtual().unstarted()` are
+guarded by `RuntimePermission("createPlatformThread")` / `"createVirtualThread"`
+respectively, already tracked by `BlockingSinkRegistry`.  The ThreadGroup removal is
+code hygiene on standard JDK and a real security-gate improvement on DirtyChai.
 
 **New/changed in v27:**
 
+- **§12 Work Item 28** — marked ✅ completed (v27).  Implementation uses a single
+  `volatile AccSerialCache` holder (immutable inner class bundling `acc`,
+  `transportBytes`, `digestBytes`) instead of three separate `volatile` fields.
+  Three-field "publish last" pattern had a JMM TOCTOU race; full details in §16.5.
+
+- **§16.5** — marked ✅ COMPLETED (HIGH Security Bug, v27).  Documents the
+  context-confusion / impersonation vulnerability in the previous three-field design
+  and describes the `AccSerialCache` holder fix.
+
 - **§17 ThreadGroup Removal — Security Enforcement Migration** — new section with
   per-site analysis, three architecture options per site, ranked recommendations, and
-  an updated policy-file change table.  §17.1 explicitly documents the vanilla-JDK vs.
-  DirtyChai enforcement distinction.
+  an updated policy-file change table.  §17.1 explicitly documents the JDK 17–23
+  (deprecated) / JDK 24+ (disabled) / DirtyChai (active) enforcement distinction.
 - **§12 work item 33** — new work item for the ThreadGroup removal.
-- **§13** — one new design-decision row (ThreadGroup hygiene on vanilla JDK;
+- **§13** — one new design-decision row (`ThreadGroup` not a security boundary;
   `createPlatformThread` gate on DirtyChai).
 
 ---
 
 ## v26 Change Summary
 
-*(Promoted from the v26 footer note.)*
+This version documents several DoS/security fixes completed in v26.
 
-- §16.1 ✅ completed: `InMemoryPolicyServiceImpl` — virtual-thread executor + `Semaphore(500)` cap
-- §16.2 ✅ completed: `InMemoryPolicyServiceImpl` — `MAX_LISTENER_REGISTRATIONS=1000` cap + daemon sweep
-- §16.3 ✅ completed: `HttpmdURLConnection` — `CappedOutputStream(64 MB)` wrapping Pack200 output
-- §16.4 ✅ completed: `BasicInvocationDispatcher` — `PRINCIPAL_CTORS` allowlist + constructor cache
-- §16.6 ✅ completed: `AccessControlContextSerializer.marshalForTransport()` — `anonCount` now encoded even when no HTTPMD records
-- §16.5 (MEDIUM) and §16.7 (MEDIUM) remain not yet started
+**New/changed in v26:**
+- *§16.1 ✅ completed: `InMemoryPolicyServiceImpl` — virtual-thread executor + `Semaphore(500)` cap*
+- *§16.2 ✅ completed: `InMemoryPolicyServiceImpl` — `MAX_LISTENER_REGISTRATIONS=1000` cap + daemon sweep*
+- *§16.3 ✅ completed: `HttpmdURLConnection` — `CappedOutputStream(64 MB)` wrapping Pack200 output*
+- *§16.4 ✅ completed: `BasicInvocationDispatcher` — `PRINCIPAL_CTORS` allowlist + constructor cache*
+- *§16.6 ✅ completed: `AccessControlContextSerializer.marshalForTransport()` — `anonCount` now encoded even when no HTTPMD records*
+- *§16.5 (MEDIUM) and §16.7 (MEDIUM) remained outstanding at end of v26*
 
 ---
 
@@ -1717,46 +1731,26 @@ executor.submit(() -> {
     - `SecurityPolicyWriter` — `hexEncode()` + `DigestCodeSource` detection
     - Policy file round-trip: write → parse → `DigestGrant` fully functional
 27. **JERI ACC transport for `DigestCodeSource` domains** — ✅ *completed (v21/v22)*
-28. **Connection-level serialized-ACC cache** — *(not yet started; identified in v23 performance analysis; detailed in v25 §16.5)*
-    - `BasicInvocationHandler.invoke()` currently calls `marshalForTransport(currentAcc)` on
+28. **Connection-level serialized-ACC cache** — ✅ *completed (v27); security fix applied*
+    - `BasicInvocationHandler.invoke()` previously called `marshalForTransport(currentAcc)` on
       **every** outbound call, triggering a JVM security stack walk (~5–20 µs) each time.
-    - When the ACC is stable across multiple calls on the same connection (the common case),
-      the serialized bytes should be computed once and cached at the connection / session level,
-      invalidated only when the ACC identity changes.
-    - Proposed: hold a `volatile byte[] cachedAccBytes` alongside a `volatile AccessControlContext
-      cachedAccRef` (weak comparison) in the connection state; re-compute only when the ACC
-      reference changes.  Reduces per-call overhead to a single reference comparison.
-    - `AccessControlContextSerializer.digestTransportBytes` serial field — separate
-      `byte[]` carrying `DigestCodeSource` domains; `transportBytes` (HTTPMD) unchanged
-    - `marshalDigestForTransport()` — `cs instanceof Externalizable` + class-name guard;
-      `AtomicMarshalOutputStream.writeObject(cs)` → `writeExternal()` via Externalizable
-      protocol; no reflection
-    - `unmarshalDigestFromTransport()` — `AtomicMarshalInputStream.create()` (secure,
-      DOS-resistant); `ClassNotFoundException` → `break` (fail-secure domain drop)
-    - `DomainIdentityRecord.from()` — early-exit on `DigestCodeSource` before httpmd URL
-      test; prevents duplication when location is an httpmd URL
-    - `buildContext()` — merges HTTPMD and DigestCodeSource `ProtectionDomain[]` into one
-      `AccessControlContext`
-    - Backward compatible: peers without `digestTransportBytes` receive `null` and skip it
-    - `DomainIdentityRecord.equals/hashCode` + `AccessControlContextSerializer.equals/hashCode`
-      added (v22) so stream back-references eliminate repeated equal instances;
-      `cachedDigestBytes` avoids recomputing `marshalDigestForTransport` on each check
-33. **ThreadGroup removal — migrate to `createPlatformThread`/`createVirtualThread`** — *(not yet started; documented in §17)*
-    - Remove `systemThreadGroup` / `userThreadGroup` static fields from `NewThreadAction`;
-      replace `new Thread(group, …)` in `run()` with `Thread.ofPlatform().name(…).stackSize(…).daemon(…).unstarted(runnable)`.
-    - Drop `ThreadGroup` parameter from `TPThreadFactory` and `ThreadPool(ThreadGroup)` constructor;
-      `GetThreadPoolAction` constructs `ThreadPool()` directly.
-    - Delete `ThreadGroupAction` + `CreateThread` inner classes from `ReferenceProcessor.SystemThreadFactory`;
-      replace with a single `AccessController.doPrivileged` block using `Thread.ofPlatform()`.
-    - Remove `ThreadGroup group` field, `ThreadDesc(ThreadGroup, boolean[, int])` constructors, and `getGroup()`
-      from `WakeupManager.ThreadDesc` (all callers already pass `null`).
-    - Deprecate (`forRemoval=true`) the four `ThreadGroup`-accepting constructors in `InterruptedStatusThread`.
-    - In all 16 QA harness `.policy` files: replace `RuntimePermission "modifyThreadGroup"` grants on
-      `collections.jar` / `jeri.jar` with `RuntimePermission "createPlatformThread"`.
-    - Update `ThreadPoolPermission` Javadoc — remove the never-implemented claim about
-      `SecurityManager.checkAccess(ThreadGroup)`.
-
-
+    - **Implementation:** a private immutable inner class `AccSerialCache` bundles the three
+      related values — `AccessControlContext acc`, `byte[] transportBytes`, `byte[] digestBytes`
+      — into a single object published via one `volatile AccSerialCache accSerialCache` field.
+      `invokeRemoteMethodOnce()` does one volatile read into a local variable, checks `cache.acc
+      != currentAcc` (reference comparison), and on a miss recomputes both byte arrays and
+      publishes a new holder with one volatile write.
+    - **Security rationale (TOCTOU race in prior three-field design):** The previous design held
+      three separate `volatile` fields (`cachedAccRef`, `cachedTransportBytes`,
+      `cachedDigestBytes`) and relied on "publish last" ordering (writing `cachedAccRef` after
+      the byte arrays).  The JMM's synchronisation order applies *per field*; it is **not**
+      jointly atomic across fields.  A concurrent thread could overwrite `cachedTransportBytes`
+      after Thread B's identity check but before Thread B's subsequent read of
+      `cachedTransportBytes`, causing Thread B to send Thread C's (potentially
+      higher-privilege) serialised ACC bytes to the server — a context-confusion /
+      impersonation vulnerability.  A single `volatile` holder reference eliminates the window.
+    - Full vulnerability analysis and code details: §16.5.
+29. **Multi-Subject JERI dispatch** — ✅ *completed (v24)*
     - `BasicInvocationHandler`: `CURRENT_ALL_METHOD` (static final `Method`) cached at class-load
       via `Subject.class.getMethod("currentAll")`; null on standard JDK.
     - `getAllUserSubjects()` uses the cached field (zero per-call reflection on std JDK);
@@ -1798,8 +1792,9 @@ executor.submit(() -> {
     - Fix 1 (§16.6, HIGH ✅): `marshalForTransport()` guard changed from `records.isEmpty()`
       to `records.isEmpty() && anonCount == 0` — anonymous domain ceilings are now always
       encoded, closing the privilege-escalation window.
-    - Fix 2 (§16.7, MEDIUM — not yet started): `writeUtf8Prefixed()` must throw `IOException`
-      instead of silently truncating strings that exceed 65 535 UTF-8 bytes.
+    - Fix 2 (§16.7, MEDIUM ✅): `writeUtf8Prefixed()` now throws `IOException`
+      instead of silently truncating strings that exceed 65 535 UTF-8 bytes
+      (§16.7 Option A implemented).
     - Fix 3 (§16.3, HIGH ✅): `HttpmdURLConnection.getInputStream()` now wraps `ByteArrayOutputStream`
       in a `CappedOutputStream(64 MB)` — Pack200 unpacking throws `IOException` if the
       decompressed JAR exceeds 64 MiB, preventing heap amplification.
@@ -1825,6 +1820,20 @@ executor.submit(() -> {
       `AccessControlContextSerializer.unmarshalDigestFromTransport()`.
     - Tests: `MultiSubjectWireProtocolTest` — 6 tests pass (wire-protocol round-trip +
       `CURRENT_ALL_METHOD` caching + `getAllUserSubjects()` under `Subject.callAs`).
+33. **ThreadGroup removal — migrate to `createPlatformThread`/`createVirtualThread`** — *(not yet started; documented in §17)*
+    - Remove `systemThreadGroup` / `userThreadGroup` static fields from `NewThreadAction`;
+      replace `new Thread(group, …)` in `run()` with `Thread.ofPlatform().name(…).stackSize(…).daemon(…).unstarted(runnable)`.
+    - Drop `ThreadGroup` parameter from `TPThreadFactory` and `ThreadPool(ThreadGroup)` constructor;
+      `GetThreadPoolAction` constructs `ThreadPool()` directly.
+    - Delete `ThreadGroupAction` + `CreateThread` inner classes from `ReferenceProcessor.SystemThreadFactory`;
+      replace with a single `AccessController.doPrivileged` block using `Thread.ofPlatform()`.
+    - Remove `ThreadGroup group` field, `ThreadDesc(ThreadGroup, boolean[, int])` constructors, and `getGroup()`
+      from `WakeupManager.ThreadDesc` (all callers already pass `null`).
+    - Deprecate (`forRemoval=true`) the four `ThreadGroup`-accepting constructors in `InterruptedStatusThread`.
+    - In all 16 QA harness `.policy` files: replace `RuntimePermission "modifyThreadGroup"` grants on
+      `collections.jar` / `jeri.jar` with `RuntimePermission "createPlatformThread"`.
+    - Update `ThreadPoolPermission` Javadoc — remove the never-implemented claim about
+      `SecurityManager.checkAccess(ThreadGroup)`.
 
 ---
 
@@ -1931,7 +1940,7 @@ executor.submit(() -> {
 | **Multi-Subject dispatch on DirtyChai uses single varargs `callAs`; nesting is wrong** | ✅ **v24:** Each nested `Subject.callAs(Subject, Callable)` call shadows the outer one; only the innermost Subject is visible via `Subject.current()`. DirtyChai's `Subject.callAs(Callable, Subject[])` varargs call passes all Subjects simultaneously to the JVM so `Subject.currentAll()` returns the full array. |
 | **`IllegalAccessException` from `CALL_AS_MULTI_SUBJECT.invoke()` wrapped as `IllegalStateException`** | ✅ **v24:** The method is public; `IllegalAccessException` should never occur. Re-wrapping it as `IllegalStateException` (an `Exception`) honours the `Callable<Void>` contract and preserves the original cause in the stack trace. |
 | **Unreachable outer `catch (ClassNotFoundException)` removed from `unmarshalDigestFromTransport()`** | ✅ **v24:** The exception is already caught per-domain by the inner try-catch around `amis.readObject()`; an outer catch is unreachable and is a compile error on JDK 27 (`-Werror`). Fixed by removing the outer try-wrapper; method already declares `throws IOException`. |
-| **`writeUtf8Prefixed()` must reject strings > 65 535 UTF-8 bytes** | ✅ **v25 (pending):** Silent `Math.min` truncation can produce a different string at the receiver — a security ambiguity.  `IOException` is the correct response; no legitimate `Principal` implementation produces a name this long. |
+| **`writeUtf8Prefixed()` must reject strings > 65 535 UTF-8 bytes** | ✅ **v26:** Silent `Math.min` truncation removed; `IOException` thrown instead (§16.7 Option A).  No legitimate `Principal` implementation produces a name this long. |
 | **`marshalForTransport()` early-return must check `anonCount == 0`** | ✅ **v25 (pending):** Returning empty bytes when `records.isEmpty()` but `anonCount > 0` silently drops anonymous-domain permission ceilings — same class of privilege escalation as §10.2.1.  Fix: guard on `records.isEmpty() && anonCount == 0`. |
 | **Virtual-thread executor + semaphore cap for policy-service event delivery** | ✅ **v25 (recommended, pending):** `newVirtualThreadPerTaskExecutor()` prevents I/O blocking on platform threads; semaphore cap (500 permits) bounds in-flight deliveries; requires `<release>21</release>` in module `pom.xml`. |
 | **`MAX_LISTENER_REGISTRATIONS` cap in `registerForPolicyUpdates()`** | ✅ **v25 (recommended, pending):** Any authenticated caller can flood the listener map; a hard cap (1 000) plus a daemon virtual-thread lease-expiry sweep are the two necessary controls. |
@@ -2560,15 +2569,41 @@ thread pinning risk while preserving full policy compatibility.
 
 ---
 
-### 16.5 Per-Call ACC Stack-Walk (CPU Amplification) — MEDIUM (Work Item 28 Extension)
+### 16.5 Per-Call ACC Stack-Walk (CPU Amplification) — ✅ COMPLETED (HIGH Security Bug, v27)
 
-**Location:** `BasicInvocationHandler.invokeRemoteMethodOnce()` lines 865–875;
+**Location:** `BasicInvocationHandler.invokeRemoteMethodOnce()`;
 both `marshalForTransport()` and `marshalDigestForTransport()` in
 `AccessControlContextSerializer` independently call `extractDomains()`.
 
-**Problem (extends §15.1.9):** On DirtyChai JVMs with `DigestCodeSource` domains
-in the ACC, two independent stack walks occur per outbound call.  At 10 000 calls/s
-per thread this costs 100–400 ms/s of stack-walk CPU.
+**Performance problem (extends §15.1.9):** On DirtyChai JVMs with `DigestCodeSource`
+domains in the ACC, two independent stack walks occur per outbound call.  At 10 000
+calls/s per thread this costs 100–400 ms/s of stack-walk CPU.
+
+**Security problem (TOCTOU context-confusion / impersonation):** The initial
+implementation of Option B below used three separate `volatile` fields:
+
+```java
+// ❌ VULNERABLE — three-field "publish last" design
+private transient volatile AccessControlContext cachedAccRef;
+private transient volatile byte[] cachedTransportBytes;
+private transient volatile byte[] cachedDigestBytes;
+```
+
+The "publish last" idiom (writing `cachedAccRef` after the byte arrays) is **not**
+sufficient to prevent a race.  The JMM synchronisation order applies *per field*; it
+is not jointly atomic across reads of distinct volatile fields.  The following
+interleaving is permitted:
+
+| Step | Thread B (cache reader) | Thread C (concurrent writer, different ACC) |
+|------|------------------------|---------------------------------------------|
+| 1 | — | writes `cachedTransportBytes = tb_C` |
+| 2 | reads `cachedAccRef == ACC_A` → **hit** (Thread C's `cachedAccRef` not yet written) | — |
+| 3 | reads `cachedTransportBytes` → gets **tb_C** (Thread C's bytes) | — |
+| 4 | sends Thread C's ACC bytes to server | writes `cachedAccRef = ACC_C` |
+
+Thread B passes the identity check against `ACC_A` but sends `ACC_C`'s (possibly
+higher-privilege) bytes.  The server reconstructs Thread C's permission ceiling and
+applies it to Thread B's request — **privilege escalation via context confusion**.
 
 **Option A — Single-pass domain partition**
 Merge `marshalForTransport` and `marshalDigestForTransport` into a single
@@ -2576,36 +2611,46 @@ Merge `marshalForTransport` and `marshalDigestForTransport` into a single
 the resulting array, then writes both byte arrays.
 
 - **Pro:** halves stack-walk cost; small, focused refactor.
-- **Con:** does not eliminate repeated walks across calls; no help for stable-ACC case.
+- **Con:** does not eliminate repeated walks across calls; no help for stable-ACC case;
+  does not address the TOCTOU race if three separate volatile fields are used.
 
-**Option B — Connection-level ACC cache (Work Item 28 implementation) — RECOMMENDED**
-Add three `volatile` fields to `BasicInvocationHandler`:
+**Option B — Connection-level ACC cache with immutable holder — IMPLEMENTED ✅**
+Replace the three `volatile` fields with a single `volatile` reference to an
+immutable `AccSerialCache` holder:
 
 ```java
-private volatile AccessControlContext cachedAccRef;
-private volatile byte[] cachedTransportBytes = new byte[0];
-private volatile byte[] cachedDigestBytes    = new byte[0];
+// ✅ SAFE — single volatile reference to immutable holder
+private static final class AccSerialCache {
+    final AccessControlContext acc;
+    final byte[] transportBytes;
+    final byte[] digestBytes;
+    AccSerialCache(AccessControlContext acc, byte[] tb, byte[] db) {
+        this.acc = acc; this.transportBytes = tb; this.digestBytes = db;
+    }
+}
+private transient volatile AccSerialCache accSerialCache;
 ```
 
-In `invokeRemoteMethodOnce()`, before marshal:
+In `invokeRemoteMethodOnce()`:
 
 ```java
 final AccessControlContext currentAcc = AccessController.getContext();
-if (currentAcc != cachedAccRef) {                       // reference comparison ~10 ns
+AccSerialCache cache = accSerialCache;          // one volatile read → coherent triple
+final byte[] serializedAcc;
+if (cache == null || cache.acc != currentAcc) {
     byte[] tb = AccessControlContextSerializer.marshalForTransport(currentAcc);
     byte[] db = AccessControlContextSerializer.marshalDigestForTransport(currentAcc);
-    cachedTransportBytes = tb;
-    cachedDigestBytes    = db;
-    cachedAccRef         = currentAcc;                  // publish last
+    accSerialCache = new AccSerialCache(currentAcc, tb, db); // one volatile write
+    serializedAcc = tb;                         // always use local — never re-read cache
+} else {
+    serializedAcc = cache.transportBytes;       // same coherent snapshot
 }
-byte[] serializedAcc = cachedTransportBytes;
 ```
 
-At 1 000 calls/s steady state: one stack walk per ACC change (rare) vs. 1 000 stack
-walks per second today.  The volatile read + reference comparison costs < 10 ns.
-
-**Note:** Implement Option A first (lowest risk, immediate halving for DigestCodeSource
-paths), then Option B as the full Work Item 28.
+A single volatile read returns a fully consistent `(acc, transportBytes, digestBytes)`
+triple; no concurrent writer can insert a partial update between the check and the use.
+At 1 000 calls/s steady state: one stack walk per ACC change (rare) vs. 1 000/s
+previously.  The volatile read + reference comparison costs < 10 ns.
 
 ---
 
@@ -3075,6 +3120,12 @@ lease-expiry sweepers), the matching DirtyChai permission is
 - *§12 work item 33 added — ThreadGroup removal (not yet started)*
 - *§13 new row — `ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup`*
 
+*Hand this document (along with source files as needed) to a future AI agent to
+continue without loss of context. This is version 27, updated to document:*
+
+- *§16.5 ✅ completed: `BasicInvocationHandler` — `AccSerialCache` immutable holder fixes TOCTOU context-confusion race; Work Item 28 complete*
+- *§12 Work Item 28 — marked ✅ completed (v27) with full security rationale*
+
 ---
 
 *Previous version (v26) notes:*
@@ -3083,7 +3134,8 @@ lease-expiry sweepers), the matching DirtyChai permission is
 - *§16.3 ✅ completed: `HttpmdURLConnection` — `CappedOutputStream(64 MB)` wrapping Pack200 output*
 - *§16.4 ✅ completed: `BasicInvocationDispatcher` — `PRINCIPAL_CTORS` allowlist + constructor cache*
 - *§16.6 ✅ completed: `AccessControlContextSerializer.marshalForTransport()` — `anonCount` now encoded even when no HTTPMD records*
-- *§16.5 (MEDIUM) and §16.7 (MEDIUM) remain not yet started*
+- *§16.7 ✅ completed: `BasicInvocationHandler.writeUtf8Prefixed()` — throws `IOException` instead of silently truncating strings > 65 535 UTF-8 bytes (§16.7 Option A)*
+- *§16.5 (MEDIUM) remains not yet started*
 - *Work items 30 (partially), 31, and 32 (partially) marked complete in §12*
 
 ---

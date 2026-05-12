@@ -2,8 +2,8 @@
 
 **Branch:** `copilot/setup-spiffe-jwt-servers`  
 **PR:** [#256](https://github.com/pfirmstone/JGDMS/pull/256)  
-**Date:** 2026-05-09  
-**Status:** Draft PR open, all code merged to branch, validation passing (CodeQL + Code Review)
+**Date:** 2026-05-11  
+**Status:** Updated with high-priority SPIFFE JERI integration coverage and QA end-to-end SPIFFE category work
 
 ---
 
@@ -32,6 +32,18 @@ This session implemented the SPIFFE and JWT HTTPS integration test infrastructur
 | `JGDMS/jgdms-security-jwt/pom.xml` | Added `maven-surefire-plugin` with `<argLine>--add-modules jdk.httpserver</argLine>` so `com.sun.net.httpserver.HttpsServer` is available to Surefire's unnamed-module JVM. |
 | `.github/workflows/jwt-integration-tests.yml` | **New CI workflow** (see §2.3). |
 | `qa/jtreg/net/jini/security/jwt/JwtLoginModuleTest/JwtLoginModuleTest.java` | **New jtreg variant** (see §2.4). |
+
+### 1.3 High-priority follow-up — SPIFFE JERI end-to-end + JWT user dispatch
+
+| File | Change |
+|---|---|
+| `qa/src/org/apache/river/test/impl/end2end/e2etest/SpiffeSubjectProvider.java` | **New QA subject provider** that logs in `tester` + `reggie` via `SpiffeLoginModule` and supplies `SpiffePrincipal`-based client/server constraints to the end-to-end harness. |
+| `qa/src/org/apache/river/test/impl/end2end/e2etest/ProviderManager.java` | Added `end2end.spiffe` mode selection and provider initialization. |
+| `qa/src/org/apache/river/test/impl/end2end/e2etest/Driver.java` | Added support for propagating `-Dend2end.spiffe=true` into the standalone end-to-end JVM. |
+| `qa/src/org/apache/river/test/impl/end2end/End2EndTestSpiffe.td` | **New QA test descriptor** creating a SPIFFE-specific secure end-to-end category. |
+| `JGDMS/jgdms-jeri/src/test/java/net/jini/jeri/ssl/SpiffeTestSvidFactory.java` | Extended with a shared tester+reggie fixture set and generated truststore support for two-party SPIFFE TLS integration tests. |
+| `JGDMS/jgdms-jeri/src/test/java/net/jini/jeri/ssl/SpiffeJwtDispatchIntegrationTest.java` | **New Maven transport-level integration test** covering TLS-capable SPIFFE worker Subject selection and JWT user Subject wire propagation. |
+| `JGDMS/jgdms-jeri/pom.xml` | Added `jgdms-security-jwt` as a test-scoped dependency so the JERI integration test can assert `JwtPrincipal` dispatch. |
 
 ---
 
@@ -109,6 +121,33 @@ Mirrors the Maven Surefire test but uses a plain `main()` runner (no JUnit). Tes
 
 **Classpath requirement:** needs `jgdms-security-jwt.jar` + `jgdms-platform.jar` on the classpath at jtreg invocation time.
 
+### 2.5 `End2EndTestSpiffe.td` + `SpiffeSubjectProvider.java` (QA harness)
+
+**Location:**  
+- `qa/src/org/apache/river/test/impl/end2end/End2EndTestSpiffe.td`  
+- `qa/src/org/apache/river/test/impl/end2end/e2etest/SpiffeSubjectProvider.java`
+
+**What it covers:**
+1. The existing end-to-end secure transport harness now has a dedicated SPIFFE mode (`-Dend2end.spiffe=true`).
+2. Client and server Subjects are loaded from the QA harness SPIFFE JAAS contexts:
+   - `org.apache.river.Test`
+   - `org.apache.river.Reggie`
+3. Principal constraints used by the harness are now expressed with `SpiffePrincipal`, so the secure transport path exercises the `Utilities.getPrincipals()` SPIFFE branch in a real SSL/JERI call path rather than only via unit tests.
+4. The new descriptor establishes a reusable QA category for future secure JERI SPIFFE regressions.
+
+### 2.6 `SpiffeJwtDispatchIntegrationTest.java` (Maven Surefire)
+
+**Location:** `JGDMS/jgdms-jeri/src/test/java/net/jini/jeri/ssl/SpiffeJwtDispatchIntegrationTest.java`
+
+**What it covers:**
+1. Generates a shared ephemeral SPIFFE CA and both `tester` + `reggie` SVIDs at test time (no committed private keys).
+2. Builds a read-only SPIFFE worker Subject for the `tester` role and a separate user Subject containing `JwtPrincipal("sub:alice@example.org")`.
+3. Verifies that the SPIFFE worker Subject is TLS-capable (`SslEndpointImpl.hasTlsIdentity(...) == true`) while the JWT-only user Subject is not.
+4. Executes the client-side identity nesting used by secure JERI:
+   - outer worker Subject via `Subject.doAsPrivileged(...)`
+   - inner user Subject via `Subject.callAs(...)`
+5. Reflectively exercises `BasicInvocationHandler.getAllUserSubjects()`, `writeUserSubjects(...)`, and `BasicInvocationDispatcher.readUserSubjects(...)` to prove the JWT principal survives the JERI user-Subject wire path without being confused with the TLS worker Subject.
+
 ---
 
 ## 3. SPIFFE Trust Domain and SVID Naming Scheme
@@ -172,15 +211,16 @@ JAAS config: `qa/harness/trust/spiffelogins`
 
 ---
 
-## 5. What's Not Yet Done (Stretch Goals)
+## 5. What's Not Yet Done
 
 These items were identified in the problem statement but are **not** in PR #256:
 
 | Item | Reason not done |
 |---|---|
-| **Mock SPIRE Workload API socket (`SpireAgentStub`)** | Requires gRPC/protobuf encoding over Unix domain socket. Not trivial without a gRPC library. |
-| **`SpiffeCredentialManagerIntegrationTest`** (hot-rotation via mock SPIRE socket) | Depends on `SpireAgentStub`. |
-| **End-to-end JERI TLS test (`SslServerEndpointImpl` + `SslEndpointImpl`)** | Requires full JERI runtime stack, classloader setup, and policy configuration — significant complexity. |
+| **Mock SPIRE Workload API socket (`SpireAgentStub`)** | Still needed for realistic hot-rotation testing without a live SPIRE deployment. |
+| **`SpiffeCredentialManagerIntegrationTest`** (hot-rotation via mock SPIRE socket) | Still blocked on `SpireAgentStub`. |
+| **QA/CI execution of `End2EndTestSpiffe.td`** | The descriptor exists now, but there is not yet a CI workflow that provisions QA harness SPIFFE fixtures and runs the end-to-end suite automatically. |
+| **Policy-layer integration (`SpiffePolicyFile` + `RemotePolicyProvider` + `JwtPrincipal`)** | The transport path is now covered, but the three-layer policy stack still lacks an end-to-end regression that combines SPIFFE workload and JWT user principals. |
 
 ---
 
@@ -197,6 +237,24 @@ Requires JDK 21. The `--add-modules jdk.httpserver` argLine is configured in `jg
 ```bash
 cd JGDMS
 mvn test -pl jgdms-jeri -Dtest=SpiffePrincipalTest,FileSvidSourceTest,SpiffeCredentialManagerTest --no-transfer-progress
+```
+
+### Maven Surefire — SPIFFE TLS + JWT JERI dispatch integration
+```bash
+cd JGDMS
+mvn test -pl jgdms-jeri -am \
+  -Dtest=SpiffeJwtDispatchIntegrationTest \
+  --no-transfer-progress
+```
+
+### QA harness — SPIFFE secure end-to-end category
+```bash
+# First generate the QA harness SPIFFE test material:
+cd /absolute/path/to/JGDMS/qa/harness/trust
+bash gen-spiffe-svids.sh
+
+# Then run the new descriptor under the spiffe config set using the QA harness.
+# The exact harness invocation depends on the local QA runner setup.
 ```
 
 ### Regenerate SPIFFE SVIDs (after changing roles or trust domain)
@@ -250,3 +308,14 @@ The parallel validation (Code Review + CodeQL) passed with the following minor i
 - ✅ `SpiffeEndpointTest.SPIFFE_DIR` resolution now has three-step fallback with directory existence check
 - ✅ Spelling: `minimise` → `minimize` in `JwtLoginModuleTest.java`
 - ⚠️ Code review noted `base64UrlEncode(String)` in jtreg variant could call the `byte[]` overload for consistency — low priority, no functional impact
+
+---
+
+## 9. Testing TODO Action List
+
+- [ ] Run `End2EndTestSpiffe.td` locally under the QA harness after generating `qa/harness/trust/spiffe/` with `gen-spiffe-svids.sh`.
+- [ ] Add a CI workflow that provisions the QA harness SPIFFE fixtures and executes the SPIFFE end-to-end QA category automatically.
+- [ ] Extend the SPIFFE/JWT JERI integration test to cover multiple transmitted user Subjects on DirtyChai (`Subject.currentAll()` / `ClientUserSubject.getUserSubjects()` > 1).
+- [ ] Add a negative SPIFFE principal constraint test (wrong `ServerMinPrincipal`) to confirm the call fails for the expected reason.
+- [ ] Implement `SpireAgentStub` and a hot-rotation integration test that proves new SVID material is picked up before expiry.
+- [ ] Add a policy-stack regression that conditions a server-side permission check on both `SpiffePrincipal` and `JwtPrincipal`.
