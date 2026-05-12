@@ -51,7 +51,7 @@ import java.util.logging.Logger;
  *
  * </table>
  *
- * @authorSun Microsystems, Inc.
+ * @author Sun Microsystems, Inc.
  **/
 final class ThreadPool implements Executor, java.util.concurrent.Executor {
 
