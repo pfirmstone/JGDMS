@@ -166,15 +166,17 @@ class HttpmdURLConnection extends DelegatingHttpURLConnection {
 
 	@Override
 	public void write(int b) throws IOException {
-	    if (++written > cap)
+	    if (written >= cap)
 		throw new IOException("Unpacked JAR exceeds " + cap + " bytes");
+	    written++;
 	    delegate.write(b);
 	}
 
 	@Override
 	public void write(byte[] b, int off, int len) throws IOException {
-	    if ((written += len) > cap)
+	    if (written + len > cap)
 		throw new IOException("Unpacked JAR exceeds " + cap + " bytes");
+	    written += len;
 	    delegate.write(b, off, len);
 	}
     }
