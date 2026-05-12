@@ -167,6 +167,34 @@ public class MultiSubjectWireProtocolTest {
     }
 
     /**
+     * §16.7 Option A — a Principal whose UTF-8-encoded class name or name
+     * exceeds 65 535 bytes must cause {@link IOException} at write time rather
+     * than being silently truncated.
+     */
+    @Test
+    public void testOversizedPrincipalFieldThrowsIOException() {
+        // Build a name whose UTF-8 encoding is exactly 65 536 bytes (> 0xFFFF).
+        String oversized = "A".repeat(65536);
+        Principal oversizedPrincipal = new java.security.Principal() {
+            @Override public String getName() { return oversized; }
+        };
+        Set<Principal> principals = Collections.singleton(oversizedPrincipal);
+        Subject s = new Subject(true, principals,
+            Collections.emptySet(), Collections.emptySet());
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            BasicInvocationHandler.writeUserSubjects(baos, new Subject[]{s});
+            Assert.fail("Expected IOException for oversized principal field");
+        } catch (IOException expected) {
+            // pass: the message should mention the byte count
+            Assert.assertTrue(
+                "Exception message should mention byte count",
+                expected.getMessage().contains("65536"));
+        }
+    }
+
+    /**
      * Verifies that the cached {@code CURRENT_ALL_METHOD} field is set on a
      * DirtyChai JDK (where {@code Subject.currentAll()} exists) and is null on a
      * standard JDK.

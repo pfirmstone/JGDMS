@@ -1793,15 +1793,29 @@ public class BasicInvocationHandler
 	}
     }
 
-    /** Writes a UTF-8 string prefixed by a 2-byte big-endian length. */
+    /**
+     * Writes a UTF-8 string prefixed by a 2-byte big-endian length.
+     *
+     * @throws IOException if the UTF-8 encoding of {@code s} exceeds 65 535
+     *         bytes.  Silent truncation is intentionally avoided: a truncated
+     *         class-name or principal-name produces a different string at the
+     *         receiver, which could silently match an unintended policy
+     *         principal.  No legitimate {@link java.security.Principal}
+     *         implementation produces names this long.
+     */
     private static void writeUtf8Prefixed(OutputStream out, String s)
 	throws IOException
     {
 	byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
-	int len = Math.min(bytes.length, 0xFFFF);
-	out.write((len >>> 8) & 0xFF);
-	out.write(len & 0xFF);
-	out.write(bytes, 0, len);
+	if (bytes.length > 0xFFFF) {
+	    throw new IOException(
+		"Principal field too long for wire encoding (" + bytes.length
+		+ " UTF-8 bytes): "
+		+ s.substring(0, Math.min(40, s.length())) + "...");
+	}
+	out.write((bytes.length >>> 8) & 0xFF);
+	out.write(bytes.length & 0xFF);
+	out.write(bytes);
     }
 
     private static void writeByteArrayBlock(OutputStream out, byte[] bytes) throws IOException {
