@@ -1,12 +1,44 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v25)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v27)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v24.
+context. It supersedes and extends v26.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v27 Change Summary
+
+This version documents the **security fix for a TOCTOU context-confusion race** in
+the Work Item 28 ACC serialisation cache, and marks Work Item 28 and §16.5 complete.
+
+**New/changed in v27:**
+
+- **§12 Work Item 28** — marked ✅ completed (v27).  Implementation uses a single
+  `volatile AccSerialCache` holder (immutable inner class bundling `acc`,
+  `transportBytes`, `digestBytes`) instead of three separate `volatile` fields.
+  Three-field "publish last" pattern had a JMM TOCTOU race; full details in §16.5.
+
+- **§16.5** — marked ✅ COMPLETED (HIGH Security Bug, v27).  Documents the
+  context-confusion / impersonation vulnerability in the previous three-field design
+  and describes the `AccSerialCache` holder fix.
+
+---
+
+## v26 Change Summary
+
+This version documents several DoS/security fixes completed in v26.
+
+**New/changed in v26:**
+- *§16.1 ✅ completed: `InMemoryPolicyServiceImpl` — virtual-thread executor + `Semaphore(500)` cap*
+- *§16.2 ✅ completed: `InMemoryPolicyServiceImpl` — `MAX_LISTENER_REGISTRATIONS=1000` cap + daemon sweep*
+- *§16.3 ✅ completed: `HttpmdURLConnection` — `CappedOutputStream(64 MB)` wrapping Pack200 output*
+- *§16.4 ✅ completed: `BasicInvocationDispatcher` — `PRINCIPAL_CTORS` allowlist + constructor cache*
+- *§16.6 ✅ completed: `AccessControlContextSerializer.marshalForTransport()` — `anonCount` now encoded even when no HTTPMD records*
+- *§16.5 (MEDIUM) and §16.7 (MEDIUM) remained outstanding at end of v26*
 
 ---
 
@@ -1677,30 +1709,25 @@ executor.submit(() -> {
     - `SecurityPolicyWriter` — `hexEncode()` + `DigestCodeSource` detection
     - Policy file round-trip: write → parse → `DigestGrant` fully functional
 27. **JERI ACC transport for `DigestCodeSource` domains** — ✅ *completed (v21/v22)*
-28. **Connection-level serialized-ACC cache** — *(not yet started; identified in v23 performance analysis; detailed in v25 §16.5)*
-    - `BasicInvocationHandler.invoke()` currently calls `marshalForTransport(currentAcc)` on
+28. **Connection-level serialized-ACC cache** — ✅ *completed (v27); security fix applied*
+    - `BasicInvocationHandler.invoke()` previously called `marshalForTransport(currentAcc)` on
       **every** outbound call, triggering a JVM security stack walk (~5–20 µs) each time.
-    - When the ACC is stable across multiple calls on the same connection (the common case),
-      the serialized bytes should be computed once and cached at the connection / session level,
-      invalidated only when the ACC identity changes.
-    - Proposed: hold a `volatile byte[] cachedAccBytes` alongside a `volatile AccessControlContext
-      cachedAccRef` (weak comparison) in the connection state; re-compute only when the ACC
-      reference changes.  Reduces per-call overhead to a single reference comparison.
-    - `AccessControlContextSerializer.digestTransportBytes` serial field — separate
-      `byte[]` carrying `DigestCodeSource` domains; `transportBytes` (HTTPMD) unchanged
-    - `marshalDigestForTransport()` — `cs instanceof Externalizable` + class-name guard;
-      `AtomicMarshalOutputStream.writeObject(cs)` → `writeExternal()` via Externalizable
-      protocol; no reflection
-    - `unmarshalDigestFromTransport()` — `AtomicMarshalInputStream.create()` (secure,
-      DOS-resistant); `ClassNotFoundException` → `break` (fail-secure domain drop)
-    - `DomainIdentityRecord.from()` — early-exit on `DigestCodeSource` before httpmd URL
-      test; prevents duplication when location is an httpmd URL
-    - `buildContext()` — merges HTTPMD and DigestCodeSource `ProtectionDomain[]` into one
-      `AccessControlContext`
-    - Backward compatible: peers without `digestTransportBytes` receive `null` and skip it
-    - `DomainIdentityRecord.equals/hashCode` + `AccessControlContextSerializer.equals/hashCode`
-      added (v22) so stream back-references eliminate repeated equal instances;
-      `cachedDigestBytes` avoids recomputing `marshalDigestForTransport` on each check
+    - **Implementation:** a private immutable inner class `AccSerialCache` bundles the three
+      related values — `AccessControlContext acc`, `byte[] transportBytes`, `byte[] digestBytes`
+      — into a single object published via one `volatile AccSerialCache accSerialCache` field.
+      `invokeRemoteMethodOnce()` does one volatile read into a local variable, checks `cache.acc
+      != currentAcc` (reference comparison), and on a miss recomputes both byte arrays and
+      publishes a new holder with one volatile write.
+    - **Security rationale (TOCTOU race in prior three-field design):** The previous design held
+      three separate `volatile` fields (`cachedAccRef`, `cachedTransportBytes`,
+      `cachedDigestBytes`) and relied on "publish last" ordering (writing `cachedAccRef` after
+      the byte arrays).  The JMM's synchronisation order applies *per field*; it is **not**
+      jointly atomic across fields.  A concurrent thread could overwrite `cachedTransportBytes`
+      after Thread B's identity check but before Thread B's subsequent read of
+      `cachedTransportBytes`, causing Thread B to send Thread C's (potentially
+      higher-privilege) serialised ACC bytes to the server — a context-confusion /
+      impersonation vulnerability.  A single `volatile` holder reference eliminates the window.
+    - Full vulnerability analysis and code details: §16.5.
 29. **Multi-Subject JERI dispatch** — ✅ *completed (v24)*
     - `BasicInvocationHandler`: `CURRENT_ALL_METHOD` (static final `Method`) cached at class-load
       via `Subject.class.getMethod("currentAll")`; null on standard JDK.
@@ -2504,15 +2531,41 @@ thread pinning risk while preserving full policy compatibility.
 
 ---
 
-### 16.5 Per-Call ACC Stack-Walk (CPU Amplification) — MEDIUM (Work Item 28 Extension)
+### 16.5 Per-Call ACC Stack-Walk (CPU Amplification) — ✅ COMPLETED (HIGH Security Bug, v27)
 
-**Location:** `BasicInvocationHandler.invokeRemoteMethodOnce()` lines 865–875;
+**Location:** `BasicInvocationHandler.invokeRemoteMethodOnce()`;
 both `marshalForTransport()` and `marshalDigestForTransport()` in
 `AccessControlContextSerializer` independently call `extractDomains()`.
 
-**Problem (extends §15.1.9):** On DirtyChai JVMs with `DigestCodeSource` domains
-in the ACC, two independent stack walks occur per outbound call.  At 10 000 calls/s
-per thread this costs 100–400 ms/s of stack-walk CPU.
+**Performance problem (extends §15.1.9):** On DirtyChai JVMs with `DigestCodeSource`
+domains in the ACC, two independent stack walks occur per outbound call.  At 10 000
+calls/s per thread this costs 100–400 ms/s of stack-walk CPU.
+
+**Security problem (TOCTOU context-confusion / impersonation):** The initial
+implementation of Option B below used three separate `volatile` fields:
+
+```java
+// ❌ VULNERABLE — three-field "publish last" design
+private transient volatile AccessControlContext cachedAccRef;
+private transient volatile byte[] cachedTransportBytes;
+private transient volatile byte[] cachedDigestBytes;
+```
+
+The "publish last" idiom (writing `cachedAccRef` after the byte arrays) is **not**
+sufficient to prevent a race.  The JMM synchronisation order applies *per field*; it
+is not jointly atomic across reads of distinct volatile fields.  The following
+interleaving is permitted:
+
+| Step | Thread B (cache reader) | Thread C (concurrent writer, different ACC) |
+|------|------------------------|---------------------------------------------|
+| 1 | — | writes `cachedTransportBytes = tb_C` |
+| 2 | reads `cachedAccRef == ACC_A` → **hit** (Thread C's `cachedAccRef` not yet written) | — |
+| 3 | reads `cachedTransportBytes` → gets **tb_C** (Thread C's bytes) | — |
+| 4 | sends Thread C's ACC bytes to server | writes `cachedAccRef = ACC_C` |
+
+Thread B passes the identity check against `ACC_A` but sends `ACC_C`'s (possibly
+higher-privilege) bytes.  The server reconstructs Thread C's permission ceiling and
+applies it to Thread B's request — **privilege escalation via context confusion**.
 
 **Option A — Single-pass domain partition**
 Merge `marshalForTransport` and `marshalDigestForTransport` into a single
@@ -2520,36 +2573,46 @@ Merge `marshalForTransport` and `marshalDigestForTransport` into a single
 the resulting array, then writes both byte arrays.
 
 - **Pro:** halves stack-walk cost; small, focused refactor.
-- **Con:** does not eliminate repeated walks across calls; no help for stable-ACC case.
+- **Con:** does not eliminate repeated walks across calls; no help for stable-ACC case;
+  does not address the TOCTOU race if three separate volatile fields are used.
 
-**Option B — Connection-level ACC cache (Work Item 28 implementation) — RECOMMENDED**
-Add three `volatile` fields to `BasicInvocationHandler`:
+**Option B — Connection-level ACC cache with immutable holder — IMPLEMENTED ✅**
+Replace the three `volatile` fields with a single `volatile` reference to an
+immutable `AccSerialCache` holder:
 
 ```java
-private volatile AccessControlContext cachedAccRef;
-private volatile byte[] cachedTransportBytes = new byte[0];
-private volatile byte[] cachedDigestBytes    = new byte[0];
+// ✅ SAFE — single volatile reference to immutable holder
+private static final class AccSerialCache {
+    final AccessControlContext acc;
+    final byte[] transportBytes;
+    final byte[] digestBytes;
+    AccSerialCache(AccessControlContext acc, byte[] tb, byte[] db) {
+        this.acc = acc; this.transportBytes = tb; this.digestBytes = db;
+    }
+}
+private transient volatile AccSerialCache accSerialCache;
 ```
 
-In `invokeRemoteMethodOnce()`, before marshal:
+In `invokeRemoteMethodOnce()`:
 
 ```java
 final AccessControlContext currentAcc = AccessController.getContext();
-if (currentAcc != cachedAccRef) {                       // reference comparison ~10 ns
+AccSerialCache cache = accSerialCache;          // one volatile read → coherent triple
+final byte[] serializedAcc;
+if (cache == null || cache.acc != currentAcc) {
     byte[] tb = AccessControlContextSerializer.marshalForTransport(currentAcc);
     byte[] db = AccessControlContextSerializer.marshalDigestForTransport(currentAcc);
-    cachedTransportBytes = tb;
-    cachedDigestBytes    = db;
-    cachedAccRef         = currentAcc;                  // publish last
+    accSerialCache = new AccSerialCache(currentAcc, tb, db); // one volatile write
+    serializedAcc = tb;                         // always use local — never re-read cache
+} else {
+    serializedAcc = cache.transportBytes;       // same coherent snapshot
 }
-byte[] serializedAcc = cachedTransportBytes;
 ```
 
-At 1 000 calls/s steady state: one stack walk per ACC change (rare) vs. 1 000 stack
-walks per second today.  The volatile read + reference comparison costs < 10 ns.
-
-**Note:** Implement Option A first (lowest risk, immediate halving for DigestCodeSource
-paths), then Option B as the full Work Item 28.
+A single volatile read returns a fully consistent `(acc, transportBytes, digestBytes)`
+triple; no concurrent writer can insert a partial update between the check and the use.
+At 1 000 calls/s steady state: one stack walk per ACC change (rare) vs. 1 000/s
+previously.  The volatile read + reference comparison costs < 10 ns.
 
 ---
 
@@ -2666,8 +2729,14 @@ the root pom's `<release>8</release>`, matching the pattern used by
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 26, updated to document:*
+continue without loss of context. This is version 27, updated to document:*
 
+- *§16.5 ✅ completed: `BasicInvocationHandler` — `AccSerialCache` immutable holder fixes TOCTOU context-confusion race; Work Item 28 complete*
+- *§12 Work Item 28 — marked ✅ completed (v27) with full security rationale*
+
+---
+
+*Previous version (v26) notes:*
 - *§16.1 ✅ completed: `InMemoryPolicyServiceImpl` — virtual-thread executor + `Semaphore(500)` cap*
 - *§16.2 ✅ completed: `InMemoryPolicyServiceImpl` — `MAX_LISTENER_REGISTRATIONS=1000` cap + daemon sweep*
 - *§16.3 ✅ completed: `HttpmdURLConnection` — `CappedOutputStream(64 MB)` wrapping Pack200 output*
