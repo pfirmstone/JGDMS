@@ -1,0 +1,92 @@
+{{/*
+host4-downloader.yaml — Codebase Downloader Deployment, ServiceAccount, ConfigMap, and Service.
+*/}}
+{{- if .Values.host4.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jgdms-downloader
+  namespace: {{ include "jgdms-scap.namespace" . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: host4-downloader-config
+  namespace: {{ include "jgdms-scap.namespace" . }}
+data:
+  JGDMS_JERI_PORT:  {{ .Values.host4.jeriPort | quote }}
+  TRUST_DOMAIN:     {{ include "jgdms-scap.trustDomain" . | quote }}
+  SPIRE_DIR:        {{ .Values.global.spireDir | default "/run/spire" | quote }}
+  JGDMS_VERSION:    {{ .Values.global.jgdmsVersion | quote }}
+  JGDMS_LOOKUP_URL: {{ include "jgdms-scap.lookupUrl" . | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: host4-downloader
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app: host4-downloader
+    scap-role: downloader
+spec:
+  replicas: {{ .Values.host4.replicas }}
+  selector:
+    matchLabels:
+      app: host4-downloader
+  template:
+    metadata:
+      labels:
+        app: host4-downloader
+        scap-role: downloader
+    spec:
+      serviceAccountName: jgdms-downloader
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "jgdms-scap.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: downloader
+          image: {{ include "jgdms-scap.image" (dict "repo" .Values.host4.image.repository "tag" .Values.host4.image.tag "global" .Values.global) }}
+          imagePullPolicy: {{ .Values.host4.image.pullPolicy }}
+          ports:
+            - name: jeri
+              containerPort: {{ .Values.host4.jeriPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: host4-downloader-config
+          env:
+            {{- include "jgdms-scap.commonEnv" . | nindent 12 }}
+          volumeMounts:
+            {{- include "jgdms-scap.spireVolumeMount" . | nindent 12 }}
+            - name: tmp
+              mountPath: /tmp
+          {{- include "jgdms-scap.livenessProbe" .Values.host4.jeriPort | nindent 10 }}
+          {{- include "jgdms-scap.readinessProbe" .Values.host4.jeriPort | nindent 10 }}
+          resources:
+            {{- toYaml .Values.host4.resources | nindent 12 }}
+          securityContext:
+            {{- include "jgdms-scap.containerSecurityContext" . | nindent 12 }}
+      volumes:
+        {{- include "jgdms-scap.spireVolume" . | nindent 8 }}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: downloader
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app: host4-downloader
+    scap-role: downloader
+spec:
+  selector:
+    app: host4-downloader
+  ports:
+    - name: jeri
+      port: {{ .Values.host4.jeriPort }}
+      targetPort: {{ .Values.host4.jeriPort }}
+      protocol: TCP
+  type: ClusterIP
+{{- end }}

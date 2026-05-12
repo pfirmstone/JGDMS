@@ -1,0 +1,169 @@
+# SPIRE Server — StatefulSet + Service
+#
+# Runs in the separate 'spire' namespace so that compromise of the jgdms-scap
+# namespace cannot directly reach the SPIRE signing key.
+#
+# This file creates the minimal SPIRE server configuration required to issue
+# SVIDs to the five JGDMS SCAP hosts.  It uses the Kubernetes Nodes Attestor
+# (k8s_psat) for SPIRE agent attestation and the k8s_sat workload attestor
+# for JGDMS pod attestation.
+#
+# For production use, replace the in-memory trust bundle CA with an upstream
+# CA backed by a cloud HSM or Vault PKI.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spire
+  labels:
+    app.kubernetes.io/name: spire
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-server
+  namespace: spire
+---
+# ClusterRole for SPIRE server to read k8s node and pod resources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-server-cluster-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["tokenreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-server-cluster-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-server-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: spire-server
+    namespace: spire
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-server-config
+  namespace: spire
+data:
+  server.conf: |
+    server {
+      bind_address = "0.0.0.0"
+      bind_port    = "8081"
+      socket_path  = "/tmp/spire-server/private/api.sock"
+      trust_domain = "${TRUST_DOMAIN}"
+      data_dir     = "/run/spire/server/data"
+      log_level    = "INFO"
+
+      ca_ttl         = "24h"
+      default_x509_svid_ttl = "1h"
+    }
+
+    plugins {
+      DataStore "sql" {
+        plugin_data {
+          database_type = "sqlite3"
+          connection_string = "/run/spire/server/data/datastore.sqlite3"
+        }
+      }
+
+      KeyManager "memory" {}
+
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+          clusters = {
+            "jgdms-cluster" = {
+              service_account_allow_list = ["spire:spire-agent"]
+            }
+          }
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: spire-server
+  namespace: spire
+  labels:
+    app: spire-server
+spec:
+  selector:
+    matchLabels:
+      app: spire-server
+  serviceName: spire-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: spire-server
+    spec:
+      serviceAccountName: spire-server
+      shareProcessNamespace: true
+      containers:
+        - name: spire-server
+          image: ghcr.io/spiffe/spire-server:1.9.6
+          args: ["-config", "/run/spire/config/server.conf"]
+          ports:
+            - containerPort: 8081
+          volumeMounts:
+            - name: spire-config
+              mountPath: /run/spire/config
+              readOnly: true
+            - name: spire-data
+              mountPath: /run/spire/server/data
+          readinessProbe:
+            exec:
+              command: ["/opt/spire/bin/spire-server", "healthcheck"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            readOnlyRootFilesystem: false   # SPIRE server writes its DB to /run/spire
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: spire-config
+          configMap:
+            name: spire-server-config
+  volumeClaimTemplates:
+    - metadata:
+        name: spire-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spire-server
+  namespace: spire
+spec:
+  selector:
+    app: spire-server
+  ports:
+    - name: grpc
+      port: 8081
+      targetPort: 8081

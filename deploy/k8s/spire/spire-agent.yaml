@@ -1,0 +1,157 @@
+# SPIRE Agent — DaemonSet
+#
+# One SPIRE agent per cluster node.  The agent attests each JGDMS pod's
+# identity using the k8s_sat (Kubernetes Service Account Token) workload
+# attestor and writes SVID PEM files to a host-path volume that is then
+# mounted (read-only) into each JGDMS pod at /run/spire.
+#
+# SPIFFE IDs assigned by the SPIRE server's registration entries:
+#
+#   spiffe://<trust-domain>/host/lookup       → Host 1 pods (SA: jgdms-lookup)
+#   spiffe://<trust-domain>/host/bae/<pod>    → Host 2 pods (SA: jgdms-bae)
+#   spiffe://<trust-domain>/host/registry     → Host 3 pods (SA: jgdms-registry)
+#   spiffe://<trust-domain>/host/downloader   → Host 4 pods (SA: jgdms-downloader)
+#   spiffe://<trust-domain>/host/telemetry    → Host 5 pods (SA: jgdms-telemetry)
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-agent
+  namespace: spire
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-agent-cluster-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["tokenreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-agent-cluster-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-agent-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: spire-agent
+    namespace: spire
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-agent-config
+  namespace: spire
+data:
+  agent.conf: |
+    agent {
+      data_dir     = "/run/spire/agent/data"
+      log_level    = "INFO"
+      server_address = "spire-server.spire.svc.cluster.local"
+      server_port    = "8081"
+      socket_path    = "/run/spire/sockets/agent.sock"
+      trust_domain   = "${TRUST_DOMAIN}"
+    }
+
+    plugins {
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+          cluster = "jgdms-cluster"
+        }
+      }
+
+      KeyManager "memory" {}
+
+      WorkloadAttestor "k8s" {
+        plugin_data {
+          skip_kubelet_verification = true
+        }
+      }
+
+      SVIDStore "disk" {
+        plugin_data {
+          svid_file_name        = "svid.pem"
+          svid_key_file_name    = "svid_key.pem"
+          svid_bundle_file_name = "bundle.pem"
+          directory             = "/run/spire/svid"
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spire-agent
+  namespace: spire
+  labels:
+    app: spire-agent
+spec:
+  selector:
+    matchLabels:
+      app: spire-agent
+  template:
+    metadata:
+      labels:
+        app: spire-agent
+    spec:
+      serviceAccountName: spire-agent
+      hostPID: true
+      initContainers:
+        - name: init-spire-server
+          image: busybox:1.36
+          command: ["sh", "-c",
+            "until nc -z spire-server.spire.svc.cluster.local 8081; do sleep 2; done"]
+      containers:
+        - name: spire-agent
+          image: ghcr.io/spiffe/spire-agent:1.9.6
+          args: ["-config", "/run/spire/config/agent.conf"]
+          volumeMounts:
+            - name: spire-config
+              mountPath: /run/spire/config
+              readOnly: true
+            - name: spire-agent-socket-dir
+              mountPath: /run/spire/sockets
+            - name: spire-svid-dir
+              mountPath: /run/spire/svid
+            - name: spire-agent-data
+              mountPath: /run/spire/agent/data
+          readinessProbe:
+            exec:
+              command: ["/opt/spire/bin/spire-agent", "healthcheck"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: spire-config
+          configMap:
+            name: spire-agent-config
+        - name: spire-agent-socket-dir
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
+        - name: spire-svid-dir
+          hostPath:
+            path: /run/spire/svid
+            type: DirectoryOrCreate
+        - name: spire-agent-data
+          emptyDir: {}

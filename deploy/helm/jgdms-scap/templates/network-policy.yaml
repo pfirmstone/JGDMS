@@ -1,0 +1,243 @@
+{{/*
+network-policy.yaml — JGDMS SCAP NetworkPolicy (Helm-managed).
+Only rendered when networkPolicy.enabled is true.
+*/}}
+{{- if .Values.networkPolicy.enabled }}
+---
+# Deny all ingress and egress by default within the namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ include "jgdms-scap.namespace" . }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Allow DNS egress for all pods (required for service discovery).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: {{ include "jgdms-scap.namespace" . }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# Host 1 (Lookup): accepts from BAE, downloader, telemetry, and clients.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: host1-lookup-policy
+  namespace: {{ include "jgdms-scap.namespace" . }}
+spec:
+  podSelector:
+    matchLabels:
+      scap-role: lookup
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              scap-role: bae
+        - podSelector:
+            matchLabels:
+              scap-role: downloader
+        - podSelector:
+            matchLabels:
+              scap-role: telemetry
+        - namespaceSelector:
+            matchLabels:
+              jgdms-client: "true"
+      ports:
+        - port: {{ .Values.host1.jeriPort }}
+          protocol: TCP
+        - port: {{ .Values.host1.codebasePort }}
+          protocol: TCP
+  egress: []
+---
+# Host 2 (BAE): accepts from downloader and telemetry only.  NO egress allowed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: host2-bae-policy
+  namespace: {{ include "jgdms-scap.namespace" . }}
+spec:
+  podSelector:
+    matchLabels:
+      scap-role: bae
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              scap-role: downloader
+        - podSelector:
+            matchLabels:
+              scap-role: telemetry
+      ports:
+        - port: {{ .Values.host2.jeriPort }}
+          protocol: TCP
+  egress: []
+---
+# Host 3 (Verdict Registry): accepts from downloader, telemetry, and clients.
+# NOT from BAE — isolation invariant.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: host3-registry-policy
+  namespace: {{ include "jgdms-scap.namespace" . }}
+spec:
+  podSelector:
+    matchLabels:
+      scap-role: registry
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              scap-role: downloader
+        - podSelector:
+            matchLabels:
+              scap-role: telemetry
+        - namespaceSelector:
+            matchLabels:
+              jgdms-client: "true"
+      ports:
+        - port: {{ .Values.host3.jeriPort }}
+          protocol: TCP
+        - port: {{ .Values.host3.codebasePort }}
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: lookup
+      ports:
+        - port: {{ .Values.host1.jeriPort }}
+          protocol: TCP
+---
+# Host 4 (Downloader): accepts from lookup events; egress to lookup, BAE, registry, internet.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: host4-downloader-policy
+  namespace: {{ include "jgdms-scap.namespace" . }}
+spec:
+  podSelector:
+    matchLabels:
+      scap-role: downloader
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              scap-role: lookup
+      ports:
+        - port: {{ .Values.host4.jeriPort }}
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: lookup
+      ports:
+        - port: {{ .Values.host1.jeriPort }}
+          protocol: TCP
+        - port: {{ .Values.host4.jeriPort }}
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: bae
+      ports:
+        - port: {{ .Values.host2.jeriPort }}
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: registry
+      ports:
+        - port: {{ .Values.host3.jeriPort }}
+          protocol: TCP
+    # Internet egress for JAR downloads (HTTP + HTTPS only, no RFC-1918)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+      ports:
+        - port: 80
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+---
+# Host 5 (Telemetry): accepts from clients and lookup; egress to lookup, BAE, registry.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: host5-telemetry-policy
+  namespace: {{ include "jgdms-scap.namespace" . }}
+spec:
+  podSelector:
+    matchLabels:
+      scap-role: telemetry
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              scap-role: lookup
+        - namespaceSelector:
+            matchLabels:
+              jgdms-client: "true"
+      ports:
+        - port: {{ .Values.host5.jeriPort }}
+          protocol: TCP
+        - port: {{ .Values.host5.codebasePort }}
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: lookup
+      ports:
+        - port: {{ .Values.host1.jeriPort }}
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: bae
+      ports:
+        - port: {{ .Values.host2.jeriPort }}
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: registry
+      ports:
+        - port: {{ .Values.host3.jeriPort }}
+          protocol: TCP
+{{- end }}

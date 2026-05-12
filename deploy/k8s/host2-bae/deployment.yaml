@@ -1,0 +1,171 @@
+# Host 2 — Bytecode Analysis Engine (BAE) pool
+#
+# Stateless Deployment of N replicas.  Each replica has its own engine
+# signing key pair provisioned as a Kubernetes Secret named
+# bae-engine-signing-key-<n>.
+#
+# Nodes running BAE pods should be tainted with:
+#   node-role.kubernetes.io/selinux-enforcing=true:NoSchedule
+# and carry the label selinux-enforcing=true so that this Deployment
+# can use a matching toleration + nodeSelector.
+#
+# The seccompProfile and readOnlyRootFilesystem further harden the BAE
+# at the container level.  The primary network isolation is enforced by
+# the NetworkPolicy in network-policy.yaml.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jgdms-bae
+  namespace: jgdms-scap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: host2-bae-config
+  namespace: jgdms-scap
+data:
+  JGDMS_JERI_PORT:  "1098"
+  JGDMS_LOOKUP_URL: "jini://lookup.jgdms-scap.svc.cluster.local:4160"
+  TRUST_DOMAIN:     "jgdms.example.org"
+  SPIRE_DIR:        "/run/spire"
+  JGDMS_VERSION:    "3.1.1-SNAPSHOT"
+---
+# Engine signing key Secret — one per replica.
+# In production this Secret should be created by a Helm hook or init-container
+# that generates a fresh key pair and registers the public key with Host 3.
+# The template below is a placeholder; replace data values with real keys.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bae-engine-signing-key
+  namespace: jgdms-scap
+type: Opaque
+data:
+  # Base64-encoded PEM private key and matching certificate.
+  # DO NOT commit real key material here.
+  engine-signing-key.pem:  ""
+  engine-signing-cert.pem: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: host2-bae
+  namespace: jgdms-scap
+  labels:
+    app: host2-bae
+    scap-role: bae
+spec:
+  replicas: 2   # Increase for higher quorum / redundancy
+  selector:
+    matchLabels:
+      app: host2-bae
+  template:
+    metadata:
+      labels:
+        app: host2-bae
+        scap-role: bae
+    spec:
+      serviceAccountName: jgdms-bae
+      automountServiceAccountToken: false
+      # Run on SELinux-enforcing nodes only
+      nodeSelector:
+        selinux-enforcing: "true"
+      tolerations:
+        - key: "node-role.kubernetes.io/selinux-enforcing"
+          operator: "Exists"
+          effect: "NoSchedule"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+        # SELinux label for the BAE process — matches the custom .te module
+        seLinuxOptions:
+          type: jgdms_bae_t
+      containers:
+        - name: bae
+          image: jgdms/host2-bae:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: jeri
+              containerPort: 1098
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: host2-bae-config
+          env:
+            - name: JGDMS_SERVICE_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: JGDMS_ENGINE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ENGINE_SIGNING_KEY
+              value: "/opt/jgdms/keys/engine-signing-key.pem"
+            - name: ENGINE_SIGNING_CERT
+              value: "/opt/jgdms/keys/engine-signing-cert.pem"
+          volumeMounts:
+            - name: spire-svid
+              mountPath: /run/spire
+              readOnly: true
+            - name: engine-signing-key
+              mountPath: /opt/jgdms/keys
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            tcpSocket:
+              port: 1098
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 1098
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: spire-svid
+          hostPath:
+            path: /run/spire/svid
+            type: Directory
+        - name: engine-signing-key
+          secret:
+            secretName: bae-engine-signing-key
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bae
+  namespace: jgdms-scap
+  labels:
+    app: host2-bae
+    scap-role: bae
+spec:
+  selector:
+    app: host2-bae
+  ports:
+    - name: jeri
+      port: 1098
+      targetPort: 1098
+      protocol: TCP
+  type: ClusterIP

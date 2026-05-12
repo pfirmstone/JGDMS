@@ -1,0 +1,131 @@
+name: Build DirtyChai base image
+
+# Rebuild the DirtyChai JDK base image whenever:
+#   • The Dockerfile changes (any push or PR)
+#   • The upstream dirty-chai-latest release tag changes (scheduled check)
+#   • Manually triggered via workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - deploy/docker/base/Dockerfile
+      - .github/workflows/dirtychai-base-image.yml
+  pull_request:
+    paths:
+      - deploy/docker/base/Dockerfile
+  schedule:
+    # Check for upstream DirtyChai release updates once per day at 02:00 UTC.
+    - cron: "0 2 * * *"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/jgdms-dirtychai-base
+
+jobs:
+  build-base-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Resolve the SHA of the current dirty-chai-latest release.
+      # This is stored as a cache key so that the image is only rebuilt when
+      # the upstream release actually changes.
+      - name: Resolve DirtyChai release SHA
+        id: dirtychai-sha
+        run: |
+          RELEASE_INFO="$(gh release view dirty-chai-latest \
+            --repo pfirmstone/DirtyChai \
+            --json tagName,targetCommitish \
+            2>/dev/null || echo '{}')"
+          TAG=$(echo "$RELEASE_INFO" | jq -r '.tagName // "unknown"')
+          SHA=$(echo "$RELEASE_INFO" | jq -r '.targetCommitish // "unknown"')
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "DirtyChai release tag: $TAG (commit: $SHA)"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Check whether rebuild is needed
+        id: needs-rebuild
+        uses: actions/cache@v4
+        with:
+          path: /tmp/dirtychai-build-marker
+          key: dirtychai-base-${{ steps.dirtychai-sha.outputs.sha }}-${{ hashFiles('deploy/docker/base/Dockerfile') }}
+
+      # Skip the expensive build if nothing upstream has changed and the
+      # Dockerfile itself is unchanged.  A forced rebuild via workflow_dispatch
+      # always proceeds regardless of cache hit.
+      - name: Skip build (cache hit + not manual trigger)
+        if: |
+          steps.needs-rebuild.outputs.cache-hit == 'true' &&
+          github.event_name != 'workflow_dispatch'
+        run: |
+          echo "DirtyChai base image is up to date — skipping build."
+
+      - name: Set up QEMU (multi-arch)
+        if: |
+          steps.needs-rebuild.outputs.cache-hit != 'true' ||
+          github.event_name == 'workflow_dispatch'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: |
+          steps.needs-rebuild.outputs.cache-hit != 'true' ||
+          github.event_name == 'workflow_dispatch'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: |
+          (steps.needs-rebuild.outputs.cache-hit != 'true' ||
+           github.event_name == 'workflow_dispatch') &&
+          github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        if: |
+          steps.needs-rebuild.outputs.cache-hit != 'true' ||
+          github.event_name == 'workflow_dispatch'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=dirtychai-${{ steps.dirtychai-sha.outputs.tag }}
+            type=sha
+
+      - name: Build and push DirtyChai base image
+        if: |
+          steps.needs-rebuild.outputs.cache-hit != 'true' ||
+          github.event_name == 'workflow_dispatch'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deploy/docker/base/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            DIRTYCHAI_RELEASE=dirty-chai-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Write a marker file so the cache action records a hit on success.
+      - name: Write build marker
+        if: |
+          steps.needs-rebuild.outputs.cache-hit != 'true' ||
+          github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p /tmp/dirtychai-build-marker
+          echo "${{ steps.dirtychai-sha.outputs.sha }}" > /tmp/dirtychai-build-marker/sha

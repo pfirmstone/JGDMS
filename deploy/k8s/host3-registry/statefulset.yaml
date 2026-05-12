@@ -1,0 +1,142 @@
+# Host 3 — Verdict Registry (StatefulSet + PersistentVolumeClaim)
+#
+# The VerdictRegistry uses ReliableLog for durable verdict storage.
+# It MUST be a StatefulSet with a PVC.  A single replica is sufficient
+# (the signing key is the critical asset; HA can be added with
+# leader election if needed).
+#
+# Host 2 (BAE) has NO connection to this service — isolation invariant.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jgdms-registry
+  namespace: jgdms-scap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: host3-registry-config
+  namespace: jgdms-scap
+data:
+  JGDMS_JERI_PORT:     "1098"
+  JGDMS_CODEBASE_PORT: "9080"
+  JGDMS_LOOKUP_URL:    "jini://lookup.jgdms-scap.svc.cluster.local:4160"
+  JGDMS_LOG_DIR:       "/opt/jgdms/log"
+  JGDMS_VR_QUORUM:     "2"
+  TRUST_DOMAIN:        "jgdms.example.org"
+  SPIRE_DIR:           "/run/spire"
+  JGDMS_VERSION:       "3.1.1-SNAPSHOT"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: host3-registry
+  namespace: jgdms-scap
+  labels:
+    app: host3-registry
+    scap-role: registry
+spec:
+  serviceName: registry
+  replicas: 1
+  selector:
+    matchLabels:
+      app: host3-registry
+  template:
+    metadata:
+      labels:
+        app: host3-registry
+        scap-role: registry
+    spec:
+      serviceAccountName: jgdms-registry
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: registry
+          image: jgdms/host3-registry:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: jeri
+              containerPort: 1098
+              protocol: TCP
+            - name: codebase
+              containerPort: 9080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: host3-registry-config
+          env:
+            - name: JGDMS_SERVICE_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: spire-svid
+              mountPath: /run/spire
+              readOnly: true
+            - name: verdict-log
+              mountPath: /opt/jgdms/log
+          livenessProbe:
+            tcpSocket:
+              port: 1098
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 1098
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: spire-svid
+          hostPath:
+            path: /run/spire/svid
+            type: Directory
+  volumeClaimTemplates:
+    - metadata:
+        name: verdict-log
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+  namespace: jgdms-scap
+  labels:
+    app: host3-registry
+    scap-role: registry
+spec:
+  selector:
+    app: host3-registry
+  ports:
+    - name: jeri
+      port: 1098
+      targetPort: 1098
+      protocol: TCP
+    - name: codebase
+      port: 9080
+      targetPort: 9080
+      protocol: TCP
+  type: ClusterIP
