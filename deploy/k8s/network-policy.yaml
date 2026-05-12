@@ -200,7 +200,7 @@ spec:
       ports:
         - port: 4160
           protocol: TCP
-        - port: 1098
+        - port: 9080
           protocol: TCP
     # BAE pool
     - to:

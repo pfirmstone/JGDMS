@@ -161,7 +161,7 @@ spec:
       ports:
         - port: {{ .Values.host1.jeriPort }}
           protocol: TCP
-        - port: {{ .Values.host4.jeriPort }}
+        - port: {{ .Values.host1.codebasePort }}
           protocol: TCP
     - to:
         - podSelector:

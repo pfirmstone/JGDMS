@@ -32,18 +32,27 @@ data:
   JGDMS_VERSION:    "3.1.1-SNAPSHOT"
 ---
 # Engine signing key Secret — one per replica.
-# In production this Secret should be created by a Helm hook or init-container
-# that generates a fresh key pair and registers the public key with Host 3.
-# The template below is a placeholder; replace data values with real keys.
+# IMPORTANT: The data fields MUST be populated with real key material before
+# deploying BAE pods.  See deploy/README.md §"BAE engine signing keys" for
+# key generation instructions.  Empty data values will cause BAE pods to
+# fail to start.
+#
+# Pre-create this Secret externally before applying this manifest:
+#   kubectl create secret generic bae-engine-signing-key \
+#     --namespace jgdms-scap \
+#     --from-file=engine-signing-key.pem \
+#     --from-file=engine-signing-cert.pem
 apiVersion: v1
 kind: Secret
 metadata:
   name: bae-engine-signing-key
   namespace: jgdms-scap
+  annotations:
+    "jgdms.io/requires-operator-action": "true"
 type: Opaque
 data:
-  # Base64-encoded PEM private key and matching certificate.
-  # DO NOT commit real key material here.
+  # Replace with base64-encoded PEM private key and matching certificate.
+  # DO NOT commit real key material to source control.
   engine-signing-key.pem:  ""
   engine-signing-cert.pem: ""
 ---

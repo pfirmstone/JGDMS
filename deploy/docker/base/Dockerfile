@@ -37,8 +37,11 @@ RUN apt-get update -qq && \
 WORKDIR /tmp/dirtychai-dl
 
 # Download the JDK tarball and its SHA-256 checksum from GitHub Releases.
-# Use gh CLI for authenticated download to avoid rate-limiting in CI.
-RUN gh release download "${DIRTYCHAI_RELEASE}" \
+# GH_TOKEN must be passed as a build secret to avoid API rate-limiting:
+#   docker build --secret id=GH_TOKEN,env=GH_TOKEN ...
+# The gh CLI reads GH_TOKEN automatically from the environment when set.
+RUN --mount=type=secret,id=GH_TOKEN,env=GH_TOKEN \
+    gh release download "${DIRTYCHAI_RELEASE}" \
         --repo pfirmstone/DirtyChai \
         --pattern 'jdk-linux-x64.tar.gz' \
         --pattern 'jdk-linux-x64.tar.gz.sha256' \

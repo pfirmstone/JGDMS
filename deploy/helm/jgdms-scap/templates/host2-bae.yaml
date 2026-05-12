@@ -21,18 +21,26 @@ data:
   JGDMS_VERSION:    {{ .Values.global.jgdmsVersion | quote }}
   JGDMS_LOOKUP_URL: {{ include "jgdms-scap.lookupUrl" . | quote }}
 ---
-# BAE engine signing key Secret.
-# Populate data values before deploying.
-# See deploy/docs/bae-key-provisioning.md for key generation instructions.
+{{- if not .Values.host2.signingKey.existingSecret }}
+# BAE engine signing key Secret placeholder.
+# IMPORTANT: Populate data values before deployment.
+# Set host2.signingKey.existingSecret=<secretName> in Helm values if you
+# pre-create the Secret externally (recommended for production).
+# See deploy/README.md §"BAE engine signing keys" for instructions.
 apiVersion: v1
 kind: Secret
 metadata:
   name: bae-engine-signing-key
   namespace: {{ include "jgdms-scap.namespace" . }}
+  annotations:
+    "jgdms.io/requires-operator-action": "true"
 type: Opaque
 data:
+  # Replace with base64-encoded PEM private key and matching certificate.
+  # DO NOT commit real key material to source control.
   engine-signing-key.pem:  ""
   engine-signing-cert.pem: ""
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -107,7 +115,7 @@ spec:
         {{- include "jgdms-scap.spireVolume" . | nindent 8 }}
         - name: engine-signing-key
           secret:
-            secretName: bae-engine-signing-key
+            secretName: {{ .Values.host2.signingKey.existingSecret | default "bae-engine-signing-key" }}
         - name: tmp
           emptyDir: {}
 ---

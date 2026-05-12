@@ -1,3 +1,4 @@
+#!/bin/sh
 # SPIRE registration entries for JGDMS SCAP hosts
 #
 # Apply with:
@@ -15,8 +16,6 @@
 # The entries below are expressed as a shell script because the SPIRE API
 # server CLI does not accept YAML directly for batch entry creation.
 # Run this script inside the spire-server pod.
-
-#!/bin/sh
 set -e
 
 TRUST_DOMAIN="${TRUST_DOMAIN:-jgdms.example.org}"

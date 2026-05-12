@@ -70,6 +70,13 @@ host2:
   requireSelinuxNodes: true
   # SELinux process type from jgdms_bae.te.
   selinuxType: "jgdms_bae_t"
+  # Engine signing key configuration.
+  # Set existingSecret to the name of a pre-created Kubernetes Secret
+  # containing engine-signing-key.pem and engine-signing-cert.pem.
+  # If empty, a placeholder Secret named 'bae-engine-signing-key' is created;
+  # you MUST populate it before BAE pods will function.
+  signingKey:
+    existingSecret: ""
   resources:
     requests:
       cpu: "500m"

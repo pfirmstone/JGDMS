@@ -116,10 +116,13 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             DIRTYCHAI_RELEASE=dirty-chai-latest
+          # Pass GH_TOKEN as a build secret so the Dockerfile's gh CLI can
+          # authenticate with GitHub Releases without it appearing in the
+          # image layers or build logs.
+          secrets: |
+            GH_TOKEN=${{ github.token }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-        env:
-          GH_TOKEN: ${{ github.token }}
 
       # Write a marker file so the cache action records a hit on success.
       - name: Write build marker
