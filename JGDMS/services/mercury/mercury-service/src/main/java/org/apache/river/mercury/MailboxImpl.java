@@ -92,8 +92,8 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -2647,14 +2647,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
     	    taskManager = Config.getNonNullEntry(config,
 	        MERCURY, "notificationsExecutorService",
 	        ExecutorService.class, 
-                new ThreadPoolExecutor(
-                    10,
-                    10, /* Ignored */
-                    15,
-                    TimeUnit.SECONDS, 
-                    new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
-                    new NamedThreadFactory("EventTypeGenerator", false)
-                )
+                Executors.newVirtualThreadPerTaskExecutor()
             );
 //TODO - defer TaskManager() creation to catch block of getEntry()
     	    //start();

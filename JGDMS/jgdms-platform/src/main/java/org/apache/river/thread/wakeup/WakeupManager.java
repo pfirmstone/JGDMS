@@ -177,61 +177,60 @@ public class WakeupManager {
      * @see WakeupManager#WakeupManager(WakeupManager.ThreadDesc)
      */
     public static class ThreadDesc {
-	private final ThreadGroup group;	// group to create in
 	private final boolean daemon;		// create as daemon?
 	private final int priority;		// priority
 
 	/**
 	 * Equivalent to
 	 * <pre>
-	 *     ThreadDesc(null, false)
+	 *     ThreadDesc(false, Thread.NORM_PRIORITY)
 	 * </pre>
 	 */
 	public ThreadDesc() {
-	    this(null, false);
+	    this.daemon = false;
+	    this.priority = Thread.NORM_PRIORITY;
 	}
 
 	/**
-	 * Equivalent to
-	 * <pre>
-	 *     ThreadDesc(group, deamon, Thread.NORM_PRIORITY)
-	 * </pre>
+	 * @deprecated Use {@link #ThreadDesc()} or override {@link #thread(Runnable)}.
+	 *             ThreadGroup-based isolation was never an effective security
+	 *             boundary; the group parameter is ignored.
 	 */
+	@Deprecated(since = "3.1.0", forRemoval = true)
 	public ThreadDesc(ThreadGroup group, boolean daemon) {
-	    this(group, daemon, Thread.NORM_PRIORITY);
+	    this(daemon, Thread.NORM_PRIORITY);
 	}
 
 	/**
-	 * Describe a future thread that will be created in the given group,
-	 * deamon status, and priority.
+	 * @deprecated Use {@link #ThreadDesc()} or override {@link #thread(Runnable)}.
+	 *             ThreadGroup-based isolation was never an effective security
+	 *             boundary; the group parameter is ignored.
+	 */
+	@Deprecated(since = "3.1.0", forRemoval = true)
+	public ThreadDesc(ThreadGroup group, boolean daemon, int priority) {
+	    this(daemon, priority);
+	}
+
+	/**
+	 * Describe a future thread with the given daemon status and priority.
 	 *
-	 * @param group The group to be created in.  If <code>null</code>,
-	 *		the thread will be created in the default group.
 	 * @param daemon The thread will be a daemon thread if this is
 	 *		<code>true</code>.
-	 * @param priority The thread's priority.
-	 * @throws IllegalArgumentException if priority is not 
-	 *    in between {@link Thread#MIN_PRIORITY} and 
+	 * @param priority The thread's priority (ignored for virtual threads).
+	 * @throws IllegalArgumentException if priority is not
+	 *    in between {@link Thread#MIN_PRIORITY} and
 	 *    {@link Thread#MAX_PRIORITY}
 	 */
-	public ThreadDesc(ThreadGroup group, boolean daemon, int priority) {
+	public ThreadDesc(boolean daemon, int priority) {
 	    if (priority < Thread.MIN_PRIORITY ||
 		priority > Thread.MAX_PRIORITY)
 	    {
 		throw new IllegalArgumentException("bad value for priority:" +
 						   priority);
 	    }
-
-	    this.group = group;
 	    this.daemon = daemon;
 	    this.priority = priority;
 	}
-
-	/** 
-	 * The {@link ThreadGroup} the thread will be created in.
-	 * @return the {@link ThreadGroup} the thread will be created in.
-	 */
-	public ThreadGroup getGroup() { return group; }
 
 	/** 
 	 * Returns <code>true</code> if the the thread will be daemon
@@ -243,30 +242,31 @@ public class WakeupManager {
 
 	/**
 	 * The priority the thread should be created with.
+	 * Note: virtual threads ignore priority; this accessor is retained
+	 * for subclass compatibility.
 	 * @return the priority the thread should be created with.
 	 */
 	public int getPriority() { return priority; }
 
 	/**
-	 * Create a thread for the given runnable based on the values in this
-	 * object. May be overridden to give full control over creation
-	 * of thread.
+	 * Create a virtual thread for the given runnable based on the values
+	 * in this object.  May be overridden to give full control over
+	 * creation of thread.
+	 *
+	 * <p>Note: virtual threads are always daemon threads and ignore
+	 * priority settings; {@link #isDaemon()} and {@link #getPriority()}
+	 * are no-ops for the kicker threads created here.
+	 *
 	 * @return a thread to run <code>r</code>, unstarted
 	 */
 	public Thread thread(Runnable r) {
-	    Thread thr;
-	    if (getGroup() == null)
-		thr = new Thread(r);
-	    else
-		thr = new Thread(getGroup(), r);
-	    thr.setDaemon(isDaemon());
-	    thr.setPriority(getPriority());
-	    return thr;
+	    return Thread.ofVirtual()
+		.name("WakeupManager-kicker")
+		.unstarted(r);
 	}
 
 	public String toString() {
-	    return "[" + getGroup() + ", " + isDaemon() + ", " 
-		+ getPriority() + "]";
+	    return "[daemon=" + isDaemon() + ", priority=" + getPriority() + "]";
 	}
     }
 

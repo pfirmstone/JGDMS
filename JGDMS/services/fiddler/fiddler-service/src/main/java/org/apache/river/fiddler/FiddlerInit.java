@@ -27,7 +27,7 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import javax.security.auth.login.LoginContext;
@@ -200,7 +200,7 @@ class FiddlerInit {
                                              FiddlerImpl.COMPONENT_NAME,
                                              "executorService",
                                              ExecutorService.class,
-                                             new ThreadPoolExecutor(10,10,15,TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new NamedThreadFactory("Fiddler Executor", false)) );
+                                             Executors.newVirtualThreadPerTaskExecutor() );
             /* Get the discovery manager to pass to this service's join manager. */
             try {
                 joinMgrLDM = Config.getNonNullEntry(config,

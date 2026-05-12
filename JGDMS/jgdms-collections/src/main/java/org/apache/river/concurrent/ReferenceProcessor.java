@@ -264,63 +264,20 @@ class ReferenceProcessor<T> implements ReferenceQueuingFactory<T, Referrer<T>> {
         
     }
     
-    private static class SystemThreadFactory implements ThreadFactory{
-        private static final ThreadGroup g;
-        
-        static {
-            ThreadGroup tg = Thread.currentThread().getThreadGroup();
-            g = AccessController.doPrivileged( new ThreadGroupAction(tg));
+    private static class SystemThreadFactory implements ThreadFactory {
+
+        private SystemThreadFactory() {
         }
 
-        private SystemThreadFactory(){
-        }
-        
         @Override
         public Thread newThread(Runnable r) {
-            return AccessController.doPrivileged( new CreateThread(g, r));
-        }
-        
-    }
-    
-    private static class ThreadGroupAction implements PrivilegedAction<ThreadGroup>{
-        private ThreadGroup tg;
-        
-        ThreadGroupAction(ThreadGroup g){
-            tg = g;
-        }
-        public ThreadGroup run() {
-            try {
-                ThreadGroup parent = tg.getParent();
-                while (parent != null){
-                    tg = parent;
-                    parent = tg.getParent();
-                }
-            }catch (SecurityException e){
-                Logger.getLogger(ReferenceProcessor.class.getName()).log(Level.FINE, "Unable to get parent thread group", e);
-            }
-            return tg;
-        }
-    }
-    
-    private static class CreateThread implements PrivilegedAction<Thread>{
-        private ThreadGroup g;
-        private Runnable r;
-        
-        CreateThread(ThreadGroup g, Runnable r){
-            this.g = g;
-            this.r = r;
-        }
-        public Thread run() {
-            Thread t = new Thread(g, r, "Reference collection cleaner");
-            try {
-                t.setContextClassLoader(null);
-                t.setPriority(Thread.MAX_PRIORITY);
-            } catch (SecurityException e){
-                Logger.getLogger(ReferenceProcessor.class.getName()).log(Level.FINE, "Unable to set ContextClassLoader or Priority", e);
-            }
+            Thread t = AccessController.doPrivileged(
+                new org.apache.river.thread.NewThreadAction(r, "Reference collection cleaner", false));
+            t.setPriority(Thread.MAX_PRIORITY);
+            t.setContextClassLoader(null);
             return t;
         }
-        
+
     }
-    
+
 }

@@ -26,11 +26,9 @@ import java.security.PrivilegedAction;
  * java.security.PrivilegedAction, to be used conveniently with an
  * AccessController.doPrivileged or Security.doPrivileged.
  *
- * There are two internal thread pools: one of threads in the system
- * thread group, for executing tasks to be guarded by the security
- * policy for the system thread group, and one of threads in a
- * non-system thread group, for executing tasks with user code that
- * should not be restricted by that policy.
+ * There are two internal thread pools distinguished by the
+ * {@code ThreadPoolPermission} name used to access them.  Both pools
+ * are backed by virtual-thread-per-task executors.
  *
  * If there is a security manager, the run method will check the
  * ThreadPoolPermission for the requested thread pool.  If used with a
@@ -48,42 +46,38 @@ import java.security.PrivilegedAction;
  **/
 public final class GetThreadPoolAction implements PrivilegedAction<Executor> {
 
-    /** pool of threads for executing tasks in system thread group */
-    private static final ThreadPool systemThreadPool =
-	new ThreadPool(NewThreadAction.systemThreadGroup);
+    /** pool of threads for executing tasks in system context */
+    private static final ThreadPool systemThreadPool = new ThreadPool();
 
     /** pool of threads for executing tasks with user code */
-    private static final ThreadPool userThreadPool =
-	new ThreadPool(NewThreadAction.userThreadGroup);
+    private static final ThreadPool userThreadPool = new ThreadPool();
 
     private static final Permission getSystemThreadPoolPermission =
-	new ThreadPoolPermission("getSystemThreadPool");
+new ThreadPoolPermission("getSystemThreadPool");
     private static final Permission getUserThreadPoolPermission =
-	new ThreadPoolPermission("getUserThreadPool");
+new ThreadPoolPermission("getUserThreadPool");
 
     private final boolean user;
 
     /**
      * Creates an action that will obtain an internal thread pool.
      * When run, this action verifies that the current access control
-     * context has permission to access the thread group used by the
-     * indicated pool.
+     * context has permission to access the indicated pool.
      *
-     * @param	user if true, will obtain the non-system thread group
-     * pool for executing user code; if false, will obtain the system
-     * thread group pool
+     * @paramuser if true, will obtain the user-code thread pool;
+     *              if false, will obtain the system thread pool
      */
     public GetThreadPoolAction(boolean user) {
-	this.user = user;
+this.user = user;
     }
 
     public Executor run() {
-        if (user){
+        if (user) {
             getUserThreadPoolPermission.checkGuard(this);
             return userThreadPool;
         } else {
             getSystemThreadPoolPermission.checkGuard(this);
             return systemThreadPool;
-	}
+}
     }
 }

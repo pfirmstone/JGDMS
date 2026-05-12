@@ -41,6 +41,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -1898,11 +1899,7 @@ final class LookupCacheImpl implements LookupCache {
                 );
 	} catch (ConfigurationException e) {
 	    /* use default */
-	    eventNotificationExecutor = 
-                    new ThreadPoolExecutor(1, 1, 15L, TimeUnit.SECONDS, 
-                            new LinkedBlockingQueue<Runnable>(),
-                            new NamedThreadFactory("SDM event notifier: " + toString(), false),
-                            new ThreadPoolExecutor.CallerRunsPolicy());
+	    eventNotificationExecutor = Executors.newVirtualThreadPerTaskExecutor();
 	}
 	/* Get a general-purpose task manager for this cache from the
 	 * configuration. This task manager will be used to manage the
@@ -1916,11 +1913,7 @@ final class LookupCacheImpl implements LookupCache {
             );
 	} catch (ConfigurationException e) {
 	    /* use default */
-	    cacheTaskMgr = new ThreadPoolExecutor(3, 3, 15L, TimeUnit.SECONDS,
-                    new LinkedBlockingQueue<Runnable>(),
-                    new NamedThreadFactory("SDM lookup cache: " + toString(), false),
-                    new ThreadPoolExecutor.CallerRunsPolicy()
-            );
+	    cacheTaskMgr = Executors.newVirtualThreadPerTaskExecutor();
 	}
 	cacheTaskMgr = new ExtensibleExecutorService(cacheTaskMgr, new ExtensibleExecutorService.RunnableFutureFactory() {
 	    @Override
@@ -1957,8 +1950,8 @@ final class LookupCacheImpl implements LookupCache {
 	    /* use default */
 	    serviceDiscardTimerTaskMgr = 
                 new ScheduledThreadPoolExecutor(
-                    4,
-                    new NamedThreadFactory("SDM discard timer: " + toString(), false)
+                    1,
+                    Thread.ofVirtual().name("SDM-discard-", 0L).factory()
                 );
 	}
         /* ExecutorService for processing incoming events.
@@ -1971,12 +1964,8 @@ final class LookupCacheImpl implements LookupCache {
                 ExecutorService.class
             );
         } catch (ConfigurationException e){
-            incomingEventExecutor = 
-                new ThreadPoolExecutor(1, 1, 15L, TimeUnit.SECONDS,
-                    new PriorityBlockingQueue(256),
-                    new NamedThreadFactory("SDM ServiceEvent: " + toString(), false),
-                    new ThreadPoolExecutor.DiscardOldestPolicy()
-                );
+            incomingEventExecutor = Executors.newVirtualThreadPerTaskExecutor();
+            // Note: priority ordering is not preserved with virtual threads.
         }
         incomingEventExecutor = new ExtensibleExecutorService(incomingEventExecutor,
             new ExtensibleExecutorService.RunnableFutureFactory()

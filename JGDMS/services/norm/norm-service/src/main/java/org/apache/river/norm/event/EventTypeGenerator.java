@@ -23,9 +23,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.security.AccessControlContext;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.thread.NamedThreadFactory;
@@ -131,16 +129,9 @@ public class EventTypeGenerator implements Serializable {
 	    // fill in the object from the stream 
 	    in.defaultReadObject();
 
-	    taskManager = new ThreadPoolExecutor(
-			10,
-			10, /* Ignored */
-			15,
-			TimeUnit.SECONDS, 
-			new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
-			new NamedThreadFactory("EventTypeGenerator", false)
-	    );
+	    taskManager = Executors.newVirtualThreadPerTaskExecutor();
 	    wakeupManager = 
-		new WakeupManager(new WakeupManager.ThreadDesc(null, false));   
+		new WakeupManager(new WakeupManager.ThreadDesc());   
 	}
     }
     
@@ -156,27 +147,13 @@ public class EventTypeGenerator implements Serializable {
     
     private EventTypeGenerator(long nextEvID){
 	this.nextEvID = nextEvID;
-	this.wakeupManager = new WakeupManager(new WakeupManager.ThreadDesc(null, false));
-	this.taskManager = new ThreadPoolExecutor(
-		10,
-		10, /* Ignored */
-		15,
-		TimeUnit.SECONDS,
-		new LinkedBlockingQueue<Runnable>(), /* Unbounded queue */
-		new NamedThreadFactory("EventTypeGenerator", false)
-	);
+	this.wakeupManager = new WakeupManager(new WakeupManager.ThreadDesc());
+	this.taskManager = Executors.newVirtualThreadPerTaskExecutor();
     }
     
     public EventTypeGenerator(){
 	this.nextEvID = 1;
-	this.wakeupManager = new WakeupManager(new WakeupManager.ThreadDesc(null, false));
-	this.taskManager = new ThreadPoolExecutor(
-		10,
-		10, /* Ignored */
-		15,
-		TimeUnit.SECONDS,
-		new LinkedBlockingQueue<Runnable>(), /* Unbounded queue */
-		new NamedThreadFactory("EventTypeGenerator", false)
-	);
+	this.wakeupManager = new WakeupManager(new WakeupManager.ThreadDesc());
+	this.taskManager = Executors.newVirtualThreadPerTaskExecutor();
     }
 }

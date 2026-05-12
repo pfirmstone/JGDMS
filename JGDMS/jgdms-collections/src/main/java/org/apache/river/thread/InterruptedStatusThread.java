@@ -83,7 +83,10 @@ public class InterruptedStatusThread extends Thread {
      * Constructs a new <code>InterruptedStatusThread</code> object.
      * @param group the thread group
      * @param target the object whose <code>run</code> method is called
+     * @deprecated Use {@link #InterruptedStatusThread(Runnable)} instead.
+     *             ThreadGroup-based isolation was never an effective security boundary.
      */
+    @Deprecated(since = "3.1.0", forRemoval = true)
     public InterruptedStatusThread(ThreadGroup group, Runnable target) {
 	super(group, target);
         if (target instanceof Interruptable) task = (Interruptable) target;
@@ -95,7 +98,10 @@ public class InterruptedStatusThread extends Thread {
      * @param group the thread group
      * @param target the object whose <code>run</code> method is called
      * @param name the name of the new thread
+     * @deprecated Use {@link #InterruptedStatusThread(Runnable, String)} instead.
+     *             ThreadGroup-based isolation was never an effective security boundary.
      */
+    @Deprecated(since = "3.1.0", forRemoval = true)
     public InterruptedStatusThread(ThreadGroup group, 
 				   Runnable target, 
 				   String name) {
@@ -111,7 +117,10 @@ public class InterruptedStatusThread extends Thread {
      * @param name the name of the new thread
      * @param stackSize the desired stack size for the new thread, or zero to
      * indicate that this parameter is to be ignored
+     * @deprecated Use {@link #InterruptedStatusThread(Runnable, String)} instead.
+     *             ThreadGroup-based isolation was never an effective security boundary.
      */
+    @Deprecated(since = "3.1.0", forRemoval = true)
     public InterruptedStatusThread(ThreadGroup group, 
 				   Runnable target, 
 				   String name,
@@ -125,7 +134,10 @@ public class InterruptedStatusThread extends Thread {
      * Constructs a new <code>InterruptedStatusThread</code> object.
      * @param group the thread group
      * @param name the name of the new thread
+     * @deprecated Use {@link #InterruptedStatusThread(String)} instead.
+     *             ThreadGroup-based isolation was never an effective security boundary.
      */
+    @Deprecated(since = "3.1.0", forRemoval = true)
     public InterruptedStatusThread(ThreadGroup group, String name) {
 	super(group, name);
         task = null;

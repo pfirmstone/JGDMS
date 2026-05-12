@@ -665,7 +665,7 @@ public class ServiceDiscoveryManager {
     final boolean useInsecureLookup;
     private final static String DISCARD_PROPERTY = "org.apache.river.sdm.discardWait";
     private final static String INSECURE_LOOKUP_PROPERTY = "org.apache.river.sdm.insecureLookup";
-    private static final ExecutorService logExec = Executors.newSingleThreadExecutor(new NamedThreadFactory("SDM logger", false));
+    private static final ExecutorService logExec = Executors.newVirtualThreadPerTaskExecutor();
     
     static void log(Level level, String message){
         log(level, message, null, null);

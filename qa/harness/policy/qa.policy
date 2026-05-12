@@ -16,7 +16,8 @@ grant codebase "file:${java.class.path}" {
     permission java.io.FilePermission "/var/tmp/-", "read,write,execute,delete"; 
     // uncomment this one if you need lookup to accept file: codebases
     // permission java.io.FilePermission "<<ALL FILES>>", "read";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "modifyThread";
     permission java.net.SocketPermission "*:1024-", "connect,accept";
     // for http: codebases
@@ -52,7 +53,8 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
     permission java.io.FilePermission "/var/tmp/-", "read,write,execute,delete";
     // uncomment this one if you need lookup to accept file: codebases
     // permission java.io.FilePermission "<<ALL FILES>>", "read";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "modifyThread";
     permission java.net.SocketPermission "*:1024-", "connect,accept";
     // for http: codebases
@@ -102,7 +104,8 @@ grant codebase "file:${qa.home}${/}lib/qa1-jini-latest.jar" {
     permission java.io.FilePermission "/var/tmp/-", "read,write,execute,delete"; 
     // uncomment this one if you need lookup to accept file: codebases
     // permission java.io.FilePermission "<<ALL FILES>>", "read";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "modifyThread";
     permission java.net.SocketPermission "*:1024-", "connect,accept";
     // for http: codebases

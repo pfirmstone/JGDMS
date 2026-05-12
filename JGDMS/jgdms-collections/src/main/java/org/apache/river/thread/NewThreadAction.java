@@ -18,12 +18,10 @@
 
 package org.apache.river.thread;
 
-import java.security.AccessController;
-import java.security.Permission;
 import java.security.PrivilegedAction;
 
 /**
- * A PrivilegedAction for creating a new thread conveniently with an
+ * A PrivilegedAction for creating a new platform thread conveniently with an
  * AccessController.doPrivileged or Security.doPrivileged.
  *
  * All constructors allow the choice of the Runnable for the new
@@ -31,115 +29,70 @@ import java.security.PrivilegedAction;
  * prefixed with the constant NAME_PREFIX), and whether or not it will
  * be a daemon thread.
  *
- * The new thread may be created in the system thread group (the root
- * of the thread group tree) or an internally created non-system
- * thread group, as specified at construction of this class.
- *
  * The new thread will have the system class loader as its initial
  * context class loader (that is, its context class loader will NOT be
  * inherited from the current thread).
  *
- * @author	Sun Microsystems, Inc.
+ * <p>On DirtyChai deployments, thread creation via {@link Thread#ofPlatform()}
+ * is guarded by {@code RuntimePermission("createPlatformThread")}, replacing
+ * the obsolete {@code RuntimePermission("modifyThreadGroup")} that was
+ * previously required for the applet-era ThreadGroup walk.
+ *
+ * @authorSun Microsystems, Inc.
  **/
 public final class NewThreadAction implements PrivilegedAction<Thread> {
 
     static final String NAME_PREFIX = "(JSK) ";
 
-    /** cached reference to the system (root) thread group */
-    static final ThreadGroup systemThreadGroup =
-	AccessController.doPrivileged(new PrivilegedAction<ThreadGroup>() {
-	    public ThreadGroup run() {
-		ThreadGroup group = Thread.currentThread().getThreadGroup();
-		ThreadGroup parent;
-		while ((parent = group.getParent()) != null) {
-		    group = parent;
-		}
-		return group;
-	    }
-	});
-
-    /**
-     * special child of the system thread group for running tasks that
-     * may execute user code, so that the security policy for threads in
-     * the system thread group will not apply
-     */
-    static final ThreadGroup userThreadGroup = 
-        AccessController.doPrivileged(new PrivilegedAction<ThreadGroup>() {
-               public ThreadGroup run() {
-		return new ThreadGroup(systemThreadGroup,
-				       NAME_PREFIX + "Runtime");
-	    }
-	});
-
-    private static final Permission getClassLoaderPermission =
-	new RuntimePermission("getClassLoader");
-
-    private final ThreadGroup group;
     private final Runnable runnable;
     private final String name;
     private final boolean daemon;
     private final int stackSize;
 
-    NewThreadAction(ThreadGroup group, Runnable runnable,
-		    String name, boolean daemon)
-    {
-	this(group, runnable, name, daemon, 0);
-    }
-    
-    NewThreadAction(ThreadGroup group, Runnable runnable,
-		    String name, boolean daemon, int stackSize)
-    {
-	this.group = group;
-	this.runnable = runnable;
-	this.name = name;
-	this.daemon = daemon;
+    NewThreadAction(Runnable runnable, String name, boolean daemon, int stackSize) {
+        this.runnable = runnable;
+        this.name = name;
+        this.daemon = daemon;
         this.stackSize = stackSize;
     }
 
     /**
-     * Creates an action that will create a new thread in the
-     * system thread group.
+     * Creates an action that will create a new platform thread.
      *
-     * @param	runnable the Runnable for the new thread to execute
-     *
-     * @param	name the name of the new thread
-     *
-     * @param	daemon if true, new thread will be a daemon thread;
-     * if false, new thread will not be a daemon thread
+     * @paramrunnable the Runnable for the new thread to execute
+     * @paramname the name of the new thread
+     * @paramdaemon if true, new thread will be a daemon thread;
+     *              if false, new thread will not be a daemon thread
      */
     public NewThreadAction(Runnable runnable, String name, boolean daemon) {
-	this(systemThreadGroup, runnable, name, daemon);
+        this(runnable, name, daemon, 0);
     }
 
     /**
-     * Creates an action that will create a new thread.
+     * Creates an action that will create a new platform thread.
      *
-     * @param	runnable the Runnable for the new thread to execute
-     *
-     * @param	name the name of the new thread
-     *
-     * @param	daemon if true, new thread will be a daemon thread;
-     * if false, new thread will not be a daemon thread
-     *
-     * @param	user if true, thread will be created in a non-system
-     * thread group; if false, thread will be created in the system
-     * thread group
+     * @paramrunnable the Runnable for the new thread to execute
+     * @paramname the name of the new thread
+     * @paramdaemon if true, new thread will be a daemon thread;
+     *              if false, new thread will not be a daemon thread
+     * @paramuser no-op parameter retained for source compatibility;
+     *              previously controlled which ThreadGroup the thread was
+     *              created in, but ThreadGroup-based isolation was never an
+     *              effective security boundary and has been removed.
      */
     public NewThreadAction(Runnable runnable, String name, boolean daemon,
-			   boolean user)
+                           boolean user)
     {
-	this(user ? userThreadGroup : systemThreadGroup,
-	     runnable, name, daemon);
+        this(runnable, name, daemon, 0);
     }
 
     public Thread run() {
-	SecurityManager sm = System.getSecurityManager();
-	if (sm != null) {
-	    sm.checkPermission(getClassLoaderPermission);
-	}
-	Thread t = new Thread(group, runnable, NAME_PREFIX + name, stackSize);
-	t.setContextClassLoader(ClassLoader.getSystemClassLoader());
-	t.setDaemon(daemon);
-	return t;
+        Thread t = Thread.ofPlatform()
+            .name(NAME_PREFIX + name)
+            .stackSize(stackSize)
+            .daemon(daemon)
+            .unstarted(runnable);
+        t.setContextClassLoader(ClassLoader.getSystemClassLoader());
+        return t;
     }
 }
