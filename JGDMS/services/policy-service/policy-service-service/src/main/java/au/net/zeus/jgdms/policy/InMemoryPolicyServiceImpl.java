@@ -23,14 +23,15 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.rmi.RemoteException;
 import java.security.Permission;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -47,7 +48,6 @@ import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PolicyPermission;
 import org.apache.river.api.security.RemotePolicyService;
 import org.apache.river.constants.ThrowableConstants;
-import org.apache.river.thread.NamedThreadFactory;
 
 /**
  * Core server-side implementation of the {@link RemotePolicyService}.
@@ -87,11 +87,11 @@ public class InMemoryPolicyServiceImpl {
     // Configuration constants
     // -------------------------------------------------------------------------
 
-    /** Maximum number of threads in the event-delivery pool. */
-    private static final int EVENT_POOL_MAX_THREADS = 10;
+    /** Maximum number of concurrent in-flight event dispatches (§16.1 DoS cap). */
+    private static final int MAX_CONCURRENT_DISPATCHES = 500;
 
-    /** Keep-alive time (seconds) for idle threads in the event-delivery pool. */
-    private static final long EVENT_POOL_KEEP_ALIVE_SECONDS = 60L;
+    /** Hard cap on simultaneous listener registrations (§16.2 DoS cap). */
+    private static final int MAX_LISTENER_REGISTRATIONS = 1000;
 
     /** Maximum listener lease duration: 1 day. */
     private static final long MAX_LISTENER_LEASE_DURATION =
@@ -132,8 +132,25 @@ public class InMemoryPolicyServiceImpl {
     /** Source of monotonically-increasing event IDs. */
     private final AtomicLong nextEventId = new AtomicLong(1L);
 
-    /** Async event-delivery thread pool. */
+    /** Async event-delivery executor (virtual thread per task, JDK 21+). */
     private final ExecutorService eventDispatcher;
+
+    /**
+     * Limits the number of concurrently in-flight dispatch tasks to
+     * {@link #MAX_CONCURRENT_DISPATCHES}, preventing heap exhaustion when
+     * listeners are slow or listeners flood registrations (§16.1).
+     */
+    private final Semaphore dispatchSemaphore = new Semaphore(MAX_CONCURRENT_DISPATCHES);
+
+    /**
+     * Guards the size check + map insertion in
+     * {@link #registerForPolicyUpdates} to prevent TOCTOU races when multiple
+     * threads race to register near the {@link #MAX_LISTENER_REGISTRATIONS} cap.
+     */
+    private final Object registrationLock = new Object();
+
+    /** Reference to the lease-sweep daemon thread; interrupted on {@link #shutdown()}. */
+    private volatile Thread leaseSweepThread;
 
     /**
      * Parser used to convert String[] grants to PermissionGrant[].
@@ -234,11 +251,34 @@ public class InMemoryPolicyServiceImpl {
      */
     public InMemoryPolicyServiceImpl() {
         this.policyParser = new DefaultPolicyParser();
-        this.eventDispatcher = new ThreadPoolExecutor(
-                0, EVENT_POOL_MAX_THREADS,
-                EVENT_POOL_KEEP_ALIVE_SECONDS, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<Runnable>(),
-                new NamedThreadFactory("JGDMS-PolicyService-EventDispatcher", true));
+        this.eventDispatcher = Executors.newVirtualThreadPerTaskExecutor();
+        startLeaseSweepDaemon();
+    }
+
+    /**
+     * Starts a daemon virtual thread that sweeps expired listener registrations
+     * every 60 seconds (§16.2 Option B).  Without this, entries only leave the
+     * map during event delivery; if no events fire, the map would grow without
+     * bound.
+     */
+    private void startLeaseSweepDaemon() {
+        leaseSweepThread = Thread.ofVirtual()
+              .name("JGDMS-PolicyService-LeaseSweep")
+              .start(() -> {
+                  while (!Thread.currentThread().isInterrupted()) {
+                      try {
+                          Thread.sleep(Duration.ofMinutes(1));
+                      } catch (InterruptedException e) {
+                          return;
+                      }
+                      long now = System.currentTimeMillis();
+                      // ConcurrentHashMap.values().removeIf() is safe for concurrent use:
+                      // ConcurrentHashMap's iterator never throws ConcurrentModificationException
+                      // and the removeIf() implementation on ConcurrentHashMap.values() is
+                      // backed by the map's own thread-safe iterator contract.
+                      listenerRegistrations.values().removeIf(r -> r.leaseExpiration < now);
+                  }
+              });
     }
 
     // -------------------------------------------------------------------------
@@ -344,24 +384,34 @@ public class InMemoryPolicyServiceImpl {
      * @param handback opaque handback for the listener; may be {@code null}
      * @param duration requested lease duration in milliseconds
      * @return the event registration
+     * @throws RemoteException if the registration limit ({@value #MAX_LISTENER_REGISTRATIONS})
+     *         has been reached
      */
     public EventRegistration registerForPolicyUpdates(RemoteEventListener listener,
                                                       MarshalledInstance handback,
-                                                      long duration) {
+                                                      long duration)
+            throws RemoteException {
         if (listener == null) throw new NullPointerException("listener");
-        if (duration <= 0) duration = MAX_LISTENER_LEASE_DURATION;
-        long granted = Math.min(duration, MAX_LISTENER_LEASE_DURATION);
-        long expiration = System.currentTimeMillis() + granted;
+        // §16.2 Option A: synchronized check + put prevents TOCTOU races that
+        // could allow the map to slightly exceed MAX_LISTENER_REGISTRATIONS.
+        synchronized (registrationLock) {
+            if (listenerRegistrations.size() >= MAX_LISTENER_REGISTRATIONS) {
+                throw new RemoteException("listener registration limit reached");
+            }
+            if (duration <= 0) duration = MAX_LISTENER_LEASE_DURATION;
+            long granted = Math.min(duration, MAX_LISTENER_LEASE_DURATION);
+            long expiration = System.currentTimeMillis() + granted;
 
-        Uuid leaseId  = UuidFactory.generate();
-        long eventId  = nextEventId.getAndIncrement();
+            Uuid leaseId  = UuidFactory.generate();
+            long eventId  = nextEventId.getAndIncrement();
 
-        ListenerRegistration reg = new ListenerRegistration(
-                leaseId, eventId, expiration, listener, handback);
-        listenerRegistrations.put(leaseId, reg);
+            ListenerRegistration reg = new ListenerRegistration(
+                    leaseId, eventId, expiration, listener, handback);
+            listenerRegistrations.put(leaseId, reg);
 
-        PolicyEventLease lease = new PolicyEventLease(eventSource, leaseId, expiration);
-        return new EventRegistration(eventId, eventSource, lease, 0L);
+            PolicyEventLease lease = new PolicyEventLease(eventSource, leaseId, expiration);
+            return new EventRegistration(eventId, eventSource, lease, 0L);
+        }
     }
 
     /**
@@ -406,11 +456,13 @@ public class InMemoryPolicyServiceImpl {
     }
 
     /**
-     * Shuts down the event-dispatch thread pool.  Should be called on service
-     * destroy.
+     * Shuts down the event-dispatch executor and the lease-sweep daemon thread.
+     * Should be called on service destroy.
      */
     public void shutdown() {
         eventDispatcher.shutdown();
+        Thread sweeper = leaseSweepThread;
+        if (sweeper != null) sweeper.interrupt();
     }
 
     // -------------------------------------------------------------------------
@@ -442,12 +494,35 @@ public class InMemoryPolicyServiceImpl {
     private void dispatchUpdateEvent() {
         for (ListenerRegistration reg : listenerRegistrations.values()) {
             long seqNum = reg.seqNum.incrementAndGet();
+            // §16.1: acquire a permit before submitting; skip rather than queue
+            // unboundedly when the executor is saturated.
+            if (!dispatchSemaphore.tryAcquire()) {
+                logger.log(Level.WARNING,
+                        "Event dispatch semaphore exhausted; skipping listener {0}",
+                        reg.leaseId);
+                continue;
+            }
             try {
-                eventDispatcher.submit(new SendPolicyUpdateTask(reg, seqNum));
+                eventDispatcher.submit(withSemaphoreRelease(new SendPolicyUpdateTask(reg, seqNum)));
             } catch (Exception e) {
+                dispatchSemaphore.release();
                 logger.log(Level.WARNING,
                         "Could not submit PolicyUpdateEvent dispatch task", e);
             }
         }
+    }
+
+    /**
+     * Wraps a task so that {@link #dispatchSemaphore} is released in a
+     * {@code finally} block regardless of how the task completes.
+     */
+    private Runnable withSemaphoreRelease(Runnable task) {
+        return () -> {
+            try {
+                task.run();
+            } finally {
+                dispatchSemaphore.release();
+            }
+        };
     }
 }

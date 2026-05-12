@@ -1724,24 +1724,30 @@ executor.submit(() -> {
       `AccessControlContextSerializer.unmarshalDigestFromTransport()`.
     - Tests: `MultiSubjectWireProtocolTest` — 6 tests pass (wire-protocol round-trip +
       `CURRENT_ALL_METHOD` caching + `getAllUserSubjects()` under `Subject.callAs`).
-30. **Policy-service DoS hardening (v25)** — *(not yet started)*
-    - Fix 1 (§16.1): Replace `LinkedBlockingQueue` (unbounded) with bounded variant or
-      virtual-thread executor + semaphore cap.  Recommended: Option D (virtual-thread +
-      semaphore 500).  Requires `<release>21</release>` in module `pom.xml`.
-    - Fix 2 (§16.2): Add `MAX_LISTENER_REGISTRATIONS = 1000` cap in `registerForPolicyUpdates()`;
-      add daemon virtual-thread sweep for expired leases.
-31. **`instantiatePrincipal()` allowlist + constructor cache (v25)** — *(not yet started)*
-    - Replace per-request `Class.forName` + `Constructor.newInstance` with a static
-      `Map<String, Constructor<? extends Principal>>` populated at class-load from an
-      explicit allowlist of known-safe Principal class names (§16.4 Option A).
-    - Eliminates class-loading contention and virtual-thread carrier pinning on JDK < 24.
-32. **Correctness fixes from v25 review** — *(not yet started)*
-    - Fix 1 (§16.6, HIGH): `marshalForTransport()` early-return when `records.isEmpty()`
-      must check `anonCount == 0` too; otherwise anonymous ceilings are silently dropped.
-    - Fix 2 (§16.7, MEDIUM): `writeUtf8Prefixed()` must throw `IOException` instead of
-      silently truncating strings that exceed 65 535 UTF-8 bytes.
-    - Fix 3 (§16.3, HIGH): `HttpmdURLConnection.getInputStream()` Pack200 unpack must use
-      a `CappedOutputStream` (e.g. 64 MB max) to prevent heap amplification.
+30. **Policy-service DoS hardening (v25)** — *(✅ completed — v26)*
+    - Fix 1 (§16.1): Replaced `ThreadPoolExecutor` + unbounded `LinkedBlockingQueue` with
+      `Executors.newVirtualThreadPerTaskExecutor()` + `Semaphore(500)`.  `dispatchUpdateEvent()`
+      does `tryAcquire()` per listener; saturation logs WARNING and skips that listener.
+      Module `pom.xml` updated to `<release>21</release>`.
+    - Fix 2 (§16.2): Added `MAX_LISTENER_REGISTRATIONS = 1000` cap in
+      `registerForPolicyUpdates()` (race-free via `registrationLock`); daemon virtual-thread
+      sweep (`JGDMS-PolicyService-LeaseSweep`) removes expired registrations every 60 s;
+      interrupted cleanly in `shutdown()`.
+31. **`instantiatePrincipal()` allowlist + constructor cache (v25)** — *(✅ completed — v26)*
+    - Replaced per-request `Class.forName` + `Constructor.newInstance` with static
+      `PRINCIPAL_CTORS: Map<String, Constructor<? extends Principal>>` populated eagerly at
+      class-load for `X500Principal`, `KerberosPrincipal`, `SpiffePrincipal`, `JwtPrincipal`.
+      Unknown class names return `RemotePrincipal` immediately — zero per-request class-loading.
+      (§16.4 Option A implemented.)
+32. **Correctness fixes from v25 review** — *(partially completed — v26)*
+    - Fix 1 (§16.6, HIGH ✅): `marshalForTransport()` guard changed from `records.isEmpty()`
+      to `records.isEmpty() && anonCount == 0` — anonymous domain ceilings are now always
+      encoded, closing the privilege-escalation window.
+    - Fix 2 (§16.7, MEDIUM — not yet started): `writeUtf8Prefixed()` must throw `IOException`
+      instead of silently truncating strings that exceed 65 535 UTF-8 bytes.
+    - Fix 3 (§16.3, HIGH ✅): `HttpmdURLConnection.getInputStream()` now wraps `ByteArrayOutputStream`
+      in a `CappedOutputStream(64 MB)` — Pack200 unpacking throws `IOException` if the
+      decompressed JAR exceeds 64 MiB, preventing heap amplification.
     - `BasicInvocationHandler`: `CURRENT_ALL_METHOD` (static final `Method`) cached at class-load
       via `Subject.class.getMethod("currentAll")`; null on standard JDK.
     - `getAllUserSubjects()` uses the cached field (zero per-call reflection on std JDK);
@@ -2235,7 +2241,7 @@ options are presented with their trade-offs; the **recommended** option is highl
 
 ---
 
-### 16.1 Unbounded Event Dispatch Queue (Policy Service) — HIGH
+### 16.1 Unbounded Event Dispatch Queue (Policy Service) — ✅ COMPLETED (HIGH)
 
 **Location:** `InMemoryPolicyServiceImpl` constructor, line 237–241.
 
@@ -2310,7 +2316,7 @@ private void dispatchUpdateEvent() {
 
 ---
 
-### 16.2 Unbounded Listener Registrations + Stale Expiry Retention — HIGH
+### 16.2 Unbounded Listener Registrations + Stale Expiry Retention — ✅ COMPLETED (HIGH)
 
 **Location:** `InMemoryPolicyServiceImpl.registerForPolicyUpdates()`, line 348–364;
 `listenerRegistrations` field, line 129–130.
@@ -2369,7 +2375,7 @@ appropriate once operational roles are clarified.
 
 ---
 
-### 16.3 Pack200 Decompression Heap Amplification — HIGH
+### 16.3 Pack200 Decompression Heap Amplification — ✅ COMPLETED (HIGH)
 
 **Location:** `HttpmdURLConnection.getInputStream()`, line 140–146.
 
@@ -2429,7 +2435,7 @@ Pipe the unpack output to a `PipedOutputStream`; return a `PipedInputStream`.
 
 ---
 
-### 16.4 Remote-Controlled Principal Class Instantiation (CPU DoS) — MEDIUM/HIGH
+### 16.4 Remote-Controlled Principal Class Instantiation (CPU DoS) — ✅ COMPLETED (MEDIUM/HIGH)
 
 **Location:** `BasicInvocationDispatcher.instantiatePrincipal()`, line 1867–1893.
 
@@ -2547,7 +2553,7 @@ paths), then Option B as the full Work Item 28.
 
 ---
 
-### 16.6 ACC Ceiling Dropped When No Verifiable Domain Exists — HIGH Security Bug
+### 16.6 ACC Ceiling Dropped When No Verifiable Domain Exists — ✅ COMPLETED (HIGH Security Bug)
 
 **Location:** `AccessControlContextSerializer.marshalForTransport()`, lines 207–211.
 
@@ -2660,20 +2666,23 @@ the root pom's `<release>8</release>`, matching the pattern used by
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 25, updated to document:*
+continue without loss of context. This is version 26, updated to document:*
 
+- *§16.1 ✅ completed: `InMemoryPolicyServiceImpl` — virtual-thread executor + `Semaphore(500)` cap*
+- *§16.2 ✅ completed: `InMemoryPolicyServiceImpl` — `MAX_LISTENER_REGISTRATIONS=1000` cap + daemon sweep*
+- *§16.3 ✅ completed: `HttpmdURLConnection` — `CappedOutputStream(64 MB)` wrapping Pack200 output*
+- *§16.4 ✅ completed: `BasicInvocationDispatcher` — `PRINCIPAL_CTORS` allowlist + constructor cache*
+- *§16.6 ✅ completed: `AccessControlContextSerializer.marshalForTransport()` — `anonCount` now encoded even when no HTTPMD records*
+- *§16.5 (MEDIUM) and §16.7 (MEDIUM) remain not yet started*
+- *Work items 30 (partially), 31, and 32 (partially) marked complete in §12*
+
+---
+
+*Previous version (v25) notes:*
 - *§16 DoS Vectors and Architectural Fixes — seven issues with options and recommendations*
 - *§12 work items 30–32 — three new work items*
 - *§13 — four new design-decision rows*
 - *§15.1.9 and §15.3 updated to reference the §16.5 extension of Work Item 28*
-
----
-
-*Previous version (v24) notes:*
-- *Multi-Subject JERI dispatch completed (work item 29)*
-- *`MultiSubjectWireProtocolTest` — 6 tests*
-- *`UserSubjectImpl` holds `Subject[]`; `getUserSubjects()` returns clone*
-- *Unreachable outer `catch (ClassNotFoundException)` removed from `unmarshalDigestFromTransport()`*
 
 ---
 

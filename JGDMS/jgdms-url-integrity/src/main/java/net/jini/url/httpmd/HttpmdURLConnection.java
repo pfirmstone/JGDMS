@@ -22,6 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -140,7 +141,7 @@ class HttpmdURLConnection extends DelegatingHttpURLConnection {
 	    if (pack200){
 		Pack200.Unpacker unpacker = Pack200.newUnpacker();
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(102400);
-		JarOutputStream jout = new JarOutputStream(baos);
+		JarOutputStream jout = new JarOutputStream(new CappedOutputStream(baos, MAX_UNPACKED_JAR_BYTES));
 		unpacker.unpack(result, jout);
 		result = new JarInputStream(new ByteArrayInputStream(baos.toByteArray()));
 	    }
@@ -148,6 +149,35 @@ class HttpmdURLConnection extends DelegatingHttpURLConnection {
 	} catch (NoSuchAlgorithmException e) {
 	    throw new IOException("Message digest algorithm not found: " 
 		    + algorithm, e);
+	}
+    }
+
+    private static final int MAX_UNPACKED_JAR_BYTES = 64 * 1024 * 1024; // 64 MB
+
+    private static final class CappedOutputStream extends OutputStream {
+	private final OutputStream delegate;
+	private long written;
+	private final long cap;
+
+	CappedOutputStream(OutputStream delegate, long cap) {
+	    this.delegate = delegate;
+	    this.cap = cap;
+	}
+
+	@Override
+	public void write(int b) throws IOException {
+	    if (written >= cap)
+		throw new IOException("Unpacked JAR exceeds " + cap + " bytes");
+	    written++;
+	    delegate.write(b);
+	}
+
+	@Override
+	public void write(byte[] b, int off, int len) throws IOException {
+	    if (written + len > cap)
+		throw new IOException("Unpacked JAR exceeds " + cap + " bytes");
+	    written += len;
+	    delegate.write(b, off, len);
 	}
     }
 }

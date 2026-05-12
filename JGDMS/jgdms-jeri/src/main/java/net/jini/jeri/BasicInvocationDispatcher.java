@@ -196,6 +196,38 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * from a crafted oversized field.
      */
     private static final int MAX_STRING_BYTES = 8192;
+
+    /**
+     * Pre-resolved constructors for the fixed set of known {@link Principal}
+     * implementations accepted from the wire.  Populated once at class-load
+     * time so that {@link #instantiatePrincipal} never calls
+     * {@code Class.forName} on a remote-supplied class name, eliminating the
+     * class-loading CPU DoS vector.
+     */
+    private static final Map<String, Constructor<? extends Principal>> PRINCIPAL_CTORS;
+    static {
+        Set<String> allowed = Set.of(
+            "javax.security.auth.x500.X500Principal",
+            "javax.security.auth.kerberos.KerberosPrincipal",
+            "net.jini.security.principal.SpiffePrincipal",
+            "net.jini.security.principal.JwtPrincipal"
+        );
+        Map<String, Constructor<? extends Principal>> ctorMap = new HashMap<>();
+        for (String cname : allowed) {
+            try {
+                @SuppressWarnings("unchecked")
+                Class<? extends Principal> cls =
+                    (Class<? extends Principal>) Class.forName(cname, false,
+                        // System classloader is required: SpiffePrincipal and JwtPrincipal are
+                        // JGDMS application-classpath classes, not JDK built-ins.  The allowlist
+                        // (not the classloader) is the security boundary — unknown names return
+                        // RemotePrincipal without any classloading.
+                        ClassLoader.getSystemClassLoader());
+                ctorMap.put(cname, cls.getConstructor(String.class));
+            } catch (Exception ignored) { /* class not present on this JDK/classpath */ }
+        }
+        PRINCIPAL_CTORS = Collections.unmodifiableMap(ctorMap);
+    }
     
     /** Marshal stream protocol version mismatch. */
     static final byte MISMATCH = 0x0;
@@ -1859,38 +1891,18 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Attempts to instantiate a {@code Principal} via {@code new ClassName(name)}.
-     * Only classes visible to the platform class loader are accepted to avoid
-     * loading arbitrary code from the wire.  If the class cannot be found or
-     * instantiated, a {@link RemotePrincipal} placeholder is returned.
+     * Instantiates a {@link Principal} for the supplied wire-supplied class name
+     * and name string.  Only class names present in the pre-built
+     * {@link #PRINCIPAL_CTORS} allowlist are resolved; any other class name
+     * returns a {@link RemotePrincipal} placeholder without performing any
+     * class loading, preventing remote-controlled CPU DoS via class-loading
+     * lock acquisition.
      */
     private static Principal instantiatePrincipal(String className, String name) {
-	try {
-	    // Use bootstrap class loader (null) to restrict to JDK-bundled Principal classes.
-	    // Class.forName with null loader uses the bootstrap loader.
-	    Class<?> cls = Class.forName(className, false, null);
-	    if (!Principal.class.isAssignableFrom(cls)) {
-		return new RemotePrincipal(className, name);
-	    }
-	    java.lang.reflect.Constructor<?> ctor = cls.getConstructor(String.class);
-	    return (Principal) ctor.newInstance(name);
-	} catch (ClassNotFoundException cnfe) {
-	    // Try system class loader for classes in endorsed extensions
-	    try {
-		Class<?> cls = Class.forName(className, false,
-					     ClassLoader.getSystemClassLoader());
-		if (!Principal.class.isAssignableFrom(cls)) {
-		    return new RemotePrincipal(className, name);
-		}
-		java.lang.reflect.Constructor<?> ctor =
-		    cls.getConstructor(String.class);
-		return (Principal) ctor.newInstance(name);
-	    } catch (Exception e2) {
-		return new RemotePrincipal(className, name);
-	    }
-	} catch (Exception e) {
-	    return new RemotePrincipal(className, name);
-	}
+	Constructor<? extends Principal> ctor = PRINCIPAL_CTORS.get(className);
+	if (ctor == null) return new RemotePrincipal(className, name);
+	try { return ctor.newInstance(name); }
+	catch (Exception e) { return new RemotePrincipal(className, name); }
     }
 
     /**
