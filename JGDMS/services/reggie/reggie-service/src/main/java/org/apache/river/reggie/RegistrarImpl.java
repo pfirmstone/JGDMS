@@ -77,6 +77,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -5271,8 +5272,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 "eventNotifierExecutor",
                 ScheduledExecutorService.class, 
                 new ScheduledThreadPoolExecutor(
-                    poolSizeLimit,
-                    new NamedThreadFactory("Reggie_Event_Notifier", false)   
+                    1,
+                    Thread.ofVirtual().name("Reggie-event-", 0L).factory()
                 )
             );
             // Set up Executor to perform discovery responses
@@ -5281,14 +5282,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 COMPONENT, 
                 "discoveryResponseExecutor", 
                 ExecutorService.class, 
-                new ThreadPoolExecutor(
-                    poolSizeLimit, 
-                    poolSizeLimit, /* Ignored */
-                    15L, 
-                    TimeUnit.MINUTES, 
-                    new LinkedBlockingQueue(), /* Unbounded Queue */
-                    new NamedThreadFactory("Reggie_Discovery_Response", false)
-                ) 
+                Executors.newVirtualThreadPerTaskExecutor()
             );
 	    this.codebase = Config.getNonNullEntry(config, COMPONENT,
 		    "codebaseAnnotation", String.class, "");

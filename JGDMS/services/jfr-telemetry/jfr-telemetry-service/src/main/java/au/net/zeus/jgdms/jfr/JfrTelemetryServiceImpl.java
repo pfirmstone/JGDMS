@@ -238,16 +238,8 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
         this.sweepIntervalMinutes = sweepIntervalMinutes;
         this.verdictRegistry      = verdictRegistry;
 
-        this.sweepExecutor = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactory() {
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        Thread t = new Thread(r,
-                                "JGDMS-JfrTelemetryService-Sweeper");
-                        t.setDaemon(true);
-                        return t;
-                    }
-                });
+        this.sweepExecutor = new java.util.concurrent.ScheduledThreadPoolExecutor(1,
+                Thread.ofVirtual().name("JGDMS-JfrTelemetryService-Sweeper").factory());
     }
 
     // -------------------------------------------------------------------------

@@ -40,6 +40,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -503,20 +505,13 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         this.eventSource = proxy;
     }
 
+    /** Back-pressure semaphore for asynchronous event delivery. */
+    private static final int MAX_PENDING_VERDICT_EVENTS = 200;
+    private final Semaphore eventSemaphore = new Semaphore(MAX_PENDING_VERDICT_EVENTS);
+
     /** Creates the thread pool used for asynchronous event delivery. */
     private static ExecutorService createEventExecutor() {
-        ThreadFactory daemonFactory = new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                Thread t = new Thread(r, "VerdictRegistry-event-delivery");
-                t.setDaemon(true);
-                return t;
-            }
-        };
-        return new ThreadPoolExecutor(
-                0, EVENT_POOL_MAX_THREADS, EVENT_POOL_KEEP_ALIVE_SECONDS, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<Runnable>(),
-                daemonFactory);
+        return Executors.newVirtualThreadPerTaskExecutor();
     }
 
     // -------------------------------------------------------------------------
@@ -875,7 +870,13 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         RegistryVerdict current = publishedVerdicts.get(codebaseKey);
         if (current != null) {
             initialSeqNum = reg.seqNum.incrementAndGet();
-            executorService.execute(new SendVerdictTask(reg, current, initialSeqNum));
+            final long capturedSeqNum = initialSeqNum;
+            final RegistryVerdict capturedVerdict = current;
+            eventSemaphore.acquireUninterruptibly();
+            executorService.execute(() -> {
+                try { new SendVerdictTask(reg, capturedVerdict, capturedSeqNum).run(); }
+                finally { eventSemaphore.release(); }
+            });
         }
 
         Lease lease = new VerdictEventLease(src, leaseId, expiration);
@@ -967,7 +968,11 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                 continue;
             }
             long seqNum = reg.seqNum.incrementAndGet();
-            executorService.execute(new SendVerdictTask(reg, verdict, seqNum));
+            eventSemaphore.acquireUninterruptibly();
+            executorService.execute(() -> {
+                try { new SendVerdictTask(reg, verdict, seqNum).run(); }
+                finally { eventSemaphore.release(); }
+            });
         }
     }
 

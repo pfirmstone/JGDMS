@@ -59,6 +59,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -1437,14 +1438,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                 executorServ = (ExecutorService) config.getEntry(COMPONENT_NAME,
                         "executorService", ExecutorService.class);
             } catch (NoSuchEntryException e) { /* use default */
-                executorServ =
-                    new ThreadPoolExecutor(
-                        MAX_N_TASKS, 
-                        MAX_N_TASKS, /* Ignored */
-                        15L, TimeUnit.SECONDS,
-                        new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
-                        new NamedThreadFactory("LookupDiscovery", false)
-                    );
+                executorServ = Executors.newVirtualThreadPerTaskExecutor();
             }
             this.executor = executorServ;
 

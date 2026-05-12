@@ -152,7 +152,8 @@ grant codebase "file:/${jsk.home}/lib/${platform.jar}"
     permission java.lang.RuntimePermission "localeServiceProvider";
     permission java.lang.RuntimePermission "loggerFinder";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "reflectionFactoryAccess";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "setIO";
@@ -302,7 +303,8 @@ grant codebase "file:/${jsk.home}/lib/${collections.jar}"
     permission java.net.SocketPermission "*:1024-", "accept,resolve";
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "shutdownHooks";
 };
@@ -351,7 +353,8 @@ grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
     permission java.lang.RuntimePermission "createClassLoader";
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission net.jini.export.ExportPermission "exportRemoteInterface.org.apache.river.qa.harness.NonActivatableGroup";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-mercury-dl.jar", "GET:";

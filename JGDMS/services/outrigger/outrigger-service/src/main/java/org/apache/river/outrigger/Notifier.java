@@ -37,10 +37,8 @@ import org.apache.river.logging.Levels;
 import org.apache.river.thread.wakeup.RetryTask;
 import org.apache.river.thread.wakeup.WakeupManager;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import org.apache.river.thread.NamedThreadFactory;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
 /**
  * The notifier thread.  This thread is responsible for notifying
@@ -71,6 +69,9 @@ class Notifier implements org.apache.river.constants.TimeConstants {
     
     /** pending notifications tasks */
     private final ExecutorService pending;
+    /** back-pressure semaphore for pending event delivery */
+    private static final int MAX_PENDING_EVENTS = 500;
+    private final Semaphore pendingSemaphore = new Semaphore(MAX_PENDING_EVENTS);
 
     private final static int	MAX_ATTEMPTS = 10;	// max times to retry
 
@@ -103,14 +104,7 @@ class Notifier implements org.apache.river.constants.TimeConstants {
 	pending = Config.getNonNullEntry(config,
 	    OutriggerServerImpl.COMPONENT_NAME, "notificationsExecutorService", 
 	    ExecutorService.class, 
-            new ThreadPoolExecutor(
-                10,
-                10, /* Ignored */
-                15,
-                TimeUnit.SECONDS, 
-                new LinkedBlockingQueue<Runnable>(), /* Unbounded queue */
-                new NamedThreadFactory("OutriggerServerImpl Notifier", false)
-            )
+            Executors.newVirtualThreadPerTaskExecutor()
         );
     }
 
@@ -134,7 +128,14 @@ class Notifier implements org.apache.river.constants.TimeConstants {
      * <code>null</code>
      */
     void enqueueDelivery(EventSender sender, AccessControlContext context) {
-	pending.execute(new NotifyTask(sender, context));
+	pendingSemaphore.acquireUninterruptibly();
+	pending.execute(() -> {
+	    try {
+		new NotifyTask(sender, context).run();
+	    } finally {
+		pendingSemaphore.release();
+	    }
+	});
     }
 
     /*

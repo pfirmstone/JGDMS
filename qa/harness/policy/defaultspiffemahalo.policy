@@ -79,7 +79,8 @@ grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc
       permission java.net.SocketPermission "${HOST}", "resolve";
       permission javax.security.auth.AuthPermission "getSubject";
       permission java.lang.RuntimePermission "modifyThread";
-      permission java.lang.RuntimePermission "modifyThreadGroup";
+      permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
       permission net.jini.security.AuthenticationPermission 
         "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"",
         "connect";

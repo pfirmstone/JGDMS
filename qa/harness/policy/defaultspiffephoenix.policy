@@ -146,7 +146,8 @@ grant codebase "file:/${jsk.home}/lib/${platform.jar}"
     permission java.lang.RuntimePermission "localeServiceProvider";
     permission java.lang.RuntimePermission "loggerFinder";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "readFileDescriptor";
     permission java.lang.RuntimePermission "reflectionFactoryAccess";
     permission java.lang.RuntimePermission "setContextClassLoader";
@@ -238,7 +239,8 @@ grant codebase "file:/${jsk.home}/lib/${collections.jar}"
 {
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "shutdownHooks";
     permission java.net.SocketPermission "${HOST}.lan", "resolve";
@@ -254,7 +256,8 @@ grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
     permission java.io.SerializablePermission "enableSubstitution";
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.net.SocketPermission "${HOST}", "resolve";
     permission java.net.SocketPermission "${HOST}.lan", "resolve";

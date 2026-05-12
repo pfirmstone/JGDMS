@@ -36,10 +36,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -203,7 +204,9 @@ public class CodebaseDownloaderImpl {
     private final ConcurrentHashMap<Uri, Long> lastProcessed;
 
     /** Thread pool that runs download-analyse-submit tasks. */
-    private final ThreadPoolExecutor workerPool;
+    private final ExecutorService workerPool;
+    /** Back-pressure semaphore limits concurrent pending downloads. */
+    private final Semaphore downloadSemaphore;
 
     /** Upper bound on downloaded JAR size. */
     private final int maxJarSizeBytes;
@@ -265,15 +268,8 @@ public class CodebaseDownloaderImpl {
         this.maxJarSizeBytes  = maxJarSizeBytes;
         this.connectTimeoutMs = connectTimeoutMs;
         this.readTimeoutMs    = readTimeoutMs;
-        this.workerPool       = new ThreadPoolExecutor(
-                workerThreads, workerThreads, 0L, TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(MAX_PENDING_DOWNLOADS),
-                r -> {
-                    Thread t = new Thread(r, "codebase-downloader-worker");
-                    t.setDaemon(true);
-                    return t;
-                });
-        // AbortPolicy is the default; we catch RejectedExecutionException in enqueue().
+        this.workerPool       = Executors.newVirtualThreadPerTaskExecutor();
+        this.downloadSemaphore = new Semaphore(MAX_PENDING_DOWNLOADS);
     }
 
     /**
@@ -432,12 +428,15 @@ public class CodebaseDownloaderImpl {
             return now;
         });
         if (shouldSubmit[0]) {
-            try {
-                workerPool.execute(() -> processUri(uri, now));
-            } catch (RejectedExecutionException e) {
-                // Bounded queue is full or pool is shut down.  Clear the
-                // timestamp so the URI will be retried on the next discovery
-                // event rather than being silently suppressed for one hour.
+            if (downloadSemaphore.tryAcquire()) {
+                workerPool.execute(() -> {
+                    try {
+                        processUri(uri, now);
+                    } finally {
+                        downloadSemaphore.release();
+                    }
+                });
+            } else {
                 clearLastProcessed(uri, now);
                 logger.warning("Worker queue is full; will retry URI on next "
                         + "discovery event: " + uri);

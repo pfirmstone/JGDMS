@@ -577,7 +577,8 @@ grant codebase "file:/${jsk.home}/lib/${platform.jar}"
     permission java.lang.RuntimePermission "getenv.SOUL";
     permission java.lang.RuntimePermission "localeServiceProvider";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "readFileDescriptor";
     permission java.lang.RuntimePermission "reflectionFactoryAccess";
     permission java.lang.RuntimePermission "setContextClassLoader";
@@ -915,7 +916,8 @@ grant codebase "file:/${jsk.home}/lib/${collections.jar}"
 {
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "shutdownHooks";
     permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
@@ -1091,7 +1093,8 @@ grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
     permission java.io.SerializablePermission "enableSubstitution";
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";

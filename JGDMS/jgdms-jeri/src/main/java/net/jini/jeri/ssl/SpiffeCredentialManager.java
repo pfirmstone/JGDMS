@@ -578,11 +578,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         this.svidSource          = svidSource;
         this.renewalLeadSeconds  = renewalLeadSeconds;
         this.scheduler           = Executors.newSingleThreadScheduledExecutor(
-                r -> {
-                    Thread t = new Thread(r, "SpiffeCredentialManager-refresher");
-                    t.setDaemon(true);
-                    return t;
-                });
+                r -> Thread.ofVirtual().name("SpiffeCredentialManager-refresher").unstarted(r));
     }
 
     // -------------------------------------------------------------------------

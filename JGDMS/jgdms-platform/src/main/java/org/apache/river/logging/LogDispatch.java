@@ -16,13 +16,10 @@
 package org.apache.river.logging;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import org.apache.river.thread.NamedThreadFactory;
 
 /**
  * Tool that allows logging to be dispatched, or handed off onto a queue
@@ -33,11 +30,7 @@ import org.apache.river.thread.NamedThreadFactory;
  */
 public class LogDispatch {
     
-    final static ExecutorService LOG_EXEC = 
-		new ThreadPoolExecutor(0, 1, 1L, TimeUnit.SECONDS,
-		    new LinkedBlockingQueue(),
-		    new NamedThreadFactory("JGDMS LogDispatch", true)
-		);
+    final static ExecutorService LOG_EXEC = Executors.newVirtualThreadPerTaskExecutor();
     
     private static Void check(Object o, String s) throws NullPointerException{
         if (o == null) throw new NullPointerException(s);

@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -732,16 +733,7 @@ public class LeaseRenewalManager {
     public LeaseRenewalManager() {
         this.renewBatchTimeWindow = 1000 * 60 * 5;
         this.renewalRTT = 10 * 1000;
-        leaseRenewalExecutor = 
-            new ThreadPoolExecutor(
-                    1,  /* min threads */
-                    11, /* max threads */
-                    15,
-                    TimeUnit.SECONDS, 
-                    new SynchronousQueue<Runnable>(), /* Queue has no capacity */
-                    new NamedThreadFactory("LeaseRenewalManager",false),
-                    new CallerRunsPolicy()
-            );
+        leaseRenewalExecutor = Executors.newVirtualThreadPerTaskExecutor();
     }
     
     private static Init init(Configuration config) throws ConfigurationException{
@@ -768,15 +760,7 @@ public class LeaseRenewalManager {
                 LRM, 
                 "executorService", 
                 ExecutorService.class,
-                new ThreadPoolExecutor(
-                        1,  /* Min Threads */
-                        11, /* Max Threads */
-                        15,
-                        TimeUnit.SECONDS, 
-                        new SynchronousQueue<Runnable>(), /* No capacity */
-                        new NamedThreadFactory("LeaseRenewalManager",false),
-                        new CallerRunsPolicy()
-                ) 
+                Executors.newVirtualThreadPerTaskExecutor()
             );
         }
     }
@@ -831,15 +815,7 @@ public class LeaseRenewalManager {
     {
         this.renewBatchTimeWindow = 1000 * 60 * 5;
         this.renewalRTT = 10 * 1000;
-        leaseRenewalExecutor = new ThreadPoolExecutor(
-                1,  /* Min Threads */
-                11, /* Max Threads */
-                15,
-                TimeUnit.SECONDS, 
-                new SynchronousQueue<Runnable>(), /* No Capacity */
-                new NamedThreadFactory("LeaseRenewalManager",false),
-                new CallerRunsPolicy()
-        );
+        leaseRenewalExecutor = Executors.newVirtualThreadPerTaskExecutor();
 	renewUntil(lease, desiredExpiration, listener);
     }
 

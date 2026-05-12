@@ -82,7 +82,8 @@ grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
 {
       permission net.jini.security.AccessPermission "*";
       permission java.lang.RuntimePermission "modifyThread";
-      permission java.lang.RuntimePermission "modifyThreadGroup";
+      permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
       permission net.jini.security.AuthenticationPermission 
         "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"",
         "connect";
@@ -99,7 +100,8 @@ grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
       permission net.jini.security.AccessPermission "*";
       permission javax.security.auth.AuthPermission "getSubject";
       permission java.lang.RuntimePermission, "modifyThread";
-      permission java.lang.RuntimePermission, "modifyThreadGroup";
+      permission java.lang.RuntimePermission "createPlatformThread";
+      permission java.lang.RuntimePermission "createVirtualThread";
       permission net.jini.security.AuthenticationPermission 
         "javax.security.auth.x500.X500Principal \"CN=Outrigger\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"",
         "connect";
