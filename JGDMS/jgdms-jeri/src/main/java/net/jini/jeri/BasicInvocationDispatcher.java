@@ -60,7 +60,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -207,12 +206,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      */
     private static final Map<String, Constructor<? extends Principal>> PRINCIPAL_CTORS;
     static {
-        Set<String> allowed = new HashSet<>(Arrays.asList(
+        Set<String> allowed = Set.of(
             "javax.security.auth.x500.X500Principal",
             "javax.security.auth.kerberos.KerberosPrincipal",
             "net.jini.security.principal.SpiffePrincipal",
             "net.jini.security.principal.JwtPrincipal"
-        ));
+        );
         Map<String, Constructor<? extends Principal>> ctorMap = new HashMap<>();
         for (String cname : allowed) {
             try {
