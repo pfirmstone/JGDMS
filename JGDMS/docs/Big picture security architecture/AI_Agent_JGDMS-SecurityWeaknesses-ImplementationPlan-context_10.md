@@ -1,0 +1,468 @@
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v34)
+
+**Purpose:** This document captures the security-weakness analysis and phased
+implementation plan produced during the Copilot conversation dated 2026-05-12.
+It continues from
+[context_8 (v33)](AI_Agent_JGDMS-GrantPermission-RoleManagement-context_8.md)
+and is the forward-reference added in §19 of that document.
+
+**GitHub repositories:**
+- JGDMS: https://github.com/pfirmstone/JGDMS
+- DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v34 Change Summary
+
+This document is the first version of the security-weakness context.
+
+**Contents:**
+- §1 — Comparative architecture positioning (JGDMS vs peers)
+- §2 — Wire-protocol & dynamic-code efficiency analysis
+- §3 — Security weakness summary table (11 weaknesses)
+- §4 — Per-weakness options analysis with pros/cons and recommendations
+- §5 — Phased implementation plan (4 phases, dependency graph)
+- §6 — Work items 44–54 (derived from the implementation plan)
+
+---
+
+## 1. JGDMS Architecture vs. Other Distributed Systems
+
+### 1.1 Security Model
+
+| System | Identity | Policy | Code Safety |
+|---|---|---|---|
+| **JGDMS** | SPIFFE/SPIRE SVIDs (workload) + JWT/OIDC (user); dual-Subject model baked into every ProtectionDomain | Three-layer dynamic policy stack; GrantPermission intersection enforcement | Static bytecode analysis (BAE) before any proxy is unmarshalled; RegistryVerdict quorum required |
+| gRPC / Kubernetes | mTLS via SPIFFE/SPIRE (workload); OIDC/JWT (user) | RBAC via OPA/Istio; policy is external to the runtime | No equivalent — runtime trusts all deployed images |
+| Apache Kafka | mTLS + SASL; single identity per connection | ACL-based; no dynamic grant delegation | No equivalent |
+| Akka / Pekko Cluster | TLS + custom serialization filters | Role-based; no fine-grained per-proxy policy | No equivalent |
+| OSGi | Code signing only | Static permission grants in bundle manifests | No runtime bytecode analysis pipeline |
+
+JGDMS is significantly more security-layered than peers. The five-host SCAP pipeline
+(BAE → VerdictRegistry → client) has no direct equivalent in any mainstream distributed
+middleware. The ProtectionDomain-level identity injection (workload baked at class-load,
+user via ScopedValue) is unique to the DirtyChai/JGDMS stack.
+
+### 1.2 Service Discovery
+
+| System | Discovery mechanism | Proxy delivery | Trust on discovery |
+|---|---|---|---|
+| JGDMS / Jini | Multicast + ServiceDiscoveryManager; smart proxies carry behavior | ClassLoader-per-endpoint; full JAR download with SHA-256 HTTPMD verification | BAE audit + VerdictRegistry verdict required before proxy is unmarshalled |
+| Kubernetes / DNS-SD | DNS-based; service mesh (Istio/Envoy) sidecars | Client stubs are pre-compiled; no runtime code delivery | Implicit trust within cluster namespace |
+| Apache Zookeeper / Consul | Centralized registry; address/port only | Clients hold pre-compiled stubs | No runtime code safety checks |
+| OSGi / Eclipse Equinox | Bundle repository; remote bundle deployment | Full JAR delivery with code signing | Signing only; no dynamic behavioral analysis |
+
+JGDMS's smart-proxy model (code + behavior delivered at discovery time) is closer to
+OSGi remote bundles or Java RMI than to modern REST/gRPC microservices, but with far
+stronger runtime trust verification than either.
+
+### 1.3 Concurrency Model
+
+| System | Thread model | Backpressure |
+|---|---|---|
+| **JGDMS (v32+)** | Virtual threads for all I/O dispatch (except NIO selector loops); Semaphore caps on event delivery | Semaphore-bounded per-executor; natural yield under load |
+| Netty / gRPC-Java | NIO event-loop threads (platform); separate executor pool for handlers | Backpressure via flow control (HTTP/2 window) |
+| Project Loom (standard Java) | Virtual threads; no built-in backpressure on executor | Application-level |
+| Akka | Actor-per-mailbox; configurable dispatcher | Mailbox bounded queue; supervision for overflow |
+| Vert.x | Event-loop + worker threads; explicit executeBlocking() | Circuit-breaker and rate-limiter extensions |
+
+JGDMS's v32 migration to `newVirtualThreadPerTaskExecutor()` + Semaphore caps aligns it
+with modern Loom idioms, though the NIO transport layer (Mux, SelectionManager) still
+requires platform threads — the same constraint as Netty.
+
+### 1.4 Wire Protocol & Identity Propagation
+
+| System | Identity on wire | Context propagation |
+|---|---|---|
+| **JGDMS** | Serialized AccessControlContext (HTTPMD domains + DigestCodeSource + anonymous count); user Subject block (multi-Subject, v24); ~619 bytes overhead per call | Full ACC + user Subject propagated transitively through JERI calls; survives doPrivileged via domain enrichment |
+| gRPC | Metadata headers (JWT Bearer token, mTLS cert); no serialized permission context | Single-hop; no automatic transitive propagation |
+| Java RMI | No identity propagation by default | None |
+| Quarkus + Panache | Security context via CDI @RequestScoped; not serialized | Thread-local / CDI scope; not cross-JVM |
+| Spring Cloud | SecurityContext in thread-local; manual propagation needed for async | Requires explicit DelegatingSecurityContextExecutor |
+
+JGDMS's transitive ACC propagation — where the caller's full permission ceiling travels
+with every RPC hop — is unique among mainstream systems.
+
+---
+
+## 2. Wire-Protocol & Dynamic-Code Efficiency
+
+### 2.1 Per-Call Overhead
+
+**JGDMS JERI header budget (~619 bytes total):**
+
+| Component | Size | Purpose |
+|---|---|---|
+| Protocol version + framing | ~7 bytes | JERI mux frame header |
+| HTTPMD ProtectionDomain records | ~280 bytes typical | ACC caller identity |
+| DigestCodeSource domains | ~80 bytes typical | SHA-256 code hash domains |
+| anonCount field | 4 bytes | Anonymous domain ceiling (v23 privilege-escalation fix) |
+| ACC subtotal | ~454 bytes | Full serialized AccessControlContext |
+| subjectCount:u16 outer frame | 2 bytes | Multi-Subject wire protocol (v24) |
+| User-principal block | ~158 bytes | SPIFFE X500Principal + JwtPrincipal per Subject |
+| **Total** | **~619 bytes** | Complete security header |
+
+**Comparison to peers:**
+
+| System | Per-call identity overhead | Notes |
+|---|---|---|
+| JGDMS JERI | ~619 bytes (cold) / ~0 bytes extra (cache hit) | Full ACC + multi-Subject; AccSerialCache eliminates re-serialization at steady state |
+| gRPC (HTTP/2 + HPACK) | ~20–80 bytes | HPACK header compression; JWT Bearer token only, single-hop |
+| Java RMI | ~0 bytes identity | No identity propagation; serialization overhead comparable |
+| Thrift / Avro RPC | ~0–30 bytes | No identity; optional custom header fields |
+| REST/JSON (HTTPS) | ~200–500 bytes | TLS overhead + Authorization: Bearer header; no transitive propagation |
+| Akka Remoting | ~30–80 bytes | Artery/Aeron framing; no per-call identity |
+
+At steady-state with `AccSerialCache` (v27), the JERI sender cost drops from ~10–40 µs/call
+(cache miss, double stack-walk) to ~10 ns/call (cache hit — one volatile read + pointer
+compare). For 1,000 calls/s this is only ~10 µs/s total sender overhead, comparable to
+gRPC's HPACK encoding cost.
+
+### 2.2 Dynamic Code — Proxy JAR Delivery
+
+Pack200 compression gives 40–60% reduction on `-dl` proxy JARs (e.g., 500 KB → 200–300 KB).
+This is significantly better than generic gzip because it exploits the structure of Java
+bytecode (constant pool reordering, shared string encoding, etc.).
+
+**Download trust pipeline cost (one-time per codebase):**
+
+| Step | Overhead |
+|---|---|
+| SHA-256 JAR hash | ~1–5 ms for a 300 KB JAR (hardware-accelerated) |
+| VerdictRegistry RPC | ~1–3 ms (cached after first hit per codebase) |
+| Pack200 decompression | ~10–50 ms first time |
+| ClassLoader creation | ~0.1 ms |
+
+Once the `PreferredClassLoader` is cached (keyed by `(InvocationHandler, codebase[], parent)`),
+subsequent uses skip all of the above.
+
+**Comparison — dynamic code delivery:**
+
+| System | Code delivery | Runtime trust verification | Caching |
+|---|---|---|---|
+| JGDMS | Pack200-compressed JARs via httpmd: URL | SHA-256 + quorum VerdictRegistry verdict | ClassLoader cache; GC-scoped |
+| OSGi Remote Services | Bundle JARs via OBR | Code signing only | Bundle cache |
+| Java RMI | Codebase URL (plain HTTP); deprecated | None | Per-URLClassLoader |
+| gRPC | Pre-compiled stubs | N/A | N/A |
+| Kubernetes / Docker | Container image layers | Image signing (Cosign/Notary); no bytecode analysis | Layer cache |
+
+---
+
+## 3. Security Weakness Summary
+
+*Weakness 1 (DirtyChai dependency) is a design constraint, not a fixable bug.*
+
+| # | Weakness | Severity | Mitigated? |
+|---|---|---|---|
+| 1 | Full security requires DirtyChai (non-standard JDK) | 🔴 Critical | **By design — no fix** |
+| 2 | Wire-asserted user principals are unverified | 🔴 Critical | Partially (strict policy required) |
+| 3 | INCONCLUSIVE verdict allows loading; no re-audit on permission change | 🟠 High | No |
+| 4 | VerdictRegistry boot permissive window | 🟠 High | Acknowledged; no fix |
+| 5 | VerdictRegistry outage blocks all new proxy loads | 🟠 High | No (fail-secure, but availability impact) |
+| 6 | SPIRE single point of failure / SVID expiry gap | 🟠 High | Partially (backoff, but no stale-SVID fallback) |
+| 7 | Executor tasks silently lose user identity | 🟠 High | Partially (documented pattern; not enforced) |
+| 8 | Policy cannot deny, only relax | 🟡 Medium | No — Java platform limitation |
+| 9 | doPrivileged migration incomplete in legacy services | 🟡 Medium | Partially (§11 audit ongoing) |
+| 10 | CombinerSecurityManager recursion depth ceiling | 🟡 Medium | No (fixed at 7) |
+| 11 | DiscoveryCredentialProvider unimplemented | 🟡 Medium | No |
+| 12 | Pack200 full-JAR heap materialization | 🟡 Low | Partially (64 MB cap) |
+
+---
+
+## 4. Per-Weakness Options Analysis
+
+### 4.1 Weakness 2 — Wire-Asserted User Principals Not Independently Verified
+
+**Current state:** `BasicInvocationDispatcher.readUserSubjects()` reconstructs
+`JwtPrincipal`, `KerberosPrincipal` etc. from the wire via the `PRINCIPAL_CTORS`
+allow-list. The server accepts these principals solely on the vouching authority of the
+presenting SPIFFE SVID — the raw JWT token is not re-verified against the OIDC issuer.
+A compromised service with a valid SVID can assert any user identity.
+
+**Source file:** `JGDMS/jgdms-jeri/src/main/java/net/jini/jeri/BasicInvocationDispatcher.java`
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — Server-side JWT re-verification on every call | True end-to-end cryptographic verification; detects replayed tokens immediately | Requires wire protocol change; ~5–50 ms JWKS lookup on critical path; adds JWKS availability dependency |
+| **B** — Connection-level JWT verification with cached result | Cryptographic verification without per-call cost; consistent with SPIFFE SVID trust model | JWT rotation on long-lived connections undetected; wire protocol change still needed |
+| **C** — SVID-scoped trust assertion (policy-based, no protocol change) | Zero wire/runtime overhead; already partially supported via GrantPermission intersection | Trust delegated — compromised workload with broad SVID can impersonate any user; requires strict policy discipline |
+| **D** — Pluggable `JwtVerifier` SPI with connection-level caching | Opt-in; backward compatible; pluggable (OIDC JWKS, Kerberos, custom); `exp/iat/iss/aud` free even without JWKS | New wire protocol version (0x03) needed; JWKS cache adds operational complexity |
+
+**Recommendation:** Option D. Minimum viable implementation checks `exp/iat/iss/aud` claims
+locally without JWKS (free); full OIDC JWKS verification is opt-in. See Work Item 44.
+
+---
+
+### 4.2 Weakness 3 — INCONCLUSIVE Verdict Allows Loading; No Re-Audit on Permission Change
+
+**Current state:** `checkVerdictForJar()` in `PreferredProxyCodebaseProvider` explicitly
+allows `INCONCLUSIVE` through with a `WARNING` log. Once loaded, the `ClassLoader` is
+cached. If a permission is later granted that makes the guarded code path reachable
+(e.g., `createVirtualThread`), no re-audit occurs.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — Treat INCONCLUSIVE as DANGEROUS (strict mode) | Eliminates risk; one-line change | Could break existing deployments where some JARs legitimately produce INCONCLUSIVE |
+| **B** — INCONCLUSIVE loads but ClassLoader evicted when policy changes | Closes the re-audit gap; backward compatible | Requires `DynamicPolicyProvider` ↔ `VerdictRegistryHolder` cross-cutting linkage; eviction disconnects live proxies |
+| **C** — INCONCLUSIVE loads into permission-restricted sandbox ClassLoader | Closes dangerous path regardless of future grants | Complex; requires CombinerSecurityManager domain-merge interception |
+| **D** — INCONCLUSIVE requires explicit administrator opt-in per codebase hash (INCONCLUSIVEPermit) | Makes every INCONCLUSIVE load deliberate; audit trail in VerdictRegistry | New VerdictRegistry API; operational friction for legitimate INCONCLUSIVE JARs |
+
+**Recommendation:** Option B short-term + Option D long-term. Evict INCONCLUSIVE
+ClassLoaders on `DynamicPolicyProvider.grant()` (B) immediately. Require administrator
+permits for INCONCLUSIVE loads (D) in next major version. See Work Items 46, 51.
+
+---
+
+### 4.3 Weakness 4 — VerdictRegistry Boot Permissive Window
+
+**Current state:** In `PreferredProxyCodebaseProvider.resolve()`, when
+`VerdictRegistryHolder.get() == null`, the verdict check is skipped with a `Level.FINE`
+log. This is the deliberate bootstrap concession.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — Record boot-window codebases; retroactively verify when registry injected | Closes window retroactively; automatic | Quarantining after service init may cause ClassCastException in live proxies; requires tracking ClassLoaders |
+| **B** — Two-phase startup: VerdictRegistry client first via ServiceStarter | Eliminates window architecturally | Registry must be reachable at startup; hard failure if SPIRE/network unavailable |
+| **C** — Configurable strict/permissive boot mode | Operators opt into strict boot | Blocking resolve() risks bootstrap circularity (VerdictRegistry proxy needs a ClassLoader) |
+| **D** — Upgrade boot-window log to `Level.WARNING`; include codebase hash | Zero code risk; creates audit trail | Doesn't prevent exploitation; relies on operator review |
+
+**Recommendation:** Option D immediately (trivial log-level change) + Option B as the
+deployment-level control. Document `ServiceStarter` ordering as the recommended hardening
+step. See Work Item 47.
+
+---
+
+### 4.4 Weakness 5 — VerdictRegistry Outage Blocks All New Proxy Loads
+
+**Current state:** `checkVerdictForJar()` throws `IOException` on `RemoteException` from
+the registry. Correct fail-secure behaviour, but means no new proxy codebase can be loaded
+during a registry outage.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — In-memory signed-verdict cache with configurable TTL | Outage only affects new codebases never seen before; `RegistryVerdict` already signed (offline integrity check); small, well-scoped change | Lost on JVM restart; stale SAFE verdicts cannot be invalidated during outage |
+| **B** — Persistent local verdict cache (disk) | Survives JVM restart; offline operation | Filesystem becomes security-sensitive; async disk I/O needed |
+| **C** — VerdictRegistry HA cluster | Eliminates single point of failure | Significant infrastructure complexity; out of JGDMS codebase scope |
+| **D** — Grace period: retry with exponential backoff before failing | Handles transient connectivity blips; small code change | Blocks proxy-loading thread during retry window (acceptable with virtual threads) |
+
+**Recommendation:** Option A (in-memory signed-verdict cache) + Option D (retry backoff).
+Option B is the follow-on for hardened deployments. See Work Items 45, 48.
+
+---
+
+### 4.5 Weakness 6 — SPIRE Single Point of Failure / SVID Expiry Gap
+
+**Current state:** `SpiffeCredentialManager.renewalTask()` retries every fixed 30 seconds
+on failure. `scheduleRenewal()` fires `renewalLeadSeconds` (default 300 s = 5 min) before
+expiry. If SPIRE is down for more than `renewalLeadSeconds`, the SVID expires before
+renewal succeeds.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — Exponential backoff in `renewalTask()` (bounded, max `renewalLeadSeconds/2`) | Reduces SPIRE load during outage; fast recovery after outage resolves; small code change | Slightly more complex scheduling logic |
+| **B** — Increase default `renewalLeadSeconds` to 900 s | Trivial one-line change; immediate benefit | Doesn't help during multi-hour outages; reduces flexibility for short-TTL SVIDs |
+| **C** — Credential serialization to secure local file (AES-256-GCM, TPM-derived key) | Handles SPIRE unavailability at startup; extends survival window significantly | Storing private key material on disk requires TPM or equivalent; increases attack surface |
+| **D** — `isCredentialValid()` + `secondsUntilExpiry()` health endpoint; emit `Level.WARNING` when below threshold | No code complexity on credential path; enables operational alerting | Doesn't prevent failure; relies on operator monitoring |
+
+**Recommendation:** Option A + Option D. Exponential backoff immediately; health metric
+emission for operational visibility. See Work Item 49.
+
+---
+
+### 4.6 Weakness 7 — Executor Tasks Silently Lose User Identity
+
+**Current state:** JGDMS-STD-003 v3 documents the explicit wrapper pattern but it is
+unenforced. Service code that submits tasks to a bare executor silently drops the user
+`Subject` with no compile-time or runtime warning. `TxnManagerImpl.settleTxns` and
+`RegistrarImpl` discovery threads are noted as partially-resolved in §11 of context_8.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — `SubjectAwareExecutor` wrapper class (`implements ExecutorService`) | Transparent to service code; incorrect usage visible in code review | Service code must still be updated to use the wrapper |
+| **B** — `@SubjectPropagationRequired` annotation + SpotBugs plugin | Compile-time detection; zero runtime overhead | Requires custom SpotBugs rule; annotations add boilerplate |
+| **C** — Complete §11 migration audit; migrate all remaining `doAs`/`doAsPrivileged` call sites | Full coverage; regression tests per site | High effort; disrupts multiple service modules |
+| **D** — `SubjectAwareExecutor` (Option A) + targeted migration of known sites (Option C) | New code gets wrapper; known broken sites fixed | Requires both tracks in parallel |
+
+**Recommendation:** Option D. `SubjectAwareExecutor` for all new code; migrate known
+sites (`TxnManagerImpl`, `RegistrarImpl`, `AbstractActivationGroup`) as a targeted PR.
+See Work Items 50, 52.
+
+---
+
+### 4.7 Weakness 8 — Policy Cannot Deny, Only Relax
+
+**Current state:** `DynamicPolicyProvider.implies()` has no concept of negative grants.
+The three-layer stack can only widen permissions, never narrow them at the dynamic layer.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — `DenyPermission(Permission p)` wrapper in `DynamicPolicyProvider` | Strong deny semantics; evaluated before any positive grants | New permission type in the grant model; admin education needed |
+| **B** — FROZEN grants (admin marks a set of permissions as immutable) | Prevents accidental over-grant; simpler than Option A | Weaker than deny; still can't actively block |
+| **C** — Documentation + offline policy analysis tool | Zero code risk | Doesn't address the structural gap |
+| **D** — Negative grants set in `DynamicPolicyProvider` with background sweeper (same model as void grants) | Most principled; leverages existing `DynamicPolicyProvider` infrastructure and `PermissionGrant` lifecycle | Requires careful ordering: positive grants evaluated first, negative grants second |
+
+**Recommendation:** Option D. Negative grants in `DynamicPolicyProvider` with the same
+concurrency model as positive grants. See Work Item 53.
+
+---
+
+### 4.8 Weakness 9 — doAs/doAsPrivileged Migration Incomplete
+
+**Current state:** The §11 audit table in context_8 documents remaining `doAsPrivileged`
+sites. `RegistrarImpl` discovery threads and `AbstractActivationGroup` executor paths are
+explicitly flagged as high-priority but not yet migrated.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — Migrate all remaining §11 sites in a single PR | Completes the audit | High risk — disrupts multiple service modules simultaneously |
+| **B** — Add regression test per site, then migrate incrementally | Prevents regression; per-service mergeability | High effort, slower |
+| **C** — SpotBugs / javaparser scan for remaining `doAsPrivileged` + migrate per STD-003 matrix | Gives confidence in completeness before migration | Scan may have false positives; requires custom rule |
+
+**Recommendation:** Option C to find all sites, then Option B to migrate incrementally.
+Scan gives completeness confidence; incremental migration with per-site tests prevents
+regression. See Work Item 52.
+
+---
+
+### 4.9 Weakness 10 — CombinerSecurityManager Recursion Depth Ceiling
+
+**Current state:** The recursion depth guard in `CombinerSecurityManager` is a fixed
+constant (approximately 7). A configuration with more than three policy layers can exhaust
+the guard.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — Make depth limit a configurable system property (`jgdms.securityManager.maxRecursionDepth`, default 10) | Operators can tune; no logic change | Admin education needed |
+| **B** — Lazy domain resolution (iterator-based, not recursive) | Eliminates per-layer stack-frame consumption | Complex refactoring of `CombinerSecurityManager`; high risk if guard logic is subtly changed |
+| **C** — Document and freeze current limit; add `SEVERE` log on startup if config would exceed depth 5 | Zero code risk | Doesn't help operators needing more layers |
+
+**Recommendation:** Option A + Option C. Configurable limit with startup validation warning.
+See Work Item 54.
+
+---
+
+### 4.10 Weakness 11 — DiscoveryCredentialProvider Interface Not Implemented
+
+**Current state:** The `DiscoveryCredentialProvider` interface is referenced in design
+documents (§12 Work Item 25 of context_8) but was never started.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — Implement `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder` | Closes the gap; consistent with existing SPIFFE workload identity model | Discovery protocol needs to carry credentials |
+| **B** — Define interface + `NoOpDiscoveryCredentialProvider` default | Documents and formalizes the gap; pluggable | Doesn't actually secure discovery |
+| **C** — Defer as separate feature request | Keeps scope focused | Discovery remains an unsecured channel |
+
+**Recommendation:** Option A. SPIFFE infrastructure is already in place; wiring
+`SpiffeSubjectHolder` into the discovery credential path is a well-bounded change.
+See Work Item 55.
+
+---
+
+### 4.11 Weakness 12 — Pack200 Full-JAR Heap Materialization
+
+**Current state:** `HttpmdURLConnection` buffers the entire unpacked JAR before returning
+the stream. The `CappedOutputStream(64 MB)` cap prevents unbounded amplification, but
+N concurrent first-proxy loads can cause N × 64 MB heap pressure.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **A** — `Semaphore(maxConcurrentJarLoads)` around JAR download + decompression in `resolve()` (configurable, default 4) | Bounds peak heap to 4 × 64 MB = 256 MB; virtual threads yield naturally on semaphore wait; consistent with event-delivery and policy-service patterns | Adds latency for clients waiting for a JAR slot during burst |
+| **B** — Streaming Pack200 decompression | Eliminates peak materialization entirely | Pack200 requires two-pass processing; high implementation risk |
+| **C** — Reduce cap from 64 MB to 16 MB | Trivial constant change; most proxies < 10 MB | Breaks legitimately large proxy JARs |
+
+**Recommendation:** Option A. The semaphore approach is consistent with other
+bounded-resource patterns in the JGDMS architecture. See Work Item 56.
+
+---
+
+## 5. Phased Implementation Plan
+
+### Phase 1 — Low Risk, High Impact (no API/protocol changes)
+
+| # | Weakness | Action | Files | Priority |
+|---|---|---|---|---|
+| 1.1 | Boot window log level (W4) | Upgrade `Level.FINE` → `Level.WARNING` in boot-window path; include codebase hash | `PreferredProxyCodebaseProvider.java` | 🔴 Immediate |
+| 1.2 | SVID renewal backoff (W6) | Replace fixed `RETRY_INTERVAL_SECONDS` with exponential backoff (cap at `renewalLeadSeconds/2`, min 30 s) | `SpiffeCredentialManager.java` | 🔴 Immediate |
+| 1.3 | SVID health metric (W6) | Add `isCredentialValid()` + `secondsUntilExpiry()` to `SpiffeCredentialManager`; emit `Level.WARNING` when < `renewalLeadSeconds × 2` | `SpiffeCredentialManager.java` | 🔴 Immediate |
+| 1.4 | VerdictRegistry retry backoff (W5) | Add 3-attempt exponential backoff (1 s → 2 s → 4 s) before failing in `checkVerdictForJar()` | `PreferredProxyCodebaseProvider.java` | 🔴 Immediate |
+| 1.5 | Pack200 semaphore (W12) | Add `Semaphore(4)` (configurable `jgdms.proxy.maxConcurrentJarLoads`) around JAR download + decompression in `resolve()` | `PreferredProxyCodebaseProvider.java` | 🟠 Sprint 1 |
+| 1.6 | Recursion depth configurable (W10) | Make `CombinerSecurityManager` depth limit a system property (default 10); add startup `SEVERE` warning | `CombinerSecurityManager.java` | 🟠 Sprint 1 |
+
+### Phase 2 — Medium Effort, Targeted Bug Fixes
+
+| # | Weakness | Action | Files | Priority |
+|---|---|---|---|---|
+| 2.1 | doAs migration — scan (W9) | Run SpotBugs/javaparser scan for all remaining `doAsPrivileged` in service code; produce migration list | All service modules | 🟠 Sprint 2 |
+| 2.2 | doAs migration — RegistrarImpl (W9) | Migrate `RegistrarImpl` discovery/multicast threads per STD-003 decision matrix; add regression tests | `RegistrarImpl.java` | 🟠 Sprint 2 |
+| 2.3 | doAs migration — AbstractActivationGroup (W9) | Migrate executor path; add regression tests | `AbstractActivationGroup.java` | 🟠 Sprint 2 |
+| 2.4 | `SubjectAwareExecutor` (W7) | Implement `SubjectAwareExecutor implements ExecutorService`; update Javadoc in `AbstractJiniService` to recommend it | New class in `jgdms-platform` | 🟠 Sprint 2 |
+| 2.5 | INCONCLUSIVE eviction (W3) | Track `ClassLoader` instances loaded under INCONCLUSIVE verdict; evict on `DynamicPolicyProvider.grant()` | `VerdictRegistryHolder.java`, `DynamicPolicyProvider.java` | 🟡 Sprint 3 |
+| 2.6 | In-memory verdict cache (W5) | Add `ConcurrentHashMap<String, RegistryVerdict>` cache in `PreferredProxyCodebaseProvider`; use cached verdict on `RemoteException` if within TTL | `PreferredProxyCodebaseProvider.java` | 🟡 Sprint 3 |
+
+### Phase 3 — Architectural Changes (new API/protocol)
+
+| # | Weakness | Action | Files | Priority |
+|---|---|---|---|---|
+| 3.1 | `JwtVerifier` SPI (W2) | Define `JwtVerifier` SPI; wire into `BasicInvocationDispatcher`; add connection-level JWT verification cache; add wire protocol version 0x03 for raw JWT transport | `BasicInvocationDispatcher.java`, new `JwtVerifier.java` | 🟡 Sprint 4 |
+| 3.2 | `DiscoveryCredentialProvider` (W11) | Define interface; implement `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder`; integrate into `AbstractLookupDiscovery` | New interface + impl; `AbstractLookupDiscovery.java` | 🟡 Sprint 4 |
+| 3.3 | Negative grants (W8) | Add `negativeGrants` set to `DynamicPolicyProvider` with same background sweeper as void grants; update `implies()` | `DynamicPolicyProvider.java` | 🟡 Sprint 5 |
+| 3.4 | Persistent verdict cache (W5) | Add disk-based signed `RegistryVerdict` cache to `PreferredProxyCodebaseProvider` | `PreferredProxyCodebaseProvider.java`, new `VerdictCache.java` | 🔵 Sprint 6 |
+| 3.5 | `INCONCLUSIVEPermit` (W3) | Add `INCONCLUSIVEPermit` registry entry to `VerdictRegistry` API; require it for INCONCLUSIVE loads in strict mode | `VerdictRegistry.java`, `PreferredProxyCodebaseProvider.java` | 🔵 Sprint 6 |
+
+### Phase 4 — Operational / Deployment
+
+| # | Weakness | Action |
+|---|---|---|
+| 4.1 | SPIRE HA (W6) | Add SPIRE HA deployment topology to `spiffe-admin-deployment.md` |
+| 4.2 | ServiceStarter ordering (W4) | Document recommended startup ordering (VerdictRegistry client first) as the hardened-boot pattern |
+| 4.3 | Policy deny documentation (W8) | Document the negative grants feature (Phase 3.3) with worked examples in `security_architecture_feature_table.md` |
+
+### Dependency Graph
+
+```
+Phase 1.1 (log)            → standalone
+Phase 1.2 + 1.3 (SVID)    → standalone
+Phase 1.4 (VR retry)       → standalone
+Phase 1.5 (Pack200 sem.)   → standalone
+Phase 1.6 (recursion)      → standalone
+
+Phase 2.1 (scan)           → feeds 2.2, 2.3
+Phase 2.4 (SubjectAware)   → feeds 2.2, 2.3
+Phase 2.5 (INCONCLUSIVE)   → depends on Phase 1 being stable
+Phase 2.6 (VR cache)       → standalone after Phase 1.4
+
+Phase 3.1 (JwtVerifier)    → depends on JERI protocol stability
+Phase 3.2 (DiscoveryCred)  → depends on SpiffeCredentialManager (Phase 1.2)
+Phase 3.3 (neg grants)     → depends on DynamicPolicyProvider stability
+Phase 3.4 (persist cache)  → Phase 2.6 must be complete first
+Phase 3.5 (INCONCLUSIVE P) → Phase 2.5 must be complete first
+```
+
+---
+
+## 6. Work Items 44–56
+
+These extend the work-item table in §12 of
+[context_8](AI_Agent_JGDMS-GrantPermission-RoleManagement-context_8.md).
+
+| Item | Description | Phase | Status |
+|---|---|---|---|
+| **44** | `JwtVerifier` SPI — define interface; wire into `BasicInvocationDispatcher`; connection-level JWT cache; wire protocol v0x03 | 3.1 | 🔲 Not started |
+| **45** | VerdictRegistry retry backoff (exponential, 1 s → 2 s → 4 s, 3 attempts) in `checkVerdictForJar()` | 1.4 | 🔲 Not started |
+| **46** | INCONCLUSIVE ClassLoader eviction on `DynamicPolicyProvider.grant()` | 2.5 | 🔲 Not started |
+| **47** | Boot-window log upgrade (`Level.FINE` → `Level.WARNING` + SHA-256 hash) | 1.1 | 🔲 Not started |
+| **48** | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, configurable TTL) | 2.6 | 🔲 Not started |
+| **49** | SVID exponential-backoff renewal + `isCredentialValid()` / `secondsUntilExpiry()` health endpoint | 1.2 + 1.3 | 🔲 Not started |
+| **50** | `SubjectAwareExecutor implements ExecutorService` — Subject[] capture-and-rebind wrapper | 2.4 | 🔲 Not started |
+| **51** | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode (next major version) | 3.5 | 🔲 Not started |
+| **52** | doAs/doAsPrivileged migration: SpotBugs scan + incremental per-site migration (`RegistrarImpl`, `AbstractActivationGroup`) | 2.1–2.3 | 🔲 Not started |
+| **53** | Negative grants in `DynamicPolicyProvider` — `negativeGrants` set + background sweeper + `implies()` update | 3.3 | 🔲 Not started |
+| **54** | `CombinerSecurityManager` depth limit — configurable system property (default 10) + startup `SEVERE` warning | 1.6 | 🔲 Not started |
+| **55** | `DiscoveryCredentialProvider` — interface + `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder` | 3.2 | 🔲 Not started |
+| **56** | Pack200 semaphore — `Semaphore(4)` (configurable) around JAR download + decompression in `PreferredProxyCodebaseProvider.resolve()` | 1.5 | 🔲 Not started |
+
+---
+
+*Hand this document (along with context_8 and source files as needed) to a future AI agent to
+continue without loss of context. This is version 34, created to capture the security weakness
+analysis and implementation plan from the Copilot conversation dated 2026-05-12.*

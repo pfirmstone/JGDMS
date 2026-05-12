@@ -10,6 +10,21 @@ context. It supersedes and extends v32.
 
 ---
 
+## v34 Change Summary
+
+This version adds **§19 Security Weakness Analysis** — a forward-reference to the
+companion document
+[`AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md`](AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md)
+which captures the 11-weakness analysis and four-phase implementation plan (Work Items
+44–56) from the Copilot session of 2026-05-12.
+
+**New/changed in v34:**
+
+- **§19** — New section: Security Weakness Analysis & Implementation Plan; summary table
+  of 12 weaknesses; new Work Items 44–56; forward-reference to context_10.
+
+---
+
 ## v33 Change Summary
 
 This version repeats and updates **§15 Performance Analysis** to reflect all changes
@@ -3834,6 +3849,55 @@ For performance/stability at load (primary objective):
 9. **Work Items 41–43** (utility threads; lower urgency)
 
 Items 3–9 are independent and can be implemented in parallel across different agents.
+
+---
+
+## 19. Security Weakness Analysis & Implementation Plan (v34 — context_10)
+
+A thorough security-weakness review was conducted in the Copilot session of 2026-05-12.
+The review identified **11 addressable weaknesses** (plus the by-design DirtyChai
+dependency) and produced a four-phase implementation plan with 13 new work items (44–56).
+
+**The full analysis is captured in the companion document:**
+
+> [`AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md`](AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md)
+
+### 19.1 Weakness Summary
+
+| # | Weakness | Severity | Phase |
+|---|---|---|---|
+| 1 | DirtyChai dependency (by design) | 🔴 Critical | N/A |
+| 2 | Wire-asserted user principals unverified | 🔴 Critical | 3.1 |
+| 3 | INCONCLUSIVE verdict: no re-audit on permission change | 🟠 High | 2.5 / 3.5 |
+| 4 | VerdictRegistry boot permissive window | 🟠 High | 1.1 |
+| 5 | VerdictRegistry outage blocks new proxy loads | 🟠 High | 1.4 / 2.6 |
+| 6 | SPIRE single point of failure / SVID expiry gap | 🟠 High | 1.2 + 1.3 |
+| 7 | Executor tasks silently lose user identity | 🟠 High | 2.4 / 2.1–2.3 |
+| 8 | Policy cannot deny, only relax | 🟡 Medium | 3.3 |
+| 9 | doAs/doAsPrivileged migration incomplete | 🟡 Medium | 2.1–2.3 |
+| 10 | CombinerSecurityManager recursion depth ceiling | 🟡 Medium | 1.6 |
+| 11 | DiscoveryCredentialProvider unimplemented | 🟡 Medium | 3.2 |
+| 12 | Pack200 full-JAR heap materialization | 🟡 Low | 1.5 |
+
+### 19.2 New Work Items (44–56)
+
+See §6 of context_10 for full details. Summary:
+
+| Item | Short description | Priority |
+|---|---|---|
+| 44 | `JwtVerifier` SPI + wire protocol v0x03 | Sprint 4 |
+| 45 | VerdictRegistry retry exponential backoff | 🔴 Immediate |
+| 46 | INCONCLUSIVE ClassLoader eviction on policy grant | Sprint 3 |
+| 47 | Boot-window log `Level.WARNING` + hash | 🔴 Immediate |
+| 48 | In-memory signed-verdict cache (configurable TTL) | Sprint 3 |
+| 49 | SVID exponential-backoff renewal + health endpoint | 🔴 Immediate |
+| 50 | `SubjectAwareExecutor` wrapper class | Sprint 2 |
+| 51 | `INCONCLUSIVEPermit` admin opt-in (next major) | Sprint 6 |
+| 52 | doAs migration: SpotBugs scan + incremental per-site | Sprint 2 |
+| 53 | Negative grants in `DynamicPolicyProvider` | Sprint 5 |
+| 54 | `CombinerSecurityManager` configurable depth limit | Sprint 1 |
+| 55 | `DiscoveryCredentialProvider` + `SpiffeDiscoveryCredentialProvider` | Sprint 4 |
+| 56 | Pack200 `Semaphore(4)` cap in `resolve()` | Sprint 1 |
 
 ---
 
