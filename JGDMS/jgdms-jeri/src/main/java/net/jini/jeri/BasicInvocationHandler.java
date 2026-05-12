@@ -242,7 +242,48 @@ public class BasicInvocationHandler
     private transient InvocationConstraints[] constraintCache;
 
     /**
-     * Connection-level ACC cache (Work Item 28).
+     * Immutable snapshot of a fully-serialised {@link AccessControlContext}.
+     *
+     * <p>Bundling the ACC reference and both byte arrays into a single
+     * immutable holder and publishing the holder through one {@code volatile}
+     * write eliminates the TOCTOU race that would otherwise exist between
+     * reading {@code acc} and reading the corresponding byte arrays: because the
+     * holder is written atomically (one volatile reference store) any reader
+     * that obtains a non-null holder is guaranteed — by the JMM volatile
+     * happens-before rule — to see a fully consistent triple.
+     *
+     * <p>Without this holder, three separate {@code volatile} fields would
+     * require the "last write, publish last" pattern.  That pattern is still
+     * vulnerable: a reader may check one field and then read a second field
+     * whose most-recent write came from a <em>different</em> thread, because
+     * the JMM's synchronisation order for distinct volatile fields is not
+     * jointly atomic.  In a security-sensitive path this would allow one
+     * thread to send another thread's serialised ACC bytes — potentially a
+     * higher-privilege context — to the remote server (context-confusion /
+     * impersonation).
+     */
+    private static final class AccSerialCache {
+        final AccessControlContext acc;
+        /** HTTPMD-domain transport bytes; used by protocol version {@code 0x02}. */
+        final byte[] transportBytes;
+        /**
+         * {@code DigestCodeSource} transport bytes.
+         * Not transmitted by the current protocol version ({@code 0x02}) but
+         * precomputed here so that future protocol versions that carry
+         * digest-domain bytes can read the cache directly without an extra
+         * security stack-walk per call.
+         */
+        final byte[] digestBytes;
+
+        AccSerialCache(AccessControlContext acc, byte[] transportBytes, byte[] digestBytes) {
+            this.acc = acc;
+            this.transportBytes = transportBytes;
+            this.digestBytes = digestBytes;
+        }
+    }
+
+    /**
+     * Connection-level ACC serialisation cache (Work Item 28).
      *
      * <p>The caller's {@link AccessControlContext} rarely changes between
      * successive calls on the same proxy.  Computing the transport bytes via
@@ -252,28 +293,20 @@ public class BasicInvocationHandler
      * roughly 5–20 µs per call.  By caching the results and invalidating only
      * when the ACC reference changes (a cheap {@code volatile} read + identity
      * comparison, ~10 ns), we reduce steady-state stack-walk overhead from
-     * O(calls/s) to O(ACC-changes/s).
+     * O(calls/s) to O(ACC-changes/s) at steady state.
      *
-     * <p>All three fields are {@code volatile} so that the write to
-     * {@code cachedAccRef} (always done last) acts as a happens-before fence:
-     * any thread that observes {@code cachedAccRef == currentAcc} is guaranteed
-     * to also observe the corresponding {@code cachedTransportBytes} and
-     * {@code cachedDigestBytes} values.
+     * <p>A <em>single</em> {@code volatile} reference to an {@link AccSerialCache}
+     * holder is used instead of three separate {@code volatile} fields.  This
+     * ensures that the ACC identity check and the subsequent read of the
+     * transport bytes operate on the <em>same</em> snapshot: one volatile read
+     * returns a fully consistent (acc, transportBytes, digestBytes) triple with
+     * no possibility of a concurrent thread having replaced one of the fields
+     * between the check and the use.
      *
-     * <p>The fields are intentionally not serialized: on deserialization they
-     * default to {@code null}/{@code null}/{@code null} and are repopulated on
-     * the first outbound call.
+     * <p>The field is {@code transient}: on deserialisation it defaults to
+     * {@code null} and is repopulated on the first outbound call.
      */
-    private transient volatile AccessControlContext cachedAccRef;
-    /** Cached HTTPMD-domain transport bytes for {@link #cachedAccRef}; used by protocol 0x02. */
-    private transient volatile byte[] cachedTransportBytes;
-    /**
-     * Cached {@code DigestCodeSource} transport bytes for {@link #cachedAccRef}.
-     * Not transmitted in the current protocol version (0x02) but precomputed here
-     * so that future protocol versions that carry digest-domain bytes can read the
-     * cache directly, avoiding an additional security stack-walk per outbound call.
-     */
-    private transient volatile byte[] cachedDigestBytes;
+    private transient volatile AccSerialCache accSerialCache;
 
     /**
      * Creates a new <code>BasicInvocationHandler</code> with the
@@ -897,33 +930,29 @@ public class BasicInvocationHandler
 	    // 0x01 = atomicValidation, no user Subjects
 	    // 0x00 = legacy, no atomicValidation, no user Subjects
             final AccessControlContext currentAcc = AccessController.getContext();
+            // Single volatile read: obtain a consistent (acc, transportBytes, digestBytes)
+            // snapshot.  Using one volatile reference to an immutable holder prevents the
+            // TOCTOU race that would exist with three separate volatile fields: a second
+            // thread could replace one field between our check and our read, causing us to
+            // use transport bytes that belong to a different ACC (context confusion /
+            // impersonation).  With a single volatile read the triple is always coherent.
+            AccSerialCache cache = accSerialCache;
             final byte[] serializedAcc;
-            if (currentAcc != cachedAccRef) {
-                // ACC has changed (or this is the first call): recompute and cache
-                // both transport payloads.  Reference equality is used deliberately:
-                // AccessControlContext.equals() is not overridden, so reference
-                // identity is the only cheap indicator.  Worst case is an extra
-                // stack-walk when a new ACC object wraps the same domains; that is
-                // acceptable and far cheaper than a stack-walk on every call.
-                //
-                // cachedAccRef is written last so that a concurrent reader who
-                // observes cachedAccRef == currentAcc is guaranteed (by the
-                // volatile happens-before rule) to also see the coherent
-                // cachedTransportBytes / cachedDigestBytes values.
-                //
-                // cachedDigestBytes stores the DigestCodeSource transport payload.
-                // The current protocol version (0x02) only transmits cachedTransportBytes,
-                // but cachedDigestBytes is precomputed here so that future protocol
-                // versions that also carry digest-domain bytes can read it from the
-                // cache without incurring an additional security stack-walk per call.
+            if (cache == null || cache.acc != currentAcc) {
+                // Cache miss: recompute both transport payloads.
+                // Reference equality is used deliberately: AccessControlContext does not
+                // override equals(), so reference identity is the only cheap indicator.
+                // The worst case is an extra stack-walk when a new ACC wraps the same
+                // domains; that is acceptable and far cheaper than a walk on every call.
                 byte[] tb = AccessControlContextSerializer.marshalForTransport(currentAcc);
                 byte[] db = AccessControlContextSerializer.marshalDigestForTransport(currentAcc);
-                cachedTransportBytes = tb;
-                cachedDigestBytes    = db;
-                cachedAccRef         = currentAcc; // publish last
-                serializedAcc = tb; // use locally computed value to avoid data race
+                // Publish all three values atomically via a single volatile write.
+                accSerialCache = new AccSerialCache(currentAcc, tb, db);
+                serializedAcc = tb; // use locally computed value; never read back from cache
             } else {
-                serializedAcc = cachedTransportBytes; // cache hit: volatile read is coherent
+                // Cache hit: the single volatile read above guarantees that cache.acc,
+                // cache.transportBytes, and cache.digestBytes are mutually consistent.
+                serializedAcc = cache.transportBytes;
             }
 	    if (serializedAcc.length > 0) {
 		// Capture all user Subjects (from Subject.callAs scope, JDK 18+).
