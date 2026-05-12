@@ -1770,8 +1770,9 @@ executor.submit(() -> {
     - Fix 1 (§16.6, HIGH ✅): `marshalForTransport()` guard changed from `records.isEmpty()`
       to `records.isEmpty() && anonCount == 0` — anonymous domain ceilings are now always
       encoded, closing the privilege-escalation window.
-    - Fix 2 (§16.7, MEDIUM — not yet started): `writeUtf8Prefixed()` must throw `IOException`
-      instead of silently truncating strings that exceed 65 535 UTF-8 bytes.
+    - Fix 2 (§16.7, MEDIUM ✅): `writeUtf8Prefixed()` now throws `IOException`
+      instead of silently truncating strings that exceed 65 535 UTF-8 bytes
+      (§16.7 Option A implemented).
     - Fix 3 (§16.3, HIGH ✅): `HttpmdURLConnection.getInputStream()` now wraps `ByteArrayOutputStream`
       in a `CappedOutputStream(64 MB)` — Pack200 unpacking throws `IOException` if the
       decompressed JAR exceeds 64 MiB, preventing heap amplification.
@@ -1903,7 +1904,7 @@ executor.submit(() -> {
 | **Multi-Subject dispatch on DirtyChai uses single varargs `callAs`; nesting is wrong** | ✅ **v24:** Each nested `Subject.callAs(Subject, Callable)` call shadows the outer one; only the innermost Subject is visible via `Subject.current()`. DirtyChai's `Subject.callAs(Callable, Subject[])` varargs call passes all Subjects simultaneously to the JVM so `Subject.currentAll()` returns the full array. |
 | **`IllegalAccessException` from `CALL_AS_MULTI_SUBJECT.invoke()` wrapped as `IllegalStateException`** | ✅ **v24:** The method is public; `IllegalAccessException` should never occur. Re-wrapping it as `IllegalStateException` (an `Exception`) honours the `Callable<Void>` contract and preserves the original cause in the stack trace. |
 | **Unreachable outer `catch (ClassNotFoundException)` removed from `unmarshalDigestFromTransport()`** | ✅ **v24:** The exception is already caught per-domain by the inner try-catch around `amis.readObject()`; an outer catch is unreachable and is a compile error on JDK 27 (`-Werror`). Fixed by removing the outer try-wrapper; method already declares `throws IOException`. |
-| **`writeUtf8Prefixed()` must reject strings > 65 535 UTF-8 bytes** | ✅ **v25 (pending):** Silent `Math.min` truncation can produce a different string at the receiver — a security ambiguity.  `IOException` is the correct response; no legitimate `Principal` implementation produces a name this long. |
+| **`writeUtf8Prefixed()` must reject strings > 65 535 UTF-8 bytes** | ✅ **v26:** Silent `Math.min` truncation removed; `IOException` thrown instead (§16.7 Option A).  No legitimate `Principal` implementation produces a name this long. |
 | **`marshalForTransport()` early-return must check `anonCount == 0`** | ✅ **v25 (pending):** Returning empty bytes when `records.isEmpty()` but `anonCount > 0` silently drops anonymous-domain permission ceilings — same class of privilege escalation as §10.2.1.  Fix: guard on `records.isEmpty() && anonCount == 0`. |
 | **Virtual-thread executor + semaphore cap for policy-service event delivery** | ✅ **v25 (recommended, pending):** `newVirtualThreadPerTaskExecutor()` prevents I/O blocking on platform threads; semaphore cap (500 permits) bounds in-flight deliveries; requires `<release>21</release>` in module `pom.xml`. |
 | **`MAX_LISTENER_REGISTRATIONS` cap in `registerForPolicyUpdates()`** | ✅ **v25 (recommended, pending):** Any authenticated caller can flood the listener map; a hard cap (1 000) plus a daemon virtual-thread lease-expiry sweep are the two necessary controls. |
@@ -2742,7 +2743,8 @@ continue without loss of context. This is version 27, updated to document:*
 - *§16.3 ✅ completed: `HttpmdURLConnection` — `CappedOutputStream(64 MB)` wrapping Pack200 output*
 - *§16.4 ✅ completed: `BasicInvocationDispatcher` — `PRINCIPAL_CTORS` allowlist + constructor cache*
 - *§16.6 ✅ completed: `AccessControlContextSerializer.marshalForTransport()` — `anonCount` now encoded even when no HTTPMD records*
-- *§16.5 (MEDIUM) and §16.7 (MEDIUM) remain not yet started*
+- *§16.7 ✅ completed: `BasicInvocationHandler.writeUtf8Prefixed()` — throws `IOException` instead of silently truncating strings > 65 535 UTF-8 bytes (§16.7 Option A)*
+- *§16.5 (MEDIUM) remains not yet started*
 - *Work items 30 (partially), 31, and 32 (partially) marked complete in §12*
 
 ---
