@@ -2014,6 +2014,8 @@ executor.submit(() -> {
 | **`ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup` on DirtyChai** | ✅ **v27:** `ThreadGroup` was designed for applet sandbox isolation and was never an effective security boundary. On JDK 17–23, `SecurityManager` is deprecated for removal; on JDK 24+, `SecurityManager` is disabled — neither `modifyThreadGroup` nor `createPlatformThread` is checked at runtime on standard JDK builds; the cleanup is code hygiene. On **DirtyChai** (the preferred high-security platform), `SecurityManager` is still active; `Thread.ofPlatform().unstarted()` triggers `RuntimePermission("createPlatformThread")` and `Thread.ofVirtual().unstarted()` triggers `RuntimePermission("createVirtualThread")`. `BlockingSinkRegistry` already maps both `ThreadBuilders$PlatformThreadBuilder/unstarted` and `ThreadBuilders$VirtualThreadBuilder/unstarted` to those permissions. Replacing `new Thread(group, …)` with `Thread.ofPlatform().unstarted(…)` removes dead applet-era boilerplate on all platforms and creates the explicit DirtyChai policy gate. |
 | **VirtualThread vs platform thread boundary: NIO/Selector loops MUST stay on platform threads** | ✅ **v28:** All NIO `java.nio.channels.*` selector and channel I/O paths (SelectionManager, MuxClient, MuxServer, SocketChannelConnectionIO, TcpServerEndpoint, SslServerEndpointImpl, KerberosServerEndpoint, and the UDP multicast loops in AbstractLookupDiscovery) must remain on platform threads. The application dispatch layer above the Mux (JERI `ThreadPool`, service event-delivery executors, LeaseRenewalManager, ServiceDiscoveryManager, Outrigger/Fiddler/Mercury/Norm/VerdictRegistry notifiers, CodebaseDownloader workers) should migrate to `newVirtualThreadPerTaskExecutor()`. On JDK 21 there is bounded carrier pinning from Mux `synchronized` blocks reached by dispatch virtual threads; on JDK 24+ `synchronized` no longer pins carriers. |
 | **Virtual-thread executors for I/O-bound service executors require a `Semaphore` concurrency cap** | ✅ **v28:** `newVirtualThreadPerTaskExecutor()` creates one virtual thread per submitted task with no inherent bound; without a concurrency cap, a flood of slow remote clients causes millions of queued virtual threads and heap exhaustion. Every I/O-bound executor replacement MUST wrap with `Semaphore(N)` (N = 200–500 depending on service) and drop/log tasks that cannot acquire a permit. The policy-service implementation (§16.1) is the reference pattern. |
+| **DirtyChai VirtualThread fully supports ACC — ACC is not a VirtualThread migration blocker** | ✅ **v29:** A virtual thread running on DirtyChai inherits and propagates `AccessControlContext` correctly; `AccessController.getContext()` and `Subject.callAs(…)` work as expected. The only genuine constraint for keeping threads on platform threads is NIO-channel threading requirements (see §18.1). The JDK 21 carrier-pinning concern from Mux `synchronized` blocks is a pure NIO/synchronization concern, not an ACC concern. |
+| **Standard Java 17+ deployments use TCP JERI in trusted networks; SSL/Kerberos are DirtyChai-only** | ✅ **v29:** JGDMS security requires DirtyChai. Standard Java 17–23 (SecurityManager deprecated) and Java 24+ (SecurityManager disabled) deployments operate on trusted networks using plain `TcpServerEndpoint`/`TcpEndpoint`. `SslServerEndpointImpl`, `SslConnection`, `KerberosServerEndpoint`, and `KerberosEndpoint` are DirtyChai-specific transports. This clarifies that the NIO constraints on those classes are DirtyChai-scoped; their thread model does not constrain standard-JDK deployments. |
 
 ---
 
@@ -2830,7 +2832,7 @@ Sites marked ❌ must remain on platform threads (NIO or CPU-bound).
 | `instantiatePrincipal()` class-loading | `jgdms-jeri` | Per-request `Class.forName` + ctor invoke | ✅ §16.4 | Eliminated; PRINCIPAL_CTORS allowlist |
 | JERI dispatch (`ThreadPool`) | `jgdms-jeri` + `jgdms-collections` | `newCachedThreadPool(TPThreadFactory)` | 🔲 §18.2.1 | → `newVirtualThreadPerTaskExecutor()`; JDK 24+ for zero pinning |
 | NIO selector / Mux (`SelectionManager`, `MuxClient`, `MuxServer`, `SocketChannelConnectionIO`) | `jgdms-jeri` | Platform threads on NIO channels | ❌ | NIO selector loops MUST stay on platform threads |
-| TCP/SSL/Kerberos server accept loops | `jgdms-jeri` | Platform accept-loop threads | ❌ | NIO channel I/O |
+| TCP/SSL/Kerberos server accept loops | `jgdms-jeri` | Platform accept-loop threads | ❌ | NIO channel I/O; SSL/Kerberos are **DirtyChai-only** (std Java 17+ uses TCP in trusted networks) |
 | Outrigger event delivery (`Notifier.pending`) | `outrigger` | `ThreadPoolExecutor(10,10,…)` | 🔲 §18.2.2 | → virtual executor + `Semaphore(500)` |
 | Fiddler discovery task executor | `fiddler` | `ThreadPoolExecutor(10,10,…)` | 🔲 §18.2.2 | → virtual executor + `Semaphore(500)` |
 | Mercury notification delivery (`Notifier.taskManager`) | `mercury` | `ThreadPoolExecutor(10,10,…)` | 🔲 §18.2.2 | → virtual executor + `Semaphore(500)` |
@@ -3227,12 +3229,24 @@ lease-expiry sweepers), the matching DirtyChai permission is
 
 ---
 
-## 18. VirtualThread Migration Plan (v28 Analysis)
+## 18. VirtualThread Migration Plan (v29 Analysis)
 
 This section documents the complete deep-dive analysis of all platform-thread usage
 across the JGDMS codebase, identifies which sites should migrate to virtual threads
 and which must remain on platform threads, and provides site-by-site architectural
 guidance.  The §16.8 table is the summary; this section provides the rationale.
+
+**Key deployment model:** JGDMS security requires **DirtyChai** as the JVM platform.
+Standard Java 17–23 deployments (SecurityManager deprecated) and Java 24+ deployments
+(SecurityManager disabled) are assumed to operate on trusted networks and use plain TCP
+JERI endpoints; they do not require SSL or Kerberos transport security.  Only DirtyChai
+deployments enforce the full JGDMS security model (ACC, SecurityManager, SPIFFE/SVID).
+
+**DirtyChai VirtualThread fully supports ACC.**  A virtual thread running on DirtyChai
+inherits and propagates `AccessControlContext` correctly; `AccessController.getContext()`
+and `Subject.callAs(…)` work as expected.  ACC is therefore **not a blocker** for any
+VirtualThread migration work item.  The only genuine constraints are NIO-channel
+threading requirements (see §18.1).
 
 ---
 
@@ -3246,8 +3260,16 @@ thread that drives a NIO selector loop or performs blocking I/O on a
    interrupted by virtual-thread scheduling.
 2. `SocketChannel` in blocking mode registered with a `Selector` assumes its carrier
    thread identity for signal delivery; substituting a virtual thread disrupts this.
-3. TLS (`SSLEngine`) and Kerberos GSS-API perform multi-step handshake sequences that
-   depend on OS-thread context (credential stores, GSS context objects).
+3. TLS (`SSLEngine`) and Kerberos GSS-API credential stores require OS-thread context
+   for multi-step handshake state management.  Note: this is an **NIO/OS-thread
+   constraint**, not an ACC constraint — DirtyChai VirtualThread fully supports ACC.
+
+**Deployment scope for SSL/Kerberos endpoints:** `SslServerEndpointImpl`,
+`SslConnection`, `KerberosServerEndpoint`, and `KerberosEndpoint` are
+**DirtyChai-only** transports.  Standard Java 17+ deployments (where SecurityManager
+is deprecated or disabled) are assumed to operate on trusted networks and use plain
+TCP JERI endpoints (`TcpServerEndpoint` / `TcpEndpoint`).  The NIO constraint
+nonetheless keeps these endpoints on platform threads on DirtyChai.
 
 **Mandatory platform-thread sites:**
 
@@ -3257,12 +3279,12 @@ thread that drives a NIO selector loop or performs blocking I/O on a
 | `MuxClient` | `jgdms-jeri/.../mux/MuxClient.java` | NIO `SocketChannel` read/write |
 | `MuxServer` | `jgdms-jeri/.../mux/MuxServer.java` | NIO `SocketChannel` accept/read/write |
 | `SocketChannelConnectionIO` | `jgdms-jeri/.../mux/SocketChannelConnectionIO.java` | NIO channel I/O buffer management |
-| `TcpServerEndpoint` | `jgdms-jeri/.../tcp/TcpServerEndpoint.java` | TCP accept loop + NIO |
-| `TcpEndpoint` | `jgdms-jeri/.../tcp/TcpEndpoint.java` | TCP connect + NIO |
-| `SslServerEndpointImpl` | `jgdms-jeri/.../ssl/SslServerEndpointImpl.java` | TLS + NIO |
-| `SslConnection` | `jgdms-jeri/.../ssl/SslConnection.java` | TLS `SSLEngine` state |
-| `KerberosServerEndpoint` | `jgdms-jeri/.../kerberos/KerberosServerEndpoint.java` | GSS-API + NIO |
-| `KerberosEndpoint` | `jgdms-jeri/.../kerberos/KerberosEndpoint.java` | GSS-API + NIO |
+| `TcpServerEndpoint` | `jgdms-jeri/.../tcp/TcpServerEndpoint.java` | TCP accept loop + NIO; used by **all** deployments (DirtyChai and standard Java 17+) |
+| `TcpEndpoint` | `jgdms-jeri/.../tcp/TcpEndpoint.java` | TCP connect + NIO; **all** deployments |
+| `SslServerEndpointImpl` | `jgdms-jeri/.../ssl/SslServerEndpointImpl.java` | TLS + NIO; **DirtyChai only** (standard Java 17+ uses TCP in trusted networks) |
+| `SslConnection` | `jgdms-jeri/.../ssl/SslConnection.java` | TLS `SSLEngine` state; **DirtyChai only** |
+| `KerberosServerEndpoint` | `jgdms-jeri/.../kerberos/KerberosServerEndpoint.java` | GSS-API + NIO; **DirtyChai only** |
+| `KerberosEndpoint` | `jgdms-jeri/.../kerberos/KerberosEndpoint.java` | GSS-API + NIO; **DirtyChai only** |
 | `AbstractLookupDiscovery.AnnouncementListener` | `jgdms-platform/.../AbstractLookupDiscovery.java` | Custom `interrupt()` closes `MulticastSocket`; timing-sensitive UDP |
 | `AbstractLookupDiscovery.Requestor` | same | Periodic UDP multicast request sender |
 | `AbstractLookupDiscovery.ResponseListener` | same | UDP multicast response receiver |
@@ -3301,15 +3323,18 @@ virtual dispatch thread that needs to write a JERI response calls back into `Mux
 `Connection.write()`, which uses the `SocketChannel` already established on the platform
 thread.  The virtual thread blocks at `SocketChannel.write()` or a Mux-internal
 `synchronized` block, yielding the carrier (on JDK 24+) or pinning it briefly (JDK 21).
+ACC propagation is **not affected** — DirtyChai VirtualThread inherits and propagates
+`AccessControlContext` correctly through dispatch threads.
 
-**JDK 21 risk:** `Mux` and related classes use `synchronized` blocks.  If a JERI
-dispatch virtual thread calls back into Mux code (e.g., to flush a response), it enters
-a `synchronized` block and pins its carrier for the duration.  With N concurrent
-responses, up to N carriers are pinned simultaneously.  The JVM maintains a carrier pool
-(`ForkJoinPool` with `parallelism = nCPU`); if all carriers are pinned, new virtual
-threads queue behind them — degrading to platform-thread behavior.  Enable
+**JDK 21 risk (NIO-only, not ACC):** `Mux` and related classes use `synchronized`
+blocks.  If a JERI dispatch virtual thread calls back into Mux code (e.g., to flush a
+response), it enters a `synchronized` block and pins its carrier for the duration.  With
+N concurrent responses, up to N carriers are pinned simultaneously.  The JVM maintains
+a carrier pool (`ForkJoinPool` with `parallelism = nCPU`); if all carriers are pinned,
+new virtual threads queue behind them — degrading to platform-thread behavior.  Enable
 `-Djdk.tracePinnedThreads=full` in load tests.  On JDK 24+, `synchronized` no longer
-pins carriers; the benefit is unambiguous.
+pins carriers; the benefit is unambiguous.  **This is a pure NIO/synchronization
+concern, not an ACC concern** — ACC is fully supported by DirtyChai VirtualThreads.
 
 **Configuration simplification:** Services that provide a custom `ExecutorService` to
 JERI via `Config.getEntry(…, "executorService", ExecutorService.class)` currently need
@@ -3569,7 +3594,8 @@ note that the recommended value is `Executors.newVirtualThreadPerTaskExecutor()`
 
 | Risk | Affected work items | Mitigation |
 |---|---|---|
-| **JDK 21 carrier pinning** from `synchronized` in Mux code reached by dispatch virtual threads | 34 | Enable `-Djdk.tracePinnedThreads=full` in load tests; accept bounded pinning on JDK 21; full benefit only on JDK 24+ |
+| **JDK 21 carrier pinning (NIO/sync, not ACC)** from `synchronized` in Mux code reached by dispatch virtual threads | 34 | Enable `-Djdk.tracePinnedThreads=full` in load tests; accept bounded pinning on JDK 21; full benefit only on JDK 24+; this is a pure NIO/synchronization concern — ACC is fully supported by DirtyChai VirtualThreads |
+| **ACC is NOT a VirtualThread concern** — DirtyChai VirtualThread inherits and propagates ACC correctly | all | No action required; document explicitly for clarity |
 | **`ServiceDiscoveryManager` ordering loss** when replacing `PriorityBlockingQueue` executor | 38 | Document tradeoff; offer per-registrar virtual "mailbox" as an alternative for strict-ordering deployments |
 | **Unbounded concurrency** without `Semaphore` cap can exhaust heap via millions of queued virtual threads | 35, 36, 40 | Every event-delivery replacement MUST include a `Semaphore` cap (500 for events, `MAX_PENDING_DOWNLOADS` for downloader) |
 | **`ThreadPoolExecutor instanceof` cast** in `LeaseRenewalManager` line 1279 | 37 | Already has correct `Integer.MAX_VALUE` fallback path; no fix needed |
@@ -3583,7 +3609,8 @@ note that the recommended value is `Executors.newVirtualThreadPerTaskExecutor()`
 
 | Component | Reason |
 |---|---|
-| NIO JERI transport (Mux, SelectionManager, channel endpoints) | NIO selector loops require platform threads; see §18.1 |
+| NIO JERI transport (Mux, SelectionManager, channel endpoints) | NIO selector loops require platform threads; see §18.1; **not** an ACC concern |
+| SSL/Kerberos endpoints specifically | **DirtyChai-only** transports; NIO-bound; standard Java 17+ uses TCP (trusted networks) |
 | `BytecodeAnalysisEngineImpl` analysis executor | CPU-intensive; bounded platform pool is the correct tool |
 | `TxnManagerImpl` settlerpool / taskpool | Transaction locking complexity; `ExtensibleExecutorService` wraps configured pool; admin retains control |
 | `RegistrarImpl` service threads | Long-running daemon loops with timing constraints (announce, expire, snapshot) |
@@ -3617,15 +3644,21 @@ Items 3–9 are independent and can be implemented in parallel across different 
 - *§13 new row — `ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup`*
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 28, updated to document:*
+continue without loss of context. This is version 29, updated to document:*
 
-- *§18 new: VirtualThread Migration Plan — complete deep-dive analysis of all platform-thread sites; NIO boundary (§18.1); site-by-site analysis (§18.2.1–5); configuration simplification (§18.3); module compatibility (§18.4); risks and mitigations (§18.5); implementation order (§18.7)*
-- *§16.8 expanded: comprehensive table of all 30+ platform-thread sites with ✅/🔲/❌ status, module, and notes*
-- *§12 work items 34–43 added — VirtualThread migration for JERI dispatch, service event executors, lease/discovery utilities, background threads, and kicker threads*
+- *§18 intro updated: key deployment model note — DirtyChai required for JGDMS security; std Java 17+ uses TCP in trusted networks*
+- *§18.1 NIO boundary updated: SSL/Kerberos endpoints clarified as DirtyChai-only; NIO constraint is not an ACC constraint; DirtyChai VirtualThread fully supports ACC*
+- *§18.2.1 updated: ACC propagation note added; JDK 21 risk clarified as NIO/synchronization concern only, not ACC*
+- *§18.5 risks updated: ACC confirmed NOT a VirtualThread risk; JDK 21 carrier-pinning row updated*
+- *§18.6 updated: SSL/Kerberos DirtyChai-only scope noted*
+- *§13 two new rows: DirtyChai VirtualThread + ACC, and TCP/SSL/Kerberos deployment scope*
 
 ---
 
-*Previous version (v27) notes:*
+*Previous version (v28) notes:*
+- *§18 new: VirtualThread Migration Plan — complete deep-dive analysis of all platform-thread sites; NIO boundary (§18.1); site-by-site analysis (§18.2.1–5); configuration simplification (§18.3); module compatibility (§18.4); risks and mitigations (§18.5); implementation order (§18.7)*
+- *§16.8 expanded: comprehensive table of all 30+ platform-thread sites with ✅/🔲/❌ status, module, and notes*
+- *§12 work items 34–43 added — VirtualThread migration for JERI dispatch, service event executors, lease/discovery utilities, background threads, and kicker threads*
 - *§16.5 ✅ completed: `BasicInvocationHandler` — `AccSerialCache` immutable holder fixes TOCTOU context-confusion race; Work Item 28 complete*
 - *§12 Work Item 28 — marked ✅ completed (v27) with full security rationale*
 - *§16.1 ✅ completed: `InMemoryPolicyServiceImpl` — virtual-thread executor + `Semaphore(500)` cap*
