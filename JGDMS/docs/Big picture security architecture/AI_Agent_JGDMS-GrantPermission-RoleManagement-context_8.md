@@ -1834,6 +1834,73 @@ executor.submit(() -> {
       `collections.jar` / `jeri.jar` with `RuntimePermission "createPlatformThread"`.
     - Update `ThreadPoolPermission` Javadoc — remove the never-implemented claim about
       `SecurityManager.checkAccess(ThreadGroup)`.
+34. **JERI dispatch `ThreadPool` → `newVirtualThreadPerTaskExecutor()`** — *(not yet started; documented in §18.2.1)*
+    - Replace `Executors.newCachedThreadPool(TPThreadFactory)` in `ThreadPool(ThreadGroup)` constructor with
+      `Executors.newVirtualThreadPerTaskExecutor()`.
+    - The NIO layer (SelectionManager, MuxClient/MuxServer, SocketChannelConnectionIO) is NOT affected —
+      those paths stay on dedicated platform threads via separate mechanisms.
+    - DirtyChai policy gate: requires `RuntimePermission "createVirtualThread"` in place of (or in addition
+      to) `createPlatformThread`; update QA policy files accordingly.
+    - JDK 24+ is needed to eliminate `synchronized`-block carrier pinning from Mux code reached via dispatch
+      threads; on JDK 21 add `jdk.tracePinnedThreads` monitoring and accept bounded carrier pinning.
+    - **Config simplification**: services that inject a custom `ExecutorService` via Jini `Configuration`
+      for task dispatch no longer need to size the pool; the virtual-thread executor scales automatically.
+35. **Service event-delivery executors → virtual-thread executor + semaphore** — *(not yet started; §18.2.2)*
+    - **Outrigger `Notifier.pending`** (`OutriggerServerImpl.notificationsExecutorService`): `ThreadPoolExecutor(10,10,…)` →
+      `Executors.newVirtualThreadPerTaskExecutor()` + `Semaphore(500)`.
+    - **Fiddler `FiddlerInit.executorService`** (`net.jini.lookup.fiddler.executorService`): `ThreadPoolExecutor(10,10,…)` →
+      virtual-thread executor + `Semaphore(500)`.
+    - **Mercury `MailboxImpl.Notifier.taskManager`** (`net.jini.mailbox.notificationsExecutorService`):
+      `ThreadPoolExecutor(10,10,…)` → virtual-thread executor + `Semaphore(500)`.
+    - **Norm `EventTypeGenerator.taskManager`**: `ThreadPoolExecutor(10,10,…)` → virtual-thread executor.
+    - **VerdictRegistry `createEventExecutor()`**: `ThreadPoolExecutor` → virtual-thread executor + `Semaphore(200)`.
+    - All above: remove `NamedThreadFactory` construction; virtual threads are named per-submit via
+      `Thread.ofVirtual().name("prefix-", counter).factory()`.
+36. **Reggie event-notifier + discovery-response executors → virtual threads** — *(not yet started; §18.2.2)*
+    - `RegistrarImpl.scheduledExecutor` (`eventNotifierExecutor`): `ScheduledThreadPoolExecutor(N, NamedThreadFactory)` →
+      `new ScheduledThreadPoolExecutor(1, Thread.ofVirtual().name("Reggie-event-", 0L).factory())` — scheduling logic
+      stays; worker threads become virtual.
+    - `RegistrarImpl.discoveryResponseExec` (`discoveryResponseExecutor`): `ThreadPoolExecutor` →
+      `Executors.newVirtualThreadPerTaskExecutor()`.
+37. **`LeaseRenewalManager.leaseRenewalExecutor` → virtual-thread executor** — *(not yet started; §18.2.3)*
+    - Default `ThreadPoolExecutor(1,11,…)` → `Executors.newVirtualThreadPerTaskExecutor()`.
+    - Note on cast at line 1279: `leaseRenewalExecutor instanceof ThreadPoolExecutor` → already has fallback path
+      returning `Integer.MAX_VALUE`; no logic change needed (fallback is correct for virtual-thread executor).
+    - Config entry `net.jini.lease.LeaseRenewalManager.leaseRenewalExecutorService` still accepted; callers no
+      longer need to size the pool.
+38. **`ServiceDiscoveryManager` executors → virtual-thread executors** — *(not yet started; §18.2.3)*
+    - `cacheExecutorService` default `ThreadPoolExecutor(6,6,…)` → `Executors.newVirtualThreadPerTaskExecutor()`.
+    - `ServiceEventExecutorService` default `ThreadPoolExecutor(2,2,…, PriorityBlockingQueue(256))` → virtual-thread
+      executor; note: task-submission priority ordering is lost (all tasks run concurrently); document tradeoff.
+    - `discardExecutorService` (`ScheduledThreadPoolExecutor(4)`) → `new ScheduledThreadPoolExecutor(1,
+      Thread.ofVirtual().name("SDM-discard-", 0L).factory())`; scheduling kept, worker threads virtual.
+    - `logExec` static field: `Executors.newSingleThreadExecutor(NamedThreadFactory)` → virtual-thread executor.
+39. **`AbstractLookupDiscovery` executor → virtual-thread executor** — *(not yet started; §18.2.3)*
+    - Default `ThreadPoolExecutor(MAX_N_TASKS=5, MAX_N_TASKS, 15s, LinkedBlockingQueue)` →
+      `Executors.newVirtualThreadPerTaskExecutor()`; `MAX_N_TASKS` constant becomes unused.
+    - Config entry `net.jini.discovery.LookupDiscovery.executorService` still accepted.
+40. **`CodebaseDownloaderImpl.workerPool` → virtual-thread executor** — *(not yet started; §18.2.4)*
+    - `ThreadPoolExecutor(workerThreads, workerThreads, 0L, ArrayBlockingQueue(MAX_PENDING_DOWNLOADS))` →
+      `Executors.newVirtualThreadPerTaskExecutor()` + `Semaphore(MAX_PENDING_DOWNLOADS)` for back-pressure.
+    - HTTP fetch workers are purely network I/O bound — ideal virtual-thread use case.
+41. **Background single-thread utilities → virtual thread factory** — *(not yet started; §18.2.4)*
+    - `LogDispatch.LOG_EXEC`: `ThreadPoolExecutor(0,1,1s,…, NamedThreadFactory)` →
+      `Executors.newVirtualThreadPerTaskExecutor()`; sequential delivery maintained via existing
+      single-submit pattern.
+    - `JfrTelemetryServiceImpl.sweepExecutor`: `newSingleThreadScheduledExecutor(ThreadFactory)` →
+      `new ScheduledThreadPoolExecutor(1, Thread.ofVirtual().name("JGDMS-JfrTelemetryService-Sweeper").factory())`.
+42. **`WakeupManager.ThreadDesc.thread()` kicker threads → `Thread.ofVirtual()`** — *(not yet started; §18.2.5)*
+    - Implements §17.3.3 Option C (recommended follow-on to Option A).
+    - Replace `new Thread(r)` / `new Thread(getGroup(), r)` in `thread(Runnable)` with:
+      `Thread.ofVirtual().name("WakeupManager-kicker").unstarted(r)`.
+    - Note: virtual threads ignore `isDaemon()` and `getPriority()` — document that those fields
+      become no-ops for timer-kicker threads; kicker threads are short-lived fire-and-forget.
+    - DirtyChai policy: requires `RuntimePermission "createVirtualThread"`.
+43. **`SpiffeCredentialManager` refresher thread → `Thread.ofVirtual()`** — *(not yet started; §18.2.5)*
+    - `new Thread(r, "SpiffeCredentialManager-refresher")` in `ScheduledExecutorService.execute()` anonymous
+      implementation → `Thread.ofVirtual().name("SpiffeCredentialManager-refresher").unstarted(r)`.
+    - The `ScheduledExecutorService scheduler` field itself (single-threaded scheduled pool) is kept as a
+      platform-thread pool for accurate scheduling; only the worker tasks become virtual threads.
 
 ---
 
@@ -1945,6 +2012,11 @@ executor.submit(() -> {
 | **Virtual-thread executor + semaphore cap for policy-service event delivery** | ✅ **v25 (recommended, pending):** `newVirtualThreadPerTaskExecutor()` prevents I/O blocking on platform threads; semaphore cap (500 permits) bounds in-flight deliveries; requires `<release>21</release>` in module `pom.xml`. |
 | **`MAX_LISTENER_REGISTRATIONS` cap in `registerForPolicyUpdates()`** | ✅ **v25 (recommended, pending):** Any authenticated caller can flood the listener map; a hard cap (1 000) plus a daemon virtual-thread lease-expiry sweep are the two necessary controls. |
 | **`ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup` on DirtyChai** | ✅ **v27:** `ThreadGroup` was designed for applet sandbox isolation and was never an effective security boundary. On JDK 17–23, `SecurityManager` is deprecated for removal; on JDK 24+, `SecurityManager` is disabled — neither `modifyThreadGroup` nor `createPlatformThread` is checked at runtime on standard JDK builds; the cleanup is code hygiene. On **DirtyChai** (the preferred high-security platform), `SecurityManager` is still active; `Thread.ofPlatform().unstarted()` triggers `RuntimePermission("createPlatformThread")` and `Thread.ofVirtual().unstarted()` triggers `RuntimePermission("createVirtualThread")`. `BlockingSinkRegistry` already maps both `ThreadBuilders$PlatformThreadBuilder/unstarted` and `ThreadBuilders$VirtualThreadBuilder/unstarted` to those permissions. Replacing `new Thread(group, …)` with `Thread.ofPlatform().unstarted(…)` removes dead applet-era boilerplate on all platforms and creates the explicit DirtyChai policy gate. |
+| **VirtualThread vs platform thread boundary: NIO/Selector loops MUST stay on platform threads** | ✅ **v28:** All NIO `java.nio.channels.*` selector and channel I/O paths (SelectionManager, MuxClient, MuxServer, SocketChannelConnectionIO, TcpServerEndpoint, SslServerEndpointImpl, KerberosServerEndpoint, and the UDP multicast loops in AbstractLookupDiscovery) must remain on platform threads. The application dispatch layer above the Mux (JERI `ThreadPool`, service event-delivery executors, LeaseRenewalManager, ServiceDiscoveryManager, Outrigger/Fiddler/Mercury/Norm/VerdictRegistry notifiers, CodebaseDownloader workers) should migrate to `newVirtualThreadPerTaskExecutor()`. On JDK 21 there is bounded carrier pinning from Mux `synchronized` blocks reached by dispatch virtual threads; on JDK 24+ `synchronized` no longer pins carriers. |
+| **Virtual-thread executors for I/O-bound service executors require a `Semaphore` concurrency cap** | ✅ **v28:** `newVirtualThreadPerTaskExecutor()` creates one virtual thread per submitted task with no inherent bound; without a concurrency cap, a flood of slow remote clients causes millions of queued virtual threads and heap exhaustion. Every I/O-bound executor replacement MUST wrap with `Semaphore(N)` (N = 200–500 depending on service) and drop/log tasks that cannot acquire a permit. The policy-service implementation (§16.1) is the reference pattern. |
+| **DirtyChai VirtualThread fully supports ACC — ACC is not a VirtualThread migration blocker** | ✅ **v29:** A virtual thread running on DirtyChai inherits and propagates `AccessControlContext` correctly; `AccessController.getContext()` and `Subject.callAs(…)` work as expected. The only genuine constraint for keeping threads on platform threads is NIO-channel threading requirements (see §18.1). The JDK 21 carrier-pinning concern from Mux `synchronized` blocks is a pure NIO/synchronization concern, not an ACC concern. |
+| **Standard Java 17+ deployments use TCP JERI in trusted networks; SSL/Kerberos are DirtyChai-only** | ✅ **v29:** JGDMS security requires DirtyChai. Standard Java 17–23 (SecurityManager deprecated) and Java 24+ (SecurityManager disabled) deployments operate on trusted networks using plain `TcpServerEndpoint`/`TcpEndpoint`. `SslServerEndpointImpl`, `SslConnection`, `KerberosServerEndpoint`, and `KerberosEndpoint` are DirtyChai-specific transports. This clarifies that the NIO constraints on those classes are DirtyChai-scoped; their thread model does not constrain standard-JDK deployments. |
+| **JDK 21–23 carrier-thread pinning is not a concern — trusted networks; increase carrier threads** | ✅ **v30:** JDK 21–23 deployments of JGDMS operate on trusted networks and are not exposed to internet-facing DoS attacks that would stress-test carrier exhaustion. Thread pinning from Mux `synchronized` blocks is therefore not a practical barrier to virtual-thread adoption on JDK 21–23. The recommended action for these platforms is to increase the number of platform carrier threads (e.g. `-Djdk.virtualThreadScheduler.parallelism=2×vCPU`) rather than avoiding virtual threads. On JDK 24+ `synchronized` no longer pins carriers and no tuning is required. |
 
 ---
 
@@ -2750,19 +2822,62 @@ Truncate to 65 500 bytes and append a `…` marker.
 
 ### 16.8 Virtual Thread Opportunities Summary (JDK 21+)
 
-| Area | Current design | Virtual-thread option |
-|---|---|---|
-| Policy-service event delivery | Platform `ThreadPoolExecutor` (max 10 threads) | `newVirtualThreadPerTaskExecutor()` + semaphore cap (§16.1 Option D) |
-| JERI dispatch thread | Platform thread pool (JERI-managed) | Transparent; blocking inside `invokeWithClientSubject` does not pin a carrier on JDK 24+ |
-| `instantiatePrincipal()` class-loading | Blocks class-loading lock (pinning carrier on JDK < 24) | Eliminated by allowlist + constructor cache (§16.4 Option A) |
-| Lease expiry sweep | Not implemented | Daemon virtual thread: `Thread.ofVirtual().daemon(true).start(sweepRunnable)` |
-| Pack200 decompression | Full materialisation (`ByteArrayOutputStream`) | Bounded output stream cap (§16.3); streaming deferred |
+The table below summarises all identified platform-thread sites.  Sites marked ✅ are
+already migrated; sites marked 🔲 are candidates documented in §18 and work items §12.34–43.
+Sites marked ❌ must remain on platform threads (NIO or CPU-bound).
 
-**Module compatibility note:** To use `Executors.newVirtualThreadPerTaskExecutor()`
-and `Thread.ofVirtual()`, the policy-service Maven module must declare
-`<release>21</release>` in its `maven-compiler-plugin` configuration, overriding
-the root pom's `<release>8</release>`, matching the pattern used by
-`jfr-telemetry-service/pom.xml`.
+| Area | Module | Current design | Status | Notes |
+|---|---|---|---|---|
+| Policy-service event delivery | `policy-service` | `ThreadPoolExecutor` + unbounded queue | ✅ §16.1 | `newVirtualThreadPerTaskExecutor()` + `Semaphore(500)` |
+| Policy-service lease sweep | `policy-service` | None | ✅ §16.2 | Daemon `Thread.ofVirtual()` sweep |
+| `instantiatePrincipal()` class-loading | `jgdms-jeri` | Per-request `Class.forName` + ctor invoke | ✅ §16.4 | Eliminated; PRINCIPAL_CTORS allowlist |
+| JERI dispatch (`ThreadPool`) | `jgdms-jeri` + `jgdms-collections` | `newCachedThreadPool(TPThreadFactory)` | 🔲 §18.2.1 | → `newVirtualThreadPerTaskExecutor()`; JDK 24+ for zero pinning |
+| NIO selector / Mux (`SelectionManager`, `MuxClient`, `MuxServer`, `SocketChannelConnectionIO`) | `jgdms-jeri` | Platform threads on NIO channels | ❌ | NIO selector loops MUST stay on platform threads |
+| TCP/SSL/Kerberos server accept loops | `jgdms-jeri` | Platform accept-loop threads | ❌ | NIO channel I/O; SSL/Kerberos are **DirtyChai-only** (std Java 17+ uses TCP in trusted networks) |
+| Outrigger event delivery (`Notifier.pending`) | `outrigger` | `ThreadPoolExecutor(10,10,…)` | 🔲 §18.2.2 | → virtual executor + `Semaphore(500)` |
+| Fiddler discovery task executor | `fiddler` | `ThreadPoolExecutor(10,10,…)` | 🔲 §18.2.2 | → virtual executor + `Semaphore(500)` |
+| Mercury notification delivery (`Notifier.taskManager`) | `mercury` | `ThreadPoolExecutor(10,10,…)` | 🔲 §18.2.2 | → virtual executor + `Semaphore(500)` |
+| Norm event delivery (`EventTypeGenerator.taskManager`) | `norm` | `ThreadPoolExecutor(10,10,…)` | 🔲 §18.2.2 | → virtual executor |
+| VerdictRegistry event delivery | `verdict-registry` | `ThreadPoolExecutor` | 🔲 §18.2.2 | → virtual executor + `Semaphore(200)` |
+| Reggie event-notifier (`scheduledExecutor`) | `reggie` | `ScheduledThreadPoolExecutor(N)` | 🔲 §18.2.2 | `ScheduledThreadPoolExecutor(1, virtual.factory())` |
+| Reggie discovery-response executor | `reggie` | `ThreadPoolExecutor(N,N,…)` | 🔲 §18.2.2 | → virtual executor |
+| `LeaseRenewalManager` executor | `jgdms-lib-dl` | `ThreadPoolExecutor(1,11,…)` | 🔲 §18.2.3 | → virtual executor; existing `instanceof` fallback path is safe |
+| `ServiceDiscoveryManager` cache executor | `jgdms-lib-dl` | `ThreadPoolExecutor(6,6,…)` | 🔲 §18.2.3 | → virtual executor |
+| `ServiceDiscoveryManager` event executor | `jgdms-lib-dl` | `ThreadPoolExecutor(2,2,…, PriorityBlockingQueue)` | 🔲 §18.2.3 | → virtual executor; priority queue becomes unused |
+| `ServiceDiscoveryManager` discard executor | `jgdms-lib-dl` | `ScheduledThreadPoolExecutor(4)` | 🔲 §18.2.3 | `ScheduledThreadPoolExecutor(1, virtual.factory())` |
+| `ServiceDiscoveryManager.logExec` | `jgdms-lib-dl` | `newSingleThreadExecutor(NamedThreadFactory)` | 🔲 §18.2.4 | → virtual executor |
+| `AbstractLookupDiscovery` executor | `jgdms-platform` | `ThreadPoolExecutor(5,5,…)` | 🔲 §18.2.3 | → virtual executor |
+| `AbstractLookupDiscovery.Notifier` thread | `jgdms-platform` | `new Thread("event listener notification")` | 🔲 §18.2.5 | → `Thread.ofVirtual()` (blocks on `BlockingDeque.takeFirst()`) |
+| `AbstractLookupDiscovery.AnnouncementListener` | `jgdms-platform` | `extends Thread` on `MulticastSocket.receive()` | ❌ | Custom `interrupt()` closes socket; keep platform |
+| `AbstractLookupDiscovery` Requestor / ResponseListener | `jgdms-platform` | Platform threads on UDP sockets | ❌ | Timing-sensitive multicast; keep platform |
+| `AbstractLookupDiscovery.AnnouncementTimerThread` | `jgdms-platform` | Platform thread with `wait()`/`notifyAll()` | 🔲 §18.2.5 | Could be virtual; purely timer/event driven |
+| `CodebaseDownloaderImpl.workerPool` | `codebase-downloader` | `ThreadPoolExecutor(N,N,…, ArrayBlockingQueue)` | 🔲 §18.2.4 | → virtual executor + `Semaphore(MAX_PENDING_DOWNLOADS)` |
+| `LogDispatch.LOG_EXEC` | `jgdms-platform` | `ThreadPoolExecutor(0,1,1s,…)` | 🔲 §18.2.4 | → virtual executor |
+| `JfrTelemetryServiceImpl.sweepExecutor` | `jfr-telemetry` | `newSingleThreadScheduledExecutor` | 🔲 §18.2.4 | `ScheduledThreadPoolExecutor(1, virtual.factory())` |
+| `WakeupManager.ThreadDesc.thread()` kicker | `jgdms-platform` | `new Thread(r)` | 🔲 §18.2.5 | → `Thread.ofVirtual()`; follow-on to §17.3.3 |
+| `SpiffeCredentialManager` refresher thread | `jgdms-jeri` | `new Thread(r, "SpiffeCredentialManager-refresher")` | 🔲 §18.2.5 | → `Thread.ofVirtual()` |
+| `ReferenceProcessor.SystemThreadFactory` | `jgdms-collections` | `new Thread(g, r)` at MAX_PRIORITY | ❌ | GC cleaner; `Thread.ofPlatform()` (§17.3.2); keep platform |
+| `BytecodeAnalysisEngine.createAnalysisExecutor()` | `bae` | `ThreadPoolExecutor(0, N, …, ArrayBlockingQueue)` | ❌ | CPU-intensive bytecode analysis; keep platform threads |
+| `TxnManagerImpl.settlerpool` / `taskpool` | `mahalo` | `ExtensibleExecutorService` wrapping configured pool | ❌ | Transaction coordination; complex locking; keep platform |
+| Reggie service threads (unicast, multicast, announce, expire, snapshot) | `reggie` | `new Thread(r, name)` in `doPrivileged` | ❌ | Long-running service loops with timing constraints; keep platform |
+
+**Module compatibility note:** All modules using `Executors.newVirtualThreadPerTaskExecutor()`
+and `Thread.ofVirtual()` must declare `<release>21</release>` in their `maven-compiler-plugin`
+configuration.  Modules already at 21: `jgdms-platform`, `jgdms-jeri`, `policy-service`,
+`outrigger-service`, `fiddler-service`, `mercury-service`, `norm-service`, `reggie-service`,
+`jfr-telemetry-service`.  Modules at JDK 8 (pre-migration baseline) requiring a bump:
+`jgdms-collections` (root-pom default 8; required for work items 33 and 34),
+`jgdms-lib-dl` (root-pom default 8; required for work items 37 and 38),
+`verdict-registry-service` (inherits root-pom 8; required for work item 35),
+`codebase-downloader-service` (inherits root-pom 8; required for work item 40).
+Pattern already established by `jfr-telemetry-service`.  See §18.4 for the full table.
+
+**JDK 21 vs JDK 24 pinning note:** On JDK 21, virtual threads are pinned to their carrier when
+entering `synchronized` blocks.  The JERI Mux layer uses `synchronized` extensively.  If a JERI
+dispatch virtual thread reaches Mux code (e.g. to send a response), the carrier is pinned for the
+duration.  At high concurrency this may reduce throughput below the platform-thread baseline.
+Monitor with `-Djdk.tracePinnedThreads=full`.  On JDK 24+, `synchronized` no longer pins carriers
+and virtual-thread dispatch is unambiguously better than platform threads at scale.
 
 ---
 
@@ -3115,20 +3230,446 @@ lease-expiry sweepers), the matching DirtyChai permission is
 
 ---
 
+## 18. VirtualThread Migration Plan (v29 Analysis)
+
+This section documents the complete deep-dive analysis of all platform-thread usage
+across the JGDMS codebase, identifies which sites should migrate to virtual threads
+and which must remain on platform threads, and provides site-by-site architectural
+guidance.  The §16.8 table is the summary; this section provides the rationale.
+
+**Key deployment model:** JGDMS security requires **DirtyChai** as the JVM platform.
+Standard Java 17–23 deployments (SecurityManager deprecated) and Java 24+ deployments
+(SecurityManager disabled) are assumed to operate on trusted networks and use plain TCP
+JERI endpoints; they do not require SSL or Kerberos transport security.  Only DirtyChai
+deployments enforce the full JGDMS security model (ACC, SecurityManager, SPIFFE/SVID).
+
+**DirtyChai VirtualThread fully supports ACC.**  A virtual thread running on DirtyChai
+inherits and propagates `AccessControlContext` correctly; `AccessController.getContext()`
+and `Subject.callAs(…)` work as expected.  ACC is therefore **not a blocker** for any
+VirtualThread migration work item.  The only genuine constraints are NIO-channel
+threading requirements (see §18.1).
+
+---
+
+### 18.1 NIO Boundary — Sites That MUST Stay on Platform Threads
+
+The JERI transport layer uses Java NIO (`java.nio.channels.*`) extensively.  Any
+thread that drives a NIO selector loop or performs blocking I/O on a
+`SelectableChannel` in non-blocking mode must remain a **platform thread** because:
+
+1. `Selector.select()` is a long-running native blocking call that cannot be
+   interrupted by virtual-thread scheduling.
+2. `SocketChannel` in blocking mode registered with a `Selector` assumes its carrier
+   thread identity for signal delivery; substituting a virtual thread disrupts this.
+3. TLS (`SSLEngine`) and Kerberos GSS-API credential stores require OS-thread context
+   for multi-step handshake state management.  Note: this is an **NIO/OS-thread
+   constraint**, not an ACC constraint — DirtyChai VirtualThread fully supports ACC.
+
+**Deployment scope for SSL/Kerberos endpoints:** `SslServerEndpointImpl`,
+`SslConnection`, `KerberosServerEndpoint`, and `KerberosEndpoint` are
+**DirtyChai-only** transports.  Standard Java 17+ deployments (where SecurityManager
+is deprecated or disabled) are assumed to operate on trusted networks and use plain
+TCP JERI endpoints (`TcpServerEndpoint` / `TcpEndpoint`).  The NIO constraint
+nonetheless keeps these endpoints on platform threads on DirtyChai.
+
+**Mandatory platform-thread sites:**
+
+| Class | File | Reason |
+|---|---|---|
+| `SelectionManager` | `jgdms-jeri/.../runtime/SelectionManager.java` | NIO `Selector`-based dispatch loop |
+| `MuxClient` | `jgdms-jeri/.../mux/MuxClient.java` | NIO `SocketChannel` read/write |
+| `MuxServer` | `jgdms-jeri/.../mux/MuxServer.java` | NIO `SocketChannel` accept/read/write |
+| `SocketChannelConnectionIO` | `jgdms-jeri/.../mux/SocketChannelConnectionIO.java` | NIO channel I/O buffer management |
+| `TcpServerEndpoint` | `jgdms-jeri/.../tcp/TcpServerEndpoint.java` | TCP accept loop + NIO; used by **all** deployments (DirtyChai and standard Java 17+) |
+| `TcpEndpoint` | `jgdms-jeri/.../tcp/TcpEndpoint.java` | TCP connect + NIO; **all** deployments |
+| `SslServerEndpointImpl` | `jgdms-jeri/.../ssl/SslServerEndpointImpl.java` | TLS + NIO; **DirtyChai only** (standard Java 17+ uses TCP in trusted networks) |
+| `SslConnection` | `jgdms-jeri/.../ssl/SslConnection.java` | TLS `SSLEngine` state; **DirtyChai only** |
+| `KerberosServerEndpoint` | `jgdms-jeri/.../kerberos/KerberosServerEndpoint.java` | GSS-API + NIO; **DirtyChai only** |
+| `KerberosEndpoint` | `jgdms-jeri/.../kerberos/KerberosEndpoint.java` | GSS-API + NIO; **DirtyChai only** |
+| `AbstractLookupDiscovery.AnnouncementListener` | `jgdms-platform/.../AbstractLookupDiscovery.java` | Custom `interrupt()` closes `MulticastSocket`; timing-sensitive UDP |
+| `AbstractLookupDiscovery.Requestor` | same | Periodic UDP multicast request sender |
+| `AbstractLookupDiscovery.ResponseListener` | same | UDP multicast response receiver |
+| `ReferenceProcessor.SystemThreadFactory` | `jgdms-collections/.../concurrent/ReferenceProcessor.java` | Runs at `MAX_PRIORITY`; GC timing-critical |
+| `BytecodeAnalysisEngineImpl.createAnalysisExecutor()` | `bae` | CPU-intensive bytecode analysis; bounded pool prevents resource exhaustion |
+| `TxnManagerImpl.settlerpool` / `taskpool` | `mahalo` | Complex locking; `ExtensibleExecutorService` wraps configured pool; risk of deadlock with virtual threads under `synchronized` on JDK 21 |
+| Reggie service threads (unicast, multicast, announce, expire, snapshot) | `reggie` | Long-running loops; timing constraints; mixed I/O and CPU |
+
+---
+
+### 18.2 VirtualThread Opportunities — Site-by-Site Analysis
+
+#### 18.2.1 JERI Dispatch — `ThreadPool` (Work Item 34)
+
+**Location:** `jgdms-collections/…/thread/ThreadPool.java` (constructor);
+`jgdms-collections/…/thread/GetThreadPoolAction.java` (singleton creation).
+
+**Current design:** `Executors.newCachedThreadPool(new TPThreadFactory())`.  Every
+inbound JERI call that passes the NIO/Mux layer is dispatched to a task running on a
+platform thread from this pool.  At high concurrency, each blocking downstream RPC call
+holds an OS thread, causing stack-memory pressure (~512 KB/thread default) and OS
+context-switch overhead.
+
+**Virtual-thread design:**
+
+```java
+// ThreadPool.java — replace newCachedThreadPool with virtual-thread-per-task
+private static ExecutorService createExecutor() {
+    // Each submitted task gets a new virtual thread named "jgdms-dispatch-N"
+    return Executors.newVirtualThreadPerTaskExecutor();
+}
+```
+
+**What stays on platform threads:** The NIO/Mux I/O path is completely separate.  A
+virtual dispatch thread that needs to write a JERI response calls back into `Mux` via
+`Connection.write()`, which uses the `SocketChannel` already established on the platform
+thread.  The virtual thread blocks at `SocketChannel.write()` or a Mux-internal
+`synchronized` block, yielding the carrier (on JDK 24+) or pinning it briefly (JDK 21–23).
+ACC propagation is **not affected** — DirtyChai VirtualThread inherits and propagates
+`AccessControlContext` correctly through dispatch threads.
+
+**JDK 21–23 carrier pinning — not a concern on trusted networks:** `Mux` and related
+classes use `synchronized` blocks.  On JDK 21–23, a JERI dispatch virtual thread that
+enters a Mux `synchronized` block briefly **pins** its carrier thread for the duration.
+With N concurrent responses, up to N carriers are pinned simultaneously.  However,
+**JDK 21–23 deployments operate on trusted networks and are not subject to the DoS
+attacks that would occur over the internet**.  The practical mitigation is simply to
+**increase the default number of platform carrier threads** (via
+`-Djdk.virtualThreadScheduler.parallelism=N`, e.g. N = 2× vCPU) to ensure sufficient
+carriers are available even under temporary pinning.  Carrier exhaustion is a theoretical
+concern; on trusted networks with bounded concurrency it does not occur in practice.
+On JDK 24+, `synchronized` no longer pins carriers at all and no tuning is required.
+Enable `-Djdk.tracePinnedThreads=full` during load tests on JDK 21–23 to measure actual
+pinning frequency.  **This is a pure NIO/synchronization concern, not an ACC concern**
+— ACC is fully supported by DirtyChai VirtualThreads.
+
+**Configuration simplification:** Services that provide a custom `ExecutorService` to
+JERI via `Config.getEntry(…, "executorService", ExecutorService.class)` currently need
+to size the thread pool.  With virtual threads, pool sizing is irrelevant — the executor
+creates one virtual thread per task.  Administrators can remove the `executorService`
+configuration entry entirely and rely on the virtual-thread default.
+
+**DirtyChai policy gate:**
+```
+permission java.lang.RuntimePermission "createVirtualThread";
+```
+All QA policy files that grant `"createPlatformThread"` to `collections.jar` must also
+grant `"createVirtualThread"` once `ThreadPool` switches to virtual threads (or the two
+can be done together in Work Item 34 after Work Item 33 is complete).
+
+---
+
+#### 18.2.2 Service Event-Delivery Executors (Work Items 35–36)
+
+All five downstream-notification paths share the same pattern: a bounded platform thread
+pool dispatches individual `notify()` calls to remote `RemoteEventListener` proxies.
+The network call inside `notify()` may block for hundreds of milliseconds on a slow
+client.  At high event rates with slow clients, the fixed pool exhausts, and new events
+queue behind the pool, increasing latency further.
+
+**Pattern for all five services:**
+
+```java
+// Before (e.g. Outrigger Notifier):
+pending = new ThreadPoolExecutor(10, 10, 15, TimeUnit.SECONDS,
+    new LinkedBlockingQueue<>(), new NamedThreadFactory("…", false));
+
+// After:
+private static final int MAX_IN_FLIGHT = 500; // service-appropriate cap
+private final Semaphore inFlight = new Semaphore(MAX_IN_FLIGHT);
+pending = Executors.newVirtualThreadPerTaskExecutor();
+
+// submit:
+if (!inFlight.tryAcquire()) {
+    logger.warning("Event delivery overloaded; skipping listener " + reg);
+    return;
+}
+pending.submit(() -> {
+    try { deliverEvent(reg); }
+    finally { inFlight.release(); }
+});
+```
+
+**Per-service details:**
+
+| Service | Class | Config key | Default cap | Semaphore cap |
+|---|---|---|---|---|
+| Outrigger | `Notifier` | `OutriggerServerImpl.notificationsExecutorService` | 10 threads | 500 |
+| Fiddler | `FiddlerInit` | `net.jini.lookup.fiddler.executorService` | 10 threads | 500 |
+| Mercury | `MailboxImpl.Notifier` | `net.jini.mailbox.notificationsExecutorService` | 10 threads | 500 |
+| Norm | `EventTypeGenerator` | config-based | 10 threads | 500 |
+| VerdictRegistry | `createEventExecutor()` | none (inline default) | `EVENT_POOL_MAX_THREADS` | 200 |
+
+For **Reggie**: the `scheduledExecutor` (`ScheduledThreadPoolExecutor`) handles timer-driven
+event delivery and cannot be replaced directly with `newVirtualThreadPerTaskExecutor()`.
+Instead, pass a virtual-thread factory:
+```java
+new ScheduledThreadPoolExecutor(1,
+    Thread.ofVirtual().name("Reggie-event-", 0L).factory())
+```
+The `discoveryResponseExec` (plain `ThreadPoolExecutor`) can be replaced directly.
+
+**Module compatibility:** Each service module (`outrigger`, `fiddler`, `mercury`, `norm`,
+`verdict-registry-service`, `reggie`) must bump `<release>` to `21` if not already.
+
+---
+
+#### 18.2.3 Lease and Discovery Management Utilities (Work Items 37–39)
+
+These utilities run **inside the client JVM** (or service JVM as a client) and make
+outbound remote calls.  Each outbound call blocks on the JERI transport until the server
+responds.  Virtual threads eliminate OS-thread pressure without changing semantics.
+
+**`LeaseRenewalManager` (Work Item 37):**
+
+```java
+// Before:
+new ThreadPoolExecutor(1, 11, 15, TimeUnit.SECONDS,
+    new LinkedBlockingQueue<>(), new NamedThreadFactory("LeaseRenewalManager", false),
+    new CallerRunsPolicy());
+
+// After:
+Executors.newVirtualThreadPerTaskExecutor()
+```
+
+Existing `instanceof ThreadPoolExecutor` check at line 1279 already falls back to
+`Integer.MAX_VALUE` when the executor is not a `ThreadPoolExecutor` — correct behaviour
+for a virtual-thread executor (no pool limit needed).
+
+**`ServiceDiscoveryManager` (Work Item 38):**
+
+- `cacheExecutorService`: replace `ThreadPoolExecutor(6,6,…)` → `newVirtualThreadPerTaskExecutor()`.
+- `ServiceEventExecutorService`: replace `ThreadPoolExecutor(2,2,…, PriorityBlockingQueue(256))`.
+  **Important:** the `PriorityBlockingQueue` provides ordering for `ServiceEvent` delivery.
+  With virtual threads, all events execute concurrently and ordering between concurrent tasks
+  is undefined.  If strict per-registrar FIFO is required, retain a single-threaded executor
+  or per-registrar virtual-thread "mailbox" pattern.  Document this tradeoff in Javadoc.
+- `discardExecutorService`: `ScheduledThreadPoolExecutor(4, NamedThreadFactory)` →
+  `new ScheduledThreadPoolExecutor(1, Thread.ofVirtual().name("SDM-discard-", 0L).factory())`.
+- `logExec` static field: `newSingleThreadExecutor` → `newVirtualThreadPerTaskExecutor()`.
+
+**`AbstractLookupDiscovery` executor (Work Item 39):**
+
+The `executor` field processes `UnicastDiscoveryTask` and `DecodeAnnouncementTask` objects.
+These tasks open a `Socket` to a lookup service and perform a unicast discovery handshake
+— pure blocking I/O.  Replacing `ThreadPoolExecutor(5,5,…)` with
+`newVirtualThreadPerTaskExecutor()` is straightforward.  The `MAX_N_TASKS = 5` constant
+becomes dead code.
+
+---
+
+#### 18.2.4 Service Background and Utility Threads (Work Items 40–41)
+
+**`CodebaseDownloaderImpl.workerPool` (Work Item 40):**
+
+Workers open HTTP connections to download JARs (`httpmd:` URLs), perform SHA-256
+verification, and then call BAE proxies via JERI.  All of this is network I/O.
+
+```java
+// Before:
+new ThreadPoolExecutor(workerThreads, workerThreads, 0L, TimeUnit.MILLISECONDS,
+    new ArrayBlockingQueue<>(MAX_PENDING_DOWNLOADS), r -> { … });
+
+// After:
+private final Semaphore downloadSlots = new Semaphore(MAX_PENDING_DOWNLOADS);
+private final ExecutorService workerPool = Executors.newVirtualThreadPerTaskExecutor();
+
+// In enqueue():
+if (!downloadSlots.tryAcquire()) {
+    // log warning: queue full
+    return;
+}
+workerPool.submit(() -> {
+    try { performDownload(uri); }
+    finally { downloadSlots.release(); }
+});
+```
+
+**`LogDispatch.LOG_EXEC` (Work Item 41):**
+
+`ThreadPoolExecutor(0, 1, 1s, LinkedBlockingQueue, NamedThreadFactory)` provides
+single-thread sequential log dispatch.  Replace with `newVirtualThreadPerTaskExecutor()`.
+The sequential ordering guarantee is preserved because `LogDispatch` callers already
+submit tasks one at a time and the queue provides backlog; with virtual threads, each
+log task runs concurrently (acceptable for logging).
+
+**`JfrTelemetryServiceImpl.sweepExecutor` (Work Item 41):**
+
+```java
+// Before:
+Executors.newSingleThreadScheduledExecutor(new ThreadFactory() { … });
+
+// After:
+new ScheduledThreadPoolExecutor(1,
+    Thread.ofVirtual().name("JGDMS-JfrTelemetryService-Sweeper").factory())
+```
+
+---
+
+#### 18.2.5 Short-Lived Kicker and Single-Use Threads (Work Items 42–43)
+
+**`WakeupManager.ThreadDesc.thread()` (Work Item 42):**
+
+`ThreadDesc.thread(Runnable)` creates a short-lived "kicker" thread that fires a
+scheduled task.  Kicker threads are created once per scheduled task execution and
+run for < 1 ms typically.  Virtual threads are ideal.
+
+```java
+// After (inside ThreadDesc.thread()):
+return Thread.ofVirtual()
+    .name("WakeupManager-kicker")
+    .unstarted(r);
+// Note: setDaemon() and setPriority() are no-ops on virtual threads;
+// document in Javadoc that these fields are ignored for virtual kickers.
+```
+
+This is §17.3.3 Option C, recommended as a follow-on to Option A (platform-thread
+cleanup).  **Implement after Work Item 33** (ThreadGroup removal) to avoid two
+simultaneous structural changes to `ThreadDesc`.
+
+**`SpiffeCredentialManager` refresher thread (Work Item 43):**
+
+`SpiffeCredentialManager` creates a `ScheduledExecutorService` for periodic credential
+refresh.  Inside the scheduled task, a `new Thread(r, "SpiffeCredentialManager-refresher")`
+is created.  This worker thread calls back to SPIRE via gRPC-over-TLS — blocking I/O.
+
+```java
+// Before (inside ScheduledExecutorService task):
+Thread t = new Thread(r, "SpiffeCredentialManager-refresher");
+t.setDaemon(true);
+t.start();
+
+// After:
+Thread t = Thread.ofVirtual()
+    .name("SpiffeCredentialManager-refresher")
+    .daemon(true)  // virtual threads are daemon by default; this is explicit documentation
+    .unstarted(r);
+t.start();
+```
+
+The `ScheduledExecutorService scheduler` field itself is kept as a platform-thread pool
+(`Executors.newSingleThreadScheduledExecutor()`) because accurate scheduling depends on
+platform thread timing.
+
+---
+
+### 18.3 Configuration Simplification
+
+A key benefit of virtual threads is that pool sizing becomes unnecessary.  The following
+`Configuration` entries currently require administrators to tune pool sizes.  After the
+corresponding work items are implemented, the **default** is a virtual-thread executor
+and pool sizing is no longer needed.  The config entries remain for backward compatibility
+(operators can still supply a custom executor), but **documentation for each entry should
+note that the recommended value is `Executors.newVirtualThreadPerTaskExecutor()`**.
+
+| Component | Config entry | Before | After |
+|---|---|---|---|
+| `LookupDiscovery` | `executorService` | Size `MAX_N_TASKS=5` | Remove or document "VT default" |
+| `LeaseRenewalManager` | `leaseRenewalExecutorService` | Size 1–11 threads | Remove or document "VT default" |
+| `ServiceDiscoveryManager` | `cacheExecutorService` | Size 6 threads | Remove or document "VT default" |
+| `ServiceDiscoveryManager` | `ServiceEventExecutorService` | Size 2 threads + priority queue | Note: priority ordering lost with VT |
+| `ServiceDiscoveryManager` | `discardExecutorService` | Size 4 threads (`ScheduledExecutorService`) | Keep; use VT factory |
+| `RegistrarImpl` | `discoveryResponseExecutor` | Size N threads | Remove or document "VT default" |
+| `RegistrarImpl` | `eventNotifierExecutor` | Size N threads (`ScheduledExecutorService`) | Keep; use VT factory |
+| `OutriggerServerImpl` | `notificationsExecutorService` | Size 10 threads | Remove or document "VT default" |
+| Mercury `MailboxImpl` | `notificationsExecutorService` | Size 10 threads | Remove or document "VT default" |
+| Fiddler | `executorService` | Size 10 threads | Remove or document "VT default" |
+
+---
+
+### 18.4 Module Compatibility Requirements
+
+| Module | Current `<release>` (pre-migration baseline) | Required after change | Work items |
+|---|---|---|---|
+| `jgdms-collections` | **8** (root pom default) | **21** | 33, 34, 42 |
+| `jgdms-jeri` | **21** (already set) | 21 (unchanged) | 34, 43 |
+| `jgdms-platform` | **21** (already set) | 21 (unchanged) | 39, 41 |
+| `jgdms-lib-dl` | **8** (root pom default) | **21** | 37, 38 |
+| `outrigger-service` | **21** (already set) | 21 (unchanged) | 35 |
+| `fiddler-service` | **21** (already set) | 21 (unchanged) | 35 |
+| `mercury-service` | **21** (already set) | 21 (unchanged) | 35 |
+| `norm-service` | **21** (already set) | 21 (unchanged) | 35 |
+| `verdict-registry-service` | **8** (inherits root pom) | **21** | 35 |
+| `reggie-service` | **21** (already set) | 21 (unchanged) | 36 |
+| `codebase-downloader-service` | **8** (inherits root pom) | **21** | 40 |
+| `policy-service` | **21** (already set) | 21 (unchanged) | ✅ done |
+| `jfr-telemetry-service` | **21** (already set) | 21 (unchanged) | 41 |
+
+---
+
+### 18.5 Risks and Mitigations
+
+| Risk | Affected work items | Mitigation |
+|---|---|---|
+| **JDK 21–23 carrier pinning (NIO/sync, not ACC, not a concern on trusted networks)** from `synchronized` in Mux code reached by dispatch virtual threads | 34 | **Not a real concern**: JDK 21–23 deployments operate on trusted networks and are not subject to internet-facing DoS attacks. Mitigation: increase carrier threads via `-Djdk.virtualThreadScheduler.parallelism=N` (e.g. 2× vCPU). Enable `-Djdk.tracePinnedThreads=full` during load tests to measure actual frequency. On JDK 24+ `synchronized` no longer pins carriers; no tuning needed. |
+| **ACC is NOT a VirtualThread concern** — DirtyChai VirtualThread inherits and propagates ACC correctly | all | No action required; document explicitly for clarity |
+| **`ServiceDiscoveryManager` ordering loss** when replacing `PriorityBlockingQueue` executor | 38 | Document tradeoff; offer per-registrar virtual "mailbox" as an alternative for strict-ordering deployments |
+| **Unbounded concurrency** without `Semaphore` cap can exhaust heap via millions of queued virtual threads | 35, 36, 40 | Every event-delivery replacement MUST include a `Semaphore` cap (500 for events, `MAX_PENDING_DOWNLOADS` for downloader) |
+| **`ThreadPoolExecutor instanceof` cast** in `LeaseRenewalManager` line 1279 | 37 | Already has correct `Integer.MAX_VALUE` fallback path; no fix needed |
+| **`ScheduledExecutorService` scheduling accuracy** when using virtual-thread factory | 36, 38, 41 | `ScheduledThreadPoolExecutor` schedules on platform threads internally; worker virtual threads are submitted normally; scheduling accuracy is not affected |
+| **DirtyChai `createVirtualThread` permission** — missing grant causes `AccessControlException` | 34, 42 | Add `RuntimePermission "createVirtualThread"` to all 16 QA harness policy files simultaneously with Work Items 33/34 |
+| **`LeaseRenewalManager.CallerRunsPolicy`** dropped when replacing `ThreadPoolExecutor` | 37 | Virtual executor has no rejection policy; unbounded concurrent task creation replaces the queue-based back-pressure of the fixed pool — application-level `Semaphore` caps must be added if back-pressure is required (see §18.2.3); document that `CallerRunsPolicy` semantics no longer apply when each task creates its own virtual thread |
+
+---
+
+### 18.6 What Does NOT Change
+
+| Component | Reason |
+|---|---|
+| NIO JERI transport (Mux, SelectionManager, channel endpoints) | NIO selector loops require platform threads; see §18.1; **not** an ACC concern |
+| SSL/Kerberos endpoints specifically | **DirtyChai-only** transports; NIO-bound; standard Java 17+ uses TCP (trusted networks) |
+| `BytecodeAnalysisEngineImpl` analysis executor | CPU-intensive; bounded platform pool is the correct tool |
+| `TxnManagerImpl` settlerpool / taskpool | Transaction locking complexity; `ExtensibleExecutorService` wraps configured pool; admin retains control |
+| `RegistrarImpl` service threads | Long-running daemon loops with timing constraints (announce, expire, snapshot) |
+| `AbstractLookupDiscovery.AnnouncementListener` / Requestor / ResponseListener | Platform-thread interrupt semantics (`sock.close()`); timing-sensitive multicast |
+| `ReferenceProcessor.SystemThreadFactory` | `Thread.ofPlatform()` migration per §17.3.2; MAX_PRIORITY GC cleaner |
+| `WakeupManager.ThreadDesc` base implementation | Platform-thread cleanup per §17.3.3 Option A first; virtual-thread kicker (Option C) is a follow-on in Work Item 42 |
+
+---
+
+### 18.7 Recommended Implementation Order
+
+For performance/stability at load (primary objective):
+
+1. **Work Item 33** (ThreadGroup removal, §17) — prerequisite for 34; cleans `NewThreadAction`/`ThreadPool`
+2. **Work Item 34** (JERI dispatch `ThreadPool` → virtual) — **highest ROI**; affects every JERI call
+3. **Work Item 35** (service event-delivery executors) — Outrigger, Fiddler, Mercury, Norm, VerdictRegistry
+4. **Work Item 36** (Reggie executors)
+5. **Work Item 37** (LeaseRenewalManager)
+6. **Work Item 38** (ServiceDiscoveryManager)
+7. **Work Item 39** (AbstractLookupDiscovery executor)
+8. **Work Item 40** (CodebaseDownloader worker pool)
+9. **Work Items 41–43** (utility threads; lower urgency)
+
+Items 3–9 are independent and can be implemented in parallel across different agents.
+
+---
+
 
 - *§17 new: ThreadGroup removal plan — three architecture options per site, ranked recommendations, policy-file change table*
 - *§12 work item 33 added — ThreadGroup removal (not yet started)*
 - *§13 new row — `ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup`*
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 27, updated to document:*
+continue without loss of context. This is version 30, updated to document:*
 
-- *§16.5 ✅ completed: `BasicInvocationHandler` — `AccSerialCache` immutable holder fixes TOCTOU context-confusion race; Work Item 28 complete*
-- *§12 Work Item 28 — marked ✅ completed (v27) with full security rationale*
+- *§18.2.1 updated: JDK 21–23 carrier-pinning reframed as non-concern on trusted networks; action = increase `-Djdk.virtualThreadScheduler.parallelism` rather than avoiding virtual threads*
+- *§18.5 risks updated: JDK 21–23 carrier-pinning row updated to "not a concern on trusted networks"; mitigation = increase carrier threads*
+- *§13 new row: JDK 21–23 pinning not a concern — trusted networks; increase carrier threads*
 
 ---
 
-*Previous version (v26) notes:*
+*Previous version (v29) notes:*
+- *§18 intro updated: key deployment model note — DirtyChai required for JGDMS security; std Java 17+ uses TCP in trusted networks*
+- *§18.1 NIO boundary updated: SSL/Kerberos endpoints clarified as DirtyChai-only; NIO constraint is not an ACC constraint; DirtyChai VirtualThread fully supports ACC*
+- *§18.2.1 updated: ACC propagation note added; JDK 21 risk clarified as NIO/synchronization concern only, not ACC*
+- *§18.5 risks updated: ACC confirmed NOT a VirtualThread risk; JDK 21 carrier-pinning row updated*
+- *§18.6 updated: SSL/Kerberos DirtyChai-only scope noted*
+- *§13 two new rows: DirtyChai VirtualThread + ACC, and TCP/SSL/Kerberos deployment scope*
+- *§18 new: VirtualThread Migration Plan — complete deep-dive analysis of all platform-thread sites; NIO boundary (§18.1); site-by-site analysis (§18.2.1–5); configuration simplification (§18.3); module compatibility (§18.4); risks and mitigations (§18.5); implementation order (§18.7)*
+- *§16.8 expanded: comprehensive table of all 30+ platform-thread sites with ✅/🔲/❌ status, module, and notes*
+- *§12 work items 34–43 added — VirtualThread migration for JERI dispatch, service event executors, lease/discovery utilities, background threads, and kicker threads*
+- *§16.5 ✅ completed: `BasicInvocationHandler` — `AccSerialCache` immutable holder fixes TOCTOU context-confusion race; Work Item 28 complete*
+- *§12 Work Item 28 — marked ✅ completed (v27) with full security rationale*
 - *§16.1 ✅ completed: `InMemoryPolicyServiceImpl` — virtual-thread executor + `Semaphore(500)` cap*
 - *§16.2 ✅ completed: `InMemoryPolicyServiceImpl` — `MAX_LISTENER_REGISTRATIONS=1000` cap + daemon sweep*
 - *§16.3 ✅ completed: `HttpmdURLConnection` — `CappedOutputStream(64 MB)` wrapping Pack200 output*
