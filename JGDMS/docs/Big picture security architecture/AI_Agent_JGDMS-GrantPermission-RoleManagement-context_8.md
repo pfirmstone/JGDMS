@@ -1,12 +1,98 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v27)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v32)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v26.
+context. It supersedes and extends v31.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v32 Change Summary
+
+This version records the completion of **Work Items 33–43** — the full ThreadGroup
+removal and VirtualThread migration plan from §17 and §18.
+
+**New/changed in v32:**
+
+- **§12 Work Items 33–43** — all marked ✅ completed.
+- **§13** — eleven new design-decision rows for implementation choices made during
+  Items 33–43.
+
+### ThreadGroup removal (Item 33)
+- `NewThreadAction`: `systemThreadGroup` / `userThreadGroup` static fields removed;
+  root-group walk removed; `run()` replaced with `Thread.ofPlatform()` builder.
+  The `user` boolean parameter kept as a no-op for source compatibility.
+- `TPThreadFactory` removed entirely; `ThreadPool(ThreadGroup)` replaced with
+  `ThreadPool()`.  `GetThreadPoolAction` calls `new ThreadPool()` (no ThreadGroup).
+- `ReferenceProcessor.SystemThreadFactory`: `ThreadGroupAction` + `CreateThread`
+  inner classes deleted; delegates to `NewThreadAction`.
+- `WakeupManager.ThreadDesc`: `group` field, `getGroup()`, and all ThreadGroup
+  constructors removed; canonical `ThreadDesc(boolean daemon, int priority)` added;
+  ThreadGroup overloads deprecated `(since="3.1.0", forRemoval=true)`.
+- `InterruptedStatusThread`: four ThreadGroup constructors deprecated
+  `(since="3.1.0", forRemoval=true)`.
+- `jgdms-collections` pom: `<release>8</release>` → `<release>21</release>`.
+- 16 QA policy files (`qa/harness/policy/`): `"modifyThreadGroup"` grants replaced
+  with `"createPlatformThread"` + `"createVirtualThread"`.
+
+### JERI dispatch (Item 34)
+- `ThreadPool` now wraps `Executors.newVirtualThreadPerTaskExecutor()`; `TPThreadFactory`
+  removed.
+
+### Service event-delivery executors (Item 35)
+- Outrigger `Notifier`: `ThreadPoolExecutor(10,10,…)` → virtual executor +
+  `Semaphore(500)`; `acquireUninterruptibly()` / `release()` in `enqueueDelivery()`.
+- Fiddler `FiddlerInit`: virtual executor (no queue needed).
+- Mercury `MailboxImpl.Notifier`: virtual executor.
+- Norm `EventTypeGenerator`: virtual executor (all 3 paths: constructor,
+  copy-constructor, `readObject()`).
+- VerdictRegistry `createEventExecutor()`: virtual executor + `Semaphore(200)`;
+  `SendVerdictTask` wrapped with acquire/release.
+
+### Reggie executors (Item 36)
+- `scheduledExecutor` → `ScheduledThreadPoolExecutor(1,
+  Thread.ofVirtual().name("Reggie-event-", 0L).factory())`.
+- `discoveryResponseExec` → `Executors.newVirtualThreadPerTaskExecutor()`.
+
+### LeaseRenewalManager (Item 37)
+- All three `leaseRenewalExecutor` construction sites →
+  `Executors.newVirtualThreadPerTaskExecutor()`.
+- `jgdms-lib-dl` pom: `<release>21</release>`.
+
+### ServiceDiscoveryManager / LookupCacheImpl (Item 38)
+- `logExec`, `eventNotificationExecutor`, `cacheTaskMgr`, `incomingEventExecutor` →
+  `newVirtualThreadPerTaskExecutor()`.  Priority-queue ordering intentionally dropped
+  for `incomingEventExecutor` (tasks are short-lived).
+- `serviceDiscardTimerTaskMgr` → `ScheduledThreadPoolExecutor(1,
+  Thread.ofVirtual().name("SDM-discard-", 0L).factory())`.
+
+### AbstractLookupDiscovery (Item 39)
+- Default `executorService` → `Executors.newVirtualThreadPerTaskExecutor()`.
+
+### CodebaseDownloaderImpl (Item 40)
+- `workerPool` field type changed from `ThreadPoolExecutor` to `ExecutorService`;
+  backed by `newVirtualThreadPerTaskExecutor()`.
+- `ArrayBlockingQueue` replaced with `Semaphore(MAX_PENDING_DOWNLOADS)`;
+  `tryAcquire()` / `release()` in `enqueue()`.
+- `codebase-downloader-service` pom: `<release>21</release>`.
+
+### Background utilities (Item 41)
+- `LogDispatch.LOG_EXEC`: `ThreadPoolExecutor(0,1,1s,…)` →
+  `newVirtualThreadPerTaskExecutor()`.
+- `JfrTelemetryServiceImpl.sweepExecutor`: `newSingleThreadScheduledExecutor(…)` →
+  `new ScheduledThreadPoolExecutor(1,
+  Thread.ofVirtual().name("JGDMS-JfrTelemetryService-Sweeper").factory())`.
+
+### WakeupManager kicker (Item 42)
+- `ThreadDesc.thread()` returns
+  `Thread.ofVirtual().name("WakeupManager-kicker").unstarted(r)`.
+  `isDaemon()` / `getPriority()` retained as no-ops for subclass compatibility.
+
+### SpiffeCredentialManager refresher (Item 43)
+- Scheduler factory lambda → `Thread.ofVirtual().name("SpiffeCredentialManager-refresher").unstarted(r)`.
 
 ---
 
@@ -1820,87 +1906,60 @@ executor.submit(() -> {
       `AccessControlContextSerializer.unmarshalDigestFromTransport()`.
     - Tests: `MultiSubjectWireProtocolTest` — 6 tests pass (wire-protocol round-trip +
       `CURRENT_ALL_METHOD` caching + `getAllUserSubjects()` under `Subject.callAs`).
-33. **ThreadGroup removal — migrate to `createPlatformThread`/`createVirtualThread`** — *(not yet started; documented in §17)*
-    - Remove `systemThreadGroup` / `userThreadGroup` static fields from `NewThreadAction`;
-      replace `new Thread(group, …)` in `run()` with `Thread.ofPlatform().name(…).stackSize(…).daemon(…).unstarted(runnable)`.
-    - Drop `ThreadGroup` parameter from `TPThreadFactory` and `ThreadPool(ThreadGroup)` constructor;
-      `GetThreadPoolAction` constructs `ThreadPool()` directly.
-    - Delete `ThreadGroupAction` + `CreateThread` inner classes from `ReferenceProcessor.SystemThreadFactory`;
-      replace with a single `AccessController.doPrivileged` block using `Thread.ofPlatform()`.
-    - Remove `ThreadGroup group` field, `ThreadDesc(ThreadGroup, boolean[, int])` constructors, and `getGroup()`
-      from `WakeupManager.ThreadDesc` (all callers already pass `null`).
-    - Deprecate (`forRemoval=true`) the four `ThreadGroup`-accepting constructors in `InterruptedStatusThread`.
-    - In all 16 QA harness `.policy` files: replace `RuntimePermission "modifyThreadGroup"` grants on
-      `collections.jar` / `jeri.jar` with `RuntimePermission "createPlatformThread"`.
-    - Update `ThreadPoolPermission` Javadoc — remove the never-implemented claim about
-      `SecurityManager.checkAccess(ThreadGroup)`.
-34. **JERI dispatch `ThreadPool` → `newVirtualThreadPerTaskExecutor()`** — *(not yet started; documented in §18.2.1)*
-    - Replace `Executors.newCachedThreadPool(TPThreadFactory)` in `ThreadPool(ThreadGroup)` constructor with
-      `Executors.newVirtualThreadPerTaskExecutor()`.
-    - The NIO layer (SelectionManager, MuxClient/MuxServer, SocketChannelConnectionIO) is NOT affected —
-      those paths stay on dedicated platform threads via separate mechanisms.
-    - DirtyChai policy gate: requires `RuntimePermission "createVirtualThread"` in place of (or in addition
-      to) `createPlatformThread`; update QA policy files accordingly.
-    - JDK 24+ is needed to eliminate `synchronized`-block carrier pinning from Mux code reached via dispatch
-      threads; on JDK 21 add `jdk.tracePinnedThreads` monitoring and accept bounded carrier pinning.
-    - **Config simplification**: services that inject a custom `ExecutorService` via Jini `Configuration`
-      for task dispatch no longer need to size the pool; the virtual-thread executor scales automatically.
-35. **Service event-delivery executors → virtual-thread executor + semaphore** — *(not yet started; §18.2.2)*
-    - **Outrigger `Notifier.pending`** (`OutriggerServerImpl.notificationsExecutorService`): `ThreadPoolExecutor(10,10,…)` →
-      `Executors.newVirtualThreadPerTaskExecutor()` + `Semaphore(500)`.
-    - **Fiddler `FiddlerInit.executorService`** (`net.jini.lookup.fiddler.executorService`): `ThreadPoolExecutor(10,10,…)` →
-      virtual-thread executor + `Semaphore(500)`.
-    - **Mercury `MailboxImpl.Notifier.taskManager`** (`net.jini.mailbox.notificationsExecutorService`):
-      `ThreadPoolExecutor(10,10,…)` → virtual-thread executor + `Semaphore(500)`.
-    - **Norm `EventTypeGenerator.taskManager`**: `ThreadPoolExecutor(10,10,…)` → virtual-thread executor.
-    - **VerdictRegistry `createEventExecutor()`**: `ThreadPoolExecutor` → virtual-thread executor + `Semaphore(200)`.
-    - All above: remove `NamedThreadFactory` construction; virtual threads are named per-submit via
-      `Thread.ofVirtual().name("prefix-", counter).factory()`.
-36. **Reggie event-notifier + discovery-response executors → virtual threads** — *(not yet started; §18.2.2)*
-    - `RegistrarImpl.scheduledExecutor` (`eventNotifierExecutor`): `ScheduledThreadPoolExecutor(N, NamedThreadFactory)` →
-      `new ScheduledThreadPoolExecutor(1, Thread.ofVirtual().name("Reggie-event-", 0L).factory())` — scheduling logic
-      stays; worker threads become virtual.
-    - `RegistrarImpl.discoveryResponseExec` (`discoveryResponseExecutor`): `ThreadPoolExecutor` →
-      `Executors.newVirtualThreadPerTaskExecutor()`.
-37. **`LeaseRenewalManager.leaseRenewalExecutor` → virtual-thread executor** — *(not yet started; §18.2.3)*
-    - Default `ThreadPoolExecutor(1,11,…)` → `Executors.newVirtualThreadPerTaskExecutor()`.
-    - Note on cast at line 1279: `leaseRenewalExecutor instanceof ThreadPoolExecutor` → already has fallback path
-      returning `Integer.MAX_VALUE`; no logic change needed (fallback is correct for virtual-thread executor).
-    - Config entry `net.jini.lease.LeaseRenewalManager.leaseRenewalExecutorService` still accepted; callers no
-      longer need to size the pool.
-38. **`ServiceDiscoveryManager` executors → virtual-thread executors** — *(not yet started; §18.2.3)*
-    - `cacheExecutorService` default `ThreadPoolExecutor(6,6,…)` → `Executors.newVirtualThreadPerTaskExecutor()`.
-    - `ServiceEventExecutorService` default `ThreadPoolExecutor(2,2,…, PriorityBlockingQueue(256))` → virtual-thread
-      executor; note: task-submission priority ordering is lost (all tasks run concurrently); document tradeoff.
-    - `discardExecutorService` (`ScheduledThreadPoolExecutor(4)`) → `new ScheduledThreadPoolExecutor(1,
-      Thread.ofVirtual().name("SDM-discard-", 0L).factory())`; scheduling kept, worker threads virtual.
-    - `logExec` static field: `Executors.newSingleThreadExecutor(NamedThreadFactory)` → virtual-thread executor.
-39. **`AbstractLookupDiscovery` executor → virtual-thread executor** — *(not yet started; §18.2.3)*
-    - Default `ThreadPoolExecutor(MAX_N_TASKS=5, MAX_N_TASKS, 15s, LinkedBlockingQueue)` →
-      `Executors.newVirtualThreadPerTaskExecutor()`; `MAX_N_TASKS` constant becomes unused.
+33. **✅ ThreadGroup removal — migrate to `createPlatformThread`/`createVirtualThread`** — *(completed v32; was documented in §17)*
+    - Removed `systemThreadGroup` / `userThreadGroup` static fields from `NewThreadAction`;
+      `run()` uses `Thread.ofPlatform()` builder; `user` boolean retained as no-op.
+    - `TPThreadFactory` removed entirely; `ThreadPool(ThreadGroup)` replaced with `ThreadPool()`;
+      `GetThreadPoolAction` calls `new ThreadPool()` (no ThreadGroup argument).
+    - `ThreadGroupAction` + `CreateThread` inner classes deleted from `ReferenceProcessor.SystemThreadFactory`;
+      replaced with delegation to `NewThreadAction`.
+    - `ThreadGroup group` field, `ThreadDesc(ThreadGroup, boolean[, int])` constructors, and `getGroup()`
+      removed from `WakeupManager.ThreadDesc`; `ThreadDesc(boolean daemon, int priority)` canonical constructor added;
+      deprecated ThreadGroup overloads retained `(since="3.1.0", forRemoval=true)`.
+    - Four `ThreadGroup`-accepting constructors in `InterruptedStatusThread` deprecated `(since="3.1.0", forRemoval=true)`.
+    - `jgdms-collections` pom: `<release>8</release>` → `<release>21</release>`.
+    - All 16 QA harness `.policy` files: `RuntimePermission "modifyThreadGroup"` grants replaced with
+      `RuntimePermission "createPlatformThread"` + `RuntimePermission "createVirtualThread"`.
+34. **✅ JERI dispatch `ThreadPool` → `newVirtualThreadPerTaskExecutor()`** — *(completed v32; was documented in §18.2.1)*
+    - `ThreadPool` now wraps `Executors.newVirtualThreadPerTaskExecutor()`; `TPThreadFactory` removed.
+    - The NIO layer (SelectionManager, MuxClient/MuxServer, SocketChannelConnectionIO) is NOT affected.
+    - QA policy files already updated by Item 33 to include `"createVirtualThread"`.
+35. **✅ Service event-delivery executors → virtual-thread executor + semaphore** — *(completed v32; was §18.2.2)*
+    - **Outrigger `Notifier.pending`**: `ThreadPoolExecutor(10,10,…)` →
+      `Executors.newVirtualThreadPerTaskExecutor()` + `Semaphore(500)`; `acquireUninterruptibly()` / `release()` in `enqueueDelivery()`.
+    - **Fiddler `FiddlerInit.executorService`**: virtual executor (no Semaphore needed).
+    - **Mercury `MailboxImpl.Notifier.taskManager`**: virtual executor.
+    - **Norm `EventTypeGenerator.taskManager`**: virtual executor (all 3 construction paths: constructor, copy-constructor, `readObject()`).
+    - **VerdictRegistry `createEventExecutor()`**: virtual executor + `Semaphore(200)` wrapping `SendVerdictTask`.
+36. **✅ Reggie event-notifier + discovery-response executors → virtual threads** — *(completed v32; was §18.2.2)*
+    - `RegistrarImpl.scheduledExecutor`: `ScheduledThreadPoolExecutor(1, Thread.ofVirtual().name("Reggie-event-", 0L).factory())`.
+    - `RegistrarImpl.discoveryResponseExec`: `Executors.newVirtualThreadPerTaskExecutor()`.
+37. **✅ `LeaseRenewalManager.leaseRenewalExecutor` → virtual-thread executor** — *(completed v32; was §18.2.3)*
+    - All three `leaseRenewalExecutor` construction sites → `Executors.newVirtualThreadPerTaskExecutor()`.
+    - `jgdms-lib-dl` pom: `<release>21</release>`.
+    - Cast at line 1279 (`instanceof ThreadPoolExecutor`) already has correct `Integer.MAX_VALUE` fallback path; no logic change needed.
+38. **✅ `ServiceDiscoveryManager` / `LookupCacheImpl` executors → virtual-thread executors** — *(completed v32; was §18.2.3)*
+    - `logExec`, `eventNotificationExecutor`, `cacheTaskMgr`, `incomingEventExecutor` → `newVirtualThreadPerTaskExecutor()`.
+    - `incomingEventExecutor`: `PriorityBlockingQueue` ordering intentionally dropped (tasks are short-lived; ordering provided no real benefit).
+    - `serviceDiscardTimerTaskMgr`: `ScheduledThreadPoolExecutor(1, Thread.ofVirtual().name("SDM-discard-", 0L).factory())`.
+39. **✅ `AbstractLookupDiscovery` executor → virtual-thread executor** — *(completed v32; was §18.2.3)*
+    - Default `executorService` → `Executors.newVirtualThreadPerTaskExecutor()`; `MAX_N_TASKS` constant unused.
     - Config entry `net.jini.discovery.LookupDiscovery.executorService` still accepted.
-40. **`CodebaseDownloaderImpl.workerPool` → virtual-thread executor** — *(not yet started; §18.2.4)*
-    - `ThreadPoolExecutor(workerThreads, workerThreads, 0L, ArrayBlockingQueue(MAX_PENDING_DOWNLOADS))` →
-      `Executors.newVirtualThreadPerTaskExecutor()` + `Semaphore(MAX_PENDING_DOWNLOADS)` for back-pressure.
-    - HTTP fetch workers are purely network I/O bound — ideal virtual-thread use case.
-41. **Background single-thread utilities → virtual thread factory** — *(not yet started; §18.2.4)*
-    - `LogDispatch.LOG_EXEC`: `ThreadPoolExecutor(0,1,1s,…, NamedThreadFactory)` →
-      `Executors.newVirtualThreadPerTaskExecutor()`; sequential delivery maintained via existing
-      single-submit pattern.
-    - `JfrTelemetryServiceImpl.sweepExecutor`: `newSingleThreadScheduledExecutor(ThreadFactory)` →
+40. **✅ `CodebaseDownloaderImpl.workerPool` → virtual-thread executor** — *(completed v32; was §18.2.4)*
+    - `workerPool` field type changed from `ThreadPoolExecutor` to `ExecutorService`; backed by `newVirtualThreadPerTaskExecutor()`.
+    - `ArrayBlockingQueue(MAX_PENDING_DOWNLOADS)` replaced with `Semaphore(MAX_PENDING_DOWNLOADS)`; `tryAcquire()` / `release()` in `enqueue()`.
+    - `codebase-downloader-service` pom: `<release>21</release>`.
+41. **✅ Background single-thread utilities → virtual thread factory** — *(completed v32; was §18.2.4)*
+    - `LogDispatch.LOG_EXEC`: `ThreadPoolExecutor(0,1,1s,…)` → `Executors.newVirtualThreadPerTaskExecutor()`.
+    - `JfrTelemetryServiceImpl.sweepExecutor`: `newSingleThreadScheduledExecutor(…)` →
       `new ScheduledThreadPoolExecutor(1, Thread.ofVirtual().name("JGDMS-JfrTelemetryService-Sweeper").factory())`.
-42. **`WakeupManager.ThreadDesc.thread()` kicker threads → `Thread.ofVirtual()`** — *(not yet started; §18.2.5)*
-    - Implements §17.3.3 Option C (recommended follow-on to Option A).
-    - Replace `new Thread(r)` / `new Thread(getGroup(), r)` in `thread(Runnable)` with:
-      `Thread.ofVirtual().name("WakeupManager-kicker").unstarted(r)`.
-    - Note: virtual threads ignore `isDaemon()` and `getPriority()` — document that those fields
-      become no-ops for timer-kicker threads; kicker threads are short-lived fire-and-forget.
-    - DirtyChai policy: requires `RuntimePermission "createVirtualThread"`.
-43. **`SpiffeCredentialManager` refresher thread → `Thread.ofVirtual()`** — *(not yet started; §18.2.5)*
-    - `new Thread(r, "SpiffeCredentialManager-refresher")` in `ScheduledExecutorService.execute()` anonymous
-      implementation → `Thread.ofVirtual().name("SpiffeCredentialManager-refresher").unstarted(r)`.
-    - The `ScheduledExecutorService scheduler` field itself (single-threaded scheduled pool) is kept as a
-      platform-thread pool for accurate scheduling; only the worker tasks become virtual threads.
+42. **✅ `WakeupManager.ThreadDesc.thread()` kicker threads → `Thread.ofVirtual()`** — *(completed v32; was §18.2.5)*
+    - `ThreadDesc.thread()` returns `Thread.ofVirtual().name("WakeupManager-kicker").unstarted(r)`.
+    - `isDaemon()` / `getPriority()` accessors retained for subclass compatibility; Javadoc notes they are no-ops for virtual threads.
+43. **✅ `SpiffeCredentialManager` refresher thread → `Thread.ofVirtual()`** — *(completed v32; was §18.2.5)*
+    - Scheduler factory lambda: `new Thread(r, "SpiffeCredentialManager-refresher")` →
+      `Thread.ofVirtual().name("SpiffeCredentialManager-refresher").unstarted(r)`.
+    - The `ScheduledExecutorService scheduler` field stays as a platform-thread scheduled pool for accurate scheduling.
 
 ---
 
@@ -2017,6 +2076,15 @@ executor.submit(() -> {
 | **DirtyChai VirtualThread fully supports ACC — ACC is not a VirtualThread migration blocker** | ✅ **v29:** A virtual thread running on DirtyChai inherits and propagates `AccessControlContext` correctly; `AccessController.getContext()` and `Subject.callAs(…)` work as expected. The only genuine constraint for keeping threads on platform threads is NIO-channel threading requirements (see §18.1). The JDK 21 carrier-pinning concern from Mux `synchronized` blocks is a pure NIO/synchronization concern, not an ACC concern. |
 | **Standard Java 17+ deployments use TCP JERI in trusted networks; SSL/Kerberos are DirtyChai-only** | ✅ **v29:** JGDMS security requires DirtyChai. Standard Java 17–23 (SecurityManager deprecated) and Java 24+ (SecurityManager disabled) deployments operate on trusted networks using plain `TcpServerEndpoint`/`TcpEndpoint`. `SslServerEndpointImpl`, `SslConnection`, `KerberosServerEndpoint`, and `KerberosEndpoint` are DirtyChai-specific transports. This clarifies that the NIO constraints on those classes are DirtyChai-scoped; their thread model does not constrain standard-JDK deployments. |
 | **JDK 21–23 carrier-thread pinning is not a concern — trusted networks; increase carrier threads** | ✅ **v30:** JDK 21–23 deployments of JGDMS operate on trusted networks and are not exposed to internet-facing DoS attacks that would stress-test carrier exhaustion. Thread pinning from Mux `synchronized` blocks is therefore not a practical barrier to virtual-thread adoption on JDK 21–23. The recommended action for these platforms is to increase the number of platform carrier threads (e.g. `-Djdk.virtualThreadScheduler.parallelism=2×vCPU`) rather than avoiding virtual threads. On JDK 24+ `synchronized` no longer pins carriers and no tuning is required. |
+| **`TPThreadFactory` removed; `ThreadPool()` constructor replaces `ThreadPool(ThreadGroup)`** | ✅ **v32 (Item 33/34):** The `ThreadGroup` constructor existed solely to name a factory-provided thread group. With `newVirtualThreadPerTaskExecutor()` there is no thread factory at all; a no-arg `ThreadPool()` is the only public constructor. `GetThreadPoolAction` constructs `new ThreadPool()` directly. Source callers that passed `null` or a group continue to compile after the deprecation cycle. |
+| **`user` boolean in `NewThreadAction` kept as a no-op** | ✅ **v32 (Item 33):** The `user` parameter distinguished user-group vs system-group threads in the applet-era security model. Both groups are removed; retaining the parameter as a no-op preserves binary compatibility with any call sites that passed an explicit `true`/`false`. |
+| **ThreadGroup overloads in `WakeupManager.ThreadDesc` deprecated `forRemoval=true`; canonical constructor is `(boolean daemon, int priority)`** | ✅ **v32 (Item 33):** All callers already passed `null` for the group. The new canonical constructor is the correct replacement. Deprecated overloads stay for one release cycle to allow external code to migrate. |
+| **Outrigger Notifier uses `acquireUninterruptibly()` not `tryAcquire()`** | ✅ **v32 (Item 35):** Outrigger event delivery must not silently drop events under backpressure; `acquireUninterruptibly()` blocks the calling thread until a permit is available, ensuring events queue up rather than being discarded. For services where dropping a saturated client's event is acceptable (VerdictRegistry), `tryAcquire()` is used instead. |
+| **`incomingEventExecutor` in `LookupCacheImpl` drops `PriorityBlockingQueue` ordering** | ✅ **v32 (Item 38):** `newVirtualThreadPerTaskExecutor()` dispatches all submitted tasks immediately; priority-queue front ordering is irrelevant because there is no queue-head. Tasks are short-lived event handlers where relative scheduling priority provides no correctness guarantee anyway. |
+| **`workerPool` field type in `CodebaseDownloaderImpl` widened to `ExecutorService`** | ✅ **v32 (Item 40):** The previous `ThreadPoolExecutor` type exposed methods (`setCorePoolSize`, `setMaximumPoolSize`, etc.) that are meaningless for virtual-thread executors. Using the `ExecutorService` interface as the declared type prevents accidental coupling to pool-specific behaviour. |
+| **`LogDispatch.LOG_EXEC` uses `newVirtualThreadPerTaskExecutor()` — sequential delivery preserved** | ✅ **v32 (Item 41):** Log records are always submitted one at a time via `LOG_EXEC.submit(logTask)`. The virtual-thread executor creates one thread per submitted task; because tasks are submitted serially from the calling thread, sequential delivery order is maintained exactly as with the old single-platform-thread pool. |
+| **`WakeupManager.ThreadDesc.isDaemon()` / `getPriority()` retained as no-ops** | ✅ **v32 (Item 42):** Virtual threads are always daemon threads and ignore priority settings. The accessors are kept with Javadoc notes explaining the no-op behaviour so that existing `ThreadDesc` subclasses that override these methods continue to compile without modification. |
+| **`SpiffeCredentialManager` scheduler stays on a platform-thread pool** | ✅ **v32 (Item 43):** The `ScheduledExecutorService` timer itself must be a platform thread to provide accurate `scheduleAtFixedRate` / `scheduleWithFixedDelay` semantics. Only the runnable payload (the SVID refresh action) is wrapped as a virtual thread. This pattern separates scheduling accuracy (platform) from I/O-blocking work (virtual). |
 
 ---
 
@@ -3650,7 +3718,15 @@ Items 3–9 are independent and can be implemented in parallel across different 
 - *§13 new row — `ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup`*
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 30, updated to document:*
+continue without loss of context. This is version 32, updated to document:*
+
+- *§12 Work Items 33–43 — all marked ✅ completed (v32)*
+- *§13 eleven new design-decision rows: `TPThreadFactory` removal, `user` no-op, deprecated ThreadGroup overloads, Outrigger `acquireUninterruptibly`, `LookupCacheImpl` priority-queue drop, `CodebaseDownloaderImpl` field type widened, `LogDispatch` sequential delivery preserved, `WakeupManager` no-op accessors, SpiffeCredentialManager scheduler stays on platform thread*
+- *§v32 Change Summary added at top*
+
+---
+
+*Previous version (v30) notes:*
 
 - *§18.2.1 updated: JDK 21–23 carrier-pinning reframed as non-concern on trusted networks; action = increase `-Djdk.virtualThreadScheduler.parallelism` rather than avoiding virtual threads*
 - *§18.5 risks updated: JDK 21–23 carrier-pinning row updated to "not a concern on trusted networks"; mitigation = increase carrier threads*
