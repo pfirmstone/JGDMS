@@ -236,7 +236,7 @@ public final class AccessControlContextSerializer implements Serializable {
      * @return the serialised bytes, or an empty array when no
      *         {@code DigestCodeSource} domains are present
      */
-    static byte[] marshalDigestForTransport(AccessControlContext acc) throws IOException {
+    public static byte[] marshalDigestForTransport(AccessControlContext acc) throws IOException {
         if (acc == null) return new byte[0];
         ProtectionDomain[] extracted = extractDomains(acc);
         List<ProtectionDomain> digestDomains = new ArrayList<ProtectionDomain>(extracted.length);
