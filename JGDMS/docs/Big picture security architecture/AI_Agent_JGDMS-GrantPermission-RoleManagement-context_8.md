@@ -2016,6 +2016,7 @@ executor.submit(() -> {
 | **Virtual-thread executors for I/O-bound service executors require a `Semaphore` concurrency cap** | ✅ **v28:** `newVirtualThreadPerTaskExecutor()` creates one virtual thread per submitted task with no inherent bound; without a concurrency cap, a flood of slow remote clients causes millions of queued virtual threads and heap exhaustion. Every I/O-bound executor replacement MUST wrap with `Semaphore(N)` (N = 200–500 depending on service) and drop/log tasks that cannot acquire a permit. The policy-service implementation (§16.1) is the reference pattern. |
 | **DirtyChai VirtualThread fully supports ACC — ACC is not a VirtualThread migration blocker** | ✅ **v29:** A virtual thread running on DirtyChai inherits and propagates `AccessControlContext` correctly; `AccessController.getContext()` and `Subject.callAs(…)` work as expected. The only genuine constraint for keeping threads on platform threads is NIO-channel threading requirements (see §18.1). The JDK 21 carrier-pinning concern from Mux `synchronized` blocks is a pure NIO/synchronization concern, not an ACC concern. |
 | **Standard Java 17+ deployments use TCP JERI in trusted networks; SSL/Kerberos are DirtyChai-only** | ✅ **v29:** JGDMS security requires DirtyChai. Standard Java 17–23 (SecurityManager deprecated) and Java 24+ (SecurityManager disabled) deployments operate on trusted networks using plain `TcpServerEndpoint`/`TcpEndpoint`. `SslServerEndpointImpl`, `SslConnection`, `KerberosServerEndpoint`, and `KerberosEndpoint` are DirtyChai-specific transports. This clarifies that the NIO constraints on those classes are DirtyChai-scoped; their thread model does not constrain standard-JDK deployments. |
+| **JDK 21–23 carrier-thread pinning is not a concern — trusted networks; increase carrier threads** | ✅ **v30:** JDK 21–23 deployments of JGDMS operate on trusted networks and are not exposed to internet-facing DoS attacks that would stress-test carrier exhaustion. Thread pinning from Mux `synchronized` blocks is therefore not a practical barrier to virtual-thread adoption on JDK 21–23. The recommended action for these platforms is to increase the number of platform carrier threads (e.g. `-Djdk.virtualThreadScheduler.parallelism=2×vCPU`) rather than avoiding virtual threads. On JDK 24+ `synchronized` no longer pins carriers and no tuning is required. |
 
 ---
 
@@ -3322,19 +3323,24 @@ private static ExecutorService createExecutor() {
 virtual dispatch thread that needs to write a JERI response calls back into `Mux` via
 `Connection.write()`, which uses the `SocketChannel` already established on the platform
 thread.  The virtual thread blocks at `SocketChannel.write()` or a Mux-internal
-`synchronized` block, yielding the carrier (on JDK 24+) or pinning it briefly (JDK 21).
+`synchronized` block, yielding the carrier (on JDK 24+) or pinning it briefly (JDK 21–23).
 ACC propagation is **not affected** — DirtyChai VirtualThread inherits and propagates
 `AccessControlContext` correctly through dispatch threads.
 
-**JDK 21 risk (NIO-only, not ACC):** `Mux` and related classes use `synchronized`
-blocks.  If a JERI dispatch virtual thread calls back into Mux code (e.g., to flush a
-response), it enters a `synchronized` block and pins its carrier for the duration.  With
-N concurrent responses, up to N carriers are pinned simultaneously.  The JVM maintains
-a carrier pool (`ForkJoinPool` with `parallelism = nCPU`); if all carriers are pinned,
-new virtual threads queue behind them — degrading to platform-thread behavior.  Enable
-`-Djdk.tracePinnedThreads=full` in load tests.  On JDK 24+, `synchronized` no longer
-pins carriers; the benefit is unambiguous.  **This is a pure NIO/synchronization
-concern, not an ACC concern** — ACC is fully supported by DirtyChai VirtualThreads.
+**JDK 21–23 carrier pinning — not a concern on trusted networks:** `Mux` and related
+classes use `synchronized` blocks.  On JDK 21–23, a JERI dispatch virtual thread that
+enters a Mux `synchronized` block briefly **pins** its carrier thread for the duration.
+With N concurrent responses, up to N carriers are pinned simultaneously.  However,
+**JDK 21–23 deployments operate on trusted networks and are not subject to the DoS
+attacks that would occur over the internet**.  The practical mitigation is simply to
+**increase the default number of platform carrier threads** (via
+`-Djdk.virtualThreadScheduler.parallelism=N`, e.g. N = 2× vCPU) to ensure sufficient
+carriers are available even under temporary pinning.  Carrier exhaustion is a theoretical
+concern; on trusted networks with bounded concurrency it does not occur in practice.
+On JDK 24+, `synchronized` no longer pins carriers at all and no tuning is required.
+Enable `-Djdk.tracePinnedThreads=full` during load tests on JDK 21–23 to measure actual
+pinning frequency.  **This is a pure NIO/synchronization concern, not an ACC concern**
+— ACC is fully supported by DirtyChai VirtualThreads.
 
 **Configuration simplification:** Services that provide a custom `ExecutorService` to
 JERI via `Config.getEntry(…, "executorService", ExecutorService.class)` currently need
@@ -3594,7 +3600,7 @@ note that the recommended value is `Executors.newVirtualThreadPerTaskExecutor()`
 
 | Risk | Affected work items | Mitigation |
 |---|---|---|
-| **JDK 21 carrier pinning (NIO/sync, not ACC)** from `synchronized` in Mux code reached by dispatch virtual threads | 34 | Enable `-Djdk.tracePinnedThreads=full` in load tests; accept bounded pinning on JDK 21; full benefit only on JDK 24+; this is a pure NIO/synchronization concern — ACC is fully supported by DirtyChai VirtualThreads |
+| **JDK 21–23 carrier pinning (NIO/sync, not ACC, not a concern on trusted networks)** from `synchronized` in Mux code reached by dispatch virtual threads | 34 | **Not a real concern**: JDK 21–23 deployments operate on trusted networks and are not subject to internet-facing DoS attacks. Mitigation: increase carrier threads via `-Djdk.virtualThreadScheduler.parallelism=N` (e.g. 2× vCPU). Enable `-Djdk.tracePinnedThreads=full` during load tests to measure actual frequency. On JDK 24+ `synchronized` no longer pins carriers; no tuning needed. |
 | **ACC is NOT a VirtualThread concern** — DirtyChai VirtualThread inherits and propagates ACC correctly | all | No action required; document explicitly for clarity |
 | **`ServiceDiscoveryManager` ordering loss** when replacing `PriorityBlockingQueue` executor | 38 | Document tradeoff; offer per-registrar virtual "mailbox" as an alternative for strict-ordering deployments |
 | **Unbounded concurrency** without `Semaphore` cap can exhaust heap via millions of queued virtual threads | 35, 36, 40 | Every event-delivery replacement MUST include a `Semaphore` cap (500 for events, `MAX_PENDING_DOWNLOADS` for downloader) |
@@ -3644,18 +3650,21 @@ Items 3–9 are independent and can be implemented in parallel across different 
 - *§13 new row — `ThreadGroup` is not a security boundary; `createPlatformThread` replaces `modifyThreadGroup`*
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 29, updated to document:*
+continue without loss of context. This is version 30, updated to document:*
 
+- *§18.2.1 updated: JDK 21–23 carrier-pinning reframed as non-concern on trusted networks; action = increase `-Djdk.virtualThreadScheduler.parallelism` rather than avoiding virtual threads*
+- *§18.5 risks updated: JDK 21–23 carrier-pinning row updated to "not a concern on trusted networks"; mitigation = increase carrier threads*
+- *§13 new row: JDK 21–23 pinning not a concern — trusted networks; increase carrier threads*
+
+---
+
+*Previous version (v29) notes:*
 - *§18 intro updated: key deployment model note — DirtyChai required for JGDMS security; std Java 17+ uses TCP in trusted networks*
 - *§18.1 NIO boundary updated: SSL/Kerberos endpoints clarified as DirtyChai-only; NIO constraint is not an ACC constraint; DirtyChai VirtualThread fully supports ACC*
 - *§18.2.1 updated: ACC propagation note added; JDK 21 risk clarified as NIO/synchronization concern only, not ACC*
 - *§18.5 risks updated: ACC confirmed NOT a VirtualThread risk; JDK 21 carrier-pinning row updated*
 - *§18.6 updated: SSL/Kerberos DirtyChai-only scope noted*
 - *§13 two new rows: DirtyChai VirtualThread + ACC, and TCP/SSL/Kerberos deployment scope*
-
----
-
-*Previous version (v28) notes:*
 - *§18 new: VirtualThread Migration Plan — complete deep-dive analysis of all platform-thread sites; NIO boundary (§18.1); site-by-site analysis (§18.2.1–5); configuration simplification (§18.3); module compatibility (§18.4); risks and mitigations (§18.5); implementation order (§18.7)*
 - *§16.8 expanded: comprehensive table of all 30+ platform-thread sites with ✅/🔲/❌ status, module, and notes*
 - *§12 work items 34–43 added — VirtualThread migration for JERI dispatch, service event executors, lease/discovery utilities, background threads, and kicker threads*
