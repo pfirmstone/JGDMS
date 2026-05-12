@@ -2229,7 +2229,8 @@ zero overhead unless the DirtyChai JDK's `DigestCodeSource` is in the ACC.
 Work Item 28 (v27).
 
 **Cache hit (common case):** A single `volatile` read of `accSerialCache` is performed.
-If `cache.acc == currentAcc` (reference equality, ~10 ns), the precomputed
+If `cache.acc == currentAcc` (reference equality; typically ~10 ns on modern JIT-warmed
+HotSpot, though exact timings vary by hardware and JVM state), the precomputed
 `cache.transportBytes` is used directly — no stack walk, no encoding.
 
 **Cache miss (first call or ACC reference change):**
@@ -2302,15 +2303,15 @@ escape-analysed away.  The `doPrivileged` scope push/pop costs < 1 µs.
 **Multi-Subject path (DirtyChai, v24+):** When >1 user Subject is present, dispatch
 uses `CALL_AS_MULTI_SUBJECT.invoke(null, action, userSubjects)` — a single reflective
 call wrapping all user Subjects in a nested `callAs` chain.  The `Method` object is
-cached at class-load time (zero per-call class-loading); per-call cost is pure
-invocation overhead (< 1 µs).
+cached at class-load time (zero per-call class-loading); per-call cost is sub-microsecond
+after JIT warmup (interpreted mode may be a few microseconds on early calls).
 
 #### 15.1.6 Throughput summary
 
 | Dimension | Cost | Notes |
 |-----------|------|-------|
 | Wire bytes added per request | ~454 bytes (ACC) + ~158 bytes (user-principal, 1 Subject) | < 1 TLS record overhead |
-| Sender CPU — **cache hit** | **~10 ns/call** | volatile read + pointer compare only |
+| Sender CPU — **cache hit** | **~10 ns/call** (JIT-warmed HotSpot) | volatile read + pointer compare only |
 | Sender CPU — **cache miss** (first call / ACC change) | 10–40 µs/call | Two stack walks + encoding |
 | Receiver CPU — parse + construct | 10–50 µs/call | URI parsing dominates |
 | `doPrivileged` dispatch nesting | < 1 µs/call | JIT-optimized |
