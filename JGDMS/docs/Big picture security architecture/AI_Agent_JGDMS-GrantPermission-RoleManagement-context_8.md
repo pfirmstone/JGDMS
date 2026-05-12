@@ -1864,8 +1864,8 @@ executor.submit(() -> {
       `Executors.newVirtualThreadPerTaskExecutor()`.
 37. **`LeaseRenewalManager.leaseRenewalExecutor` → virtual-thread executor** — *(not yet started; §18.2.3)*
     - Default `ThreadPoolExecutor(1,11,…)` → `Executors.newVirtualThreadPerTaskExecutor()`.
-    - Fix cast at line 1279: `leaseRenewalExecutor instanceof ThreadPoolExecutor` → already has fallback path
-      returning `Integer.MAX_VALUE`; no logic change needed.
+    - Note on cast at line 1279: `leaseRenewalExecutor instanceof ThreadPoolExecutor` → already has fallback path
+      returning `Integer.MAX_VALUE`; no logic change needed (fallback is correct for virtual-thread executor).
     - Config entry `net.jini.lease.LeaseRenewalManager.leaseRenewalExecutorService` still accepted; callers no
       longer need to size the pool.
 38. **`ServiceDiscoveryManager` executors → virtual-thread executors** — *(not yet started; §18.2.3)*
@@ -2860,10 +2860,14 @@ Sites marked ❌ must remain on platform threads (NIO or CPU-bound).
 
 **Module compatibility note:** All modules using `Executors.newVirtualThreadPerTaskExecutor()`
 and `Thread.ofVirtual()` must declare `<release>21</release>` in their `maven-compiler-plugin`
-configuration.  Modules already at 21: `jgdms-platform`, `policy-service`.  Modules requiring a
-bump: `jgdms-collections` (currently 8, required for work items 33 and 34), `jgdms-jeri`,
-`jgdms-lib-dl`, `outrigger`, `fiddler`, `mercury`, `norm`, `verdict-registry`, `reggie`,
-`codebase-downloader`.  Pattern already established by `jfr-telemetry-service`.
+configuration.  Modules already at 21: `jgdms-platform`, `jgdms-jeri`, `policy-service`,
+`outrigger-service`, `fiddler-service`, `mercury-service`, `norm-service`, `reggie-service`,
+`jfr-telemetry-service`.  Modules at JDK 8 (pre-migration baseline) requiring a bump:
+`jgdms-collections` (root-pom default 8; required for work items 33 and 34),
+`jgdms-lib-dl` (root-pom default 8; required for work items 37 and 38),
+`verdict-registry-service` (inherits root-pom 8; required for work item 35),
+`codebase-downloader-service` (inherits root-pom 8; required for work item 40).
+Pattern already established by `jfr-telemetry-service`.  See §18.4 for the full table.
 
 **JDK 21 vs JDK 24 pinning note:** On JDK 21, virtual threads are pinned to their carrier when
 entering `synchronized` blocks.  The JERI Mux layer uses `synchronized` extensively.  If a JERI
@@ -3286,9 +3290,9 @@ context-switch overhead.
 
 ```java
 // ThreadPool.java — replace newCachedThreadPool with virtual-thread-per-task
-private static ExecutorService createExecutor(String name) {
+private static ExecutorService createExecutor() {
+    // Each submitted task gets a new virtual thread named "jgdms-dispatch-N"
     return Executors.newVirtualThreadPerTaskExecutor();
-    // Virtual threads are named "name-N" by the JDK internally
 }
 ```
 
@@ -3543,21 +3547,21 @@ note that the recommended value is `Executors.newVirtualThreadPerTaskExecutor()`
 
 ### 18.4 Module Compatibility Requirements
 
-| Module | Current `<release>` | Required after change | Work items |
+| Module | Current `<release>` (pre-migration baseline) | Required after change | Work items |
 |---|---|---|---|
-| `jgdms-collections` | **8** | **21** | 33, 34, 42 |
-| `jgdms-jeri` | *(check pom)* | **21** | 34, 43 |
-| `jgdms-platform` | 21 | 21 (unchanged) | 39, 41 |
-| `jgdms-lib-dl` | *(check pom)* | **21** | 37, 38 |
-| `outrigger-service` | *(check pom)* | **21** | 35 |
-| `fiddler-service` | *(check pom)* | **21** | 35 |
-| `mercury-service` | *(check pom)* | **21** | 35 |
-| `norm-service` | *(check pom)* | **21** | 35 |
-| `verdict-registry-service` | *(check pom)* | **21** | 35 |
-| `reggie-service` | *(check pom)* | **21** | 36 |
-| `codebase-downloader-service` | *(check pom)* | **21** | 40 |
-| `policy-service` | 21 | 21 (unchanged) | ✅ done |
-| `jfr-telemetry-service` | 21 | 21 (unchanged) | 41 |
+| `jgdms-collections` | **8** (root pom default) | **21** | 33, 34, 42 |
+| `jgdms-jeri` | **21** (already set) | 21 (unchanged) | 34, 43 |
+| `jgdms-platform` | **21** (already set) | 21 (unchanged) | 39, 41 |
+| `jgdms-lib-dl` | **8** (root pom default) | **21** | 37, 38 |
+| `outrigger-service` | **21** (already set) | 21 (unchanged) | 35 |
+| `fiddler-service` | **21** (already set) | 21 (unchanged) | 35 |
+| `mercury-service` | **21** (already set) | 21 (unchanged) | 35 |
+| `norm-service` | **21** (already set) | 21 (unchanged) | 35 |
+| `verdict-registry-service` | **8** (inherits root pom) | **21** | 35 |
+| `reggie-service` | **21** (already set) | 21 (unchanged) | 36 |
+| `codebase-downloader-service` | **8** (inherits root pom) | **21** | 40 |
+| `policy-service` | **21** (already set) | 21 (unchanged) | ✅ done |
+| `jfr-telemetry-service` | **21** (already set) | 21 (unchanged) | 41 |
 
 ---
 
@@ -3571,7 +3575,7 @@ note that the recommended value is `Executors.newVirtualThreadPerTaskExecutor()`
 | **`ThreadPoolExecutor instanceof` cast** in `LeaseRenewalManager` line 1279 | 37 | Already has correct `Integer.MAX_VALUE` fallback path; no fix needed |
 | **`ScheduledExecutorService` scheduling accuracy** when using virtual-thread factory | 36, 38, 41 | `ScheduledThreadPoolExecutor` schedules on platform threads internally; worker virtual threads are submitted normally; scheduling accuracy is not affected |
 | **DirtyChai `createVirtualThread` permission** — missing grant causes `AccessControlException` | 34, 42 | Add `RuntimePermission "createVirtualThread"` to all 16 QA harness policy files simultaneously with Work Items 33/34 |
-| **`LeaseRenewalManager.CallerRunsPolicy`** dropped when replacing `ThreadPoolExecutor` | 37 | Virtual executor has no rejection policy; back-pressure is naturally eliminated; document that caller-runs semantics are no longer needed when each task creates its own virtual thread |
+| **`LeaseRenewalManager.CallerRunsPolicy`** dropped when replacing `ThreadPoolExecutor` | 37 | Virtual executor has no rejection policy; unbounded concurrent task creation replaces the queue-based back-pressure of the fixed pool — application-level `Semaphore` caps must be added if back-pressure is required (see §18.2.3); document that `CallerRunsPolicy` semantics no longer apply when each task creates its own virtual thread |
 
 ---
 
