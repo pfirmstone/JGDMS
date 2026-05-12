@@ -1808,10 +1808,12 @@ public class BasicInvocationHandler
     {
 	byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
 	if (bytes.length > 0xFFFF) {
+	    String preview = s.length() > 40
+		? s.substring(0, 40) + "..."
+		: s;
 	    throw new IOException(
 		"Principal field too long for wire encoding (" + bytes.length
-		+ " UTF-8 bytes): "
-		+ s.substring(0, Math.min(40, s.length())) + "...");
+		+ " UTF-8 bytes): " + preview);
 	}
 	out.write((bytes.length >>> 8) & 0xFF);
 	out.write(bytes.length & 0xFF);
