@@ -204,11 +204,12 @@ public final class AccessControlContextSerializer implements Serializable {
                 }
             }
         }
-        if (records.isEmpty()) {
-            // No HTTPMD-verifiable domains to anchor the remote identity.
-            // Do not send the ACC — there is nothing the receiver can verify.
+        if (records.isEmpty() && anonCount == 0) {
+            // Truly nothing to send — no verifiable domains and no anonymous ceilings.
             return new byte[0];
         }
+        // Encode: [httpmdCount=N][...records...][anonCount=M]
+        // When records is empty, httpmdCount=0 and anonCount>0 encodes the ceiling.
         ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
         writeInt(baos, records.size());
         for (int i = 0; i < records.size(); i++) {
