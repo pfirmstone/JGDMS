@@ -277,7 +277,6 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     private static final class StubVerdictRegistry implements VerdictRegistry {
 
         private RegistryVerdict verdictToReturn = null;
-        private boolean throwRemoteException = false;
         private int failTimes = 0;
         private int getVerdictByHashCalls = 0;
 
@@ -286,7 +285,9 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         }
 
         void setThrowRemoteException(boolean throwIt) {
-            this.throwRemoteException = throwIt;
+            this.failTimes = throwIt
+                    ? PreferredProxyCodebaseProvider.VERDICT_RETRY_ATTEMPTS + 1
+                    : 0;
         }
 
         void setFailTimes(int failTimes) {
@@ -301,9 +302,6 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         public RegistryVerdict getVerdictByHash(String contentHash)
                 throws RemoteException {
             getVerdictByHashCalls++;
-            if (throwRemoteException) {
-                throw new RemoteException("Simulated registry failure");
-            }
             if (failTimes > 0) {
                 failTimes--;
                 throw new RemoteException("Simulated transient registry failure");

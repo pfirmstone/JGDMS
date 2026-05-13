@@ -234,9 +234,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                         "VerdictRegistry lookup failed for codebase: {0}; retrying in {1} ms",
                         new Object[]{path, Long.valueOf(retryDelayMs)});
                 sleepBeforeVerdictRetry(retryDelayMs, path);
-                if (retryDelayMs > 0L && retryDelayMs < Long.MAX_VALUE / 2L) {
-                    retryDelayMs *= 2L;
-                }
+                retryDelayMs *= 2L;
             }
         }
         if (verdict == null) {
