@@ -34,6 +34,7 @@ import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
+import org.junit.Before;
 import org.junit.After;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -65,10 +66,16 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     // Reset shared state between tests
     // -------------------------------------------------------------------------
 
+    @Before
+    public void disableVerdictRetrySleep() {
+        PreferredProxyCodebaseProvider.setVerdictRetryBaseDelayMs(0L);
+    }
+
     @After
     public void resetRegistry() {
         // Clear the VerdictRegistry so tests do not interfere with each other.
         VerdictRegistryHolder.set(null);
+        PreferredProxyCodebaseProvider.resetVerdictRetryBaseDelayMs();
     }
 
     // -------------------------------------------------------------------------
@@ -194,7 +201,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     @Test
     public void checkVerdictForJar_remoteException_throwsIOException() throws Exception {
         StubVerdictRegistry stub = new StubVerdictRegistry();
-        stub.setThrowRemoteException(true);
+        stub.setFailTimes(PreferredProxyCodebaseProvider.VERDICT_RETRY_ATTEMPTS + 1);
 
         try {
             PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
@@ -206,6 +213,23 @@ public class PreferredProxyCodebaseProviderVerdictTest {
             assertNotNull("Cause should be the RemoteException", ex.getCause());
             assertTrue(ex.getCause() instanceof RemoteException);
         }
+        assertEquals("Should attempt initial lookup plus configured retries",
+                PreferredProxyCodebaseProvider.VERDICT_RETRY_ATTEMPTS + 1,
+                stub.getGetVerdictByHashCalls());
+    }
+
+    @Test
+    public void checkVerdictForJar_remoteException_retriesThenSucceeds()
+            throws Exception {
+        RegistryVerdict verdict = newVerdict(VerdictType.SAFE);
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(verdict);
+        stub.setFailTimes(2);
+
+        PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+
+        assertEquals("Should retry until the registry responds",
+                3, stub.getGetVerdictByHashCalls());
     }
 
     // -------------------------------------------------------------------------
@@ -232,21 +256,28 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     private static final class StubVerdictRegistry implements VerdictRegistry {
 
         private RegistryVerdict verdictToReturn = null;
-        private boolean throwRemoteException = false;
+        private int failTimes = 0;
+        private int getVerdictByHashCalls = 0;
 
         void setVerdictToReturn(RegistryVerdict verdict) {
             this.verdictToReturn = verdict;
         }
 
-        void setThrowRemoteException(boolean throwIt) {
-            this.throwRemoteException = throwIt;
+        void setFailTimes(int failTimes) {
+            this.failTimes = failTimes;
+        }
+
+        int getGetVerdictByHashCalls() {
+            return getVerdictByHashCalls;
         }
 
         @Override
         public RegistryVerdict getVerdictByHash(String contentHash)
                 throws RemoteException {
-            if (throwRemoteException) {
-                throw new RemoteException("Simulated registry failure");
+            getVerdictByHashCalls++;
+            if (failTimes > 0) {
+                failTimes--;
+                throw new RemoteException("Simulated transient registry failure");
             }
             return verdictToReturn;
         }
