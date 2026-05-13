@@ -17,6 +17,11 @@
  */
 package net.jini.lookup.entry;
 
+import java.io.IOException;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.PutEntryArg;
+import net.jini.core.entry.SerialEntry;
 import net.jini.entry.AbstractEntry;
 
 /**
@@ -29,8 +34,60 @@ import net.jini.entry.AbstractEntry;
  * @see Location
  * @see AddressBean
  */
+@SerialEntry
 public class Address extends AbstractEntry {
     private static final long serialVersionUID = 2896136903322046578L;
+
+    /**
+     * Returns the wire field schema for this entry class.
+     *
+     * @return array of wire fields in declaration order
+     */
+    public static EntryWireField[] entryForm() {
+        return new EntryWireField[] {
+            new EntryWireField("street",             String.class),
+            new EntryWireField("organization",       String.class),
+            new EntryWireField("organizationalUnit", String.class),
+            new EntryWireField("locality",           String.class),
+            new EntryWireField("stateOrProvince",    String.class),
+            new EntryWireField("postalCode",         String.class),
+            new EntryWireField("country",            String.class),
+        };
+    }
+
+    /**
+     * Deserialization constructor required by {@link SerialEntry @SerialEntry}.
+     *
+     * @param arg the source of field values
+     * @throws IOException if a field value cannot be read or validated
+     */
+    public Address(GetEntryArg arg) throws IOException {
+        street             = arg.get("street",             null, String.class);
+        organization       = arg.get("organization",       null, String.class);
+        organizationalUnit = arg.get("organizationalUnit", null, String.class);
+        locality           = arg.get("locality",           null, String.class);
+        stateOrProvince    = arg.get("stateOrProvince",    null, String.class);
+        postalCode         = arg.get("postalCode",         null, String.class);
+        country            = arg.get("country",            null, String.class);
+    }
+
+    /**
+     * Serialization method required by {@link SerialEntry @SerialEntry}.
+     *
+     * @param arg the destination for field values
+     * @param obj the instance to serialize
+     * @throws IOException if a field value cannot be written
+     */
+    public static void serialize(PutEntryArg arg, Address obj) throws IOException {
+        arg.put("street",             obj.street);
+        arg.put("organization",       obj.organization);
+        arg.put("organizationalUnit", obj.organizationalUnit);
+        arg.put("locality",           obj.locality);
+        arg.put("stateOrProvince",    obj.stateOrProvince);
+        arg.put("postalCode",         obj.postalCode);
+        arg.put("country",            obj.country);
+        arg.writeArgs();
+    }
 
     /**
      * Construct an empty instance of this class.

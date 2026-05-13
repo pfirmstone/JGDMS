@@ -17,13 +17,53 @@
  */
 package net.jini.lookup.entry;
 
+import java.io.IOException;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.PutEntryArg;
+import net.jini.core.entry.SerialEntry;
 import net.jini.entry.AbstractEntry;
 
+@SerialEntry
 public class Host extends AbstractEntry {
+
+  /**
+   * Returns the wire field schema for this entry class.
+   *
+   * @return array of wire fields
+   */
+  public static EntryWireField[] entryForm() {
+    return new EntryWireField[] {
+      new EntryWireField("hostName", String.class),
+    };
+  }
+
+  /**
+   * Deserialization constructor required by {@link SerialEntry @SerialEntry}.
+   *
+   * @param arg the source of field values
+   * @throws IOException if a field value cannot be read or validated
+   */
+  public Host(GetEntryArg arg) throws IOException {
+    hostName = arg.get("hostName", null, String.class);
+  }
+
+  /**
+   * Serialization method required by {@link SerialEntry @SerialEntry}.
+   *
+   * @param arg the destination for field values
+   * @param obj the instance to serialize
+   * @throws IOException if a field value cannot be written
+   */
+  public static void serialize(PutEntryArg arg, Host obj) throws IOException {
+    arg.put("hostName", obj.hostName);
+    arg.writeArgs();
+  }
+
   public String hostName;
 
   public Host() {
-    this(null);
+    this((String) null);
   }
 
   public Host(String hostName) {

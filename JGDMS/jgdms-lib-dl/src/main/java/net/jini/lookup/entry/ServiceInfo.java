@@ -17,6 +17,11 @@
  */
 package net.jini.lookup.entry;
 
+import java.io.IOException;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.PutEntryArg;
+import net.jini.core.entry.SerialEntry;
 import net.jini.entry.AbstractEntry;
 
 /**
@@ -27,8 +32,57 @@ import net.jini.entry.AbstractEntry;
  *
  * @see ServiceInfoBean
  */
+@SerialEntry
 public class ServiceInfo extends AbstractEntry implements ServiceControlled {
     private static final long serialVersionUID = -1116664185758541509L;
+
+    /**
+     * Returns the wire field schema for this entry class.
+     *
+     * @return array of wire fields in declaration order
+     */
+    public static EntryWireField[] entryForm() {
+        return new EntryWireField[] {
+            new EntryWireField("name",         String.class),
+            new EntryWireField("manufacturer", String.class),
+            new EntryWireField("vendor",       String.class),
+            new EntryWireField("version",      String.class),
+            new EntryWireField("model",        String.class),
+            new EntryWireField("serialNumber", String.class),
+        };
+    }
+
+    /**
+     * Deserialization constructor required by {@link SerialEntry @SerialEntry}.
+     *
+     * @param arg the source of field values
+     * @throws IOException if a field value cannot be read or validated
+     */
+    public ServiceInfo(GetEntryArg arg) throws IOException {
+        name         = arg.get("name",         null, String.class);
+        manufacturer = arg.get("manufacturer", null, String.class);
+        vendor       = arg.get("vendor",       null, String.class);
+        version      = arg.get("version",      null, String.class);
+        model        = arg.get("model",        null, String.class);
+        serialNumber = arg.get("serialNumber", null, String.class);
+    }
+
+    /**
+     * Serialization method required by {@link SerialEntry @SerialEntry}.
+     *
+     * @param arg the destination for field values
+     * @param obj the instance to serialize
+     * @throws IOException if a field value cannot be written
+     */
+    public static void serialize(PutEntryArg arg, ServiceInfo obj) throws IOException {
+        arg.put("name",         obj.name);
+        arg.put("manufacturer", obj.manufacturer);
+        arg.put("vendor",       obj.vendor);
+        arg.put("version",      obj.version);
+        arg.put("model",        obj.model);
+        arg.put("serialNumber", obj.serialNumber);
+        arg.writeArgs();
+    }
 
     /**
      * Construct an empty instance of this class.
