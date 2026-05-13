@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v36)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v37)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,19 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v37 Change Summary
+
+**Checked off completed items — no logic changes**
+
+- §3 Weakness 2 "Mitigated?" updated from `Partially (strict policy required)` to
+  `Partially (JwtVerifier SPI opt-in; DefaultJwtVerifier exp/iat/iss/aud; OIDC JWKS
+  opt-in)` to reflect Work Item 44 completion.
+- §5 Phase 3.1 priority changed from `🟡 Sprint 4` to `✅ Completed` to match the
+  ✅ already present on Work Item 44 in §6.
+- Version header bumped from v36 → v37.
 
 ---
 
@@ -260,7 +273,7 @@ subsequent uses skip all of the above.
 | # | Weakness | Severity | Mitigated? |
 |---|---|---|---|
 | 1 | Full security requires DirtyChai (non-standard JDK) | 🔴 Critical | **By design — no fix** |
-| 2 | Wire-asserted user principals are unverified | 🔴 Critical | Partially (strict policy required) |
+| 2 | Wire-asserted user principals are unverified | 🔴 Critical | Partially (JwtVerifier SPI opt-in; DefaultJwtVerifier exp/iat/iss/aud; OIDC JWKS opt-in) |
 | 3 | INCONCLUSIVE verdict allows loading; no re-audit on permission change | 🟠 High | No |
 | 4 | VerdictRegistry boot permissive window | 🟠 High | Acknowledged; no fix |
 | 5 | VerdictRegistry outage blocks all new proxy loads | 🟠 High | No (fail-secure, but availability impact) |
@@ -545,7 +558,7 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 
 | # | Weakness | Action | Files | Priority |
 |---|---|---|---|---|
-| 3.1 | `JwtVerifier` SPI (W2) | Define `JwtVerifier` SPI; wire into `BasicInvocationDispatcher`; add connection-level JWT verification cache; add wire protocol version 0x03 for raw JWT transport | `BasicInvocationDispatcher.java`, new `JwtVerifier.java` | 🟡 Sprint 4 |
+| 3.1 | `JwtVerifier` SPI (W2) | Define `JwtVerifier` SPI; wire into `BasicInvocationDispatcher`; add connection-level JWT verification cache; add wire protocol version 0x03 for raw JWT transport | `BasicInvocationDispatcher.java`, new `JwtVerifier.java` | ✅ Completed |
 | 3.2 | `DiscoveryCredentialProvider` (W11) | Define interface; implement `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder`; integrate into `AbstractLookupDiscovery` | New interface + impl; `AbstractLookupDiscovery.java` | 🟡 Sprint 4 |
 | 3.3 | Negative grants (W8) | Add `negativeGrants` set to `DynamicPolicyProvider` with same background sweeper as void grants; update `implies()` | `DynamicPolicyProvider.java` | 🟡 Sprint 5 |
 | 3.4 | Persistent verdict cache (W5) | Add disk-based signed `RegistryVerdict` cache to `PreferredProxyCodebaseProvider` | `PreferredProxyCodebaseProvider.java`, new `VerdictCache.java` | 🔵 Sprint 6 |
@@ -606,5 +619,6 @@ These extend the work-item table in §12 of
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a future AI agent to
-continue without loss of context. This is version 36, updated to correct the §4.2 Weakness 3
-risk model for the GrantPermission/doPrivileged interaction (conversation dated 2026-05-13).*
+continue without loss of context. This is version 37, updated to check off completed work items
+(§3 Weakness 2 mitigation text; §5 Phase 3.1 marked ✅ Completed) following Work Item 44
+completion (conversation dated 2026-05-13).*
