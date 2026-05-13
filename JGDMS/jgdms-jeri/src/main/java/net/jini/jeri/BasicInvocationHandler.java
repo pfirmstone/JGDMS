@@ -1950,14 +1950,21 @@ public class BasicInvocationHandler
      * Writes a JWT compact-serialization string as a 4-byte big-endian length
      * prefix followed by the UTF-8 bytes.
      *
+     * <p>A 4-byte length prefix is used (rather than the 2-byte prefix used for
+     * principal strings) to match the 4-byte prefix expected by
+     * {@link BasicInvocationDispatcher#readJwtBytes}, which caps accepted tokens
+     * at {@code 65 535} UTF-8 bytes.  Tokens longer than this limit are rejected
+     * here to prevent the receiver from rejecting them after wasting I/O.
+     *
      * @throws IOException if the UTF-8 encoding of {@code jwt} exceeds
-     *         {@code 0xFFFF} bytes (same cap as {@link #writeUtf8Prefixed})
+     *         65 535 bytes
      */
     private static void writeJwtBytes(OutputStream out, String jwt) throws IOException {
         byte[] bytes = jwt.getBytes(StandardCharsets.UTF_8);
         if (bytes.length > 0xFFFF) {
             throw new IOException(
-                "JWT token too long for wire encoding (" + bytes.length + " UTF-8 bytes)");
+                "JWT token too long for wire encoding (" + bytes.length + " UTF-8 bytes,"
+                + " maximum is 65535)");
         }
         out.write((bytes.length >>> 24) & 0xFF);
         out.write((bytes.length >>> 16) & 0xFF);

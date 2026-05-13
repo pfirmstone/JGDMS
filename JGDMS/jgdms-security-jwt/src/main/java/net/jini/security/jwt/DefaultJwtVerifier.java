@@ -174,10 +174,28 @@ public final class DefaultJwtVerifier implements JwtVerifier {
         // aud — must contain configured audience
         if (expectedAudience != null) {
             String aud = payload.get("aud");
-            if (aud == null || !aud.contains(expectedAudience))
+            if (aud == null || !containsExactAudience(aud, expectedAudience))
                 throw new JwtVerificationException(
                         "JWT audience mismatch: expected '" + expectedAudience
                                 + "', got '" + aud + "'");
         }
+    }
+
+    /**
+     * Returns {@code true} if {@code rawAud} contains {@code expected} as an
+     * exact element.  {@code JwtValidator.parseClaimsJson} represents a JSON
+     * {@code aud} array as a comma-separated string; a scalar {@code aud} is
+     * stored as-is.  This method handles both by splitting on {@code ,} and
+     * comparing each trimmed token with {@link String#equals}.
+     *
+     * <p>Exact matching prevents false positives: {@code "example.com"} would
+     * NOT match {@code "notexample.com"} even though it is a substring.
+     */
+    private static boolean containsExactAudience(String rawAud, String expected) {
+        if (rawAud.equals(expected)) return true;
+        for (String part : rawAud.split(",", -1)) {
+            if (part.trim().equals(expected)) return true;
+        }
+        return false;
     }
 }

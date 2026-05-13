@@ -1994,7 +1994,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		| ((b2 & 0xFF) << 16)
 		| ((b3 & 0xFF) << 8)
 		| (b4 & 0xFF);
-	if (len < 0 || len > MAX_JWT_BYTES) {
+	if (len > MAX_JWT_BYTES) {
 	    throw new IOException("JWT token length " + len
 		    + " exceeds maximum of " + MAX_JWT_BYTES + " bytes");
 	}
