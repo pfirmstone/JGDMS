@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.WeakHashMap;
 import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
+import net.jini.core.entry.SerialEntry;
 
 /**
  * An abstract implementation of {@link Entry} that provides useful
@@ -230,7 +231,12 @@ public abstract class AbstractEntry implements CloneableEntry {
     private static WeakHashMap fieldArrays;
 
     /**
-     * Calculate the list of usable fields for this type
+     * Calculate the list of usable fields for this type.
+     * <p>
+     * For {@link SerialEntry @SerialEntry} classes, {@code final} fields are
+     * also included because those classes assign their fields inside a real
+     * constructor (satisfying the JMM freeze action), making {@code final}
+     * fields safe and immutable.
      */
     private static Field[] fieldInfo(Entry entry) {
 	Field[] fields = null;
@@ -250,9 +256,15 @@ public abstract class AbstractEntry implements CloneableEntry {
 	 * a smaller array because we must skip some fields.  If so, we
 	 * create an ArrayList and add the unskippable fields to it, and
 	 * then fetch the array back out of it.
+	 *
+	 * For @SerialEntry classes, final fields are legitimate (they are
+	 * written in a real constructor), so we do not skip them.
 	 */
-	final int SKIP_MODIFIERS =
-	    (Modifier.STATIC | Modifier.TRANSIENT | Modifier.FINAL);
+	final boolean isSerialEntry =
+	    entry.getClass().isAnnotationPresent(SerialEntry.class);
+	final int SKIP_MODIFIERS = isSerialEntry
+	    ? (Modifier.STATIC | Modifier.TRANSIENT)
+	    : (Modifier.STATIC | Modifier.TRANSIENT | Modifier.FINAL);
 	fields = entry.getClass().getFields();
 	ArrayList usable = null;
 	for (int i = 0; i < fields.length; i++) {

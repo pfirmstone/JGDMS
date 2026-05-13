@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v37)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v38)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -12,7 +12,7 @@ and is the forward-reference added in §19 of that document.
 
 ---
 
-## v37 Change Summary
+## v38 Change Summary
 
 **Checked off completed items — no logic changes**
 
@@ -21,7 +21,34 @@ and is the forward-reference added in §19 of that document.
   opt-in)` to reflect Work Item 44 completion.
 - §5 Phase 3.1 priority changed from `🟡 Sprint 4` to `✅ Completed` to match the
   ✅ already present on Work Item 44 in §6.
-- Version header bumped from v36 → v37.
+- Version header bumped from v37 → v38.
+
+---
+
+## v37 Change Summary
+
+**§4.4 Weakness 5 — Extended with Option E (event-sourced read replicas) + §4.4.1 deep-dive**
+
+Following the observation that VerdictRegistry already has a complete Jini event
+infrastructure (`VerdictEvent`, `VerdictEventLease`, `registerVerdictListener`,
+`notifyListeners`), a deep-dive investigation was conducted into whether the
+existing event model could be used as a replication channel, significantly reducing
+the infrastructure complexity of the original Option C ("HA cluster").
+
+The investigation confirmed that this is viable.  Every published `RegistryVerdict`
+is already:
+
+1. **Cryptographically signed** by the primary's private key.
+2. **Serialised and delivered** to remote listeners via `VerdictEvent` using standard
+   Jini `RemoteEventListener` / `Lease` / `LeaseRenewalManager` infrastructure.
+3. **Self-authenticating**: a replica that receives a `VerdictEvent` can verify the
+   embedded DER signature against the primary's public key, independently of any
+   consensus protocol.
+
+Because write authority is inherently asymmetric (only the primary holds the private
+signing key), distributed consensus is not required.  The event stream *is* the
+replication channel.  A new Option E has been added to the §4.4 options table and is
+described in detail in §4.4.1.  Work Item 57 tracks the implementation.
 
 ---
 
@@ -397,11 +424,160 @@ during a registry outage.
 |---|---|---|
 | **A** — In-memory signed-verdict cache with configurable TTL | Outage only affects new codebases never seen before; `RegistryVerdict` already signed (offline integrity check); small, well-scoped change | Lost on JVM restart; stale SAFE verdicts cannot be invalidated during outage |
 | **B** — Persistent local verdict cache (disk) | Survives JVM restart; offline operation | Filesystem becomes security-sensitive; async disk I/O needed |
-| **C** — VerdictRegistry HA cluster | Eliminates single point of failure | Significant infrastructure complexity; out of JGDMS codebase scope |
+| **C** — VerdictRegistry HA cluster (full distributed consensus) | Eliminates single point of failure entirely including new verdict issuance | Significant infrastructure complexity (Raft/Paxos, ZooKeeper/etcd, or equivalent); all nodes must hold the private signing key; out of JGDMS codebase scope |
 | **D** — Grace period: retry with exponential backoff before failing | Handles transient connectivity blips; small code change | Blocks proxy-loading thread during retry window (acceptable with virtual threads) |
+| **E** — Event-sourced read replicas: primary publishes `VerdictEvent` stream; replicas verify signature and cache; clients fall back to replicas on primary `RemoteException` | No consensus protocol; private key stays on primary only; self-authenticating verdicts (DER signature already on every `RegistryVerdict`); entirely within JGDMS codebase using existing `VerdictEvent` / `RemoteEventListener` / `LeaseRenewalManager` infrastructure; N-replica scale-out by starting a new JVM; replicas reconnect via burst-delivery on re-registration | Primary remains write SPOF for new verdict issuance (BAE/reporters still target primary exclusively); new `registerGlobalVerdictListener()` API needed (interface extension); brief startup bootstrap window; stale verdicts possible for JARs reclassified during primary outage |
 
-**Recommendation:** Option A (in-memory signed-verdict cache) + Option D (retry backoff).
-Option B is the follow-on for hardened deployments. See Work Items 45, 48.
+**Recommendation:** Option A (in-memory signed-verdict cache) + Option D (retry backoff) for
+near-term availability improvements. Option E (event-sourced read replicas) is the recommended
+server-side HA path when infrastructure investment is justified; it eliminates Option C's
+consensus-protocol complexity while remaining entirely within the JGDMS codebase. Option B is
+the follow-on for hardened persistent caching at the client. See Work Items 45, 48, 57.
+
+---
+
+### 4.4.1 Option E Deep Dive — Event-Sourced Read Replicas
+
+#### Core Insight
+
+The VerdictRegistry event infrastructure already provides the necessary building blocks:
+
+- `VerdictEvent` is an `@AtomicSerial` `RemoteEvent` subclass carrying a complete, signed
+  `RegistryVerdict`.
+- `VerdictRegistryImpl.notifyListeners()` fans out every newly published verdict to all
+  registered `RemoteEventListener` instances.
+- `VerdictEventLease` / `LeaseRenewalManager` keep subscriptions alive transparently.
+- Every `RegistryVerdict` carries the primary's DER signature, making it self-authenticating
+  without any consensus channel.
+
+Because the private signing key lives only on the primary, write authority is
+structurally asymmetric: only the primary can produce a valid `RegistryVerdict`.
+Replicas verify each received verdict's signature before caching it — a compromised
+event delivery path cannot inject a false SAFE verdict.
+
+#### Architecture
+
+```
+BAE nodes  ──submitReport/submitVerdict──→  PRIMARY (VerdictRegistryImpl)
+Phoenix    ──reportCrash───────────────────→   │  (private key, quorum logic,
+Telemetry  ──reportPinning─────────────────→   │   votes, ReliableLog)
+                                               │
+                           ┌───────────────────┴────────────────────┐
+                           │     VerdictEvent stream (Jini events)  │
+                           ▼                                        ▼
+             Replica 1 (ReadReplicaVerdictRegistry)    Replica 2 (...)
+             - verifies DER signature on receipt        - verifies DER signature
+             - publishedVerdicts map                    - publishedVerdicts map
+             - hashPublishedVerdicts map                - hashPublishedVerdicts map
+             - serves getVerdict / getVerdictByHash     - serves get*
+
+Client A ──getVerdictByHash──→ Primary  (normal path)
+Client B ──getVerdictByHash──→ Replica 1 (fallback when Primary unreachable)
+```
+
+**Write path:** All write methods (`registerAnalysisEngine`, `revokeAnalysisEngine`,
+`submitVerdict`, `reportCrash`, `reportPinning`, `submitReport`) go exclusively to the
+primary. BAE nodes and reporters are configured with the primary's address.
+
+**Read path:** `getVerdict()` and `getVerdictByHash()` can be served by any node (primary
+or any replica), because they are pure read operations against immutable signed objects.
+
+#### Required Code Changes
+
+**1. New `registerGlobalVerdictListener` method on the `VerdictRegistry` interface**
+
+```java
+// In VerdictRegistry (Remote interface)
+EventRegistration registerGlobalVerdictListener(
+    RemoteEventListener listener,
+    MarshalledInstance handback,
+    long leaseDuration) throws RemoteException;
+```
+
+In `VerdictRegistryImpl`, this stores a `ListenerRegistration` with `codebaseKey = null`
+(wildcard sentinel). `notifyListeners()` is extended to fan out to wildcard registrations
+as well as codebase-specific ones. On registration, all entries in `publishedVerdicts` and
+`hashPublishedVerdicts` are delivered immediately as a burst so the replica reaches full
+consistency without a separate bulk-fetch RPC call.
+
+This is an additive interface extension that requires updating `VerdictRegistryProxy`,
+`ConstrainableVerdictRegistryProxy`, `VerdictRegistryImpl`, and
+`ActivatableVerdictRegistryImpl`.
+
+**2. New `ReadReplicaVerdictRegistry` service class**
+
+Fields:
+- `publishedVerdicts`: `ConcurrentHashMap<String, RegistryVerdict>` (URL-keyed)
+- `hashPublishedVerdicts`: `ConcurrentHashMap<String, RegistryVerdict>` (hash-keyed)
+- `primaryRef`: exported `VerdictRegistry` proxy (discovered from registrar)
+- `primaryPublicKey`: `PublicKey` used to verify each incoming `RegistryVerdict` signature
+- `leaseRenewalManager`: keeps the global subscription lease alive
+
+Startup sequence:
+1. Discover the primary `VerdictRegistry` from the Jini lookup service (by service UUID
+   attribute or `ServiceType`).
+2. Call `primary.registerGlobalVerdictListener(self, null, Lease.ANY)`.
+3. Receive the burst of all currently published verdicts as immediate `VerdictEvent`
+   deliveries; set `ready = true` after the `EventRegistration` is returned (i.e., after
+   the immediate delivery burst has been submitted — callers waiting on `ready` are not
+   directed to the replica until then).
+
+On `VerdictEvent` received:
+1. Extract the `RegistryVerdict`.
+2. Verify the embedded DER signature against `primaryPublicKey`; reject silently on
+   failure (prevents injection via a compromised event delivery path).
+3. Store by `codebaseKey` in `publishedVerdicts` and by content hash in
+   `hashPublishedVerdicts` (the synthetic `urn:sha256:` URN form already embeds the hash).
+
+Write methods: throw `UnsupportedOperationException` with a clear message directing the
+caller to the primary. BAE nodes must always target the primary directly.
+
+Read methods (`getVerdict`, `getVerdictByHash`): served lock-free from the local maps.
+
+**3. `VerdictRegistryHolder` fallback list**
+
+Change from a single `volatile VerdictRegistry instance` to an ordered
+`volatile VerdictRegistry[] instances`. In `checkVerdictForJar()`, try each proxy in order,
+moving to the next on `RemoteException`. A single-element list is backward compatible.
+
+#### Pros in Detail
+
+| Property | Notes |
+|---|---|
+| No consensus protocol | Write authority is asymmetric by construction (private key on primary only) |
+| Private key on one node | Attack surface for the most critical secret is one JVM; replicas hold only public information |
+| Self-authenticating replication | Signature verification on every received `VerdictEvent` prevents injection attacks even over a compromised event channel |
+| Reuses existing infrastructure | `VerdictEvent`, `VerdictEventLease`, `AbstractLease`, `LeaseRenewalManager` — no new protocol, no external dependencies |
+| N-replica scale-out | Starting a new `ReadReplicaVerdictRegistry` JVM and pointing it at the primary is all that is needed; primary requires no reconfiguration |
+| Self-healing after disconnect | On re-subscription the burst of all current verdicts restores full consistency; no manual intervention or snapshot transfer |
+| Read-path availability survives primary outage | Replicas serve `getVerdict`/`getVerdictByHash` from their local caches indefinitely (no TTL expiry) during a sustained primary outage |
+| Complementary to Options A and D | Option D catches transient blips; Option A caches on the client; Option E is the server-side HA layer between them |
+
+#### Cons in Detail
+
+| Property | Notes |
+|---|---|
+| Write SPOF remains | New codebases cannot receive their first verdict during a primary outage; BAE submissions and crash/pinning reports are lost until the primary recovers |
+| Interface extension | `VerdictRegistry` is a `Remote` interface; adding `registerGlobalVerdictListener` requires updating all implementations (proxy, impl, activatable wrapper) and any test mocks |
+| Bootstrap window | Between replica startup and receipt of the initial burst, `getVerdict`/`getVerdictByHash` return `null`; a `ready` flag must gate client traffic |
+| Stale verdicts during outage | If a JAR is reclassified as DANGEROUS while the primary is down, replicas continue to serve the old SAFE verdict until the primary recovers and emits a new `VerdictEvent`. Each served verdict carries a cryptographic timestamp so clients know how old the classification is. |
+| No vote-state replication | Replicas hold only published verdicts, not the underlying vote accumulator. Disaster-recovery (standing up a new primary after permanent primary loss) still requires restoring from the `ReliableLog` snapshot |
+| Lease liveness coupling | If `LeaseRenewalManager` fails to renew the subscription lease (replica overload), the primary evicts the subscription silently; a watchdog or periodic subscription heartbeat check is needed |
+
+#### Comparison with Original Option C
+
+| Dimension | Original Option C (HA cluster) | Option E (event-sourced replicas) |
+|---|---|---|
+| Consensus protocol | Required (Raft/Paxos) | **Not required** |
+| Private key distribution | All cluster nodes need the key | **Primary only** — stronger security |
+| Write-path HA | All nodes accept writes | Primary only (write SPOF remains) |
+| Read-path HA | All nodes | ✅ All nodes |
+| Infrastructure dependency | ZooKeeper/etcd or custom Raft | ✅ Existing Jini/JGDMS infrastructure |
+| Codebase scope | External infrastructure | ✅ Within JGDMS codebase |
+| Stale verdict risk | None | Yes, during primary outage |
+| New codebase during outage | Handled (all nodes can issue) | ❌ Blocked (primary needed) |
+| Implementation effort | Very high | Moderate (new API method + replica class + holder fallback list) |
+| Self-validating replication | No (trust cluster protocol) | ✅ Yes (DER signature on each verdict) |
 
 ---
 
@@ -616,9 +792,12 @@ These extend the work-item table in §12 of
 | **55** | `DiscoveryCredentialProvider` — interface + `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder` | 3.2 | 🔲 Not started |
 | **56** | Pack200 semaphore — `Semaphore(4)` (configurable) around JAR download + decompression in `PreferredProxyCodebaseProvider.resolve()` | 1.5 | 🔲 Not started |
 
+| **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | 🔲 Not started |
+
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a future AI agent to
-continue without loss of context. This is version 37, updated to check off completed work items
+continue without loss of context. This is version 38, updated to check off completed work items
 (§3 Weakness 2 mitigation text; §5 Phase 3.1 marked ✅ Completed) following Work Item 44
-completion (conversation dated 2026-05-13).*
+completion, and to add the Option E deep-dive (event-sourced read replicas for Weakness 5 —
+VerdictRegistry outage) and Work Item 57 (conversation dated 2026-05-13).*
