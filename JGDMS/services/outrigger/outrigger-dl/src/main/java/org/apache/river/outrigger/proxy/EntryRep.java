@@ -36,6 +36,7 @@ import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.rmi.MarshalException;
@@ -47,6 +48,9 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.WeakHashMap;
 import java.util.logging.Logger;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.SerialEntry;
 
 /**
  * An <code>EntryRep</code> object contains a packaged
@@ -180,48 +184,103 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 	// recursively, all superclasses
 	//
 	if (hash == null) {
-	    try {
-		Field[] fields = getFields(clazz);
-		MessageDigest md = MessageDigest.getInstance("SHA");
-		DataOutputStream out =
-		    new DataOutputStream(
-			new DigestOutputStream(new ByteArrayOutputStream(127),
-					       md));
-		Class c = clazz.getSuperclass();
-		if (c != Object.class)
-		    // recursive call
-		    out.writeLong(findHash(c, marshaling).longValue()); 
+	    if (clazz.isAnnotationPresent(SerialEntry.class)) {
+		hash = computeSerialEntryHash(clazz, marshaling);
+	    } else {
+		try {
+		    Field[] fields = getFields(clazz);
+		    MessageDigest md = MessageDigest.getInstance("SHA");
+		    DataOutputStream out =
+			new DataOutputStream(
+			    new DigestOutputStream(new ByteArrayOutputStream(127),
+						   md));
+		    Class c = clazz.getSuperclass();
+		    if (c != Object.class)
+			// recursive call
+			out.writeLong(findHash(c, marshaling).longValue()); 
 
-		// Hash only usable fields, this means that we do not
-		// detect changes in non-usable fields. This should be ok
-		// since those fields do not move between space and client.
-		// 
-		for (int i = 0; i < fields.length; i++) {
-		    if (!usableField(fields[i]))
-			continue;
-		    out.writeUTF(fields[i].getName());
-		    out.writeUTF(fields[i].getType().getName());
+		    // Hash only usable fields, this means that we do not
+		    // detect changes in non-usable fields. This should be ok
+		    // since those fields do not move between space and client.
+		    // 
+		    for (int i = 0; i < fields.length; i++) {
+			if (!usableField(fields[i]))
+			    continue;
+			out.writeUTF(fields[i].getName());
+			out.writeUTF(fields[i].getType().getName());
+		    }
+		    out.flush();
+		    byte[] digest = md.digest();
+		    long h = 0;
+		    for (int i = Math.min(8, digest.length); --i >= 0; ) {
+			h += ((long)(digest[i] & 0xFF)) << (i * 8);
+		    }
+		    hash = Long.valueOf(h);
+		} catch (Exception e) {
+		    if (marshaling)
+			throw throwNewMarshalException(
+			   "Exception calculating entry class hash for " +
+			   clazz, e);
+		    else 
+			throw throwNewUnusableEntryException(
+			   "Exception calculating entry class hash for " +
+			   clazz, e);
 		}
-		out.flush();
-		byte[] digest = md.digest();
-		long h = 0;
-		for (int i = Math.min(8, digest.length); --i >= 0; ) {
-		    h += ((long)(digest[i] & 0xFF)) << (i * 8);
-		}
-		hash = Long.valueOf(h);
-	    } catch (Exception e) {
-		if (marshaling)
-		    throw throwNewMarshalException(
-		       "Exception calculating entry class hash for " +
-		       clazz, e);
-		else 
-		    throw throwNewUnusableEntryException(
-		       "Exception calculating entry class hash for " +
-		       clazz, e);
 	    }
 	    classHashes.put(clazz, hash);
 	}
 	return hash;
+    }
+
+    /**
+     * Computes the SHA-256 hash for a {@code @SerialEntry} class by invoking
+     * its {@code entryForm()} method and hashing the wire field names and
+     * types.  SHA-256 is used in preference to SHA-1 for forward compatibility.
+     */
+    static private Long computeSerialEntryHash(Class clazz, boolean marshaling)
+	throws MarshalException, UnusableEntryException
+    {
+	try {
+	    Method entryFormMethod = clazz.getMethod("entryForm");
+	    EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
+	    if (wireFields == null || wireFields.length == 0) {
+		if (marshaling)
+		    throw throwNewMarshalException(
+			clazz.getName() + ".entryForm() returned null or empty array", null);
+		else
+		    throw throwNewUnusableEntryException(
+			clazz.getName() + ".entryForm() returned null or empty array", null);
+	    }
+	    MessageDigest md = MessageDigest.getInstance("SHA-256");
+	    DataOutputStream out =
+		new DataOutputStream(
+		    new DigestOutputStream(new ByteArrayOutputStream(127), md));
+	    Class superclass = clazz.getSuperclass();
+	    if (superclass != null && superclass != Object.class) {
+		out.writeLong(findHash(superclass, marshaling).longValue());
+	    }
+	    out.writeUTF(clazz.getName());
+	    for (EntryWireField wf : wireFields) {
+		out.writeUTF(wf.getName());
+		out.writeUTF(wf.getType().getName());
+	    }
+	    out.flush();
+	    byte[] digest = md.digest();
+	    long h = 0;
+	    for (int i = Math.min(8, digest.length); --i >= 0; ) {
+		h += ((long)(digest[i] & 0xFF)) << (i * 8);
+	    }
+	    return Long.valueOf(h);
+	} catch (MarshalException | UnusableEntryException e) {
+	    throw e;
+	} catch (Exception e) {
+	    if (marshaling)
+		throw throwNewMarshalException(
+		    "Exception calculating @SerialEntry hash for " + clazz, e);
+	    else
+		throw throwNewUnusableEntryException(
+		    "Exception calculating @SerialEntry hash for " + clazz, e);
+	}
     }
 
     /**
@@ -239,56 +298,60 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 	className = realClass.getName();
 	codebase = CodebaseProvider.getClassAnnotation(realClass);
 
-	/*
-	 * Build up the per-field and superclass information through
-	 * the reflection API.
-	 */
-	final Field[] fields = getFields(realClass);
-	int numFields = fields.length;
+	if (realClass.isAnnotationPresent(SerialEntry.class)) {
+	    this.values = marshalSerialEntry(realClass, entry);
+	} else {
+	    /*
+	     * Build up the per-field and superclass information through
+	     * the reflection API.
+	     */
+	    final Field[] fields = getFields(realClass);
+	    int numFields = fields.length;
 
-	// collect the usable field values in vals[0..nvals-1]
-	MarshalledInstance[] vals = new MarshalledInstance[numFields];
-	int nvals = 0;
+	    // collect the usable field values in vals[0..nvals-1]
+	    MarshalledInstance[] vals = new MarshalledInstance[numFields];
+	    int nvals = 0;
 
-	for (int fnum = 0; fnum < fields.length; fnum++) {
-	    final Field field = fields[fnum];
-	    if (!usableField(field))
-		continue;
-		
-	    final Object fieldValue;
-	    try {
-		fieldValue = field.get(entry);
-	    } catch (IllegalAccessException e) {
-		/* In general between using getFields() and 
-		 * ensureValidClass this should never happen, however
-		 * there appear to be a few screw cases and
-		 * IllegalArgumentException seems appropriate.
-		 */
-		throw throwRuntime(
-		    new IllegalArgumentException("Couldn't access field " 
-			    + field, e)
-		);
-	    }
-
-	    if (fieldValue == null) {
-		vals[nvals] = null;
-	    } else {
+	    for (int fnum = 0; fnum < fields.length; fnum++) {
+		final Field field = fields[fnum];
+		if (!usableField(field))
+		    continue;
+		    
+		final Object fieldValue;
 		try {
-		    vals[nvals] = new MarshalledInstance(fieldValue);
-		} catch (IOException e) {
-		    throw throwNewMarshalException(
-		        "Can't marshal field " + field + " with value " +
-			fieldValue, e);
+		    fieldValue = field.get(entry);
+		} catch (IllegalAccessException e) {
+		    /* In general between using getFields() and 
+		     * ensureValidClass this should never happen, however
+		     * there appear to be a few screw cases and
+		     * IllegalArgumentException seems appropriate.
+		     */
+		    throw throwRuntime(
+			new IllegalArgumentException("Couldn't access field " 
+				+ field, e)
+		    );
 		}
+
+		if (fieldValue == null) {
+		    vals[nvals] = null;
+		} else {
+		    try {
+			vals[nvals] = new MarshalledInstance(fieldValue);
+		    } catch (IOException e) {
+			throw throwNewMarshalException(
+			    "Can't marshal field " + field + " with value " +
+			    fieldValue, e);
+		    }
+		}
+
+		nvals++;
 	    }
 
-	    nvals++;
+	    // copy the vals with the correct length
+	    MarshalledInstance [] values = new MarshalledInstance[nvals];
+	    System.arraycopy(vals, 0, values, 0, nvals);
+	    this.values = values; // safe publication
 	}
-
-	// copy the vals with the correct length
-	MarshalledInstance [] values = new MarshalledInstance[nvals];
-	System.arraycopy(vals, 0, values, 0, nvals);
-        this.values = values; // safe publication
         
 	try {
 	    hash = findHash(realClass, true).longValue();
@@ -320,6 +383,50 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 	    hashes[i] = (shashes.get(i)).longValue();
 	}
         this.hashes = hashes; // safe publication.
+    }
+
+    /**
+     * Marshals a {@code @SerialEntry} instance via its static
+     * {@code serialize(PutEntryArg, T)} method.
+     */
+    private static MarshalledInstance[] marshalSerialEntry(Class realClass, Entry entry)
+	    throws MarshalException {
+	try {
+	    Method entryFormMethod = realClass.getMethod("entryForm");
+	    EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
+	    OutriggerPutEntryArgImpl putArg = new OutriggerPutEntryArgImpl(wireFields);
+	    Method serializeMethod = realClass.getMethod("serialize",
+		net.jini.core.entry.PutEntryArg.class, realClass);
+	    serializeMethod.invoke(null, putArg, entry);
+	    Object[] rawValues = putArg.getResult();
+	    MarshalledInstance[] values = new MarshalledInstance[rawValues.length];
+	    for (int i = 0; i < rawValues.length; i++) {
+		Object val = rawValues[i];
+		if (val != null) {
+		    try {
+			values[i] = new MarshalledInstance(val);
+		    } catch (IOException e) {
+			throw throwNewMarshalException(
+			    "Can't marshal @SerialEntry field " + wireFields[i].getName()
+			    + " with value " + val, e);
+		    }
+		}
+	    }
+	    return values;
+	} catch (MarshalException e) {
+	    throw e;
+	} catch (InvocationTargetException e) {
+	    Throwable cause = e.getCause();
+	    if (cause instanceof IOException)
+		throw throwNewMarshalException(
+		    "IOException during " + realClass.getName() + ".serialize()",
+		    (IOException) cause);
+	    throw throwNewMarshalException(
+		"Exception during " + realClass.getName() + ".serialize()", e);
+	} catch (Exception e) {
+	    throw throwNewMarshalException(
+		"Cannot marshal @SerialEntry " + realClass.getName(), e);
+	}
     }
 
     /**
@@ -395,6 +502,10 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     /**
      * Ensure that the entry class is valid, that is, that it has appropriate
      * access.  If not, throw <code>IllegalArgumentException</code>.
+     * <p>
+     * For {@link SerialEntry @SerialEntry} classes, a public
+     * {@code (GetEntryArg)} constructor is required instead of a no-arg
+     * constructor.
      */
     private static void ensureValidClass(Class c) {
 	boolean ctorOK = false;
@@ -403,16 +514,23 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 		throw throwRuntime(new IllegalArgumentException(
 		    "entry class " + c.getName() + " not public"));
 	    }
-	    Constructor ctor = c.getConstructor(noArg);
-	    ctorOK = Modifier.isPublic(ctor.getModifiers());
+	    if (c.isAnnotationPresent(SerialEntry.class)) {
+		Constructor ctor = c.getConstructor(GetEntryArg.class);
+		ctorOK = Modifier.isPublic(ctor.getModifiers());
+	    } else {
+		Constructor ctor = c.getConstructor(noArg);
+		ctorOK = Modifier.isPublic(ctor.getModifiers());
+	    }
 	} catch (NoSuchMethodException e) {
 	    ctorOK = false;
 	} catch (SecurityException e) {
 	    ctorOK = false;
 	}
 	if (!ctorOK) {
-	    throw throwRuntime(new IllegalArgumentException("entry class " +
-		c.getName() +" needs public no-arg constructor"));
+	    String msg = c.isAnnotationPresent(SerialEntry.class)
+		? "entry class " + c.getName() + " needs public (GetEntryArg) constructor"
+		: "entry class " + c.getName() + " needs public no-arg constructor";
+	    throw throwRuntime(new IllegalArgumentException(msg));
 	}
     }
 
@@ -482,6 +600,10 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
                 if (findHash(realClass, false).longValue() != hash)
                     throw throwNewUnusableEntryException(
                         new IncompatibleClassChangeError(realClass + " changed"));
+
+		if (realClass.isAnnotationPresent(SerialEntry.class)) {
+		    return entryViaSerialEntry(realClass);
+		}
 
 		try {
 		    entryObj = (Entry) realClass.getDeclaredConstructor().newInstance();
@@ -580,6 +702,36 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 	} catch (MarshalException e) {
 	    // because we call findHash() w/ false, should never happen
 	    throw new AssertionError(e);
+	}
+    }
+
+    /**
+     * Constructs a {@link SerialEntry @SerialEntry} instance using its
+     * {@code (GetEntryArg)} constructor, unmarshalling the stored
+     * {@link MarshalledInstance} values first.
+     */
+    private Entry entryViaSerialEntry(Class realClass)
+	    throws UnusableEntryException {
+	try {
+	    Method entryFormMethod = realClass.getMethod("entryForm");
+	    EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
+	    Object[] rawValues = new Object[wireFields.length];
+	    for (int i = 0; i < wireFields.length && i < values.length; i++) {
+		MarshalledInstance mi = values[i];
+		if (mi != null) {
+		    try {
+			rawValues[i] = mi.get(integrity);
+		    } catch (Throwable e) {
+			rawValues[i] = null;
+		    }
+		}
+	    }
+	    GetEntryArg getArg = new OutriggerGetEntryArgImpl(wireFields, rawValues);
+	    Constructor ctor = realClass.getConstructor(GetEntryArg.class);
+	    return (Entry) ctor.newInstance(getArg);
+	} catch (Exception e) {
+	    throw throwNewUnusableEntryException(
+		"Exception constructing @SerialEntry " + realClass.getName(), e);
 	}
     }
 

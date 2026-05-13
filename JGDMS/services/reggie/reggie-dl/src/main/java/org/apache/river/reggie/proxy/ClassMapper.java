@@ -24,6 +24,8 @@ import java.util.Comparator;
 import java.util.WeakHashMap;
 import java.lang.ref.SoftReference;
 import java.rmi.MarshalException;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.SerialEntry;
 
 /**
  * Maps Class to ServiceType/Base, Class to EntryClass/Base, and Class to
@@ -138,12 +140,24 @@ class ClassMapper {
 		    throw new IllegalArgumentException("entry class " +
 						       cls.getName() +
 						       " is not public");
-		try {
-		    cls.getConstructor(noArg);
-		} catch (NoSuchMethodException e) {
-		    throw new IllegalArgumentException("entry class " +
-						       cls.getName() +
-			        " does not have a public no-arg constructor");
+		if (cls.isAnnotationPresent(SerialEntry.class)) {
+		    // @SerialEntry classes use a (GetEntryArg) deserialization
+		    // constructor; a no-arg constructor is not required
+		    try {
+			cls.getConstructor(GetEntryArg.class);
+		    } catch (NoSuchMethodException e) {
+			throw new IllegalArgumentException("@SerialEntry class "
+			    + cls.getName()
+			    + " does not have a public (GetEntryArg) constructor");
+		    }
+		} else {
+		    try {
+			cls.getConstructor(noArg);
+		    } catch (NoSuchMethodException e) {
+			throw new IllegalArgumentException("entry class " +
+							   cls.getName() +
+				" does not have a public no-arg constructor");
+		    }
 		}
 	    }
 	    eclass = new EntryClassBase(
