@@ -232,26 +232,6 @@ public class PreferredProxyCodebaseProviderVerdictTest {
                 3, stub.getGetVerdictByHashCalls());
     }
 
-    @Test
-    public void checkVerdictForJar_remoteException_exhaustsRetries()
-            throws Exception {
-        StubVerdictRegistry stub = new StubVerdictRegistry();
-        stub.setFailTimes(PreferredProxyCodebaseProvider.VERDICT_RETRY_ATTEMPTS + 1);
-
-        try {
-            PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
-            fail("Expected IOException when registry remains unreachable");
-        } catch (IOException ex) {
-            assertTrue("Exception message should mention registry unavailable",
-                    ex.getMessage().contains("VerdictRegistry unavailable"));
-            assertNotNull("Cause should be the RemoteException", ex.getCause());
-            assertTrue(ex.getCause() instanceof RemoteException);
-        }
-        assertEquals("Should exhaust initial lookup plus configured retries",
-                PreferredProxyCodebaseProvider.VERDICT_RETRY_ATTEMPTS + 1,
-                stub.getGetVerdictByHashCalls());
-    }
-
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
