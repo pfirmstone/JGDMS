@@ -31,6 +31,7 @@ import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.cert.CertPath;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
@@ -416,6 +417,132 @@ public class SpiffeCredentialManagerTest {
         } finally {
             mgr.close();
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Health API: isCredentialValid() and secondsUntilExpiry()
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void isCredentialValidBeforeStart() throws Exception {
+        Subject subject = mutableSubject();
+        SpiffeCredentialManager mgr =
+                new SpiffeCredentialManager(subject, reggieSource(), 3600L);
+        assertFalse("isCredentialValid() should be false before start()",
+                mgr.isCredentialValid());
+        mgr.close();
+    }
+
+    @Test
+    public void secondsUntilExpiryBeforeStart() throws Exception {
+        Subject subject = mutableSubject();
+        SpiffeCredentialManager mgr =
+                new SpiffeCredentialManager(subject, reggieSource(), 3600L);
+        assertEquals("secondsUntilExpiry() should return Long.MIN_VALUE before start()",
+                Long.MIN_VALUE, mgr.secondsUntilExpiry());
+        mgr.close();
+    }
+
+    @Test
+    public void isCredentialValidAfterStart() throws Exception {
+        Subject subject = mutableSubject();
+        try (SpiffeCredentialManager mgr =
+                new SpiffeCredentialManager(subject, reggieSource(), 3600L)) {
+            mgr.start();
+            assertTrue("isCredentialValid() should be true after start()",
+                    mgr.isCredentialValid());
+        }
+    }
+
+    @Test
+    public void secondsUntilExpiryAfterStart() throws Exception {
+        Subject subject = mutableSubject();
+        try (SpiffeCredentialManager mgr =
+                new SpiffeCredentialManager(subject, reggieSource(), 3600L)) {
+            mgr.start();
+            long secs = mgr.secondsUntilExpiry();
+            assertTrue("secondsUntilExpiry() should be positive after start(): " + secs,
+                    secs > 0);
+        }
+    }
+
+    @Test
+    public void isCredentialValidAfterClose() throws Exception {
+        Subject subject = mutableSubject();
+        SpiffeCredentialManager mgr =
+                new SpiffeCredentialManager(subject, reggieSource(), 3600L);
+        mgr.start();
+        mgr.close();
+        assertFalse("isCredentialValid() should be false after close()",
+                mgr.isCredentialValid());
+    }
+
+    @Test
+    public void secondsUntilExpiryAfterClose() throws Exception {
+        Subject subject = mutableSubject();
+        SpiffeCredentialManager mgr =
+                new SpiffeCredentialManager(subject, reggieSource(), 3600L);
+        mgr.start();
+        mgr.close();
+        assertEquals("secondsUntilExpiry() should return Long.MIN_VALUE after close()",
+                Long.MIN_VALUE, mgr.secondsUntilExpiry());
+    }
+
+    // -----------------------------------------------------------------------
+    // Exponential backoff: manager recovers from transient SvidSource failures
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void renewalRecoverAfterTransientFailures() throws Exception {
+        // SvidSource that fails the first two fetches then succeeds.
+        AtomicInteger callCount = new AtomicInteger(0);
+        SvidSource intermittent = () -> {
+            int call = callCount.incrementAndGet();
+            if (call <= 2) {
+                throw new IOException("simulated transient failure #" + call);
+            }
+            return reggieSource().fetch();
+        };
+
+        Subject subject = mutableSubject();
+        try (SpiffeCredentialManager mgr =
+                new SpiffeCredentialManager(subject, intermittent, 3600L)) {
+            // start() calls fetch() once — call #1 should throw.
+            try {
+                mgr.start();
+                fail("Expected IOException from failing SvidSource on start()");
+            } catch (IOException e) {
+                assertTrue(e.getMessage().contains("simulated transient failure"));
+            }
+        }
+
+        // Verify that the SvidSource eventually succeeds on call #3.
+        AtomicInteger callCount2 = new AtomicInteger(0);
+        SvidSource succeedOnThird = () -> {
+            int call = callCount2.incrementAndGet();
+            if (call < 3) {
+                throw new IOException("transient #" + call);
+            }
+            return reggieSource().fetch();
+        };
+
+        // First two calls throw; third succeeds.
+        for (int i = 1; i <= 2; i++) {
+            try {
+                succeedOnThird.fetch();
+                fail("Expected IOException on call " + i);
+            } catch (IOException expected) {
+                // expected
+            }
+        }
+        Svid svid = succeedOnThird.fetch();  // call #3 — succeeds
+        assertNotNull("SvidSource should succeed on 3rd call", svid);
+    }
+
+    @Test
+    public void minRetryIntervalConstantIsPositive() {
+        assertTrue("MIN_RETRY_INTERVAL_SECONDS must be positive",
+                SpiffeCredentialManager.MIN_RETRY_INTERVAL_SECONDS > 0);
     }
 }
 

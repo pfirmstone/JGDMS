@@ -101,9 +101,18 @@ import javax.security.auth.x500.X500PrivateCredential;
  * <h2>Automatic rotation</h2>
  * <p>The manager schedules a background refresh task that fires at
  * {@code (svid_expiry - renewalLeadSeconds)} to refresh credentials before
- * they expire.  If a refresh attempt fails, the task is retried every
- * {@link #RETRY_INTERVAL_SECONDS} seconds.  The background thread is a
- * daemon thread so it does not prevent JVM shutdown.
+ * they expire.  If a refresh attempt fails, the task is retried with
+ * exponential backoff starting at {@link #MIN_RETRY_INTERVAL_SECONDS}, doubling
+ * on each failure and capped at {@code max(MIN_RETRY_INTERVAL_SECONDS,
+ * renewalLeadSeconds / 2)}.  A {@link Level#WARNING} log entry is emitted
+ * whenever a retry fires and the credential is within {@code renewalLeadSeconds}
+ * of expiry.  The background thread is a daemon virtual thread so it does not
+ * prevent JVM shutdown.
+ *
+ * <h2>Credential health API</h2>
+ * <p>Operators and monitoring code may call {@link #isCredentialValid()} and
+ * {@link #secondsUntilExpiry()} at any time to inspect the health of the
+ * managed SVID without acquiring any lock.
  *
  * <h2>Thread safety</h2>
  * <p>All credential updates are synchronised on the provided {@link Subject}
@@ -123,8 +132,8 @@ public final class SpiffeCredentialManager implements AutoCloseable {
     /** Default lead time (seconds) before SVID expiry to trigger renewal. */
     public static final long DEFAULT_RENEWAL_LEAD_SECONDS = 300L;
 
-    /** Retry interval (seconds) when a refresh attempt fails. */
-    private static final long RETRY_INTERVAL_SECONDS = 30L;
+    /** Minimum retry interval (seconds) when a refresh attempt fails. */
+    public static final long MIN_RETRY_INTERVAL_SECONDS = 30L;
 
     // -------------------------------------------------------------------------
     // State
@@ -137,6 +146,24 @@ public final class SpiffeCredentialManager implements AutoCloseable {
     private final AtomicBoolean closed  = new AtomicBoolean(false);
     private final AtomicBoolean started = new AtomicBoolean(false);
     private volatile ScheduledFuture<?> scheduledTask;
+
+    /**
+     * Current retry delay for exponential backoff in {@link #renewalTask()}.
+     * Starts at {@link #MIN_RETRY_INTERVAL_SECONDS}, doubles on each failure,
+     * and is capped at {@code max(MIN_RETRY_INTERVAL_SECONDS, renewalLeadSeconds / 2)}.
+     * Reset to {@link #MIN_RETRY_INTERVAL_SECONDS} after a successful refresh.
+     */
+    private volatile long currentRetryDelaySeconds = MIN_RETRY_INTERVAL_SECONDS;
+
+    /**
+     * Expiry timestamp of the SVID certificate most recently loaded into the
+     * managed {@link Subject}.  Written (inside {@code synchronized(subject)})
+     * by {@link #updateSubjectCredentials} and {@link #clearSubjectCredentials};
+     * read lock-free by the health-query methods {@link #isCredentialValid()}
+     * and {@link #secondsUntilExpiry()}.  {@code null} until the first
+     * successful SVID load and after {@link #close()}.
+     */
+    private volatile Date managedCertExpiry;
 
     /**
      * The set of {@link Principal} objects most recently added to the Subject
@@ -668,8 +695,45 @@ public final class SpiffeCredentialManager implements AutoCloseable {
     }
 
     // -------------------------------------------------------------------------
-    // Subject manipulation
+    // Credential health API
     // -------------------------------------------------------------------------
+
+    /**
+     * Returns {@code true} if the managed SVID has been loaded and has not
+     * yet expired according to the system clock.
+     *
+     * <p>This method is safe to call from any thread without synchronisation.
+     * It reads a single {@code volatile} field, so it never blocks.
+     *
+     * @return {@code true} if a valid (not-yet-expired) SVID is loaded;
+     *         {@code false} if no SVID has been loaded yet, if the SVID has
+     *         expired, or if this manager has been closed
+     */
+    public boolean isCredentialValid() {
+        Date expiry = managedCertExpiry;
+        return expiry != null && System.currentTimeMillis() < expiry.getTime();
+    }
+
+    /**
+     * Returns the number of seconds until the managed SVID expires.
+     *
+     * <p>This method is safe to call from any thread without synchronisation.
+     * It reads a single {@code volatile} field, so it never blocks.
+     *
+     * <p>A negative return value indicates the credential has already expired
+     * or that no credential is currently loaded.  Callers should also check
+     * {@link #isCredentialValid()} to distinguish "no credential loaded" from
+     * "credential is expired".
+     *
+     * @return seconds until SVID expiry; negative if expired or not loaded;
+     *         {@link Long#MIN_VALUE} if no SVID has been loaded
+     */
+    public long secondsUntilExpiry() {
+        Date expiry = managedCertExpiry;
+        if (expiry == null) return Long.MIN_VALUE;
+        return TimeUnit.MILLISECONDS.toSeconds(expiry.getTime() - System.currentTimeMillis());
+    }
+
 
     /**
      * Replaces the SVID credentials in the managed {@link Subject}.
@@ -725,6 +789,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
             managedCertPath          = svid.certPath;
             managedPrivateCredential = privateCredential;
             managedPrincipals        = newPrincipals;
+            managedCertExpiry        = leaf.getNotAfter();
         }
     }
 
@@ -740,6 +805,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
             }
             subject.getPrincipals().removeAll(managedPrincipals);
             managedPrincipals = Collections.emptySet();
+            managedCertExpiry = null;
         }
     }
 
@@ -773,19 +839,40 @@ public final class SpiffeCredentialManager implements AutoCloseable {
     }
 
     /**
-     * Background renewal task.  On failure, reschedules itself after
-     * {@link #RETRY_INTERVAL_SECONDS}.
+     * Background renewal task.  On failure, reschedules itself with
+     * exponential backoff starting at {@link #MIN_RETRY_INTERVAL_SECONDS},
+     * doubling on each successive failure up to a maximum of
+     * {@code max(MIN_RETRY_INTERVAL_SECONDS, renewalLeadSeconds / 2)} seconds.
+     * The retry delay is reset to {@link #MIN_RETRY_INTERVAL_SECONDS} after
+     * a successful refresh.
+     *
+     * <p>A {@link Level#WARNING} log entry is emitted on each retry when the
+     * remaining SVID lifetime is below {@code renewalLeadSeconds}, indicating
+     * that an ongoing SPIRE outage may soon cause authentication failures.
      */
     private void renewalTask() {
         if (closed.get()) return;
         try {
             refresh();
+            currentRetryDelaySeconds = MIN_RETRY_INTERVAL_SECONDS;
         } catch (Exception e) {
-            logger.log(Level.WARNING,
-                    "SVID refresh failed; retrying in " + RETRY_INTERVAL_SECONDS
-                    + " s", e);
-            scheduler.schedule(this::renewalTask,
-                    RETRY_INTERVAL_SECONDS, TimeUnit.SECONDS);
+            long maxDelay = Math.max(MIN_RETRY_INTERVAL_SECONDS, renewalLeadSeconds / 2);
+            long nextDelay = Math.min(currentRetryDelaySeconds * 2, maxDelay);
+            currentRetryDelaySeconds = nextDelay;
+
+            long secsLeft = secondsUntilExpiry();
+            if (secsLeft != Long.MIN_VALUE && secsLeft < renewalLeadSeconds) {
+                logger.log(Level.WARNING,
+                        "SVID refresh failed and credential expires in " + secsLeft
+                        + " s — SPIRE outage may cause authentication failures; "
+                        + "retrying in " + nextDelay + " s", e);
+            } else {
+                logger.log(Level.WARNING,
+                        "SVID refresh failed; retrying in " + nextDelay + " s", e);
+            }
+            if (!closed.get()) {
+                scheduler.schedule(this::renewalTask, nextDelay, TimeUnit.SECONDS);
+            }
         }
     }
 }

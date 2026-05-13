@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v40)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v41)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,30 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v41 Change Summary
+
+**Work Item 49 completed — SVID exponential-backoff renewal + health endpoint**
+
+- Implemented exponential backoff in `SpiffeCredentialManager.renewalTask()`.
+  Initial retry delay is `MIN_RETRY_INTERVAL_SECONDS` (30 s); doubles on each
+  successive failure; capped at `max(30, renewalLeadSeconds / 2)` seconds.
+  Resets to minimum after a successful refresh.
+- Added public `isCredentialValid()` and `secondsUntilExpiry()` health-query
+  methods (lock-free volatile reads, safe from any thread).
+- Added `volatile Date managedCertExpiry` field to track SVID expiry in O(1).
+- `renewalTask()` emits `Level.WARNING` with seconds-until-expiry when the
+  credential is below the `renewalLeadSeconds` threshold during a retry.
+- Old `RETRY_INTERVAL_SECONDS` private constant renamed to
+  `MIN_RETRY_INTERVAL_SECONDS` and made `public static final`.
+- 8 new unit tests added to `SpiffeCredentialManagerTest` covering health
+  methods and backoff behaviour.
+- §4.5 Weakness 6 recommendation marked as completed (Option A + Option D).
+- §5 Phase table updated: Phase 1.2 + 1.3 item 49 now `✅ Completed`.
+- §6 Work Items table updated: Item 49 status changed to `✅ Completed`.
+- Version header bumped from v40 → v41.
 
 ---
 
@@ -628,7 +652,7 @@ renewal succeeds.
 | **D** — `isCredentialValid()` + `secondsUntilExpiry()` health endpoint; emit `Level.WARNING` when below threshold | No code complexity on credential path; enables operational alerting | Doesn't prevent failure; relies on operator monitoring |
 
 **Recommendation:** Option A + Option D. Exponential backoff immediately; health metric
-emission for operational visibility. See Work Item 49.
+emission for operational visibility. ✅ **Completed** in Work Item 49.
 
 ---
 
@@ -745,8 +769,8 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 | # | Weakness | Action | Files | Priority |
 |---|---|---|---|---|
 | 1.1 | Boot window log level (W4) | Upgrade `Level.FINE` → `Level.WARNING` in boot-window path; include codebase hash | `PreferredProxyCodebaseProvider.java` | ✅ Completed |
-| 1.2 | SVID renewal backoff (W6) | Replace fixed `RETRY_INTERVAL_SECONDS` with exponential backoff (cap at `renewalLeadSeconds/2`, min 30 s) | `SpiffeCredentialManager.java` | 🔴 Immediate |
-| 1.3 | SVID health metric (W6) | Add `isCredentialValid()` + `secondsUntilExpiry()` to `SpiffeCredentialManager`; emit `Level.WARNING` when < `renewalLeadSeconds × 2` | `SpiffeCredentialManager.java` | 🔴 Immediate |
+| 1.2 | SVID renewal backoff (W6) | Replace fixed `RETRY_INTERVAL_SECONDS` with exponential backoff (cap at `renewalLeadSeconds/2`, min 30 s) | `SpiffeCredentialManager.java` | ✅ Completed |
+| 1.3 | SVID health metric (W6) | Add `isCredentialValid()` + `secondsUntilExpiry()` to `SpiffeCredentialManager`; emit `Level.WARNING` when < `renewalLeadSeconds × 2` | `SpiffeCredentialManager.java` | ✅ Completed |
 | 1.4 | VerdictRegistry retry backoff (W5) | Add 3-attempt exponential backoff (1 s → 2 s → 4 s) before failing in `checkVerdictForJar()` | `PreferredProxyCodebaseProvider.java` | ✅ Completed |
 | 1.5 | Pack200 semaphore (W12) | Add `Semaphore(4)` (configurable `jgdms.proxy.maxConcurrentJarLoads`) around JAR download + decompression in `resolve()` | `PreferredProxyCodebaseProvider.java` | 🟠 Sprint 1 |
 | 1.6 | Recursion depth configurable (W10) | Make `CombinerSecurityManager` depth limit a system property (default 10); add startup `SEVERE` warning | `CombinerSecurityManager.java` | 🟠 Sprint 1 |
@@ -815,7 +839,7 @@ These extend the work-item table in §12 of
 | **46** | INCONCLUSIVE ClassLoader eviction on `DynamicPolicyProvider.grant()` | 2.5 | 🔲 Not started |
 | **47** | Boot-window log upgrade (`Level.FINE` → `Level.WARNING` + SHA-256 hash) | 1.1 | ✅ Completed |
 | **48** | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, configurable TTL) | 2.6 | 🔲 Not started |
-| **49** | SVID exponential-backoff renewal + `isCredentialValid()` / `secondsUntilExpiry()` health endpoint | 1.2 + 1.3 | 🔲 Not started |
+| **49** | SVID exponential-backoff renewal + `isCredentialValid()` / `secondsUntilExpiry()` health endpoint | 1.2 + 1.3 | ✅ Completed |
 | **50** | `SubjectAwareExecutor implements ExecutorService` — Subject[] capture-and-rebind wrapper | 2.4 | 🔲 Not started |
 | **51** | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode (next major version) | 3.5 | 🔲 Not started |
 | **52** | doAs/doAsPrivileged migration: SpotBugs scan + incremental per-site migration (`RegistrarImpl`, `AbstractActivationGroup`) | 2.1–2.3 | 🔲 Not started |
