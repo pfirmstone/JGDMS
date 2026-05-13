@@ -86,7 +86,12 @@ import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.io.context.ClientUserSubject;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import net.jini.security.jwt.JwtVerificationException;
+import net.jini.security.jwt.JwtVerifier;
 import org.apache.river.api.io.AccessControlContextSerializer;
 
 /**
@@ -209,8 +214,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
         Set<String> allowed = Set.of(
             "javax.security.auth.x500.X500Principal",
             "javax.security.auth.kerberos.KerberosPrincipal",
-            "net.jini.security.principal.SpiffePrincipal",
-            "net.jini.security.principal.JwtPrincipal"
+            "net.jini.jeri.ssl.SpiffePrincipal",
+            "net.jini.security.jwt.JwtPrincipal"
         );
         Map<String, Constructor<? extends Principal>> ctorMap = new HashMap<>();
         for (String cname : allowed) {
@@ -228,6 +233,47 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
         }
         PRINCIPAL_CTORS = Collections.unmodifiableMap(ctorMap);
     }
+
+    /**
+     * Pluggable JWT verifier (Option D, Work Item 44).  {@code null} means JWT
+     * verification is disabled; the bytes received on the wire are silently
+     * discarded (backward-compatible behaviour where the SPIFFE SVID alone
+     * vouches for the presented principals).
+     *
+     * <p>Set via {@link #setJwtVerifier(JwtVerifier)} before exporting remote
+     * objects.
+     */
+    private static volatile JwtVerifier jwtVerifier = null;
+
+    /**
+     * Maximum number of raw JWT tokens accepted per Subject from the wire.
+     * Prevents unbounded allocation from a malicious peer.
+     */
+    private static final int MAX_JWT_PER_SUBJECT = 4;
+
+    /**
+     * Maximum byte length of a single raw JWT token accepted from the wire.
+     * Matches {@code JwtValidator.MAX_TOKEN_LENGTH}.
+     */
+    private static final int MAX_JWT_BYTES = 65_536;
+
+    /**
+     * Connection-level JWT verification cache (Option D, Work Item 44).
+     *
+     * <p>Maps raw JWT compact-serialization strings to their expiry
+     * {@link Instant} (extracted from the {@code exp} claim).  An entry is
+     * considered valid while {@code Instant.now().isBefore(exp)}.  The
+     * {@link JwtVerifier} is called at most once per token per validity window,
+     * amortising any expensive JWKS HTTP lookup over the full token lifetime.
+     *
+     * <p>Size is bounded at {@value #JWT_CACHE_MAX_SIZE} entries.  When the
+     * limit is reached, all expired entries are purged; if the map is still
+     * full after pruning, it is cleared entirely (simple, safe, rare).
+     */
+    private static final ConcurrentHashMap<String, Instant> JWT_VERIFICATION_CACHE =
+            new ConcurrentHashMap<>();
+    private static final int JWT_CACHE_MAX_SIZE = 1024;
+
     
     /** Marshal stream protocol version mismatch. */
     static final byte MISMATCH = 0x0;
@@ -307,7 +353,27 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	}
 	CALL_AS_MULTI_SUBJECT = m;
     }
-    
+
+    /**
+     * Registers a {@link JwtVerifier} to be called when a raw JWT token is
+     * received as part of the user-Subject wire block (protocol version
+     * {@code 0x02}, Work Item 44 Option D).
+     *
+     * <p>Setting {@code null} (the default) disables JWT verification; tokens
+     * received on the wire are silently discarded and the principals in the
+     * Subject are accepted solely on the authority of the presenting SPIFFE
+     * SVID.  This preserves backward compatibility with deployments that rely
+     * on SVID-scoped trust.
+     *
+     * <p>The verifier is a global JVM-wide setting; register it once at
+     * application startup, before any remote objects are exported.
+     *
+     * @param verifier the verifier to use, or {@code null} to disable
+     */
+    public static void setJwtVerifier(JwtVerifier verifier) {
+        jwtVerifier = verifier;
+    }
+
     /**
      * Creates an invocation dispatcher to receive incoming remote calls
      * for the specified methods, for a server and transport with the
@@ -1839,6 +1905,10 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *       classNameBytes  : UTF-8
      *       nameLength      : unsigned 16-bit big-endian
      *       nameBytes       : UTF-8
+     *     jwtCount        : unsigned 8-bit (0 = no raw JWTs for this Subject)
+     *     for each JWT:
+     *       jwtLength     : unsigned 32-bit big-endian
+     *       jwtBytes      : UTF-8 (raw JWT compact serialization)
      * </pre>
      *
      * <p>Each principal is reconstructed by calling
@@ -1848,14 +1918,22 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * {@link RemotePrincipal} placeholder that preserves the wire data
      * without loading untrusted code.
      *
+     * <p>If a {@link JwtVerifier} is registered via
+     * {@link #setJwtVerifier(JwtVerifier)} and the Subject carries one or more
+     * JWT tokens, each token is verified (with connection-level caching).  A
+     * verification failure throws {@link IOException}, aborting the request.
+     *
      * <p>To guard against malicious or malformed input, at most
      * {@value #MAX_USER_SUBJECTS} Subjects and at most
      * {@value #MAX_USER_PRINCIPALS} principals per Subject are accepted; each
-     * UTF-8 string field is limited to {@value #MAX_STRING_BYTES} bytes.
+     * UTF-8 string field is limited to {@value #MAX_STRING_BYTES} bytes; at
+     * most {@value #MAX_JWT_PER_SUBJECT} JWT tokens are accepted per Subject,
+     * each capped at {@value #MAX_JWT_BYTES} bytes.
      * Insertion order is preserved via {@link java.util.LinkedHashSet}.
      *
      * @throws IOException if any count or string length exceeds the
-     *         respective limit, or if the stream ends prematurely
+     *         respective limit, if the stream ends prematurely, or if JWT
+     *         verification fails
      */
     private static List<Subject> readUserSubjects(InputStream in)
 	throws IOException
@@ -1884,10 +1962,132 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		Principal p = instantiatePrincipal(className, name);
 		principals.add(p);
 	    }
+	    // JWT block (Option D, Work Item 44): read jwtCount raw tokens.
+	    int jwtCount = in.read();
+	    if (jwtCount < 0) throw new EOFException();
+	    if (jwtCount > MAX_JWT_PER_SUBJECT) {
+		throw new IOException(
+		    "JWT token count " + jwtCount
+		    + " in Subject " + si + " exceeds limit of " + MAX_JWT_PER_SUBJECT);
+	    }
+	    for (int ji = 0; ji < jwtCount; ji++) {
+		String rawJwt = readJwtBytes(in);
+		verifyJwtWithCache(rawJwt, si, ji);
+	    }
 	    subjects.add(new Subject(true, principals,
 				     Collections.emptySet(), Collections.emptySet()));
 	}
 	return subjects;
+    }
+
+    /**
+     * Reads a 4-byte big-endian length-prefixed JWT bytes block and returns
+     * the raw JWT compact-serialization string.
+     */
+    private static String readJwtBytes(InputStream in) throws IOException {
+	int b1 = in.read();
+	int b2 = in.read();
+	int b3 = in.read();
+	int b4 = in.read();
+	if ((b1 | b2 | b3 | b4) < 0) throw new EOFException();
+	int len = ((b1 & 0xFF) << 24)
+		| ((b2 & 0xFF) << 16)
+		| ((b3 & 0xFF) << 8)
+		| (b4 & 0xFF);
+	if (len < 0 || len > MAX_JWT_BYTES) {
+	    throw new IOException("JWT token length " + len
+		    + " exceeds maximum of " + MAX_JWT_BYTES + " bytes");
+	}
+	if (len == 0) return "";
+	byte[] bytes = new byte[len];
+	int remaining = len;
+	int offset = 0;
+	while (remaining > 0) {
+	    int read = in.read(bytes, offset, remaining);
+	    if (read < 0) throw new EOFException();
+	    offset += read;
+	    remaining -= read;
+	}
+	return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Verifies a raw JWT token using the registered {@link JwtVerifier}, with
+     * connection-level caching keyed on the raw token string.
+     *
+     * <p>If no verifier is registered ({@link #jwtVerifier} is {@code null})
+     * the method returns immediately (backward-compatible no-op).
+     *
+     * <p>Cache entries expire when the token's own {@code exp} claim is
+     * passed; an {@link Instant#MIN} sentinel is stored when the {@code exp}
+     * claim cannot be parsed, causing re-verification on each call.
+     *
+     * @throws IOException wrapping the {@link JwtVerificationException} if
+     *         the verifier rejects the token
+     */
+    private static void verifyJwtWithCache(String rawJwt, int subjectIdx, int jwtIdx)
+	    throws IOException
+    {
+	JwtVerifier verifier = jwtVerifier;
+	if (verifier == null) return; // Verification disabled — accept on SVID trust.
+
+	Instant cachedExp = JWT_VERIFICATION_CACHE.get(rawJwt);
+	if (cachedExp != null && Instant.now().isBefore(cachedExp)) {
+	    return; // Still within cached validity window — skip re-verification.
+	}
+
+	try {
+	    verifier.verify(rawJwt);
+	} catch (JwtVerificationException e) {
+	    throw new IOException(
+		"JWT verification failed for Subject[" + subjectIdx
+		+ "] JWT[" + jwtIdx + "]: " + e.getMessage(), e);
+	}
+
+	// Cache the result using the token's exp claim as the TTL.
+	Instant exp = extractJwtExp(rawJwt);
+	if (exp == null) {
+	    // No parseable exp → do not cache; re-verify on every call.
+	    return;
+	}
+	if (JWT_VERIFICATION_CACHE.size() >= JWT_CACHE_MAX_SIZE) {
+	    // Prune expired entries; clear entirely if still full.
+	    Instant now = Instant.now();
+	    JWT_VERIFICATION_CACHE.entrySet().removeIf(e -> !now.isBefore(e.getValue()));
+	    if (JWT_VERIFICATION_CACHE.size() >= JWT_CACHE_MAX_SIZE) {
+		JWT_VERIFICATION_CACHE.clear();
+	    }
+	}
+	JWT_VERIFICATION_CACHE.put(rawJwt, exp);
+    }
+
+    /**
+     * Extracts the {@code exp} epoch-seconds claim from a JWT compact string
+     * using minimal Base64url decode + JSON scan.  Returns {@code null} if the
+     * claim is absent or cannot be parsed.
+     */
+    private static Instant extractJwtExp(String rawJwt) {
+	if (rawJwt == null || rawJwt.isEmpty()) return null;
+	int firstDot  = rawJwt.indexOf('.');
+	int secondDot = rawJwt.indexOf('.', firstDot + 1);
+	if (firstDot < 0 || secondDot <= firstDot) return null;
+	try {
+	    byte[] payloadBytes = Base64.getUrlDecoder()
+		    .decode(rawJwt.substring(firstDot + 1, secondDot));
+	    String json = new String(payloadBytes, StandardCharsets.UTF_8);
+	    int idx = json.indexOf("\"exp\"");
+	    if (idx < 0) return null;
+	    int colon = json.indexOf(':', idx + 5);
+	    if (colon < 0) return null;
+	    int start = colon + 1;
+	    while (start < json.length() && json.charAt(start) == ' ') start++;
+	    int end = start;
+	    while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
+	    if (end == start) return null;
+	    return Instant.ofEpochSecond(Long.parseLong(json.substring(start, end)));
+	} catch (Exception e) {
+	    return null;
+	}
     }
 
     /**

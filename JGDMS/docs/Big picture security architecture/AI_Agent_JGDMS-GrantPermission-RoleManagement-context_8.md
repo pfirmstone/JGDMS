@@ -10,6 +10,37 @@ context. It supersedes and extends v32.
 
 ---
 
+## v35 Change Summary
+
+**Work Item 44 — `JwtVerifier` SPI (Option D) — ✅ COMPLETED**
+
+See §19 (context_10) for the full rationale.  Summary of why Option D was chosen:
+
+Option D (pluggable `JwtVerifier` SPI with connection-level cache) was selected
+over the alternatives because:
+- **Option A** (inline exp/iat check) is non-extensible and cannot be upgraded to
+  full OIDC JWKS verification without a code change to JERI core.
+- **Option B** (static JwksKeyCache in dispatcher) introduces an HTTP availability
+  dependency into every server's hot request path.
+- **Option C** (new wire protocol v0x03) was unnecessary; v0x02 was extended
+  in-place by appending `jwtCount:u8` + JWT bytes after the principals block, which
+  costs zero bytes when no JwtRawToken credentials are present.
+- **Option D** provides a `@FunctionalInterface` SPI, a free `DefaultJwtVerifier`
+  (exp/iat/iss/aud, no network), a connection-level cache, and full backward
+  compatibility (null verifier = accept on SPIFFE SVID trust alone).
+
+Also fixed in this version: `PRINCIPAL_CTORS` allowlist in
+`BasicInvocationDispatcher` had wrong class names (`net.jini.security.principal.*`)
+that prevented `SpiffePrincipal` and `JwtPrincipal` from being decoded correctly;
+corrected to `net.jini.jeri.ssl.SpiffePrincipal` and
+`net.jini.security.jwt.JwtPrincipal`.  `SpiffeJwtDispatchIntegrationTest` now passes.
+
+See
+[`context_10 (v35)`](AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md)
+for the full v35 change summary including all files modified.
+
+---
+
 ## v34 Change Summary
 
 This version adds **§19 Security Weakness Analysis** — a forward-reference to the
@@ -3852,7 +3883,7 @@ Items 3–9 are independent and can be implemented in parallel across different 
 
 ---
 
-## 19. Security Weakness Analysis & Implementation Plan (v34 — context_10)
+## 19. Security Weakness Analysis & Implementation Plan (v35 — context_10)
 
 A thorough security-weakness review was conducted in the Copilot session of 2026-05-12.
 The review identified **11 addressable weaknesses** (plus the by-design DirtyChai
@@ -3885,7 +3916,7 @@ See §6 of context_10 for full details. Summary:
 
 | Item | Short description | Priority |
 |---|---|---|
-| 44 | `JwtVerifier` SPI + wire protocol v0x03 | Sprint 4 |
+| 44 | `JwtVerifier` SPI + `jwtCount:u8` v0x02 extension (**✅ Completed v35**) | Sprint 4 |
 | 45 | VerdictRegistry retry exponential backoff | 🔴 Immediate |
 | 46 | INCONCLUSIVE ClassLoader eviction on policy grant | Sprint 3 |
 | 47 | Boot-window log `Level.WARNING` + hash | 🔴 Immediate |

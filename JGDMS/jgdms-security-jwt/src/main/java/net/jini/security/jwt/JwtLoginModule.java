@@ -124,6 +124,8 @@ public final class JwtLoginModule implements LoginModule {
 
     private ParsedJwt parsedJwt;
     private Instant tokenExpiry;
+    /** The raw JWT compact-serialization string saved between login() and commit(). */
+    private String rawToken;
 
     // ---- Background refresh ------------------------------------------------
 
@@ -194,6 +196,7 @@ public final class JwtLoginModule implements LoginModule {
         }
 
         loginSucceeded = true;
+        rawToken = token;
         return true;
     }
 
@@ -219,6 +222,13 @@ public final class JwtLoginModule implements LoginModule {
         Instant expiry = tokenExpiry != null ? tokenExpiry : Instant.now().plusSeconds(3600);
         JwtExpiryClaim expiryClaim = new JwtExpiryClaim(expiry);
         addedCredentials.add(expiryClaim);
+        // JwtRawToken carries the compact-serialization for JERI wire transmission
+        // (BasicInvocationHandler.writeUserSubjects) so the server-side JwtVerifier
+        // can independently verify the token.  It is stored as a public credential
+        // because writeUserSubjects executes outside a Subject.doAs context.
+        if (rawToken != null) {
+            addedCredentials.add(new JwtRawToken(rawToken));
+        }
 
         // --- Populate Subject ---
         subject.getPrincipals().addAll(addedPrincipals);
@@ -303,6 +313,7 @@ public final class JwtLoginModule implements LoginModule {
     private void clearState() {
         parsedJwt     = null;
         tokenExpiry   = null;
+        rawToken      = null;
         loginSucceeded = false;
         commitSucceeded = false;
         addedPrincipals.clear();

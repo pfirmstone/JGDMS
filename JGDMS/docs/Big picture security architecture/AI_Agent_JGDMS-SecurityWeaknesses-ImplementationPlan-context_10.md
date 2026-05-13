@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v34)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v35)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,79 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v35 Change Summary
+
+**Work Item 44 — `JwtVerifier` SPI (Option D) — ✅ COMPLETED**
+
+Option D was chosen over A/B/C for the following reasons:
+
+- **Option A** (inline `exp/iat` check in `readUserSubjects` itself) is
+  non-extensible: it bakes one validation strategy into the JERI core with no
+  way to swap in JWKS signature verification, Kerberos ticket validation, or a
+  custom revocation list later.
+
+- **Option B** (static `JwksKeyCache` reference in `BasicInvocationDispatcher`)
+  couples the JERI core to JWKS HTTP, adding an availability dependency and a
+  DNS-resolution path into every server's hot request path. It also forces all
+  deployments to provision an OIDC endpoint even when they use mTLS SPIFFE SVIDs
+  as their primary identity.
+
+- **Option C** (wire protocol v0x03 replacing v0x02) would break the unreleased
+  but already-deployed wire format. v0x02 was extended in-place (adding
+  `jwtCount:u8` + JWT bytes after the principals block per Subject) because the
+  format had no prior public release and the extension is backward-compatible
+  when `jwtCount = 0`.
+
+- **Option D** (pluggable `JwtVerifier` SPI) is chosen because:
+  - Zero network dependency in the default path (no verifier registered = accept
+    on SPIFFE SVID trust alone — backward compatible).
+  - `DefaultJwtVerifier` in `jgdms-security-jwt` checks `exp`/`iat`/`iss`/`aud`
+    locally (Base64url decode + JSON scan, no JWKS call) for negligible cost.
+  - Full OIDC JWKS signature verification is opt-in by supplying a custom
+    `JwtVerifier` backed by `JwtValidator` + `JwksKeyCache`.
+  - Connection-level cache (`ConcurrentHashMap<String, Instant>`, max 1024
+    entries) amortises verifier cost over the token's full validity window.
+  - `@FunctionalInterface` — a lambda is sufficient for simple deployments.
+
+**Files created / modified:**
+
+| File | Change |
+|---|---|
+| `jgdms-platform/.../jwt/JwtVerifier.java` | NEW — `@FunctionalInterface` SPI |
+| `jgdms-platform/.../jwt/JwtVerificationException.java` | NEW — checked exception |
+| `jgdms-platform/.../jwt/JwtRawToken.java` | NEW — public credential carrying raw JWT for wire transport |
+| `jgdms-platform/bnd.bnd` | Added `net.jini.security.jwt` to OSGi export list |
+| `jgdms-security-jwt/.../DefaultJwtVerifier.java` | NEW — claims-only verifier (exp/iat/iss/aud, no JWKS) |
+| `jgdms-security-jwt/.../JwtLoginModule.java` | Stores `JwtRawToken` in public credentials on `commit()` |
+| `jgdms-jeri/.../BasicInvocationHandler.java` | Extended `writeUserSubjects()` to write `jwtCount:u8` + JWT bytes; added `writeJwtBytes()` helper |
+| `jgdms-jeri/.../BasicInvocationDispatcher.java` | Fixed `PRINCIPAL_CTORS` class names (were `net.jini.security.principal.*`, correct names are `net.jini.jeri.ssl.SpiffePrincipal` and `net.jini.security.jwt.JwtPrincipal`); added `jwtVerifier` volatile field + `setJwtVerifier()`; added `JWT_VERIFICATION_CACHE` + eviction logic; extended `readUserSubjects()` to read JWT block; added `readJwtBytes()`, `verifyJwtWithCache()`, `extractJwtExp()` helpers |
+| `jgdms-jeri/src/test/.../MultiSubjectWireProtocolTest.java` | Updated existing tests for new wire format (jwtCount byte); added 5 new JWT wire tests |
+
+**Wire format (v0x02, extended in-place):**
+```
+subjectCount      : u16
+for each Subject:
+  principalCount  : u16
+  for each principal:
+    classNameLength : u16
+    classNameBytes  : UTF-8
+    nameLength      : u16
+    nameBytes       : UTF-8
+  jwtCount        : u8    ← NEW (0 = none; preserves backward compat)
+  for each JWT:
+    jwtLength     : u32-BE ← NEW
+    jwtBytes      : UTF-8  ← NEW (raw JWT compact serialization)
+```
+
+**PRINCIPAL_CTORS bug fix:** The allowlist previously referenced
+`net.jini.security.principal.SpiffePrincipal` and
+`net.jini.security.principal.JwtPrincipal` — packages that do not exist.
+The correct names are `net.jini.jeri.ssl.SpiffePrincipal` and
+`net.jini.security.jwt.JwtPrincipal`. This caused `SpiffeJwtDispatchIntegrationTest`
+to fail (JwtPrincipal decoded as RemotePrincipal) — now fixed and passing.
 
 ---
 
@@ -447,7 +520,7 @@ These extend the work-item table in §12 of
 
 | Item | Description | Phase | Status |
 |---|---|---|---|
-| **44** | `JwtVerifier` SPI — define interface; wire into `BasicInvocationDispatcher`; connection-level JWT cache; wire protocol v0x03 | 3.1 | 🔲 Not started |
+| **44** | `JwtVerifier` SPI — define interface; wire into `BasicInvocationDispatcher`; connection-level JWT cache; `jwtCount:u8` extension of v0x02 wire format; `DefaultJwtVerifier` (exp/iat/iss/aud, no JWKS); `JwtRawToken` public credential; fixed `PRINCIPAL_CTORS` class names | 3.1 | ✅ Completed |
 | **45** | VerdictRegistry retry backoff (exponential, 1 s → 2 s → 4 s, 3 attempts) in `checkVerdictForJar()` | 1.4 | 🔲 Not started |
 | **46** | INCONCLUSIVE ClassLoader eviction on `DynamicPolicyProvider.grant()` | 2.5 | 🔲 Not started |
 | **47** | Boot-window log upgrade (`Level.FINE` → `Level.WARNING` + SHA-256 hash) | 1.1 | 🔲 Not started |
