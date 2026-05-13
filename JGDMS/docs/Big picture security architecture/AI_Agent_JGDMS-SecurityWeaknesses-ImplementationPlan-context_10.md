@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v39)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v42)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,70 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v42 Change Summary
+
+**Work Item 58 — fully ✅ completed in DirtyChai (confirmed by @pfirmstone)**
+
+After verifying the latest `pfirmstone/DirtyChai` `SecureClassLoader.java`
+(SHA `98e1e31`):
+
+- Work Item 58 (both parts) is **✅ fully complete**.  The repository maintainer
+  confirmed: "Item 6 is completed in DirtyChai."
+- The updated `SecureClassLoader.java` (SHA `98e1e31`) adds clear in-code
+  documentation describing the design intent: `getProtectionDomain` promotes a
+  plain `CodeSource` to a `DigestCodeSource` by downloading the artifact and
+  computing its content digest, anchoring the trusted digest in the two-layer
+  internal cache (`JarResponseCache` + `digestCache`).  The `digestCache` ensures
+  that once a digest is established for a `(URI, algorithm)` pair it is used
+  consistently throughout the JVM session, making repeated calls idempotent and
+  preventing TOCTOU substitution attacks.
+- §6 Work Item 58 entry updated to `✅ Complete`.
+- §7 updated to reflect the completed state with the authoritative DirtyChai SHA.
+- Version header bumped from v41 → v42.
+
+---
+
+## v41 Change Summary
+
+**Work Item 49 completed — SVID exponential-backoff renewal + health endpoint**
+
+- Implemented exponential backoff in `SpiffeCredentialManager.renewalTask()`.
+  Initial retry delay is `MIN_RETRY_INTERVAL_SECONDS` (30 s); doubles on each
+  successive failure; capped at `max(30, renewalLeadSeconds / 2)` seconds.
+  Resets to minimum after a successful refresh.
+- Added public `isCredentialValid()` and `secondsUntilExpiry()` health-query
+  methods (lock-free volatile reads, safe from any thread).
+- Added `volatile Date managedCertExpiry` field to track SVID expiry in O(1).
+- `renewalTask()` emits `Level.WARNING` with seconds-until-expiry when the
+  credential is below the `renewalLeadSeconds` threshold during a retry.
+- Old `RETRY_INTERVAL_SECONDS` private constant renamed to
+  `MIN_RETRY_INTERVAL_SECONDS` and made `public static final`.
+- 8 new unit tests added to `SpiffeCredentialManagerTest` covering health
+  methods and backoff behaviour.
+- §4.5 Weakness 6 recommendation marked as completed (Option A + Option D).
+- §5 Phase table updated: Phase 1.2 + 1.3 item 49 now `✅ Completed`.
+- §6 Work Items table updated: Item 49 status changed to `✅ Completed`.
+- Version header bumped from v40 → v41.
+
+---
+
+## v40 Change Summary
+
+**Work Item 45 completed — VerdictRegistry retry backoff**
+
+- Completed Work Item 45 by adding exponential backoff retry to
+  `PreferredProxyCodebaseProvider.checkVerdictForJar()` for transient
+  `RemoteException` failures from `VerdictRegistry`.
+- Added focused unit tests covering retry-then-success and retry exhaustion in
+  `PreferredProxyCodebaseProviderVerdictTest`.
+- §5 Phase 1 table updated: Phase 1.4 priority changed from `🔴 Immediate` to
+  `✅ Completed`.
+- §6 Work Items table updated: Item 45 status changed from `🔲 Not started` to
+  `✅ Completed`.
+- Version header bumped from v39 → v40.
 
 ---
 
@@ -611,7 +675,7 @@ renewal succeeds.
 | **D** — `isCredentialValid()` + `secondsUntilExpiry()` health endpoint; emit `Level.WARNING` when below threshold | No code complexity on credential path; enables operational alerting | Doesn't prevent failure; relies on operator monitoring |
 
 **Recommendation:** Option A + Option D. Exponential backoff immediately; health metric
-emission for operational visibility. See Work Item 49.
+emission for operational visibility. ✅ **Completed** in Work Item 49.
 
 ---
 
@@ -728,9 +792,9 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 | # | Weakness | Action | Files | Priority |
 |---|---|---|---|---|
 | 1.1 | Boot window log level (W4) | Upgrade `Level.FINE` → `Level.WARNING` in boot-window path; include codebase hash | `PreferredProxyCodebaseProvider.java` | ✅ Completed |
-| 1.2 | SVID renewal backoff (W6) | Replace fixed `RETRY_INTERVAL_SECONDS` with exponential backoff (cap at `renewalLeadSeconds/2`, min 30 s) | `SpiffeCredentialManager.java` | 🔴 Immediate |
-| 1.3 | SVID health metric (W6) | Add `isCredentialValid()` + `secondsUntilExpiry()` to `SpiffeCredentialManager`; emit `Level.WARNING` when < `renewalLeadSeconds × 2` | `SpiffeCredentialManager.java` | 🔴 Immediate |
-| 1.4 | VerdictRegistry retry backoff (W5) | Add 3-attempt exponential backoff (1 s → 2 s → 4 s) before failing in `checkVerdictForJar()` | `PreferredProxyCodebaseProvider.java` | 🔴 Immediate |
+| 1.2 | SVID renewal backoff (W6) | Replace fixed `RETRY_INTERVAL_SECONDS` with exponential backoff (cap at `renewalLeadSeconds/2`, min 30 s) | `SpiffeCredentialManager.java` | ✅ Completed |
+| 1.3 | SVID health metric (W6) | Add `isCredentialValid()` + `secondsUntilExpiry()` to `SpiffeCredentialManager`; emit `Level.WARNING` when < `renewalLeadSeconds × 2` | `SpiffeCredentialManager.java` | ✅ Completed |
+| 1.4 | VerdictRegistry retry backoff (W5) | Add 3-attempt exponential backoff (1 s → 2 s → 4 s) before failing in `checkVerdictForJar()` | `PreferredProxyCodebaseProvider.java` | ✅ Completed |
 | 1.5 | Pack200 semaphore (W12) | Add `Semaphore(4)` (configurable `jgdms.proxy.maxConcurrentJarLoads`) around JAR download + decompression in `resolve()` | `PreferredProxyCodebaseProvider.java` | 🟠 Sprint 1 |
 | 1.6 | Recursion depth configurable (W10) | Make `CombinerSecurityManager` depth limit a system property (default 10); add startup `SEVERE` warning | `CombinerSecurityManager.java` | 🟠 Sprint 1 |
 
@@ -794,11 +858,11 @@ These extend the work-item table in §12 of
 | Item | Description | Phase | Status |
 |---|---|---|---|
 | **44** | `JwtVerifier` SPI — define interface; wire into `BasicInvocationDispatcher`; connection-level JWT cache; `jwtCount:u8` extension of v0x02 wire format; `DefaultJwtVerifier` (exp/iat/iss/aud, no JWKS); `JwtRawToken` public credential; fixed `PRINCIPAL_CTORS` class names | 3.1 | ✅ Completed |
-| **45** | VerdictRegistry retry backoff (exponential, 1 s → 2 s → 4 s, 3 attempts) in `checkVerdictForJar()` | 1.4 | 🔲 Not started |
+| **45** | VerdictRegistry retry backoff (exponential, 1 s → 2 s → 4 s, 3 attempts) in `checkVerdictForJar()` | 1.4 | ✅ Completed |
 | **46** | INCONCLUSIVE ClassLoader eviction on `DynamicPolicyProvider.grant()` | 2.5 | 🔲 Not started |
 | **47** | Boot-window log upgrade (`Level.FINE` → `Level.WARNING` + SHA-256 hash) | 1.1 | ✅ Completed |
 | **48** | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, configurable TTL) | 2.6 | 🔲 Not started |
-| **49** | SVID exponential-backoff renewal + `isCredentialValid()` / `secondsUntilExpiry()` health endpoint | 1.2 + 1.3 | 🔲 Not started |
+| **49** | SVID exponential-backoff renewal + `isCredentialValid()` / `secondsUntilExpiry()` health endpoint | 1.2 + 1.3 | ✅ Completed |
 | **50** | `SubjectAwareExecutor implements ExecutorService` — Subject[] capture-and-rebind wrapper | 2.4 | 🔲 Not started |
 | **51** | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode (next major version) | 3.5 | 🔲 Not started |
 | **52** | doAs/doAsPrivileged migration: SpotBugs scan + incremental per-site migration (`RegistrarImpl`, `AbstractActivationGroup`) | 2.1–2.3 | 🔲 Not started |
@@ -808,11 +872,103 @@ These extend the work-item table in §12 of
 | **56** | Pack200 semaphore — `Semaphore(4)` (configurable) around JAR download + decompression in `PreferredProxyCodebaseProvider.resolve()` | 1.5 | 🔲 Not started |
 
 | **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | 🔲 Not started |
+| **58** | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix — `CodeSourceKey` includes `digestAlgorithm`+`digest` fields from `DigestCodeSource` in `hashCode()`/`equals()`; `getProtectionDomain` promotes plain `CodeSource` to content-addressed `DigestCodeSource` (SHA-256) with two-layer cache (`JarResponseCache` + `digestCache`) — see §7 | DirtyChai | ✅ Complete |
+
+---
+
+## 7. Work Item 58 — DirtyChai `CodeSourceKey` Digest Fix ✅ Complete
+
+**File:** `src/java.base/share/classes/java/security/SecureClassLoader.java` in DirtyChai
+
+**Status:** ✅ Fully completed as of DirtyChai SHA `98e1e31` (confirmed by @pfirmstone).
+
+### What was changed
+
+The fix was implemented as two complementary changes that together eliminate the
+original cache-aliasing and dead-cache-entry bugs.
+
+#### `CodeSourceKey` — digest fields added
+
+The `CodeSourceKey` inner class now includes `digestAlgorithm` (String) and
+`digest` (byte[]) fields populated from a `DigestCodeSource` when present, and
+included in both `hashCode()` and `equals()`:
+
+```java
+// Populated only when the incoming CodeSource is a DigestCodeSource.
+private final String digestAlgorithm;
+private final byte[] digest;
+
+// In constructor:
+if (cs instanceof DigestCodeSource dcs) {
+    this.digestAlgorithm = dcs.getDigestAlgorithm();
+    this.digest = dcs.getDigest();   // defensive copy already made by getDigest()
+} else {
+    this.digestAlgorithm = null;
+    this.digest = null;
+}
+
+// In hashCode():
+hash = 23 * hash + (digestAlgorithm != null ? digestAlgorithm.hashCode() : 0);
+hash = 23 * hash + Arrays.hashCode(digest);
+
+// In equals():
+if (digestAlgorithm == null ? that.digestAlgorithm != null
+                            : !digestAlgorithm.equals(that.digestAlgorithm)) return false;
+return Arrays.equals(digest, that.digest);
+```
+
+A plain-CS key (`digest=null`) is not equal to any `DigestCodeSource` key — they
+represent different code identities.
+
+#### `getProtectionDomain` — plain `CodeSource` promoted to `DigestCodeSource`
+
+When `sm != null` and `cs.location != null`, a plain `CodeSource` is promoted to a
+content-addressed `DigestCodeSource` by downloading the artifact and computing its
+SHA-256 digest.  The two-layer internal cache in `DigestCodeSource` ensures this is
+idempotent and TOCTOU-safe:
+
+- **Layer 1 — `JarResponseCache`**: caches the raw artifact bytes so repeated calls
+  for the same URL within the same JVM session do not trigger network I/O.
+- **Layer 2 — `digestCache`**: records the first-computed trusted digest per
+  `(URI, algorithm)`.  Any future call for the same URL returns the same digest; a
+  different computed digest causes an immediate `SecurityException`.
+
+Together, these caches guarantee that the digest stored in the `ProtectionDomain` is
+stable and consistent — any `DigestGrant` specifying that URL's digest will correctly
+match the cached `ProtectionDomain`.
+
+#### Additional improvements in the same change
+
+1. **Cache-first**: `pdcache.get(key)` is now the *first* thing `getProtectionDomain`
+   does — before the SPIFFE subject lookup, permission checks, or any URL download.
+   Permission checks are performed only on the *first* construction of a
+   `ProtectionDomain` for a given key; subsequent `defineClass` calls for the same
+   source return the already-vetted domain directly.
+2. **SM-only SPIFFE**: The `SpiffeCredentialManager.getInstance().getSubject()` call
+   (and the `VM.isBooted()` guard around it) are now inside `if (sm != null)`, so the
+   no-SM path is a clean `new ProtectionDomain(cs, perms, this, null)`.
+3. **No-SM branch**: A clean `else` clause returns a plain `ProtectionDomain` when
+   there is no `SecurityManager`, suitable for standard JDK deployments without
+   DirtyChai security infrastructure.
+
+### Security properties (post-fix)
+
+| Property | How it is maintained |
+|---|---|
+| Re-download for plain `CodeSource` | Plain CS still triggers URL download + SHA-256 digest computation via `DigestCodeSource` |
+| Digest-addressed code identity | Each distinct digest occupies its own `pdcache` slot; `DigestGrant(H).implies(pd)` returns true when `pd` was built from the same URL |
+| TOCTOU defence | `digestCache` layer 2 prevents a second download from replacing the first-trusted digest |
+| `LoadClassPermission` gate | Always runs for all paths (URL and no-URL) |
+| `URLPermission` gate | Always runs when a URL is present |
+| Plain-CS repeated loads | Plain-CS key (`digest=null`) still matches the cached entry — no regression |
 
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a future AI agent to
-continue without loss of context. This is version 39, updated to mark Work Item 47 complete
-(`PreferredProxyCodebaseProvider.resolve()` boot-window `WARNING` audit logging with SHA-256
-codebase hashes), with corresponding §5 Phase 1.1 and §6 status updates (conversation dated
-2026-05-13).*
+continue without loss of context. This is version 42, updated after @pfirmstone confirmed
+"Item 6 is completed in DirtyChai" (DirtyChai `SecureClassLoader.java` SHA `98e1e31`).
+Work Item 58 is ✅ fully complete: `CodeSourceKey` digest fields in `hashCode()`/`equals()`,
+plus plain `CodeSource` promoted to `DigestCodeSource` with two-layer caching in
+`getProtectionDomain`, plus cache-first + SM-only SPIFFE + no-SM branch.
+§6 Work Item 58 entry updated to `✅ Complete`. §7 rewritten to final state
+(conversation dated 2026-05-13).*
