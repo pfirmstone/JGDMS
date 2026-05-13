@@ -162,7 +162,96 @@ if (hash != local.hash)
 
 A single-bit difference in the hash causes hard failure with no recovery path.
 
-### 2.5 Consequence: The Full Table of Breaking Changes
+### 2.5 Why `final` Fields Are Excluded — Pre-JMM Deserialization Hazard
+
+Both `ClassMapper.getFields()` and `AbstractEntry.fieldInfo()` explicitly skip
+`Modifier.FINAL` fields.  There are two independent reasons for this exclusion,
+one mechanical and one rooted in the Java Memory Model.
+
+#### 2.5.1 Mechanical Incompatibility With Reflective Post-Construction Assignment
+
+The deserialization path in `EntryRep.get()` works as follows:
+
+```java
+Entry entry = (Entry) clazz.getDeclaredConstructor().newInstance(); // step 1: no-arg ctor
+for (...) {
+    f.field.set(entry, val);  // step 2: reflective field assignment
+}
+```
+
+`java.lang.reflect.Field.set()` throws `IllegalAccessException` when invoked on
+a `final` field without a preceding `setAccessible(true)` call.  In 1999,
+`setAccessible` had no special override for `final` fields and was unavailable
+in applet-like sandboxes anyway.  Allowing `final` Entry fields would therefore
+have caused a hard `IllegalAccessException` at deserialization time for every
+entry returned from a registrar.
+
+#### 2.5.2 Java Memory Model Hazard — The Deeper Reason
+
+The Jini Entry standard was published in 1999, with Java 1.2.  The **revised
+Java Memory Model (JSR-133)** was not finalized until Java 5 (2004).
+
+The original JMM (Java Language Specification 1st edition, 1996) was famously
+incomplete: it made no reliable guarantees about when writes performed in one
+thread would be visible to other threads, and it gave `final` fields no special
+thread-safety treatment beyond "cannot be reassigned in source code."
+
+JSR-133 introduced the **`final` field freeze action** (JMM §17.5):
+
+> A freeze action on a `final` field `f` of object `o` takes place when a
+> constructor of `o` in which `f` is written exits.
+> A subsequent read by another thread of a reference to a fully-constructed `o`
+> is guaranteed to see the correctly initialized value of `f`.
+
+The critical constraint is **"written in the constructor"**.  The JSR-133
+guarantee applies *only* to final fields set during construction.  It does not
+apply to final fields set via `Field.set()` with `setAccessible(true)` after
+the constructor has returned.
+
+If `final` Entry fields were allowed and populated via `Field.set()` after the
+no-arg constructor, the following would occur:
+
+1. The no-arg constructor sets `final String host = null` (or whatever the
+   default initializer produces).
+2. The constructor exits.  The JMM freeze action fires for `host = null`.
+3. `Field.set(entry, "myhost.example.com")` updates the field's raw memory slot
+   via reflection.  **No freeze action is associated with this write.**
+4. Any thread that subsequently reads `entry.host` may legally see `null` —
+   because the only freeze action it can observe is the one from step 2, and the
+   JMM provides no happens-before relationship between the `Field.set()` write
+   and the subsequent read.
+5. An aggressive JIT that inlined the `final null` from step 2 at a call site
+   will continue returning `null` indefinitely, even on the same thread.
+
+This would produce hard-to-diagnose, non-deterministic `NullPointerException`s
+on multicore hardware or under JIT optimisation — worst exactly in production
+under load.
+
+**Pre-JMM (Java 1.0–1.4)** the situation was even worse: there was no freeze
+concept at all, and `final` field reads could be freely hoisted out of loops or
+inlined as compile-time constants with no JMM barrier to stop them.
+
+The exclusion of `final` fields was therefore not merely a convenience: it was
+the only way to make the Entry deserialization path correct under either the
+original or the revised Java Memory Model.
+
+#### 2.5.3 Why the Exclusion Is Still Correct for Legacy Entries
+
+Even with a modern JVM running Java 21+:
+
+- `Field.set()` on a `final` field with `setAccessible(true)` is explicitly
+  described in the JDK documentation as producing *undefined behavior* with
+  respect to the JMM final-field guarantees.
+- Since Java 12, `Field.setAccessible(true)` on `final` fields in non-open
+  modules emits a warning.
+- Since Java 17, reflective access to fields in JDK modules requires `--add-opens`
+  command-line arguments.
+
+The legacy Entry deserialization path cannot safely support `final` fields, and
+the exclusion must remain.  §4.6 below explains how `@SerialEntry`'s
+constructor-based approach lifts this restriction entirely.
+
+### 2.6 Consequence: The Full Table of Breaking Changes
 
 | Change type | Breaks hash? | Reason |
 |---|---|---|
@@ -329,6 +418,7 @@ encodes `field.getName()`.
 | `check()` before construction | No invariant check; partial initialisation | Fail-fast; no partially-initialised entries; cross-field validation |
 | `serialize()` translates internal state | Raw `Field.get()` — no translation point | Internal representation can evolve independently of wire schema |
 | Wire names decouple from Java field names | `field.getName()` in hash — rename = break | Refactor Java names freely without changing wire identity |
+| Constructor-based deserialization | `Field.set()` post-construction — `final` fields unsafe (pre-JMM hazard) | `final` Entry fields are now safe; JSR-133 freeze action applies correctly |
 
 ---
 
@@ -519,6 +609,57 @@ private HostEntry(GetEntryArg arg, boolean checked) throws IOException {
     this.hostBytes = host == null ? null : InetAddress.getByName(host).getAddress();
 }
 ```
+
+### 4.6 `final` Fields Are Safe in `@SerialEntry` Classes
+
+The `(GetEntryArg)` constructor pattern eliminates the pre-JMM final-field hazard
+described in §2.5.  Fields are assigned **inside a real constructor** — the
+bridge constructor `private Location(GetEntryArg arg, boolean checked)` — not
+via `Field.set()` after construction.
+
+```java
+@SerialEntry
+public final class Location implements Entry {
+
+    // These can now be final — they are set in the bridge constructor
+    public final String  host;
+    public final Integer floor;
+
+    public Location(GetEntryArg arg) throws IOException {
+        this(arg, check(arg));          // static check before bridge ctor
+    }
+
+    private Location(GetEntryArg arg, boolean checked) throws IOException {
+        host  = arg.get("host",  null, String.class);   // ← written in ctor
+        floor = arg.get("floor", null, Integer.class);   // ← written in ctor
+    }
+
+    // ... check(), serialize(), entryForm() as before
+}
+```
+
+Because both `host` and `floor` are written during construction, the JSR-133
+**freeze action** fires at the end of the bridge constructor.  Any thread that
+subsequently obtains a reference to the fully-constructed `Location` is
+guaranteed by JMM §17.5 to see the correct, non-null field values.  The JIT
+cannot legally inline stale null values across this barrier.
+
+**Benefits of `final` Entry fields:**
+
+- Immutability of the Entry after construction — no accidental field mutation
+  on the client side after a lookup result is returned.
+- Safe publication without explicit synchronization — the JMM freeze action
+  provides the required happens-before edge.
+- Enables making Entry classes immutable value types, which is the correct
+  design for any object that represents a stable lookup attribute.
+
+The `public` visibility requirement of Entry fields still applies (the registrar
+reads them via reflection for legacy-path compatibility), but `final` is no
+longer a barrier.  An `@SerialEntry` class can declare its participating fields
+as `public final`, populate them in the bridge constructor, and omit the no-arg
+constructor entirely for the purpose of `@SerialEntry` deserialization (though
+a no-arg constructor may still be needed for legacy interop with non-`@SerialEntry`
+registrars).
 
 ---
 
