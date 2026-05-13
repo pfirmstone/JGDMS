@@ -102,6 +102,9 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      */
     private static final Permission SET_VERDICT_REGISTRY_PERMISSION =
             new RuntimePermission("setVerdictRegistry");
+    static final int VERDICT_RETRY_ATTEMPTS = 3;
+    static final long DEFAULT_VERDICT_RETRY_BASE_DELAY_MS = 1000L;
+    static volatile long verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
     
     static {
 	ConcurrentMap<Referrer<Key>,Referrer<ClassLoader>> intern1 =
@@ -198,8 +201,10 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      *       at {@code SEVERE}.</li>
      *   <li>{@code null} return (no verdict yet) — throw {@link IOException};
      *       logged at {@code WARNING}.</li>
-     *   <li>{@link RemoteException} — registry unreachable; throw
-     *       {@link IOException}; logged at {@code SEVERE}.</li>
+     *   <li>{@link RemoteException} — registry unreachable; retry with
+     *       exponential backoff (1 s → 2 s → 4 s) before throwing
+     *       {@link IOException}; transient failures are logged at
+     *       {@code WARNING}, final failure at {@code SEVERE}.</li>
      * </ul>
      *
      * @param vr          the registry to query; must be non-null
@@ -211,15 +216,28 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     static void checkVerdictForJar(VerdictRegistry vr,
                                     String contentHash,
                                     String path) throws IOException {
-        RegistryVerdict verdict;
-        try {
-            verdict = vr.getVerdictByHash(contentHash);
-        } catch (RemoteException e) {
-            logger.log(Level.SEVERE,
-                    "VerdictRegistry unreachable for codebase: {0}", path);
-            throw new IOException(
-                    "VerdictRegistry unavailable; refusing to load codebase: "
-                    + path, e);
+        RegistryVerdict verdict = null;
+        long retryDelayMs = verdictRetryBaseDelayMs;
+        for (int attempt = 0; attempt <= VERDICT_RETRY_ATTEMPTS; attempt++) {
+            try {
+                verdict = vr.getVerdictByHash(contentHash);
+                break;
+            } catch (RemoteException e) {
+                if (attempt == VERDICT_RETRY_ATTEMPTS) {
+                    logger.log(Level.SEVERE,
+                            "VerdictRegistry unreachable for codebase: {0}", path);
+                    throw new IOException(
+                            "VerdictRegistry unavailable; refusing to load codebase: "
+                            + path, e);
+                }
+                logger.log(Level.WARNING,
+                        "VerdictRegistry lookup failed for codebase: {0}; retrying in {1} ms",
+                        new Object[]{path, Long.valueOf(retryDelayMs)});
+                sleepBeforeVerdictRetry(retryDelayMs, path);
+                if (retryDelayMs > 0L && retryDelayMs < Long.MAX_VALUE / 2L) {
+                    retryDelayMs *= 2L;
+                }
+            }
         }
         if (verdict == null) {
             logger.log(Level.WARNING,
@@ -245,6 +263,22 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             // SAFE
             logger.log(Level.FINEST,
                     "JAR verdict is SAFE (SHA-256: {0})", contentHash);
+        }
+    }
+
+    private static void sleepBeforeVerdictRetry(long retryDelayMs,
+                                                String path)
+            throws IOException {
+        if (retryDelayMs <= 0L) {
+            return;
+        }
+        try {
+            Thread.sleep(retryDelayMs);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IOException(
+                    "Interrupted while retrying VerdictRegistry lookup for codebase: "
+                    + path, ex);
         }
     }
 
