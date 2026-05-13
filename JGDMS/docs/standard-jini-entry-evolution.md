@@ -804,29 +804,38 @@ is synthesised at deserialisation time from `host`.  Zero deployment break.
 
 ---
 
-## 8. Open Questions
+## 8. Design Decisions
 
-1. **Hash algorithm migration** — Should `@SerialEntry` classes use the same
-   SHA-1 hash algorithm, or move to SHA-256?  SHA-1 is only used as a
-   fingerprint here (not a security function), so collision risk is low, but
-   migrating to SHA-256 would be cleaner.
+The following points were open questions during initial drafting; they are now
+resolved.
+
+1. **Hash algorithm** — `@SerialEntry` classes **must use SHA-256** rather than
+   SHA-1.  SHA-1 is only used as a non-security fingerprint here, but platforms
+   may remove SHA-1 support in future JDK releases.  SHA-256 is therefore the
+   correct forward-looking choice.
 
 2. **Registrar persistence format** — Outrigger and Reggie persist `EntryRep`
    objects to disk.  The named wire format extension must be designed so that
-   existing persisted stores are still readable.  A format-version byte in the
-   `EntryRep` serial form would address this.
+   existing persisted stores are still readable.  **The recommended approach is
+   to include a format-version byte in the `EntryRep` serial form.**  A version
+   byte of `0` (or absent) selects the legacy positional `Object[]` path; a
+   version byte of `1` selects the named-field path.  This is the recommended
+   design for the `EntryRep` evolution.
 
-3. **`AbstractEntry.equals()` for mixed-version comparisons** — When a v1
-   entry (no `@SerialEntry`) and a v2 entry (with `@SerialEntry`) share the same
-   class name and same hash, `equals()` currently uses strict class identity
-   (`e1.getClass() != e2.getClass()`).  This is correct but should be confirmed
-   for the case where a `@SerialEntry` class has the same hash as a legacy class
-   of the same name.
+3. **`AbstractEntry.equals()` for mixed-version comparisons** — If a legacy
+   (non-`@SerialEntry`) class and a `@SerialEntry` class share the same fully
+   qualified class name and produce the same hash, they are considered equal.
+   Their unmarshalled object state will be identical when using the same code,
+   so the existing `equals()` implementation (which compares field values
+   obtained from `ClassMapper.getFields()`) will behave correctly without
+   modification.
 
-4. **`UnusableEntryException` migration** — `GetEntryArg` throws
-   `InvalidObjectException` rather than leaving fields null.  The registrar
-   must decide whether to wrap these as `UnusableEntryException` (preserving
-   the existing client API) or to surface them as hard failures.
+4. **`UnusableEntryException` wrapping** — When the `(GetEntryArg)` constructor
+   throws `InvalidObjectException` (invariant violation during deserialization),
+   **the registrar must wrap the exception as `UnusableEntryException`**.  This
+   preserves the existing client API contract: clients that handle
+   `UnusableEntryException` continue to work, and the partial-entry semantics of
+   the original Entry standard are maintained.
 
 ---
 
