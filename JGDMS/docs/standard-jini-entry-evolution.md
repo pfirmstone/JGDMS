@@ -350,7 +350,7 @@ implementors can optionally place on their class:
  * wire field schema independent of their Java field declarations.
  *
  * An @SerialEntry class MUST provide:
- *   public static EntryField[] entryForm()
+ *   public static EntryWireField[] entryForm()
  *   public static void serialize(PutEntryArg arg, T obj) throws IOException
  *   public T(GetEntryArg arg) throws IOException   // deserialization constructor
  */
