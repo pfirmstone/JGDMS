@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v35)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v36)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,38 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v36 Change Summary
+
+**§4.2 Weakness 3 — Corrected risk model for INCONCLUSIVE verdict / GrantPermission interaction**
+
+The previous version of §4.2 included a "remaining concern" about `doPrivileged` blocks inside
+INCONCLUSIVE proxy code potentially allowing privilege self-amplification. This concern has been
+retracted following a detailed analysis of the GrantPermission/DynamicPolicy intersection mechanics.
+
+The corrected model is:
+
+- `DynamicPolicyProvider.grant()` intersects the requested permissions with the **caller's**
+  `GrantPermission` ceiling at grant time. The permissions that arrive in the proxy's
+  `ProtectionDomain` are therefore already bounded by what the granting caller was permitted to
+  delegate.
+- A `doPrivileged` block inside the proxy stops the stack-walk at the proxy's `ProtectionDomain`
+  boundary, but the proxy's PD **cannot hold `GrantPermission`** — proxies are never granted
+  delegation authority. There is therefore nothing the proxy can use to self-amplify further.
+- Consequently, the risk for **already-loaded** INCONCLUSIVE proxies is **low**: a new `grant()`
+  call cannot push the proxy beyond what the granting caller could legitimately delegate, and
+  the proxy cannot leverage `doPrivileged` to circumvent this ceiling.
+- The **primary risk** remains fresh loads: a freshly-resolved INCONCLUSIVE proxy after a
+  policy change starts life with the current (potentially widened) policy in effect, and the
+  cached INCONCLUSIVE ClassLoader would allow it to bypass a re-audit.
+
+This clarification also adjusts the relative priority of the two remediation items: Work Item 51
+(`INCONCLUSIVEPermit` — explicit admin opt-in per codebase hash) addresses the structural
+fresh-load scenario and therefore carries more long-term weight than Work Item 46 (ClassLoader
+eviction on grant), which is still valuable for triggering VerdictRegistry re-checks but
+addresses a narrower risk window.
 
 ---
 
@@ -273,16 +305,53 @@ allows `INCONCLUSIVE` through with a `WARNING` log. Once loaded, the `ClassLoade
 cached. If a permission is later granted that makes the guarded code path reachable
 (e.g., `createVirtualThread`), no re-audit occurs.
 
+**GrantPermission / `doPrivileged` interaction (corrected — v36):**
+
+Proxy permissions are granted dynamically. The three-layer stack for a proxy's
+`ProtectionDomain` is:
+
+```
+Effective permissions = (StaticPolicy ∪ DynamicGrants) ∩ GrantPermission ceiling
+```
+
+where the `GrantPermission` ceiling is determined by the **caller's** grants at the moment
+`DynamicPolicyProvider.grant()` is called, not by the proxy's own PD. This has two
+important consequences:
+
+1. **Already-loaded INCONCLUSIVE proxies — low marginal risk.** A new `grant()` can only
+   widen a proxy's dynamic grants up to the granting caller's `GrantPermission` ceiling.
+   The proxy's PD itself can never hold `GrantPermission`, so a `doPrivileged` block inside
+   the proxy code cannot self-amplify further: the stack-walk stops at the proxy's PD, but
+   there is no `GrantPermission` there to delegate from. The proxy is bounded by what it
+   was granted, full stop.
+
+2. **Fresh proxy loads after a policy change — medium risk (primary concern).** A freshly-
+   resolved INCONCLUSIVE proxy starts life with the current (potentially widened) policy.
+   If the cached INCONCLUSIVE `ClassLoader` is reused, VerdictRegistry is not re-consulted,
+   so the new grants take effect without re-audit.
+
+**Corrected risk table:**
+
+| Scenario | Actual risk | Primary guard |
+|---|---|---|
+| Already-loaded INCONCLUSIVE proxy; new `grant()` issued | **Low** — new grant bounded by granting caller's `GrantPermission` ceiling; proxy cannot self-amplify via `doPrivileged` | `GrantPermission` intersection enforced at grant time |
+| Fresh proxy load after a `grant()` | **Medium** — new PD starts with current policy; re-audit bypassed if ClassLoader cached | Work Item 46 eviction + Work Item 51 `INCONCLUSIVEPermit` |
+| Boot-window INCONCLUSIVE load | **Medium** — no VerdictRegistry check at all; runs under static floor only | Work Item 47 (log upgrade) + ServiceStarter ordering (Phase 4.2) |
+
 | Option | Pros | Cons |
 |---|---|---|
 | **A** — Treat INCONCLUSIVE as DANGEROUS (strict mode) | Eliminates risk; one-line change | Could break existing deployments where some JARs legitimately produce INCONCLUSIVE |
-| **B** — INCONCLUSIVE loads but ClassLoader evicted when policy changes | Closes the re-audit gap; backward compatible | Requires `DynamicPolicyProvider` ↔ `VerdictRegistryHolder` cross-cutting linkage; eviction disconnects live proxies |
+| **B** — INCONCLUSIVE loads but ClassLoader evicted when policy changes | Closes the fresh-load re-audit gap; backward compatible | Requires `DynamicPolicyProvider` ↔ `VerdictRegistryHolder` cross-cutting linkage; eviction disconnects live proxies |
 | **C** — INCONCLUSIVE loads into permission-restricted sandbox ClassLoader | Closes dangerous path regardless of future grants | Complex; requires CombinerSecurityManager domain-merge interception |
-| **D** — INCONCLUSIVE requires explicit administrator opt-in per codebase hash (INCONCLUSIVEPermit) | Makes every INCONCLUSIVE load deliberate; audit trail in VerdictRegistry | New VerdictRegistry API; operational friction for legitimate INCONCLUSIVE JARs |
+| **D** — INCONCLUSIVE requires explicit administrator opt-in per codebase hash (`INCONCLUSIVEPermit`) | Makes every INCONCLUSIVE load deliberate; audit trail in VerdictRegistry; addresses the fresh-load scenario structurally | New VerdictRegistry API; operational friction for legitimate INCONCLUSIVE JARs |
 
 **Recommendation:** Option B short-term + Option D long-term. Evict INCONCLUSIVE
-ClassLoaders on `DynamicPolicyProvider.grant()` (B) immediately. Require administrator
-permits for INCONCLUSIVE loads (D) in next major version. See Work Items 46, 51.
+ClassLoaders on `DynamicPolicyProvider.grant()` (B) to force a VerdictRegistry re-check
+on the next fresh proxy resolve. Note that Option B primarily addresses the fresh-load
+risk window — the retroactive risk on already-loaded proxies is naturally bounded by the
+`GrantPermission` intersection ceiling as described above. Option D (`INCONCLUSIVEPermit`)
+carries more long-term structural weight because it addresses the fresh-load scenario
+explicitly via an admin opt-in rather than reactively. See Work Items 46, 51.
 
 ---
 
@@ -537,5 +606,5 @@ These extend the work-item table in §12 of
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a future AI agent to
-continue without loss of context. This is version 34, created to capture the security weakness
-analysis and implementation plan from the Copilot conversation dated 2026-05-12.*
+continue without loss of context. This is version 36, updated to correct the §4.2 Weakness 3
+risk model for the GrantPermission/doPrivileged interaction (conversation dated 2026-05-13).*
