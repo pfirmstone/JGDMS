@@ -853,7 +853,7 @@ These extend the work-item table in §12 of
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a future AI agent to
-continue without loss of context. This is version 39, updated to mark Work Item 47 complete
-(`PreferredProxyCodebaseProvider.resolve()` boot-window `WARNING` audit logging with SHA-256
-codebase hashes), with corresponding §5 Phase 1.1 and §6 status updates (conversation dated
-2026-05-13).*
+continue without loss of context. This is version 41, the current version. Work Items 44, 45,
+47, and 49 are ✅ Completed; all other work items (46, 48, 50–57) remain 🔲 Not started.
+(Document footer corrected from v39 → v41 during a deep-dive gap-analysis pass on 2026-05-13;
+no status changes were required.)*
