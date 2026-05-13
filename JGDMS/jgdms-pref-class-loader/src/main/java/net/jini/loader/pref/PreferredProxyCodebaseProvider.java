@@ -104,7 +104,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             new RuntimePermission("setVerdictRegistry");
     static final int VERDICT_RETRY_ATTEMPTS = 3;
     static final long DEFAULT_VERDICT_RETRY_BASE_DELAY_MS = 1000L;
-    static volatile long verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
+    private static volatile long verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
     
     static {
 	ConcurrentMap<Referrer<Key>,Referrer<ClassLoader>> intern1 =
@@ -148,6 +148,14 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
         }
         VerdictRegistryHolder.set(registry);
+    }
+
+    static void setVerdictRetryBaseDelayMs(long retryBaseDelayMs) {
+        verdictRetryBaseDelayMs = retryBaseDelayMs;
+    }
+
+    static void resetVerdictRetryBaseDelayMs() {
+        verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
     }
 
     /**

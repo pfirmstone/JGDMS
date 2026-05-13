@@ -68,15 +68,14 @@ public class PreferredProxyCodebaseProviderVerdictTest {
 
     @Before
     public void disableVerdictRetrySleep() {
-        PreferredProxyCodebaseProvider.verdictRetryBaseDelayMs = 0L;
+        PreferredProxyCodebaseProvider.setVerdictRetryBaseDelayMs(0L);
     }
 
     @After
     public void resetRegistry() {
         // Clear the VerdictRegistry so tests do not interfere with each other.
         VerdictRegistryHolder.set(null);
-        PreferredProxyCodebaseProvider.verdictRetryBaseDelayMs =
-                PreferredProxyCodebaseProvider.DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
+        PreferredProxyCodebaseProvider.resetVerdictRetryBaseDelayMs();
     }
 
     // -------------------------------------------------------------------------
@@ -202,7 +201,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     @Test
     public void checkVerdictForJar_remoteException_throwsIOException() throws Exception {
         StubVerdictRegistry stub = new StubVerdictRegistry();
-        stub.setThrowRemoteException(true);
+        stub.setFailTimes(PreferredProxyCodebaseProvider.VERDICT_RETRY_ATTEMPTS + 1);
 
         try {
             PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
@@ -282,12 +281,6 @@ public class PreferredProxyCodebaseProviderVerdictTest {
 
         void setVerdictToReturn(RegistryVerdict verdict) {
             this.verdictToReturn = verdict;
-        }
-
-        void setThrowRemoteException(boolean throwIt) {
-            this.failTimes = throwIt
-                    ? PreferredProxyCodebaseProvider.VERDICT_RETRY_ATTEMPTS + 1
-                    : 0;
         }
 
         void setFailTimes(int failTimes) {
