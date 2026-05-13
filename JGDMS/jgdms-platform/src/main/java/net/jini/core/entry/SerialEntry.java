@@ -87,14 +87,53 @@ import java.lang.annotation.Target;
  * does <em>not</em> change the hash.
  * </p>
  *
- * <h2>Backward compatibility</h2>
+ * <h2>Backward compatibility — public fields</h2>
  * <p>
- * {@code @SerialEntry} is strictly opt-in.  Existing {@link Entry}
- * implementations that do not carry this annotation continue to work exactly
- * as before.  A registrar that understands {@code @SerialEntry} will use the
- * named-field path for annotated classes and the legacy positional path for
- * all others.
+ * Because all Jini Entry wire-schema fields are {@code public}, renaming a Java
+ * field without changing the wire name in {@code entryForm()} does <em>not</em>
+ * change the SHA-256 hash, but it <strong>does</strong> break binary
+ * compatibility: any pre-compiled class that accesses the old field name
+ * directly will fail to link.  {@code @SerialEntry} therefore protects the
+ * <em>wire contract</em> but not the <em>Java API contract</em>.  The safest
+ * evolution strategy for a deployed Entry class remains subclassing rather than
+ * in-place modification.
  * </p>
+ *
+ * <h2>Java records</h2>
+ * <p>
+ * Java 16+ records are natural {@code @SerialEntry} implementations: their
+ * components are implicitly {@code final}, the canonical constructor fires the
+ * JMM freeze action, and they provide {@code equals}/{@code hashCode}/
+ * {@code toString} over their components automatically.  A record-based entry
+ * adds a {@code public RecordEntry(GetEntryArg arg)} constructor that delegates
+ * to the canonical constructor:
+ * </p>
+ * <pre>{@code
+ * @SerialEntry
+ * public record LocationRecord(String host, Integer floor) implements Entry {
+ *
+ *     public static EntryWireField[] entryForm() {
+ *         return new EntryWireField[] {
+ *             new EntryWireField("host",  String.class),
+ *             new EntryWireField("floor", Integer.class),
+ *         };
+ *     }
+ *
+ *     public LocationRecord(GetEntryArg arg) throws java.io.IOException {
+ *         this(arg.get("host",  null, String.class),
+ *              arg.get("floor", null, Integer.class));
+ *         if (host == null)
+ *             throw new java.io.InvalidObjectException("host required");
+ *     }
+ *
+ *     public static void serialize(PutEntryArg arg, LocationRecord r)
+ *             throws java.io.IOException {
+ *         arg.put("host",  r.host());
+ *         arg.put("floor", r.floor());
+ *         arg.writeArgs();
+ *     }
+ * }
+ * }</pre>
  *
  * <h2>Canonical example</h2>
  * <pre>{@code

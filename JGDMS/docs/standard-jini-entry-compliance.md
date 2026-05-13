@@ -214,13 +214,35 @@ The SHA-256 hash of a `@SerialEntry` class is computed from:
 - Renaming the Entry class or moving it to a different package.
 - Changing any ancestor's hash.
 
-**Non-breaking changes** (do not change the hash):
+**Wire-stable / source-compatible changes** (do not change the hash):
 
-- Renaming a Java field while keeping the wire name unchanged in
-  `entryForm()`.
 - Adding or removing constructors, methods, or private fields.
 - Changing the implementation of `check()` or `serialize()` without
   altering the wire names or types.
+
+**Important caveat — public field renames break binary compatibility:**
+
+Because all Jini Entry wire-schema fields are declared `public`, renaming
+a Java field (e.g. `host` → `hostname`) does **not** change the SHA-256
+hash when the wire name in `entryForm()` is left unchanged, but it
+**does** break binary compatibility: any pre-compiled class that accesses
+`entry.host` directly will fail to link after the rename.  This applies
+to `public final` fields in `@SerialEntry` classes just as much as to the
+legacy mutable fields of plain `Entry` classes.
+
+The correct interpretation is therefore:
+
+| Change | Hash impact | Binary-compat impact |
+|--------|-------------|---------------------|
+| Rename Java field, keep wire name | None | **Breaking** |
+| Rename Java field, rename wire name | Breaking | Breaking |
+| Reorder Java fields (not wire order) | None | None |
+| Add new wire field to `entryForm()` | Breaking | None |
+| Remove wire field from `entryForm()` | Breaking | **Breaking** |
+| Move class to different package | Breaking | Breaking |
+
+In practice, once an Entry class is deployed the safest evolution strategy
+is to extend it rather than modify it in place.
 
 ---
 
@@ -335,6 +357,73 @@ public final class Location implements Entry {
 | JGDMS-STD-004 — Policy File Syntax | No direct relationship. |
 | `net.jini.core.entry.Entry` | `@SerialEntry` is an extension, not a replacement.  The `Entry` marker interface is still required. |
 | `net.jini.entry.AbstractEntry` | `AbstractEntry.fieldInfo()` includes `final` fields for `@SerialEntry` instances, enabling `equals()`, `hashCode()`, and `toString()` to work correctly. |
+| Java records | See dedicated section below. |
+
+---
+
+## Java records and `@SerialEntry`
+
+Java 16+ records are natural candidates for `@SerialEntry` implementations
+because:
+
+- **Immutable components** — record components are implicitly `final`,
+  which is explicitly permitted and recommended for `@SerialEntry` classes
+  (RULE-10).
+- **No spurious fields** — a record can only expose its declared components
+  as public members, preventing accidental addition of mutable `public`
+  fields.
+- **Canonical constructor** — a record's canonical constructor assigns all
+  components atomically, satisfying the JMM §17.5 freeze action without
+  any extra effort.
+- **`equals`, `hashCode`, `toString`** — records provide these for free
+  over their components, consistent with `AbstractEntry`'s semantics.
+
+### Constraints and workarounds
+
+| Record limitation | `@SerialEntry` workaround |
+|-------------------|--------------------------|
+| The canonical constructor signature is fixed (`(T1 c1, T2 c2, …)`) — it cannot accept `GetEntryArg`. | Provide a compact canonical constructor for normal construction, plus a separate `public RecordEntry(GetEntryArg arg)` constructor that delegates: `this(arg.get("c1", null, T1.class), …)`. |
+| A record cannot extend another class (`extends AbstractEntry`). | Implement `Entry` directly; provide `equals()`, `hashCode()`, and `toString()` either explicitly or via the default record implementations. |
+| The legacy no-arg constructor required by plain `Entry` registrars cannot be added to a record. | If legacy interop is not required, omit the no-arg constructor; the `(GetEntryArg)` constructor is sufficient for `@SerialEntry`-aware registrars. |
+
+### Minimal record example
+
+```java
+@SerialEntry
+public record LocationRecord(String host, Integer floor) implements Entry {
+
+    // ── Wire schema ─────────────────────────────────────────────────────
+    public static EntryWireField[] entryForm() {
+        return new EntryWireField[] {
+            new EntryWireField("host",  String.class),
+            new EntryWireField("floor", Integer.class),
+        };
+    }
+
+    // ── Deserialization constructor ──────────────────────────────────────
+    public LocationRecord(GetEntryArg arg) throws IOException {
+        this(arg.get("host",  null, String.class),
+             arg.get("floor", null, Integer.class));
+        if (host == null)
+            throw new InvalidObjectException("host must not be null");
+    }
+
+    // ── Serialization ────────────────────────────────────────────────────
+    public static void serialize(PutEntryArg arg, LocationRecord r)
+            throws IOException {
+        arg.put("host",  r.host());
+        arg.put("floor", r.floor());
+        arg.writeArgs();
+    }
+}
+```
+
+> **Note:** The invariant check inside the `(GetEntryArg)` constructor
+> body (after the delegating `this(…)` call) fires *after* the canonical
+> constructor has already assigned the components.  For invariants that
+> must reject construction entirely, use the compact constructor instead,
+> which runs as part of the canonical constructor before component
+> assignment completes.
 
 ---
 
