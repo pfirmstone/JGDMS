@@ -120,10 +120,8 @@ import java.lang.annotation.Target;
  *     }
  *
  *     public LocationRecord(GetEntryArg arg) throws java.io.IOException {
- *         this(arg.get("host",  null, String.class),
+ *         this(java.util.Objects.requireNonNull(arg.get("host",  null, String.class), "host must not be null"),
  *              arg.get("floor", null, Integer.class));
- *         if (host == null)
- *             throw new java.io.InvalidObjectException("host required");
  *     }
  *
  *     public static void serialize(PutEntryArg arg, LocationRecord r)

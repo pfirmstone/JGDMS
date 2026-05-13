@@ -402,10 +402,8 @@ public record LocationRecord(String host, Integer floor) implements Entry {
 
     // ── Deserialization constructor ──────────────────────────────────────
     public LocationRecord(GetEntryArg arg) throws IOException {
-        this(arg.get("host",  null, String.class),
+        this(Objects.requireNonNull(arg.get("host",  null, String.class), "host must not be null"),
              arg.get("floor", null, Integer.class));
-        if (host == null)
-            throw new InvalidObjectException("host must not be null");
     }
 
     // ── Serialization ────────────────────────────────────────────────────
@@ -418,12 +416,10 @@ public record LocationRecord(String host, Integer floor) implements Entry {
 }
 ```
 
-> **Note:** The invariant check inside the `(GetEntryArg)` constructor
-> body (after the delegating `this(…)` call) fires *after* the canonical
-> constructor has already assigned the components.  For invariants that
-> must reject construction entirely, use the compact constructor instead,
-> which runs as part of the canonical constructor before component
-> assignment completes.
+> **Note:** Invariant validation for a record should be performed inside
+> the arguments to the delegating `this(…)` call (e.g. with
+> `Objects.requireNonNull`), so that the check runs *before* component
+> assignment rather than after the object has already been constructed.
 
 ---
 
