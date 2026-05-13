@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v39)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v40)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,47 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v40 Change Summary
+
+**DirtyChai gap analysis corrections + Work Item 58 (DirtyChai CodeSourceKey fix)**
+
+Following a detailed analysis of the DirtyChai source and a clarifying exchange:
+
+### Item 5 — CLOSED (not a gap)
+
+A previous analysis raised a concern that SVID rotation could leave stale SPIFFE
+principals baked into cached `ProtectionDomain` objects.  This is **not a gap**:
+
+- The SPIFFE principal names stored in a `ProtectionDomain` (e.g.
+  `X500Principal("CN=spiffe://trust.domain/path/...")`) are **stable across SVID
+  rotation**.  Only the SVID certificate and private key rotate; the workload's
+  identity path — and therefore its `Principal.getName()` — does not change.
+- The `WorkerSubject` (which carries the current SVID certificate and key) is a
+  different concept.  It is obtained fresh on each use by calling
+  `Subject.getWorkerSubject()`.  It is not cached in the `ProtectionDomain` and
+  must not be used in `Subject.doAs()` / `Subject.callAs()` calls.
+- Consequently no `pdcache` invalidation is needed on SVID rotation, and no
+  `@implNote` warning is required in `SpiffeCredentialManager` or
+  `SecureClassLoader`.
+
+### Item 6 — OPEN → Work Item 58 (DirtyChai)
+
+`SecureClassLoader.CodeSourceKey` does not include digest fields from
+`DigestCodeSource`, causing two correctness problems:
+
+1. **Cache aliasing**: two `DigestCodeSource` values for the same URL + certs but
+   different digests hash to the same cache slot.  The second caller receives the
+   first caller's `ProtectionDomain`.
+2. **Unnecessary re-download**: when the caller already supplies a
+   `DigestCodeSource` (e.g. JGDMS JERI reconstructing an ACC from the wire),
+   `getProtectionDomain` re-downloads the URL and creates a *new*
+   `DigestCodeSource` whose digest may differ from the one in the cache key,
+   producing a permanently dead cache entry.
+
+Work Item 58 tracks the fix; see §7 for the complete patch specification.
 
 ---
 
@@ -808,11 +849,156 @@ These extend the work-item table in §12 of
 | **56** | Pack200 semaphore — `Semaphore(4)` (configurable) around JAR download + decompression in `PreferredProxyCodebaseProvider.resolve()` | 1.5 | 🔲 Not started |
 
 | **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | 🔲 Not started |
+| **58** | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix (two-part) — see §7 | DirtyChai | 🔲 Not started |
+
+---
+
+## 7. Work Item 58 — DirtyChai `CodeSourceKey` Digest Fix
+
+**File:** `src/java.base/share/classes/java/security/SecureClassLoader.java` in DirtyChai
+
+This is a two-part change to `SecureClassLoader`:
+
+### Part A — `CodeSourceKey` must include digest fields
+
+**Why:** `CodeSourceKey` is the key type for `pdcache`.  When the incoming
+`CodeSource` is a `DigestCodeSource`, the digest is part of its identity.  Two
+`DigestCodeSource` values at the same URL with the same certificates but different
+digests represent different code versions and must map to different cache slots.
+
+**What to change:** add `digestAlgorithm` (String) and `digest` (byte[]) fields to
+`CodeSourceKey`, populate them from `DigestCodeSource` when applicable, and include
+them in `hashCode()` and `equals()`.
+
+**Replacement `CodeSourceKey` inner class:**
+
+```java
+private static class CodeSourceKey {
+
+    private final Uri uri;
+    private final java.security.cert.Certificate[] certs;
+    // Populated only when the incoming CodeSource is a DigestCodeSource.
+    private final String digestAlgorithm;
+    private final byte[] digest;
+    private final int hashCode;
+    final CodeSource cs; // package-private: used by resetArchivedStates
+
+    private CodeSourceKey(CodeSource cs) throws URISyntaxException {
+        this.cs = cs;
+        certs = cs.getCertificates();
+        this.uri = cs.getLocation() != null ? Uri.urlToUri(cs.getLocation()) : null;
+        if (cs instanceof DigestCodeSource dcs) {
+            this.digestAlgorithm = dcs.getDigestAlgorithm();
+            this.digest = dcs.getDigest();   // defensive copy already made by getDigest()
+        } else {
+            this.digestAlgorithm = null;
+            this.digest = null;
+        }
+        int hash = 7;
+        hash = 23 * hash + (uri != null ? uri.hashCode() : 0);
+        hash = 23 * hash + (certs != null ? Arrays.hashCode(certs) : 0);
+        hash = 23 * hash + (digestAlgorithm != null ? digestAlgorithm.hashCode() : 0);
+        hash = 23 * hash + Arrays.hashCode(digest);
+        hashCode = hash;
+    }
+
+    @Override
+    public int hashCode() {
+        return hashCode;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof CodeSourceKey that)) return false;
+        // URI equality (RFC 3986, no DNS): handles null on both sides.
+        if (uri == null ? that.uri != null : !uri.equals(that.uri)) return false;
+        // Certificate equality.
+        if (!Arrays.equals(certs, that.certs)) return false;
+        // Digest equality: a plain-CS key (null digest) is NOT equal to a
+        // DigestCS key (non-null digest) — they represent different identities.
+        if (digestAlgorithm == null ? that.digestAlgorithm != null
+                                    : !digestAlgorithm.equals(that.digestAlgorithm)) return false;
+        return Arrays.equals(digest, that.digest);
+    }
+}
+```
+
+**Cache-slot behaviour after this change:**
+
+| Caller passes | Key digest | Result |
+|---|---|---|
+| Plain `CodeSource(url, certs)` | `null` | Same slot as all previous plain-CS loads for this url+certs |
+| `DigestCodeSource(url, certs, "SHA-256", H1)` | `H1` | Separate slot from the plain-CS entry and from any DigestCS with digest `H2 ≠ H1` |
+| `DigestCodeSource(url, certs, "SHA-256", H2)` | `H2` | Separate slot from above |
+
+### Part B — skip re-download when input is already a `DigestCodeSource`
+
+**Why:** In `getProtectionDomain`, when the SecurityManager is active and the URL
+is non-null, the current code **always** downloads the URL and computes a fresh
+digest, regardless of whether the caller already supplied a `DigestCodeSource`.
+This causes a key-value mismatch: the cache key carries the *input* digest (`H`)
+while the cached `ProtectionDomain` carries the *downloaded* digest (`H'`).
+When `H ≠ H'` the cache entry is permanently dead — `DigestGrant(H).implies(pd)`
+will always be false because `pd.getCodeSource()` has `H'`, not `H`.
+
+The digest carried by a `DigestCodeSource` is its identity.  The
+`LoadClassPermission` check (which always runs) is the appropriate security gate;
+re-downloading the URL is unnecessary and counter-productive.
+
+**Replacement block inside `getProtectionDomain` (inside `if (sm != null)`):**
+
+```java
+if (sm != null) {
+    URL codebase = cs.getLocation();
+    if (codebase != null) {
+        Permission checkURL = new URLPermission(key.uri.toString(), "GET:");
+        sm.checkPermission(checkURL,
+                AccessControlContext.create(new ProtectionDomain[]{pd}, false));
+
+        if (cs instanceof DigestCodeSource) {
+            // The caller already supplies a content-addressed DigestCodeSource.
+            // Its digest IS its code identity; re-downloading the URL is not
+            // required.  The LoadClassPermission check below still enforces
+            // the security gate before any class is defined.
+            perms = SecureClassLoader.this.getPermissions(cs);
+            pd = new ProtectionDomain(cs, perms, SecureClassLoader.this, pals);
+        } else {
+            // Plain CodeSource: download the artifact and compute its digest.
+            // Algorithm is "SHA-256" for now; will be made configurable.
+            DigestCodeSource digest;
+            try {
+                digest = new DigestCodeSource(key.uri, key.certs, "SHA-256");
+                perms = SecureClassLoader.this.getPermissions(digest);
+            } catch (IOException ex) {
+                throw new SecurityException("Unable to contact URL: ", ex);
+            } catch (NoSuchAlgorithmException ex) {
+                throw new SecurityException(
+                        "URL Provider not loaded or unknown algorithm: ", ex);
+            }
+            pd = new ProtectionDomain(digest, perms, SecureClassLoader.this, pals);
+        }
+    }
+    sm.checkPermission(LOAD_CLASS_ALLOW,
+            AccessControlContext.create(new ProtectionDomain[]{pd}, false));
+}
+```
+
+### Security analysis
+
+| Property | How it is maintained after this fix |
+|---|---|
+| Re-download for plain `CodeSource` | Unchanged — plain CS still triggers URL download + digest computation |
+| Digest-addressed code identity | Each `DigestCodeSource` with a unique digest occupies its own cache slot; the PD's `CodeSource` digest matches the key's digest exactly |
+| `LoadClassPermission` gate | Unaffected — the check always runs for both plain and digest sources |
+| `URLPermission` gate | Unaffected — the check always runs when a URL is present |
+| DigestGrant matching | `DigestGrant(H).implies(pd)` → `pd.getCodeSource()` is `DigestCodeSource(H)` → `Arrays.equals(H, H)` → true (previously dead due to key/value mismatch) |
+| Plain-CS repeated loads | Plain-CS key still matches the cached entry (null digest equals null digest) — no regression |
 
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a future AI agent to
-continue without loss of context. This is version 39, updated to mark Work Item 47 complete
-(`PreferredProxyCodebaseProvider.resolve()` boot-window `WARNING` audit logging with SHA-256
-codebase hashes), with corresponding §5 Phase 1.1 and §6 status updates (conversation dated
-2026-05-13).*
+continue without loss of context. This is version 40, updated with: Item 5 SVID-rotation gap
+CLOSED (SPIFFE Principal names are stable; WorkerSubject obtained fresh via
+`Subject.getWorkerSubject()`); Work Item 58 DirtyChai `SecureClassLoader.CodeSourceKey`
+digest fix spec added in §7 (conversation dated 2026-05-13).*
