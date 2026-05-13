@@ -67,6 +67,7 @@ import net.jini.io.MarshalOutputStream;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.IntegrityEnforcement;
+import net.jini.security.jwt.JwtRawToken;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
@@ -1860,7 +1861,17 @@ public class BasicInvocationHandler
      *       classNameBytes  : UTF-8, classNameLength bytes
      *       nameLength      : unsigned 16-bit big-endian
      *       nameBytes       : UTF-8, nameLength bytes
+     *     jwtCount        : unsigned 8-bit (0 = no raw JWTs for this Subject)
+     *     for each JWT:
+     *       jwtLength     : unsigned 32-bit big-endian
+     *       jwtBytes      : UTF-8, jwtLength bytes (compact JWT serialization)
      * </pre>
+     *
+     * <p>The {@code jwtCount} field and the accompanying JWT bytes were added
+     * to support the {@link net.jini.security.jwt.JwtVerifier} SPI (Work Item 44,
+     * Option D).  If the Subject's public credentials contain one or more
+     * {@link net.jini.security.jwt.JwtRawToken} instances, each token is written
+     * to the wire so the server side can perform independent verification.
      */
     static void writeUserSubjects(OutputStream out, Subject[] subjects)
 	throws IOException
@@ -1879,6 +1890,22 @@ public class BasicInvocationHandler
 		writeUtf8Prefixed(out, p.getClass().getName());
 		writeUtf8Prefixed(out, p.getName());
 		written++;
+	    }
+	    // JWT block: raw tokens from public credentials (Option D, Work Item 44).
+	    Set<JwtRawToken> jwtTokens;
+	    try {
+		jwtTokens = subjects[si].getPublicCredentials(JwtRawToken.class);
+	    } catch (Exception ignored) {
+		// Defensive: if getPublicCredentials fails for any reason, skip JWT block.
+		jwtTokens = java.util.Collections.emptySet();
+	    }
+	    int jwtCount = Math.min(jwtTokens.size(), 0xFF);
+	    out.write(jwtCount & 0xFF);
+	    int jwtWritten = 0;
+	    for (JwtRawToken jwtToken : jwtTokens) {
+		if (jwtWritten >= jwtCount) break;
+		writeJwtBytes(out, jwtToken.getToken());
+		jwtWritten++;
 	    }
 	}
     }
@@ -1917,5 +1944,32 @@ public class BasicInvocationHandler
         out.write((len >>> 8) & 0xFF);
         out.write(len & 0xFF);
         if (len > 0) out.write(bytes);
+    }
+
+    /**
+     * Writes a JWT compact-serialization string as a 4-byte big-endian length
+     * prefix followed by the UTF-8 bytes.
+     *
+     * <p>A 4-byte length prefix is used (rather than the 2-byte prefix used for
+     * principal strings) to match the 4-byte prefix expected by
+     * {@link BasicInvocationDispatcher#readJwtBytes}, which caps accepted tokens
+     * at {@code 65 535} UTF-8 bytes.  Tokens longer than this limit are rejected
+     * here to prevent the receiver from rejecting them after wasting I/O.
+     *
+     * @throws IOException if the UTF-8 encoding of {@code jwt} exceeds
+     *         65 535 bytes
+     */
+    private static void writeJwtBytes(OutputStream out, String jwt) throws IOException {
+        byte[] bytes = jwt.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length > 0xFFFF) {
+            throw new IOException(
+                "JWT token too long for wire encoding (" + bytes.length + " UTF-8 bytes,"
+                + " maximum is 65535)");
+        }
+        out.write((bytes.length >>> 24) & 0xFF);
+        out.write((bytes.length >>> 16) & 0xFF);
+        out.write((bytes.length >>> 8)  & 0xFF);
+        out.write(bytes.length & 0xFF);
+        out.write(bytes);
     }
 }

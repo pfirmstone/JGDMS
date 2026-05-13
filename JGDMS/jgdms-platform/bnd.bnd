@@ -16,6 +16,7 @@ Bundle-Activator: org.apache.river.resource.OSGiServiceIterator
     net.jini.io.context,\
     net.jini.loader,\
     net.jini.security,\
+    net.jini.security.jwt,\
     net.jini.security.policy,\
     net.jini.security.proxytrust,\
     org.apache.river.action,\
