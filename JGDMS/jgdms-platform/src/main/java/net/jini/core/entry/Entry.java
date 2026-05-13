@@ -53,9 +53,24 @@ package net.jini.core.entry;
  * <li> Only use org.apache.river.lookup.util.ConsistentMap or
  * org.apache.river.lookup.util.ConsistentSet Collection types, or use arrays.
  * </ol>
+ * <h2>Opt-in: {@link SerialEntry @SerialEntry} for evolution-safe entries</h2>
+ * <p>
+ * Entry classes that want a stable wire contract independent of Java field
+ * names can opt in to {@link SerialEntry @SerialEntry}.  An annotated class
+ * declares its wire schema via a static {@code entryForm()} method, provides
+ * a deserialization constructor {@code (GetEntryArg)}, and provides a static
+ * {@code serialize(PutEntryArg, T)} method.  This decouples wire identity from
+ * Java source names, allowing safe refactoring, explicit invariant validation,
+ * and — for classes that assign their fields in a real constructor — the safe
+ * use of {@code final} fields.
+ * </p>
  *
  * @author Sun Microsystems, Inc.
  *
+ * @see SerialEntry
+ * @see EntryWireField
+ * @see GetEntryArg
+ * @see PutEntryArg
  *
  * @since 1.0
  */

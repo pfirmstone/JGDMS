@@ -25,13 +25,19 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.rmi.MarshalException;
 import java.rmi.RemoteException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import net.jini.core.entry.Entry;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.SerialEntry;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -171,7 +177,11 @@ public final class EntryRep implements Serializable, Cloneable {
     
     private static Object[] fields(Entry entry) 
             throws IOException, IllegalArgumentException, IllegalAccessException {
-        EntryField[] efields = ClassMapper.getFields(entry.getClass());
+        Class<?> cls = entry.getClass();
+        if (cls.isAnnotationPresent(SerialEntry.class)) {
+            return fieldsViaSerialEntry(cls, entry);
+        }
+        EntryField[] efields = ClassMapper.getFields(cls);
         Object[] fields = new Object[efields.length];
         for (int i = efields.length; --i >= 0; ) {
             EntryField f = efields[i];
@@ -184,6 +194,65 @@ public final class EntryRep implements Serializable, Cloneable {
     }
 
     /**
+     * Serialises an {@code @SerialEntry} instance by invoking its static
+     * {@code serialize(PutEntryArg, T)} method and collecting the results.
+     */
+    private static Object[] fieldsViaSerialEntry(Class<?> cls, Entry entry)
+            throws IOException {
+        try {
+            Method entryFormMethod = cls.getMethod("entryForm");
+            EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
+            PutEntryArgImpl putArg = new PutEntryArgImpl(wireFields);
+            Method serializeMethod = cls.getMethod("serialize",
+                    net.jini.core.entry.PutEntryArg.class, cls);
+            serializeMethod.invoke(null, putArg, entry);
+            Object[] rawValues = putArg.getResult();
+            // Wrap values that need marshalling (not simple immutable types)
+            Object[] fields = new Object[wireFields.length];
+            for (int i = 0; i < wireFields.length; i++) {
+                Object val = rawValues[i];
+                if (val != null && needsMarshal(wireFields[i].getType())) {
+                    val = new MarshalledWrapper(new AtomicMarshalledInstance(val));
+                }
+                fields[i] = val;
+            }
+            return fields;
+        } catch (NoSuchMethodException e) {
+            throw new MarshalException(
+                cls.getName() + " is @SerialEntry but missing required static method", e);
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException) throw (IOException) cause;
+            throw new MarshalException(
+                "Exception during " + cls.getName() + ".serialize()", e);
+        } catch (IllegalAccessException e) {
+            throw new MarshalException(
+                "Cannot access serialize() on " + cls.getName(), e);
+        }
+    }
+
+    /** Types whose instances are known-immutable and do not need MarshalledWrapper. */
+    private static final java.util.Set<Class<?>> IMMUTABLE_TYPES;
+    static {
+        java.util.Set<Class<?>> s = new java.util.HashSet<>();
+        s.add(String.class);
+        s.add(Integer.class);
+        s.add(Boolean.class);
+        s.add(Character.class);
+        s.add(Long.class);
+        s.add(Float.class);
+        s.add(Double.class);
+        s.add(Byte.class);
+        s.add(Short.class);
+        IMMUTABLE_TYPES = java.util.Collections.unmodifiableSet(s);
+    }
+
+    /** Returns {@code true} if values of the given type need MarshalledWrapper wrapping. */
+    private static boolean needsMarshal(Class<?> type) {
+        return !IMMUTABLE_TYPES.contains(type);
+    }
+
+    /**
      * Convert back to an Entry.  If the Entry cannot be constructed,
      * null is returned.  If a field cannot be unmarshalled, it is set
      * to null.
@@ -192,6 +261,9 @@ public final class EntryRep implements Serializable, Cloneable {
     public Entry get() {
 	try {
 	    Class clazz = eclass.toClass(codebase);
+	    if (clazz.isAnnotationPresent(SerialEntry.class)) {
+		return getViaSerialEntry(clazz);
+	    }
 	    EntryField[] efields = ClassMapper.getFields(clazz);
 	    Entry entry = (Entry)clazz.getDeclaredConstructor().newInstance();
 	    for (int i = efields.length; --i >= 0; ) {
@@ -218,6 +290,38 @@ public final class EntryRep implements Serializable, Cloneable {
 		}
 	    }
 	    return entry;
+	} catch (Throwable e) {
+	    RegistrarProxy.handleException(e);
+	}
+	return null;
+    }
+
+    /**
+     * Deserialises a {@code @SerialEntry} entry via its {@code (GetEntryArg)}
+     * constructor, first unmarshalling any {@link MarshalledWrapper} values
+     * back to their original objects.
+     */
+    private Entry getViaSerialEntry(Class clazz) {
+	try {
+	    Method entryFormMethod = clazz.getMethod("entryForm");
+	    EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
+	    // Unmarshal wrapped values back to their original types
+	    Object[] rawValues = new Object[wireFields.length];
+	    for (int i = 0; i < wireFields.length && i < flds.size(); i++) {
+		Object val = flds.get(i);
+		if (val instanceof MarshalledWrapper) {
+		    try {
+			val = ((MarshalledWrapper) val).get();
+		    } catch (Throwable e) {
+			RegistrarProxy.handleException(e);
+			val = null;
+		    }
+		}
+		rawValues[i] = val;
+	    }
+	    GetEntryArg getArg = new GetEntryArgImpl(wireFields, rawValues);
+	    Constructor ctor = clazz.getConstructor(GetEntryArg.class);
+	    return (Entry) ctor.newInstance(getArg);
 	} catch (Throwable e) {
 	    RegistrarProxy.handleException(e);
 	}

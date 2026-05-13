@@ -25,10 +25,13 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.SerialEntry;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -164,9 +167,45 @@ public class EntryClass implements Serializable {
     {
 	name = clazz.getName();
 	this.superclass = superclass;
-	ClassMapper.EntryField[] fields = ClassMapper.getFields(clazz);
-	numFields = fields.length;
-	hash = computeHash(fields);
+	if (clazz.isAnnotationPresent(SerialEntry.class)) {
+	    EntryWireField[] wireFields = getEntryForm(clazz);
+	    numFields = wireFields.length;
+	    hash = computeSerialEntryHash(wireFields);
+	} else {
+	    ClassMapper.EntryField[] fields = ClassMapper.getFields(clazz);
+	    numFields = fields.length;
+	    hash = computeHash(fields);
+	}
+    }
+
+    /**
+     * Invokes the static {@code entryForm()} method on a {@code @SerialEntry}
+     * class to retrieve its wire schema.
+     */
+    private static EntryWireField[] getEntryForm(Class clazz)
+	    throws MarshalException
+    {
+	try {
+	    Method m = clazz.getMethod("entryForm");
+	    Object result = m.invoke(null);
+	    if (!(result instanceof EntryWireField[]))
+		throw new MarshalException(
+		    clazz.getName() + ".entryForm() did not return EntryWireField[]");
+	    EntryWireField[] wf = (EntryWireField[]) result;
+	    if (wf == null || wf.length == 0)
+		throw new MarshalException(
+		    clazz.getName() + ".entryForm() returned null or empty array");
+	    return wf;
+	} catch (NoSuchMethodException e) {
+	    throw new MarshalException(
+		clazz.getName() + " is @SerialEntry but has no public static entryForm() method", e);
+	} catch (java.lang.reflect.InvocationTargetException e) {
+	    throw new MarshalException(
+		"Exception invoking " + clazz.getName() + ".entryForm()", e);
+	} catch (IllegalAccessException e) {
+	    throw new MarshalException(
+		"Cannot access " + clazz.getName() + ".entryForm()", e);
+	}
     }
 
     /**
@@ -333,6 +372,42 @@ public class EntryClass implements Serializable {
 	} catch (Exception e) {
 	    throw new MarshalException("Unable to calculate type hash for "
 				       + name, e);
+	}
+	return hash;
+    }
+
+    /**
+     * Computes a SHA-256 digest from the hash of the superclass (if any),
+     * followed by the name of this class, followed by the wire name and type
+     * for each field declared in {@code entryForm()}.  The first 8 bytes of
+     * the digest form the 64-bit hash value for this {@code @SerialEntry} type.
+     * <p>
+     * SHA-256 is used in preference to SHA-1 because SHA-1 may be removed
+     * from future JDK releases.
+     */
+    private long computeSerialEntryHash(EntryWireField[] wireFields)
+	throws MarshalException
+    {
+	long hash = 0;
+	try {
+	    MessageDigest md = MessageDigest.getInstance("SHA-256");
+	    DataOutputStream out = new DataOutputStream(
+		new DigestOutputStream(new ByteArrayOutputStream(127), md));
+	    if (superclass != null)
+		out.writeLong(superclass.hash);
+	    out.writeUTF(name);
+	    for (EntryWireField wf : wireFields) {
+		out.writeUTF(wf.getName());
+		out.writeUTF(wf.getType().getName());
+	    }
+	    out.flush();
+	    byte[] digest = md.digest();
+	    for (int i = Math.min(8, digest.length); --i >= 0; ) {
+		hash += ((long) (digest[i] & 0xFF)) << (i * 8);
+	    }
+	} catch (Exception e) {
+	    throw new MarshalException(
+		"Unable to calculate @SerialEntry type hash for " + name, e);
 	}
 	return hash;
     }
