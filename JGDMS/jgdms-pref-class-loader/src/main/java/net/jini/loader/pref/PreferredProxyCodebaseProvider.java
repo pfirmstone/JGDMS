@@ -388,10 +388,30 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     }
                 }
             } else {
-                logger.log(Level.FINE,
+                StringBuilder bootWindowHashes = new StringBuilder();
+                bootWindowHashes.append('[');
+                boolean first = true;
+                for (int vi = 0, vl = codebase.length; vi < vl; vi++) {
+                    URL jarUrl = codebase[vi];
+                    if (!isDirectory(jarUrl)) {
+                        if (!first) {
+                            bootWindowHashes.append(", ");
+                        }
+                        first = false;
+                        String contentHash;
+                        try {
+                            contentHash = computeJarHash(jarUrl);
+                        } catch (IOException ex) {
+                            contentHash = "<unreadable>";
+                        }
+                        bootWindowHashes.append(jarUrl).append('=').append(contentHash);
+                    }
+                }
+                bootWindowHashes.append(']');
+                logger.log(Level.WARNING,
                         "VerdictRegistry not yet set; skipping verdict check"
-                        + " (boot-time permissive policy) for codebase: {0}",
-                        path);
+                        + " (boot-time permissive policy) - codebase: {0}; SHA-256: {1}",
+                        new Object[]{path, bootWindowHashes.toString()});
             }
 
             /**

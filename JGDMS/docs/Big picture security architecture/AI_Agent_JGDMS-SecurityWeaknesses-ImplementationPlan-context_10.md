@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v38)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v39)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,21 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v39 Change Summary
+
+**Work Item 47 completed — boot-window audit trail hardening**
+
+- Completed Work Item 47 by upgrading the boot-window permissive-policy log in
+  `PreferredProxyCodebaseProvider.resolve()` from `Level.FINE` to `Level.WARNING`
+  and including SHA-256 hash reporting for non-directory codebase JARs.
+- §6 Work Items table updated: Item 47 status changed from `🔲 Not started` to
+  `✅ Completed`.
+- §5 Phase 1 table updated: Phase 1.1 priority changed from `🔴 Immediate` to
+  `✅ Completed`.
+- Version header bumped from v38 → v39.
 
 ---
 
@@ -712,7 +727,7 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 
 | # | Weakness | Action | Files | Priority |
 |---|---|---|---|---|
-| 1.1 | Boot window log level (W4) | Upgrade `Level.FINE` → `Level.WARNING` in boot-window path; include codebase hash | `PreferredProxyCodebaseProvider.java` | 🔴 Immediate |
+| 1.1 | Boot window log level (W4) | Upgrade `Level.FINE` → `Level.WARNING` in boot-window path; include codebase hash | `PreferredProxyCodebaseProvider.java` | ✅ Completed |
 | 1.2 | SVID renewal backoff (W6) | Replace fixed `RETRY_INTERVAL_SECONDS` with exponential backoff (cap at `renewalLeadSeconds/2`, min 30 s) | `SpiffeCredentialManager.java` | 🔴 Immediate |
 | 1.3 | SVID health metric (W6) | Add `isCredentialValid()` + `secondsUntilExpiry()` to `SpiffeCredentialManager`; emit `Level.WARNING` when < `renewalLeadSeconds × 2` | `SpiffeCredentialManager.java` | 🔴 Immediate |
 | 1.4 | VerdictRegistry retry backoff (W5) | Add 3-attempt exponential backoff (1 s → 2 s → 4 s) before failing in `checkVerdictForJar()` | `PreferredProxyCodebaseProvider.java` | 🔴 Immediate |
@@ -781,7 +796,7 @@ These extend the work-item table in §12 of
 | **44** | `JwtVerifier` SPI — define interface; wire into `BasicInvocationDispatcher`; connection-level JWT cache; `jwtCount:u8` extension of v0x02 wire format; `DefaultJwtVerifier` (exp/iat/iss/aud, no JWKS); `JwtRawToken` public credential; fixed `PRINCIPAL_CTORS` class names | 3.1 | ✅ Completed |
 | **45** | VerdictRegistry retry backoff (exponential, 1 s → 2 s → 4 s, 3 attempts) in `checkVerdictForJar()` | 1.4 | 🔲 Not started |
 | **46** | INCONCLUSIVE ClassLoader eviction on `DynamicPolicyProvider.grant()` | 2.5 | 🔲 Not started |
-| **47** | Boot-window log upgrade (`Level.FINE` → `Level.WARNING` + SHA-256 hash) | 1.1 | 🔲 Not started |
+| **47** | Boot-window log upgrade (`Level.FINE` → `Level.WARNING` + SHA-256 hash) | 1.1 | ✅ Completed |
 | **48** | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, configurable TTL) | 2.6 | 🔲 Not started |
 | **49** | SVID exponential-backoff renewal + `isCredentialValid()` / `secondsUntilExpiry()` health endpoint | 1.2 + 1.3 | 🔲 Not started |
 | **50** | `SubjectAwareExecutor implements ExecutorService` — Subject[] capture-and-rebind wrapper | 2.4 | 🔲 Not started |
@@ -797,7 +812,7 @@ These extend the work-item table in §12 of
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a future AI agent to
-continue without loss of context. This is version 38, updated to check off completed work items
-(§3 Weakness 2 mitigation text; §5 Phase 3.1 marked ✅ Completed) following Work Item 44
-completion, and to add the Option E deep-dive (event-sourced read replicas for Weakness 5 —
-VerdictRegistry outage) and Work Item 57 (conversation dated 2026-05-13).*
+continue without loss of context. This is version 39, updated to mark Work Item 47 complete
+(`PreferredProxyCodebaseProvider.resolve()` boot-window `WARNING` audit logging with SHA-256
+codebase hashes), with corresponding §5 Phase 1.1 and §6 status updates (conversation dated
+2026-05-13).*
