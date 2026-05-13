@@ -857,7 +857,10 @@ public final class SpiffeCredentialManager implements AutoCloseable {
             currentRetryDelaySeconds = MIN_RETRY_INTERVAL_SECONDS;
         } catch (Exception e) {
             long maxDelay = Math.max(MIN_RETRY_INTERVAL_SECONDS, renewalLeadSeconds / 2);
-            long nextDelay = Math.min(currentRetryDelaySeconds * 2, maxDelay);
+            long doubled = (currentRetryDelaySeconds > maxDelay / 2)
+                    ? maxDelay
+                    : currentRetryDelaySeconds * 2;
+            long nextDelay = Math.min(doubled, maxDelay);
             currentRetryDelaySeconds = nextDelay;
 
             long secsLeft = secondsUntilExpiry();
