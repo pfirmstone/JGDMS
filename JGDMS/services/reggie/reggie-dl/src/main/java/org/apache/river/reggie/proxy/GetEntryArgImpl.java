@@ -53,8 +53,8 @@ final class GetEntryArgImpl extends GetEntryArg {
      */
     GetEntryArgImpl(EntryWireField[] wireFields, Object[] storedFields) {
         int count = Math.min(wireFields.length, storedFields.length);
-        valueMap = new HashMap<>(count * 2);
-        presentNames = new java.util.HashSet<>(count * 2);
+        valueMap = new HashMap<>(Math.max((int) (count / 0.75) + 1, 16));
+        presentNames = new java.util.HashSet<>(Math.max((int) (count / 0.75) + 1, 16));
         for (int i = 0; i < count; i++) {
             String name = wireFields[i].getName();
             valueMap.put(name, storedFields[i]);

@@ -39,7 +39,7 @@ final class OutriggerPutEntryArgImpl extends PutEntryArg {
 
     OutriggerPutEntryArgImpl(EntryWireField[] wireFields) {
         this.wireFields = wireFields;
-        this.collected = new LinkedHashMap<>(wireFields.length * 2);
+        this.collected = new LinkedHashMap<>(Math.max(wireFields.length * 4 / 3 + 1, 16));
     }
 
     @Override

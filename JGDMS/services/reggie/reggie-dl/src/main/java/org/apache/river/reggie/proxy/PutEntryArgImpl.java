@@ -41,7 +41,7 @@ final class PutEntryArgImpl extends PutEntryArg {
 
     PutEntryArgImpl(EntryWireField[] wireFields) {
         this.wireFields = wireFields;
-        this.collected = new LinkedHashMap<>(wireFields.length * 2);
+        this.collected = new LinkedHashMap<>(Math.max(wireFields.length * 4 / 3 + 1, 16));
     }
 
     @Override

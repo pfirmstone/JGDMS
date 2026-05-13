@@ -231,17 +231,25 @@ public final class EntryRep implements Serializable, Cloneable {
         }
     }
 
+    /** Types whose instances are known-immutable and do not need MarshalledWrapper. */
+    private static final java.util.Set<Class<?>> IMMUTABLE_TYPES;
+    static {
+        java.util.Set<Class<?>> s = new java.util.HashSet<>();
+        s.add(String.class);
+        s.add(Integer.class);
+        s.add(Boolean.class);
+        s.add(Character.class);
+        s.add(Long.class);
+        s.add(Float.class);
+        s.add(Double.class);
+        s.add(Byte.class);
+        s.add(Short.class);
+        IMMUTABLE_TYPES = java.util.Collections.unmodifiableSet(s);
+    }
+
     /** Returns {@code true} if values of the given type need MarshalledWrapper wrapping. */
     private static boolean needsMarshal(Class<?> type) {
-        return !(type == String.class  ||
-                 type == Integer.class ||
-                 type == Boolean.class ||
-                 type == Character.class ||
-                 type == Long.class    ||
-                 type == Float.class   ||
-                 type == Double.class  ||
-                 type == Byte.class    ||
-                 type == Short.class);
+        return !IMMUTABLE_TYPES.contains(type);
     }
 
     /**
