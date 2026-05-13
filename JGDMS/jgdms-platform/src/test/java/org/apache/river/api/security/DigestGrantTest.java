@@ -20,6 +20,7 @@ package org.apache.river.api.security;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FilePermission;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.SocketPermission;
@@ -103,6 +104,21 @@ public class DigestGrantTest {
                  .build();
     }
 
+    /**
+     * Returns {@code true} when {@code grant} is an instance of
+     * {@code DigestGrant} regardless of which class loader served it.
+     * <p>
+     * A direct {@code instanceof DigestGrant} check cannot be used on
+     * DirtyChai: {@code DigestGrant} is package-private inside {@code java.base}
+     * and the bootstrap class loader serves it ahead of the classpath copy,
+     * making it inaccessible from the unnamed module.
+     */
+    private static boolean isDigestGrant(PermissionGrant grant) {
+        return grant != null
+                && "org.apache.river.api.security.DigestGrant"
+                        .equals(grant.getClass().getName());
+    }
+
     // -----------------------------------------------------------------------
     // Sanity: builder produces a DigestGrant (not a plain URIGrant)
     // -----------------------------------------------------------------------
@@ -111,13 +127,13 @@ public class DigestGrantTest {
     public void testBuilderProducesDigestGrant() {
         System.out.println("testBuilderProducesDigestGrant");
         assertTrue("DIGEST context must produce DigestGrant",
-                grant instanceof DigestGrant);
+                isDigestGrant(grant));
     }
 
     @Test
     public void testUriContextDoesNotProduceDigestGrant() {
         System.out.println("testUriContextDoesNotProduceDigestGrant");
-        assertFalse(uriGrant instanceof DigestGrant);
+        assertFalse(isDigestGrant(uriGrant));
     }
 
     // -----------------------------------------------------------------------
@@ -250,37 +266,62 @@ public class DigestGrantTest {
     // Serialisation round-trip (via PermissionGrantBuilder proxy)
     // -----------------------------------------------------------------------
 
+    /**
+     * Builds a DigestGrant with an empty permission set for serialisation
+     * round-trip testing.
+     * <p>
+     * DirtyChai has made every concrete {@link java.security.Permission}
+     * subclass non-serializable as a defence against deserialization gadget
+     * attacks.  An empty {@code Permission[]} is always serializable (no
+     * elements to inspect) and is sufficient here: the round-trip tests only
+     * verify that the grant identity — URI, digest algorithm, and digest bytes
+     * — survives serialisation, not the permission payload.
+     */
+    private PermissionGrant buildSerializableGrant(byte[] digestBytes) {
+        return PermissionGrantBuilder.newBuilder()
+                .uri("file:/foo/bar.jar")
+                .permissions(new Permission[0])
+                .principals(new Principal[0])
+                .certificates(new Certificate[0], new String[0])
+                .digest(ALG, digestBytes)
+                .context(PermissionGrantBuilder.DIGEST)
+                .build();
+    }
+
     @Test
     public void testSerializationRoundTrip() throws Exception {
         System.out.println("testSerializationRoundTrip");
+        PermissionGrant serGrant = buildSerializableGrant(DIGEST_A);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-            oos.writeObject(grant);
+            oos.writeObject(serGrant);
         }
         Object deserialized;
         try (ObjectInputStream ois = new ObjectInputStream(
                 new ByteArrayInputStream(baos.toByteArray()))) {
             deserialized = ois.readObject();
         }
-        assertEquals("Deserialized grant must equal original", grant, deserialized);
-        assertEquals(grant.hashCode(), deserialized.hashCode());
+        assertEquals("Deserialized grant must equal original", serGrant, deserialized);
+        assertEquals(serGrant.hashCode(), deserialized.hashCode());
     }
 
     @Test
     public void testSerializationRoundTripDifferentDigest() throws Exception {
         System.out.println("testSerializationRoundTripDifferentDigest");
+        PermissionGrant serGrant       = buildSerializableGrant(DIGEST_A);
+        PermissionGrant serGrantDiffDig = buildSerializableGrant(DIGEST_B);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-            oos.writeObject(grantDiffDigest);
+            oos.writeObject(serGrantDiffDig);
         }
         Object deserialized;
         try (ObjectInputStream ois = new ObjectInputStream(
                 new ByteArrayInputStream(baos.toByteArray()))) {
             deserialized = ois.readObject();
         }
-        assertEquals(grantDiffDigest, deserialized);
+        assertEquals(serGrantDiffDig, deserialized);
         assertFalse("Round-tripped grants with different digests must not be equal",
-                grant.equals(deserialized));
+                serGrant.equals(deserialized));
     }
 
     // -----------------------------------------------------------------------

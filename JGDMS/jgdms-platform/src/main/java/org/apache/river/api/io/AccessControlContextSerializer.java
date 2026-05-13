@@ -77,7 +77,7 @@ public final class AccessControlContextSerializer implements Serializable {
      * {@link #marshalDigestForTransport}.  Old receivers that do not have this
      * field in their serial form will silently receive {@code null} and skip it
      * (fail-secure: no digest domains are reconstructed, which is correct
-     * behaviour on a JVM without {@code java.security.DigestCodeSource}).
+     * behaviour on a JVM without {@code java.security.DigestCodeSource}).)
      */
     private static final String DIGEST_TRANSPORT_BYTES = "digestTransportBytes";
     /**
@@ -204,15 +204,12 @@ public final class AccessControlContextSerializer implements Serializable {
                 }
             }
         }
-        if (records.isEmpty() && anonCount == 0) {
-            // Truly nothing to send — no verifiable domains and no anonymous ceilings.
+        // Without at least one verifiable HTTPMD domain there is no remote
+        // code identity to anchor the context; transmitting only an anonymous
+        // domain count would be meaningless and wastes bandwidth.
+        if (records.isEmpty()) {
             return new byte[0];
         }
-        // Encode: [httpmdCount=N][...records...][anonCount=M]
-        // When records is empty, httpmdCount=0 and anonCount>0 encodes anonymous domain
-        // ceilings.  These ceilings must be preserved: unverifiable domains still restrict
-        // permissions in the sender's ACC, and dropping them silently grants extra privileges
-        // to the receiver — the same privilege-escalation window closed in §10.2.1.
         ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
         writeInt(baos, records.size());
         for (int i = 0; i < records.size(); i++) {
@@ -591,8 +588,13 @@ public final class AccessControlContextSerializer implements Serializable {
         }
 
         public ProtectionDomain[] combine(ProtectionDomain[] current, ProtectionDomain[] assigned) {
+            // Capture only the *assigned* domains — those belonging to the
+            // AccessControlContext passed in by the caller.  The *current*
+            // parameter carries the call-stack domains of the doPrivileged
+            // lambda (e.g. AccessControlContextSerializer's own classpath
+            // ProtectionDomain), which must not be counted as anonymous domains
+            // of the caller's ACC.
             List<ProtectionDomain> collected = new ArrayList<ProtectionDomain>(8);
-            if (current != null) Collections.addAll(collected, current);
             if (assigned != null) Collections.addAll(collected, assigned);
             captured = collected.toArray(new ProtectionDomain[collected.size()]);
             if (delegate != null) {

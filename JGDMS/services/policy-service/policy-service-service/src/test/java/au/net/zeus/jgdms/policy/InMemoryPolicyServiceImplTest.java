@@ -274,7 +274,10 @@ public class InMemoryPolicyServiceImplTest {
         try {
             System.setSecurityManager(null);
         } catch (UnsupportedOperationException ignored) {
-            // JDKs that disable SecurityManager can throw here.
+            // Standard JDK 17+: SecurityManager disabled via system property.
+        } catch (IllegalArgumentException ignored) {
+            // DirtyChai: throws IllegalArgumentException when null is passed
+            // because it enforces a non-null SecurityManager at all times.
         }
     }
 }
