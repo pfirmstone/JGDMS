@@ -1,0 +1,101 @@
+## jgdms_bae.te — SELinux type enforcement policy for the BAE (Host 2)
+##
+## This module restricts the BAE JVM process to a dedicated domain
+## (jgdms_bae_t) with the minimal set of capabilities required for a
+## network-isolated JVM process that reads JARs, analyses bytecode,
+## and signs reports — nothing more.
+##
+## Build and install with:
+##   checkmodule -M -m -o jgdms_bae.mod jgdms_bae.te
+##   semodule_package -o jgdms_bae.pp -m jgdms_bae.mod
+##   semodule -i jgdms_bae.pp
+##
+## Nodes that run BAE pods must have this module loaded AND SELinux in
+## enforcing mode.  Apply the jgdms-selinux node taint to ensure only
+## correctly configured nodes receive BAE pods.
+
+policy_module(jgdms_bae, 1.0.0)
+
+########################################################################
+# Type declarations
+########################################################################
+
+# Domain for the BAE JVM process
+type jgdms_bae_t;
+domain_type(jgdms_bae_t)
+
+# File context for the BAE read-only filesystem layers
+type jgdms_bae_exec_t;
+files_type(jgdms_bae_exec_t)
+
+# File context for the SPIRE SVID directory (read-only)
+type jgdms_bae_svid_t;
+files_type(jgdms_bae_svid_t)
+
+# File context for /tmp (writable scratch space)
+type jgdms_bae_tmp_t;
+files_type(jgdms_bae_tmp_t)
+
+# File context for the engine signing key (read-only)
+type jgdms_bae_key_t;
+files_type(jgdms_bae_key_t)
+
+########################################################################
+# Domain transition: container runtime → jgdms_bae_t
+########################################################################
+allow container_runtime_t jgdms_bae_exec_t : file { execute };
+allow container_runtime_t jgdms_bae_t      : process transition;
+
+########################################################################
+# File access
+########################################################################
+
+# Execute the JVM binary (read-only image layers)
+allow jgdms_bae_t jgdms_bae_exec_t : file   { read execute getattr open };
+allow jgdms_bae_t jgdms_bae_exec_t : dir    { read search getattr open };
+
+# Read SPIRE SVID PEM files (for TLS handshake identity)
+allow jgdms_bae_t jgdms_bae_svid_t : file   { read getattr open };
+allow jgdms_bae_t jgdms_bae_svid_t : dir    { read search getattr open };
+
+# Engine signing key (read-only Secret mount)
+allow jgdms_bae_t jgdms_bae_key_t  : file   { read getattr open };
+allow jgdms_bae_t jgdms_bae_key_t  : dir    { read search getattr open };
+
+# Scratch space in /tmp
+allow jgdms_bae_t jgdms_bae_tmp_t  : file   { read write create unlink getattr open };
+allow jgdms_bae_t jgdms_bae_tmp_t  : dir    { read write search add_name remove_name getattr open };
+
+########################################################################
+# Network access: INBOUND TCP ONLY on port 1098
+# No outbound connections (connect denied).
+########################################################################
+allow jgdms_bae_t self : tcp_socket { create bind accept listen read write getattr setopt };
+
+# Allow the kernel to deliver accepted inbound connections.
+allow jgdms_bae_t self : tcp_socket { read write shutdown };
+
+# Deny: no connect, no sendto, no socket create for UDP.
+# The absence of an allow rule for "connect" on tcp_socket means the
+# policy default (deny) blocks all outbound TCP connections.
+
+########################################################################
+# Process: minimal capability set for a JVM
+########################################################################
+allow jgdms_bae_t self : capability  { setuid setgid };  # JVM startup
+allow jgdms_bae_t self : process     { fork signal signull };
+
+# Deny: no exec (execve), no ptrace, no module_load.
+# No allow rule for process { execve } — subprocesses are blocked.
+
+########################################################################
+# Explicitly block dangerous access (belt-and-suspenders)
+########################################################################
+# No native module loading
+neverallow jgdms_bae_t self : capability { sys_module };
+
+# No raw socket (prevents network packet injection)
+neverallow jgdms_bae_t self : rawip_socket { create };
+
+# No access to other domains' files
+neverallow jgdms_bae_t { domain -jgdms_bae_t } : file { write };

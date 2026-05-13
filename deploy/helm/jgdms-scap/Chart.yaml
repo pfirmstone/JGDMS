@@ -1,0 +1,26 @@
+apiVersion: v2
+name: jgdms-scap
+description: |
+  Helm chart for the JGDMS Safe Codebase Audit Pipeline (SCAP).
+  Deploys all five SCAP hosts on DirtyChai JDK with SPIFFE/SPIRE identity,
+  per-role SecurityManager policy files, and Kubernetes NetworkPolicy
+  enforcing the SCAP isolation invariants.
+
+type: application
+version: 0.1.0
+appVersion: "3.1.1-SNAPSHOT"
+
+keywords:
+  - jgdms
+  - jini
+  - spiffe
+  - security
+  - bytecode-analysis
+
+home: https://github.com/pfirmstone/JGDMS
+sources:
+  - https://github.com/pfirmstone/JGDMS
+
+maintainers:
+  - name: Peter Firmstone
+    url: https://github.com/pfirmstone

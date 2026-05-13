@@ -1,0 +1,17 @@
+## jgdms_bae.fc — SELinux file context labeling for BAE container paths
+##
+## Install with the semodule package above.  The container runtime maps
+## these paths to their in-container equivalents via the OCI spec.
+
+# BAE JVM / JAR files (read-only overlay layers)
+/opt/jgdms(/.*)?                    gen_context(system_u:object_r:jgdms_bae_exec_t, s0)
+/opt/java(/.*)?                     gen_context(system_u:object_r:jgdms_bae_exec_t, s0)
+
+# SPIRE SVID PEM files
+/run/spire(/.*)?                    gen_context(system_u:object_r:jgdms_bae_svid_t, s0)
+
+# Engine signing key (mounted from Secret)
+/opt/jgdms/keys(/.*)?               gen_context(system_u:object_r:jgdms_bae_key_t,  s0)
+
+# Scratch space
+/tmp(/.*)?                          gen_context(system_u:object_r:jgdms_bae_tmp_t,  s0)

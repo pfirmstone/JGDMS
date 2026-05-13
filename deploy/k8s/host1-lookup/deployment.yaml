@@ -1,0 +1,140 @@
+# Host 1 — Jini Lookup Service (Reggie)
+#
+# Kubernetes Deployment + Service.
+# Optionally add a StatefulSet + PVC if persistent state log is required.
+# TCP socket probe on port 4160 is used for liveness (confirms JERI is up).
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jgdms-lookup
+  namespace: jgdms-scap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: host1-lookup-config
+  namespace: jgdms-scap
+data:
+  JGDMS_LOOKUP_PORT:   "4160"
+  JGDMS_CODEBASE_PORT: "9080"
+  JGDMS_LOG_DIR:       "/opt/jgdms/log"
+  TRUST_DOMAIN:        "jgdms.example.org"   # Override in Helm values
+  SPIRE_DIR:           "/run/spire"
+  JGDMS_VERSION:       "3.1.1-SNAPSHOT"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: host1-lookup
+  namespace: jgdms-scap
+  labels:
+    app: host1-lookup
+    scap-role: lookup
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: host1-lookup
+  template:
+    metadata:
+      labels:
+        app: host1-lookup
+        scap-role: lookup
+    spec:
+      serviceAccountName: jgdms-lookup
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: reggie
+          image: jgdms/host1-lookup:latest   # replaced by Helm chart value
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: jeri
+              containerPort: 4160
+              protocol: TCP
+            - name: codebase
+              containerPort: 9080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: host1-lookup-config
+          env:
+            - name: JGDMS_LOOKUP_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: JGDMS_CODEBASE_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: JGDMS_SERVICE_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: spire-svid
+              mountPath: /run/spire
+              readOnly: true
+            - name: lookup-log
+              mountPath: /opt/jgdms/log
+          livenessProbe:
+            tcpSocket:
+              port: 4160
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 4160
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: spire-svid
+          hostPath:
+            path: /run/spire/svid
+            type: Directory
+        - name: lookup-log
+          emptyDir: {}   # Replace with PVC if persistent state is required
+---
+# ClusterIP service: reachable within the cluster as
+# lookup.jgdms-scap.svc.cluster.local:4160
+apiVersion: v1
+kind: Service
+metadata:
+  name: lookup
+  namespace: jgdms-scap
+  labels:
+    app: host1-lookup
+    scap-role: lookup
+spec:
+  selector:
+    app: host1-lookup
+  ports:
+    - name: jeri
+      port: 4160
+      targetPort: 4160
+      protocol: TCP
+    - name: codebase
+      port: 9080
+      targetPort: 9080
+      protocol: TCP
+  type: ClusterIP

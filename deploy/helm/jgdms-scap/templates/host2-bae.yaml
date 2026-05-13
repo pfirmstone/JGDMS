@@ -1,0 +1,139 @@
+{{/*
+host2-bae.yaml — BAE pool Deployment, ServiceAccount, ConfigMap, Secret stub, and Service.
+*/}}
+{{- if .Values.host2.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jgdms-bae
+  namespace: {{ include "jgdms-scap.namespace" . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: host2-bae-config
+  namespace: {{ include "jgdms-scap.namespace" . }}
+data:
+  JGDMS_JERI_PORT:  {{ .Values.host2.jeriPort | quote }}
+  TRUST_DOMAIN:     {{ include "jgdms-scap.trustDomain" . | quote }}
+  SPIRE_DIR:        {{ .Values.global.spireDir | default "/run/spire" | quote }}
+  JGDMS_VERSION:    {{ .Values.global.jgdmsVersion | quote }}
+  JGDMS_LOOKUP_URL: {{ include "jgdms-scap.lookupUrl" . | quote }}
+---
+{{- if not .Values.host2.signingKey.existingSecret }}
+# BAE engine signing key Secret placeholder.
+# IMPORTANT: Populate data values before deployment.
+# Set host2.signingKey.existingSecret=<secretName> in Helm values if you
+# pre-create the Secret externally (recommended for production).
+# See deploy/README.md §"BAE engine signing keys" for instructions.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bae-engine-signing-key
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  annotations:
+    "jgdms.io/requires-operator-action": "true"
+type: Opaque
+data:
+  # Replace with base64-encoded PEM private key and matching certificate.
+  # DO NOT commit real key material to source control.
+  engine-signing-key.pem:  ""
+  engine-signing-cert.pem: ""
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: host2-bae
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app: host2-bae
+    scap-role: bae
+spec:
+  replicas: {{ .Values.host2.replicas }}
+  selector:
+    matchLabels:
+      app: host2-bae
+  template:
+    metadata:
+      labels:
+        app: host2-bae
+        scap-role: bae
+    spec:
+      serviceAccountName: jgdms-bae
+      automountServiceAccountToken: false
+      {{- if .Values.host2.requireSelinuxNodes }}
+      nodeSelector:
+        selinux-enforcing: "true"
+      tolerations:
+        - key: "node-role.kubernetes.io/selinux-enforcing"
+          operator: "Exists"
+          effect: "NoSchedule"
+      {{- end }}
+      securityContext:
+        {{- include "jgdms-scap.podSecurityContext" . | nindent 8 }}
+        {{- if .Values.host2.requireSelinuxNodes }}
+        seLinuxOptions:
+          type: {{ .Values.host2.selinuxType | quote }}
+        {{- end }}
+      containers:
+        - name: bae
+          image: {{ include "jgdms-scap.image" (dict "repo" .Values.host2.image.repository "tag" .Values.host2.image.tag "global" .Values.global) }}
+          imagePullPolicy: {{ .Values.host2.image.pullPolicy }}
+          ports:
+            - name: jeri
+              containerPort: {{ .Values.host2.jeriPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: host2-bae-config
+          env:
+            {{- include "jgdms-scap.commonEnv" . | nindent 12 }}
+            - name: JGDMS_ENGINE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ENGINE_SIGNING_KEY
+              value: "/opt/jgdms/keys/engine-signing-key.pem"
+            - name: ENGINE_SIGNING_CERT
+              value: "/opt/jgdms/keys/engine-signing-cert.pem"
+          volumeMounts:
+            {{- include "jgdms-scap.spireVolumeMount" . | nindent 12 }}
+            - name: engine-signing-key
+              mountPath: /opt/jgdms/keys
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          {{- include "jgdms-scap.livenessProbe" .Values.host2.jeriPort | nindent 10 }}
+          {{- include "jgdms-scap.readinessProbe" .Values.host2.jeriPort | nindent 10 }}
+          resources:
+            {{- toYaml .Values.host2.resources | nindent 12 }}
+          securityContext:
+            {{- include "jgdms-scap.containerSecurityContext" . | nindent 12 }}
+      volumes:
+        {{- include "jgdms-scap.spireVolume" . | nindent 8 }}
+        - name: engine-signing-key
+          secret:
+            secretName: {{ .Values.host2.signingKey.existingSecret | default "bae-engine-signing-key" }}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bae
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app: host2-bae
+    scap-role: bae
+spec:
+  selector:
+    app: host2-bae
+  ports:
+    - name: jeri
+      port: {{ .Values.host2.jeriPort }}
+      targetPort: {{ .Values.host2.jeriPort }}
+      protocol: TCP
+  type: ClusterIP
+{{- end }}

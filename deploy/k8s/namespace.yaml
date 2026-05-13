@@ -1,0 +1,14 @@
+# JGDMS SCAP Kubernetes namespace
+#
+# All five SCAP hosts run in the jgdms-scap namespace.
+# SPIRE server and agent run in spire (separate namespace).
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jgdms-scap
+  labels:
+    app.kubernetes.io/name: jgdms-scap
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

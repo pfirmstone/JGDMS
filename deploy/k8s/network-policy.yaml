@@ -1,0 +1,292 @@
+# JGDMS SCAP NetworkPolicy
+#
+# Implements the full connection matrix from the architecture analysis.
+# Uses a deny-all baseline with explicit allow rules per scap-role label.
+#
+# Connection matrix enforced here:
+#   Host 4 → Host 1        ✅  (lookup events)
+#   Host 5 → Host 1        ✅  (lookup registration)
+#   Host 4 → Host 2        ✅  (submit AnalysisRequest)
+#   Host 5 → Host 2        ✅  (re-analysis request)
+#   Host 2 → Host 3        ❌  (isolation invariant — BAE cannot write verdicts)
+#   Host 4 → Host 3        ✅  (submit signed JarAnalysisReport)
+#   Host 5 → Host 3        ✅  (submit signed JarAnalysisReport)
+#   Clients → Host 1        ✅  (service discovery)
+#   Clients → Host 3        ✅  (verdict lookup)
+#   Clients → Host 5        ✅  (JFR event reporting)
+#   Host 4 → Internet       ✅  (JAR downloads — egress only)
+#   Host 2 → Internet       ❌
+#   All others → Internet   ❌
+#
+# NOTE: NetworkPolicy CNI support is required (Calico, Cilium, Antrea, etc.).
+# Vanilla kubeadm with kubenet does NOT enforce NetworkPolicies.
+
+# ── 1. Default deny-all for the namespace ─────────────────────────────────────
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: jgdms-scap
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+# ── 2. Allow DNS egress for all pods ──────────────────────────────────────────
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: jgdms-scap
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+
+# ── 3. Host 1 (Lookup) ────────────────────────────────────────────────────────
+# Accepts inbound from: Host 2 (registration), Host 4, Host 5, Clients
+# Egress: only to SPIRE agent on the same node
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: host1-lookup-ingress
+  namespace: jgdms-scap
+spec:
+  podSelector:
+    matchLabels:
+      scap-role: lookup
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              scap-role: bae
+        - podSelector:
+            matchLabels:
+              scap-role: downloader
+        - podSelector:
+            matchLabels:
+              scap-role: telemetry
+        # Clients: identified by namespace label — adjust to your client namespace
+        - namespaceSelector:
+            matchLabels:
+              jgdms-client: "true"
+      ports:
+        - port: 4160
+          protocol: TCP
+        - port: 9080
+          protocol: TCP
+  egress:
+    # Lookup service needs no outbound connections within SCAP;
+    # DNS is handled by allow-dns-egress above.
+    []
+
+# ── 4. Host 2 (BAE) ───────────────────────────────────────────────────────────
+# Accepts inbound JERI from Host 4 and Host 5 only.
+# Egress: NONE (not even to Host 3 — isolation invariant).
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: host2-bae-policy
+  namespace: jgdms-scap
+spec:
+  podSelector:
+    matchLabels:
+      scap-role: bae
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              scap-role: downloader
+        - podSelector:
+            matchLabels:
+              scap-role: telemetry
+      ports:
+        - port: 1098
+          protocol: TCP
+  egress:
+    # Intentionally empty — BAE has no permitted outbound connections.
+    # (DNS is handled by the separate allow-dns-egress policy.)
+    []
+
+# ── 5. Host 3 (Verdict Registry) ─────────────────────────────────────────────
+# Accepts inbound from: Host 4, Host 5, Clients.  NOT from Host 2.
+# Egress: only to Lookup (Host 1) for registration.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: host3-registry-policy
+  namespace: jgdms-scap
+spec:
+  podSelector:
+    matchLabels:
+      scap-role: registry
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              scap-role: downloader
+        - podSelector:
+            matchLabels:
+              scap-role: telemetry
+        - namespaceSelector:
+            matchLabels:
+              jgdms-client: "true"
+      ports:
+        - port: 1098
+          protocol: TCP
+        - port: 9080
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: lookup
+      ports:
+        - port: 4160
+          protocol: TCP
+
+# ── 6. Host 4 (Codebase Downloader) ──────────────────────────────────────────
+# Accepts inbound JERI from Host 1 events.
+# Egress: Host 1 (discovery), Host 2 (AnalysisRequest), Host 3 (submit),
+#         and internet (JAR downloads — all external IPs allowed).
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: host4-downloader-policy
+  namespace: jgdms-scap
+spec:
+  podSelector:
+    matchLabels:
+      scap-role: downloader
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              scap-role: lookup
+      ports:
+        - port: 1098
+          protocol: TCP
+  egress:
+    # Lookup service
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: lookup
+      ports:
+        - port: 4160
+          protocol: TCP
+        - port: 9080
+          protocol: TCP
+    # BAE pool
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: bae
+      ports:
+        - port: 1098
+          protocol: TCP
+    # Verdict Registry
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: registry
+      ports:
+        - port: 1098
+          protocol: TCP
+    # Internet (JAR downloads via HTTP/HTTPS)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              # Block RFC-1918 ranges to prevent SSRF into the internal network
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+      ports:
+        - port: 80
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+
+# ── 7. Host 5 (JFR Telemetry) ────────────────────────────────────────────────
+# Accepts inbound from clients (JFR events) and Host 1 (notifications).
+# Egress: Host 1 (registration), Host 2 (re-analysis), Host 3 (submit verdicts).
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: host5-telemetry-policy
+  namespace: jgdms-scap
+spec:
+  podSelector:
+    matchLabels:
+      scap-role: telemetry
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              scap-role: lookup
+        - namespaceSelector:
+            matchLabels:
+              jgdms-client: "true"
+      ports:
+        - port: 1098
+          protocol: TCP
+        - port: 9080
+          protocol: TCP
+  egress:
+    # Lookup service
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: lookup
+      ports:
+        - port: 4160
+          protocol: TCP
+        - port: 1098
+          protocol: TCP
+    # BAE pool
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: bae
+      ports:
+        - port: 1098
+          protocol: TCP
+    # Verdict Registry
+    - to:
+        - podSelector:
+            matchLabels:
+              scap-role: registry
+      ports:
+        - port: 1098
+          protocol: TCP

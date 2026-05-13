@@ -1,0 +1,75 @@
+/*
+ * Host 4 — Codebase Downloader security policy
+ *
+ * The Codebase Downloader is the ONLY host with outbound internet access.
+ * It listens for ServiceRegistrar events from Host 1, downloads JAR bytes
+ * from remote HTTP/HTTPMD URLs, hashes them, and dispatches AnalysisRequest
+ * objects to the BAE pool (Host 2).
+ *
+ * It has NO direct connection to Host 5.
+ *
+ * Properties:
+ *   ${jgdms.lib}     — /opt/jgdms/lib
+ *   ${jgdms.lib-dl}  — /opt/jgdms/lib-dl
+ *   ${trust.domain}  — SPIFFE trust domain
+ *   ${lookup.host}   — Host 1 Jini lookup service hostname
+ */
+
+/* ── JRE bootstrap modules ────────────────────────────────────────────── */
+grant codebase "jrt:/java.base"              { permission java.security.AllPermission; };
+grant codebase "jrt:/java.logging"           { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.localedata"         { permission java.security.AllPermission; };
+grant codebase "jrt:/java.security.jgss"     { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.crypto.cryptoki"    { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.crypto.ec"          { permission java.security.AllPermission; };
+grant codebase "jrt:/java.xml.crypto"        { permission java.security.AllPermission; };
+
+/* ── JGDMS service JARs ──────────────────────────────────────────────── */
+grant codebase "file:${jgdms.lib}/*" {
+    permission java.security.AllPermission;
+};
+
+/* ── Download JARs ───────────────────────────────────────────────────── */
+grant codebase "file:${jgdms.lib-dl}/*" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+/* ── Baseline ─────────────────────────────────────────────────────────── */
+grant {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.io.FilePermission "/run/spire/*",  "read";
+    permission java.io.FilePermission "/tmp/*",        "read,write,delete";
+    /* Accept inbound JERI and connect to lookup, BAE pool, and registry */
+    permission java.net.SocketPermission "*", "accept,connect,resolve";
+    /*
+     * Outbound HTTP/HTTPS is permitted for JAR downloads.
+     * This is the ONLY host in the SCAP pipeline with internet egress.
+     * Kubernetes NetworkPolicy restricts this to approved external CIDRs.
+     */
+};
+
+/* ── Host 1 (Lookup Service) discovery events ────────────────────────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/lookup" {
+    permission net.jini.security.AccessPermission "*";
+    permission java.net.SocketPermission "*:4160",           "connect,resolve";
+    permission java.net.SocketPermission "*:1098-65535",     "connect,resolve";
+};
+
+/* ── BAE pool (Host 2) — submit AnalysisRequests ─────────────────────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/bae/*" {
+    permission net.jini.security.AccessPermission "analyzeJar";
+    permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
+};
+
+/* ── VerdictRegistry (Host 3) — submit signed reports ───────────────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/registry" {
+    permission net.jini.security.AccessPermission "submit";
+    permission net.jini.security.AccessPermission "lookup";
+    permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
+};

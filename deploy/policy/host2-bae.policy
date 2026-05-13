@@ -1,0 +1,76 @@
+/*
+ * Host 2 — Bytecode Analysis Engine (BAE) security policy
+ *
+ * This is the most restrictive policy in the SCAP pipeline.
+ * The BAE is intentionally treated as UNTRUSTED — it may be compromised,
+ * so it is forbidden from:
+ *
+ *   • Making any outbound network connections
+ *   • Loading or invoking native code (JNI, FFM)
+ *   • Writing to the filesystem outside /tmp
+ *   • Executing subprocesses
+ *
+ * The only inbound connections permitted are JERI/TLS from Host 4 and
+ * Host 5, controlled by SPIFFE principal checks.
+ *
+ * Properties:
+ *   ${jgdms.lib}     — /opt/jgdms/lib
+ *   ${jgdms.lib-dl}  — /opt/jgdms/lib-dl
+ *   ${trust.domain}  — SPIFFE trust domain
+ */
+
+/* ── JRE bootstrap modules ────────────────────────────────────────────── */
+grant codebase "jrt:/java.base"              { permission java.security.AllPermission; };
+grant codebase "jrt:/java.logging"           { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.localedata"         { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.crypto.cryptoki"    { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.crypto.ec"          { permission java.security.AllPermission; };
+grant codebase "jrt:/java.xml.crypto"        { permission java.security.AllPermission; };
+grant codebase "jrt:/java.security.jgss"     { permission java.security.AllPermission; };
+
+/* ── JGDMS BAE service JARs ──────────────────────────────────────────── */
+grant codebase "file:${jgdms.lib}/*" {
+    /* Service JARs are trusted to run analysis logic */
+    permission java.security.AllPermission;
+};
+
+/* ── BAE download JAR ────────────────────────────────────────────────── */
+grant codebase "file:${jgdms.lib-dl}/*" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+/* ── Baseline: no outbound network, no native, no exec ───────────────── */
+grant {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    /* SPIRE PEM read (inbound TLS identity only) */
+    permission java.io.FilePermission "/run/spire/*", "read";
+    /* Engine signing key (mounted from Kubernetes Secret) */
+    permission java.io.FilePermission "/opt/jgdms/keys/*", "read";
+    /* Temporary working space for JAR parsing */
+    permission java.io.FilePermission "/tmp/*", "read,write,delete";
+    /* Inbound TCP accept only — no outbound socket permission granted */
+    permission java.net.SocketPermission "*", "accept,resolve";
+    /*
+     * NOTE: java.net.SocketPermission "connect" is intentionally ABSENT.
+     * The BAE must not initiate outbound connections of any kind.
+     * Network-level egress is also blocked by Kubernetes NetworkPolicy.
+     */
+    /*
+     * NOTE: NativeInvocationPermission and NativeMemoryPermission are
+     * intentionally absent — no JNI or FFM is permitted in the BAE.
+     */
+};
+
+/* ── Allow Host 4 (Codebase Downloader) to submit AnalysisRequests ───── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/downloader" {
+    permission net.jini.security.AccessPermission "analyzeJar";
+};
+
+/* ── Allow Host 5 (JFR Telemetry) to submit re-analysis requests ─────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/telemetry" {
+    permission net.jini.security.AccessPermission "analyzeJar";
+};

@@ -1,0 +1,100 @@
+{{/*
+host5-telemetry.yaml — JFR Telemetry Service Deployment, ServiceAccount, ConfigMap, and Service.
+*/}}
+{{- if .Values.host5.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jgdms-telemetry
+  namespace: {{ include "jgdms-scap.namespace" . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: host5-telemetry-config
+  namespace: {{ include "jgdms-scap.namespace" . }}
+data:
+  JGDMS_JERI_PORT:     {{ .Values.host5.jeriPort | quote }}
+  JGDMS_CODEBASE_PORT: {{ .Values.host5.codebasePort | quote }}
+  TRUST_DOMAIN:        {{ include "jgdms-scap.trustDomain" . | quote }}
+  SPIRE_DIR:           {{ .Values.global.spireDir | default "/run/spire" | quote }}
+  JGDMS_VERSION:       {{ .Values.global.jgdmsVersion | quote }}
+  JGDMS_LOOKUP_URL:    {{ include "jgdms-scap.lookupUrl" . | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: host5-telemetry
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app: host5-telemetry
+    scap-role: telemetry
+spec:
+  replicas: {{ .Values.host5.replicas }}
+  selector:
+    matchLabels:
+      app: host5-telemetry
+  template:
+    metadata:
+      labels:
+        app: host5-telemetry
+        scap-role: telemetry
+    spec:
+      serviceAccountName: jgdms-telemetry
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "jgdms-scap.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: telemetry
+          image: {{ include "jgdms-scap.image" (dict "repo" .Values.host5.image.repository "tag" .Values.host5.image.tag "global" .Values.global) }}
+          imagePullPolicy: {{ .Values.host5.image.pullPolicy }}
+          ports:
+            - name: jeri
+              containerPort: {{ .Values.host5.jeriPort }}
+              protocol: TCP
+            - name: codebase
+              containerPort: {{ .Values.host5.codebasePort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: host5-telemetry-config
+          env:
+            {{- include "jgdms-scap.commonEnv" . | nindent 12 }}
+          volumeMounts:
+            {{- include "jgdms-scap.spireVolumeMount" . | nindent 12 }}
+            - name: tmp
+              mountPath: /tmp
+          {{- include "jgdms-scap.livenessProbe" .Values.host5.jeriPort | nindent 10 }}
+          {{- include "jgdms-scap.readinessProbe" .Values.host5.jeriPort | nindent 10 }}
+          resources:
+            {{- toYaml .Values.host5.resources | nindent 12 }}
+          securityContext:
+            {{- include "jgdms-scap.containerSecurityContext" . | nindent 12 }}
+      volumes:
+        {{- include "jgdms-scap.spireVolume" . | nindent 8 }}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: telemetry
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app: host5-telemetry
+    scap-role: telemetry
+spec:
+  selector:
+    app: host5-telemetry
+  ports:
+    - name: jeri
+      port: {{ .Values.host5.jeriPort }}
+      targetPort: {{ .Values.host5.jeriPort }}
+      protocol: TCP
+    - name: codebase
+      port: {{ .Values.host5.codebasePort }}
+      targetPort: {{ .Values.host5.codebasePort }}
+      protocol: TCP
+  type: ClusterIP
+{{- end }}

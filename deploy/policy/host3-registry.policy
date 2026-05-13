@@ -1,0 +1,76 @@
+/*
+ * Host 3 — Verdict Registry security policy
+ *
+ * The Verdict Registry is HIGH trust.  It holds the signing key that
+ * clients use to validate RegistryVerdicts.  It has no connection to
+ * Host 2 (BAE) — BAE can never write verdicts directly.
+ *
+ * Inbound connections:
+ *   Host 4 (Codebase Downloader): submit(JarAnalysisReport)
+ *   Host 5 (JFR Telemetry):       submit(JarAnalysisReport)
+ *   Clients:                       lookup(contentHash)
+ *
+ * Properties:
+ *   ${jgdms.lib}     — /opt/jgdms/lib
+ *   ${jgdms.lib-dl}  — /opt/jgdms/lib-dl
+ *   ${trust.domain}  — SPIFFE trust domain
+ */
+
+/* ── JRE bootstrap modules ────────────────────────────────────────────── */
+grant codebase "jrt:/java.base"              { permission java.security.AllPermission; };
+grant codebase "jrt:/java.logging"           { permission java.security.AllPermission; };
+grant codebase "jrt:/java.management"        { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.management"         { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.localedata"         { permission java.security.AllPermission; };
+grant codebase "jrt:/java.security.jgss"     { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.crypto.cryptoki"    { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.crypto.ec"          { permission java.security.AllPermission; };
+grant codebase "jrt:/java.xml.crypto"        { permission java.security.AllPermission; };
+
+/* ── JGDMS VerdictRegistry service JARs ─────────────────────────────── */
+grant codebase "file:${jgdms.lib}/*" {
+    permission java.security.AllPermission;
+};
+
+/* ── VerdictRegistry download JAR ────────────────────────────────────── */
+grant codebase "file:${jgdms.lib-dl}/*" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+/* ── Baseline ─────────────────────────────────────────────────────────── */
+grant {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.io.FilePermission "/run/spire/*", "read";
+    /* Persistent verdict log */
+    permission java.io.FilePermission "/opt/jgdms/log/*",  "read,write,delete";
+    permission java.io.FilePermission "/opt/jgdms/log",    "read,write";
+    /* Inbound accept only — outbound allowed only to lookup service */
+    permission java.net.SocketPermission "*", "accept,resolve";
+    /* Allow resolve-only for DNS (host resolution for logging/admin) */
+};
+
+/* ── Host 4 (Codebase Downloader) may submit signed analysis reports ─── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/downloader" {
+    permission net.jini.security.AccessPermission "submit";
+    permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
+};
+
+/* ── Host 5 (JFR Telemetry) may submit signed analysis reports ───────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/telemetry" {
+    permission net.jini.security.AccessPermission "submit";
+    permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
+};
+
+/* ── Clients may look up verdicts ────────────────────────────────────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/client/*" {
+    permission net.jini.security.AccessPermission "lookup";
+    permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
+};
+
+/* ── BAE (Host 2) has NO grant here — isolation invariant ────────────── */

@@ -1,0 +1,155 @@
+# JGDMS SCAP Helm chart — default values
+#
+# Override individual values with --set or a custom values.yaml file:
+#   helm install jgdms-scap ./deploy/helm/jgdms-scap \
+#     --set global.trustDomain=jgdms.example.org \
+#     --set global.imageRegistry=my-registry.example.org
+
+# ── Global settings ────────────────────────────────────────────────────────────
+global:
+  # SPIFFE trust domain used in every policy file and SPIRE registration entry.
+  # MUST be overridden for production deployments.
+  trustDomain: "jgdms.example.org"
+
+  # Container registry prefix prepended to all image names.
+  imageRegistry: ""
+
+  # JGDMS Maven artifact version baked into every image.
+  jgdmsVersion: "3.1.1-SNAPSHOT"
+
+  # DirtyChai JDK image tag.  Pinning to a specific release is strongly
+  # recommended for production deployments — the 'latest' tag tracks the
+  # rolling dirty-chai-latest GitHub Release.
+  dirtychaiTag: "latest"
+
+  # Path inside pods where SPIRE agent writes SVID PEM files.
+  spireDir: "/run/spire"
+
+  # Kubernetes namespace for all SCAP services.
+  namespace: "jgdms-scap"
+
+  # DNS name of the Jini Lookup Service within the cluster.
+  # This must match the Kubernetes Service name in host1-lookup.
+  lookupUrl: "jini://lookup.jgdms-scap.svc.cluster.local:4160"
+
+# ── Host 1 — Jini Lookup Service ──────────────────────────────────────────────
+host1:
+  enabled: true
+  image:
+    repository: jgdms/host1-lookup
+    tag: ""   # defaults to global.jgdmsVersion
+    pullPolicy: IfNotPresent
+  replicas: 1
+  jeriPort: 4160
+  codebasePort: 9080
+  logDir: "/opt/jgdms/log"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+  # Set to true to use a PVC for the Reggie state log.
+  persistence:
+    enabled: false
+    storageClass: ""
+    size: "2Gi"
+
+# ── Host 2 — Bytecode Analysis Engine ─────────────────────────────────────────
+host2:
+  enabled: true
+  image:
+    repository: jgdms/host2-bae
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 2
+  jeriPort: 1098
+  # Require SELinux-enforcing nodes.  Set to false on clusters that do not
+  # support custom SELinux policy modules (e.g. managed GKE/EKS/AKS).
+  requireSelinuxNodes: true
+  # SELinux process type from jgdms_bae.te.
+  selinuxType: "jgdms_bae_t"
+  # Engine signing key configuration.
+  # Set existingSecret to the name of a pre-created Kubernetes Secret
+  # containing engine-signing-key.pem and engine-signing-cert.pem.
+  # If empty, a placeholder Secret named 'bae-engine-signing-key' is created;
+  # you MUST populate it before BAE pods will function.
+  signingKey:
+    existingSecret: ""
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+
+# ── Host 3 — Verdict Registry ─────────────────────────────────────────────────
+host3:
+  enabled: true
+  image:
+    repository: jgdms/host3-registry
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  jeriPort: 1098
+  codebasePort: 9080
+  # Quorum: minimum number of distinct BAE SAFE verdicts required.
+  quorum: 2
+  persistence:
+    storageClass: ""
+    size: "10Gi"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+# ── Host 4 — Codebase Downloader ──────────────────────────────────────────────
+host4:
+  enabled: true
+  image:
+    repository: jgdms/host4-downloader
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  jeriPort: 1098
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+# ── Host 5 — JFR Telemetry Service ────────────────────────────────────────────
+host5:
+  enabled: true
+  image:
+    repository: jgdms/host5-telemetry
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  jeriPort: 1098
+  codebasePort: 9080
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+# ── NetworkPolicy ──────────────────────────────────────────────────────────────
+networkPolicy:
+  # Set to false only if your CNI does not support NetworkPolicy.
+  enabled: true
+
+# ── SPIRE integration ──────────────────────────────────────────────────────────
+spire:
+  # Path on the host node where the SPIRE agent writes SVID files.
+  # This must match the DaemonSet configuration in spire-agent.yaml.
+  hostSvidPath: "/run/spire/svid"

@@ -1,0 +1,13 @@
+{{/*
+namespace.yaml — JGDMS SCAP Kubernetes namespace
+*/}}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app.kubernetes.io/name: jgdms-scap
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

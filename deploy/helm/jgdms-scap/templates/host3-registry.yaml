@@ -1,0 +1,112 @@
+{{/*
+host3-registry.yaml — Verdict Registry StatefulSet, ServiceAccount, ConfigMap, and Service.
+*/}}
+{{- if .Values.host3.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jgdms-registry
+  namespace: {{ include "jgdms-scap.namespace" . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: host3-registry-config
+  namespace: {{ include "jgdms-scap.namespace" . }}
+data:
+  JGDMS_JERI_PORT:     {{ .Values.host3.jeriPort | quote }}
+  JGDMS_CODEBASE_PORT: {{ .Values.host3.codebasePort | quote }}
+  JGDMS_LOG_DIR:       "/opt/jgdms/log"
+  JGDMS_VR_QUORUM:     {{ .Values.host3.quorum | quote }}
+  TRUST_DOMAIN:        {{ include "jgdms-scap.trustDomain" . | quote }}
+  SPIRE_DIR:           {{ .Values.global.spireDir | default "/run/spire" | quote }}
+  JGDMS_VERSION:       {{ .Values.global.jgdmsVersion | quote }}
+  JGDMS_LOOKUP_URL:    {{ include "jgdms-scap.lookupUrl" . | quote }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: host3-registry
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app: host3-registry
+    scap-role: registry
+spec:
+  serviceName: registry
+  replicas: {{ .Values.host3.replicas }}
+  selector:
+    matchLabels:
+      app: host3-registry
+  template:
+    metadata:
+      labels:
+        app: host3-registry
+        scap-role: registry
+    spec:
+      serviceAccountName: jgdms-registry
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "jgdms-scap.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: registry
+          image: {{ include "jgdms-scap.image" (dict "repo" .Values.host3.image.repository "tag" .Values.host3.image.tag "global" .Values.global) }}
+          imagePullPolicy: {{ .Values.host3.image.pullPolicy }}
+          ports:
+            - name: jeri
+              containerPort: {{ .Values.host3.jeriPort }}
+              protocol: TCP
+            - name: codebase
+              containerPort: {{ .Values.host3.codebasePort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: host3-registry-config
+          env:
+            {{- include "jgdms-scap.commonEnv" . | nindent 12 }}
+          volumeMounts:
+            {{- include "jgdms-scap.spireVolumeMount" . | nindent 12 }}
+            - name: verdict-log
+              mountPath: /opt/jgdms/log
+          {{- include "jgdms-scap.livenessProbe" .Values.host3.jeriPort | nindent 10 }}
+          {{- include "jgdms-scap.readinessProbe" .Values.host3.jeriPort | nindent 10 }}
+          resources:
+            {{- toYaml .Values.host3.resources | nindent 12 }}
+          securityContext:
+            {{- include "jgdms-scap.containerSecurityContext" . | nindent 12 }}
+      volumes:
+        {{- include "jgdms-scap.spireVolume" . | nindent 8 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: verdict-log
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.host3.persistence.storageClass }}
+        storageClassName: {{ .Values.host3.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.host3.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app: host3-registry
+    scap-role: registry
+spec:
+  selector:
+    app: host3-registry
+  ports:
+    - name: jeri
+      port: {{ .Values.host3.jeriPort }}
+      targetPort: {{ .Values.host3.jeriPort }}
+      protocol: TCP
+    - name: codebase
+      port: {{ .Values.host3.codebasePort }}
+      targetPort: {{ .Values.host3.codebasePort }}
+      protocol: TCP
+  type: ClusterIP
+{{- end }}

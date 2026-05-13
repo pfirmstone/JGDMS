@@ -1,0 +1,83 @@
+/*
+ * Host 1 — Jini Lookup Service (Reggie) security policy
+ *
+ * Intended for use with DirtyChai's ConcurrentPolicyFile.
+ * All path properties are expanded at runtime:
+ *
+ *   ${jgdms.lib}     — /opt/jgdms/lib
+ *   ${jgdms.lib-dl}  — /opt/jgdms/lib-dl
+ *   ${trust.domain}  — SPIFFE trust domain (e.g. jgdms.example.org)
+ *
+ * SPIFFE IDs are validated by DirtyChai's SpiffePrincipal matcher.
+ * Multicast discovery is disabled in this Kubernetes deployment;
+ * only unicast LookupLocator discovery is used.
+ */
+
+/* ── JRE bootstrap modules ────────────────────────────────────────────── */
+grant codebase "jrt:/java.base"              { permission java.security.AllPermission; };
+grant codebase "jrt:/java.logging"           { permission java.security.AllPermission; };
+grant codebase "jrt:/java.management"        { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.management"         { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.localedata"         { permission java.security.AllPermission; };
+grant codebase "jrt:/java.security.jgss"     { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.crypto.cryptoki"    { permission java.security.AllPermission; };
+grant codebase "jrt:/jdk.crypto.ec"          { permission java.security.AllPermission; };
+grant codebase "jrt:/java.xml.crypto"        { permission java.security.AllPermission; };
+
+/* ── JGDMS service JARs (server-side) ────────────────────────────────── */
+grant codebase "file:${jgdms.lib}/*" {
+    permission java.security.AllPermission;
+};
+
+/* ── Reggie download JAR (served to connecting clients) ──────────────── */
+grant codebase "file:${jgdms.lib-dl}/*" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+/* ── Baseline grants for all untrusted code ──────────────────────────── */
+grant {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    /* Allow SPIRE PEM file reads */
+    permission java.io.FilePermission "/run/spire/*", "read";
+};
+
+/* ── Grants to the Codebase Downloader (Host 4) SPIFFE identity ──────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/downloader" {
+    permission net.jini.security.AccessPermission "*";
+    permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
+};
+
+/* ── Grants to the JFR Telemetry Service (Host 5) SPIFFE identity ────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/telemetry" {
+    permission net.jini.security.AccessPermission "*";
+    permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
+};
+
+/* ── Grants to BAE instances (Host 2) for lookup registration ────────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/bae/*" {
+    permission net.jini.security.AccessPermission "*";
+    permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
+};
+
+/* ── Grants to VerdictRegistry (Host 3) for registration ─────────────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/host/registry" {
+    permission net.jini.security.AccessPermission "*";
+    permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
+};
+
+/* ── Grants to clients ───────────────────────────────────────────────── */
+grant principal net.jini.jeri.ssl.SpiffePrincipal
+      "spiffe://${trust.domain}/client/*" {
+    permission net.jini.security.AccessPermission "lookup";
+    permission net.jini.security.AccessPermission "notify";
+    permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
+};

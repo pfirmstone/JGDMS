@@ -1,0 +1,132 @@
+{{/*
+host1-lookup.yaml — Jini Lookup Service Deployment, ServiceAccount, ConfigMap, and Service.
+*/}}
+{{- if .Values.host1.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jgdms-lookup
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app.kubernetes.io/component: lookup
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: host1-lookup-config
+  namespace: {{ include "jgdms-scap.namespace" . }}
+data:
+  JGDMS_LOOKUP_PORT:   {{ .Values.host1.jeriPort | quote }}
+  JGDMS_CODEBASE_PORT: {{ .Values.host1.codebasePort | quote }}
+  JGDMS_LOG_DIR:       {{ .Values.host1.logDir | quote }}
+  TRUST_DOMAIN:        {{ include "jgdms-scap.trustDomain" . | quote }}
+  SPIRE_DIR:           {{ .Values.global.spireDir | default "/run/spire" | quote }}
+  JGDMS_VERSION:       {{ .Values.global.jgdmsVersion | quote }}
+  JGDMS_LOOKUP_URL:    {{ include "jgdms-scap.lookupUrl" . | quote }}
+---
+apiVersion: apps/v1
+kind: {{ if .Values.host1.persistence.enabled }}StatefulSet{{ else }}Deployment{{ end }}
+metadata:
+  name: host1-lookup
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app: host1-lookup
+    scap-role: lookup
+    app.kubernetes.io/component: lookup
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.host1.replicas }}
+  selector:
+    matchLabels:
+      app: host1-lookup
+  {{- if .Values.host1.persistence.enabled }}
+  serviceName: lookup
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        app: host1-lookup
+        scap-role: lookup
+    spec:
+      serviceAccountName: jgdms-lookup
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "jgdms-scap.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: reggie
+          image: {{ include "jgdms-scap.image" (dict "repo" .Values.host1.image.repository "tag" .Values.host1.image.tag "global" .Values.global) }}
+          imagePullPolicy: {{ .Values.host1.image.pullPolicy }}
+          ports:
+            - name: jeri
+              containerPort: {{ .Values.host1.jeriPort }}
+              protocol: TCP
+            - name: codebase
+              containerPort: {{ .Values.host1.codebasePort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: host1-lookup-config
+          env:
+            {{- include "jgdms-scap.commonEnv" . | nindent 12 }}
+            - name: JGDMS_LOOKUP_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: JGDMS_CODEBASE_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            {{- include "jgdms-scap.spireVolumeMount" . | nindent 12 }}
+            - name: lookup-log
+              mountPath: /opt/jgdms/log
+          {{- include "jgdms-scap.livenessProbe" .Values.host1.jeriPort | nindent 10 }}
+          {{- include "jgdms-scap.readinessProbe" .Values.host1.jeriPort | nindent 10 }}
+          resources:
+            {{- toYaml .Values.host1.resources | nindent 12 }}
+          securityContext:
+            {{- include "jgdms-scap.containerSecurityContext" . | nindent 12 }}
+      volumes:
+        {{- include "jgdms-scap.spireVolume" . | nindent 8 }}
+        {{- if not .Values.host1.persistence.enabled }}
+        - name: lookup-log
+          emptyDir: {}
+        {{- end }}
+  {{- if .Values.host1.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: lookup-log
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.host1.persistence.storageClass }}
+        storageClassName: {{ .Values.host1.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.host1.persistence.size }}
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lookup
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app: host1-lookup
+    scap-role: lookup
+spec:
+  selector:
+    app: host1-lookup
+  ports:
+    - name: jeri
+      port: {{ .Values.host1.jeriPort }}
+      targetPort: {{ .Values.host1.jeriPort }}
+      protocol: TCP
+    - name: codebase
+      port: {{ .Values.host1.codebasePort }}
+      targetPort: {{ .Values.host1.codebasePort }}
+      protocol: TCP
+  type: ClusterIP
+{{- end }}
