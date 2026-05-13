@@ -232,8 +232,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                 }
                 logger.log(Level.WARNING,
                         "VerdictRegistry lookup failed for codebase: {0}; retrying in {1} ms",
-                        new Object[]{path, Long.valueOf(retryDelayMs)});
-                sleepBeforeVerdictRetry(retryDelayMs, path);
+                        new Object[]{path, retryDelayMs});
+                sleepBeforeVerdictRetryOrThrow(retryDelayMs, path);
                 retryDelayMs *= 2L;
             }
         }
@@ -264,8 +264,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         }
     }
 
-    private static void sleepBeforeVerdictRetry(long retryDelayMs,
-                                                String path)
+    private static void sleepBeforeVerdictRetryOrThrow(long retryDelayMs,
+                                                       String path)
             throws IOException {
         if (retryDelayMs <= 0L) {
             return;
