@@ -326,21 +326,28 @@ public class SerialEntryRoundTripTest {
     // ── SHA-256 hash stability (RULE-7) ─────────────────────────────────────
 
     /**
-     * Renaming the Java field without changing the wire name in
-     * {@code entryForm()} must produce the same type-identity hash.
+     * Changing a wire field type must produce a different type-identity hash.
+     * This verifies that the hash captures field types, not just field names.
      */
     @Test
-    public void javaFieldRenameDoesNotChangeHash() throws MarshalException {
+    public void wireFieldTypeChangeProducesDifferentHash() throws MarshalException {
         long hash1 = hashOf(LocationEntry.class);
-        long hash2 = hashOf(LocationEntryRenamed.class);
-        // Both classes declare the same wire schema, so their hashes differ
-        // only because the class names differ — which means they should NOT
-        // be equal (they are different classes).  The point of this test is
-        // that changing a wire field name DOES change the hash.
-        // LocationEntry hash ≠ LocationEntryDifferentType hash (different wire type)
         long hash3 = hashOf(LocationEntryDifferentType.class);
         assertNotEquals("different wire-field type must produce a different hash",
                         hash1, hash3);
+    }
+
+    /**
+     * Two classes with different class names but identical wire schemas
+     * produce different hashes (the class name is part of the hash input).
+     */
+    @Test
+    public void differentClassNameProducesDifferentHash() throws MarshalException {
+        long hash1 = hashOf(LocationEntry.class);
+        long hash2 = hashOf(LocationEntryRenamed.class);
+        // Same wire schema, different class name → different hash
+        assertNotEquals("different class names must produce different hashes",
+                        hash1, hash2);
     }
 
     /**
