@@ -34,7 +34,6 @@ import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Security;
 import java.security.UnresolvedPermission;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -156,13 +155,7 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
             "net.jini.security.policy.DynamicPolicyProvider.revocation";
     private static final String voidGrantSweepPeriodProperty =
             "net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
-    private static final String inconclusiveLoaderEvictionClass =
-            "net.jini.loader.pref.PreferredProxyCodebaseProvider";
-    private static final String inconclusiveLoaderEvictionMethod =
-            "evictInconclusiveClassLoaders";
     private static final Logger logger = Logger.getLogger("net.jini.security.policy");
-    private static volatile Method inconclusiveLoaderEviction;
-    private static volatile boolean inconclusiveLoaderEvictionLookupAttempted;
     
     private static final ProtectionDomain policyDomain = 
             AccessController.doPrivileged(new PrivilegedAction<ProtectionDomain>(){
@@ -626,13 +619,10 @@ Put the policy providers and all referenced classes in the bootstrap class loade
                 });
         }
         PermissionGrant pe = pgb.build();
-	boolean added = dynamicPolicyGrants.add(pe);
+	dynamicPolicyGrants.add(pe);
 	if (loggable){
 	    logger.log(Level.FINEST, "Granting: {0}", pe.toString());
 	}
-        if (added) {
-            evictInconclusivePreferredProxyClassLoaders();
-        }
     }
     
     // documentation inherited from DynamicPolicy.getGrants
@@ -695,56 +685,7 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         Collection<Permission> perms = p.getPermissions();
         GrantPermission guard = new GrantPermission(perms.toArray(new Permission [perms.size()]));
         guard.checkGuard(null);
-        boolean added = dynamicPolicyGrants.add(p);
-        if (added) {
-            evictInconclusivePreferredProxyClassLoaders();
-        }
-        return added;
-    }
-
-    private void evictInconclusivePreferredProxyClassLoaders() {
-        try {
-            Method evictMethod = getInconclusiveLoaderEvictionMethod();
-            if (evictMethod == null) {
-                if (logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST,
-                            "Preferred proxy class loader provider not present; skipping INCONCLUSIVE eviction hook");
-                }
-                return;
-            }
-            Object result = evictMethod.invoke(null);
-            if (result instanceof Integer count && count > 0 && logger.isLoggable(Level.FINE)) {
-                logger.log(Level.FINE,
-                        "Evicted {0} INCONCLUSIVE preferred proxy classloader(s) after dynamic grant",
-                        result);
-            }
-        } catch (Exception ex) {
-            logger.log(Level.WARNING,
-                    "Unable to evict INCONCLUSIVE preferred proxy classloaders after dynamic grant",
-                    ex);
-        }
-    }
-
-    private static Method getInconclusiveLoaderEvictionMethod()
-            throws ClassNotFoundException, NoSuchMethodException {
-        Method method = inconclusiveLoaderEviction;
-        if (method != null || inconclusiveLoaderEvictionLookupAttempted) {
-            return method;
-        }
-        synchronized (DynamicPolicyProvider.class) {
-            method = inconclusiveLoaderEviction;
-            if (method != null || inconclusiveLoaderEvictionLookupAttempted) {
-                return method;
-            }
-            try {
-                method = Class.forName(inconclusiveLoaderEvictionClass)
-                        .getMethod(inconclusiveLoaderEvictionMethod);
-                inconclusiveLoaderEviction = method;
-                return method;
-            } finally {
-                inconclusiveLoaderEvictionLookupAttempted = true;
-            }
-        }
+        return dynamicPolicyGrants.add(p);
     }
     
     public String toString(){

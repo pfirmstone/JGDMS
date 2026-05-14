@@ -19,28 +19,16 @@ import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationHandler;
 import java.net.URISyntaxException;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
-import java.security.CodeSource;
-import java.security.Permission;
-import java.security.PermissionCollection;
-import java.security.Policy;
 import java.security.PublicKey;
-import java.security.ProtectionDomain;
-import java.security.Principal;
-import java.util.Arrays;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
-import net.jini.security.policy.DynamicPolicyProvider;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
@@ -87,8 +75,6 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     public void resetRegistry() {
         // Clear the VerdictRegistry so tests do not interfere with each other.
         VerdictRegistryHolder.set(null);
-        VerdictRegistryHolder.clearInconclusiveLoaders();
-        clearPreferredProxyCache();
         PreferredProxyCodebaseProvider.resetVerdictRetryBaseDelayMs();
     }
 
@@ -246,59 +232,6 @@ public class PreferredProxyCodebaseProviderVerdictTest {
                 3, stub.getGetVerdictByHashCalls());
     }
 
-    @Test
-    public void evictInconclusiveClassLoadersRemovesTrackedCacheEntries()
-            throws Exception {
-        ClassLoader loader = new ClassLoader() { };
-        Object key = newCacheKey(loader);
-        getPreferredProxyCache().put(key, loader);
-        VerdictRegistryHolder.recordInconclusiveLoader(loader);
-
-        assertEquals("Should evict tracked INCONCLUSIVE loader",
-                1, PreferredProxyCodebaseProvider.evictInconclusiveClassLoaders());
-        assertFalse("Tracked loader should be removed from cache",
-                getPreferredProxyCache().containsKey(key));
-    }
-
-    @Test
-    public void dynamicPolicyGrantEvictsTrackedInconclusiveClassLoaders()
-            throws Exception {
-        ClassLoader loader = new ClassLoader() { };
-        Object key = newCacheKey(loader);
-        getPreferredProxyCache().put(key, loader);
-        VerdictRegistryHolder.recordInconclusiveLoader(loader);
-
-        DynamicPolicyProvider policy = new DynamicPolicyProvider(new Policy() {
-            @Override
-            public PermissionCollection getPermissions(CodeSource codesource) {
-                return new java.security.Permissions();
-            }
-
-            @Override
-            public PermissionCollection getPermissions(ProtectionDomain domain) {
-                return new java.security.Permissions();
-            }
-
-            @Override
-            public boolean implies(ProtectionDomain domain, Permission permission) {
-                return false;
-            }
-
-            @Override
-            public void refresh() {
-            }
-        });
-        try {
-            policy.grant(getClass(), new Principal[0],
-                    new Permission[]{new RuntimePermission("test.grant.evicts.inconclusive.loader")});
-        } finally {
-            policy.shutdown();
-        }
-
-        assertFalse("Grant should evict tracked INCONCLUSIVE loader from cache",
-                getPreferredProxyCache().containsKey(key));
-    }
-
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -310,47 +243,6 @@ public class PreferredProxyCodebaseProviderVerdictTest {
             throws URISyntaxException {
         Uri[] urls = new Uri[]{new Uri("urn:sha256:" + FAKE_HASH)};
         return new RegistryVerdict(urls, type, System.currentTimeMillis(), DUMMY_SIG);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static ConcurrentMap<Object, ClassLoader> getPreferredProxyCache() {
-        try {
-            // Reflection keeps the production cache encapsulated while still
-            // letting this test verify the internal eviction behavior directly.
-            Field cacheField = PreferredProxyCodebaseProvider.class.getDeclaredField("CACHE");
-            cacheField.setAccessible(true);
-            return (ConcurrentMap<Object, ClassLoader>) cacheField.get(null);
-        } catch (Exception ex) {
-            throw new AssertionError("Unable to access preferred proxy cache", ex);
-        }
-    }
-
-    private static void clearPreferredProxyCache() {
-        getPreferredProxyCache().clear();
-    }
-
-    private static Object newCacheKey(final ClassLoader parent) {
-        try {
-            // Construct the internal cache key reflectively so the production
-            // code does not need any test-only visibility changes.
-            Class<?> keyClass = Class.forName(
-                    "net.jini.loader.pref.PreferredProxyCodebaseProvider$Key");
-            Constructor<?> constructor = keyClass.getDeclaredConstructor(
-                    InvocationHandler.class, java.util.List.class, ClassLoader.class);
-            constructor.setAccessible(true);
-            return constructor.newInstance(
-                    new InvocationHandler() {
-                        @Override
-                        public Object invoke(Object proxy, java.lang.reflect.Method method,
-                                Object[] args) {
-                            return null;
-                        }
-                    },
-                    Arrays.asList(new Uri("https://example.com/app.jar")),
-                    parent);
-        } catch (Exception ex) {
-            throw new AssertionError("Unable to construct preferred proxy cache key", ex);
-        }
     }
 
     // -------------------------------------------------------------------------

@@ -45,9 +45,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
@@ -231,9 +229,9 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * @throws IOException if the verdict is absent, DANGEROUS, or the
      *                     registry is unreachable
      */
-    static VerdictType checkVerdictForJar(VerdictRegistry vr,
-                                          String contentHash,
-                                          String path) throws IOException {
+    static void checkVerdictForJar(VerdictRegistry vr,
+                                    String contentHash,
+                                    String path) throws IOException {
         RegistryVerdict verdict = getVerdictByHashWithRetry(vr, contentHash, path);
         if (verdict == null) {
             logger.log(Level.WARNING,
@@ -260,30 +258,6 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             logger.log(Level.FINEST,
                     "JAR verdict is SAFE (SHA-256: {0})", contentHash);
         }
-        return type;
-    }
-
-    public static int evictInconclusiveClassLoaders() {
-        Set<ClassLoader> inconclusiveLoaders = VerdictRegistryHolder.drainInconclusiveLoaders();
-        if (inconclusiveLoaders.isEmpty()) {
-            return 0;
-        }
-        int evicted = 0;
-        // CACHE is backed by a concurrent map, so entry-set iteration is
-        // weakly consistent and safe alongside remove(key, value).
-        for (Map.Entry<Key, ClassLoader> entry : CACHE.entrySet()) {
-            ClassLoader loader = entry.getValue();
-            if (loader != null && inconclusiveLoaders.contains(loader)
-                    && CACHE.remove(entry.getKey(), loader)) {
-                evicted++;
-            }
-        }
-        if (evicted > 0 && logger.isLoggable(Level.FINE)) {
-            logger.log(Level.FINE,
-                    "Evicted {0} cached INCONCLUSIVE preferred proxy classloader(s)",
-                    Integer.valueOf(evicted));
-        }
-        return evicted;
     }
 
     private static RegistryVerdict getVerdictByHashWithRetry(VerdictRegistry vr,
@@ -459,16 +433,12 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             // the registry is reachable.
             // ----------------------------------------------------------------
             VerdictRegistry vr = VerdictRegistryHolder.get();
-            boolean inconclusiveCodebase = false;
             if (vr != null) {
                 for (int vi = 0, vl = codebase.length; vi < vl; vi++) {
                     URL jarUrl = codebase[vi];
                     if (!isDirectory(jarUrl)) {
                         String contentHash = computeJarHash(jarUrl);
-                        if (checkVerdictForJar(vr, contentHash, path)
-                                == VerdictType.INCONCLUSIVE) {
-                            inconclusiveCodebase = true;
-                        }
+                        checkVerdictForJar(vr, contentHash, path);
                     }
                 }
             } else {
@@ -524,9 +494,6 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             );
             ClassLoader existed = CACHE.putIfAbsent(loaderKey, loader);
             if (existed != null) loader = existed;
-            if (inconclusiveCodebase) {
-                VerdictRegistryHolder.recordInconclusiveLoader(loader);
-            }
         }
 	
 	Object sp = serviceProxy.get(loader, true, verifier, context);

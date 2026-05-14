@@ -16,10 +16,6 @@
 package net.jini.loader.pref;
 
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.WeakHashMap;
 
 /**
  * Package-private holder for the lazily-initialised {@link VerdictRegistry}
@@ -44,9 +40,6 @@ class VerdictRegistryHolder {
 
     /** The lazily-initialised registry proxy; {@code null} until injected. */
     private static volatile VerdictRegistry instance = null;
-    private static final Set<ClassLoader> inconclusiveLoaders =
-            Collections.synchronizedSet(
-                    Collections.newSetFromMap(new WeakHashMap<ClassLoader, Boolean>()));
 
     /** Prevent instantiation. */
     private VerdictRegistryHolder() {}
@@ -71,28 +64,5 @@ class VerdictRegistryHolder {
      */
     static VerdictRegistry get() {
         return instance;
-    }
-
-    static void recordInconclusiveLoader(ClassLoader loader) {
-        if (loader != null) {
-            inconclusiveLoaders.add(loader);
-        }
-    }
-
-    static Set<ClassLoader> drainInconclusiveLoaders() {
-        synchronized (inconclusiveLoaders) {
-            if (inconclusiveLoaders.isEmpty()) {
-                return Collections.emptySet();
-            }
-            Set<ClassLoader> drained = new HashSet<>(inconclusiveLoaders);
-            inconclusiveLoaders.clear();
-            return drained;
-        }
-    }
-
-    static void clearInconclusiveLoaders() {
-        synchronized (inconclusiveLoaders) {
-            inconclusiveLoaders.clear();
-        }
     }
 }
