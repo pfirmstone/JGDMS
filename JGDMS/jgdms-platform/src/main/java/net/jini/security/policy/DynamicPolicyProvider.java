@@ -34,6 +34,7 @@ import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Security;
 import java.security.UnresolvedPermission;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -155,6 +156,10 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
             "net.jini.security.policy.DynamicPolicyProvider.revocation";
     private static final String voidGrantSweepPeriodProperty =
             "net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
+    private static final String inconclusiveLoaderEvictionClass =
+            "net.jini.loader.pref.PreferredProxyCodebaseProvider";
+    private static final String inconclusiveLoaderEvictionMethod =
+            "evictInconclusiveClassLoaders";
     private static final Logger logger = Logger.getLogger("net.jini.security.policy");
     
     private static final ProtectionDomain policyDomain = 
@@ -619,10 +624,13 @@ Put the policy providers and all referenced classes in the bootstrap class loade
                 });
         }
         PermissionGrant pe = pgb.build();
-	dynamicPolicyGrants.add(pe);
+	boolean added = dynamicPolicyGrants.add(pe);
 	if (loggable){
 	    logger.log(Level.FINEST, "Granting: {0}", pe.toString());
 	}
+        if (added) {
+            evictInconclusivePreferredProxyClassLoaders();
+        }
     }
     
     // documentation inherited from DynamicPolicy.getGrants
@@ -685,7 +693,31 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         Collection<Permission> perms = p.getPermissions();
         GrantPermission guard = new GrantPermission(perms.toArray(new Permission [perms.size()]));
         guard.checkGuard(null);
-        return dynamicPolicyGrants.add(p);
+        boolean added = dynamicPolicyGrants.add(p);
+        if (added) {
+            evictInconclusivePreferredProxyClassLoaders();
+        }
+        return added;
+    }
+
+    private void evictInconclusivePreferredProxyClassLoaders() {
+        try {
+            Class<?> providerClass = Class.forName(inconclusiveLoaderEvictionClass);
+            Method evictMethod = providerClass.getMethod(inconclusiveLoaderEvictionMethod);
+            Object result = evictMethod.invoke(null);
+            if (result instanceof Integer && ((Integer) result).intValue() > 0
+                    && logger.isLoggable(Level.FINE)) {
+                logger.log(Level.FINE,
+                        "Evicted {0} INCONCLUSIVE preferred proxy classloader(s) after dynamic grant",
+                        result);
+            }
+        } catch (ClassNotFoundException ex) {
+            // Preferred proxy class loading is optional; no eviction needed when absent.
+        } catch (Exception ex) {
+            logger.log(Level.WARNING,
+                    "Unable to evict INCONCLUSIVE preferred proxy classloaders after dynamic grant",
+                    ex);
+        }
     }
     
     public String toString(){
