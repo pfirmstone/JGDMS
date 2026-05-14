@@ -290,7 +290,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         });
         try {
             policy.grant(getClass(), new Principal[0],
-                    new Permission[]{new RuntimePermission("testGrantEvictsInconclusiveLoader")});
+                    new Permission[]{new RuntimePermission("test.grant.evicts.inconclusive.loader")});
         } finally {
             policy.shutdown();
         }
