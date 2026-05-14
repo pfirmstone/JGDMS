@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v46)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v47)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,24 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v47 Change Summary
+
+**Work Item 46 follow-up — analyze GC/null-strong-reference mitigation**
+
+- Added a new deep-dive section on whether simply dropping strong references to
+  a proxy / its proxy-defined classes is a practical mitigation.
+- The analysis concludes that GC-based cleanup is only a best-effort secondary
+  effect: it may eventually unload a proxy `ClassLoader`, but it is
+  nondeterministic, depends on no other strong references surviving, and cannot
+  be treated as a security boundary or primary mitigation.
+- The report now records that JGDMS' preferred-proxy caches use weak loader
+  values, so the caches alone do not intentionally pin the loader, but boomerang
+  `SERVICES_EXP`, parent-loader reuse, and ordinary live-object reachability
+  still limit practicality.
+- Version header bumped from v46 → v47.
 
 ---
 
@@ -1161,7 +1179,71 @@ So "use RevocablePolicy and void the retained grants later" is not merely
 directionally correct — it is compatible with the current design — but it still
 requires a small amount of new plumbing in the proxy-preparer/grant path.
 
-### 8.5 Smallest viable redesign
+### 8.5 Would GC after clearing strong references help?
+
+Possibly as a **best-effort cleanup effect**, but not as a primary mitigation.
+
+There are two different questions here:
+
+1. can the preferred-proxy `ClassLoader` eventually become unreachable and be
+   garbage collected, and
+2. if so, is that reliable enough to serve as the security fix for Work Item 46?
+
+The answer to (1) is "sometimes yes"; the answer to (2) is "no".
+
+Why it can sometimes work:
+
+- both preferred-proxy caches use **weak values** for the cached
+  `ClassLoader`s, so the caches are explicitly designed not to retain the loader
+  by themselves
+  (`jgdms-pref-class-loader/src/main/java/net/jini/loader/pref/PreferredProxyCodebaseProvider.java:94-115`).
+- `PreferredClassProvider.loaderTable` is also a weak-value loader cache
+  (`jgdms-pref-class-loader/src/main/java/net/jini/loader/pref/PreferredClassProvider.java:335-342,352-362`).
+
+So if the application truly drops all strong references to:
+
+- the proxy instance,
+- objects reachable from its invocation handler / endpoint,
+- classes defined by the proxy loader, and
+- the loader itself,
+
+then the JVM may eventually collect the proxy objects and unload the loader.
+
+Why that is not a dependable mitigation:
+
+- **GC and class unloading are nondeterministic.** They happen only when/if the
+  JVM decides to collect, not at a security-relevant boundary.
+- **It depends on global reachability, not just the holder's local variable.**
+  Any surviving strong reference anywhere in the process can keep the proxy
+  loader alive: other proxy instances, invocation handlers, endpoint/transport
+  state, thread context class loaders, static fields, reflective caches, etc.
+- The `SERVICES_EXP` path is specifically a **boomerang reuse** path for proxies
+  exported from the same node, so while the service remains exported it is
+  entirely plausible that the relevant loader or associated handler/endpoint
+  graph remains live for legitimate reasons
+  (`jgdms-pref-class-loader/src/main/java/net/jini/loader/pref/PreferredProxyCodebaseProvider.java:349-351,570-592`;
+  `jgdms-jeri/src/main/java/net/jini/jeri/AtomicILFactory.java:446-448`).
+- Even if a cached loader does disappear, this does **not** retroactively revoke
+  permissions from already-escaped references or capabilities.
+- Even if a cached loader disappears, reuse can still happen through the
+  **parent-loader self-resolution path**, which bypasses creation of a new
+  preferred proxy loader entirely when the annotation already matches the parent
+  loader
+  (`jgdms-pref-class-loader/src/main/java/net/jini/loader/pref/PreferredProxyCodebaseProvider.java:350-360`).
+
+So the most accurate framing is:
+
+- dropping strong references may reduce the lifetime of some proxy loaders in
+  practice,
+- that could slightly reduce the exposure window in favorable cases,
+- but it is too opportunistic and environment-dependent to be the Work Item 46
+  fix.
+
+At best, GC-based disappearance of an unused proxy loader is a **helpful side
+effect after explicit revocation / discard**, not a substitute for explicit
+revocation-aware grant handling.
+
+### 8.6 Smallest viable redesign
 
 The smallest plausible replacement for v43 is:
 
@@ -1179,7 +1261,7 @@ or capabilities that have already escaped cannot be retroactively clawed back.
 It would, however, improve the next deserialized proxy instance that reuses the
 same cached loader, provided the guarded capability has not already escaped.
 
-### 8.6 Final assessment
+### 8.7 Final assessment
 
 **Conclusion:** the v43 cache-eviction implementation should **not** be kept.
 It was both incomplete and potentially harmful to class resolution, so it has
@@ -1198,11 +1280,12 @@ been reverted from this branch.
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 46,
-updated after a third review of Work Item 46. The cache-eviction approach was
-rejected and reverted: preferred-proxy `ClassLoader`s should stay cached, and
-the preferred mitigation is now clarified as retained, externally-voidable
-loader-scoped grants rather than cache eviction. §5/§6 keep Item 46 reopened as
-a redesign task, and §8 records the refined analysis. Work Item 58 remains ✅
-fully complete in DirtyChai
+future AI agent to continue without loss of context. This is version 47,
+updated after a fourth review of Work Item 46. The cache-eviction approach was
+rejected and reverted: preferred-proxy `ClassLoader`s should stay cached, the
+preferred mitigation remains retained, externally-voidable loader-scoped grants,
+and §8 now also records that GC after clearing strong references is at most a
+best-effort secondary effect rather than a dependable mitigation. §5/§6 keep
+Item 46 reopened as a redesign task, and §8 records the refined analysis. Work
+Item 58 remains ✅ fully complete in DirtyChai
 (`SecureClassLoader.java` SHA `98e1e31`).*
