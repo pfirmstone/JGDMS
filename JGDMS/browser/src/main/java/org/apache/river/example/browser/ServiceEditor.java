@@ -687,7 +687,7 @@ class ServiceEditor extends JFrame {
         Method serializeMethod = cls.getMethod("serialize", PutEntryArg.class, cls);
         serializeMethod.invoke(null, put, attr);
         Constructor<?> ctor = cls.getConstructor(GetEntryArg.class);
-        return (Entry) ctor.newInstance(new SimpleGetArg(wireFields, put.map));
+        return (Entry) ctor.newInstance(new SimpleGetArg(put.map));
       } catch (Throwable t) {
         logger.log(Level.INFO, "duplicating @SerialEntry entry failed", t);
         return null;
@@ -737,7 +737,7 @@ class ServiceEditor extends JFrame {
         EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
         // Empty map: all fields absent → all get() calls return null
         Constructor<?> ctor = cls.getConstructor(GetEntryArg.class);
-        return (Entry) ctor.newInstance(new SimpleGetArg(wireFields, new HashMap<>()));
+        return (Entry) ctor.newInstance(new SimpleGetArg(new HashMap<>()));
       } catch (Throwable t) {
         logger.log(Level.INFO, "instantiating @SerialEntry template failed", t);
         return null;
@@ -771,7 +771,7 @@ class ServiceEditor extends JFrame {
     private final class SimpleGetArg extends GetEntryArg {
         private final Map<String, Object> values;
 
-        SimpleGetArg(EntryWireField[] wireFields, Map<String, Object> values) {
+        SimpleGetArg(Map<String, Object> values) {
             this.values = values;
         }
 

@@ -448,7 +448,7 @@ public class LookupAttributes {
 
 	    // Construct the merged entry
 	    Constructor<?> ctor = cls.getConstructor(GetEntryArg.class);
-	    return (Entry) ctor.newInstance(new SimpleSerialGetArg(wireFields, baseVals));
+	    return (Entry) ctor.newInstance(new SimpleSerialGetArg(baseVals));
 	} catch (InvocationTargetException ex) {
 	    Throwable cause = ex.getCause();
 	    throw new IllegalArgumentException(
@@ -669,7 +669,7 @@ public class LookupAttributes {
     private static final class SimpleSerialGetArg extends GetEntryArg {
 	private final Map<String, Object> values;
 
-	SimpleSerialGetArg(EntryWireField[] wireFields, Map<String, Object> values) {
+	SimpleSerialGetArg(Map<String, Object> values) {
 	    this.values = values;
 	}
 
