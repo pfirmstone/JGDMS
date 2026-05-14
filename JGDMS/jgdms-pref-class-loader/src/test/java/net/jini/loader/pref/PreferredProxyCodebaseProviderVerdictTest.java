@@ -136,7 +136,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         stub.setVerdictToReturn(verdict);
 
         // Should not throw.
-        PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+        assertFalse(PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
     }
 
     // -------------------------------------------------------------------------
@@ -150,7 +150,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         stub.setVerdictToReturn(verdict);
 
         // INCONCLUSIVE should proceed (log WARNING but not throw).
-        PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+        assertTrue(PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
     }
 
     // -------------------------------------------------------------------------
@@ -226,7 +226,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         stub.setVerdictToReturn(verdict);
         stub.setFailTimes(2);
 
-        PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+        assertFalse(PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
 
         assertEquals("Should retry until the registry responds",
                 3, stub.getGetVerdictByHashCalls());

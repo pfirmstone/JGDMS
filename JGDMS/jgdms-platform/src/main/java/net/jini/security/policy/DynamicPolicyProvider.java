@@ -51,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.GrantPermission;
+import net.jini.security.Security;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.api.security.RemotePolicy;
@@ -600,6 +601,7 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         // This has to be after checkNullElements principals or we fail the NullCases test.
         if (permissions == null || permissions.length == 0) {return;}
         checkNullElements(permissions);
+        Security.invalidateInconclusiveProxyLoaderGrants();
         // Not delgated to base policy.
         Guard g = new GrantPermission(permissions);
         g.checkGuard(null);
@@ -685,6 +687,7 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         Collection<Permission> perms = p.getPermissions();
         GrantPermission guard = new GrantPermission(perms.toArray(new Permission [perms.size()]));
         guard.checkGuard(null);
+        Security.invalidateInconclusiveProxyLoaderGrants();
         return dynamicPolicyGrants.add(p);
     }
     
