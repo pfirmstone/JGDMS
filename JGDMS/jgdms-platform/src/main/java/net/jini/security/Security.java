@@ -39,6 +39,7 @@ import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -48,6 +49,8 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -56,9 +59,13 @@ import javax.security.auth.Subject;
 import javax.security.auth.SubjectDomainCombiner;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.SecurityContextSource;
+import org.apache.river.api.security.ExternallyVoidablePermissionGrant;
 import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.api.security.RevocablePolicy;
 import org.apache.river.api.security.SubjectDomain;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
 import org.apache.river.logging.Levels;
 import org.apache.river.resource.Service;
 
@@ -164,6 +171,20 @@ public final class Security {
      * Weak map from String to [URL[], SoftReference(key)]
      */
     private static Map pathToURLsCache = new WeakHashMap(5);
+    /**
+     * ClassLoaders that have loaded a proxy codebase with at least one
+     * INCONCLUSIVE verdict.
+     */
+    @SuppressWarnings("unchecked")
+    private static final ConcurrentMap<ClassLoader, Boolean> inconclusiveProxyLoaders =
+        RC.concurrentMap(new ConcurrentHashMap(64), Ref.WEAK, Ref.STRONG, 60000L, 60000L);
+    /**
+     * Retained externally-voidable loader-scoped grants for INCONCLUSIVE proxy
+     * loaders.
+     */
+    @SuppressWarnings("unchecked")
+    private static final ConcurrentMap<ClassLoader, ExternallyVoidablePermissionGrant> retainedInconclusiveLoaderGrants =
+        RC.concurrentMap(new ConcurrentHashMap(64), Ref.WEAK, Ref.WEAK, 60000L, 60000L);
     /**
      * Weak map from ClassLoader to SoftReference(IntegrityVerifier[]).
      */
@@ -1115,7 +1136,11 @@ public final class Security {
 	if (!(policy instanceof DynamicPolicy)) {
 	    throw new UnsupportedOperationException("grants not supported by policy: " + policy);
 	}
-	((DynamicPolicy) policy).grant(cl, principals, permissions);
+        if (shouldUseRetainedInconclusiveGrant(policy, cl, permissions)) {
+            grantRetainedInconclusiveLoaderGrant(cl, principals, permissions);
+        } else {
+            ((DynamicPolicy) policy).grant(cl, principals, permissions);
+        }
 	if (getPolicyLogger().isLoggable(Level.FINER)) {
 	    getPolicyLogger().log(Level.FINER, "granted {0} to {1}, {2}",
 		new Object[]{
@@ -1123,6 +1148,33 @@ public final class Security {
 		    (cl != null) ? cl.getName() : null,
 		    (principals != null) ? Arrays.asList(principals) : null});
 	}
+    }
+
+    /**
+     * Marks a proxy ClassLoader as having loaded an INCONCLUSIVE verdict
+     * codebase.
+     *
+     * @param loader proxy ClassLoader to mark
+     */
+    public static void markInconclusiveProxyClassLoader(ClassLoader loader) {
+        if (loader == null) return;
+        inconclusiveProxyLoaders.put(loader, Boolean.TRUE);
+    }
+
+    /**
+     * Externally voids retained INCONCLUSIVE loader-scoped grants and refreshes
+     * the installed policy so the voided state becomes effective.
+     */
+    public static void invalidateInconclusiveProxyLoaderGrants() {
+        if (retainedInconclusiveLoaderGrants.isEmpty()) return;
+        for (ExternallyVoidablePermissionGrant grant : retainedInconclusiveLoaderGrants.values()) {
+            grant.voidGrant();
+        }
+        retainedInconclusiveLoaderGrants.clear();
+        Policy policy = getPolicy();
+        if (policy != null) {
+            policy.refresh();
+        }
     }
 
     /**
@@ -1229,6 +1281,48 @@ public final class Security {
             
             public Policy run() { return Policy.getPolicy(); }
         });
+    }
+
+    private static boolean shouldUseRetainedInconclusiveGrant(Policy policy,
+                                                              Class cl,
+                                                              Permission[] permissions)
+    {
+        if (cl == null || permissions == null || permissions.length == 0) return false;
+        if (!(policy instanceof RevocablePolicy)) return false;
+        RevocablePolicy rp = (RevocablePolicy) policy;
+        if (!rp.revokeSupported()) return false;
+        ClassLoader loader = cl.getClassLoader();
+        if (loader == null) return false;
+        return inconclusiveProxyLoaders.containsKey(loader);
+    }
+
+    private static void grantRetainedInconclusiveLoaderGrant(final Class cl,
+                                                             Principal[] principals,
+                                                             Permission[] permissions)
+    {
+        Principal[] safePrincipals = principals == null ? new Principal[0] : principals;
+        PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
+        pgb.principals(safePrincipals)
+           .permissions(permissions)
+           .context(PermissionGrantBuilder.CLASSLOADER);
+        AccessController.doPrivileged(
+            new PrivilegedAction<Void>() {
+                @Override
+                public Void run() {
+                    pgb.clazz(cl);
+                    return null;
+                }
+            });
+        PermissionGrant decorated = pgb.build();
+        ExternallyVoidablePermissionGrant voidable =
+            new ExternallyVoidablePermissionGrant(decorated);
+        grant(voidable);
+        ClassLoader loader = cl.getClassLoader();
+        ExternallyVoidablePermissionGrant existing =
+            retainedInconclusiveLoaderGrants.put(loader, voidable);
+        if (existing != null) {
+            existing.voidGrant();
+        }
     }
 
     /**

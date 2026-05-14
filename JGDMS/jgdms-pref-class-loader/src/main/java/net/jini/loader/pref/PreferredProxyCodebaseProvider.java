@@ -226,12 +226,14 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * @param vr          the registry to query; must be non-null
      * @param contentHash lowercase SHA-256 hex digest of the JAR
      * @param path        the codebase annotation string (used in messages)
+     * @return {@code true} if the verdict is {@link VerdictType#INCONCLUSIVE},
+     *         otherwise {@code false}
      * @throws IOException if the verdict is absent, DANGEROUS, or the
      *                     registry is unreachable
      */
-    static void checkVerdictForJar(VerdictRegistry vr,
-                                    String contentHash,
-                                    String path) throws IOException {
+    static boolean checkVerdictForJar(VerdictRegistry vr,
+                                       String contentHash,
+                                       String path) throws IOException {
         RegistryVerdict verdict = getVerdictByHashWithRetry(vr, contentHash, path);
         if (verdict == null) {
             logger.log(Level.WARNING,
@@ -253,11 +255,13 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             logger.log(Level.WARNING,
                     "JAR verdict is INCONCLUSIVE (SHA-256: {0}); proceeding with caution",
                     contentHash);
+            return true;
         } else {
             // SAFE
             logger.log(Level.FINEST,
                     "JAR verdict is SAFE (SHA-256: {0})", contentHash);
         }
+        return false;
     }
 
     private static RegistryVerdict getVerdictByHashWithRetry(VerdictRegistry vr,
@@ -433,12 +437,13 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             // the registry is reachable.
             // ----------------------------------------------------------------
             VerdictRegistry vr = VerdictRegistryHolder.get();
+            boolean inconclusiveVerdictSeen = false;
             if (vr != null) {
                 for (int vi = 0, vl = codebase.length; vi < vl; vi++) {
                     URL jarUrl = codebase[vi];
                     if (!isDirectory(jarUrl)) {
                         String contentHash = computeJarHash(jarUrl);
-                        checkVerdictForJar(vr, contentHash, path);
+                        inconclusiveVerdictSeen |= checkVerdictForJar(vr, contentHash, path);
                     }
                 }
             } else {
@@ -494,6 +499,9 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             );
             ClassLoader existed = CACHE.putIfAbsent(loaderKey, loader);
             if (existed != null) loader = existed;
+            if (inconclusiveVerdictSeen) {
+                Security.markInconclusiveProxyClassLoader(loader);
+            }
         }
 	
 	Object sp = serviceProxy.get(loader, true, verifier, context);
