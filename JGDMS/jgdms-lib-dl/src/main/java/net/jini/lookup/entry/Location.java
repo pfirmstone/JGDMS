@@ -17,6 +17,11 @@
  */
 package net.jini.lookup.entry;
 
+import java.io.IOException;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.PutEntryArg;
+import net.jini.core.entry.SerialEntry;
 import net.jini.entry.AbstractEntry;
 
 /**
@@ -29,8 +34,48 @@ import net.jini.entry.AbstractEntry;
  * @see Address
  * @see LocationBean
  */
+@SerialEntry
 public class Location extends AbstractEntry {
     private static final long serialVersionUID = -3275276677967431315L;
+
+    /**
+     * Returns the wire field schema for this entry class.
+     *
+     * @return array of wire fields in declaration order
+     */
+    public static EntryWireField[] entryForm() {
+        return new EntryWireField[] {
+            new EntryWireField("floor",    String.class),
+            new EntryWireField("room",     String.class),
+            new EntryWireField("building", String.class),
+        };
+    }
+
+    /**
+     * Deserialization constructor required by {@link SerialEntry @SerialEntry}.
+     *
+     * @param arg the source of field values
+     * @throws IOException if a field value cannot be read or validated
+     */
+    public Location(GetEntryArg arg) throws IOException {
+        floor    = arg.get("floor",    null, String.class);
+        room     = arg.get("room",     null, String.class);
+        building = arg.get("building", null, String.class);
+    }
+
+    /**
+     * Serialization method required by {@link SerialEntry @SerialEntry}.
+     *
+     * @param arg the destination for field values
+     * @param obj the instance to serialize
+     * @throws IOException if a field value cannot be written
+     */
+    public static void serialize(PutEntryArg arg, Location obj) throws IOException {
+        arg.put("floor",    obj.floor);
+        arg.put("room",     obj.room);
+        arg.put("building", obj.building);
+        arg.writeArgs();
+    }
 
     /**
      * Construct an empty instance of this class.

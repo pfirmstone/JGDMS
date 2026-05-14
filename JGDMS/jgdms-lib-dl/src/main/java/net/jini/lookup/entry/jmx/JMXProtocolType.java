@@ -17,16 +17,56 @@
  */
 package net.jini.lookup.entry.jmx;
 
+import java.io.IOException;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.PutEntryArg;
+import net.jini.core.entry.SerialEntry;
 import net.jini.entry.AbstractEntry;
 
+@SerialEntry
 public class JMXProtocolType extends AbstractEntry {
+
+  /**
+   * Returns the wire field schema for this entry class.
+   *
+   * @return array of wire fields
+   */
+  public static EntryWireField[] entryForm() {
+    return new EntryWireField[] {
+      new EntryWireField("protocolType", String.class),
+    };
+  }
+
+  /**
+   * Deserialization constructor required by {@link SerialEntry @SerialEntry}.
+   *
+   * @param arg the source of field values
+   * @throws IOException if a field value cannot be read or validated
+   */
+  public JMXProtocolType(GetEntryArg arg) throws IOException {
+    protocolType = arg.get("protocolType", null, String.class);
+  }
+
+  /**
+   * Serialization method required by {@link SerialEntry @SerialEntry}.
+   *
+   * @param arg the destination for field values
+   * @param obj the instance to serialize
+   * @throws IOException if a field value cannot be written
+   */
+  public static void serialize(PutEntryArg arg, JMXProtocolType obj) throws IOException {
+    arg.put("protocolType", obj.protocolType);
+    arg.writeArgs();
+  }
+
   public static final String RMI = "rmi";
   public static final String IIOP = "iiop";
   public static final String JMXMP = "jmxmp";
   public String protocolType;
 
   public JMXProtocolType() {
-    this(null);
+    this((String) null);
   }
 
   public JMXProtocolType(String protocolType) {

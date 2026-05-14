@@ -17,9 +17,52 @@
  */
 package net.jini.lookup.entry.jmx;
 
+import java.io.IOException;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.PutEntryArg;
+import net.jini.core.entry.SerialEntry;
 import net.jini.entry.AbstractEntry;
 
+@SerialEntry
 public class JMXProperty extends AbstractEntry {
+
+  /**
+   * Returns the wire field schema for this entry class.
+   *
+   * @return array of wire fields
+   */
+  public static EntryWireField[] entryForm() {
+    return new EntryWireField[] {
+      new EntryWireField("name",  String.class),
+      new EntryWireField("value", String.class),
+    };
+  }
+
+  /**
+   * Deserialization constructor required by {@link SerialEntry @SerialEntry}.
+   *
+   * @param arg the source of field values
+   * @throws IOException if a field value cannot be read or validated
+   */
+  public JMXProperty(GetEntryArg arg) throws IOException {
+    name  = arg.get("name",  null, String.class);
+    value = arg.get("value", null, String.class);
+  }
+
+  /**
+   * Serialization method required by {@link SerialEntry @SerialEntry}.
+   *
+   * @param arg the destination for field values
+   * @param obj the instance to serialize
+   * @throws IOException if a field value cannot be written
+   */
+  public static void serialize(PutEntryArg arg, JMXProperty obj) throws IOException {
+    arg.put("name",  obj.name);
+    arg.put("value", obj.value);
+    arg.writeArgs();
+  }
+
   public String name;
   public String value;
 

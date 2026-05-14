@@ -437,7 +437,30 @@ public record LocationRecord(String host, Integer floor) implements Entry {
 | `EntryRep.fieldsViaSerialEntry()` | `services/reggie/reggie-dl/src/main/java/org/apache/river/reggie/proxy/EntryRep.java` |
 | `EntryRep.getViaSerialEntry()` | `services/reggie/reggie-dl/src/main/java/org/apache/river/reggie/proxy/EntryRep.java` |
 | `AbstractEntry.fieldInfo()` | `jgdms-lib-dl/src/main/java/net/jini/entry/AbstractEntry.java` |
+| `LookupAttributes` | `jgdms-lib-dl/src/main/java/org/apache/river/lookup/entry/LookupAttributes.java` |
+| Outrigger `EntryRep.marshalSerialEntry()` | `services/outrigger/outrigger-dl/src/main/java/org/apache/river/outrigger/proxy/EntryRep.java` |
+| Browser `Browser.valid()` | `browser/src/main/java/org/apache/river/example/browser/Browser.java` |
+| Browser `ServiceEditor.cloneEntry()` | `browser/src/main/java/org/apache/river/example/browser/ServiceEditor.java` |
 
 ---
 
-*Standard JGDMS-STD-005 — Version 1.0 — May 2026*
+## Infrastructure support summary
+
+The table below shows which JGDMS subsystems now support `@SerialEntry`
+classes natively.
+
+| Subsystem | Class | @SerialEntry support | Notes |
+|-----------|-------|---------------------|-------|
+| Reggie registrar | `EntryRep` | ✅ Full marshal/unmarshal | Uses SHA-256 hash |
+| Reggie registrar | `EntryClass` | ✅ SHA-256 hash computation | `computeSerialEntryHash()` |
+| Reggie registrar | `ClassMapper` | ✅ Hash routing | Delegates to `EntryClass` |
+| Outrigger JavaSpace | `EntryRep` | ✅ Full marshal/unmarshal | Wraps fields in `MarshalledInstance` |
+| Attribute utilities | `LookupAttributes` | ✅ `check/equal/matches/add/modify` | Final fields included for @SerialEntry |
+| `AbstractEntry` | `fieldInfo()` | ✅ `equals/hashCode/toString` | Final fields included for @SerialEntry |
+| Browser display | `Browser.valid()` | ✅ Displays final fields | @SerialEntry final fields shown |
+| Browser editing | `ServiceEditor.cloneEntry()` | ✅ Serialize/ctor round-trip | No `Field.set()` on final fields |
+| Browser editing | `ServiceEditor.generateTemplate()` | ✅ All-null template | Constructed via (GetEntryArg) |
+
+---
+
+*Standard JGDMS-STD-005 — Version 1.1 — May 2026*

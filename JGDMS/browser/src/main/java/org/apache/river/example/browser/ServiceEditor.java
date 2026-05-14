@@ -53,6 +53,17 @@ import net.jini.admin.JoinAdmin;
 import net.jini.config.ConfigurationException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.PutEntryArg;
+import net.jini.core.entry.SerialEntry;
+import java.io.InvalidObjectException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
@@ -643,8 +654,11 @@ class ServiceEditor extends JFrame {
     }
 
     private Entry cloneEntry(Entry attr) {
+      Class<?> realClass = attr.getClass();
+      if (realClass.isAnnotationPresent(SerialEntry.class)) {
+        return cloneSerialEntry(realClass, attr);
+      }
       try {
-	Class realClass = attr.getClass();
 	Entry template = (Entry) realClass.getDeclaredConstructor().newInstance();
 
 	Field[] f = realClass.getFields();
@@ -661,6 +675,25 @@ class ServiceEditor extends JFrame {
       return null;
     }
 
+    /**
+     * Clones a {@link SerialEntry @SerialEntry} entry via its
+     * {@code serialize()} method and {@code (GetEntryArg)} constructor.
+     */
+    private Entry cloneSerialEntry(Class<?> cls, Entry attr) {
+      try {
+        Method entryFormMethod = cls.getMethod("entryForm");
+        EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
+        SimplePutArg put = new SimplePutArg(wireFields);
+        Method serializeMethod = cls.getMethod("serialize", PutEntryArg.class, cls);
+        serializeMethod.invoke(null, put, attr);
+        Constructor<?> ctor = cls.getConstructor(GetEntryArg.class);
+        return (Entry) ctor.newInstance(new SimpleGetArg(put.map));
+      } catch (Throwable t) {
+        logger.log(Level.INFO, "duplicating @SerialEntry entry failed", t);
+        return null;
+      }
+    }
+
     // from EntryRep
     private boolean usableField(Field field) {
       Class desc = field.getDeclaringClass();
@@ -675,8 +708,11 @@ class ServiceEditor extends JFrame {
     }
 
     private Entry generateTemplate(Entry attr) {
+      Class<?> realClass = attr.getClass();
+      if (realClass.isAnnotationPresent(SerialEntry.class)) {
+        return generateSerialEntryTemplate(realClass);
+      }
       try {
-	Class realClass = attr.getClass();
 	Entry template = (Entry) realClass.getDeclaredConstructor().newInstance();
 
 	Field[] f = realClass.getFields();
@@ -688,6 +724,82 @@ class ServiceEditor extends JFrame {
 	logger.log(Level.INFO, "instantiating template failed", t);
       }
       return null;
+    }
+
+    /**
+     * Generates an all-null template for a {@link SerialEntry @SerialEntry}
+     * entry by constructing it via its {@code (GetEntryArg)} constructor with
+     * all field values absent (returning {@code null} for every field).
+     */
+    private Entry generateSerialEntryTemplate(Class<?> cls) {
+      try {
+        Method entryFormMethod = cls.getMethod("entryForm");
+        EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
+        // Empty map: all fields absent → all get() calls return null
+        Constructor<?> ctor = cls.getConstructor(GetEntryArg.class);
+        return (Entry) ctor.newInstance(new SimpleGetArg(new HashMap<>()));
+      } catch (Throwable t) {
+        logger.log(Level.INFO, "instantiating @SerialEntry template failed", t);
+        return null;
+      }
+    }
+
+    // ── Private helpers for @SerialEntry clone/template in ServiceEditor ────
+
+    private final class SimplePutArg extends PutEntryArg {
+        final Map<String, Object> map;
+        private boolean committed = false;
+
+        SimplePutArg(EntryWireField[] wireFields) {
+            map = new LinkedHashMap<>(Math.max(wireFields.length * 4 / 3 + 1, 8));
+        }
+
+        @Override
+        public void put(String name, Object value) throws java.io.IOException {
+            if (name == null) throw new NullPointerException("name must not be null");
+            if (committed) throw new IllegalStateException("writeArgs() already called");
+            map.put(name, value);
+        }
+
+        @Override
+        public void writeArgs() throws java.io.IOException {
+            if (committed) throw new IllegalStateException("writeArgs() already called");
+            committed = true;
+        }
+    }
+
+    private final class SimpleGetArg extends GetEntryArg {
+        private final Map<String, Object> values;
+
+        SimpleGetArg(Map<String, Object> values) {
+            this.values = values;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T> T get(String name, T defaultValue, Class<T> type)
+                throws java.io.IOException {
+            if (name == null) throw new NullPointerException("name must not be null");
+            if (type == null) throw new NullPointerException("type must not be null");
+            if (!values.containsKey(name)) return defaultValue;
+            Object val = values.get(name);
+            if (val == null) return null;
+            if (!type.isInstance(val)) {
+                InvalidObjectException ex = new InvalidObjectException(
+                    "Field \"" + name + "\": expected " + type.getName()
+                    + " but was " + val.getClass().getName());
+                ex.initCause(new ClassCastException(
+                    "Cannot cast " + val.getClass().getName() + " to " + type.getName()));
+                throw ex;
+            }
+            return type.cast(val);
+        }
+
+        @Override
+        public boolean defaulted(String name) {
+            if (name == null) throw new NullPointerException("name must not be null");
+            return !values.containsKey(name);
+        }
     }
 
     class DoubleClicker extends MouseAdapter {
