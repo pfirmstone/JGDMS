@@ -19,14 +19,24 @@
 package org.apache.river.lookup.entry;
 
 import net.jini.core.entry.Entry;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.PutEntryArg;
+import net.jini.core.entry.SerialEntry;
 import net.jini.lookup.entry.ServiceControlled;
+import java.io.InvalidObjectException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalledInstance;
@@ -268,10 +278,14 @@ public class LookupAttributes {
 
     /**
      * Throws an <code>IllegalArgumentException</code> if any element of
-     * the array is not an instance of a valid <code>Entry</code> class
-     * (the class is not public, or does not have a no-arg constructor, or
-     * has primitive public non-static non-final fields).  If
-     * <code>nullOK</code> is <code>false</code>, and any element of the
+     * the array is not an instance of a valid <code>Entry</code> class.
+     * For legacy (non-{@link SerialEntry @SerialEntry}) classes, valid means:
+     * the class is public, has a public no-arg constructor, and has no
+     * primitive public non-static non-final fields.
+     * For {@link SerialEntry @SerialEntry} classes, valid means: the class
+     * is public and has a public {@code (GetEntryArg)} constructor.
+     * <p>
+     * If <code>nullOK</code> is <code>false</code>, and any element of the
      * array is <code>null</code>, a <code>NullPointerException</code>
      * is thrown.
      * @param attrs to be checked if valid Entry classes.
@@ -289,22 +303,51 @@ public class LookupAttributes {
 		throw new IllegalArgumentException("entry class " +
 						   c.getName() +
 						   " is not public");
-	    try {
-		c.getConstructor(noArg);
-	    } catch (NoSuchMethodException ex) {
-		throw new IllegalArgumentException("entry class " +
-						   c.getName() +
-			        " does not have a public no-arg constructor");
-	    }
-	    Field[] fields = c.getFields();
-	    for (int j = fields.length; --j >= 0; ) {
-		if ((fields[j].getModifiers() &
-		     (Modifier.STATIC|Modifier.FINAL|Modifier.TRANSIENT)) == 0
-		    &&
-		    fields[j].getType().isPrimitive())
+	    if (c.isAnnotationPresent(SerialEntry.class)) {
+		// @SerialEntry classes use a (GetEntryArg) constructor instead
+		// of a no-arg constructor.  Primitive fields are not permitted
+		// in @SerialEntry either, but the field-scan below still applies.
+		try {
+		    Constructor ctor = c.getConstructor(GetEntryArg.class);
+		    if (!Modifier.isPublic(ctor.getModifiers()))
+			throw new IllegalArgumentException("entry class " +
+				c.getName() +
+				" @SerialEntry (GetEntryArg) constructor is not public");
+		} catch (NoSuchMethodException ex) {
 		    throw new IllegalArgumentException("entry class " +
+			    c.getName() +
+			    " is @SerialEntry but does not have a public (GetEntryArg) constructor");
+		}
+		// For @SerialEntry, final fields are legitimate wire fields —
+		// check only for primitives among ALL public non-static fields
+		// (both final and non-final), excluding transient.
+		Field[] fields = c.getFields();
+		for (int j = fields.length; --j >= 0; ) {
+		    int mods = fields[j].getModifiers();
+		    if ((mods & (Modifier.STATIC | Modifier.TRANSIENT)) == 0
+			    && fields[j].getType().isPrimitive())
+			throw new IllegalArgumentException("entry class " +
+					c.getName() +
+					" has a primitive field");
+		}
+	    } else {
+		try {
+		    c.getConstructor(noArg);
+		} catch (NoSuchMethodException ex) {
+		    throw new IllegalArgumentException("entry class " +
+			    c.getName() +
+			    " does not have a public no-arg constructor");
+		}
+		Field[] fields = c.getFields();
+		for (int j = fields.length; --j >= 0; ) {
+		    if ((fields[j].getModifiers() &
+			 (Modifier.STATIC|Modifier.FINAL|Modifier.TRANSIENT)) == 0
+			&&
+			fields[j].getType().isPrimitive())
+			throw new IllegalArgumentException("entry class " +
 						       c.getName() +
 						   " has a primitive field");
+		}
 	    }
 	}
     }
@@ -337,8 +380,16 @@ public class LookupAttributes {
      * the parameter <code>mods</code>, has the same field value as
      * <code>mods</code>, else the same field value as the parameter 
      * <code>e</code>.
+     * <p>
+     * For {@link SerialEntry @SerialEntry} entries, the new instance is
+     * constructed via a serialize/merge/deserialize round-trip using the
+     * class's {@code serialize()} and {@code (GetEntryArg)} constructor.
      */
     private static Entry update(Entry e, Entry mods) {
+	Class<?> cls = e.getClass();
+	if (cls.isAnnotationPresent(SerialEntry.class)) {
+	    return updateSerialEntry(cls, e, mods);
+	}
 	try {
 	    Entry ec = (Entry)e.getClass().getDeclaredConstructor().newInstance();
 	    Field[] mfields = getFields(mods);
@@ -365,6 +416,47 @@ public class LookupAttributes {
             throw new IllegalArgumentException(
 				       "unexpected IllegalArgumentException");
         } 
+    }
+
+    /**
+     * Merges two {@link SerialEntry @SerialEntry} instances of the same class
+     * by serializing both, applying non-null values from {@code mods} on top
+     * of {@code base}, then constructing the result via the
+     * {@code (GetEntryArg)} constructor.
+     */
+    private static Entry updateSerialEntry(Class<?> cls, Entry base, Entry mods) {
+	try {
+	    Method entryFormMethod = cls.getMethod("entryForm");
+	    EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
+
+	    // Serialize the base entry
+	    SimpleSerialPutArg basePut = new SimpleSerialPutArg(wireFields);
+	    Method serializeMethod = cls.getMethod("serialize", PutEntryArg.class, cls);
+	    serializeMethod.invoke(null, basePut, base);
+	    Map<String, Object> baseVals = basePut.map;
+
+	    // Serialize the mods entry
+	    SimpleSerialPutArg modsPut = new SimpleSerialPutArg(wireFields);
+	    serializeMethod.invoke(null, modsPut, mods);
+	    Map<String, Object> modsVals = modsPut.map;
+
+	    // Merge: non-null values in mods override base values
+	    for (Map.Entry<String, Object> entry : modsVals.entrySet()) {
+		if (entry.getValue() != null)
+		    baseVals.put(entry.getKey(), entry.getValue());
+	    }
+
+	    // Construct the merged entry
+	    Constructor<?> ctor = cls.getConstructor(GetEntryArg.class);
+	    return (Entry) ctor.newInstance(new SimpleSerialGetArg(wireFields, baseVals));
+	} catch (InvocationTargetException ex) {
+	    Throwable cause = ex.getCause();
+	    throw new IllegalArgumentException(
+		"Exception updating @SerialEntry " + cls.getName() + ": " + cause, cause);
+	} catch (Exception ex) {
+	    throw new IllegalArgumentException(
+		"Cannot update @SerialEntry " + cls.getName(), ex);
+	}
     }
 
     /** 
@@ -421,14 +513,24 @@ public class LookupAttributes {
     /**
      * Returns public fields, in super to subclass order, sorted
      * alphabetically within a given class.
+     * <p>
+     * For {@link SerialEntry @SerialEntry} classes, {@code final} fields
+     * are included (they are the wire-schema fields, assigned in the
+     * deserialization constructor, so mutation via {@code Field.set()} is
+     * not expected).  For legacy entries, {@code final} fields are excluded
+     * as before.
      */
     private static Field[] getFields(Entry e) {
+	final boolean isSerialEntry =
+		e.getClass().isAnnotationPresent(SerialEntry.class);
+	final int SKIP_MODIFIERS = isSerialEntry
+		? (Modifier.STATIC | Modifier.TRANSIENT)
+		: (Modifier.STATIC | Modifier.FINAL | Modifier.TRANSIENT);
 	Field[] fields = e.getClass().getFields();
 	Arrays.sort(fields, comparator);
 	int len = 0;
 	for (int i = 0; i < fields.length; i++) {
-	    if ((fields[i].getModifiers() &
-		 (Modifier.STATIC|Modifier.FINAL|Modifier.TRANSIENT)) == 0)
+	    if ((fields[i].getModifiers() & SKIP_MODIFIERS) == 0)
 		fields[len++] = fields[i];
 	}
 	if (len < fields.length) {
@@ -529,5 +631,71 @@ public class LookupAttributes {
 	       return false;
 	}
 	return true;
+    }
+
+    // ── Private helpers for @SerialEntry round-trip in update() ─────────────
+
+    /**
+     * Minimal {@link PutEntryArg} implementation used by
+     * {@link #updateSerialEntry} to collect field values by wire name.
+     */
+    private static final class SimpleSerialPutArg extends PutEntryArg {
+	final Map<String, Object> map;
+	private boolean committed = false;
+
+	SimpleSerialPutArg(EntryWireField[] wireFields) {
+	    map = new LinkedHashMap<>(Math.max(wireFields.length * 4 / 3 + 1, 8));
+	}
+
+	@Override
+	public void put(String name, Object value) throws IOException {
+	    if (name == null) throw new NullPointerException("name must not be null");
+	    if (committed) throw new IllegalStateException("writeArgs() already called");
+	    map.put(name, value);
+	}
+
+	@Override
+	public void writeArgs() throws IOException {
+	    if (committed) throw new IllegalStateException("writeArgs() already called");
+	    committed = true;
+	}
+    }
+
+    /**
+     * Minimal {@link GetEntryArg} implementation used by
+     * {@link #updateSerialEntry} to pass merged field values to the
+     * {@code (GetEntryArg)} constructor.
+     */
+    private static final class SimpleSerialGetArg extends GetEntryArg {
+	private final Map<String, Object> values;
+
+	SimpleSerialGetArg(EntryWireField[] wireFields, Map<String, Object> values) {
+	    this.values = values;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public <T> T get(String name, T defaultValue, Class<T> type) throws IOException {
+	    if (name == null) throw new NullPointerException("name must not be null");
+	    if (type == null) throw new NullPointerException("type must not be null");
+	    if (!values.containsKey(name)) return defaultValue;
+	    Object val = values.get(name);
+	    if (val == null) return null;
+	    if (!type.isInstance(val)) {
+		InvalidObjectException ex = new InvalidObjectException(
+		    "Field \"" + name + "\": expected " + type.getName()
+		    + " but was " + val.getClass().getName());
+		ex.initCause(new ClassCastException(
+		    "Cannot cast " + val.getClass().getName() + " to " + type.getName()));
+		throw ex;
+	    }
+	    return type.cast(val);
+	}
+
+	@Override
+	public boolean defaulted(String name) {
+	    if (name == null) throw new NullPointerException("name must not be null");
+	    return !values.containsKey(name);
+	}
     }
 }

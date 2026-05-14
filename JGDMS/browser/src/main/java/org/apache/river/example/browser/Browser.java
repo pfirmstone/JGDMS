@@ -86,6 +86,7 @@ import net.jini.config.NoSuchEntryException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
+import net.jini.core.entry.SerialEntry;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
@@ -538,7 +539,7 @@ public class Browser extends JFrame implements Startable {
 	    try {
 		Field[] fields = ent.getClass().getFields();
 		for (int j = 0, len = fields.length; j < len; j++) {
-		    if (!valid(fields[j]))
+		    if (!valid(fields[j], ent.getClass()))
 			continue;
 		    Object val = fields[j].get(ent);
 		    if (val != null || showNulls) {
@@ -555,8 +556,21 @@ public class Browser extends JFrame implements Startable {
 	}
     }
 
-    private static boolean valid(Field f) {
-	return (f.getModifiers() & (Modifier.STATIC|Modifier.FINAL)) == 0;
+    /**
+     * Returns {@code true} if the given field should be displayed or used for
+     * template matching.
+     * <p>
+     * For {@link SerialEntry @SerialEntry} entry classes, {@code final} fields
+     * are included because those are the wire-schema fields assigned in the
+     * deserialization constructor.  For legacy entry classes, {@code final}
+     * fields are excluded as before.
+     */
+    private static boolean valid(Field f, Class<?> entryClass) {
+	boolean isSerialEntry = entryClass.isAnnotationPresent(SerialEntry.class);
+	int skipMask = isSerialEntry
+		? Modifier.STATIC
+		: (Modifier.STATIC | Modifier.FINAL);
+	return (f.getModifiers() & skipMask) == 0;
     }
 
     private void genMatches(StringBuffer buf, boolean match) {
@@ -1054,7 +1068,7 @@ public class Browser extends JFrame implements Startable {
 	    Field[] fields = ent.getClass().getFields();
 	    for (int i = 0, l = fields.length; i < l; i++) {
 		Field field = fields[i];
-		if (!valid(field))
+		if (!valid(field, ent.getClass()))
 		    continue;
 		try {
 		    if (field.get(ent) != null) {
