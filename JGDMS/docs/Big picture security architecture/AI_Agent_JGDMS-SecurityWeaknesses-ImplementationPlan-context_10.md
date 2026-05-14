@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v45)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v46)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,24 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v46 Change Summary
+
+**Work Item 46 follow-up — clarify retained grant handles and external voiding**
+
+- Per further maintainer clarification, the revocation model is more capable
+  than the v45 wording suggested: `RevocablePolicy.grant(PermissionGrant)` /
+  `Security.grant(PermissionGrant)` allow the caller to retain the granted
+  `PermissionGrant` object at grant time and later void it.
+- `PermissionGrant` already documents decorator-based event notification using a
+  transient volatile field plus `Policy.refresh()`, so externally voidable grant
+  objects are consistent with the existing design.
+- The report now narrows the remaining gap: the codebase lacks a **stock
+  externally-voidable loader-scoped grant path in the current proxy-preparer
+  flow**, not the underlying revocation concept itself.
+- Version header bumped from v45 → v46.
 
 ---
 
@@ -1099,7 +1117,8 @@ unmarshals again in a context that would otherwise hit `CACHE`.
 
 ### 8.4 Would `RevocablePolicy` solve this?
 
-Not as a drop-in fix, but it **is** the right architectural direction.
+Not as a drop-in fix, but it **is** the right architectural direction, and the
+existing revocation model is closer than the v45 wording implied.
 Current JGDMS semantics already have several useful building blocks:
 
 - `DynamicPolicy.grant(...)` and `Security.grant(...)` grant at **class-loader
@@ -1109,7 +1128,8 @@ Current JGDMS semantics already have several useful building blocks:
 - `ClassLoaderGrant` already models grants in terms of class-loader identity
   (`jgdms-platform/src/main/java/org/apache/river/api/security/ClassLoaderGrant.java:68-99`).
 - `RevocablePolicy` and `Security.grant(PermissionGrant)` provide an API shape
-  for revocation-aware grant objects
+  for revocation-aware grant objects, and let the caller keep a reference to
+  the exact `PermissionGrant` instance that was granted
   (`jgdms-platform/src/main/java/org/apache/river/api/security/RevocablePolicy.java:76-97`;
   `jgdms-platform/src/main/java/net/jini/security/Security.java:974-989`).
 - `PermissionGrant` already has `isVoid()` and decorator support, and
@@ -1117,29 +1137,42 @@ Current JGDMS semantics already have several useful building blocks:
   (`jgdms-platform/src/main/java/org/apache/river/api/security/PermissionGrant.java:40-45,170-187,321-326`;
   `jgdms-platform/src/main/java/net/jini/security/policy/DynamicPolicyProvider.java:401-428,575-598`).
 
-However, the missing piece is an **actual revoke/remove mechanism** for a
-specific previously-added loader grant. Today:
+The remaining gap is narrower than "no revoke/remove mechanism exists". The
+main issue is that the **current proxy-preparer flow** uses
+`Security.grant(Class, Principal[], Permission[])`, which internally creates
+the loader grant and does not hand the caller back a retained grant handle
+(`jgdms-platform/src/main/java/net/jini/security/Security.java:1067-1118`).
+So there is no stock path today for a proxy preparer to later void the exact
+loader grant it created.
 
-- `RevocablePolicy` exposes `grant(PermissionGrant)` and `revokeSupported()`,
-  but no `revoke(...)` API.
-- `Security` likewise only adds grants.
-- `DynamicPolicyProvider.implies(...)` does not proactively remove or negate an
-  already-added loader grant on the hot path.
+In addition, while `PermissionGrant` explicitly anticipates externally-driven
+decorators with a transient volatile state field, the codebase does not yet
+appear to ship a concrete **externally-voidable loader-scoped grant**
+implementation for this use case. Today:
 
-So "use RevocablePolicy and revoke the grants" is directionally correct, but it
-still requires new policy machinery rather than just flipping an existing hook.
+- there is no convenience `revoke(...)` API on `RevocablePolicy`,
+- the common `Security.grant(Class, ...)` path does not return the internally
+  created `PermissionGrant`, and
+- a new externally-voidable loader grant would still need wiring for
+  `Policy.refresh()` / cache clearing so the voided state becomes effective and
+  is swept promptly.
+
+So "use RevocablePolicy and void the retained grants later" is not merely
+directionally correct — it is compatible with the current design — but it still
+requires a small amount of new plumbing in the proxy-preparer/grant path.
 
 ### 8.5 Smallest viable redesign
 
 The smallest plausible replacement for v43 is:
 
 1. keep preferred-proxy `ClassLoader`s cached,
-2. represent INCONCLUSIVE-related dynamic grants using a tracked/decorated
-   loader-scoped `PermissionGrant`,
-3. add an internal revoke handle or `revoke(ClassLoader)` path in
-   `DynamicPolicyProvider`,
-4. make revoked grants fail `implies(...)` immediately and become `isVoid()` so
-   the existing sweeper can remove them later.
+2. switch the relevant proxy-preparer path from `Security.grant(Class, ...)` to
+   constructing an explicit loader-scoped `PermissionGrant`,
+3. retain that `PermissionGrant` handle at grant time,
+4. make the retained grant externally voidable via a small decorator/flagged
+   implementation consistent with `PermissionGrant`'s documented model,
+5. call `Policy.refresh()` / clear caches when the grant is voided so the
+   existing sweeper can remove it promptly.
 
 Even that redesign would still have an unavoidable semantic limit: references
 or capabilities that have already escaped cannot be retroactively clawed back.
@@ -1156,8 +1189,8 @@ been reverted from this branch.
 
 - Re-open Work Item 46 as a revocation-based redesign.
 - Keep preferred-proxy `ClassLoader`s cached.
-- Add explicit revoke-capable, loader-scoped dynamic grants if this mitigation
-  is pursued.
+- Add retained, externally-voidable loader-scoped dynamic grants in the
+  proxy-preparer flow if this mitigation is pursued.
 - Treat Work Item 51 (`INCONCLUSIVEPermit`) as the primary structural fix,
   because it makes INCONCLUSIVE loads explicit instead of trying to repair them
   reactively after grants have already changed.
@@ -1165,10 +1198,11 @@ been reverted from this branch.
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 45,
-updated after a second review of Work Item 46. The cache-eviction approach was
+future AI agent to continue without loss of context. This is version 46,
+updated after a third review of Work Item 46. The cache-eviction approach was
 rejected and reverted: preferred-proxy `ClassLoader`s should stay cached, and
-any future mitigation must use revocable loader-scoped grants rather than cache
-eviction. §5/§6 now reopen Item 46 as a redesign task, and §8 records the full
-analysis. Work Item 58 remains ✅ fully complete in DirtyChai
+the preferred mitigation is now clarified as retained, externally-voidable
+loader-scoped grants rather than cache eviction. §5/§6 keep Item 46 reopened as
+a redesign task, and §8 records the refined analysis. Work Item 58 remains ✅
+fully complete in DirtyChai
 (`SecureClassLoader.java` SHA `98e1e31`).*
