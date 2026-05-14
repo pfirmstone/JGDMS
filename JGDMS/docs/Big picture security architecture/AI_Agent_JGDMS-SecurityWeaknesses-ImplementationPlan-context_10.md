@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v43)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v44)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,31 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## v44 Change Summary
+
+**Work Item 46 deep-dive — v43 completion claim retracted; mitigation is only partial**
+
+- Per maintainer review, a deeper analysis was performed on the actual runtime
+  behavior of INCONCLUSIVE proxy loads after `DynamicPolicyProvider.grant(...)`.
+- The v43 implementation only evicts entries from
+  `PreferredProxyCodebaseProvider.CACHE`; it does **not** affect already-loaded
+  proxies, `SERVICES_EXP` boomerang reuse, or the parent-loader self-unmarshal
+  path.
+- `Security.grant(...)` applies to the class loader of the already-loaded proxy
+  class (including future `ProtectionDomain`s for that loader), so live proxies
+  continue to run under the existing loader even after cache eviction.
+- `RevocablePolicy` is not a complete answer here: the interface exposes
+  `grant(PermissionGrant)` and `revokeSupported()`, but no revoke API, and its
+  own documentation warns that many granted capabilities cannot be fully
+  revoked once references escape.
+- Therefore Work Item 46 should be treated as a **partial mitigation only** and
+  is re-opened in §5/§6. A new §8 documents the deep-dive findings and
+  recommends shifting the structural mitigation emphasis to Work Item 51
+  (`INCONCLUSIVEPermit`).
+- Version header bumped from v43 → v44.
 
 ---
 
@@ -471,7 +496,7 @@ important consequences:
 | Scenario | Actual risk | Primary guard |
 |---|---|---|
 | Already-loaded INCONCLUSIVE proxy; new `grant()` issued | **Low** — new grant bounded by granting caller's `GrantPermission` ceiling; proxy cannot self-amplify via `doPrivileged` | `GrantPermission` intersection enforced at grant time |
-| Fresh proxy load after a `grant()` | **Medium** — new PD starts with current policy; re-audit bypassed if ClassLoader cached | Work Item 46 eviction + Work Item 51 `INCONCLUSIVEPermit` |
+| Fresh proxy load after a `grant()` | **Medium** — new PD starts with current policy; re-audit bypassed if ClassLoader cached or otherwise reused | Work Item 46 partial cache mitigation + Work Item 51 `INCONCLUSIVEPermit` |
 | Boot-window INCONCLUSIVE load | **Medium** — no VerdictRegistry check at all; runs under static floor only | Work Item 47 (log upgrade) + ServiceStarter ordering (Phase 4.2) |
 
 | Option | Pros | Cons |
@@ -481,13 +506,13 @@ important consequences:
 | **C** — INCONCLUSIVE loads into permission-restricted sandbox ClassLoader | Closes dangerous path regardless of future grants | Complex; requires CombinerSecurityManager domain-merge interception |
 | **D** — INCONCLUSIVE requires explicit administrator opt-in per codebase hash (`INCONCLUSIVEPermit`) | Makes every INCONCLUSIVE load deliberate; audit trail in VerdictRegistry; addresses the fresh-load scenario structurally | New VerdictRegistry API; operational friction for legitimate INCONCLUSIVE JARs |
 
-**Recommendation:** Option B short-term + Option D long-term. Evict INCONCLUSIVE
-ClassLoaders on `DynamicPolicyProvider.grant()` (B) to force a VerdictRegistry re-check
-on the next fresh proxy resolve. Note that Option B primarily addresses the fresh-load
-risk window — the retroactive risk on already-loaded proxies is naturally bounded by the
-`GrantPermission` intersection ceiling as described above. Option D (`INCONCLUSIVEPermit`)
-carries more long-term structural weight because it addresses the fresh-load scenario
-explicitly via an admin opt-in rather than reactively. See Work Items 46, 51.
+**Recommendation (updated — v44):** Option B remains useful only as a **partial**
+mitigation for the `CACHE` reuse branch; it should no longer be treated as a
+complete closure of the fresh-load gap. The deep-dive in §8 shows that existing
+live proxies, `SERVICES_EXP` boomerang reuse, and the parent-loader self-unmarshal
+path all bypass the v43 eviction hook. Option D (`INCONCLUSIVEPermit`) therefore
+becomes the primary structural mitigation, with Option B retained only as
+defence-in-depth for one reuse path. See Work Items 46, 51.
 
 ---
 
@@ -823,7 +848,7 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 | 2.2 | doAs migration — RegistrarImpl (W9) | Migrate `RegistrarImpl` discovery/multicast threads per STD-003 decision matrix; add regression tests | `RegistrarImpl.java` | 🟠 Sprint 2 |
 | 2.3 | doAs migration — AbstractActivationGroup (W9) | Migrate executor path; add regression tests | `AbstractActivationGroup.java` | 🟠 Sprint 2 |
 | 2.4 | `SubjectAwareExecutor` (W7) | Implement `SubjectAwareExecutor implements ExecutorService`; update Javadoc in `AbstractJiniService` to recommend it | New class in `jgdms-platform` | 🟠 Sprint 2 |
-| 2.5 | INCONCLUSIVE eviction (W3) | Track `ClassLoader` instances loaded under INCONCLUSIVE verdict; evict on `DynamicPolicyProvider.grant()` | `VerdictRegistryHolder.java`, `DynamicPolicyProvider.java` | ✅ Completed |
+| 2.5 | INCONCLUSIVE eviction (W3) | Track `ClassLoader` instances loaded under INCONCLUSIVE verdict; evict on `DynamicPolicyProvider.grant()` | `VerdictRegistryHolder.java`, `DynamicPolicyProvider.java` | 🟡 Partial — `CACHE` branch only |
 | 2.6 | In-memory verdict cache (W5) | Add `ConcurrentHashMap<String, RegistryVerdict>` cache in `PreferredProxyCodebaseProvider`; use cached verdict on `RemoteException` if within TTL | `PreferredProxyCodebaseProvider.java` | 🟡 Sprint 3 |
 
 ### Phase 3 — Architectural Changes (new API/protocol)
@@ -876,7 +901,7 @@ These extend the work-item table in §12 of
 |---|---|---|---|
 | **44** | `JwtVerifier` SPI — define interface; wire into `BasicInvocationDispatcher`; connection-level JWT cache; `jwtCount:u8` extension of v0x02 wire format; `DefaultJwtVerifier` (exp/iat/iss/aud, no JWKS); `JwtRawToken` public credential; fixed `PRINCIPAL_CTORS` class names | 3.1 | ✅ Completed |
 | **45** | VerdictRegistry retry backoff (exponential, 1 s → 2 s → 4 s, 3 attempts) in `checkVerdictForJar()` | 1.4 | ✅ Completed |
-| **46** | INCONCLUSIVE ClassLoader eviction on `DynamicPolicyProvider.grant()` | 2.5 | ✅ Completed |
+| **46** | INCONCLUSIVE ClassLoader eviction on `DynamicPolicyProvider.grant()` | 2.5 | 🟡 Partial — `CACHE` branch only |
 | **47** | Boot-window log upgrade (`Level.FINE` → `Level.WARNING` + SHA-256 hash) | 1.1 | ✅ Completed |
 | **48** | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, configurable TTL) | 2.6 | 🔲 Not started |
 | **49** | SVID exponential-backoff renewal + `isCredentialValid()` / `secondsUntilExpiry()` health endpoint | 1.2 + 1.3 | ✅ Completed |
@@ -981,11 +1006,103 @@ match the cached `ProtectionDomain`.
 
 ---
 
+## 8. Work Item 46 Deep Dive — Why v43 Is Only a Partial Mitigation
+
+This section records the post-PR analysis requested after the v43 implementation.
+The conclusion is that v43 does **not** fully close the "fresh load after a
+grant()" gap described in §4.2; it only narrows one specific reuse path.
+
+### 8.1 What the v43 code actually changes
+
+`PreferredProxyCodebaseProvider.resolve()` checks `SERVICES_EXP` first, then
+reuses the parent loader if the annotation matches, then checks `CACHE`, and
+only on a complete miss does it create a new `PreferredClassLoader` and consult
+`VerdictRegistry` (`jgdms-pref-class-loader/src/main/java/net/jini/loader/pref/PreferredProxyCodebaseProvider.java:371-529`).
+
+The v43 hook records loaders that were created after an `INCONCLUSIVE` verdict
+and later removes matching entries from `CACHE` when
+`DynamicPolicyProvider.grant(...)` succeeds
+(`jgdms-pref-class-loader/src/main/java/net/jini/loader/pref/PreferredProxyCodebaseProvider.java:461-529`;
+`jgdms-platform/src/main/java/net/jini/security/policy/DynamicPolicyProvider.java:604-635,694-725`).
+
+That means the hook only affects the `CACHE` lookup branch. It does **not**
+remove entries from `SERVICES_EXP`, does not change the parent-loader reuse
+path, and does not revoke any permissions already associated with a live proxy
+loader.
+
+### 8.2 Why already-loaded proxies are mostly unaffected
+
+`Security.grant(Class, Principal[], Permission[])` delegates to the installed
+`DynamicPolicy` and explicitly applies the grant to the **class loader of the
+given class**, including protection domains "not yet created" for that loader
+(`jgdms-platform/src/main/java/net/jini/security/Security.java:1067-1118`).
+
+Both `BasicProxyPreparer` and `VerifyingProxyPreparer` grant permissions by
+calling `Security.grant(proxy.getClass(), ...)` during `prepareProxy()`
+(`jgdms-platform/src/main/java/net/jini/security/BasicProxyPreparer.java:360-413`;
+`jgdms-platform/src/main/java/net/jini/security/VerifyingProxyPreparer.java:262-297`).
+
+So once a proxy class has already been loaded, a later `grant()` still widens
+permissions for that loader. Evicting `PreferredProxyCodebaseProvider.CACHE`
+does not revoke those grants and does not detach the already-loaded proxy from
+its existing loader.
+
+### 8.3 Why a subsequent unmarshal can still bypass re-audit
+
+Unmarshal itself only calls `resolve()`; it does **not** perform any grant logic
+on its own (`jgdms-platform/src/main/java/org/apache/river/api/io/ProxySerializer.java:232-235`).
+A grant only happens later if some caller explicitly runs a proxy preparer.
+
+More importantly, `resolve()` performs the verdict check only inside the "new
+loader" branch (`jgdms-pref-class-loader/src/main/java/net/jini/loader/pref/PreferredProxyCodebaseProvider.java:394-529`).
+If reuse happens through:
+
+1. `SERVICES_EXP` (boomerang/local-export path, populated by
+   `AtomicILFactory.createInstances()` calling `provider.record(...)`:
+   `jgdms-jeri/src/main/java/net/jini/jeri/AtomicILFactory.java:442-449`,
+   `jgdms-pref-class-loader/src/main/java/net/jini/loader/pref/PreferredProxyCodebaseProvider.java:603-625`),
+2. the parent-loader annotation match
+   (`jgdms-pref-class-loader/src/main/java/net/jini/loader/pref/PreferredProxyCodebaseProvider.java:376-386`), or
+3. a surviving `CACHE` hit,
+
+then VerdictRegistry is not re-consulted.
+
+Therefore v43 only helps the third branch, and only if the caller later
+unmarshals again in a context that would otherwise hit `CACHE`.
+
+### 8.4 Would `RevocablePolicy` solve this?
+
+Not by itself. `RevocablePolicy` documents that many permissions are not fully
+revocable once references or capabilities have escaped, and the interface
+exposes `grant(PermissionGrant)` plus `revokeSupported()` but no public revoke
+operation (`jgdms-platform/src/main/java/org/apache/river/api/security/RevocablePolicy.java:27-45,76-97`).
+
+`DynamicPolicyProvider.refresh()` also explicitly states that refresh does not
+remove dynamic grants (`jgdms-platform/src/main/java/net/jini/security/policy/DynamicPolicyProvider.java:558-598`).
+So "use RevocablePolicy and revoke the grants" is not currently available as a
+drop-in fix and would still face semantic limits for already-escaped
+capabilities.
+
+### 8.5 Final assessment
+
+**Conclusion:** the v43 implementation should be kept only as a **partial,
+defence-in-depth cache mitigation**, not as proof that Work Item 46 is fully
+complete.
+
+**Updated recommendation:**
+
+- Keep the existing `CACHE` eviction code as a narrow improvement.
+- Re-open Work Item 46 as partial/incomplete.
+- Treat Work Item 51 (`INCONCLUSIVEPermit`) as the primary structural fix,
+  because it makes INCONCLUSIVE loads explicit instead of trying to repair them
+  reactively after grants have already changed.
+
+---
+
 *Hand this document (along with context_8 and source files as needed) to a future AI agent to
-continue without loss of context. This is version 42, updated after @pfirmstone confirmed
-"Item 6 is completed in DirtyChai" (DirtyChai `SecureClassLoader.java` SHA `98e1e31`).
-Work Item 58 is ✅ fully complete: `CodeSourceKey` digest fields in `hashCode()`/`equals()`,
-plus plain `CodeSource` promoted to `DigestCodeSource` with two-layer caching in
-`getProtectionDomain`, plus cache-first + SM-only SPIFFE + no-SM branch.
-§6 Work Item 58 entry updated to `✅ Complete`. §7 rewritten to final state
-(conversation dated 2026-05-13).*
+continue without loss of context. This is version 44, updated after a post-PR
+deep dive on Work Item 46. The v43 completion claim for Item 46 was retracted:
+the current code only evicts the preferred-proxy `CACHE` reuse branch and does
+not cover live proxies, `SERVICES_EXP`, or parent-loader reuse. §5/§6 now mark
+Item 46 as 🟡 partial, and §8 records the full analysis. Work Item 58 remains
+✅ fully complete in DirtyChai (`SecureClassLoader.java` SHA `98e1e31`).*
