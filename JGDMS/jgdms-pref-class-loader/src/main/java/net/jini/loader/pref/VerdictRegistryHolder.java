@@ -84,7 +84,7 @@ class VerdictRegistryHolder {
             if (inconclusiveLoaders.isEmpty()) {
                 return Collections.emptySet();
             }
-            Set<ClassLoader> drained = new HashSet<ClassLoader>(inconclusiveLoaders);
+            Set<ClassLoader> drained = new HashSet<>(inconclusiveLoaders);
             inconclusiveLoaders.clear();
             return drained;
         }

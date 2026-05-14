@@ -161,6 +161,8 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
     private static final String inconclusiveLoaderEvictionMethod =
             "evictInconclusiveClassLoaders";
     private static final Logger logger = Logger.getLogger("net.jini.security.policy");
+    private static volatile Method inconclusiveLoaderEviction;
+    private static volatile boolean inconclusiveLoaderEvictionLookupAttempted;
     
     private static final ProtectionDomain policyDomain = 
             AccessController.doPrivileged(new PrivilegedAction<ProtectionDomain>(){
@@ -702,8 +704,14 @@ Put the policy providers and all referenced classes in the bootstrap class loade
 
     private void evictInconclusivePreferredProxyClassLoaders() {
         try {
-            Class<?> providerClass = Class.forName(inconclusiveLoaderEvictionClass);
-            Method evictMethod = providerClass.getMethod(inconclusiveLoaderEvictionMethod);
+            Method evictMethod = getInconclusiveLoaderEvictionMethod();
+            if (evictMethod == null) {
+                if (logger.isLoggable(Level.FINEST)) {
+                    logger.log(Level.FINEST,
+                            "Preferred proxy class loader provider not present; skipping INCONCLUSIVE eviction hook");
+                }
+                return;
+            }
             Object result = evictMethod.invoke(null);
             if (result instanceof Integer && (Integer) result > 0
                     && logger.isLoggable(Level.FINE)) {
@@ -711,16 +719,32 @@ Put the policy providers and all referenced classes in the bootstrap class loade
                         "Evicted {0} INCONCLUSIVE preferred proxy classloader(s) after dynamic grant",
                         result);
             }
-        } catch (ClassNotFoundException ex) {
-            if (logger.isLoggable(Level.FINEST)) {
-                logger.log(Level.FINEST,
-                        "Preferred proxy class loader provider not present; skipping INCONCLUSIVE eviction hook",
-                        ex);
-            }
         } catch (Exception ex) {
             logger.log(Level.WARNING,
                     "Unable to evict INCONCLUSIVE preferred proxy classloaders after dynamic grant",
                     ex);
+        }
+    }
+
+    private static Method getInconclusiveLoaderEvictionMethod()
+            throws ClassNotFoundException, NoSuchMethodException {
+        Method method = inconclusiveLoaderEviction;
+        if (method != null || inconclusiveLoaderEvictionLookupAttempted) {
+            return method;
+        }
+        synchronized (DynamicPolicyProvider.class) {
+            method = inconclusiveLoaderEviction;
+            if (method != null || inconclusiveLoaderEvictionLookupAttempted) {
+                return method;
+            }
+            try {
+                method = Class.forName(inconclusiveLoaderEvictionClass)
+                        .getMethod(inconclusiveLoaderEvictionMethod);
+                inconclusiveLoaderEviction = method;
+                return method;
+            } finally {
+                inconclusiveLoaderEvictionLookupAttempted = true;
+            }
         }
     }
     
