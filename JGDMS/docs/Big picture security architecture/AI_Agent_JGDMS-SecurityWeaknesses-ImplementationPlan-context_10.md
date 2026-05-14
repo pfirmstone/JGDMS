@@ -23,7 +23,7 @@ and is the forward-reference added in §19 of that document.
   proxies, `SERVICES_EXP` boomerang reuse, or the parent-loader self-unmarshal
   path.
 - `Security.grant(...)` applies to the class loader of the already-loaded proxy
-  class (including future `ProtectionDomain`s for that loader), so live proxies
+  class (including future `ProtectionDomains` for that loader), so live proxies
   continue to run under the existing loader even after cache eviction.
 - `RevocablePolicy` is not a complete answer here: the interface exposes
   `grant(PermissionGrant)` and `revokeSupported()`, but no revoke API, and its
@@ -1049,7 +1049,8 @@ its existing loader.
 
 ### 8.3 Why a subsequent unmarshal can still bypass re-audit
 
-Unmarshal itself only calls `resolve()`; it does **not** perform any grant logic
+The `ProxySerializer.readResolve()` unmarshal path only calls `resolve()`; it
+does **not** perform any grant logic
 on its own (`jgdms-platform/src/main/java/org/apache/river/api/io/ProxySerializer.java:232-235`).
 A grant only happens later if some caller explicitly runs a proxy preparer.
 
