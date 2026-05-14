@@ -184,7 +184,7 @@ public final class Security {
      */
     @SuppressWarnings("unchecked")
     private static final ConcurrentMap<ClassLoader, ExternallyVoidablePermissionGrant> retainedInconclusiveLoaderGrants =
-        RC.concurrentMap(new ConcurrentHashMap(64), Ref.WEAK, Ref.STRONG, 60000L, 60000L);
+        RC.concurrentMap(new ConcurrentHashMap(64), Ref.WEAK, Ref.WEAK, 60000L, 60000L);
     /**
      * Weak map from ClassLoader to SoftReference(IntegrityVerifier[]).
      */
