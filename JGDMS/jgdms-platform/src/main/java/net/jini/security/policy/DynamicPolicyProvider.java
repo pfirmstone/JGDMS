@@ -712,7 +712,11 @@ Put the policy providers and all referenced classes in the bootstrap class loade
                         result);
             }
         } catch (ClassNotFoundException ex) {
-            // Preferred proxy class loading is optional; no eviction needed when absent.
+            if (logger.isLoggable(Level.FINEST)) {
+                logger.log(Level.FINEST,
+                        "Preferred proxy class loader provider not present; skipping INCONCLUSIVE eviction hook",
+                        ex);
+            }
         } catch (Exception ex) {
             logger.log(Level.WARNING,
                     "Unable to evict INCONCLUSIVE preferred proxy classloaders after dynamic grant",

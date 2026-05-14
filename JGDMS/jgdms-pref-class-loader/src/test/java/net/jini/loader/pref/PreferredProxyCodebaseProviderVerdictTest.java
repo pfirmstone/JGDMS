@@ -315,6 +315,8 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     @SuppressWarnings("unchecked")
     private static ConcurrentMap<Object, ClassLoader> getPreferredProxyCache() {
         try {
+            // Reflection keeps the production cache encapsulated while still
+            // letting this test verify the internal eviction behavior directly.
             Field cacheField = PreferredProxyCodebaseProvider.class.getDeclaredField("CACHE");
             cacheField.setAccessible(true);
             return (ConcurrentMap<Object, ClassLoader>) cacheField.get(null);
@@ -329,6 +331,8 @@ public class PreferredProxyCodebaseProviderVerdictTest {
 
     private static Object newCacheKey(final ClassLoader parent) {
         try {
+            // Construct the internal cache key reflectively so the production
+            // code does not need any test-only visibility changes.
             Class<?> keyClass = Class.forName(
                     "net.jini.loader.pref.PreferredProxyCodebaseProvider$Key");
             Constructor<?> constructor = keyClass.getDeclaredConstructor(
