@@ -50,6 +50,7 @@ import java.util.StringTokenizer;
 import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -63,6 +64,8 @@ import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.api.security.RevocablePolicy;
 import org.apache.river.api.security.SubjectDomain;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
 import org.apache.river.logging.Levels;
 import org.apache.river.resource.Service;
 
@@ -172,14 +175,16 @@ public final class Security {
      * ClassLoaders that have loaded a proxy codebase with at least one
      * INCONCLUSIVE verdict.
      */
-    private static final Map<ClassLoader, Boolean> inconclusiveProxyLoaders =
-        Collections.synchronizedMap(new WeakHashMap<ClassLoader, Boolean>(64));
+    @SuppressWarnings("unchecked")
+    private static final ConcurrentMap<ClassLoader, Boolean> inconclusiveProxyLoaders =
+        RC.concurrentMap(new ConcurrentHashMap(64), Ref.WEAK, Ref.STRONG, 60000L, 60000L);
     /**
      * Retained externally-voidable loader-scoped grants for INCONCLUSIVE proxy
      * loaders.
      */
-    private static final Set<ExternallyVoidablePermissionGrant> retainedInconclusiveLoaderGrants =
-        Collections.newSetFromMap(new ConcurrentHashMap<ExternallyVoidablePermissionGrant, Boolean>(64));
+    @SuppressWarnings("unchecked")
+    private static final ConcurrentMap<ClassLoader, ExternallyVoidablePermissionGrant> retainedInconclusiveLoaderGrants =
+        RC.concurrentMap(new ConcurrentHashMap(64), Ref.WEAK, Ref.STRONG, 60000L, 60000L);
     /**
      * Weak map from ClassLoader to SoftReference(IntegrityVerifier[]).
      */
@@ -1162,7 +1167,7 @@ public final class Security {
      */
     public static void invalidateInconclusiveProxyLoaderGrants() {
         if (retainedInconclusiveLoaderGrants.isEmpty()) return;
-        for (ExternallyVoidablePermissionGrant grant : retainedInconclusiveLoaderGrants) {
+        for (ExternallyVoidablePermissionGrant grant : retainedInconclusiveLoaderGrants.values()) {
             grant.voidGrant();
         }
         retainedInconclusiveLoaderGrants.clear();
@@ -1312,7 +1317,12 @@ public final class Security {
         ExternallyVoidablePermissionGrant voidable =
             new ExternallyVoidablePermissionGrant(decorated);
         grant(voidable);
-        retainedInconclusiveLoaderGrants.add(voidable);
+        ClassLoader loader = cl.getClassLoader();
+        ExternallyVoidablePermissionGrant existing =
+            retainedInconclusiveLoaderGrants.put(loader, voidable);
+        if (existing != null) {
+            existing.voidGrant();
+        }
     }
 
     /**

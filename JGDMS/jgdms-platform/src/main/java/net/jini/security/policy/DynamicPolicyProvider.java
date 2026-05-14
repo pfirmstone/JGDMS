@@ -600,7 +600,6 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         // This has to be after checkNullElements principals or we fail the NullCases test.
         if (permissions == null || permissions.length == 0) {return;}
         checkNullElements(permissions);
-        net.jini.security.Security.invalidateInconclusiveProxyLoaderGrants();
         // Not delgated to base policy.
         Guard g = new GrantPermission(permissions);
         g.checkGuard(null);
@@ -686,7 +685,6 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         Collection<Permission> perms = p.getPermissions();
         GrantPermission guard = new GrantPermission(perms.toArray(new Permission [perms.size()]));
         guard.checkGuard(null);
-        net.jini.security.Security.invalidateInconclusiveProxyLoaderGrants();
         return dynamicPolicyGrants.add(p);
     }
     
