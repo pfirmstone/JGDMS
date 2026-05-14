@@ -269,6 +269,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             return 0;
         }
         int evicted = 0;
+        // CACHE is backed by a concurrent map, so entry-set iteration is
+        // weakly consistent and safe alongside remove(key, value).
         for (Map.Entry<Key, ClassLoader> entry : CACHE.entrySet()) {
             ClassLoader loader = entry.getValue();
             if (loader != null && inconclusiveLoaders.contains(loader)

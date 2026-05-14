@@ -247,7 +247,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     @Test
-    public void evictInconclusiveClassLoaders_removesTrackedCacheEntries()
+    public void evictInconclusiveClassLoadersRemovesTrackedCacheEntries()
             throws Exception {
         ClassLoader loader = new ClassLoader() { };
         Object key = newCacheKey(loader);
@@ -261,7 +261,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     @Test
-    public void dynamicPolicyGrant_evictsTrackedInconclusiveClassLoaders()
+    public void dynamicPolicyGrantEvictsTrackedInconclusiveClassLoaders()
             throws Exception {
         ClassLoader loader = new ClassLoader() { };
         Object key = newCacheKey(loader);
@@ -346,7 +346,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
                             return null;
                         }
                     },
-                    Arrays.asList(new Uri("http://example.com/app.jar")),
+                    Arrays.asList(new Uri("https://example.com/app.jar")),
                     parent);
         } catch (Exception ex) {
             throw new AssertionError("Unable to construct preferred proxy cache key", ex);

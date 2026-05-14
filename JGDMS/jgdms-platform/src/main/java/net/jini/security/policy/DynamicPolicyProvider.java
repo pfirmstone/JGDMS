@@ -713,8 +713,7 @@ Put the policy providers and all referenced classes in the bootstrap class loade
                 return;
             }
             Object result = evictMethod.invoke(null);
-            if (result instanceof Integer && (Integer) result > 0
-                    && logger.isLoggable(Level.FINE)) {
+            if (result instanceof Integer count && count > 0 && logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE,
                         "Evicted {0} INCONCLUSIVE preferred proxy classloader(s) after dynamic grant",
                         result);
