@@ -39,4 +39,3 @@ public interface DiscoveryCredentialProvider {
      */
     Subject getSubject();
 }
-

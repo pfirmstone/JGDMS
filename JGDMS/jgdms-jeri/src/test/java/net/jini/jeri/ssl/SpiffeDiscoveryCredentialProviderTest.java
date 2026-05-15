@@ -50,4 +50,3 @@ public class SpiffeDiscoveryCredentialProviderTest {
         assertSame(subject, provider.getSubject());
     }
 }
-

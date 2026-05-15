@@ -33,4 +33,3 @@ public final class SpiffeDiscoveryCredentialProvider
         return SpiffeSubjectHolder.get();
     }
 }
-

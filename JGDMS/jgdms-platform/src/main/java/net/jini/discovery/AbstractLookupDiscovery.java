@@ -772,28 +772,19 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 		for (count = multicastRequestMax;
                                           --count >= 0 && !isInterrupted(); )
                 {
-                    DatagramPacket[] reqs;
+                    final MulticastRequest request = new MulticastRequest(
+                            multicastRequestHost,
+                            responsePort,
+                            groups,
+                            getServiceIDs());
                     Subject discoverySubject = getDiscoverySubject();
-                    if (discoverySubject != null) {
-                        reqs = Subject.doAs(
-                                discoverySubject,
-                                new PrivilegedExceptionAction<DatagramPacket[]>() {
-                                    public DatagramPacket[] run() throws Exception {
-                                        return encodeMulticastRequest(
-                                                new MulticastRequest(
-                                                        multicastRequestHost,
-                                                        responsePort,
-                                                        groups,
-                                                        getServiceIDs()));
-                                    }
-                                });
-                    } else {
-                        reqs = encodeMulticastRequest
-                            (new MulticastRequest(multicastRequestHost,
-                                                  responsePort,
-                                                  groups,
-                                                  getServiceIDs()));
-                    }
+                    DatagramPacket[] reqs = runWithDiscoverySubject(
+                            discoverySubject,
+                            new PrivilegedExceptionAction<DatagramPacket[]>() {
+                                public DatagramPacket[] run() throws Exception {
+                                    return encodeMulticastRequest(request);
+                                }
+                            });
                     sendPacketByNIC(sock, reqs);
 		    Thread.sleep(count > 0 ?
                       multicastRequestInterval:finalMulticastRequestInterval);
@@ -2902,28 +2893,19 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	    return AccessController.doPrivileged(
 		securityContext.wrap(new PrivilegedExceptionAction<UnicastResponse>() {
 		    public UnicastResponse run() throws Exception {
-                        if (discoverySubject != null) {
-                            return Subject.doAs(
-                                    discoverySubject,
-                                    new PrivilegedExceptionAction<UnicastResponse>() {
-                                        public UnicastResponse run() throws Exception {
-                                            return disco.doUnicastDiscovery(
-                                                socket,
-                                                unicastDiscoveryConstraints.getUnfulfilledConstraints(),
-                                                // ClassLoader necessary for Service loader to find class of net.jini.loader.pref.PreferredProxyCodebaseProvider
-                                                AbstractLookupDiscovery.class.getClassLoader(),
-                                                AbstractLookupDiscovery.class.getClassLoader(),
-                                                context);
-                                        }
-                                    });
-                        }
-			return disco.doUnicastDiscovery(
-			    socket, 
-			    unicastDiscoveryConstraints.getUnfulfilledConstraints(),
-			    // ClassLoader necessary for Service loader to find class of net.jini.loader.pref.PreferredProxyCodebaseProvider
-			    AbstractLookupDiscovery.class.getClassLoader(),
-			    AbstractLookupDiscovery.class.getClassLoader(),
-			    context);
+                        return runWithDiscoverySubject(
+                                discoverySubject,
+                                new PrivilegedExceptionAction<UnicastResponse>() {
+                                    public UnicastResponse run() throws Exception {
+                                        return disco.doUnicastDiscovery(
+                                            socket,
+                                            unicastDiscoveryConstraints.getUnfulfilledConstraints(),
+                                            // ClassLoader necessary for ServiceLoader to find class of net.jini.loader.pref.PreferredProxyCodebaseProvider
+                                            AbstractLookupDiscovery.class.getClassLoader(),
+                                            AbstractLookupDiscovery.class.getClassLoader(),
+                                            context);
+                                    }
+                                });
 		    }
 		}), securityContext.getAccessControlContext());
 	} catch (PrivilegedActionException e) {
@@ -2952,11 +2934,23 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         try {
             return discoveryCredentialProvider.getSubject();
         } catch (RuntimeException e) {
+            String providerName = (discoveryCredentialProvider == null)
+                    ? "null"
+                    : discoveryCredentialProvider.getClass().getName();
             logger.log(Level.WARNING,
-                    "DiscoveryCredentialProvider threw while resolving discovery Subject; continuing without provider Subject",
+                    "DiscoveryCredentialProvider (" + providerName + ") threw while resolving discovery Subject; continuing without provider Subject",
                     e);
             return null;
         }
+    }
+
+    private <T> T runWithDiscoverySubject(
+            Subject discoverySubject,
+            PrivilegedExceptionAction<T> action) throws Exception {
+        if (discoverySubject != null) {
+            return Subject.doAs(discoverySubject, action);
+        }
+        return action.run();
     }
 
     /**

@@ -27,7 +27,7 @@ import javax.security.auth.Subject;
 public final class NoOpDiscoveryCredentialProvider
         implements DiscoveryCredentialProvider {
 
-    static final NoOpDiscoveryCredentialProvider INSTANCE =
+    public static final NoOpDiscoveryCredentialProvider INSTANCE =
             new NoOpDiscoveryCredentialProvider();
 
     /**
@@ -41,4 +41,3 @@ public final class NoOpDiscoveryCredentialProvider
         return null;
     }
 }
-
