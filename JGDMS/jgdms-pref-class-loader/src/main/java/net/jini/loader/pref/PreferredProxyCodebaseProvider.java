@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.constraint.BasicMethodConstraints;
@@ -104,7 +105,11 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             new RuntimePermission("setVerdictRegistry");
     static final int VERDICT_RETRY_ATTEMPTS = 3;
     static final long DEFAULT_VERDICT_RETRY_BASE_DELAY_MS = 1000L;
+    static final String MAX_CONCURRENT_JAR_LOADS_PROPERTY = "jgdms.proxy.maxConcurrentJarLoads";
+    static final int DEFAULT_MAX_CONCURRENT_JAR_LOADS = 4;
     private static volatile long verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
+    private static final Semaphore JAR_LOAD_SEMAPHORE =
+            new Semaphore(loadMaxConcurrentJarLoads(), true);
     
     static {
 	ConcurrentMap<Referrer<Key>,Referrer<ClassLoader>> intern1 =
@@ -164,6 +169,72 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
         }
         verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
+    }
+
+    static int parseMaxConcurrentJarLoads(String value) {
+        if (value == null) {
+            return DEFAULT_MAX_CONCURRENT_JAR_LOADS;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return DEFAULT_MAX_CONCURRENT_JAR_LOADS;
+        }
+        try {
+            int parsed = Integer.parseInt(trimmed);
+            if (parsed > 0) {
+                return parsed;
+            }
+        } catch (NumberFormatException ex) {
+            // fall back to default below
+        }
+        logger.log(Level.WARNING,
+                "Invalid {0} value: {1}; using default {2}",
+                new Object[]{
+                    MAX_CONCURRENT_JAR_LOADS_PROPERTY,
+                    value,
+                    Integer.valueOf(DEFAULT_MAX_CONCURRENT_JAR_LOADS)
+                });
+        return DEFAULT_MAX_CONCURRENT_JAR_LOADS;
+    }
+
+    private static int loadMaxConcurrentJarLoads() {
+        String value = null;
+        try {
+            value = System.getProperty(MAX_CONCURRENT_JAR_LOADS_PROPERTY);
+        } catch (SecurityException ex) {
+            logger.log(Level.WARNING,
+                    "Unable to read {0}; using default {1}",
+                    new Object[]{
+                        MAX_CONCURRENT_JAR_LOADS_PROPERTY,
+                        Integer.valueOf(DEFAULT_MAX_CONCURRENT_JAR_LOADS)
+                    });
+            return DEFAULT_MAX_CONCURRENT_JAR_LOADS;
+        }
+        return parseMaxConcurrentJarLoads(value);
+    }
+
+    private static boolean containsJarCodebase(URL[] codebase) {
+        for (int index = 0, length = codebase.length; index < length; index++) {
+            if (!isDirectory(codebase[index])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean acquireJarLoadPermitIfNeeded(URL[] codebase, String path)
+            throws IOException {
+        if (!containsJarCodebase(codebase)) {
+            return false;
+        }
+        try {
+            JAR_LOAD_SEMAPHORE.acquire();
+            return true;
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IOException(
+                    "Interrupted while waiting for codebase download slot: " + path, ex);
+        }
     }
 
     /**
@@ -370,137 +441,148 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             loader = CACHE.get(loaderKey); // Has it been unmarshalled previously?
         }
         if (loader == null){ // Create a new loader.
-            byte [] encodedCerts = bootstrapProxy.getEncodedCerts();
-            if ((encodedCerts == null 
-                || encodedCerts.length == 0 )
-                && integrityEnforcement != null
-                && integrityEnforcement.integrityEnforced())
-            {
-                Security.verifyCodebaseIntegrity(path, verifier);
-            } else if (encodedCerts != null && encodedCerts.length > 0) {
-                // Although we trust the bootstrapProxy now, if we require validation,
-                // we must check the jar file has been signed.
-                try {
-                    String certFactoryType = bootstrapProxy.getCertFactoryType();
-                    String certPathEncoding = bootstrapProxy.getCertPathEncoding();
-                    CertificateFactory factory =
-                            CertificateFactory.getInstance(certFactoryType);
-                    CertPath certPath = factory.generateCertPath(
-                            new ByteArrayInputStream(encodedCerts), certPathEncoding);
-                    Collection<? extends Certificate> certs = certPath.getCertificates();
-                    for (int i = 0, l = codebase.length; i < l; i++){
-                        URL searchURL = createSearchURL(codebase[i]);
-                        URL jarURL = ((JarURLConnection) searchURL
-                            .openConnection()).getJarFileURL();
-                        JarURLConnection juc = (JarURLConnection) new URL(
-                                "jar", "", //$NON-NLS-1$ //$NON-NLS-2$
-                                jarURL.toExternalForm() + "!/").openConnection(); //$NON-NLS-1$
-                        juc.connect();
-                        InputStream in = juc.getInputStream();
-                        byte [] bytes = new byte[1024];
-                        int bytesRead = 0;
-                        // reading in the entire jar file will check it's validity.
-                        // it will also be cached.
-                        do { // keep reading until we reach end of stream.
-                            bytesRead = in.read(bytes);
-                        } while (bytesRead == 1024);
-                        // We should be able to read certs now, confirming the jar 
-                        // has been verified.
-                        Certificate [] certificates = juc.getCertificates();
-                        if (certs == null){
-                            throw new SecurityException("jar file invalid");
+            boolean jarPermitAcquired = acquireJarLoadPermitIfNeeded(codebase, path);
+            try {
+                byte [] encodedCerts = bootstrapProxy.getEncodedCerts();
+                if ((encodedCerts == null 
+                    || encodedCerts.length == 0 )
+                    && integrityEnforcement != null
+                    && integrityEnforcement.integrityEnforced())
+                {
+                    Security.verifyCodebaseIntegrity(path, verifier);
+                } else if (encodedCerts != null && encodedCerts.length > 0) {
+                    // Although we trust the bootstrapProxy now, if we require validation,
+                    // we must check the jar file has been signed.
+                    try {
+                        String certFactoryType = bootstrapProxy.getCertFactoryType();
+                        String certPathEncoding = bootstrapProxy.getCertPathEncoding();
+                        CertificateFactory factory =
+                                CertificateFactory.getInstance(certFactoryType);
+                        CertPath certPath = factory.generateCertPath(
+                                new ByteArrayInputStream(encodedCerts), certPathEncoding);
+                        Collection<? extends Certificate> certs = certPath.getCertificates();
+                        for (int index = 0, length = codebase.length; index < length; index++){
+                            URL searchURL = createSearchURL(codebase[index]);
+                            URL jarURL = ((JarURLConnection) searchURL
+                                .openConnection()).getJarFileURL();
+                            JarURLConnection juc = (JarURLConnection) new URL(
+                                    "jar", "", //$NON-NLS-1$ //$NON-NLS-2$
+                                    jarURL.toExternalForm() + "!/").openConnection(); //$NON-NLS-1$
+                            juc.connect();
+                            InputStream in = juc.getInputStream();
+                            byte [] bytes = new byte[1024];
+                            int bytesRead = 0;
+                            // reading in the entire jar file will check it's validity.
+                            // it will also be cached.
+                            do { // keep reading until we reach end of stream.
+                                bytesRead = in.read(bytes);
+                            } while (bytesRead == 1024);
+                            // We should be able to read certs now, confirming the jar 
+                            // has been verified.
+                            Certificate [] certificates = juc.getCertificates();
+                            if (certs == null){
+                                throw new SecurityException("jar file invalid");
+                            }
+                            // Check our certs match.
+                            HashSet<Certificate> actualCerts 
+                                    = new HashSet<Certificate>(Arrays.asList(certificates));
+                            HashSet<Certificate> requiredCerts = new HashSet<Certificate>(certs);
+                            if (!actualCerts.containsAll(requiredCerts)){
+                                throw new SecurityException("certificates don't match");
+                            }
                         }
-                        // Check our certs match.
-                        HashSet<Certificate> actualCerts 
-                                = new HashSet<Certificate>(Arrays.asList(certificates));
-                        HashSet<Certificate> requiredCerts = new HashSet<Certificate>(certs);
-                        if (!actualCerts.containsAll(requiredCerts)){
-                            throw new SecurityException("certificates don't match");
-                        }
-                    }
-                    // TODO: Consider whether we need DownloadPermission
-                    // to be granted dynamically here or not?
-                    // DownloadPermission doesn't prevent download, only
-                    // defining or loading classes.
-                    // However it appears that integrity constraints should
-                    // be sufficient, given we have already authenticated
-                    // the service prior to any codebase download.
-                } catch (CertificateException ex) {
-                    throw new IOException("Problem creating signer certificates", ex);
-                } 
-            }
-
-            // ----------------------------------------------------------------
-            // Verdict check — query VerdictRegistry before creating a new
-            // ClassLoader.  When verdictRegistry is null (boot-time permissive
-            // policy) the check is skipped so the node can start up before
-            // the registry is reachable.
-            // ----------------------------------------------------------------
-            VerdictRegistry vr = VerdictRegistryHolder.get();
-            boolean inconclusiveVerdictSeen = false;
-            if (vr != null) {
-                for (int vi = 0, vl = codebase.length; vi < vl; vi++) {
-                    URL jarUrl = codebase[vi];
-                    if (!isDirectory(jarUrl)) {
-                        String contentHash = computeJarHash(jarUrl);
-                        inconclusiveVerdictSeen |= checkVerdictForJar(vr, contentHash, path);
-                    }
+                        // TODO: Consider whether we need DownloadPermission
+                        // to be granted dynamically here or not?
+                        // DownloadPermission doesn't prevent download, only
+                        // defining or loading classes.
+                        // However it appears that integrity constraints should
+                        // be sufficient, given we have already authenticated
+                        // the service prior to any codebase download.
+                    } catch (CertificateException ex) {
+                        throw new IOException("Problem creating signer certificates", ex);
+                    } 
                 }
-            } else {
-                StringBuilder bootWindowHashes = new StringBuilder();
-                bootWindowHashes.append('[');
-                boolean first = true;
-                for (int vi = 0, vl = codebase.length; vi < vl; vi++) {
-                    URL jarUrl = codebase[vi];
-                    if (!isDirectory(jarUrl)) {
-                        if (!first) {
-                            bootWindowHashes.append(", ");
-                        }
-                        first = false;
-                        String contentHash;
-                        try {
-                            contentHash = computeJarHash(jarUrl);
-                        } catch (IOException ex) {
-                            contentHash = "<unreadable>";
-                        }
-                        bootWindowHashes.append(jarUrl).append('=').append(contentHash);
-                    }
-                }
-                bootWindowHashes.append(']');
-                logger.log(Level.WARNING,
-                        "VerdictRegistry not yet set; skipping verdict check"
-                        + " (boot-time permissive policy) - codebase: {0}; SHA-256: {1}",
-                        new Object[]{path, bootWindowHashes.toString()});
-            }
 
-            /**
-             * The next section of code previously 
-             * called ClassLoading.getClassLoader(path).
-             * 
-             * Unfortunately, this results in two proxies with identical
-             * paths but different endpoints sharing a ClassLoader, because
-             * the identity is only determined by the codebase annotation string.
-             * 
-             * This is not acceptable if two different services use the
-             * same codebase, for example two different entities might
-             * use maven to provision codebases, and use maven central for
-             * their codebase.
-             */
-            loader = AccessController.doPrivileged(
-                    new PrivilegedAction<ClassLoader>() {
-                        @Override
-                        public ClassLoader run() {
-                            return new PreferredClassLoader(
-                                codebase, parent, null, false,
-                                PreferredClassLoader.getLoaderAccessControlContext(codebase)
-                            );
+                // ----------------------------------------------------------------
+                // Verdict check — query VerdictRegistry before creating a new
+                // ClassLoader.  When verdictRegistry is null (boot-time permissive
+                // policy) the check is skipped so the node can start up before
+                // the registry is reachable.
+                // ----------------------------------------------------------------
+                VerdictRegistry vr = VerdictRegistryHolder.get();
+                boolean inconclusiveVerdictSeen = false;
+                if (vr != null) {
+                    for (int verdictIndex = 0, verdictLength = codebase.length;
+                            verdictIndex < verdictLength;
+                            verdictIndex++) {
+                        URL jarUrl = codebase[verdictIndex];
+                        if (!isDirectory(jarUrl)) {
+                            String contentHash = computeJarHash(jarUrl);
+                            inconclusiveVerdictSeen |= checkVerdictForJar(vr, contentHash, path);
                         }
                     }
-            );
-            ClassLoader existed = CACHE.putIfAbsent(loaderKey, loader);
-            if (existed != null) loader = existed;
-            if (inconclusiveVerdictSeen) {
-                Security.markInconclusiveProxyClassLoader(loader);
+                } else {
+                    StringBuilder bootWindowHashes = new StringBuilder();
+                    bootWindowHashes.append('[');
+                    boolean first = true;
+                    for (int verdictIndex = 0, verdictLength = codebase.length;
+                            verdictIndex < verdictLength;
+                            verdictIndex++) {
+                        URL jarUrl = codebase[verdictIndex];
+                        if (!isDirectory(jarUrl)) {
+                            if (!first) {
+                                bootWindowHashes.append(", ");
+                            }
+                            first = false;
+                            String contentHash;
+                            try {
+                                contentHash = computeJarHash(jarUrl);
+                            } catch (IOException ex) {
+                                contentHash = "<unreadable>";
+                            }
+                            bootWindowHashes.append(jarUrl).append('=').append(contentHash);
+                        }
+                    }
+                    bootWindowHashes.append(']');
+                    logger.log(Level.WARNING,
+                            "VerdictRegistry not yet set; skipping verdict check"
+                            + " (boot-time permissive policy) - codebase: {0}; SHA-256: {1}",
+                            new Object[]{path, bootWindowHashes.toString()});
+                }
+
+                /**
+                 * The next section of code previously 
+                 * called ClassLoading.getClassLoader(path).
+                 * 
+                 * Unfortunately, this results in two proxies with identical
+                 * paths but different endpoints sharing a ClassLoader, because
+                 * the identity is only determined by the codebase annotation string.
+                 * 
+                 * This is not acceptable if two different services use the
+                 * same codebase, for example two different entities might
+                 * use maven to provision codebases, and use maven central for
+                 * their codebase.
+                 */
+                loader = AccessController.doPrivileged(
+                        new PrivilegedAction<ClassLoader>() {
+                            @Override
+                            public ClassLoader run() {
+                                return new PreferredClassLoader(
+                                    codebase, parent, null, false,
+                                    PreferredClassLoader.getLoaderAccessControlContext(codebase)
+                                );
+                            }
+                        }
+                );
+                ClassLoader existed = CACHE.putIfAbsent(loaderKey, loader);
+                if (existed != null) loader = existed;
+                if (inconclusiveVerdictSeen) {
+                    Security.markInconclusiveProxyClassLoader(loader);
+                }
+            } finally {
+                if (jarPermitAcquired) {
+                    JAR_LOAD_SEMAPHORE.release();
+                }
             }
         }
 	

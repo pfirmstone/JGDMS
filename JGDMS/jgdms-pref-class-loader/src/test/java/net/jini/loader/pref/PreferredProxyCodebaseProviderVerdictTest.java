@@ -106,6 +106,29 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     // -------------------------------------------------------------------------
+    // jgdms.proxy.maxConcurrentJarLoads parsing
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void parseMaxConcurrentJarLoads_null_usesDefault() {
+        assertEquals(PreferredProxyCodebaseProvider.DEFAULT_MAX_CONCURRENT_JAR_LOADS,
+                PreferredProxyCodebaseProvider.parseMaxConcurrentJarLoads(null));
+    }
+
+    @Test
+    public void parseMaxConcurrentJarLoads_invalid_usesDefault() {
+        assertEquals(PreferredProxyCodebaseProvider.DEFAULT_MAX_CONCURRENT_JAR_LOADS,
+                PreferredProxyCodebaseProvider.parseMaxConcurrentJarLoads("not-a-number"));
+        assertEquals(PreferredProxyCodebaseProvider.DEFAULT_MAX_CONCURRENT_JAR_LOADS,
+                PreferredProxyCodebaseProvider.parseMaxConcurrentJarLoads("0"));
+    }
+
+    @Test
+    public void parseMaxConcurrentJarLoads_valid_usesConfiguredValue() {
+        assertEquals(7, PreferredProxyCodebaseProvider.parseMaxConcurrentJarLoads("7"));
+    }
+
+    // -------------------------------------------------------------------------
     // checkVerdictForJar — boot-time null registry
     // -------------------------------------------------------------------------
 
