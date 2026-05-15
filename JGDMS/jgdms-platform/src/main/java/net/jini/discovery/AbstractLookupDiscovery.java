@@ -64,6 +64,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import javax.security.auth.Subject;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.EmptyConfiguration;
@@ -278,6 +279,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     private final Exception thrown;
     private final MethodConstraints methodConstraints;
     private final long startTime;
+    private final DiscoveryCredentialProvider discoveryCredentialProvider;
 
     /** Data structure containing task data processed by the Notifier Thread */
     private static class NotifyTask {
@@ -770,11 +772,28 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 		for (count = multicastRequestMax;
                                           --count >= 0 && !isInterrupted(); )
                 {
-                    DatagramPacket[] reqs = encodeMulticastRequest
-			(new MulticastRequest(multicastRequestHost,
-					      responsePort,
-					      groups,
-					      getServiceIDs()));
+                    DatagramPacket[] reqs;
+                    Subject discoverySubject = getDiscoverySubject();
+                    if (discoverySubject != null) {
+                        reqs = Subject.doAs(
+                                discoverySubject,
+                                new PrivilegedExceptionAction<DatagramPacket[]>() {
+                                    public DatagramPacket[] run() throws Exception {
+                                        return encodeMulticastRequest(
+                                                new MulticastRequest(
+                                                        multicastRequestHost,
+                                                        responsePort,
+                                                        groups,
+                                                        getServiceIDs()));
+                                    }
+                                });
+                    } else {
+                        reqs = encodeMulticastRequest
+                            (new MulticastRequest(multicastRequestHost,
+                                                  responsePort,
+                                                  groups,
+                                                  getServiceIDs()));
+                    }
                     sendPacketByNIC(sock, reqs);
 		    Thread.sleep(count > 0 ?
                       multicastRequestInterval:finalMulticastRequestInterval);
@@ -1396,6 +1415,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         boolean isDefaultWakeupMgr;
         long initialMulticastRequestDelayRange;
 	private MethodConstraints methodConstraints;
+        private DiscoveryCredentialProvider discoveryCredentialProvider;
         long startTime;
         
         private Initializer(Configuration config) throws ConfigurationException,
@@ -1405,6 +1425,11 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 
             if(config == null)  throw new NullPointerException("config is null");
             startTime = System.currentTimeMillis();
+            discoveryCredentialProvider = (DiscoveryCredentialProvider) config.getEntry(
+                    COMPONENT_NAME,
+                    "discoveryCredentialProvider",
+                    DiscoveryCredentialProvider.class,
+                    NoOpDiscoveryCredentialProvider.INSTANCE);
             /* Lookup service proxy preparer */
             registrarPreparer = (ProxyPreparer)config.getEntry
                                                         (COMPONENT_NAME,
@@ -1596,6 +1621,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         isDefaultWakeupMgr = init.isDefaultWakeupMgr;
         initialMulticastRequestDelayRange = init.initialMulticastRequestDelayRange;
         startTime = init.startTime;
+        discoveryCredentialProvider = init.discoveryCredentialProvider;
         /* end Init */
         
         if(nicsToUse ==  NICS_USE_NONE) { //disable discovery
@@ -2871,10 +2897,26 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     {
 	final Collection context = new ArrayList(1);
 	context.add(methodConstraints);
+	final Subject discoverySubject = getDiscoverySubject();
 	try {
 	    return AccessController.doPrivileged(
 		securityContext.wrap(new PrivilegedExceptionAction<UnicastResponse>() {
 		    public UnicastResponse run() throws Exception {
+                        if (discoverySubject != null) {
+                            return Subject.doAs(
+                                    discoverySubject,
+                                    new PrivilegedExceptionAction<UnicastResponse>() {
+                                        public UnicastResponse run() throws Exception {
+                                            return disco.doUnicastDiscovery(
+                                                socket,
+                                                unicastDiscoveryConstraints.getUnfulfilledConstraints(),
+                                                // ClassLoader necessary for Service loader to find class of net.jini.loader.pref.PreferredProxyCodebaseProvider
+                                                AbstractLookupDiscovery.class.getClassLoader(),
+                                                AbstractLookupDiscovery.class.getClassLoader(),
+                                                context);
+                                        }
+                                    });
+                        }
 			return disco.doUnicastDiscovery(
 			    socket, 
 			    unicastDiscoveryConstraints.getUnfulfilledConstraints(),
@@ -2904,6 +2946,17 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	Discovery disco =
 	    getDiscovery(unicastDiscoveryConstraints.chooseProtocolVersion());
 	return doUnicastDiscovery(socket, unicastDiscoveryConstraints, disco);
+    }
+
+    private Subject getDiscoverySubject() {
+        try {
+            return discoveryCredentialProvider.getSubject();
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING,
+                    "DiscoveryCredentialProvider threw while resolving discovery Subject; continuing without provider Subject",
+                    e);
+            return null;
+        }
     }
 
     /**
