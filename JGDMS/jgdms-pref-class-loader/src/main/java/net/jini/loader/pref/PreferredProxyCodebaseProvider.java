@@ -214,8 +214,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
 
     private static boolean containsJarCodebase(URL[] codebase) {
-        for (int i = 0, l = codebase.length; i < l; i++) {
-            if (!isDirectory(codebase[i])) {
+        for (int index = 0, length = codebase.length; index < length; index++) {
+            if (!isDirectory(codebase[index])) {
                 return true;
             }
         }
@@ -461,8 +461,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                         CertPath certPath = factory.generateCertPath(
                                 new ByteArrayInputStream(encodedCerts), certPathEncoding);
                         Collection<? extends Certificate> certs = certPath.getCertificates();
-                        for (int i = 0, l = codebase.length; i < l; i++){
-                            URL searchURL = createSearchURL(codebase[i]);
+                        for (int index = 0, length = codebase.length; index < length; index++){
+                            URL searchURL = createSearchURL(codebase[index]);
                             URL jarURL = ((JarURLConnection) searchURL
                                 .openConnection()).getJarFileURL();
                             JarURLConnection juc = (JarURLConnection) new URL(
@@ -512,8 +512,10 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                 VerdictRegistry vr = VerdictRegistryHolder.get();
                 boolean inconclusiveVerdictSeen = false;
                 if (vr != null) {
-                    for (int vi = 0, vl = codebase.length; vi < vl; vi++) {
-                        URL jarUrl = codebase[vi];
+                    for (int verdictIndex = 0, verdictLength = codebase.length;
+                            verdictIndex < verdictLength;
+                            verdictIndex++) {
+                        URL jarUrl = codebase[verdictIndex];
                         if (!isDirectory(jarUrl)) {
                             String contentHash = computeJarHash(jarUrl);
                             inconclusiveVerdictSeen |= checkVerdictForJar(vr, contentHash, path);
@@ -523,8 +525,10 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     StringBuilder bootWindowHashes = new StringBuilder();
                     bootWindowHashes.append('[');
                     boolean first = true;
-                    for (int vi = 0, vl = codebase.length; vi < vl; vi++) {
-                        URL jarUrl = codebase[vi];
+                    for (int verdictIndex = 0, verdictLength = codebase.length;
+                            verdictIndex < verdictLength;
+                            verdictIndex++) {
+                        URL jarUrl = codebase[verdictIndex];
                         if (!isDirectory(jarUrl)) {
                             if (!first) {
                                 bootWindowHashes.append(", ");
