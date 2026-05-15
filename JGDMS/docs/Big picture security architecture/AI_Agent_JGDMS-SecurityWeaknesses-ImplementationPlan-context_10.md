@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v48)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v49)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,26 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v49 Change Summary
+
+**Work Item 56 completed — Pack200/JAR load concurrency bound in preferred-proxy resolve path**
+
+- Completed Work Item 56 by adding a bounded concurrency gate around new-loader
+  JAR download/hash/integrity work in
+  `PreferredProxyCodebaseProvider.resolve(...)`.
+- Added configurable system property
+  `jgdms.proxy.maxConcurrentJarLoads` (default `4`) with safe parsing and
+  default fallback for invalid or inaccessible values.
+- Added focused unit tests for max-concurrent-jar-loads property parsing in
+  `PreferredProxyCodebaseProviderVerdictTest`.
+- §5 Phase 1 table updated: Phase 1.5 priority changed from `🟠 Sprint 1` to
+  `✅ Completed`.
+- §6 Work Items table updated: Item 56 status changed from `🔲 Not started` to
+  `✅ Completed`.
+- Version header bumped from v48 → v49.
+
+---
 
 ## v48 Change Summary
 
@@ -910,7 +930,7 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 | 1.2 | SVID renewal backoff (W6) | Replace fixed `RETRY_INTERVAL_SECONDS` with exponential backoff (cap at `renewalLeadSeconds/2`, min 30 s) | `SpiffeCredentialManager.java` | ✅ Completed |
 | 1.3 | SVID health metric (W6) | Add `isCredentialValid()` + `secondsUntilExpiry()` to `SpiffeCredentialManager`; emit `Level.WARNING` when < `renewalLeadSeconds × 2` | `SpiffeCredentialManager.java` | ✅ Completed |
 | 1.4 | VerdictRegistry retry backoff (W5) | Add 3-attempt exponential backoff (1 s → 2 s → 4 s) before failing in `checkVerdictForJar()` | `PreferredProxyCodebaseProvider.java` | ✅ Completed |
-| 1.5 | Pack200 semaphore (W12) | Add `Semaphore(4)` (configurable `jgdms.proxy.maxConcurrentJarLoads`) around JAR download + decompression in `resolve()` | `PreferredProxyCodebaseProvider.java` | 🟠 Sprint 1 |
+| 1.5 | Pack200 semaphore (W12) | Add `Semaphore(4)` (configurable `jgdms.proxy.maxConcurrentJarLoads`) around JAR download + decompression in `resolve()` | `PreferredProxyCodebaseProvider.java` | ✅ Completed |
 | 1.6 | Recursion depth configurable (W10) | Make `CombinerSecurityManager` depth limit a system property (default 10); add startup `SEVERE` warning | `CombinerSecurityManager.java` | 🟠 Sprint 1 |
 
 ### Phase 2 — Medium Effort, Targeted Bug Fixes
@@ -984,7 +1004,7 @@ These extend the work-item table in §12 of
 | **53** | Negative grants in `DynamicPolicyProvider` — `negativeGrants` set + background sweeper + `implies()` update | 3.3 | 🔲 Not started |
 | **54** | `CombinerSecurityManager` depth limit — configurable system property (default 10) + startup `SEVERE` warning | 1.6 | 🔲 Not started |
 | **55** | `DiscoveryCredentialProvider` — interface + `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder` | 3.2 | 🔲 Not started |
-| **56** | Pack200 semaphore — `Semaphore(4)` (configurable) around JAR download + decompression in `PreferredProxyCodebaseProvider.resolve()` | 1.5 | 🔲 Not started |
+| **56** | Pack200 semaphore — `Semaphore(4)` (configurable) around JAR download + decompression in `PreferredProxyCodebaseProvider.resolve()` | 1.5 | ✅ Completed |
 
 | **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | 🔲 Not started |
 | **58** | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix — `CodeSourceKey` includes `digestAlgorithm`+`digest` fields from `DigestCodeSource` in `hashCode()`/`equals()`; `getProtectionDomain` promotes plain `CodeSource` to content-addressed `DigestCodeSource` (SHA-256) with two-layer cache (`JarResponseCache` + `digestCache`) — see §7 | DirtyChai | ✅ Complete |
@@ -1328,7 +1348,7 @@ been reverted from this branch.
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 48.
+future AI agent to continue without loss of context. This is version 49.
 Work Item 46 now records an explicit options decision in §8.8: Option 4
 (retained, externally-voidable loader-scoped grants while keeping preferred
 proxy `ClassLoader`s cached) is the implemented baseline, and Option 5
