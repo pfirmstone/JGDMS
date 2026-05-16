@@ -18,8 +18,11 @@ and is the forward-reference added in §19 of that document.
   to formalize discovery credential sourcing.
 - Added `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder`.
 - Integrated discovery credential provider wiring in `AbstractLookupDiscovery`
-  so outbound multicast/unicast discovery operations can run under provider
-  `Subject` via `Subject.doAs(...)`.
+  so outbound multicast/unicast discovery operations use the provider `Subject`'s
+  SPIFFE principals (embedded in ACC `ProtectionDomain`s by DirtyChai);
+  `Subject.doAs(...)` is **not** used — it is incompatible with SPIFFE `Subject`s
+  (`Subject.callAs` rejects them, and `SubjectDomainCombiner` cannot obtain
+  them).
 - Added focused unit tests for SPIFFE discovery credential provider behavior.
 - §5 Phase 3 table updated: Phase 3.2 priority changed from `🟡 Sprint 4` to
   `✅ Completed`.
@@ -533,7 +536,7 @@ subsequent uses skip all of the above.
 |---|---|---|---|
 | 1 | Full security requires DirtyChai (non-standard JDK) | 🔴 Critical | **By design — no fix** |
 | 2 | Wire-asserted user principals are unverified | 🔴 Critical | Partially (JwtVerifier SPI opt-in; DefaultJwtVerifier exp/iat/iss/aud; OIDC JWKS opt-in) |
-| 3 | INCONCLUSIVE verdict allows loading; no re-audit on permission change | 🟠 High | No |
+| 3 | INCONCLUSIVE verdict allows loading; no re-audit on permission change | 🟠 High | Partially (retained, externally-voidable loader-scoped grants for INCONCLUSIVE loaders — WI46 Option 4; structural fix via INCONCLUSIVEPermit pending — WI51) |
 | 4 | VerdictRegistry boot permissive window | 🟠 High | Acknowledged; no fix |
 | 5 | VerdictRegistry outage blocks all new proxy loads | 🟠 High | No (fail-secure, but availability impact) |
 | 6 | SPIRE single point of failure / SVID expiry gap | 🟠 High | Partially (backoff, but no stale-SVID fallback) |
@@ -541,7 +544,7 @@ subsequent uses skip all of the above.
 | 8 | Policy cannot deny, only relax | 🟡 Medium | No — Java platform limitation |
 | 9 | doPrivileged migration incomplete in legacy services | 🟡 Medium | Partially (§11 audit ongoing) |
 | 10 | CombinerSecurityManager recursion depth ceiling | 🟡 Medium | No (fixed at 7) |
-| 11 | DiscoveryCredentialProvider unimplemented | 🟡 Medium | No |
+| 11 | DiscoveryCredentialProvider unimplemented | 🟡 Medium | Yes (SpiffeDiscoveryCredentialProvider backed by SpiffeSubjectHolder; AbstractLookupDiscovery integration — WI55) |
 | 12 | Pack200 full-JAR heap materialization | 🟡 Low | Partially (64 MB cap) |
 
 ---
@@ -1024,7 +1027,6 @@ These extend the work-item table in §12 of
 | **54** | `CombinerSecurityManager` depth limit — configurable system property (default 10) + startup `SEVERE` warning | 1.6 | 🔲 Not started |
 | **55** | `DiscoveryCredentialProvider` — interface + `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder` | 3.2 | ✅ Completed |
 | **56** | Pack200 semaphore — `Semaphore(4)` (configurable) around JAR download + decompression in `PreferredProxyCodebaseProvider.resolve()` | 1.5 | ✅ Completed |
-
 | **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | 🔲 Not started |
 | **58** | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix — `CodeSourceKey` includes `digestAlgorithm`+`digest` fields from `DigestCodeSource` in `hashCode()`/`equals()`; `getProtectionDomain` promotes plain `CodeSource` to content-addressed `DigestCodeSource` (SHA-256) with two-layer cache (`JarResponseCache` + `digestCache`) — see §7 | DirtyChai | ✅ Complete |
 
@@ -1367,11 +1369,13 @@ been reverted from this branch.
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 49.
-Work Item 46 now records an explicit options decision in §8.8: Option 4
-(retained, externally-voidable loader-scoped grants while keeping preferred
-proxy `ClassLoader`s cached) is the implemented baseline, and Option 5
-(`INCONCLUSIVEPermit`) is the future hardening path. §8 also records that GC
-after clearing strong references is at most a best-effort secondary effect
-rather than a dependable mitigation. Work Item 58 remains ✅ fully complete in DirtyChai
+future AI agent to continue without loss of context. This is version 50.
+Work Item 55 (DiscoveryCredentialProvider + SpiffeDiscoveryCredentialProvider +
+AbstractLookupDiscovery integration) is now ✅ Completed.  Work Item 46 records
+an explicit options decision in §8.8: Option 4 (retained, externally-voidable
+loader-scoped grants while keeping preferred proxy `ClassLoader`s cached) is the
+implemented baseline, and Option 5 (`INCONCLUSIVEPermit`) is the future
+hardening path. §8 also records that GC after clearing strong references is at
+most a best-effort secondary effect rather than a dependable mitigation. Work
+Item 58 remains ✅ fully complete in DirtyChai
 (`SecureClassLoader.java` SHA `98e1e31`).*
