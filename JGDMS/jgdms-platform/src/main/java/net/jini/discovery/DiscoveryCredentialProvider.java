@@ -22,10 +22,9 @@ import javax.security.auth.Subject;
 /**
  * Supplies a {@link Subject} for discovery client operations.
  *
- * <p>When non-{@code null}, the returned subject is used to execute outbound
- * discovery protocol operations (for example, multicast request encoding and
- * unicast discovery) under {@link Subject#doAs(Subject,
- * java.security.PrivilegedExceptionAction)}.
+ * <p>When non-{@code null}, the returned subject supplies credential identity
+ * context for outbound discovery protocol operations (for example, multicast
+ * request encoding and unicast discovery).
  *
  * @since 3.1.1
  */

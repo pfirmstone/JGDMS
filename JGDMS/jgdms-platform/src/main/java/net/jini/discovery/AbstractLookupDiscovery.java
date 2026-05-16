@@ -2947,9 +2947,6 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     private <T> T runWithDiscoverySubject(
             Subject discoverySubject,
             PrivilegedExceptionAction<T> action) throws Exception {
-        if (discoverySubject != null) {
-            return Subject.doAs(discoverySubject, action);
-        }
         return action.run();
     }
 
