@@ -173,10 +173,13 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
 		literal carriage returns that must be escaped.  */
 		String name = p.getName();
 		if (p instanceof FilePermission){
-		    // Always escape backslashes in file paths to ensure
-		    // round-trip parsing on any OS (e.g., Windows paths
-		    // tested on Linux must also be escaped correctly).
-		    name = name.replace("\\", "\\\\").replace("\"", "\\\"");
+		    // Escape backslash first, then quote, then control chars that
+            // StreamTokenizer would otherwise re-interpret as escapes.
+            name = name.replace("\\", "\\\\")
+                       .replace("\"", "\\\"")
+                       .replace("\n", "\\n")
+                       .replace("\r", "\\r")
+                       .replace("\t", "\\t");
 		} else {
 		    name = name.replace("\\\"", "\\\\\"").replace("\"","\\\"").replace("\r","\\\r");
 		}

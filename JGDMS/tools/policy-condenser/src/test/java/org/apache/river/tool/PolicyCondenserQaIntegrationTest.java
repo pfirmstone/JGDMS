@@ -259,6 +259,37 @@ public class PolicyCondenserQaIntegrationTest {
         Set<Permission> missing = new HashSet<Permission>(originalPerms);
         missing.removeAll(condensedPerms);
 
+        if (!missing.isEmpty()) {
+            // Diagnostic dump so we can see the exact char codes of the
+            // names that fail equality.
+            System.err.println("=== " + fileName + " : missing permissions ===");
+            for (Permission p : missing) {
+                String n = p.getName();
+                StringBuilder hex = new StringBuilder();
+                for (int i = 0; i < n.length(); i++) {
+                    hex.append(String.format("%02X ", (int) n.charAt(i)));
+                }
+                System.err.println("MISSING name=[" + n + "]");
+                System.err.println("MISSING hex =[" + hex + "]");
+                System.err.println("MISSING class=" + p.getClass().getName()
+                    + " actions=" + p.getActions());
+            }
+            System.err.println("--- candidates with same class in condensed ---");
+            for (Permission p : condensedPerms) {
+                for (Permission m : missing) {
+                    if (p.getClass() == m.getClass()) {
+                        StringBuilder hex = new StringBuilder();
+                        String n = p.getName();
+                        for (int i = 0; i < n.length(); i++) {
+                            hex.append(String.format("%02X ", (int) n.charAt(i)));
+                        }
+                        System.err.println("CANDIDATE name=[" + n + "]");
+                        System.err.println("CANDIDATE hex =[" + hex + "]");
+                    }
+                }
+            }
+        }
+
         assertEquals(
             "Permissions lost in condensed output for " + fileName
                 + ": " + missing,
