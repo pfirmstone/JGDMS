@@ -151,8 +151,16 @@ load. JGDMS makes transport costs explicit and minimizes them:
 
 - **Lock-free `ConcurrentPolicyFile`** — policy checks under concurrent load add less than 1%
   overhead compared to no policy. Authorization is not the bottleneck.
-- **JERI outperforms standard Java RMI** — the explicit invocation layer is faster than the
-  transparent stub model it replaces.
+- **JERI scales better than standard Java RMI under concurrent load** — the dispatch path is
+  non-blocking: the `ProtectionDomain` cache uses a lock-free `ConcurrentMap` with weak-identity
+  keys, and there is no distributed GC synchronisation on the hot path. In single-threaded or
+  low-concurrency scenarios standard RMI may have lower absolute latency due to simpler
+  infrastructure; the advantage of JERI is throughput and absence of lock contention as the number
+  of concurrent callers grows.
+- **JERI's Distributed Garbage Collection is correct where RMI's was not** — JERI's DGC
+  implementation was rewritten using modern concurrent data structures, fixing race conditions and
+  locking bugs present in the original Java RMI DGC that Sun and Oracle never addressed. The
+  legacy bugs are documented but unfixed in the OpenJDK issue tracker; JERI does not inherit them.
 - **`RFC3986URLClassLoader`** — faster than Java's built-in `URLClassLoader`; unnecessary DNS
   lookups have been eliminated throughout the codebase.
 - **Content-hash verdict cache** — transport cost for JAR analysis is paid once per distinct JAR,
@@ -246,7 +254,8 @@ a system means slowing it down. JGDMS and DirtyChai were designed to disprove th
 - `@AtomicSerial` outperforms standard Java serialization in benchmarks, while being significantly
   safer.
 - `RFC3986URLClassLoader` is faster than Java's built-in `URLClassLoader`.
-- JERI outperforms standard Java RMI.
+- JERI scales better than standard Java RMI under concurrent load; its DGC implementation is also
+  correct where the original RMI DGC had known, unfixed race conditions.
 - The Verdict Registry is keyed by SHA-256 content hash, not URL. The same JAR analyzed once is
   cached permanently. Security analysis scales with the number of distinct JARs, not the number
   of services.
