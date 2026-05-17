@@ -17,11 +17,12 @@ real, well-understood failure mode. That is a meaningful distinction.
 ## The Fallacies of Distributed Computing
 
 The *Fallacies of Distributed Computing* were first articulated at Sun Microsystems in the 1990s.
-L. Peter Deutsch identified the first four fallacies around 1991–1994 while working on distributed
-systems at Sun. James Gosling, the creator of Java and a colleague of Deutsch's at Sun, is credited
-with adding the remaining four. Bill Joy and Tom Lyon are also associated with the early
-formulation. The complete list of eight was later written up and popularised by Arnon Rotem-Gal-Oz
-in a widely cited 2006 essay, *"Fallacies of Distributed Computing Explained"*.
+L. Peter Deutsch identified seven of the eight fallacies around 1991–1994 while working on
+distributed systems at Sun. James Gosling, the creator of Java and a colleague of Deutsch's at
+Sun, is credited with adding the eighth fallacy: "The network is homogeneous." Bill Joy and Tom
+Lyon are also associated with the early formulation. The complete list of eight was later written
+up and popularised by Arnon Rotem-Gal-Oz in a widely cited 2006 essay,
+*"Fallacies of Distributed Computing Explained"*.
 
 These eight assumptions are things that developers commonly believe about distributed systems —
 and that are all false, every time, in every production environment:
@@ -193,7 +194,7 @@ trying the simpler approaches and documenting their failures:
 |---|---|---|
 | Network-level firewalls for service security | Lateral movement and supply-chain attacks bypass the perimeter | Per-method `MethodConstraints` enforced before bytes leave the client JVM |
 | URL as trust boundary for remote code | CDN poisoning: same URL, different bytes after a compromise | `DigestGrant` + `DigestCodeSource`: grants conditioned on SHA-256 content hash |
-| Standard `Serializable` / `readObject` | Gadget chains; billions in breach costs across the industry | `@AtomicSerial`: validation before construction, fail-fast, no field assigned until all invariants pass |
+| Standard `Serializable` / `readObject` | Gadget chains; billions in breach costs across the industry | `@AtomicSerial`: validation before construction, fail-fast, no field assigned until all invariants hold |
 | Long-lived keystores for service identity | Certificate management toil, rotation failures, revocation gaps | SPIFFE/SPIRE: short-lived SVIDs, automatic rotation, no keystores |
 | Removing `SecurityManager` (OpenJDK 17–24) | Lost the only code-source permission boundary on the JVM | DirtyChai restores, improves, and extends the authorization infrastructure |
 | Ad-hoc service registries without trust | No cryptographic verification before code loads | Jini discovery + bootstrap proxy + Verdict Registry quorum |
