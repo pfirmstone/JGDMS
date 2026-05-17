@@ -20,7 +20,9 @@ package net.jini.jeri;
 
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.jeri.internal.runtime.Util;
-import org.apache.river.jeri.internal.runtime.WeakKey;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
+import org.apache.river.concurrent.Referrer;
 import org.apache.river.logging.Levels;
 import java.io.EOFException;
 import java.io.IOException;
@@ -30,7 +32,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.lang.ref.ReferenceQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -305,11 +308,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     /** Map from Long method hash to Method, for all remote methods. */
     private final Map methods;
 
-    /** Map from WeakKey(Subject) to ProtectionDomain. */
-    private static final Map domains = new HashMap();
-    
-    /** Reference queue for the weak keys in the domains map. */
-    private static final ReferenceQueue queue = new ReferenceQueue();
+    /** Map from Subject (weak identity) to ProtectionDomain. */
+    private static final ConcurrentMap<Subject, ProtectionDomain> domains =
+	RC.concurrentMap(
+	    new ConcurrentHashMap<Referrer<Subject>, Referrer<ProtectionDomain>>(),
+	    Ref.WEAK_IDENTITY,
+	    Ref.STRONG,
+	    1000L, 0L
+	);
 
     /** dispatch logger */
     private static final Logger logger =
@@ -1283,20 +1289,11 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	if (client == null) {
 	    pd = emptyPD;
 	} else {
-	    synchronized (domains) {
-		WeakKey k;
-		while ((k = (WeakKey) queue.poll()) != null) {
-		    domains.remove(k);
-		}
-		pd = (ProtectionDomain) domains.get(new WeakKey(client));
-		if (pd == null) {
-		    Set set = client.getPrincipals();
-		    Principal[] prins =
-			(Principal[]) set.toArray(new Principal[set.size()]);
-		    pd = new ProtectionDomain(emptyCS, null, null, prins);
-		    domains.put(new WeakKey(client, queue), pd);
-		}
-	    }
+	    pd = domains.computeIfAbsent(client, s -> {
+		Set<Principal> set = s.getPrincipals();
+		Principal[] prins = set.toArray(new Principal[0]);
+		return new ProtectionDomain(emptyCS, null, null, prins);
+	    });
 	}
 	// XXX what about logging
 	if (logger.isLoggable(Level.FINEST)){
