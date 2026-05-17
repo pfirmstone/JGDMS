@@ -14,6 +14,170 @@ real, well-understood failure mode. That is a meaningful distinction.
 
 ---
 
+## The Fallacies of Distributed Computing
+
+In 1994, Peter Deutsch (and later James Gosling) documented eight assumptions that developers
+commonly make about distributed systems — assumptions that are all false, and whose falsity causes
+real failures in production. These are known as the *Fallacies of Distributed Computing*:
+
+1. The network is reliable.
+2. Latency is zero.
+3. Bandwidth is infinite.
+4. The network is secure.
+5. Topology doesn't change.
+6. There is one administrator.
+7. Transport cost is zero.
+8. The network is homogeneous.
+
+Nearly every piece of accidental complexity in distributed systems can be traced to a design that
+believed one or more of these fallacies long enough to ship. JGDMS and DirtyChai were designed from
+the outset to treat all eight as permanent, structural properties of the environment — not edge
+cases to be handled later.
+
+### Fallacy 1: The network is reliable
+
+Networks drop packets, partition, and fail. A distributed service framework that assumes reliable
+delivery will produce systems that hang silently when the network misbehaves. JGDMS addresses this
+at the infrastructure level:
+
+- **Lease-based registrations** — every service registration and event subscription expires unless
+  actively renewed. A crashed or partitioned service cleans itself out of the registry
+  automatically. There is no accumulation of stale state that requires manual intervention.
+- **JERI's constraint system** — `UnsupportedConstraintException` is thrown *before* bytes leave
+  the client JVM if the transport cannot satisfy the declared security requirements. Failure is
+  explicit and local, not silent and remote.
+- **Bootstrap proxy trust establishment** — the client verifies cryptographic trust *before*
+  unmarshalling the full service proxy. A network-level attacker who intercepts the lookup
+  response cannot cause the client to load and execute arbitrary code.
+
+### Fallacy 2: Latency is zero
+
+Every remote call has non-trivial latency. A framework that treats remote calls as syntactically
+identical to local calls (as early Java RMI encouraged) trains developers to ignore this cost.
+JGDMS makes the boundary explicit:
+
+- **JERI is a distinct invocation layer** — remote calls go through `BasicInvocationHandler` and
+  `BasicInvocationDispatcher`, not transparent stubs. The indirection is visible in the code.
+- **`MethodConstraints` are declared per-method** — security requirements are attached to the
+  specific calls that cross trust boundaries, not applied uniformly to all code. This encourages
+  awareness of which calls are remote and what they cost.
+- **`@AtomicSerial` over the wire** — marshalling and unmarshalling are explicit, fast, and
+  auditable. The performance cost of the boundary is minimized but never hidden.
+
+### Fallacy 3: Bandwidth is infinite
+
+Serialized object graphs crossing a network are not free. JGDMS applies consistent pressure to
+keep the wire format lean:
+
+- **`@AtomicSerial` with a declared `serialForm()`** — the wire shape of every serialized class is
+  explicit and auditable. There are no hidden fields, no surprise object graph expansions.
+- **Content-hash verdict caching** — the Verdict Registry caches analysis results by SHA-256 hash.
+  The same JAR is transmitted and analyzed once regardless of how many services reference it.
+- **Bootstrap proxies** — clients receive a minimal bootstrap proxy first; the full proxy is only
+  unmarshalled after trust is established. Bandwidth is not spent on objects the client may reject.
+
+### Fallacy 4: The network is secure
+
+This is the fallacy that costs the most when violated, and the one that most frameworks address
+least seriously. JGDMS treats network insecurity as the baseline assumption, not an exceptional
+case:
+
+- **TLSv1.3 with mutual authentication via SPIFFE SVIDs** — every service-to-service call is
+  encrypted and mutually authenticated. There is no "trusted internal network" that bypasses this.
+- **Per-method `MethodConstraints`** — `ServerAuthentication.YES`, `ClientAuthentication.YES`,
+  `Confidentiality.YES`, `Integrity.YES` are enforced by construction on every method that
+  declares them. A call that cannot satisfy its constraints fails before bytes leave the JVM.
+- **`DigestGrant` + `DigestCodeSource`** — the network cannot be trusted to deliver the same bytes
+  at the same URL twice. Content-hash grants ensure that what was audited is what runs.
+- **SCAP pipeline** — the network is the delivery mechanism for third-party JARs. Every JAR is
+  treated as potentially hostile until it has been independently analyzed and a quorum verdict
+  issued.
+- **Hardened deserialization** — data arriving from the network is the primary attack surface for
+  gadget chains. `@AtomicSerial` and `AtomicMarshalInputStream` treat all inbound serialized data
+  as adversarial until proven otherwise.
+
+### Fallacy 5: Topology doesn't change
+
+Services come and go. IP addresses change. Hosts fail and are replaced. A system hardwired to a
+fixed topology will require manual intervention every time the topology shifts. JGDMS is built for
+topological change as the normal case:
+
+- **Jini service discovery** — clients discover services by capability (interface + attributes),
+  not by hard-wired address. When a service moves or is replaced, clients discover the new
+  instance without configuration changes.
+- **IPv6 multicast and unicast** — service announcement and discovery work across topological
+  changes without NAT traversal or relay infrastructure.
+- **SPIFFE/SPIRE workload identity** — service identity is bound to the *workload*, not to the
+  host IP or DNS name. When a service migrates to a new host, its SPIFFE ID is unchanged; only the
+  SVID is reissued.
+- **Stateless BAE pool** — analysis engine instances self-register with the Lookup Service and are
+  discovered for round-robin dispatch. Adding or removing instances requires no configuration
+  change in the pipeline.
+
+### Fallacy 6: There is one administrator
+
+In any non-trivial distributed system, different components are managed by different teams with
+different trust levels and different operational responsibilities. A security model that assumes a
+single omniscient administrator cannot enforce separation of duties. JGDMS encodes administrative
+separation into the authorization model:
+
+- **Three-layer policy stack** — the bootstrap `SpiffePolicyFile` is controlled by the operator,
+  `RemotePolicyProvider` grants are managed by the administrator, and `DynamicPolicyProvider`
+  grants are issued per-proxy at runtime. No single administrator controls all three layers.
+- **Three-way permission intersection** — `PERMISSIONS.LIST` (declared by the code author) ∩
+  `GrantPermission` ceiling (set by the administrator) ∩ SPIFFE principal scope (issued by the
+  SPIRE control plane) means the effective permission requires agreement across three independent
+  authorities. A compromised administrator account cannot unilaterally escalate a component's
+  privileges.
+- **SPIRE as the identity control plane** — workload identity is managed by the SPIRE operator
+  independently of the application administrator. Credential rotation and revocation do not require
+  coordination with the application team.
+- **`InMemoryPolicyService` live updates** — policy can be updated at runtime by an authorized
+  administrator without restarting services, but the update is constrained by the bootstrap policy
+  ceiling. Live policy authority is bounded.
+
+### Fallacy 7: Transport cost is zero
+
+Every byte serialized, every TLS handshake, every policy check, every class load has a cost.
+Frameworks that hide these costs produce systems that perform well in benchmarks and poorly under
+load. JGDMS makes transport costs explicit and minimizes them:
+
+- **Lock-free `ConcurrentPolicyFile`** — policy checks under concurrent load add less than 1%
+  overhead compared to no policy. Authorization is not the bottleneck.
+- **JERI outperforms standard Java RMI** — the explicit invocation layer is faster than the
+  transparent stub model it replaces.
+- **`RFC3986URLClassLoader`** — faster than Java's built-in `URLClassLoader`; unnecessary DNS
+  lookups have been eliminated throughout the codebase.
+- **Content-hash verdict cache** — transport cost for JAR analysis is paid once per distinct JAR,
+  not once per service instance or per client query.
+- **Virtual Thread dispatch** — one virtual thread per request means carrier threads are never
+  blocked waiting for a slow client. The cost of concurrency is paid by the scheduler, not by
+  thread stack allocation.
+
+### Fallacy 8: The network is homogeneous
+
+In any real deployment, the network carries traffic between JVMs of different versions, services
+deployed at different times, and components written by different teams. A framework that assumes
+all participants use the same protocol version, the same JDK, and the same security configuration
+will break silently when that assumption is violated. JGDMS handles heterogeneity explicitly:
+
+- **JERI versioned wire protocol** — the dispatcher reads the protocol version byte and handles
+  `PREVIOUS_VERSION`, `VERSION`, and `VERSION_WITH_PRINCIPALS_AND_ACC` explicitly. Unknown
+  versions produce a `MISMATCH` response, not silent corruption.
+- **DirtyChai / standard JDK code paths** — `CALL_AS_MULTI_SUBJECT` and `CURRENT_ALL_METHOD` are
+  cached at class-load time via reflection. The multi-Subject dispatch path is used on DirtyChai;
+  the single-Subject path is used on a standard JDK. Both are correct; neither silently degrades.
+- **`AccessControlContextSerializer` anonymous placeholder domains** — when a serialized
+  `AccessControlContext` crosses a JVM boundary, unverifiable `ProtectionDomain`s are
+  reconstructed as anonymous placeholders. Their permission ceilings are preserved without
+  asserting a specific identity that the receiving JVM cannot verify. The system degrades
+  gracefully under heterogeneity.
+- **Pluggable JERI transports** — the constraint system is transport-independent. A service can
+  expose the same interface over TLS, Kerberos, or a future transport without changing the
+  authorization model.
+
+---
+
 ## The Industry Already Tried the Simpler Alternatives
 
 The clearest evidence that JGDMS's complexity is necessary is that the industry spent decades
@@ -186,3 +350,9 @@ These principles guide decisions about what to add, what to change, and what to 
    correct implementation (lock-free policy provider, content-hash verdict cache, fail-fast
    deserialization), that is not a coincidence — it is a consequence of choosing the right
    abstraction.
+
+8. **Design for the fallacies, not against them.** The eight Fallacies of Distributed Computing
+   are permanent properties of the environment, not edge cases. Every component that assumes the
+   network is reliable, secure, homogeneous, or administered by a single party is a component that
+   will fail in production. Design so that when the network misbehaves — and it will — the system
+   fails explicitly, locally, and safely rather than silently and corruptly.
