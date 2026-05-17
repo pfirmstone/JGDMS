@@ -372,3 +372,51 @@ These principles guide decisions about what to add, what to change, and what to 
    network is reliable, secure, homogeneous, or administered by a single party is a component that
    will fail in production. Design so that when the network misbehaves — and it will — the system
    fails explicitly, locally, and safely rather than silently and corruptly.
+
+---
+
+## Original Architects & Contributors
+
+JGDMS stands on a deep foundation of prior work. The codebase carries `@author Sun Microsystems, Inc.`
+on the majority of its Jini and JERI source files, representing work done at Sun Microsystems
+before the technology was donated to the Apache Software Foundation as Apache River.
+
+### Jini Technology — Sun Microsystems
+
+The original Jini technology was designed and built at Sun Microsystems in the late 1990s. The
+principal architects and contributors whose names are documented in the literature and in Sun's
+own publications include:
+
+- **Jim Waldo** — principal architect of Jini; author of *The Jini Specification*
+- **Bob Scheifler** — Jini specification lead
+- **Ken Arnold** — co-author of *The Jini Specification* and *The Java Programming Language*
+- **Ann Wollrath** — JERI and RMI infrastructure; named directly in `@author` tags in this codebase
+- **Peter Jones** — RMI/JERI test infrastructure; named in `@author` tags in this codebase
+- **Laird Dornin** — RMI test library; named in `@author` tags in this codebase
+- **Adrian Colley** — RMI test library; named in `@author` tags in this codebase
+
+### ServiceUI — Artima, Inc.
+
+- **Bill Venners** (Artima, Inc.) — led the ServiceUI project at jini.org, which defined the
+  standard approach to attaching UIs to Jini services. The ServiceUI specification and API in this
+  codebase derive from that work.
+
+### Build Infrastructure
+
+- **Geoffrey Arnold** — contributed the Ant build scripts to the Jini community.
+
+### Apache River
+
+The codebase was donated to and stewarded by the Apache Software Foundation as Apache River before
+JGDMS forked from it. The Apache River community's maintenance, bug fixes, and ongoing work
+during that period are preserved in this codebase.
+
+### JGDMS
+
+- **Peter Firmstone** — primary author of JGDMS; responsible for `@AtomicSerial`, the hardened
+  deserialization infrastructure, `ConcurrentPolicyFile`, `RFC3986URLClassLoader`, the JERI
+  concurrency and DGC rewrites, SPIFFE/SPIRE integration, and the overall security architecture
+  built on top of the Jini foundation.
+- **[bhamail](https://github.com/bhamail)** — contributor
+- **[jukka](https://github.com/jukka)** — contributor
+- **[gmcdonald](https://github.com/gmcdonald)** — contributor
