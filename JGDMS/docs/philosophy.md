@@ -16,9 +16,15 @@ real, well-understood failure mode. That is a meaningful distinction.
 
 ## The Fallacies of Distributed Computing
 
-In 1994, Peter Deutsch (and later James Gosling) documented eight assumptions that developers
-commonly make about distributed systems — assumptions that are all false, and whose falsity causes
-real failures in production. These are known as the *Fallacies of Distributed Computing*:
+The *Fallacies of Distributed Computing* were first articulated at Sun Microsystems in the 1990s.
+L. Peter Deutsch identified the first four fallacies around 1991–1994 while working on distributed
+systems at Sun. James Gosling, the creator of Java and a colleague of Deutsch's at Sun, is credited
+with adding the remaining four. Bill Joy and Tom Lyon are also associated with the early
+formulation. The complete list of eight was later written up and popularised by Arnon Rotem-Gal-Oz
+in a widely cited 2006 essay, *"Fallacies of Distributed Computing Explained"*.
+
+These eight assumptions are things that developers commonly believe about distributed systems —
+and that are all false, every time, in every production environment:
 
 1. The network is reliable.
 2. Latency is zero.
