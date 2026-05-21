@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v51)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v52)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,25 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v52 Change Summary
+
+**Work Item 4.2 (ServiceStarter ordering) completed — hardened startup ordering documented**
+
+- Added a new `## Hardened Boot Pattern — ServiceStarter Ordering` section to
+  `docs/standard-safe-codebase-audit-pipeline.md` documenting the recommended
+  two-phase startup pattern:
+  1) start/discover the VerdictRegistry client first,
+  2) inject/register it before proxy-resolution paths run,
+  3) start all remaining service descriptors only after step 2 succeeds.
+- Added explicit operational guidance that this hardened ordering should fail fast
+  when VerdictRegistry is unreachable at startup, rather than silently entering
+  permissive boot mode.
+- §5 Phase 4 table updated: Item 4.2 marked `✅ Completed`.
+- §6 Work Items table updated: Item 60 added and marked `✅ Completed`.
+- Version header bumped from v51 → v52.
+
+---
 
 ## v51 Change Summary
 
@@ -1009,7 +1028,7 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 | # | Weakness | Action | Status |
 |---|---|---|---|
 | 4.1 | SPIRE HA (W6) | Add SPIRE HA deployment topology to `spiffe-admin-deployment.md` | ✅ Completed |
-| 4.2 | ServiceStarter ordering (W4) | Document recommended startup ordering (VerdictRegistry client first) as the hardened-boot pattern | 🔲 Not started |
+| 4.2 | ServiceStarter ordering (W4) | Document recommended startup ordering (VerdictRegistry client first) as the hardened-boot pattern | ✅ Completed |
 | 4.3 | Policy deny documentation (W8) | Document the negative grants feature (Phase 3.3) with worked examples in `security_architecture_feature_table.md` | 🔲 Not started |
 
 ### Dependency Graph
@@ -1035,7 +1054,7 @@ Phase 3.5 (INCONCLUSIVE P) → Phase 2.5 must be complete first
 
 ---
 
-## 6. Work Items 44–56
+## 6. Work Items 44–60
 
 These extend the work-item table in §12 of
 [context_8](AI_Agent_JGDMS-GrantPermission-RoleManagement-context_8.md).
@@ -1058,6 +1077,7 @@ These extend the work-item table in §12 of
 | **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | 🔲 Not started |
 | **58** | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix — `CodeSourceKey` includes `digestAlgorithm`+`digest` fields from `DigestCodeSource` in `hashCode()`/`equals()`; `getProtectionDomain` promotes plain `CodeSource` to content-addressed `DigestCodeSource` (SHA-256) with two-layer cache (`JarResponseCache` + `digestCache`) — see §7 | DirtyChai | ✅ Complete |
 | **59** | SPIRE HA deployment documentation — `## High Availability Deployment` section in `docs/spiffe-admin-deployment.md`: HA architecture diagram; shared PostgreSQL datastore; `disk` CA vs Vault `UpstreamAuthority`; HAProxy/NLB TCP load balancer config; agent VIP config; failure-mode analysis table; HA operational checklist | 4.1 | ✅ Completed |
+| **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
 
 ---
 

@@ -329,6 +329,28 @@ are explicitly forbidden.
 
 ---
 
+## Hardened Boot Pattern — ServiceStarter Ordering
+
+To reduce the `VerdictRegistryHolder.get() == null` permissive boot window, use a
+two-phase startup order in `ServiceStarter`:
+
+1. Start and discover the VerdictRegistry client first (Host 3).
+2. Inject/register that client so `PreferredProxyCodebaseProvider` can perform
+   verdict checks immediately.
+3. Start all other service descriptors only after step 2 succeeds.
+
+This ordering is the recommended hardened-boot deployment pattern for SCAP because
+it removes the architectural race where early proxy loads can occur before a
+registry client is available.
+
+### Operational note
+
+With this hardened ordering, startup now depends on VerdictRegistry reachability
+(and therefore network/SPIFFE readiness to Host 3). If Host 3 is unavailable,
+startup should fail fast rather than silently entering permissive boot mode.
+
+---
+
 ## Data Objects
 
 ### `AnalysisRequest` (`@AtomicSerial`)
