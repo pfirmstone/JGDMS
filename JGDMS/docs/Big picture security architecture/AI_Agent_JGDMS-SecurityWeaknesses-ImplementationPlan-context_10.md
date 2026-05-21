@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v50)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v51)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,34 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v51 Change Summary
+
+**Work Item 4.1 (SPIRE HA) completed — HA deployment topology added to `spiffe-admin-deployment.md`**
+
+- Added a new `## High Availability Deployment` section to
+  `docs/spiffe-admin-deployment.md` covering:
+  - HA architecture diagram (multiple SPIRE servers → shared PostgreSQL → TCP LB →
+    SPIRE agents → JGDMS JVMs).
+  - HA prerequisites (SPIRE 1.8+, PostgreSQL 14+, TCP load balancer).
+  - Shared datastore configuration (`DataStore "sql"` PostgreSQL plugin with
+    connection-string, pool, and TLS guidance).
+  - CA options: shared `disk` `keys.json` (simplest) vs Vault `UpstreamAuthority`
+    (recommended for production).
+  - Load balancer configuration (HAProxy example + AWS/GCP guidance; health check
+    on SPIRE's `/health/live` HTTP endpoint).
+  - Full `spire-server.conf` HA instance example.
+  - SPIRE agent configuration pointing at the LB VIP (no code change required).
+  - Note that `SpiffeCredentialManager` requires no changes — it is topology-agnostic.
+  - Failure mode analysis table (single-server failure, both-server failure, datastore
+    failure, agent failure, full-site failure).
+  - HA operational checklist (infrastructure, server deployment, agent deployment,
+    JGDMS services, failover test).
+- §5 Phase 4 table updated: Status column added; Item 4.1 marked `✅ Completed`.
+- §6 Work Items table updated: Item 59 added and marked `✅ Completed`.
+- Version header bumped from v50 → v51.
+
+---
 
 ## v50 Change Summary
 
@@ -978,11 +1006,11 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 
 ### Phase 4 — Operational / Deployment
 
-| # | Weakness | Action |
-|---|---|---|
-| 4.1 | SPIRE HA (W6) | Add SPIRE HA deployment topology to `spiffe-admin-deployment.md` |
-| 4.2 | ServiceStarter ordering (W4) | Document recommended startup ordering (VerdictRegistry client first) as the hardened-boot pattern |
-| 4.3 | Policy deny documentation (W8) | Document the negative grants feature (Phase 3.3) with worked examples in `security_architecture_feature_table.md` |
+| # | Weakness | Action | Status |
+|---|---|---|---|
+| 4.1 | SPIRE HA (W6) | Add SPIRE HA deployment topology to `spiffe-admin-deployment.md` | ✅ Completed |
+| 4.2 | ServiceStarter ordering (W4) | Document recommended startup ordering (VerdictRegistry client first) as the hardened-boot pattern | 🔲 Not started |
+| 4.3 | Policy deny documentation (W8) | Document the negative grants feature (Phase 3.3) with worked examples in `security_architecture_feature_table.md` | 🔲 Not started |
 
 ### Dependency Graph
 
@@ -1029,6 +1057,7 @@ These extend the work-item table in §12 of
 | **56** | Pack200 semaphore — `Semaphore(4)` (configurable) around JAR download + decompression in `PreferredProxyCodebaseProvider.resolve()` | 1.5 | ✅ Completed |
 | **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | 🔲 Not started |
 | **58** | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix — `CodeSourceKey` includes `digestAlgorithm`+`digest` fields from `DigestCodeSource` in `hashCode()`/`equals()`; `getProtectionDomain` promotes plain `CodeSource` to content-addressed `DigestCodeSource` (SHA-256) with two-layer cache (`JarResponseCache` + `digestCache`) — see §7 | DirtyChai | ✅ Complete |
+| **59** | SPIRE HA deployment documentation — `## High Availability Deployment` section in `docs/spiffe-admin-deployment.md`: HA architecture diagram; shared PostgreSQL datastore; `disk` CA vs Vault `UpstreamAuthority`; HAProxy/NLB TCP load balancer config; agent VIP config; failure-mode analysis table; HA operational checklist | 4.1 | ✅ Completed |
 
 ---
 

@@ -256,6 +256,332 @@ Active TLS connections are not interrupted during rotation — they complete usi
 
 ---
 
+## High Availability Deployment
+
+This section describes how to eliminate the SPIRE server as a single point of failure.
+A single SPIRE server (plus its agent on each host) works well for development and small
+deployments, but a production JGDMS pipeline should run **two or more SPIRE servers
+backed by a shared relational datastore** so that no individual server failure can prevent
+SVID renewal.  JGDMS's built-in exponential-backoff renewal (`SpiffeCredentialManager`)
+buys time during transient outages; an HA SPIRE deployment eliminates multi-hour outages
+entirely.
+
+---
+
+### HA Architecture Overview
+
+```
+                     ┌────────────────────────────────────────────┐
+                     │  JGDMS service JVM (each host)              │
+                     │   SpiffeCredentialManager                   │
+                     │     reads  /run/spire/{svid,key,bundle}.pem │
+                     └────────────────────────────────────────────┘
+                                   ↑ writes PEM files
+                     ┌────────────────────────────────────────────┐
+                     │  SPIRE agent (local to each host)           │
+                     │    server_address = <LB VIP>               │
+                     └────────────────────────────────────────────┘
+                                   ↑ gRPC :8081
+              ┌─────────────────────────────────────────────────┐
+              │  TCP load balancer (HAProxy / AWS NLB / etc.)    │
+              │  VIP: spire-lb.internal:8081                     │
+              └────────────┬──────────────────┬─────────────────┘
+                           │                  │
+              ┌────────────▼──────┐  ┌────────▼──────────┐
+              │  SPIRE server A   │  │  SPIRE server B    │
+              │  (active)         │  │  (active)          │
+              └────────────┬──────┘  └────────┬───────────┘
+                           │                  │
+              ┌────────────▼──────────────────▼───────────┐
+              │  Shared relational datastore               │
+              │  (PostgreSQL or MySQL — active/standby     │
+              │   or multi-master with JGDMS workload)     │
+              └────────────────────────────────────────────┘
+```
+
+Key points:
+
+* **SPIRE servers are active–active on read paths** (SVID issuance, bundle queries).
+  Write paths (new registration entries, CA key operations) are serialised through the
+  shared datastore.
+* **The load balancer is a simple TCP/L4 proxy** — no TLS termination is needed because
+  SPIRE uses its own mTLS bootstrap handshake.
+* **SPIRE agents are not replicated** — each agent runs locally on the same host as the
+  JGDMS JVM and communicates with the SPIRE server tier through the LB.
+
+---
+
+### HA Prerequisites
+
+| Component | Requirement |
+|---|---|
+| SPIRE server | 1.8+ (active–active datastore support stable; `DataStore "sql"` plugin) |
+| SPIRE agent | 1.8+ |
+| Shared datastore | PostgreSQL 14+ (recommended) or MySQL 8+; accessible from all SPIRE server hosts |
+| Load balancer | Any TCP/L4 load balancer supporting health checks on gRPC port 8081 |
+| Shared CA key material | See §CA Options below |
+
+---
+
+### Shared Datastore Configuration
+
+SPIRE server must be configured to use the `sql` datastore plugin instead of the default
+SQLite.
+
+```hcl
+# spire-server.conf (shared section — identical on every server instance)
+plugins {
+  DataStore "sql" {
+    plugin_data {
+      database_type = "postgres"
+      connection_string = "host=pg-primary.internal port=5432 dbname=spire user=spire password=<password> sslmode=require"
+      max_open_conns    = 10
+      max_idle_conns    = 2
+      conn_max_lifetime = "5m"
+    }
+  }
+}
+```
+
+Create the database and user before starting the first SPIRE server instance; SPIRE will
+create the schema automatically on first boot.
+
+```sql
+-- Run as a PostgreSQL superuser
+CREATE DATABASE spire;
+CREATE USER spire WITH PASSWORD '<strong-random-password>';
+GRANT ALL PRIVILEGES ON DATABASE spire TO spire;
+```
+
+---
+
+### CA Options in HA
+
+Choose one CA strategy before configuring multiple server instances — mixing strategies
+on running servers corrupts the trust bundle.
+
+#### Option 1 — Shared disk CA (simplest)
+
+All SPIRE server instances share the same CA private key via a mounted secret store
+(e.g. a Kubernetes Secret, a `tmpfs` populated by Vault Agent, or an NFS volume with
+tight ACLs).  Every instance reads the same `keys.json` file.
+
+```hcl
+# spire-server.conf
+plugins {
+  KeyManager "disk" {
+    plugin_data {
+      keys_path = "/etc/spire/server/keys.json"
+    }
+  }
+}
+```
+
+**Caution:** the `keys.json` file contains a private key.  Protect it with `chmod 600`
+and restrict access to the `spire-server` service account.  Synchronise this file to all
+server hosts *before* the second instance starts.
+
+#### Option 2 — Upstream authority (recommended for production)
+
+Delegate key material to a dedicated secrets manager.  SPIRE servers act as intermediate
+CAs that obtain signing certificates from an upstream root CA (HashiCorp Vault or AWS
+ACM PCA).  No private key material is stored on the SPIRE server hosts.
+
+```hcl
+# spire-server.conf
+plugins {
+  UpstreamAuthority "vault" {
+    plugin_data {
+      vault_addr    = "https://vault.internal:8200"
+      pki_mount_path = "spire-pki"
+      # Use Kubernetes auth or AppRole; never embed a static token here
+      auth_method  = "kubernetes"
+      k8s_auth_role_name = "spire-server"
+    }
+  }
+}
+```
+
+---
+
+### Load Balancer Configuration
+
+The LB must forward raw TCP to the SPIRE server gRPC port (default 8081).  Use health
+checks on port 8080 (SPIRE's built-in HTTP health endpoint) to detect and exclude failed
+instances.
+
+**HAProxy example (`haproxy.cfg` snippet):**
+
+```
+frontend spire-grpc
+    bind *:8081
+    mode tcp
+    default_backend spire-servers
+
+backend spire-servers
+    mode tcp
+    balance leastconn
+    option tcp-check
+    server spire-a spire-server-a.internal:8081 check port 8080
+    server spire-b spire-server-b.internal:8081 check port 8080
+```
+
+**AWS NLB / GCP TCP LB:** configure two target instances on port 8081; use the SPIRE
+health endpoint (`GET /health/live` on port 8080) as the health check path.
+
+Enable the SPIRE server health endpoint in your `spire-server.conf`:
+
+```hcl
+health_checks {
+  listener_enabled = true
+  bind_port        = "8080"
+  live_path        = "/health/live"
+  ready_path       = "/health/ready"
+}
+```
+
+---
+
+### SPIRE Server Instance Configuration
+
+Each HA server instance uses the same `spire-server.conf` — only the `bind_address`
+(if you use per-host IPs) differs.  A minimal production example:
+
+```hcl
+server {
+  bind_address   = "0.0.0.0"
+  bind_port      = "8081"
+  trust_domain   = "jgdms.example.org"
+  log_level      = "INFO"
+  # How long issued SVIDs are valid (must match registration-entry -ttl values)
+  default_svid_ttl = "1h"
+  # CA certificate TTL (how long SPIRE's own intermediate CA is valid)
+  ca_ttl         = "24h"
+}
+
+plugins {
+  DataStore "sql" {
+    plugin_data {
+      database_type = "postgres"
+      connection_string = "host=pg-primary.internal dbname=spire user=spire password=<pw> sslmode=require"
+    }
+  }
+
+  KeyManager "disk" {
+    plugin_data {
+      keys_path = "/etc/spire/server/keys.json"   # same file on all instances
+    }
+  }
+
+  NodeAttestor "join_token" {}   # or x509pop/aws_iid/k8s_sat as appropriate
+}
+
+health_checks {
+  listener_enabled = true
+  bind_port        = "8080"
+}
+```
+
+Start both instances.  The second instance will discover the existing schema in the
+shared database and join automatically.  There is no explicit "primary" election step.
+
+---
+
+### SPIRE Agent Configuration for HA
+
+Agents connect through the load balancer VIP.  No other agent-side change is needed.
+
+```hcl
+# spire-agent.conf  (same on every JGDMS host)
+agent {
+  data_dir     = "/var/lib/spire/agent"
+  trust_domain = "jgdms.example.org"
+
+  # Point at the LB VIP, not a specific server host
+  server_address = "spire-lb.internal"
+  server_port    = 8081
+
+  log_level = "INFO"
+}
+
+plugins {
+  WorkloadAttestor "unix" {}
+
+  SVIDStore "disk" {
+    plugin_data {
+      svid_file_name   = "/run/spire/svid.pem"
+      key_file_name    = "/run/spire/svid_key.pem"
+      bundle_file_name = "/run/spire/bundle.pem"
+    }
+  }
+}
+```
+
+If the load balancer supports connection draining / health checks, the agent will
+transparently reconnect to the surviving SPIRE server within its gRPC reconnect window
+(SPIRE default: exponential backoff, max 30 s) with no JGDMS application involvement.
+
+---
+
+### JGDMS Application — No Changes Required
+
+`SpiffeCredentialManager` is unaware of the SPIRE topology.  It reads PEM files written
+by the local SPIRE agent, which in turn is connected to the HA SPIRE server cluster.
+The exponential-backoff renewal logic (Work Item 49) provides an additional buffer during
+any brief LB failover window.
+
+The combined survival window during a complete SPIRE-tier outage is:
+
+```
+survival_window = current_svid_remaining_ttl
+               ≈ up to 1 hour from last successful renewal
+```
+
+With two HA servers and a healthy datastore, a single server host failure causes at most
+a few seconds of agent reconnect latency before normal renewal resumes.
+
+---
+
+### Failure Mode Analysis
+
+| Failure | Impact | Recovery |
+|---|---|---|
+| One SPIRE server host fails | LB health check removes it; agent reconnects to surviving server | Automatic within LB health-check interval (~10 s) |
+| Both SPIRE servers fail (datastore healthy) | Agents cannot renew SVIDs; JGDMS renewal retries with exponential backoff | Restart SPIRE servers; they rejoin via shared datastore |
+| Shared datastore primary fails | SPIRE servers cannot issue new SVIDs; existing agents retain their valid SVIDs | Promote datastore standby (standard PostgreSQL HA); SPIRE servers reconnect automatically |
+| SPIRE agent on one JGDMS host fails | That host cannot renew its SVID after expiry | Restart SPIRE agent; it re-attests and fetches a fresh SVID |
+| Full site failure | All SVIDs expire after TTL | Restore SPIRE server cluster + agents; JGDMS services restart and obtain fresh SVIDs |
+
+---
+
+### HA Operational Checklist
+
+#### Infrastructure setup
+
+- [ ] Shared PostgreSQL (or MySQL) instance accessible from all SPIRE server hosts; TLS enforced on the connection string
+- [ ] `spire` database and user created; password stored in a secrets manager (not in `spire-server.conf` in plain text)
+- [ ] CA key material decision made: shared `keys.json` (sync before start) or Vault `UpstreamAuthority`
+- [ ] TCP load balancer configured for port 8081; health checks on port 8080 `/health/live`
+
+#### SPIRE server deployment
+
+- [ ] Both server instances started; `spire-server healthcheck` returns healthy on each
+- [ ] `spire-server bundle show` returns the same trust bundle on both instances
+- [ ] Registration entries verified: `spire-server entry show` lists all JGDMS workloads on both instances
+
+#### SPIRE agent deployment
+
+- [ ] `server_address` updated to load balancer VIP on all hosts
+- [ ] Each agent re-attested after the address change; `spire-agent healthcheck` returns healthy
+
+#### JGDMS services
+
+- [ ] INFO log on each JVM confirms `"SpiffeCredentialManager started; SVID expires at <timestamp>"` after the HA switch
+- [ ] Failover tested: stop one SPIRE server instance; verify SVID renewal still succeeds within 60 s on all hosts
+- [ ] `isCredentialValid()` returns `true` and `secondsUntilExpiry()` > `renewalLeadSeconds` at steady state
+
+---
+
 ## Java Security Policy
 
 If a Java security manager is active, the process that runs `SpiffeCredentialManager` must be granted the following permissions:
