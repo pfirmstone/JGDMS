@@ -120,6 +120,7 @@ import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.export.CodebaseAccessor;
+import net.jini.export.CodebaseDigestUtil;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.id.ReferentUuid;
@@ -440,6 +441,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private final String certPathEncoding;
     private final byte[] encodedCerts;
     private final String codebase;
+    private final byte[] codebaseDigestFlat;
+    private final int[]  codebaseDigestOffsets;
+    private final String codebaseDigestAlgorithm;
     
 
     /**
@@ -531,6 +535,18 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	this.certFactoryType = init.certFactoryType;
 	this.certPathEncoding = init.certPathEncoding;
 	this.encodedCerts = init.encodedCerts.clone();
+        {
+            CodebaseDigestUtil.Result dr = null;
+            try {
+                dr = CodebaseDigestUtil.compute(getClassAnnotation(), "SHA-256");
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING,
+                        "RegistrarImpl: could not pre-compute codebase digest", e);
+            }
+            codebaseDigestFlat      = dr != null ? dr.getFlatDigest()  : null;
+            codebaseDigestOffsets   = dr != null ? dr.getOffsets()     : null;
+            codebaseDigestAlgorithm = dr != null ? dr.getAlgorithm()   : null;
+        }
         lifeCycle = init.lifeCycle;
         serverSocketFactory = init.serverSocketFactory;
         persistenceSnapshotThreshold = init.persistenceSnapshotThreshold;
@@ -684,6 +700,23 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     @Override
     public byte[] getEncodedCerts() throws IOException {
 	return encodedCerts.clone();
+    }
+
+    @Override
+    public String getCodebaseDigestAlgorithm() throws IOException {
+        return codebaseDigestAlgorithm;
+    }
+
+    @Override
+    public byte[] getCodebaseDigest() throws IOException {
+        byte[] d = codebaseDigestFlat;
+        return d != null ? d.clone() : null;
+    }
+
+    @Override
+    public int[] getDigestOffsets() throws IOException {
+        int[] o = codebaseDigestOffsets;
+        return o != null ? o.clone() : null;
     }
 
     /** A service item registration record. */
