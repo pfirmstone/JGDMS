@@ -417,10 +417,106 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // computePerJarDigestBytes tests
+    // -------------------------------------------------------------------------
 
-    // -------------------------------------------------------------------------
-    // Stub VerdictRegistry
-    // -------------------------------------------------------------------------
+    @Test
+    public void computePerJarDigestBytes_singleJar_matchesDirectDigest()
+            throws Exception {
+        java.io.File tmp = java.io.File.createTempFile("testjar", ".jar");
+        tmp.deleteOnExit();
+        byte[] content = new byte[]{10, 20, 30, 40};
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp)) {
+            fos.write(content);
+        }
+        java.net.URL jarUrl = tmp.toURI().toURL();
+        // codebase[0] = dummy dir, codebase[1] = the JAR
+        java.net.URL[] codebase = new java.net.URL[]{
+            new java.net.URL("file:///dummy/dir/"),
+            jarUrl
+        };
+        int[] offsets = new int[]{1};
+
+        byte[][] result = PreferredProxyCodebaseProvider
+                .computePerJarDigestBytes(codebase, offsets, "SHA-256");
+
+        assertNotNull(result);
+        assertEquals("one digest per offset entry", 1, result.length);
+        assertEquals("each per-JAR digest is 32 bytes for SHA-256", 32, result[0].length);
+
+        // Verify it matches a direct SHA-256 of the file content
+        java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+        byte[] expected = md.digest(content);
+        assertArrayEquals("per-JAR digest must equal direct SHA-256 of file content",
+                expected, result[0]);
+    }
+
+    @Test
+    public void computePerJarDigestBytes_multipleJars_eachDigestIndependent()
+            throws Exception {
+        java.io.File tmp1 = java.io.File.createTempFile("jar1", ".jar");
+        java.io.File tmp2 = java.io.File.createTempFile("jar2", ".jar");
+        tmp1.deleteOnExit();
+        tmp2.deleteOnExit();
+        byte[] content1 = new byte[]{1, 2, 3};
+        byte[] content2 = new byte[]{4, 5, 6, 7};
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp1)) {
+            fos.write(content1);
+        }
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp2)) {
+            fos.write(content2);
+        }
+        java.net.URL[] codebase = new java.net.URL[]{
+            tmp1.toURI().toURL(),
+            tmp2.toURI().toURL()
+        };
+        int[] offsets = new int[]{0, 1};
+
+        byte[][] result = PreferredProxyCodebaseProvider
+                .computePerJarDigestBytes(codebase, offsets, "SHA-256");
+
+        assertEquals("should have two entries", 2, result.length);
+        assertFalse("digests for different JARs must differ",
+                java.util.Arrays.equals(result[0], result[1]));
+
+        java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+        assertArrayEquals("digest[0] must match SHA-256 of jar1 content",
+                md.digest(content1), result[0]);
+        md.reset();
+        assertArrayEquals("digest[1] must match SHA-256 of jar2 content",
+                md.digest(content2), result[1]);
+    }
+
+    @Test
+    public void computePerJarDigestBytes_emptyOffsets_returnsEmptyArray()
+            throws Exception {
+        java.net.URL[] codebase = new java.net.URL[0];
+        int[] offsets = new int[0];
+        byte[][] result = PreferredProxyCodebaseProvider
+                .computePerJarDigestBytes(codebase, offsets, "SHA-256");
+        assertNotNull(result);
+        assertEquals("empty offsets should produce empty result", 0, result.length);
+    }
+
+    @Test
+    public void computePerJarDigestBytes_unknownAlgorithm_throwsIOException()
+            throws Exception {
+        java.io.File tmp = java.io.File.createTempFile("jar", ".jar");
+        tmp.deleteOnExit();
+        tmp.createNewFile();
+        java.net.URL[] codebase = new java.net.URL[]{tmp.toURI().toURL()};
+        int[] offsets = new int[]{0};
+        try {
+            PreferredProxyCodebaseProvider
+                    .computePerJarDigestBytes(codebase, offsets, "NO-SUCH-ALGO");
+            fail("Expected IOException for unknown algorithm");
+        } catch (IOException expected) {
+            // pass
+        }
+    }
+
+
 
     /**
      * A minimal, configurable stub for {@link VerdictRegistry} that avoids

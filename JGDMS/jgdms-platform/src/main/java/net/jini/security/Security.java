@@ -1380,6 +1380,28 @@ public final class Security {
      *       principal).</li>
      * </ul>
      */
+    /**
+     * Returns the {@link Principal}s of the calling thread's current
+     * {@link javax.security.auth.Subject}(s).
+     *
+     * <p>This is the public counterpart of the internal
+     * {@code getCurrentPrincipals()} helper.  It is primarily intended for use
+     * by code that needs to scope a dynamic {@link org.apache.river.api.security.PermissionGrant}
+     * to the local process identity (e.g. when issuing a
+     * {@link org.apache.river.api.security.DigestGrant} during the boot window).
+     *
+     * <p>The union of principals from both {@link javax.security.auth.Subject#current
+     * Subject.current()} (user) and the worker Subject on the current
+     * {@link java.security.AccessControlContext} is returned; if neither is
+     * present, {@code null} is returned (meaning "any principal").
+     *
+     * @return the current calling context's principals, or {@code null} if
+     *         no Subject is active
+     */
+    public static Principal[] currentPrincipals() {
+	return getCurrentPrincipals();
+    }
+
     private static Principal[] getCurrentPrincipals() {
 	final AccessControlContext acc = AccessController.getContext();
 	// Both Subject.current() and Subject.getSubject() trigger permission
