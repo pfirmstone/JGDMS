@@ -59,7 +59,9 @@ import javax.security.auth.Subject;
 import javax.security.auth.SubjectDomainCombiner;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.SecurityContextSource;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.river.api.security.ExternallyVoidablePermissionGrant;
+import org.apache.river.api.security.LocalPrincipalProvider;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.api.security.RevocablePolicy;
@@ -185,6 +187,16 @@ public final class Security {
     @SuppressWarnings("unchecked")
     private static final ConcurrentMap<ClassLoader, ExternallyVoidablePermissionGrant> retainedInconclusiveLoaderGrants =
         RC.concurrentMap(new ConcurrentHashMap(64), Ref.WEAK, Ref.WEAK, 60000L, 60000L);
+    /**
+     * Process-wide local identity provider, used as a fallback when no
+     * {@link Subject} is accessible from the current
+     * {@link AccessControlContext}.  Registered by workload-identity managers
+     * such as {@code SpiffeCredentialManager} (in {@code jgdms-jeri}) at
+     * startup so that {@link #currentPrincipals()} can return the local SPIFFE
+     * principals even when no {@code Subject.doAs()} wraps the call.
+     */
+    private static final AtomicReference<LocalPrincipalProvider> localPrincipalProvider =
+            new AtomicReference<>(null);
     /**
      * Weak map from ClassLoader to SoftReference(IntegrityVerifier[]).
      */
@@ -1381,8 +1393,31 @@ public final class Security {
      * </ul>
      */
     /**
+     * Registers a {@link LocalPrincipalProvider} that {@link #currentPrincipals()}
+     * will consult when no {@link javax.security.auth.Subject} is active in the
+     * current {@link java.security.AccessControlContext}.
+     *
+     * <p>This is the integration point for workload-identity managers (e.g.
+     * {@code SpiffeCredentialManager} in {@code jgdms-jeri}) that maintain a
+     * process-wide identity that is not propagated via
+     * {@code Subject.doAs()}/{@code Subject.callAs()}.  The manager should call
+     * this method with a non-{@code null} provider at startup, and again with
+     * {@code null} (or replace with a different instance) when it shuts down.
+     *
+     * <p>Only one provider may be registered at a time; a new call simply
+     * replaces the previous registration.  Passing {@code null} clears the
+     * registration.
+     *
+     * @param provider the provider to register, or {@code null} to clear
+     */
+    public static void registerLocalPrincipalProvider(LocalPrincipalProvider provider) {
+        localPrincipalProvider.set(provider);
+    }
+
+    /**
      * Returns the {@link Principal}s of the calling thread's current
-     * {@link javax.security.auth.Subject}(s).
+     * {@link javax.security.auth.Subject}(s), or the process-wide local
+     * identity if no Subject is active.
      *
      * <p>This is the public counterpart of the internal
      * {@code getCurrentPrincipals()} helper.  It is primarily intended for use
@@ -1390,13 +1425,20 @@ public final class Security {
      * to the local process identity (e.g. when issuing a
      * {@link org.apache.river.api.security.DigestGrant} during the boot window).
      *
-     * <p>The union of principals from both {@link javax.security.auth.Subject#current
-     * Subject.current()} (user) and the worker Subject on the current
-     * {@link java.security.AccessControlContext} is returned; if neither is
-     * present, {@code null} is returned (meaning "any principal").
+     * <p>The lookup order is:
+     * <ol>
+     * <li>The union of principals from {@link javax.security.auth.Subject#current
+     * Subject.current()} (user) and/or the worker {@link javax.security.auth.Subject}
+     * on the current {@link java.security.AccessControlContext}.</li>
+     * <li>If neither Subject is active, the registered
+     * {@link LocalPrincipalProvider} (e.g. the process-wide SPIFFE workload
+     * identity from {@code SpiffeCredentialManager}) is consulted.</li>
+     * <li>{@code null} is returned if no identity is available from any source,
+     * meaning "any principal".</li>
+     * </ol>
      *
      * @return the current calling context's principals, or {@code null} if
-     *         no Subject is active
+     *         no Subject is active and no local identity provider is registered
      */
     public static Principal[] currentPrincipals() {
 	return getCurrentPrincipals();
@@ -1414,7 +1456,13 @@ public final class Security {
 	    });
 	Subject user   = subjects[0];
 	Subject worker = subjects[1];
-	if (user == null && worker == null) return null;
+	if (user == null && worker == null) {
+	    // No Subject-based identity: fall back to the registered process-wide
+	    // local identity provider (e.g. SPIFFE workload registered by
+	    // SpiffeCredentialManager, which is not propagated via Subject.doAs()).
+	    LocalPrincipalProvider lip = localPrincipalProvider.get();
+	    return (lip != null) ? lip.getLocalPrincipals() : null;
+	}
 	if (user == null) {
 	    Set<Principal> ps = worker.getPrincipals();
 	    return ps.toArray(new Principal[ps.size()]);
