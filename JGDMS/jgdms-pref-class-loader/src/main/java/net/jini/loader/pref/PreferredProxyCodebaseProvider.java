@@ -25,27 +25,35 @@ import java.io.InputStream;
 import java.io.InvalidObjectException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLPermission;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.security.AccessController;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Permission;
+import java.security.Policy;
+import java.security.Principal;
 import java.security.PrivilegedAction;
+import java.security.ProtectionDomain;
+import java.security.UnresolvedPermission;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Semaphore;
@@ -53,14 +61,20 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.constraint.BasicMethodConstraints;
 import net.jini.constraint.StringMethodConstraints;
+import net.jini.core.constraint.InvocationConstraint;
+import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.export.CodebaseAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.context.IntegrityEnforcement;
+import net.jini.loader.DownloadPermission;
 import net.jini.loader.ProxyCodebaseSpi;
 import net.jini.security.Security;
 import org.apache.river.api.net.Uri;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
@@ -273,6 +287,171 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             sb.append(Character.forDigit(b & 0xF, 16));
         }
         return sb.toString();
+    }
+
+    /**
+     * Computes a combined digest over all non-directory JAR URLs in the given
+     * codebase, in order.
+     *
+     * <p>The algorithm is: for each JAR URL (in order, excluding directory
+     * URLs), compute an inner digest of the entire JAR content bytes; then
+     * feed all inner digest bytes sequentially into an outer
+     * {@link MessageDigest} and return the final outer digest.  This
+     * "hash-of-hashes" approach makes the result independent of the JAR
+     * content layout across URL boundaries.
+     *
+     * <p>For a codebase containing a single JAR this is equivalent to
+     * {@code digest(digest(jarContent))}.
+     *
+     * @param codebase  the JAR URLs; directory URLs are skipped
+     * @param algorithm the digest algorithm name (e.g. {@code "SHA-256"})
+     * @return the combined codebase digest bytes
+     * @throws IOException if a JAR cannot be read or the algorithm is unknown
+     */
+    static byte[] computeCodebaseDigestBytes(URL[] codebase, String algorithm)
+            throws IOException {
+        MessageDigest outer;
+        try {
+            outer = MessageDigest.getInstance(algorithm);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IOException(algorithm + " MessageDigest not available", ex);
+        }
+        for (URL url : codebase) {
+            if (!isDirectory(url)) {
+                MessageDigest inner;
+                try {
+                    inner = MessageDigest.getInstance(algorithm);
+                } catch (NoSuchAlgorithmException ex) {
+                    throw new IOException(algorithm + " MessageDigest not available", ex);
+                }
+                try (InputStream in = url.openStream()) {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) {
+                        inner.update(buf, 0, n);
+                    }
+                }
+                outer.update(inner.digest());
+            }
+        }
+        return outer.digest();
+    }
+
+    /**
+     * Extracts the server-side {@link Principal}s declared via
+     * {@link ServerMinPrincipal} constraints in the given
+     * {@link MethodConstraints}, using the {@code getClassAnnotation} method
+     * as a representative key.
+     *
+     * @param mc the method constraints set on the bootstrap proxy, or
+     *           {@code null}
+     * @return an array of server principals, or {@code null} if none are
+     *         found
+     */
+    static Principal[] extractServerPrincipals(MethodConstraints mc) {
+        if (mc == null) return null;
+        Method m;
+        try {
+            m = CodebaseAccessor.class.getMethod("getClassAnnotation");
+        } catch (NoSuchMethodException ex) {
+            logger.log(Level.FINE,
+                    "Could not reflect CodebaseAccessor.getClassAnnotation", ex);
+            return null;
+        }
+        InvocationConstraints ic = mc.getConstraints(m);
+        Set<Principal> principals = new HashSet<Principal>();
+        for (InvocationConstraint c : ic.requirements()) {
+            if (c instanceof ServerMinPrincipal) {
+                @SuppressWarnings("unchecked")
+                Set<Principal> elements = ((ServerMinPrincipal) c).elements();
+                principals.addAll(elements);
+            }
+        }
+        return principals.isEmpty() ? null : principals.toArray(new Principal[0]);
+    }
+
+    /**
+     * Checks whether the given server principals are granted
+     * {@link BootstrapPermission}{@code ("loadCodebase")} by the current
+     * security policy.
+     *
+     * @param serverPrincipals the authenticated server principals
+     * @param path             the codebase annotation string (for messages)
+     * @throws SecurityException if the policy does not grant
+     *                           {@code BootstrapPermission} to the principals
+     */
+    private static void checkBootstrapPermission(Principal[] serverPrincipals,
+                                                  String path) {
+        final Policy policy = AccessController.doPrivileged(
+                new PrivilegedAction<Policy>() {
+                    @Override
+                    public Policy run() {
+                        return Policy.getPolicy();
+                    }
+                });
+        ProtectionDomain serverDomain =
+                new ProtectionDomain(null, null, null, serverPrincipals);
+        if (!policy.implies(serverDomain, new BootstrapPermission(BootstrapPermission.TARGET_NAME))) {
+            logger.log(Level.SEVERE,
+                    "Server principal denied BootstrapPermission;"
+                    + " refusing codebase: {0}",
+                    path);
+            throw new SecurityException(
+                    "Server principal denied BootstrapPermission;"
+                    + " refusing codebase: " + path);
+        }
+    }
+
+    /**
+     * Attempts to make a best-effort {@link PermissionGrant} scoped to the
+     * given codebase digest, granting {@link DownloadPermission},
+     * {@link URLPermission} for each JAR URL, and an
+     * {@link UnresolvedPermission} for {@code net.jini.loader.LoadClassPermission}
+     * (the last permission only takes effect on DirtyChai JVMs that carry a
+     * {@code DigestCodeSource}).
+     *
+     * <p>If the installed policy is not a {@code RevocablePolicy} or the
+     * calling context lacks {@link net.jini.security.GrantPermission}, the
+     * grant attempt is silently skipped.
+     *
+     * @param algorithm  the digest algorithm used (e.g. {@code "SHA-256"})
+     * @param digest     the codebase digest bytes
+     * @param codebase   the JAR/directory URLs
+     */
+    private static void tryGrantDigestGrant(String algorithm,
+                                            byte[] digest,
+                                            URL[] codebase) {
+        try {
+            List<Permission> perms = new ArrayList<Permission>();
+            perms.add(new DownloadPermission());
+            for (URL url : codebase) {
+                if (!isDirectory(url)) {
+                    try {
+                        perms.add(new URLPermission(url.toString()));
+                    } catch (Exception ex) {
+                        logger.log(Level.FINE,
+                                "Could not create URLPermission for {0}", url);
+                    }
+                }
+            }
+            // LoadClassPermission lives in DirtyChai; use UnresolvedPermission
+            // so that the grant is recorded even when running on a standard JVM.
+            perms.add(new UnresolvedPermission(
+                    "net.jini.loader.LoadClassPermission", null, null, null));
+            PermissionGrant grant = PermissionGrantBuilder.newBuilder()
+                    .context(PermissionGrantBuilder.DIGEST)
+                    .digest(algorithm, digest)
+                    .permissions(perms.toArray(new Permission[0]))
+                    .build();
+            Security.grant(grant);
+        } catch (UnsupportedOperationException ex) {
+            logger.log(Level.FINE,
+                    "DigestGrant skipped: policy does not support revocable grants");
+        } catch (SecurityException ex) {
+            logger.log(Level.FINE,
+                    "DigestGrant skipped: calling context lacks GrantPermission: {0}",
+                    ex.getMessage());
+        }
     }
 
     /**
@@ -522,6 +701,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                         }
                     }
                 } else {
+                    // VerdictRegistry not yet set: boot-time window.
+                    // Build per-JAR hash log for audit purposes.
                     StringBuilder bootWindowHashes = new StringBuilder();
                     bootWindowHashes.append('[');
                     boolean first = true;
@@ -544,10 +725,70 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                         }
                     }
                     bootWindowHashes.append(']');
-                    logger.log(Level.WARNING,
-                            "VerdictRegistry not yet set; skipping verdict check"
-                            + " (boot-time permissive policy) - codebase: {0}; SHA-256: {1}",
-                            new Object[]{path, bootWindowHashes.toString()});
+
+                    // Gate 1: BootstrapPermission check.
+                    // Only applied when the client has configured SPIFFE-based
+                    // ServerMinPrincipal constraints — this ensures backward
+                    // compatibility for deployments without SPIFFE auth.
+                    Principal[] serverPrincipals = extractServerPrincipals(mc);
+                    if (serverPrincipals != null && serverPrincipals.length > 0) {
+                        // Throws SecurityException if the server's principal
+                        // is not granted BootstrapPermission in the local policy.
+                        checkBootstrapPermission(serverPrincipals, path);
+
+                        // Gate 2: Codebase digest comparison.
+                        // Obtain the server's pre-computed codebase digest over
+                        // the authenticated (SPIFFE/TLS) channel.
+                        String algo = null;
+                        byte[] serverDigest = null;
+                        try {
+                            algo = bootstrapProxy.getCodebaseDigestAlgorithm();
+                            serverDigest = bootstrapProxy.getCodebaseDigest();
+                        } catch (IOException ex) {
+                            logger.log(Level.WARNING,
+                                    "Boot window: failed to fetch codebase digest from server"
+                                    + " (proceeding on BootstrapPermission alone);"
+                                    + " codebase: {0}; SHA-256: {1}",
+                                    new Object[]{path, bootWindowHashes.toString()});
+                        }
+
+                        if (algo != null && serverDigest != null && serverDigest.length > 0) {
+                            // Compute the same combined digest locally.
+                            byte[] localDigest = computeCodebaseDigestBytes(codebase, algo);
+                            if (!Arrays.equals(localDigest, serverDigest)) {
+                                logger.log(Level.SEVERE,
+                                        "Codebase digest mismatch (possible MITM attack);"
+                                        + " refusing codebase: {0}; SHA-256: {1}",
+                                        new Object[]{path, bootWindowHashes.toString()});
+                                throw new SecurityException(
+                                        "Codebase digest mismatch (possible MITM attack);"
+                                        + " refusing: " + path);
+                            }
+                            // Digests match: dynamically grant DigestGrant so that
+                            // the downloaded code can only be defined if the digest
+                            // still matches at class-definition time (DirtyChai JVM).
+                            tryGrantDigestGrant(algo, localDigest, codebase);
+                            logger.log(Level.INFO,
+                                    "Boot window: codebase digest verified and DigestGrant applied;"
+                                    + " codebase: {0}",
+                                    path);
+                        } else {
+                            // BootstrapPermission granted, but server did not
+                            // provide a digest.  Log the hashes for auditing.
+                            logger.log(Level.WARNING,
+                                    "Boot window: BootstrapPermission granted but server"
+                                    + " provided no codebase digest;"
+                                    + " codebase: {0}; SHA-256: {1}",
+                                    new Object[]{path, bootWindowHashes.toString()});
+                        }
+                    } else {
+                        // No SPIFFE principals configured — fall back to the
+                        // existing permissive boot-window behaviour.
+                        logger.log(Level.WARNING,
+                                "VerdictRegistry not yet set; skipping verdict check"
+                                + " (boot-time permissive policy) - codebase: {0}; SHA-256: {1}",
+                                new Object[]{path, bootWindowHashes.toString()});
+                    }
                 }
 
                 /**

@@ -269,6 +269,156 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     // -------------------------------------------------------------------------
+    // BootstrapPermission tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void bootstrapPermission_defaultConstructorHasTargetName() {
+        BootstrapPermission bp = new BootstrapPermission();
+        assertEquals(BootstrapPermission.TARGET_NAME, bp.getName());
+    }
+
+    @Test
+    public void bootstrapPermission_nameConstructor() {
+        BootstrapPermission bp = new BootstrapPermission("loadCodebase");
+        assertEquals("loadCodebase", bp.getName());
+    }
+
+    @Test
+    public void bootstrapPermission_impliesSameName() {
+        BootstrapPermission a = new BootstrapPermission("loadCodebase");
+        BootstrapPermission b = new BootstrapPermission("loadCodebase");
+        assertTrue("identical BootstrapPermissions should imply each other",
+                a.implies(b));
+    }
+
+    @Test
+    public void bootstrapPermission_doesNotImplyOtherPermission() {
+        BootstrapPermission bp = new BootstrapPermission("loadCodebase");
+        assertFalse("BootstrapPermission should not imply a RuntimePermission",
+                bp.implies(new RuntimePermission("exitVM")));
+    }
+
+    // -------------------------------------------------------------------------
+    // extractServerPrincipals tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void extractServerPrincipals_nullConstraints_returnsNull() {
+        assertNull("null mc should yield null principals",
+                PreferredProxyCodebaseProvider.extractServerPrincipals(null));
+    }
+
+    @Test
+    public void extractServerPrincipals_noServerMinPrincipal_returnsNull() {
+        // BasicMethodConstraints with EMPTY constraints
+        net.jini.core.constraint.InvocationConstraints ic =
+                net.jini.core.constraint.InvocationConstraints.EMPTY;
+        net.jini.core.constraint.MethodConstraints mc =
+                new net.jini.constraint.BasicMethodConstraints(ic);
+        assertNull("mc without ServerMinPrincipal should yield null",
+                PreferredProxyCodebaseProvider.extractServerPrincipals(mc));
+    }
+
+    @Test
+    public void extractServerPrincipals_withServerMinPrincipal_returnsPrincipals() {
+        java.security.Principal spiffePrincipal = new java.security.Principal() {
+            public String getName() { return "spiffe://trust.example/svc/reggie"; }
+            public String toString() { return "SpiffeId[" + getName() + "]"; }
+        };
+        net.jini.core.constraint.ServerMinPrincipal smp =
+                new net.jini.core.constraint.ServerMinPrincipal(spiffePrincipal);
+        net.jini.core.constraint.InvocationConstraints ic =
+                new net.jini.core.constraint.InvocationConstraints(smp, null);
+        net.jini.core.constraint.MethodConstraints mc =
+                new net.jini.constraint.BasicMethodConstraints(ic);
+
+        java.security.Principal[] result =
+                PreferredProxyCodebaseProvider.extractServerPrincipals(mc);
+
+        assertNotNull("should find principals in ServerMinPrincipal", result);
+        assertEquals("should have exactly one principal", 1, result.length);
+        assertEquals("spiffe://trust.example/svc/reggie", result[0].getName());
+    }
+
+    // -------------------------------------------------------------------------
+    // computeCodebaseDigestBytes tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void computeCodebaseDigestBytes_emptyCodebase_returnsSha256OfEmpty()
+            throws Exception {
+        java.net.URL[] codebase = new java.net.URL[0];
+        byte[] result = PreferredProxyCodebaseProvider
+                .computeCodebaseDigestBytes(codebase, "SHA-256");
+        assertNotNull(result);
+        assertEquals("SHA-256 digest should be 32 bytes", 32, result.length);
+        // SHA-256 of empty input is a known constant
+        byte[] expectedEmpty = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(new byte[0]);
+        assertArrayEquals("empty codebase digest must equal SHA-256 of empty input",
+                expectedEmpty, result);
+    }
+
+    @Test
+    public void computeCodebaseDigestBytes_singleJar_reproducible()
+            throws Exception {
+        // Write a small pseudo-JAR to a temp file
+        java.io.File tmp = java.io.File.createTempFile("testjar", ".jar");
+        tmp.deleteOnExit();
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp)) {
+            fos.write(new byte[]{1, 2, 3, 4, 5});
+        }
+        java.net.URL[] codebase = new java.net.URL[]{tmp.toURI().toURL()};
+
+        byte[] first  = PreferredProxyCodebaseProvider
+                .computeCodebaseDigestBytes(codebase, "SHA-256");
+        byte[] second = PreferredProxyCodebaseProvider
+                .computeCodebaseDigestBytes(codebase, "SHA-256");
+
+        assertNotNull(first);
+        assertEquals("SHA-256 digest should be 32 bytes", 32, first.length);
+        assertArrayEquals("repeated calls on same file must return identical digest",
+                first, second);
+    }
+
+    @Test
+    public void computeCodebaseDigestBytes_differentContent_differentDigest()
+            throws Exception {
+        java.io.File tmp1 = java.io.File.createTempFile("testjar1", ".jar");
+        java.io.File tmp2 = java.io.File.createTempFile("testjar2", ".jar");
+        tmp1.deleteOnExit();
+        tmp2.deleteOnExit();
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp1)) {
+            fos.write(new byte[]{1, 2, 3});
+        }
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp2)) {
+            fos.write(new byte[]{4, 5, 6});
+        }
+
+        byte[] d1 = PreferredProxyCodebaseProvider
+                .computeCodebaseDigestBytes(new java.net.URL[]{tmp1.toURI().toURL()}, "SHA-256");
+        byte[] d2 = PreferredProxyCodebaseProvider
+                .computeCodebaseDigestBytes(new java.net.URL[]{tmp2.toURI().toURL()}, "SHA-256");
+
+        assertFalse("different JAR contents must produce different digests",
+                java.util.Arrays.equals(d1, d2));
+    }
+
+    @Test
+    public void computeCodebaseDigestBytes_unknownAlgorithm_throwsIOException() {
+        java.net.URL[] codebase = new java.net.URL[0];
+        try {
+            PreferredProxyCodebaseProvider
+                    .computeCodebaseDigestBytes(codebase, "NO-SUCH-ALGO");
+            fail("Expected IOException for unknown algorithm");
+        } catch (IOException expected) {
+            // pass
+        }
+    }
+
+
+    // -------------------------------------------------------------------------
     // Stub VerdictRegistry
     // -------------------------------------------------------------------------
 

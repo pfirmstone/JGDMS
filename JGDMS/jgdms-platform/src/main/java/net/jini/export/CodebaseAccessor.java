@@ -86,5 +86,48 @@ public interface CodebaseAccessor extends Remote {
      * @see CertificateFactory#generateCertificates(java.io.InputStream) 
      */
     public byte [] getEncodedCerts() throws IOException;
-    
+
+    /**
+     * Returns the name of the digest algorithm used to compute the codebase
+     * digest returned by {@link #getCodebaseDigest()}.
+     *
+     * <p>The default implementation returns {@code null}, indicating that the
+     * service does not supply a codebase digest.  Implementations should
+     * return a standard algorithm name such as {@code "SHA-256"}.
+     *
+     * <p>The digest is transmitted over the already-authenticated SPIFFE/TLS
+     * channel and is therefore integrity-protected by the transport layer.
+     *
+     * @return the digest algorithm name, or {@code null} if not supported
+     * @throws IOException if a communication problem occurs
+     */
+    public default String getCodebaseDigestAlgorithm() throws IOException {
+        return null;
+    }
+
+    /**
+     * Returns a pre-computed digest of the entire codebase as a byte array,
+     * or {@code null} if not supported.
+     *
+     * <p>The digest is computed as follows: for each JAR URL in the codebase
+     * annotation (in order, excluding directory URLs), the per-JAR digest is
+     * computed using the algorithm returned by
+     * {@link #getCodebaseDigestAlgorithm()}.  The returned digest is then the
+     * result of applying the same algorithm to the concatenation of all
+     * per-JAR digest bytes (hash-of-hashes).  For a codebase with a single
+     * JAR this is equivalent to {@code digest(digest(jarContent))}.
+     *
+     * <p>The default implementation returns {@code null}.  Implementations
+     * should pre-compute and cache this value at service startup.
+     *
+     * <p>The digest is transmitted over the already-authenticated SPIFFE/TLS
+     * channel and is therefore integrity-protected by the transport layer.
+     *
+     * @return the codebase digest bytes, or {@code null} if not supported
+     * @throws IOException if a communication problem occurs
+     */
+    public default byte[] getCodebaseDigest() throws IOException {
+        return null;
+    }
+
 }
