@@ -528,6 +528,168 @@ public class PreferredProxyCodebaseProviderVerdictTest {
 
 
 
+
+
+    // -------------------------------------------------------------------------
+    // validateDigestOffsets tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void validateDigestOffsets_validSingleEntry_noException() throws Exception {
+        byte[] flat = new byte[32]; // 32-byte SHA-256 digest
+        int[] offsets = new int[]{0};
+        PreferredProxyCodebaseProvider.validateDigestOffsets(flat, offsets);
+    }
+
+    @Test
+    public void validateDigestOffsets_validTwoEntries_noException() throws Exception {
+        byte[] flat = new byte[64]; // two 32-byte SHA-256 digests
+        int[] offsets = new int[]{0, 32};
+        PreferredProxyCodebaseProvider.validateDigestOffsets(flat, offsets);
+    }
+
+    @Test
+    public void validateDigestOffsets_negativeOffset_throwsIOException() {
+        byte[] flat = new byte[32];
+        int[] offsets = new int[]{-1};
+        try {
+            PreferredProxyCodebaseProvider.validateDigestOffsets(flat, offsets);
+            fail("Expected IOException for negative offset");
+        } catch (IOException expected) {
+            assertTrue("Message should mention negative",
+                    expected.getMessage().contains("negative"));
+        }
+    }
+
+    @Test
+    public void validateDigestOffsets_offsetOutOfBounds_throwsIOException() {
+        byte[] flat = new byte[32];
+        int[] offsets = new int[]{0, 64}; // 64 > flat.length=32
+        try {
+            PreferredProxyCodebaseProvider.validateDigestOffsets(flat, offsets);
+            fail("Expected IOException for out-of-bounds offset");
+        } catch (IOException expected) {
+            assertTrue("Message should mention out of bounds",
+                    expected.getMessage().contains("out of bounds"));
+        }
+    }
+
+    @Test
+    public void validateDigestOffsets_nonMonotonicOffsets_throwsIOException() {
+        byte[] flat = new byte[64];
+        int[] offsets = new int[]{32, 16}; // non-monotonic: 32 > 16
+        try {
+            PreferredProxyCodebaseProvider.validateDigestOffsets(flat, offsets);
+            fail("Expected IOException for non-monotonic offsets");
+        } catch (IOException expected) {
+            assertTrue("Message should mention monoton",
+                    expected.getMessage().contains("monoton"));
+        }
+    }
+
+    @Test
+    public void validateDigestOffsets_tooManyOffsets_throwsIOException() {
+        int limit = PreferredProxyCodebaseProvider.DEFAULT_MAX_CODEBASE_JARS + 1;
+        byte[] flat = new byte[limit * 32];
+        int[] offsets = new int[limit];
+        for (int i = 0; i < limit; i++) {
+            offsets[i] = i * 32;
+        }
+        try {
+            PreferredProxyCodebaseProvider.validateDigestOffsets(flat, offsets);
+            fail("Expected IOException for too many offsets (> default max)");
+        } catch (IOException expected) {
+            assertTrue("Message should mention too many",
+                    expected.getMessage().contains("too many") ||
+                    expected.getMessage().contains("max"));
+        }
+    }
+
+    @Test
+    public void validateDigestOffsets_flatArrayTooLarge_throwsIOException() {
+        // Construct flat array larger than maxCodebaseJars * 512
+        int maxFlat = PreferredProxyCodebaseProvider.DEFAULT_MAX_CODEBASE_JARS * 512 + 1;
+        byte[] flat = new byte[maxFlat];
+        int[] offsets = new int[]{0};
+        try {
+            PreferredProxyCodebaseProvider.validateDigestOffsets(flat, offsets);
+            fail("Expected IOException for flat array too large");
+        } catch (IOException expected) {
+            assertTrue("Message should mention too large",
+                    expected.getMessage().contains("too large"));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // computeIndividualJarDigests DoS-guard tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void parseMaxJarBytes_validValue_returnsParsed() {
+        assertEquals(1_048_576L,
+                PreferredProxyCodebaseProvider.parseMaxJarBytes("1048576"));
+    }
+
+    @Test
+    public void parseMaxJarBytes_nullValue_returnsDefault() {
+        assertEquals(PreferredProxyCodebaseProvider.DEFAULT_MAX_JAR_BYTES,
+                PreferredProxyCodebaseProvider.parseMaxJarBytes(null));
+    }
+
+    @Test
+    public void parseMaxJarBytes_invalidValue_returnsDefault() {
+        assertEquals(PreferredProxyCodebaseProvider.DEFAULT_MAX_JAR_BYTES,
+                PreferredProxyCodebaseProvider.parseMaxJarBytes("not-a-number"));
+    }
+
+    @Test
+    public void parseMaxCodebaseJars_validValue_returnsParsed() {
+        assertEquals(42, PreferredProxyCodebaseProvider.parseMaxCodebaseJars("42"));
+    }
+
+    @Test
+    public void parseMaxCodebaseJars_nullValue_returnsDefault() {
+        assertEquals(PreferredProxyCodebaseProvider.DEFAULT_MAX_CODEBASE_JARS,
+                PreferredProxyCodebaseProvider.parseMaxCodebaseJars(null));
+    }
+
+    @Test
+    public void parseJarReadTimeoutMs_validValue_returnsParsed() {
+        assertEquals(5_000, PreferredProxyCodebaseProvider.parseJarReadTimeoutMs("5000"));
+    }
+
+    @Test
+    public void parseJarReadTimeoutMs_nullValue_returnsDefault() {
+        assertEquals(PreferredProxyCodebaseProvider.DEFAULT_JAR_READ_TIMEOUT_MS,
+                PreferredProxyCodebaseProvider.parseJarReadTimeoutMs(null));
+    }
+
+    /**
+     * Verifies that {@code computeIndividualJarDigests} refuses a codebase
+     * with more entries than the configured maximum (JAR count DoS guard).
+     * The URLs need not be reachable — the check fires before any I/O.
+     */
+    @Test
+    public void computeIndividualJarDigests_exceedsMaxJarCount_throwsIOException()
+            throws Exception {
+        int limit = PreferredProxyCodebaseProvider.DEFAULT_MAX_CODEBASE_JARS + 1;
+        java.net.URL[] codebase = new java.net.URL[limit];
+        for (int i = 0; i < limit; i++) {
+            // Use file:// to avoid any actual network activity; the check
+            // fires before any URL is opened.
+            codebase[i] = new java.net.URL("file:///fake-jar-" + i + ".jar");
+        }
+        try {
+            PreferredProxyCodebaseProvider
+                    .computeIndividualJarDigests(codebase, "SHA-256");
+            fail("Expected IOException when codebase exceeds maxCodebaseJars");
+        } catch (IOException expected) {
+            assertTrue("Message should mention max or exceeds",
+                    expected.getMessage().contains("max") ||
+                    expected.getMessage().contains("exceeds"));
+        }
+    }
+
     /**
      * A minimal, configurable stub for {@link VerdictRegistry} that avoids
      * any network calls.

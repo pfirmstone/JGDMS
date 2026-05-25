@@ -30,6 +30,7 @@ import java.lang.reflect.Proxy;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.net.URLPermission;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
@@ -121,9 +122,33 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     static final long DEFAULT_VERDICT_RETRY_BASE_DELAY_MS = 1000L;
     static final String MAX_CONCURRENT_JAR_LOADS_PROPERTY = "jgdms.proxy.maxConcurrentJarLoads";
     static final int DEFAULT_MAX_CONCURRENT_JAR_LOADS = 4;
+
+    /** Maximum number of JARs accepted in a single codebase (DoS guard). */
+    static final String MAX_CODEBASE_JARS_PROPERTY = "jgdms.proxy.maxCodebaseJars";
+    static final int DEFAULT_MAX_CODEBASE_JARS = 100;
+
+    /**
+     * Maximum bytes read from a single JAR URL when computing its digest
+     * (DoS guard — prevents an enormous stream from consuming unbounded CPU
+     * time).  Default is 512 MiB.
+     */
+    static final String MAX_JAR_BYTES_PROPERTY = "jgdms.proxy.maxJarBytes";
+    static final long DEFAULT_MAX_JAR_BYTES = 512L * 1024L * 1024L;
+
+    /**
+     * Connect and read timeout in milliseconds applied to JAR URL connections
+     * opened during digest computation (DoS guard — prevents an unresponsive
+     * server from blocking the thread indefinitely).  Default is 30 seconds.
+     */
+    static final String JAR_READ_TIMEOUT_MS_PROPERTY = "jgdms.proxy.jarReadTimeoutMs";
+    static final int DEFAULT_JAR_READ_TIMEOUT_MS = 30_000;
+
     private static volatile long verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
     private static final Semaphore JAR_LOAD_SEMAPHORE =
             new Semaphore(loadMaxConcurrentJarLoads(), true);
+    private static final int maxCodebaseJars = loadMaxCodebaseJars();
+    private static final long maxJarBytes = loadMaxJarBytes();
+    private static final int jarReadTimeoutMs = loadJarReadTimeoutMs();
     
     static {
 	ConcurrentMap<Referrer<Key>,Referrer<ClassLoader>> intern1 =
@@ -227,6 +252,150 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         return parseMaxConcurrentJarLoads(value);
     }
 
+    static int parseMaxCodebaseJars(String value) {
+        if (value == null) {
+            return DEFAULT_MAX_CODEBASE_JARS;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return DEFAULT_MAX_CODEBASE_JARS;
+        }
+        try {
+            int parsed = Integer.parseInt(trimmed);
+            if (parsed > 0) {
+                return parsed;
+            }
+        } catch (NumberFormatException ex) {
+            // fall back to default below
+        }
+        logger.log(Level.WARNING,
+                "Invalid {0} value: {1}; using default {2}",
+                new Object[]{
+                    MAX_CODEBASE_JARS_PROPERTY,
+                    value,
+                    Integer.valueOf(DEFAULT_MAX_CODEBASE_JARS)
+                });
+        return DEFAULT_MAX_CODEBASE_JARS;
+    }
+
+    private static int loadMaxCodebaseJars() {
+        String value = null;
+        try {
+            value = System.getProperty(MAX_CODEBASE_JARS_PROPERTY);
+        } catch (SecurityException ex) {
+            logger.log(Level.WARNING,
+                    "Unable to read {0}; using default {1}",
+                    new Object[]{
+                        MAX_CODEBASE_JARS_PROPERTY,
+                        Integer.valueOf(DEFAULT_MAX_CODEBASE_JARS)
+                    });
+            return DEFAULT_MAX_CODEBASE_JARS;
+        }
+        return parseMaxCodebaseJars(value);
+    }
+
+    static long parseMaxJarBytes(String value) {
+        if (value == null) {
+            return DEFAULT_MAX_JAR_BYTES;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return DEFAULT_MAX_JAR_BYTES;
+        }
+        try {
+            long parsed = Long.parseLong(trimmed);
+            if (parsed > 0L) {
+                return parsed;
+            }
+        } catch (NumberFormatException ex) {
+            // fall back to default below
+        }
+        logger.log(Level.WARNING,
+                "Invalid {0} value: {1}; using default {2}",
+                new Object[]{
+                    MAX_JAR_BYTES_PROPERTY,
+                    value,
+                    Long.valueOf(DEFAULT_MAX_JAR_BYTES)
+                });
+        return DEFAULT_MAX_JAR_BYTES;
+    }
+
+    private static long loadMaxJarBytes() {
+        String value = null;
+        try {
+            value = System.getProperty(MAX_JAR_BYTES_PROPERTY);
+        } catch (SecurityException ex) {
+            logger.log(Level.WARNING,
+                    "Unable to read {0}; using default {1}",
+                    new Object[]{
+                        MAX_JAR_BYTES_PROPERTY,
+                        Long.valueOf(DEFAULT_MAX_JAR_BYTES)
+                    });
+            return DEFAULT_MAX_JAR_BYTES;
+        }
+        return parseMaxJarBytes(value);
+    }
+
+    static int parseJarReadTimeoutMs(String value) {
+        if (value == null) {
+            return DEFAULT_JAR_READ_TIMEOUT_MS;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return DEFAULT_JAR_READ_TIMEOUT_MS;
+        }
+        try {
+            int parsed = Integer.parseInt(trimmed);
+            if (parsed > 0) {
+                return parsed;
+            }
+        } catch (NumberFormatException ex) {
+            // fall back to default below
+        }
+        logger.log(Level.WARNING,
+                "Invalid {0} value: {1}; using default {2}",
+                new Object[]{
+                    JAR_READ_TIMEOUT_MS_PROPERTY,
+                    value,
+                    Integer.valueOf(DEFAULT_JAR_READ_TIMEOUT_MS)
+                });
+        return DEFAULT_JAR_READ_TIMEOUT_MS;
+    }
+
+    private static int loadJarReadTimeoutMs() {
+        String value = null;
+        try {
+            value = System.getProperty(JAR_READ_TIMEOUT_MS_PROPERTY);
+        } catch (SecurityException ex) {
+            logger.log(Level.WARNING,
+                    "Unable to read {0}; using default {1}",
+                    new Object[]{
+                        JAR_READ_TIMEOUT_MS_PROPERTY,
+                        Integer.valueOf(DEFAULT_JAR_READ_TIMEOUT_MS)
+                    });
+            return DEFAULT_JAR_READ_TIMEOUT_MS;
+        }
+        return parseJarReadTimeoutMs(value);
+    }
+
+    /**
+     * Opens a connection to the given URL with the configured connect and read
+     * timeouts applied, then returns its input stream.
+     *
+     * <p>Using a timeout prevents a slow or unresponsive server from blocking
+     * the calling thread indefinitely (denial-of-service guard).
+     *
+     * @param url the URL to connect to
+     * @return the input stream for reading the resource
+     * @throws IOException if the connection cannot be established or times out
+     */
+    private static InputStream openUrlWithTimeout(URL url) throws IOException {
+        URLConnection conn = url.openConnection();
+        conn.setConnectTimeout(jarReadTimeoutMs);
+        conn.setReadTimeout(jarReadTimeoutMs);
+        return conn.getInputStream();
+    }
+
     private static boolean containsJarCodebase(URL[] codebase) {
         for (int index = 0, length = codebase.length; index < length; index++) {
             if (!isDirectory(codebase[index])) {
@@ -267,10 +436,17 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         } catch (NoSuchAlgorithmException e) {
             throw new IOException("SHA-256 MessageDigest not available", e);
         }
-        try (InputStream in = jarUrl.openStream()) {
+        try (InputStream in = openUrlWithTimeout(jarUrl)) {
             byte[] buf = new byte[8192];
             int n;
+            long totalRead = 0L;
             while ((n = in.read(buf)) > 0) {
+                totalRead += n;
+                if (totalRead > maxJarBytes) {
+                    throw new IOException(
+                            "JAR at " + jarUrl + " exceeds maximum allowed size of "
+                            + maxJarBytes + " bytes during hash computation");
+                }
                 digest.update(buf, 0, n);
             }
         }
@@ -310,6 +486,11 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      */
     static byte[] computeCodebaseDigestBytes(URL[] codebase, String algorithm)
             throws IOException {
+        if (codebase.length > maxCodebaseJars) {
+            throw new IOException(
+                    "Codebase exceeds maximum JAR count ("
+                    + maxCodebaseJars + "): " + codebase.length + " URLs");
+        }
         MessageDigest outer;
         try {
             outer = MessageDigest.getInstance(algorithm);
@@ -324,10 +505,17 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                 } catch (NoSuchAlgorithmException ex) {
                     throw new IOException(algorithm + " MessageDigest not available", ex);
                 }
-                try (InputStream in = url.openStream()) {
+                try (InputStream in = openUrlWithTimeout(url)) {
                     byte[] buf = new byte[8192];
                     int n;
+                    long totalRead = 0L;
                     while ((n = in.read(buf)) > 0) {
+                        totalRead += n;
+                        if (totalRead > maxJarBytes) {
+                            throw new IOException(
+                                    "JAR at " + url + " exceeds maximum allowed size of "
+                                    + maxJarBytes + " bytes during digest computation");
+                        }
                         inner.update(buf, 0, n);
                     }
                 }
@@ -471,6 +659,11 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      */
     static byte[][] computeIndividualJarDigests(URL[] codebase, String algorithm)
             throws IOException {
+        if (codebase.length > maxCodebaseJars) {
+            throw new IOException(
+                    "Codebase exceeds maximum JAR count ("
+                    + maxCodebaseJars + "): " + codebase.length + " URLs");
+        }
         MessageDigest md;
         try {
             md = MessageDigest.getInstance(algorithm);
@@ -481,10 +674,17 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         for (URL url : codebase) {
             if (!isDirectory(url)) {
                 md.reset();
-                try (InputStream in = url.openStream()) {
+                try (InputStream in = openUrlWithTimeout(url)) {
                     byte[] buf = new byte[8192];
                     int n;
+                    long totalRead = 0L;
                     while ((n = in.read(buf)) > 0) {
+                        totalRead += n;
+                        if (totalRead > maxJarBytes) {
+                            throw new IOException(
+                                    "JAR at " + url + " exceeds maximum allowed size of "
+                                    + maxJarBytes + " bytes during digest computation");
+                        }
                         md.update(buf, 0, n);
                     }
                 }
@@ -510,6 +710,63 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         int start = offsets[i];
         int end = (i + 1 < offsets.length) ? offsets[i + 1] : flat.length;
         return Arrays.copyOfRange(flat, start, end);
+    }
+
+    /**
+     * Validates that server-supplied flat digest data and byte offsets are
+     * consistent and within permitted bounds before they are used.
+     *
+     * <p>Checks performed:
+     * <ul>
+     *   <li>The number of offsets does not exceed the configured maximum
+     *       ({@link #maxCodebaseJars}).</li>
+     *   <li>The flat array length does not exceed
+     *       {@code maxCodebaseJars * 512} bytes (generous upper bound for
+     *       any standard digest algorithm).</li>
+     *   <li>Each offset is non-negative and within the flat array bounds.</li>
+     *   <li>Offsets are monotonically non-decreasing (required for correct
+     *       slice extraction by {@link #extractJarDigest}).</li>
+     * </ul>
+     *
+     * @param flat    the flat digest array received from the server
+     * @param offsets the byte offsets received from the server
+     * @throws IOException if any validation check fails, indicating a
+     *                     malformed or malicious server response
+     */
+    static void validateDigestOffsets(byte[] flat, int[] offsets)
+            throws IOException {
+        if (offsets.length > maxCodebaseJars) {
+            throw new IOException(
+                    "Server returned too many JAR digest offsets ("
+                    + offsets.length + " > max " + maxCodebaseJars + ")");
+        }
+        // 512 bytes per entry is generous for any standard digest algorithm
+        // (SHA-512 produces 64 bytes; SHA-256 produces 32 bytes).
+        int maxFlatLen = maxCodebaseJars * 512;
+        if (flat.length > maxFlatLen) {
+            throw new IOException(
+                    "Server flat digest array is too large: "
+                    + flat.length + " bytes (max " + maxFlatLen + ")");
+        }
+        for (int i = 0; i < offsets.length; i++) {
+            if (offsets[i] < 0) {
+                throw new IOException(
+                        "Server digest offset[" + i + "] is negative: "
+                        + offsets[i]);
+            }
+            if (offsets[i] > flat.length) {
+                throw new IOException(
+                        "Server digest offset[" + i + "] is out of bounds: "
+                        + offsets[i] + " > flat.length=" + flat.length);
+            }
+            if (i > 0 && offsets[i] < offsets[i - 1]) {
+                throw new IOException(
+                        "Server digest offsets are not monotonically non-decreasing"
+                        + " at index " + i + ": offsets[" + (i - 1) + "]="
+                        + offsets[i - 1] + " > offsets[" + i + "]="
+                        + offsets[i]);
+            }
+        }
     }
 
     /**
@@ -881,6 +1138,21 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                                 && serverFlatDigest.length > 0
                                 && serverDigestOffsets != null
                                 && serverDigestOffsets.length > 0) {
+                            // Validate server-supplied offsets before use (DoS guard:
+                            // prevents negative/out-of-bounds/non-monotonic offsets from
+                            // causing unchecked exceptions or processing an enormous array).
+                            try {
+                                validateDigestOffsets(serverFlatDigest, serverDigestOffsets);
+                            } catch (IOException ex) {
+                                logger.log(Level.SEVERE,
+                                        "Boot window: server provided invalid digest offsets"
+                                        + " (possible tampered server response);"
+                                        + " refusing codebase: {0}; reason: {1}",
+                                        new Object[]{path, ex.getMessage()});
+                                throw new SecurityException(
+                                        "Server provided invalid digest offsets; refusing: "
+                                        + path, ex);
+                            }
                             // Compute individual per-JAR digests locally.
                             byte[][] localDigests = computeIndividualJarDigests(codebase, algo);
                             if (localDigests.length != serverDigestOffsets.length) {
