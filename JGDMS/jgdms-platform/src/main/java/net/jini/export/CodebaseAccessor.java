@@ -106,91 +106,66 @@ public interface CodebaseAccessor extends Remote {
     }
 
     /**
-     * Returns a pre-computed digest of the entire codebase as a byte array,
-     * or {@code null} if not supported.
+     * Returns a pre-computed flat byte array containing the individual content
+     * digests of all non-directory JAR files in the codebase, concatenated in
+     * codebase order (excluding directory URLs), or {@code null} if not
+     * supported.
      *
-     * <p>The digest is computed as follows: for each JAR URL in the codebase
-     * annotation (in order, excluding directory URLs), the per-JAR digest is
-     * computed using the algorithm returned by
-     * {@link #getCodebaseDigestAlgorithm()}.  The returned digest is then the
-     * result of applying the same algorithm to the concatenation of all
-     * per-JAR digest bytes (hash-of-hashes).  For a codebase with a single
-     * JAR this is equivalent to {@code digest(digest(jarContent))}.
+     * <p>Unlike a combined hash-of-hashes, the returned array is the raw
+     * concatenation of individual per-JAR digest bytes.  The byte offset at
+     * which each individual digest begins within this array is given by
+     * {@link #getDigestOffsets()}.  This representation is required for
+     * issuing proper per-JAR {@code DigestGrant}s: because
+     * {@code DigestCodeSource} (DirtyChai) is per-JAR, each grant must carry
+     * a single JAR's digest.
      *
-     * <p>This combined digest is used only as an overall integrity check.
-     * For per-JAR {@code DigestGrant} issuance, use
-     * {@link #getCodebaseJarDigests()} together with
-     * {@link #getCodebaseJarDigestOffsets()}.
+     * <p>For example, for a codebase with two JARs whose SHA-256 digests are
+     * {@code d0} (32 bytes) and {@code d1} (32 bytes), this method returns
+     * a 64-byte array {@code d0 || d1}, and {@link #getDigestOffsets()} returns
+     * {@code [0, 32]}.
      *
      * <p>The default implementation returns {@code null}.  Implementations
      * should pre-compute and cache this value at service startup.
      *
-     * <p>The digest is transmitted over the already-authenticated SPIFFE/TLS
+     * <p>The data is transmitted over the already-authenticated SPIFFE/TLS
      * channel and is therefore integrity-protected by the transport layer.
      *
-     * @return the codebase digest bytes, or {@code null} if not supported
+     * @return the flat concatenation of per-JAR digest bytes, or {@code null}
+     *         if not supported
      * @throws IOException if a communication problem occurs
+     * @see #getDigestOffsets()
+     * @see #getCodebaseDigestAlgorithm()
      */
     public default byte[] getCodebaseDigest() throws IOException {
         return null;
     }
 
     /**
-     * Returns the per-JAR digest bytes for each non-directory JAR URL in the
-     * codebase, in codebase order (excluding directory URLs), or {@code null}
-     * if not supported.
+     * Returns the start byte offsets of each individual per-JAR digest within
+     * the flat digest array returned by {@link #getCodebaseDigest()}, or
+     * {@code null} if not supported.
      *
-     * <p>The array has one element per non-directory JAR URL.  Each element is
-     * the raw digest bytes of that JAR's content, computed using the algorithm
-     * returned by {@link #getCodebaseDigestAlgorithm()}.  The corresponding
-     * index of each JAR in the full codebase URL array is given by
-     * {@link #getCodebaseJarDigestOffsets()}.
+     * <p>Element {@code i} of the returned array is the byte index in the flat
+     * array at which the digest of the {@code i}-th non-directory JAR begins.
+     * The digest for JAR {@code i} occupies bytes
+     * {@code flat[offsets[i] .. (i+1 < offsets.length ? offsets[i+1] : flat.length) - 1]}.
      *
-     * <p>These per-JAR digests are required to create properly scoped
-     * {@code DigestGrant}s: because {@code DigestCodeSource} is per-JAR, each
-     * grant must carry a single JAR's digest.  A combined hash-of-hashes
-     * cannot be used for {@code DigestGrant} purposes.
+     * <p>For example, for a codebase with two JARs with 32-byte SHA-256
+     * digests, this method returns {@code [0, 32]}.
      *
-     * <p>The default implementation returns {@code null}.  Implementations
-     * should pre-compute and cache these values at service startup.
-     *
-     * <p>The digests are transmitted over the already-authenticated SPIFFE/TLS
-     * channel and are therefore integrity-protected by the transport layer.
-     *
-     * @return an array of per-JAR digest byte arrays (one per non-directory
-     *         JAR URL, in codebase order), or {@code null} if not supported
-     * @throws IOException if a communication problem occurs
-     * @see #getCodebaseJarDigestOffsets()
-     * @see #getCodebaseDigestAlgorithm()
-     */
-    public default byte[][] getCodebaseJarDigests() throws IOException {
-        return null;
-    }
-
-    /**
-     * Returns the index of each non-directory JAR URL (from the full codebase
-     * URL array returned by {@link #getClassAnnotation()}) that corresponds to
-     * the matching entry in {@link #getCodebaseJarDigests()}, or {@code null}
-     * if not supported.
-     *
-     * <p>For example, if the codebase URL array is
-     * {@code [dir/, a.jar, dir2/, b.jar]} then the offsets array would be
-     * {@code [1, 3]}, indicating that digest index 0 corresponds to URL index 1
-     * ({@code a.jar}) and digest index 1 corresponds to URL index 3
-     * ({@code b.jar}).
-     *
-     * <p>The array must be the same length as the array returned by
-     * {@link #getCodebaseJarDigests()}.
+     * <p>The number of entries equals the number of non-directory JAR URLs in
+     * the codebase (directory URLs are excluded in the same way as for
+     * {@link #getCodebaseDigest()}).
      *
      * <p>The default implementation returns {@code null}.  Implementations
-     * should pre-compute and cache these values at service startup.
+     * should pre-compute and cache this value at service startup.
      *
-     * @return an {@code int[]} of URL-array offsets, one per non-directory JAR,
-     *         or {@code null} if not supported
+     * @return an {@code int[]} of start byte offsets into the flat digest
+     *         array, one per non-directory JAR, or {@code null} if not supported
      * @throws IOException if a communication problem occurs
-     * @see #getCodebaseJarDigests()
+     * @see #getCodebaseDigest()
      */
-    public default int[] getCodebaseJarDigestOffsets() throws IOException {
+    public default int[] getDigestOffsets() throws IOException {
         return null;
     }
 

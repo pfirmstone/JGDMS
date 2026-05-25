@@ -418,11 +418,11 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     // -------------------------------------------------------------------------
-    // computePerJarDigestBytes tests
+    // computeIndividualJarDigests tests
     // -------------------------------------------------------------------------
 
     @Test
-    public void computePerJarDigestBytes_singleJar_matchesDirectDigest()
+    public void computeIndividualJarDigests_singleJar_matchesDirectDigest()
             throws Exception {
         java.io.File tmp = java.io.File.createTempFile("testjar", ".jar");
         tmp.deleteOnExit();
@@ -430,30 +430,26 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp)) {
             fos.write(content);
         }
-        java.net.URL jarUrl = tmp.toURI().toURL();
-        // codebase[0] = dummy dir, codebase[1] = the JAR
+        // codebase[0] = dummy dir (skipped), codebase[1] = the JAR
         java.net.URL[] codebase = new java.net.URL[]{
             new java.net.URL("file:///dummy/dir/"),
-            jarUrl
+            tmp.toURI().toURL()
         };
-        int[] offsets = new int[]{1};
 
         byte[][] result = PreferredProxyCodebaseProvider
-                .computePerJarDigestBytes(codebase, offsets, "SHA-256");
+                .computeIndividualJarDigests(codebase, "SHA-256");
 
         assertNotNull(result);
-        assertEquals("one digest per offset entry", 1, result.length);
-        assertEquals("each per-JAR digest is 32 bytes for SHA-256", 32, result[0].length);
+        assertEquals("only one non-directory JAR", 1, result.length);
+        assertEquals("SHA-256 digest is 32 bytes", 32, result[0].length);
 
-        // Verify it matches a direct SHA-256 of the file content
         java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
-        byte[] expected = md.digest(content);
-        assertArrayEquals("per-JAR digest must equal direct SHA-256 of file content",
-                expected, result[0]);
+        assertArrayEquals("digest must equal direct SHA-256 of file content",
+                md.digest(content), result[0]);
     }
 
     @Test
-    public void computePerJarDigestBytes_multipleJars_eachDigestIndependent()
+    public void computeIndividualJarDigests_multipleJars_eachDigestIndependent()
             throws Exception {
         java.io.File tmp1 = java.io.File.createTempFile("jar1", ".jar");
         java.io.File tmp2 = java.io.File.createTempFile("jar2", ".jar");
@@ -471,45 +467,59 @@ public class PreferredProxyCodebaseProviderVerdictTest {
             tmp1.toURI().toURL(),
             tmp2.toURI().toURL()
         };
-        int[] offsets = new int[]{0, 1};
 
         byte[][] result = PreferredProxyCodebaseProvider
-                .computePerJarDigestBytes(codebase, offsets, "SHA-256");
+                .computeIndividualJarDigests(codebase, "SHA-256");
 
-        assertEquals("should have two entries", 2, result.length);
+        assertEquals("two JARs → two digests", 2, result.length);
         assertFalse("digests for different JARs must differ",
                 java.util.Arrays.equals(result[0], result[1]));
 
         java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
-        assertArrayEquals("digest[0] must match SHA-256 of jar1 content",
+        assertArrayEquals("digest[0] must match SHA-256 of jar1",
                 md.digest(content1), result[0]);
         md.reset();
-        assertArrayEquals("digest[1] must match SHA-256 of jar2 content",
+        assertArrayEquals("digest[1] must match SHA-256 of jar2",
                 md.digest(content2), result[1]);
     }
 
     @Test
-    public void computePerJarDigestBytes_emptyOffsets_returnsEmptyArray()
+    public void computeIndividualJarDigests_emptyCodebase_returnsEmptyArray()
             throws Exception {
         java.net.URL[] codebase = new java.net.URL[0];
-        int[] offsets = new int[0];
         byte[][] result = PreferredProxyCodebaseProvider
-                .computePerJarDigestBytes(codebase, offsets, "SHA-256");
+                .computeIndividualJarDigests(codebase, "SHA-256");
         assertNotNull(result);
-        assertEquals("empty offsets should produce empty result", 0, result.length);
+        assertEquals("empty codebase yields empty result", 0, result.length);
     }
 
     @Test
-    public void computePerJarDigestBytes_unknownAlgorithm_throwsIOException()
+    public void computeIndividualJarDigests_directoryUrlSkipped()
+            throws Exception {
+        java.io.File tmp = java.io.File.createTempFile("testjar", ".jar");
+        tmp.deleteOnExit();
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp)) {
+            fos.write(new byte[]{9, 8, 7});
+        }
+        // Only a directory URL — should produce zero digests
+        java.net.URL[] codebaseOnlyDir = new java.net.URL[]{
+            new java.net.URL("file:///some/dir/")
+        };
+        byte[][] result = PreferredProxyCodebaseProvider
+                .computeIndividualJarDigests(codebaseOnlyDir, "SHA-256");
+        assertEquals("directory-only codebase yields empty result", 0, result.length);
+    }
+
+    @Test
+    public void computeIndividualJarDigests_unknownAlgorithm_throwsIOException()
             throws Exception {
         java.io.File tmp = java.io.File.createTempFile("jar", ".jar");
         tmp.deleteOnExit();
         tmp.createNewFile();
         java.net.URL[] codebase = new java.net.URL[]{tmp.toURI().toURL()};
-        int[] offsets = new int[]{0};
         try {
             PreferredProxyCodebaseProvider
-                    .computePerJarDigestBytes(codebase, offsets, "NO-SUCH-ALGO");
+                    .computeIndividualJarDigests(codebase, "NO-SUCH-ALGO");
             fail("Expected IOException for unknown algorithm");
         } catch (IOException expected) {
             // pass

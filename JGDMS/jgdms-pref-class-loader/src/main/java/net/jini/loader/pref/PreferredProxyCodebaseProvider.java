@@ -455,22 +455,21 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
 
     /**
-     * Computes per-JAR digest bytes for each non-directory JAR URL identified
-     * by the provided {@code offsets} array.
+     * Computes the content digest of each non-directory JAR URL in the given
+     * codebase, in order.
      *
-     * <p>Element {@code i} of the returned array is the raw digest of the JAR
-     * at {@code codebase[offsets[i]]}, computed with the given {@code algorithm}.
+     * <p>Element {@code i} of the returned array is the raw digest bytes of
+     * the {@code i}-th non-directory JAR, computed with the given
+     * {@code algorithm}.  Directory URLs are skipped.
      *
-     * @param codebase  full codebase URL array
-     * @param offsets   indices into {@code codebase} identifying the JAR files
-     *                  (must not include directory URLs)
+     * @param codebase  the JAR/directory URLs
      * @param algorithm the digest algorithm (e.g. {@code "SHA-256"})
-     * @return {@code byte[][]} with one entry per offset
+     * @return array of per-JAR digest byte arrays (one per non-directory JAR,
+     *         in codebase order)
      * @throws IOException if a JAR cannot be read or the algorithm is unknown
+     * @see #getDigestOffsets()
      */
-    static byte[][] computePerJarDigestBytes(URL[] codebase,
-                                             int[] offsets,
-                                             String algorithm)
+    static byte[][] computeIndividualJarDigests(URL[] codebase, String algorithm)
             throws IOException {
         MessageDigest md;
         try {
@@ -478,20 +477,39 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         } catch (NoSuchAlgorithmException ex) {
             throw new IOException(algorithm + " MessageDigest not available", ex);
         }
-        byte[][] result = new byte[offsets.length][];
-        for (int i = 0; i < offsets.length; i++) {
-            md.reset();
-            URL url = codebase[offsets[i]];
-            try (InputStream in = url.openStream()) {
-                byte[] buf = new byte[8192];
-                int n;
-                while ((n = in.read(buf)) > 0) {
-                    md.update(buf, 0, n);
+        List<byte[]> digests = new ArrayList<byte[]>();
+        for (URL url : codebase) {
+            if (!isDirectory(url)) {
+                md.reset();
+                try (InputStream in = url.openStream()) {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) {
+                        md.update(buf, 0, n);
+                    }
                 }
+                digests.add(md.digest());
             }
-            result[i] = md.digest();
         }
-        return result;
+        return digests.toArray(new byte[0][]);
+    }
+
+    /**
+     * Extracts the {@code i}-th per-JAR digest from a flat digest array using
+     * the corresponding offsets array.
+     *
+     * <p>The last digest (when {@code i == offsets.length - 1}) runs to the
+     * end of {@code flat}.
+     *
+     * @param flat    the flat concatenation of per-JAR digests
+     * @param offsets the start byte offsets of each digest in {@code flat}
+     * @param i       zero-based index of the digest to extract
+     * @return a copy of the bytes for digest {@code i}
+     */
+    private static byte[] extractJarDigest(byte[] flat, int[] offsets, int i) {
+        int start = offsets[i];
+        int end = (i + 1 < offsets.length) ? offsets[i + 1] : flat.length;
+        return Arrays.copyOfRange(flat, start, end);
     }
 
     /**
@@ -500,11 +518,14 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * principals.
      *
      * <p>Because {@code DigestCodeSource} (DirtyChai) is per-JAR, a single
-     * combined hash-of-hashes grant cannot be matched against any real
+     * combined digest cannot be matched against any real
      * {@code ProtectionDomain}.  This method issues granular grants — one per
      * JAR — so that the downloaded code can only be defined and loaded on a
      * DirtyChai JVM when the JAR content still matches the server-attested
      * digest.
+     *
+     * <p>No URL is included in the grant.  The grant matches any code source
+     * whose content digest equals the per-JAR digest, regardless of location.
      *
      * <p>If {@code localPrincipals} is non-null and non-empty, each grant is
      * further scoped to those principals (typically the local SPIFFE workload
@@ -517,45 +538,32 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * grant attempt is silently skipped.
      *
      * @param algorithm       the digest algorithm (e.g. {@code "SHA-256"})
-     * @param perJarDigests   per-JAR digest bytes (index {@code i} for
-     *                        {@code codebase[offsets[i]]})
-     * @param codebase        full codebase URL array
-     * @param offsets         indices into {@code codebase} for each JAR digest
+     * @param perJarDigests   individual per-JAR digest bytes (in codebase order,
+     *                        one per non-directory JAR)
      * @param localPrincipals the local client principals to scope the grant to,
      *                        or {@code null} to grant to any principal
      */
     private static void tryGrantPerJarDigestGrants(String algorithm,
                                                    byte[][] perJarDigests,
-                                                   URL[] codebase,
-                                                   int[] offsets,
                                                    Principal[] localPrincipals) {
         for (int i = 0; i < perJarDigests.length; i++) {
-            URL jarUrl = codebase[offsets[i]];
-            byte[] jarDigest = perJarDigests[i];
             try {
                 List<Permission> perms = new ArrayList<Permission>();
                 perms.add(new DownloadPermission());
-                try {
-                    perms.add(new URLPermission(jarUrl.toString()));
-                } catch (Exception ex) {
-                    logger.log(Level.FINE,
-                            "Could not create URLPermission for {0}", jarUrl);
-                }
                 // LoadClassPermission lives in DirtyChai; use UnresolvedPermission
                 // so that the grant is recorded even on a standard JVM.
                 perms.add(new UnresolvedPermission(
                         "net.jini.loader.LoadClassPermission", null, null, null));
                 PermissionGrantBuilder builder = PermissionGrantBuilder.newBuilder()
                         .context(PermissionGrantBuilder.DIGEST)
-                        .uri(jarUrl.toString())
-                        .digest(algorithm, jarDigest)
+                        .digest(algorithm, perJarDigests[i])
                         .permissions(perms.toArray(new Permission[0]));
                 if (localPrincipals != null && localPrincipals.length > 0) {
                     builder = builder.principals(localPrincipals);
                 }
                 Security.grant(builder.build());
                 logger.log(Level.FINE,
-                        "Per-JAR DigestGrant applied for {0}", jarUrl);
+                        "Per-JAR DigestGrant {0} applied", i);
             } catch (UnsupportedOperationException ex) {
                 logger.log(Level.FINE,
                         "DigestGrant skipped: policy does not support revocable grants");
@@ -849,18 +857,18 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                         // is not granted BootstrapPermission in the local policy.
                         checkBootstrapPermission(serverPrincipals, path);
 
-                        // Gate 2: Codebase digest comparison.
-                        // Prefer per-JAR digests (for proper DigestGrant scoping)
-                        // over the combined hash-of-hashes.
+                        // Gate 2: Per-JAR codebase digest verification and DigestGrant issuance.
+                        // The server provides a flat byte[] containing all per-JAR digests
+                        // concatenated, and an int[] of start byte offsets into that array.
+                        // This is the only grant mechanism that works with DirtyChai's
+                        // DigestCodeSource, which is per-JAR.
                         String algo = null;
-                        byte[] serverCombinedDigest = null;
-                        byte[][] serverJarDigests = null;
-                        int[] serverJarOffsets = null;
+                        byte[] serverFlatDigest = null;
+                        int[] serverDigestOffsets = null;
                         try {
                             algo = bootstrapProxy.getCodebaseDigestAlgorithm();
-                            serverCombinedDigest = bootstrapProxy.getCodebaseDigest();
-                            serverJarDigests = bootstrapProxy.getCodebaseJarDigests();
-                            serverJarOffsets = bootstrapProxy.getCodebaseJarDigestOffsets();
+                            serverFlatDigest = bootstrapProxy.getCodebaseDigest();
+                            serverDigestOffsets = bootstrapProxy.getDigestOffsets();
                         } catch (IOException ex) {
                             logger.log(Level.WARNING,
                                     "Boot window: failed to fetch codebase digest from server"
@@ -869,24 +877,34 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                                     new Object[]{path, bootWindowHashes.toString()});
                         }
 
-                        if (algo != null && serverJarDigests != null
-                                && serverJarDigests.length > 0
-                                && serverJarOffsets != null
-                                && serverJarOffsets.length == serverJarDigests.length) {
-                            // Per-JAR path: verify each JAR individually, then
-                            // issue one DigestGrant per JAR with the local
-                            // client SPIFFE principal.
-                            byte[][] localJarDigests =
-                                    computePerJarDigestBytes(codebase, serverJarOffsets, algo);
+                        if (algo != null && serverFlatDigest != null
+                                && serverFlatDigest.length > 0
+                                && serverDigestOffsets != null
+                                && serverDigestOffsets.length > 0) {
+                            // Compute individual per-JAR digests locally.
+                            byte[][] localDigests = computeIndividualJarDigests(codebase, algo);
+                            if (localDigests.length != serverDigestOffsets.length) {
+                                logger.log(Level.SEVERE,
+                                        "JAR count mismatch: server provided {0} digests,"
+                                        + " local codebase has {1} JARs;"
+                                        + " refusing codebase: {2}",
+                                        new Object[]{serverDigestOffsets.length,
+                                            localDigests.length, path});
+                                throw new SecurityException(
+                                        "JAR count mismatch in codebase digest; refusing: "
+                                        + path);
+                            }
                             boolean allMatch = true;
-                            for (int di = 0; di < localJarDigests.length; di++) {
-                                if (!Arrays.equals(localJarDigests[di], serverJarDigests[di])) {
+                            for (int di = 0; di < localDigests.length; di++) {
+                                byte[] serverDigest = extractJarDigest(
+                                        serverFlatDigest, serverDigestOffsets, di);
+                                if (!Arrays.equals(localDigests[di], serverDigest)) {
                                     allMatch = false;
                                     logger.log(Level.SEVERE,
-                                            "Per-JAR digest mismatch at offset {0}"
+                                            "Per-JAR digest mismatch at index {0}"
                                             + " (possible MITM attack);"
                                             + " refusing codebase: {1}; SHA-256: {2}",
-                                            new Object[]{serverJarOffsets[di], path,
+                                            new Object[]{di, path,
                                                 bootWindowHashes.toString()});
                                     break;
                                 }
@@ -896,45 +914,23 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                                         "Per-JAR digest mismatch (possible MITM attack);"
                                         + " refusing: " + path);
                             }
-                            // All per-JAR digests match: grant one DigestGrant per JAR
+                            // All per-JAR digests verified: grant one DigestGrant per JAR,
                             // scoped to the local client's SPIFFE principal.
+                            // No URL is included — the grant applies to any code source
+                            // whose content digest matches (DirtyChai DigestCodeSource).
                             Principal[] localPrincipals = Security.currentPrincipals();
-                            tryGrantPerJarDigestGrants(algo, localJarDigests,
-                                    codebase, serverJarOffsets, localPrincipals);
+                            tryGrantPerJarDigestGrants(algo, localDigests, localPrincipals);
                             logger.log(Level.INFO,
-                                    "Boot window: per-JAR codebase digests verified and"
-                                    + " DigestGrants applied; codebase: {0}",
-                                    path);
-                        } else if (algo != null && serverCombinedDigest != null
-                                && serverCombinedDigest.length > 0) {
-                            // Fallback: combined hash-of-hashes check for overall
-                            // integrity (no proper per-JAR DigestGrant possible).
-                            byte[] localDigest = computeCodebaseDigestBytes(codebase, algo);
-                            if (!Arrays.equals(localDigest, serverCombinedDigest)) {
-                                logger.log(Level.SEVERE,
-                                        "Codebase digest mismatch (possible MITM attack);"
-                                        + " refusing codebase: {0}; SHA-256: {1}",
-                                        new Object[]{path, bootWindowHashes.toString()});
-                                throw new SecurityException(
-                                        "Codebase digest mismatch (possible MITM attack);"
-                                        + " refusing: " + path);
-                            }
-                            // Combined digest matches, but per-JAR data unavailable:
-                            // fall back to legacy single-grant (will not match
-                            // DigestCodeSource on DirtyChai, but records intent).
-                            tryGrantDigestGrant(algo, localDigest, codebase);
-                            logger.log(Level.WARNING,
-                                    "Boot window: combined codebase digest verified but"
-                                    + " server did not supply per-JAR digests;"
-                                    + " DigestGrant may not be effective on DirtyChai JVM;"
-                                    + " codebase: {0}",
-                                    path);
+                                    "Boot window: {0} per-JAR codebase digest(s) verified"
+                                    + " and DigestGrant(s) applied; codebase: {1}",
+                                    new Object[]{localDigests.length, path});
                         } else {
-                            // BootstrapPermission granted, but server did not
-                            // provide a digest.  Log the hashes for auditing.
+                            // BootstrapPermission granted, but server did not provide
+                            // per-JAR digest information.  Log the hashes for auditing.
                             logger.log(Level.WARNING,
                                     "Boot window: BootstrapPermission granted but server"
-                                    + " provided no codebase digest;"
+                                    + " provided no per-JAR digest information;"
+                                    + " DigestGrants not issued;"
                                     + " codebase: {0}; SHA-256: {1}",
                                     new Object[]{path, bootWindowHashes.toString()});
                         }
