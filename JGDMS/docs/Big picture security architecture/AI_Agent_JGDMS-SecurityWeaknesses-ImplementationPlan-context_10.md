@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v52)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v53)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -10,22 +10,59 @@ and is the forward-reference added in §19 of that document.
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
 
-## v52 Change Summary
+## v53 Change Summary
 
-**Work Item 4.2 (ServiceStarter ordering) completed — hardened startup ordering documented**
+**Work Item 61 completed — Digest-codesource hijacking defence (Option 1)**
 
-- Added a new `## Hardened Boot Pattern — ServiceStarter Ordering` section to
-  `docs/standard-safe-codebase-audit-pipeline.md` documenting the recommended
-  two-phase startup pattern:
-  1) start/discover the VerdictRegistry client first,
-  2) inject/register it before proxy-resolution paths run,
-  3) start all remaining service descriptors only after step 2 succeeds.
-- Added explicit operational guidance that this hardened ordering should fail fast
-  when VerdictRegistry is unreachable at startup, rather than silently entering
-  permissive boot mode.
-- §5 Phase 4 table updated: Item 4.2 marked `✅ Completed`.
-- §6 Work Items table updated: Item 60 added and marked `✅ Completed`.
-- Version header bumped from v51 → v52.
+Closes a security gap where a second authenticated service that ships a JAR
+with the same content bytes as a legitimately-loaded service could reuse the
+`DigestGrant` issued for that digest, thereby gaining `DownloadPermission` and
+`LoadClassPermission` without the administrator ever auditing its code.
+
+**Root cause of the gap:**
+The `tryGrantPerJarDigestGrants` helper in
+`PreferredProxyCodebaseProvider` previously bound per-JAR `DigestGrant`s
+only to the **local** SPIFFE principal (from `Security.currentPrincipals()`).
+Two distinct services on the same node sharing the same JAR bytes (same
+SHA-256 digest) would produce the same grant, so Service B could benefit from
+a grant that was issued when connecting to Service A.
+
+**Fix — Option 1:**
+
+1. `tryGrantPerJarDigestGrants` now accepts a second principal array
+   (`serverPrincipals`) alongside `localPrincipals`.
+2. A new package-private helper `mergePrincipals(Principal[], Principal[])` 
+   merges the two arrays into a de-duplicated, insertion-ordered set.
+3. Each per-JAR `DigestGrant` is now built with the **union of local and
+   server principals**.  The grant fires only when the policy evaluation
+   context carries **all** of those principals — i.e. both the local
+   workload identity and the specific server that attested to those JAR
+   bytes.
+4. The call site in `resolve()` passes `serverPrincipals` (already extracted
+   from the `ServerMinPrincipal` constraints in the `MethodConstraints`) to
+   the helper.
+5. Seven new unit tests in
+   `PreferredProxyCodebaseProviderVerdictTest` cover `mergePrincipals`
+   exhaustively (both-null, both-empty, first-null, second-null, disjoint,
+   duplicate-dropped, and the key property that different server principals
+   produce distinct grant sets).
+
+**Security gap addressed:**
+A second authenticated service (Service B) that deploys a JAR with the same
+content digest as Service A will receive a `DigestGrant` bound to
+`{local, serverB}`, which is different from Service A's grant
+`{local, serverA}`.  Neither grant fires for the other service's code,
+because the server principal required by each grant is not present in the
+other service's execution context.
+
+**Files changed:**
+- `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java`
+  — `mergePrincipals`, updated `tryGrantPerJarDigestGrants`, updated call
+  site in `resolve()`
+- `jgdms-pref-class-loader/…/PreferredProxyCodebaseProviderVerdictTest.java`
+  — 7 new `mergePrincipals` tests (51 tests total, all pass)
+- §3 weakness table — new row for the digest-codesource hijacking gap
+- §6 work items table — new row Work Item 61 (`✅ Completed`)
 
 ---
 
@@ -593,6 +630,7 @@ subsequent uses skip all of the above.
 | 10 | CombinerSecurityManager recursion depth ceiling | 🟡 Medium | No (fixed at 7) |
 | 11 | DiscoveryCredentialProvider unimplemented | 🟡 Medium | Yes (SpiffeDiscoveryCredentialProvider backed by SpiffeSubjectHolder; AbstractLookupDiscovery integration — WI55) |
 | 12 | Pack200 full-JAR heap materialization | 🟡 Low | Partially (64 MB cap) |
+| 13 | Digest-codesource hijacking — second authenticated service with same JAR bytes reuses DigestGrant | 🟠 High | ✅ Yes (WI61 — Option 1: DigestGrants now bound to both local and server SPIFFE principals) |
 
 ---
 
@@ -1078,6 +1116,7 @@ These extend the work-item table in §12 of
 | **58** | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix — `CodeSourceKey` includes `digestAlgorithm`+`digest` fields from `DigestCodeSource` in `hashCode()`/`equals()`; `getProtectionDomain` promotes plain `CodeSource` to content-addressed `DigestCodeSource` (SHA-256) with two-layer cache (`JarResponseCache` + `digestCache`) — see §7 | DirtyChai | ✅ Complete |
 | **59** | SPIRE HA deployment documentation — `## High Availability Deployment` section in `docs/spiffe-admin-deployment.md`: HA architecture diagram; shared PostgreSQL datastore; `disk` CA vs Vault `UpstreamAuthority`; HAProxy/NLB TCP load balancer config; agent VIP config; failure-mode analysis table; HA operational checklist | 4.1 | ✅ Completed |
 | **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
+| **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerJarDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
 
 ---
 
@@ -1417,14 +1456,102 @@ been reverted from this branch.
 
 ---
 
+## 9. Work Item 61 — Digest-Codesource Hijacking Defence (Option 1)
+
+### 9.1 The security gap
+
+`PreferredProxyCodebaseProvider.tryGrantPerJarDigestGrants` issues per-JAR
+`DigestGrant`s during the boot window, after verifying the server's codebase
+bytes against the server-attested digests.  Before this fix, each grant was
+bound only to:
+
+- the **content digest** of the JAR (matches any `DigestCodeSource` with that
+  digest), and
+- the **local** SPIFFE principals from `Security.currentPrincipals()`.
+
+Both conditions depend solely on the **client side**.  If two distinct
+services — Service A and Service B — deploy JARs with identical content
+(same SHA-256 digest), both services would produce the same `DigestGrant` on
+the same client node (same local SPIFFE identity, same digest bytes).
+
+**Attack scenario:**
+1. Service A (legitimate) connects to a client.  The client issues a
+   `DigestGrant` for digest `D` bound to `{localPrincipal}`.
+2. Service B (different logical service, but shares some library JAR with
+   Service A) also authenticates to the same client.
+3. Service B presents code with digest `D`.
+4. The existing `DigestGrant` fires: digest matches, local principal present.
+5. Service B's code gains `DownloadPermission` and (on DirtyChai)
+   `LoadClassPermission` without Service A's administrator ever auditing it.
+
+### 9.2 Fix — Option 1
+
+The fix adds the **authenticated server's SPIFFE principals** (extracted from
+the `ServerMinPrincipal` constraint via `extractServerPrincipals(mc)`) to the
+per-JAR `DigestGrant`'s principal requirements alongside the local principals.
+
+**New helper:** `mergePrincipals(Principal[] first, Principal[] second)`
+
+- Merges two principal arrays into a de-duplicated, insertion-ordered set.
+- Returns `null` when both inputs are null/empty (backward-compatible: grant
+  then applies to any principal, same as before this fix).
+- A clone is returned when one side is null/empty so the caller cannot mutate
+  the original array.
+
+**Updated `tryGrantPerJarDigestGrants`:**
+- Accepts `Principal[] serverPrincipals` in addition to `Principal[] localPrincipals`.
+- Calls `mergePrincipals(localPrincipals, serverPrincipals)` to produce the
+  combined principal set.
+- Passes the combined set to `PermissionGrantBuilder.principals(...)`.
+
+**Updated call site in `resolve()`:**
+```java
+Principal[] localPrincipals = Security.currentPrincipals();
+tryGrantPerJarDigestGrants(algo, localDigests, localPrincipals, serverPrincipals);
+```
+
+### 9.3 Security properties after the fix
+
+| Property | Before | After (Option 1) |
+|---|---|---|
+| Grant bound to local SPIFFE | ✅ | ✅ (unchanged) |
+| Grant bound to server SPIFFE | ❌ | ✅ |
+| Same JAR bytes from different services | Same grant | Distinct grants |
+| Service B reuses Service A's DigestGrant | Possible | Not possible — server principal mismatch |
+| Non-SPIFFE deployments (no serverPrincipals) | Unchanged | Unchanged — `mergePrincipals` with null server returns local only |
+| DirtyChai grant evaluation | Works when local principal in context | Works when both local AND server principal in context |
+
+### 9.4 Limitations
+
+- The server's SPIFFE principal must be present in the grant evaluation context
+  for the grant to fire.  On a standard JDK without DirtyChai's
+  `SubjectDomainCombiner` enrichment, the grant still does not fire (the
+  `DigestCodeSource` type check fails first), so the defense is additive and
+  not regressive.
+- If the client is not configured with `ServerMinPrincipal` constraints
+  (`serverPrincipals == null`), the grant falls back to local-principal-only
+  binding.  Deployments without SPIFFE are not affected.
+- The grant requires the server principal to be in the local Subject or
+  ProtectionDomain at evaluation time.  Ensuring this is a DirtyChai
+  responsibility; the JGDMS change prepares the correct grant structure for
+  when DirtyChai enriches the ProtectionDomain with the peer's identity.
+
+### 9.5 Files changed
+
+| File | Change |
+|---|---|
+| `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` | `mergePrincipals` helper (package-private); `tryGrantPerJarDigestGrants` takes `serverPrincipals`; call site updated; Javadoc updated |
+| `jgdms-pref-class-loader/.../PreferredProxyCodebaseProviderVerdictTest.java` | 7 new `mergePrincipals` tests |
+| `docs/.../AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md` | §3 row 13 added; §6 WI61 row added; §9 new section |
+| `docs/.../JGDMS-STD-003-MultiSubjectIdentityArchitecture-v3.md` | §DigestGrant note updated |
+
+---
+
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 50.
-Work Item 55 (DiscoveryCredentialProvider + SpiffeDiscoveryCredentialProvider +
-AbstractLookupDiscovery integration) is now ✅ Completed.  Work Item 46 records
-an explicit options decision in §8.8: Option 4 (retained, externally-voidable
-loader-scoped grants while keeping preferred proxy `ClassLoader`s cached) is the
-implemented baseline, and Option 5 (`INCONCLUSIVEPermit`) is the future
-hardening path. §8 also records that GC after clearing strong references is at
-most a best-effort secondary effect rather than a dependable mitigation. Work
-Item 58 remains ✅ fully complete in DirtyChai
+future AI agent to continue without loss of context. This is version 53.
+Work Item 61 (digest-codesource hijacking defence — Option 1) is now
+✅ Completed: `tryGrantPerJarDigestGrants` now binds each per-JAR DigestGrant
+to both the local and server SPIFFE principals, preventing a second
+authenticated service with the same JAR bytes from reusing the grant.
+Work Item 58 remains ✅ fully complete in DirtyChai
 (`SecureClassLoader.java` SHA `98e1e31`).*

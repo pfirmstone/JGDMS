@@ -937,6 +937,7 @@ Once OpenJDK provides a `callAs`-based GSS-API path:
 | Full `Subject[]` propagated to spawned threads | `Thread.scopedSubjects` captures the full array; `Subject.currentAll()` returns all transaction participants in spawned threads; no partial propagation |
 | `WorkerSubject` skipped in injection loop | Explicit `instanceof WorkerSubject` check before each `combine()` call; principals already present from class load time; no double-injection |
 | Original combiner preserved across multi-subject loop | `existing = acc.getCombiner()` captured once before loop; restored in every `AccessControlContext.create()` call within the loop |
+| DigestGrant bound to both local and server SPIFFE identity | Per-JAR `DigestGrant`s issued during the boot window are scoped to the union of the local workload's SPIFFE principal and the authenticated server's SPIFFE principal. A second service that ships code with the same content digest cannot reuse the grant, because its server SPIFFE identity differs. (See §15.3.) |
 
 ### 15.2 What Cannot Be Bypassed
 
@@ -948,6 +949,44 @@ Once OpenJDK provides a `callAs`-based GSS-API path:
 6. Multi-party transaction atomicity
 7. Class load gate via `LoadClassPermission`
 8. `WorkerSubject` exclusion from `callAs` varargs (compile-time type safety)
+
+### 15.3 Digest-Codesource Hijacking Defence
+
+**Gap addressed:** A second authenticated service whose JAR bytes happen to
+have the same SHA-256 digest as an already-audited service could previously
+reuse the `DigestGrant` issued for that digest and gain
+`DownloadPermission`/`LoadClassPermission` without being audited.
+
+**How the defence works:**
+
+When `PreferredProxyCodebaseProvider.resolve()` downloads and verifies the
+server's proxy codebase, it issues one `DigestGrant` per JAR via
+`tryGrantPerJarDigestGrants(algorithm, perJarDigests, localPrincipals, serverPrincipals)`.
+The `serverPrincipals` array is extracted from the `ServerMinPrincipal`
+constraint on the bootstrap proxy's `MethodConstraints`.
+
+Each `DigestGrant` is built with the **union** of:
+- the **local** SPIFFE workload principal (from `Security.currentPrincipals()`)
+- the **authenticated server's** SPIFFE principal (from `extractServerPrincipals(mc)`)
+
+The grant fires only when the policy evaluation context carries **all** of those
+principals.  Because each service has a distinct server SPIFFE principal:
+
+```
+Service A's grant = digest D + {local, spiffe://trust/svc/A}
+Service B's grant = digest D + {local, spiffe://trust/svc/B}
+```
+
+Even if Services A and B share JAR bytes (digest D), the grants are disjoint.
+Service B's code cannot satisfy Service A's grant requirement, and vice versa.
+
+**Fail-safe when server principals are unavailable:** When no
+`ServerMinPrincipal` constraints are configured (`serverPrincipals == null` or
+empty), the defence reduces to the previous local-principal-only binding.
+Non-SPIFFE deployments are unaffected.
+
+**Implementation:** `mergePrincipals(Principal[], Principal[])` in
+`PreferredProxyCodebaseProvider` (package-private helper added by Work Item 61).
 
 ---
 

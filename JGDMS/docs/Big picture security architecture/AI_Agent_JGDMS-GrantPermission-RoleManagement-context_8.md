@@ -10,6 +10,38 @@ context. It supersedes and extends v32.
 
 ---
 
+## v36 Change Summary
+
+**Work Item 61 — Digest-Codesource Hijacking Defence (Option 1) — ✅ COMPLETED**
+
+Closes the security gap where a second authenticated service that ships JAR
+bytes with the same SHA-256 digest as a legitimately-loaded service could reuse
+the per-JAR `DigestGrant` that was issued for that digest.
+
+**Root cause:** `tryGrantPerJarDigestGrants` was binding each `DigestGrant`
+only to the **local** SPIFFE principal.  Two distinct services that share a
+library JAR (same content → same digest) would produce the same grant on the
+same client node.
+
+**Fix:** `tryGrantPerJarDigestGrants` now accepts the **server's authenticated
+SPIFFE principals** (from `extractServerPrincipals(mc)`, which reads the
+`ServerMinPrincipal` constraints on the bootstrap proxy's `MethodConstraints`)
+alongside the local principals.  A new `mergePrincipals` helper merges the two
+arrays de-duplicated.  Each per-JAR `DigestGrant` is built with the union of
+local and server principals.
+
+**Result:**
+- Service A's grant = digest D + `{local, serverA}`.
+- Service B's grant = digest D + `{local, serverB}`.
+- Neither grant fires for the other service's code, because the server
+  principal required by each grant will not be present in the other service's
+  execution context.
+
+See [`context_10 (v53)`](AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md)
+§9 for the full analysis, options table, security properties, and limitations.
+
+---
+
 ## v35 Change Summary
 
 **Work Item 44 — `JwtVerifier` SPI (Option D) — ✅ COMPLETED**

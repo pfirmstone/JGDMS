@@ -782,4 +782,115 @@ public class PreferredProxyCodebaseProviderVerdictTest {
             throw new UnsupportedOperationException("not used in these tests");
         }
     }
+
+    // -------------------------------------------------------------------------
+    // mergePrincipals tests
+    // -------------------------------------------------------------------------
+
+    private static java.security.Principal makePrincipal(final String name) {
+        return new java.security.Principal() {
+            public String getName() { return name; }
+            public String toString() { return "TestPrincipal(" + name + ")"; }
+            public boolean equals(Object o) {
+                if (!(o instanceof java.security.Principal)) return false;
+                return name.equals(((java.security.Principal) o).getName());
+            }
+            public int hashCode() { return name.hashCode(); }
+        };
+    }
+
+    @Test
+    public void mergePrincipals_bothNull_returnsNull() {
+        assertNull("both null should return null",
+                PreferredProxyCodebaseProvider.mergePrincipals(null, null));
+    }
+
+    @Test
+    public void mergePrincipals_bothEmpty_returnsNull() {
+        assertNull("both empty should return null",
+                PreferredProxyCodebaseProvider.mergePrincipals(
+                        new java.security.Principal[0],
+                        new java.security.Principal[0]));
+    }
+
+    @Test
+    public void mergePrincipals_firstNull_returnsSecond() {
+        java.security.Principal b = makePrincipal("spiffe://trust/svc/b");
+        java.security.Principal[] result =
+                PreferredProxyCodebaseProvider.mergePrincipals(
+                        null, new java.security.Principal[]{b});
+        assertNotNull(result);
+        assertEquals(1, result.length);
+        assertEquals("spiffe://trust/svc/b", result[0].getName());
+    }
+
+    @Test
+    public void mergePrincipals_secondNull_returnsFirst() {
+        java.security.Principal a = makePrincipal("spiffe://trust/svc/a");
+        java.security.Principal[] result =
+                PreferredProxyCodebaseProvider.mergePrincipals(
+                        new java.security.Principal[]{a}, null);
+        assertNotNull(result);
+        assertEquals(1, result.length);
+        assertEquals("spiffe://trust/svc/a", result[0].getName());
+    }
+
+    @Test
+    public void mergePrincipals_disjointArrays_mergesAll() {
+        java.security.Principal a = makePrincipal("spiffe://trust/client/node1");
+        java.security.Principal b = makePrincipal("spiffe://trust/svc/serviceA");
+        java.security.Principal[] result =
+                PreferredProxyCodebaseProvider.mergePrincipals(
+                        new java.security.Principal[]{a},
+                        new java.security.Principal[]{b});
+        assertNotNull(result);
+        assertEquals("should have 2 principals", 2, result.length);
+        // First principal must be from the first array
+        assertEquals("spiffe://trust/client/node1", result[0].getName());
+        assertEquals("spiffe://trust/svc/serviceA", result[1].getName());
+    }
+
+    @Test
+    public void mergePrincipals_duplicateDropped() {
+        java.security.Principal shared = makePrincipal("spiffe://trust/shared");
+        java.security.Principal extra  = makePrincipal("spiffe://trust/extra");
+        java.security.Principal[] result =
+                PreferredProxyCodebaseProvider.mergePrincipals(
+                        new java.security.Principal[]{shared, extra},
+                        new java.security.Principal[]{shared});
+        assertNotNull(result);
+        assertEquals("duplicate should be removed", 2, result.length);
+    }
+
+    @Test
+    public void mergePrincipals_serverAndLocalDiffer_produceDistinctGrants() {
+        // Verify that two calls with different server principals produce
+        // different merged sets — this is the core of Option 1.
+        java.security.Principal local   = makePrincipal("spiffe://trust/client/node");
+        java.security.Principal serverA = makePrincipal("spiffe://trust/svc/serviceA");
+        java.security.Principal serverB = makePrincipal("spiffe://trust/svc/serviceB");
+
+        java.security.Principal[] grantsA =
+                PreferredProxyCodebaseProvider.mergePrincipals(
+                        new java.security.Principal[]{local},
+                        new java.security.Principal[]{serverA});
+        java.security.Principal[] grantsB =
+                PreferredProxyCodebaseProvider.mergePrincipals(
+                        new java.security.Principal[]{local},
+                        new java.security.Principal[]{serverB});
+
+        assertFalse("different servers should produce different grant principal sets",
+                java.util.Arrays.equals(grantsA, grantsB));
+        assertEquals("serviceA grant should require 2 principals", 2, grantsA.length);
+        assertEquals("serviceB grant should require 2 principals", 2, grantsB.length);
+        // serverA principal present only in grantsA
+        boolean aHasServerA = false;
+        boolean bHasServerA = false;
+        for (java.security.Principal p : grantsA)
+            if (serverA.equals(p)) aHasServerA = true;
+        for (java.security.Principal p : grantsB)
+            if (serverA.equals(p)) bHasServerA = true;
+        assertTrue("grantsA should contain serverA principal", aHasServerA);
+        assertFalse("grantsB should NOT contain serverA principal", bHasServerA);
+    }
 }

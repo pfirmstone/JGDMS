@@ -52,6 +52,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -770,6 +771,32 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
 
     /**
+     * Merges two principal arrays into a single de-duplicated array.
+     *
+     * <p>Preserves insertion order: {@code first} entries appear before
+     * {@code second} entries.  Duplicates (determined by
+     * {@link Object#equals}) are silently dropped.
+     *
+     * @param first  the primary principals (e.g. local SPIFFE identity); may
+     *               be {@code null} or empty
+     * @param second the secondary principals (e.g. server SPIFFE identity);
+     *               may be {@code null} or empty
+     * @return a merged array, or {@code null} if both inputs are null/empty
+     */
+    static Principal[] mergePrincipals(Principal[] first, Principal[] second) {
+        boolean firstEmpty  = (first  == null || first.length  == 0);
+        boolean secondEmpty = (second == null || second.length == 0);
+        if (firstEmpty && secondEmpty) return null;
+        if (firstEmpty)  return second.clone();
+        if (secondEmpty) return first.clone();
+        LinkedHashSet<Principal> merged = new LinkedHashSet<Principal>(
+                first.length + second.length);
+        for (Principal p : first)  merged.add(p);
+        for (Principal p : second) merged.add(p);
+        return merged.toArray(new Principal[0]);
+    }
+
+    /**
      * Issues one {@link PermissionGrant} per non-directory JAR, scoped to the
      * individual JAR's content digest and optionally restricted to the given
      * principals.
@@ -790,6 +817,19 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * matches <em>and</em> the calling context carries the local principal,
      * providing defense-in-depth.
      *
+     * <p>If {@code serverPrincipals} is additionally non-null and non-empty,
+     * the server's authenticated SPIFFE identity is also required in the grant.
+     * This binds each per-JAR {@code DigestGrant} to the specific
+     * client↔server pair that attested to those JAR bytes, preventing another
+     * service that ships code with the same content digest from reusing the
+     * grant (digest-codesource hijacking defence — Option 1).
+     *
+     * <p>The combined principal set passed to
+     * {@link PermissionGrantBuilder#principals} is the union of
+     * {@code localPrincipals} and {@code serverPrincipals}, de-duplicated while
+     * preserving insertion order.  The grant fires only when the policy
+     * evaluation context contains <em>all</em> of those principals.
+     *
      * <p>If the installed policy is not a {@code RevocablePolicy} or the
      * calling context lacks {@link net.jini.security.GrantPermission}, the
      * grant attempt is silently skipped.
@@ -799,10 +839,17 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      *                        one per non-directory JAR)
      * @param localPrincipals the local client principals to scope the grant to,
      *                        or {@code null} to grant to any principal
+     * @param serverPrincipals the authenticated server principals extracted from
+     *                        the {@code ServerMinPrincipal} constraints; when
+     *                        non-null and non-empty these are merged with
+     *                        {@code localPrincipals} so that the grant is bound
+     *                        to the specific service that attested to the codebase
      */
     private static void tryGrantPerJarDigestGrants(String algorithm,
                                                    byte[][] perJarDigests,
-                                                   Principal[] localPrincipals) {
+                                                   Principal[] localPrincipals,
+                                                   Principal[] serverPrincipals) {
+        Principal[] grantPrincipals = mergePrincipals(localPrincipals, serverPrincipals);
         for (int i = 0; i < perJarDigests.length; i++) {
             try {
                 List<Permission> perms = new ArrayList<Permission>();
@@ -815,12 +862,19 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                         .context(PermissionGrantBuilder.DIGEST)
                         .digest(algorithm, perJarDigests[i])
                         .permissions(perms.toArray(new Permission[0]));
-                if (localPrincipals != null && localPrincipals.length > 0) {
-                    builder = builder.principals(localPrincipals);
+                if (grantPrincipals != null && grantPrincipals.length > 0) {
+                    builder = builder.principals(grantPrincipals);
                 }
                 Security.grant(builder.build());
-                logger.log(Level.FINE,
-                        "Per-JAR DigestGrant {0} applied", i);
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.log(Level.FINE,
+                            "Per-JAR DigestGrant {0} applied"
+                            + " (local+server principals: {1})",
+                            new Object[]{i,
+                                grantPrincipals != null
+                                    ? Arrays.toString(grantPrincipals)
+                                    : "none"});
+                }
             } catch (UnsupportedOperationException ex) {
                 logger.log(Level.FINE,
                         "DigestGrant skipped: policy does not support revocable grants");
@@ -1187,11 +1241,14 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                                         + " refusing: " + path);
                             }
                             // All per-JAR digests verified: grant one DigestGrant per JAR,
-                            // scoped to the local client's SPIFFE principal.
-                            // No URL is included — the grant applies to any code source
-                            // whose content digest matches (DirtyChai DigestCodeSource).
+                            // scoped to the local client's SPIFFE principal AND the
+                            // server's authenticated SPIFFE principal.  Binding the grant
+                            // to both identities prevents another service that ships the
+                            // same JAR bytes from reusing this grant (Option 1 —
+                            // digest-codesource hijacking defence).
                             Principal[] localPrincipals = Security.currentPrincipals();
-                            tryGrantPerJarDigestGrants(algo, localDigests, localPrincipals);
+                            tryGrantPerJarDigestGrants(algo, localDigests,
+                                    localPrincipals, serverPrincipals);
                             logger.log(Level.INFO,
                                     "Boot window: {0} per-JAR codebase digest(s) verified"
                                     + " and DigestGrant(s) applied; codebase: {1}",
