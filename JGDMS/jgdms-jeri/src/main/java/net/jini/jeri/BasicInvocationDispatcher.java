@@ -93,6 +93,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import net.jini.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
 import org.apache.river.api.io.AccessControlContextSerializer;
@@ -238,15 +239,24 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Pluggable JWT verifier (Option D, Work Item 44).  {@code null} means JWT
-     * verification is disabled; the bytes received on the wire are silently
-     * discarded (backward-compatible behaviour where the SPIFFE SVID alone
-     * vouches for the presented principals).
+     * Pluggable JWT verifier (Option D, Work Item 44).  When {@code null} the
+     * {@link #DEFAULT_JWT_VERIFIER} is used, which performs structural claim
+     * checks ({@code exp}, {@code iat}) without JWKS signature verification.
+     * Operators who need full OIDC signature verification should install a
+     * custom verifier via {@link #setJwtVerifier(JwtVerifier)}.
      *
      * <p>Set via {@link #setJwtVerifier(JwtVerifier)} before exporting remote
      * objects.
      */
     private static volatile JwtVerifier jwtVerifier = null;
+
+    /**
+     * Fallback verifier applied when no custom {@link JwtVerifier} has been
+     * installed.  Performs structural claim checks ({@code exp}, {@code iat})
+     * without JWKS network calls — zero operational cost, closes the default-
+     * path gap described in Work Item 43 / §2.3 of the security assessment.
+     */
+    private static final JwtVerifier DEFAULT_JWT_VERIFIER = new DefaultJwtVerifier();
 
     /**
      * Maximum number of raw JWT tokens accepted per Subject from the wire.
@@ -2012,8 +2022,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * Verifies a raw JWT token using the registered {@link JwtVerifier}, with
      * connection-level caching keyed on the raw token string.
      *
-     * <p>If no verifier is registered ({@link #jwtVerifier} is {@code null})
-     * the method returns immediately (backward-compatible no-op).
+     * <p>If no custom verifier is registered ({@link #jwtVerifier} is
+     * {@code null}) the {@link #DEFAULT_JWT_VERIFIER} is used, which performs
+     * structural claim checks ({@code exp}, {@code iat}) without JWKS network
+     * calls.  This closes the default-path gap (§2.3): a peer that presents a
+     * JWT whose {@code exp} claim has elapsed is rejected even without an
+     * explicit verifier registration.
      *
      * <p>Cache entries expire when the token's own {@code exp} claim is
      * passed; an {@link Instant#MIN} sentinel is stored when the {@code exp}
@@ -2026,7 +2040,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    throws IOException
     {
 	JwtVerifier verifier = jwtVerifier;
-	if (verifier == null) return; // Verification disabled — accept on SVID trust.
+	if (verifier == null) verifier = DEFAULT_JWT_VERIFIER; // fallback: structural claims only
 
 	Instant cachedExp = JWT_VERIFICATION_CACHE.get(rawJwt);
 	if (cachedExp != null && Instant.now().isBefore(cachedExp)) {

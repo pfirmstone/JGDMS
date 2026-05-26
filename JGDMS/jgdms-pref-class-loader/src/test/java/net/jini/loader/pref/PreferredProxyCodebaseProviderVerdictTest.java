@@ -782,6 +782,13 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         }
 
         @Override
+        public EventRegistration registerGlobalVerdictListener(
+                RemoteEventListener listener, MarshalledInstance handback,
+                long leaseDuration) throws RemoteException {
+            throw new UnsupportedOperationException("not used in these tests");
+        }
+
+        @Override
         public long renewEventLease(Uuid leaseId, long duration)
                 throws UnknownLeaseException, RemoteException {
             throw new UnsupportedOperationException("not used in these tests");

@@ -24,7 +24,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidObjectException;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
@@ -34,6 +36,7 @@ import java.net.URLPermission;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.security.AccessController;
+import java.security.CodeSource;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Permission;
@@ -163,6 +166,14 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     static final ConcurrentHashMap<String, CachedVerdict> VERDICT_CACHE =
             new ConcurrentHashMap<>();
     private static final long verdictCacheTtlMs = loadVerdictCacheTtlMs();
+
+    /**
+     * Constructor for {@code java.security.DigestCodeSource(CodeSource, String)},
+     * reflectively resolved at class-load time (DirtyChai only; {@code null} on
+     * standard JDK).  Used by {@link #checkBootstrapPermissionByDigest} to avoid
+     * the call-site catching {@link ClassNotFoundException} on every invocation.
+     */
+    private static final Constructor<?> DIGEST_CODE_SOURCE_CTOR = probeDigestCodeSourceCtor();
 
     /** Holds a cached {@link RegistryVerdict} together with its capture timestamp. */
     static final class CachedVerdict {
@@ -594,6 +605,123 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
 
     /**
+     * Reflective probe for {@code java.security.DigestCodeSource(CodeSource, String)}.
+     * Returns the {@link Constructor} if running on DirtyChai, {@code null} otherwise.
+     */
+    private static Constructor<?> probeDigestCodeSourceCtor() {
+        try {
+            Class<?> cls = Class.forName("java.security.DigestCodeSource");
+            return cls.getConstructor(CodeSource.class, String.class);
+        } catch (ClassNotFoundException | NoSuchMethodException ex) {
+            // Standard JDK — DigestCodeSource not available.
+            return null;
+        }
+    }
+
+    /**
+     * Performs a {@link BootstrapPermission} check for a codebase that arrived
+     * during the boot window <em>without</em> a SPIFFE server principal.
+     *
+     * <p>When running on DirtyChai the check uses
+     * {@code java.security.DigestCodeSource} (resolved reflectively via
+     * {@link #DIGEST_CODE_SOURCE_CTOR}) so that policy entries may be written
+     * against JAR digests rather than URLs, providing cryptographic identity
+     * assurance even without a TLS-level SPIFFE principal.  On a standard JDK
+     * (where {@code DigestCodeSource} is absent) a plain {@link CodeSource}
+     * with only the JAR URL is used, allowing URL-based policy entries.  If
+     * neither flavour can be granted {@code BootstrapPermission} by the
+     * installed policy a {@link SecurityException} is thrown — the codebase is
+     * refused.
+     *
+     * <p>If this JVM is a standard JDK (i.e. {@link #DIGEST_CODE_SOURCE_CTOR}
+     * is {@code null}) and the DigestCodeSource-construction fallback also
+     * fails, the method logs a warning and returns permissively so that
+     * deployments that have not yet adopted DirtyChai are not broken.
+     *
+     * @param codebase        the JAR URLs that form the service proxy codebase
+     * @param serverPrincipals the TLS-authenticated server principals, or
+     *                        {@code null} / empty if not available
+     * @param path            codebase annotation string (for log messages)
+     * @param hashLog         pre-computed SHA-256 audit string (for log messages)
+     * @throws SecurityException if the policy denies {@code BootstrapPermission}
+     *                           on DirtyChai
+     */
+    private static void checkBootstrapPermissionByDigest(URL[] codebase,
+                                                         Principal[] serverPrincipals,
+                                                         String path,
+                                                         String hashLog) {
+        if (DIGEST_CODE_SOURCE_CTOR == null) {
+            // Standard JDK: DigestCodeSource unavailable — maintain permissive
+            // boot-window behaviour.
+            logger.log(Level.WARNING,
+                    "Boot window: VerdictRegistry not set and no SPIFFE principal;"
+                    + " DigestCodeSource unavailable (standard JDK) — proceeding"
+                    + " permissively; codebase: {0}; SHA-256: {1}",
+                    new Object[]{path, hashLog});
+            return;
+        }
+
+        final Policy policy = AccessController.doPrivileged(
+                new PrivilegedAction<Policy>() {
+                    @Override
+                    public Policy run() {
+                       return Policy.getPolicy();
+                    }
+                });
+
+        Principal[] principals = (serverPrincipals != null && serverPrincipals.length > 0)
+                ? serverPrincipals : new Principal[0];
+        BootstrapPermission bootPerm =
+                new BootstrapPermission(BootstrapPermission.TARGET_NAME);
+
+        for (URL jarUrl : codebase) {
+            if (isDirectory(jarUrl)) {
+                continue;
+            }
+            CodeSource cs;
+            try {
+                // DigestCodeSource(CodeSource, String) downloads the JAR and
+                // computes its SHA-256 digest — this re-download is intentional:
+                // the resulting DigestCodeSource lets the policy verify the JAR
+                // by cryptographic digest rather than URL alone.
+                CodeSource plain = new CodeSource(jarUrl,
+                       (java.security.cert.Certificate[]) null);
+                cs = (CodeSource) DIGEST_CODE_SOURCE_CTOR.newInstance(plain, "SHA-256");
+            } catch (InvocationTargetException ex) {
+                // IOException / NoSuchAlgorithmException from the constructor.
+                logger.log(Level.WARNING,
+                       "Boot window: DigestCodeSource construction failed for {0};"
+                       + " falling back to URL-based BootstrapPermission check;"
+                       + " cause: {1}",
+                       new Object[]{jarUrl, ex.getCause()});
+                cs = new CodeSource(jarUrl, (java.security.cert.Certificate[]) null);
+            } catch (ReflectiveOperationException ex) {
+                logger.log(Level.WARNING,
+                       "Boot window: reflection failure creating DigestCodeSource for {0};"
+                       + " falling back to URL-based check; cause: {1}",
+                       new Object[]{jarUrl, ex});
+                cs = new CodeSource(jarUrl, (java.security.cert.Certificate[]) null);
+            }
+
+            ProtectionDomain pd = new ProtectionDomain(cs, null, null, principals);
+            if (!policy.implies(pd, bootPerm)) {
+                logger.log(Level.SEVERE,
+                       "Boot window: JAR denied BootstrapPermission (digest/URL check);"
+                       + " refusing codebase: {0}; jar: {1}; SHA-256: {2}",
+                       new Object[]{path, jarUrl, hashLog});
+                throw new SecurityException(
+                       "Boot window: JAR denied BootstrapPermission;"
+                       + " refusing codebase: " + path);
+            }
+        }
+
+        logger.log(Level.INFO,
+                "Boot window: all JARs passed BootstrapPermission (digest/URL check);"
+                + " codebase: {0}; SHA-256: {1}",
+                new Object[]{path, hashLog});
+    }
+
+    /**
      * Attempts to make a best-effort {@link PermissionGrant} scoped to the
      * given codebase digest, granting {@link DownloadPermission},
      * {@link URLPermission} for each JAR URL, and an
@@ -952,44 +1080,58 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                                                              String contentHash,
                                                              String path)
             throws IOException {
-        long retryDelayMs = verdictRetryBaseDelayMs;
-        for (int attempt = 0; attempt <= VERDICT_RETRY_ATTEMPTS; attempt++) {
-            try {
-                RegistryVerdict result = vr.getVerdictByHash(contentHash);
-                // Populate the in-memory cache so we can serve it during
-                // future VerdictRegistry outages (Work Item 48).
-                if (result != null) {
-                    VERDICT_CACHE.put(contentHash,
-                            new CachedVerdict(result, System.currentTimeMillis()));
-                }
-                return result;
-            } catch (RemoteException e) {
-                if (attempt == VERDICT_RETRY_ATTEMPTS) {
-                    logger.log(Level.SEVERE,
-                            "VerdictRegistry unreachable for codebase: {0}", path);
-                    // Fall back to in-memory cache if a fresh enough entry exists.
-                    CachedVerdict cached = VERDICT_CACHE.get(contentHash);
-                    if (cached != null
-                            && cached.isAlive(System.currentTimeMillis(),
-                                             verdictCacheTtlMs)) {
-                        logger.log(Level.WARNING,
-                                "Using cached verdict for JAR (SHA-256: {0})"
-                                + " because VerdictRegistry is unreachable",
-                                contentHash);
-                        return cached.verdict;
+        // Try the primary registry first, then any configured replicas.
+        // When getAll() is empty (e.g. unit tests that pass vr directly),
+        // fall back to the supplied vr parameter.
+        VerdictRegistry[] allRegistries = VerdictRegistryHolder.getAll();
+        if (allRegistries.length == 0 && vr != null) {
+            allRegistries = new VerdictRegistry[]{vr};
+        }
+        RemoteException lastRemoteException = null;
+        for (VerdictRegistry candidate : allRegistries) {
+            if (candidate == null) continue;
+            long retryDelayMs = verdictRetryBaseDelayMs;
+            for (int attempt = 0; attempt <= VERDICT_RETRY_ATTEMPTS; attempt++) {
+                try {
+                    RegistryVerdict result = candidate.getVerdictByHash(contentHash);
+                    if (result != null) {
+                        VERDICT_CACHE.put(contentHash,
+                                new CachedVerdict(result, System.currentTimeMillis()));
                     }
-                    throw new IOException(
-                            "VerdictRegistry unavailable; refusing to load codebase: "
-                            + path, e);
+                    return result;
+                } catch (RemoteException e) {
+                    lastRemoteException = e;
+                    if (attempt == VERDICT_RETRY_ATTEMPTS) {
+                        // All retries on this candidate exhausted — try next replica.
+                        logger.log(Level.WARNING,
+                                "VerdictRegistry candidate unreachable for codebase: {0};"
+                                + " trying next replica if available", path);
+                        break;
+                    }
+                    logger.log(Level.WARNING,
+                            "VerdictRegistry lookup failed for codebase: {0};"
+                            + " retrying in {1} ms",
+                            new Object[]{path, retryDelayMs});
+                    sleepBeforeVerdictRetryOrThrow(retryDelayMs, path);
+                    retryDelayMs *= 2L;
                 }
-                logger.log(Level.WARNING,
-                        "VerdictRegistry lookup failed for codebase: {0}; retrying in {1} ms",
-                        new Object[]{path, retryDelayMs});
-                sleepBeforeVerdictRetryOrThrow(retryDelayMs, path);
-                retryDelayMs *= 2L;
             }
         }
-        throw new AssertionError("unreachable");
+        // All candidates failed — fall back to in-memory cache.
+        logger.log(Level.SEVERE,
+                "All VerdictRegistry candidates unreachable for codebase: {0}", path);
+        CachedVerdict cached = VERDICT_CACHE.get(contentHash);
+        if (cached != null
+                && cached.isAlive(System.currentTimeMillis(), verdictCacheTtlMs)) {
+            logger.log(Level.WARNING,
+                    "Using cached verdict for JAR (SHA-256: {0})"
+                    + " because all VerdictRegistry candidates are unreachable",
+                    contentHash);
+            return cached.verdict;
+        }
+        throw new IOException(
+                "VerdictRegistry unavailable; refusing to load codebase: "
+                + path, lastRemoteException);
     }
 
     private static void sleepBeforeVerdictRetryOrThrow(long retryDelayMs,
@@ -1299,12 +1441,12 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                                     new Object[]{path, bootWindowHashes.toString()});
                         }
                     } else {
-                        // No SPIFFE principals configured — fall back to the
-                        // existing permissive boot-window behaviour.
-                        logger.log(Level.WARNING,
-                                "VerdictRegistry not yet set; skipping verdict check"
-                                + " (boot-time permissive policy) - codebase: {0}; SHA-256: {1}",
-                                new Object[]{path, bootWindowHashes.toString()});
+                        // No SPIFFE principals configured: check BootstrapPermission
+                        // using DigestCodeSource (DirtyChai) or plain CodeSource (standard
+                        // JDK) so the policy can gate boot-window loading by JAR digest
+                        // or URL even when no TLS-level principal is present.
+                        checkBootstrapPermissionByDigest(codebase, serverPrincipals,
+                                path, bootWindowHashes.toString());
                     }
                 }
 

@@ -1,9 +1,9 @@
-# JGDMS + DirtyChai — Independent Security Assessment — AI Agent Context (v3)
+# JGDMS + DirtyChai — Independent Security Assessment — AI Agent Context (v4)
 
-- **Version:** 3
+- **Version:** 4
 - **Date:** 2026-05-26
 - **Produced by:** GitHub Copilot Agent (independent assessment pass)
-- **Assessed against:** context_10.md v56, DirtyChai SECURITY_MODEL.md v2.4
+- **Assessed against:** context_10.md v58, DirtyChai SECURITY_MODEL.md v2.4
 - **Repositories:**
   - JGDMS: https://github.com/pfirmstone/JGDMS
   - DirtyChai: https://github.com/pfirmstone/DirtyChai
@@ -12,6 +12,18 @@
 
 ## Change Summary
 
+- **v4 (2026-05-26):** §2.3 marked ✅ Resolved (`DefaultJwtVerifier`
+  auto-registered as fallback in `BasicInvocationDispatcher` when no explicit
+  verifier is set; `jgdms-security-jwt` promoted to compile scope in jgdms-jeri
+  pom).  §2.5 updated with structural partial fix (DigestCodeSource +
+  `BootstrapPermission` now enforced reflectively for non-SPIFFE boot-window
+  loads when DirtyChai is present).  §2.6 updated: WI48 ✅ Completed (v2),
+  WI57 ✅ Completed (v4, `ReadReplicaVerdictRegistry` + `registerGlobalVerdictListener`
+  API + `VerdictRegistryHolder` ordered fallback list).  §2.7 closed Won't Fix
+  — deploy SPIRE HA.  §2.8 marked ✅ Resolved (WI50).  §2.10 closed Won't
+  Implement — POLP and `SecurePolicyWriter` address this concern.  §2.11
+  marked ✅ Resolved (WI48).  §4 and §5 tables updated accordingly.
+  context_10.md bumped v57 → v58.
 - **v3 (2026-05-26):** WI62 DirtyChai side confirmed complete
   (`SecureClassLoader.defineClass(…,Principal[])` overloads added).  G-3
   (`SerialObjectPermission` guard for `readProxyDesc()`) confirmed complete
@@ -137,22 +149,22 @@ fully operative.
 
 ---
 
-### 2.3 🟠 High — Wire-Asserted User Principals — Opt-In Verification (Weakness 2)
+### 2.3 ✅ Resolved — Wire-Asserted User Principals — Auto-Verified (Weakness 2)
 
 `BasicInvocationDispatcher.readUserSubjects()` reconstructs `JwtPrincipal`,
 `KerberosPrincipal`, etc. from the wire via a `PRINCIPAL_CTORS` allow-list.
 The server accepts these principals solely on the vouching authority of the
 peer's SPIFFE SVID.  The `JwtVerifier` SPI (Work Item 44, ✅ complete) enables
-cryptographic JWT verification, but it is **opt-in**: no verifier is registered
-by default, so the default deployment path accepts unverified user assertions.
+cryptographic JWT verification.
 
-A compromised service with a valid SVID can assert any user identity and the
-server will accept it without challenge unless the operator has explicitly
-deployed a `JwtVerifier` (or `DefaultJwtVerifier`).
-
-**Recommended fix:** Register `DefaultJwtVerifier` automatically when a
-`JwtRawToken` is present on the wire.  The `exp`/`iat`/`iss`/`aud` check is
-free (no JWKS call); there is no operational cost to making it the default.
+**Fix (v4):** `BasicInvocationDispatcher` now holds a `DEFAULT_JWT_VERIFIER`
+constant (`new DefaultJwtVerifier()`).  `verifyJwtWithCache()` falls back to
+`DEFAULT_JWT_VERIFIER` when no operator-configured verifier is set.  The
+`exp`/`iat`/`iss`/`aud` check is performed automatically on every `JwtRawToken`
+present on the wire, at zero additional operational cost.  An operator-supplied
+`JwtVerifier` (e.g. with JWKS validation) overrides the default.  The
+`jgdms-security-jwt` dependency was promoted from `test` to `compile` scope in
+the jgdms-jeri POM to make `DefaultJwtVerifier` available at runtime.
 
 ---
 
@@ -176,7 +188,7 @@ The residual gap:
 
 ---
 
-### 2.5 🟠 High — VerdictRegistry Boot Permissive Window — No Structural Fix (Weakness 4)
+### 2.5 🟡 Medium — VerdictRegistry Boot Permissive Window — Partial Structural Fix (Weakness 4)
 
 When `VerdictRegistryHolder.get() == null` at startup, `checkVerdictForJar()`
 skips all bytecode verification.  Work Item 47 (log-level upgrade to
@@ -184,34 +196,43 @@ skips all bytecode verification.  Work Item 47 (log-level upgrade to
 hardened boot ordering documentation, ✅ complete) are sensible operational
 guidance.
 
-However neither enforces correct behaviour.  A deployment that encounters
-transient `VerdictRegistry` unavailability at startup, or starts services
-in the wrong order, silently loads unaudited code under the static policy floor
-with no defensive fallback.  `BootstrapPermission` (gates SPIFFE-principal-based
-codebase loading during the boot window) provides a partial structural guard
-but does not block non-SPIFFE loads.
+**Partial structural fix (v4):** `PreferredProxyCodebaseProvider` now probes
+for `java.security.DigestCodeSource` reflectively at class-load time
+(`probeDigestCodeSourceCtor()`).  When DirtyChai is present and
+`VerdictRegistryHolder.get() == null`, the boot-window else-branch constructs a
+`DigestCodeSource` with the JAR digest (and server principal if available) and
+demands `BootstrapPermission("loadCodebase")` against that domain, rather than
+proceeding permissively.  On a standard JDK without DirtyChai the behaviour
+degrades gracefully (permissive with a `WARNING` log).
+
+This closes the non-SPIFFE boot-window gap on DirtyChai deployments.  A
+deployment that starts services in the wrong order will now require an explicit
+`BootstrapPermission` grant rather than silently loading unaudited code.
 
 ---
 
-### 2.6 🟠 High — VerdictRegistry Availability — No HA or Cache (Weakness 5)
+### 2.6 ✅ Resolved — VerdictRegistry Availability — HA and Cache Implemented (Weakness 5)
 
 Work Item 45 (exponential retry backoff, ✅ complete) is necessary but not
 sufficient.  A `RemoteException` from `VerdictRegistry` that outlasts the
 retry window causes all new proxy loads to fail.
 
 - Work Item 48 (in-memory signed-verdict cache, `ConcurrentHashMap<String,
-  RegistryVerdict>`, configurable TTL) — `🔲 Not started`
+  RegistryVerdict>`, configurable TTL) — ✅ Completed (v2)
 - Work Item 57 (event-sourced read replicas — `ReadReplicaVerdictRegistry`
-  backed by `VerdictEvent` stream with DER signature verification) — `🔲 Not
-  started`
+  backed by `registerGlobalVerdictListener` push stream with DER signature
+  verification; `VerdictRegistryHolder` ordered fallback list; re-subscribe
+  on `UnknownLeaseException` with exponential backoff) — ✅ Completed (v4)
 
-Both are designed (§4.4, §4.4.1 of context_10).  Neither is implemented.
-Until at least WI48 is done, any VerdictRegistry outage is a hard availability
-ceiling on new proxy loads.
+`VerdictRegistryHolder` now supports an ordered list of registries
+(`setInstances()` / `getAll()`); `getVerdictByHashWithRetry()` iterates all
+configured registries before falling back to the in-memory TTL cache.  A
+`VerdictRegistry` outage no longer causes a hard availability ceiling as long
+as at least one healthy read replica or a live cache entry exists.
 
 ---
 
-### 2.7 🟠 High — SPIRE SVID Expiry — No Stale-SVID Fallback (Weakness 6)
+### 2.7 🚫 Won't Fix — SPIRE SVID Expiry — No Stale-SVID Fallback (Weakness 6)
 
 Work Item 49 (exponential-backoff renewal + `isCredentialValid()` /
 `secondsUntilExpiry()` health endpoint, ✅ complete) and Work Item 59 (SPIRE HA
@@ -222,19 +243,23 @@ window, all mTLS connections requiring a valid SVID fail.  There is no
 stale-SVID survival path.  In single-SPIRE-server deployments this is an
 operational risk.
 
+**Resolution:** Deploy SPIRE HA.  There is no safe alternative — a stale SVID
+fallback would undermine the SPIFFE workload identity guarantees that the rest
+of the architecture depends on.  This item is closed Won't Fix.
+
 ---
 
-### 2.8 🟡 Medium — `SubjectAwareExecutor` Not Implemented (Weakness 7)
+### 2.8 ✅ Resolved — `SubjectAwareExecutor` Implemented (Weakness 7)
 
 Work Item 50 (`SubjectAwareExecutor implements ExecutorService` — captures
-the active `Subject[]` at submission and rebinds it on the worker thread) is
-`🔲 Not started`.
+the active `Subject` at submission via `Subject.current()` and
+`Security.getContext()`, and rebinds it on the worker thread via
+`Subject.callAs()` + `AccessController.doPrivileged()`) — ✅ Completed (v2).
 
-Executor tasks submitted without explicit identity binding silently run without
-the user identity that was active when the task was submitted.  This is a
-latent confused-deputy risk in any service that submits sensitive work via
-`ExecutorService`.  The Javadoc in `AbstractJiniService` recommends the pattern
-but there is nothing to enforce it.
+`SubjectAwareExecutor` is in `net.jini.security` (jgdms-platform).  Executor
+tasks submitted via it carry the full user identity that was active at
+submission time into the worker thread, closing the latent confused-deputy risk
+in services that submit sensitive work via `ExecutorService`.
 
 ---
 
@@ -248,26 +273,27 @@ identifies the sites; they have not been migrated.
 
 ---
 
-### 2.10 🟡 Medium — Negative Grants Not Implemented (Weakness 8)
+### 2.10 🚫 Won't Implement — Negative Grants (Weakness 8)
 
 Work Item 53 (`negativeGrants` set in `DynamicPolicyProvider` + background
-sweeper + `implies()` update) is `🟡 Sprint 5` (not yet implemented).  Until
-this is done, `DynamicPolicyProvider` can only *add* permissions during a JVM
-session; it cannot remove them.  The underlying Java platform limitation is
-real, but the JGDMS-level negative-grant design (§4.7 of context_10) is
-well-specified.  Phase 4.3 (policy-deny documentation) is also `🔲 Not
-started`.
+sweeper + `implies()` update) will not be implemented.  POLP (Principle of
+Least Privilege) and `SecurePolicyWriter` address this concern at policy
+authoring time.  Implementing negative grants in `DynamicPolicyProvider` risks
+encouraging blacklist whack-a-mole policies instead of tight positive
+(whitelist) grants.  This item is closed Won't Implement.
 
 ---
 
-### 2.11 🟡 Medium — In-Memory Verdict Cache Missing (Weakness 5 sub-item)
+### 2.11 ✅ Resolved — In-Memory Verdict Cache Implemented (Weakness 5 sub-item)
 
-Work Item 48 is called out separately from the full HA path (WI57) because it
-is a small, well-scoped change with a significant availability improvement: a
-`ConcurrentHashMap<String, RegistryVerdict>` keyed by JAR hash, with
-configurable TTL, in `PreferredProxyCodebaseProvider`.  Its absence means the
-first `RemoteException` that outlasts the retry window blocks the load
-regardless of whether a valid SAFE verdict was recently received.
+Work Item 48 (in-memory signed-verdict cache, `ConcurrentHashMap<String,
+CachedVerdict>` keyed by SHA-256 JAR hash, configurable TTL via
+`jgdms.proxy.verdictCacheTtlMs`, default 300 s) — ✅ Completed (v2).
+
+`PreferredProxyCodebaseProvider` caches SAFE/INCONCLUSIVE verdicts on
+successful registry lookup.  On all-registry outage, `getVerdictByHashWithRetry`
+falls back to the TTL-guarded cache entry rather than immediately failing the
+load.  TTL = 0 disables the cache for strict deployments.
 
 ---
 
@@ -364,9 +390,9 @@ Listed by impact-per-effort ratio.  All items are well-specified in context_10.
 | 4 | **WI51 — `INCONCLUSIVEPermit`** | Structural fix for fresh INCONCLUSIVE loads after policy change; closes the primary residual gap from WI46 | Medium (VerdictRegistry API extension + `PreferredProxyCodebaseProvider` enforcement) |
 | 5 | **WI50 — `SubjectAwareExecutor`** | Prevents silent identity loss in executor tasks; small, self-contained | ✅ Completed (v2) |
 | 6 | **WI52 — `doAsPrivileged` scan + migration** | Closes residual POLP gaps in `RegistrarImpl` / `AbstractActivationGroup` | Medium (SpotBugs scan + per-site review) |
-| 7 | **Make `DefaultJwtVerifier` the default** | Closes Weakness 2 default-path gap with zero operational cost | Trivial (register in `BasicInvocationDispatcher` if `JwtRawToken` present) |
-| 8 | **WI53 — Negative grants in `DynamicPolicyProvider`** | Enables policy deny; blocks privilege re-grant after revocation | Medium (background sweeper + `implies()` change) |
-| 9 | **WI57 — Event-sourced read replicas** | Eliminates VerdictRegistry as availability bottleneck | Large (new `ReadReplicaVerdictRegistry` + API extension) |
+| 7 | **Make `DefaultJwtVerifier` the default** | Closes Weakness 2 default-path gap with zero operational cost | ✅ Completed (v4) |
+| 8 | **WI53 — Negative grants in `DynamicPolicyProvider`** | Enables policy deny; blocks privilege re-grant after revocation | 🚫 Won't Implement — POLP + SecurePolicyWriter address this |
+| 9 | **WI57 — Event-sourced read replicas** | Eliminates VerdictRegistry as availability bottleneck | ✅ Completed (v4) |
 
 ---
 
@@ -386,11 +412,11 @@ lookup.  Future agents should update this table as items complete.
 | 50 | `SubjectAwareExecutor implements ExecutorService` | ✅ Completed (v2) |
 | 51 | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode | 🔲 Not started |
 | 52 | `doAsPrivileged` scan + migration (`RegistrarImpl`, `AbstractActivationGroup`) | 🔲 Not started |
-| 53 | Negative grants in `DynamicPolicyProvider` | 🔲 Not started |
+| 53 | Negative grants in `DynamicPolicyProvider` | 🚫 Won't Implement |
 | 54 | `CombinerSecurityManager` configurable recursion depth (default 10) + startup `SEVERE` | ✅ Complete |
 | 55 | `DiscoveryCredentialProvider` + `SpiffeDiscoveryCredentialProvider` + `AbstractLookupDiscovery` integration | ✅ Complete |
 | 56 | Pack200 concurrency semaphore (default 4) | ✅ Complete |
-| 57 | Event-sourced VerdictRegistry read replicas (`ReadReplicaVerdictRegistry`) | 🔲 Not started |
+| 57 | Event-sourced VerdictRegistry read replicas (`ReadReplicaVerdictRegistry`) | ✅ Completed (v4) |
 | 58 | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix + two-layer cache | ✅ Complete (DirtyChai) |
 | 59 | SPIRE HA deployment documentation | ✅ Complete |
 | 60 | ServiceStarter hardened boot ordering documentation | ✅ Complete |

@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v57)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v58)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,52 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v58 Change Summary
+
+**WI57 completed; §2.3 DefaultJwtVerifier default; §2.5 DigestCodeSource boot guard; §2.7 Won't Fix; §2.10 Won't Implement**
+
+Implemented in this version:
+
+1. **WI57 — Event-sourced VerdictRegistry read replicas** — `ReadReplicaVerdictRegistry`
+   implements `VerdictRegistry` + `RemoteEventListener` + `LeaseListener`; subscribes
+   to primary via new `registerGlobalVerdictListener()` API; verifies DER signatures;
+   re-subscribes on `UnknownLeaseException` with exponential backoff.
+   `VerdictRegistryHolder` extended with `setInstances()`/`getAll()` ordered fallback
+   list; `getVerdictByHashWithRetry()` iterates all configured registries before
+   falling back to TTL cache.
+
+2. **§2.3 DefaultJwtVerifier default** — `BasicInvocationDispatcher` now holds a
+   `DEFAULT_JWT_VERIFIER` constant; `verifyJwtWithCache()` uses it as fallback when
+   no operator verifier is configured.  `jgdms-security-jwt` promoted to compile
+   scope in jgdms-jeri POM.
+
+3. **§2.5 DigestCodeSource boot guard** — `PreferredProxyCodebaseProvider` probes for
+   `java.security.DigestCodeSource` (DirtyChai) at class-load time; on DirtyChai
+   deployments the boot-window else-branch now demands `BootstrapPermission` against
+   a `DigestCodeSource`-backed `ProtectionDomain` rather than proceeding permissively.
+
+4. **§2.7 SPIRE SVID expiry** — closed Won't Fix; deploy SPIRE HA.
+
+5. **§2.10 Negative grants** — closed Won't Implement; POLP + `SecurePolicyWriter`
+   address this; negative grants risk blacklist whack-a-mole policies.
+
+**Files changed:**
+- `docs/.../context_10.md` — §6 WI57 row updated (🔲 → ✅ Completed); §9
+  closing note updated; v57 → v58
+- `docs/.../AI_Agent_JGDMS-SecurityAssessment-context_11.md` — §2.3, §2.5, §2.6,
+  §2.7, §2.8, §2.10, §2.11, §4 priority table, §5 status table updated; v3 → v4
+- `jgdms-jeri/pom.xml` — `jgdms-security-jwt` test → compile scope
+- `jgdms-jeri/.../BasicInvocationDispatcher.java` — `DEFAULT_JWT_VERIFIER` constant + fallback
+- `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` — DigestCodeSource boot guard + WI57 client fallback
+- `jgdms-pref-class-loader/.../VerdictRegistryHolder.java` — `setInstances()` / `getAll()`
+- `jgdms-platform/.../VerdictRegistry.java` — `registerGlobalVerdictListener()` API
+- `verdict-registry-service/.../VerdictRegistryImpl.java` — global listener + burst delivery
+- `verdict-registry-service/.../ReadReplicaVerdictRegistry.java` — new file
+- `verdict-registry-service/.../ActivatableVerdictRegistryImpl.java` — delegation
+- `verdict-registry-dl/.../VerdictRegistryProxy.java` — delegation
+
+---
 
 ## v57 Change Summary
 
@@ -1318,7 +1364,7 @@ These extend the work-item table in §12 of
 | **54** | `CombinerSecurityManager` depth limit — configurable system property (default 10) + startup `SEVERE` warning | 1.6 | 🔲 Not started |
 | **55** | `DiscoveryCredentialProvider` — interface + `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder` | 3.2 | ✅ Completed |
 | **56** | Pack200 semaphore — `Semaphore(4)` (configurable) around JAR download + decompression in `PreferredProxyCodebaseProvider.resolve()` | 1.5 | ✅ Completed |
-| **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | 🔲 Not started |
+| **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | ✅ Completed |
 | **58** | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix — `CodeSourceKey` includes `digestAlgorithm`+`digest` fields from `DigestCodeSource` in `hashCode()`/`equals()`; `getProtectionDomain` promotes plain `CodeSource` to content-addressed `DigestCodeSource` (SHA-256) with two-layer cache (`JarResponseCache` + `digestCache`) — see §7 | DirtyChai | ✅ Complete |
 | **59** | SPIRE HA deployment documentation — `## High Availability Deployment` section in `docs/spiffe-admin-deployment.md`: HA architecture diagram; shared PostgreSQL datastore; `disk` CA vs Vault `UpstreamAuthority`; HAProxy/NLB TCP load balancer config; agent VIP config; failure-mode analysis table; HA operational checklist | 4.1 | ✅ Completed |
 | **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
@@ -1788,16 +1834,15 @@ tryGrantPerUriDigestGrants(algo, localDigests, localPrincipals, serverPrincipals
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 56.
-Version 55 implements the JGDMS side of Work Item 62: `RFC3986URLClassLoader`
-now has a `loadClass(String, boolean, Principal[])` entry point and a
-`defineClassWithPrincipals(…)` helper that, when running on DirtyChai, invokes
-the Principal-aware `defineClass` overload (probed via reflection at class init)
-to embed server SPIFFE principals in the `ProtectionDomain` of loaded classes.
-On a standard JDK the reflection probe returns `null` and the fallback is
-identical to the previous behaviour.  The DirtyChai side of Work Item 62
-(`defineClass(…,Principal[])` overloads in `SecureClassLoader`) is now ✅
-Complete (confirmed by @pfirmstone — see DirtyChai `SecureClassLoader.java`).
+future AI agent to continue without loss of context. This is version 58.
+Version 57 confirms WI62 DirtyChai side and G-3 complete.  Version 58 completes
+WI57 (event-sourced VerdictRegistry read replicas: `ReadReplicaVerdictRegistry`,
+`registerGlobalVerdictListener()` API, `VerdictRegistryHolder` ordered fallback
+list); makes `DefaultJwtVerifier` the automatic fallback in
+`BasicInvocationDispatcher`; adds DigestCodeSource boot-window guard in
+`PreferredProxyCodebaseProvider` (partial structural fix for §2.5, DirtyChai
+deployments only).  §2.7 SPIRE SVID expiry closed Won't Fix (deploy SPIRE HA);
+§2.10 negative grants closed Won't Implement (POLP + SecurePolicyWriter).
 Work Item 61 (digest-codesource hijacking defence — Option 1) is ✅ Completed
 and is fully operative end-to-end now that WI62 DirtyChai side is also complete.
 Work Item 58 remains ✅ fully complete in DirtyChai
