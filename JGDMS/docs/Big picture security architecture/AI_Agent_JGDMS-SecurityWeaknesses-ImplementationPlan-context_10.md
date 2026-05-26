@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v54)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v55)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,71 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v55 Change Summary
+
+**Work Item 62 (JGDMS side) — `RFC3986URLClassLoader` Principal-aware `loadClass` / `defineClass`**
+
+Implements the JGDMS half of Work Item 62.  The DirtyChai half (adding the
+`defineClass(String, byte[], int, int, CodeSource, Principal[])` and
+`defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to
+`SecureClassLoader`) is tracked in the DirtyChai repository and is out of
+scope for this PR.
+
+**What changed in `RFC3986URLClassLoader`:**
+
+1. **Reflection probe** — at class initialisation the static block probes
+   `java.security.SecureClassLoader` for the two DirtyChai `defineClass`
+   overloads:
+   - `defineClass(String, byte[], int, int, CodeSource, Principal[])`
+   - `defineClass(String, ByteBuffer, CodeSource, Principal[])`
+
+   The results are stored in `DIRTY_CHAI_DEFINE_BYTES` and
+   `DIRTY_CHAI_DEFINE_BUFFER` (`null` on a standard JDK).
+
+2. **`ThreadLocal<Principal[]> SERVER_PRINCIPALS`** — a package-accessible
+   thread-local that carries the server principals from the new
+   `loadClass(String, boolean, Principal[])` entry point down to the inner
+   `URLHandler.createClass()` and `URLJarHandler.createClass()` calls, without
+   changing the `URLHandler` API.
+
+3. **`loadClass(String, boolean, Principal[])` (new public method)** — sets the
+   ThreadLocal with the supplied server principals, delegates to the standard
+   `loadClass(String, boolean)`, and clears the ThreadLocal in a `finally`
+   block.  When DirtyChai is absent (`DIRTY_CHAI_DEFINE_BYTES == null`) or
+   principals are null/empty, delegates to `loadClass(String, boolean)` directly
+   with no overhead.
+
+4. **`defineClassWithPrincipals(…)` (new package-private method)** — called by
+   both `URLHandler.createClass()` and `URLJarHandler.createClass()` instead of
+   the raw `defineClass(…)`.  When `DIRTY_CHAI_DEFINE_BYTES != null` and
+   `SERVER_PRINCIPALS.get()` is non-empty, it invokes the DirtyChai overload via
+   the cached `Method` reference; otherwise it falls back to the standard
+   `defineClass(name, b, off, len, cs)`.
+
+**Security property after this change:**
+
+When running on DirtyChai and the caller passes server principals via
+`loadClass(String, boolean, Principal[])`, the `ProtectionDomain` of every
+class loaded from the remote codebase will carry both the client's SPIFFE
+principals (stamped by DirtyChai's `SecureClassLoader`) **and** the server's
+SPIFFE principals (injected by this change).  Policy `principal` clauses can
+then match both identities simultaneously, enabling per-service access control
+on the loaded code.
+
+**Graceful degradation:**
+
+On a standard JDK (no DirtyChai), the reflection probe finds nothing, all the
+new code paths are bypassed at zero cost, and class loading behaviour is
+identical to the previous version.  All 51 existing tests pass unchanged.
+
+**Files changed:**
+- `jgdms-platform/.../RFC3986URLClassLoader.java` — reflection probe, ThreadLocal,
+  `loadClass(String, boolean, Principal[])`, `defineClassWithPrincipals(…)`,
+  two `createClass` call-sites updated
+- `docs/.../context_10.md` — this update (v54 → v55)
+
+---
 
 ## v54 Change Summary
 
@@ -1147,7 +1212,7 @@ These extend the work-item table in §12 of
 | **59** | SPIRE HA deployment documentation — `## High Availability Deployment` section in `docs/spiffe-admin-deployment.md`: HA architecture diagram; shared PostgreSQL datastore; `disk` CA vs Vault `UpstreamAuthority`; HAProxy/NLB TCP load balancer config; agent VIP config; failure-mode analysis table; HA operational checklist | 4.1 | ✅ Completed |
 | **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
 | **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerUriDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
-| **62** | DirtyChai `SecureClassLoader` Principal-aware `loadClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected loadClass(String, boolean, Principal[])` to `SecureClassLoader` so the caller can embed server SPIFFE principals in the loaded code's `ProtectionDomain`; JGDMS `RFC3986URLClassLoader` implements the same signature and uses reflection to call the DirtyChai overload when present, falling back gracefully on a standard JDK | DirtyChai + JGDMS | 🔲 Not started |
+| **62** | DirtyChai `SecureClassLoader` Principal-aware `defineClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected final defineClass(String, byte[], int, int, CodeSource, Principal[])` and `defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to `SecureClassLoader`; JGDMS `RFC3986URLClassLoader` probes for these overloads at class init via reflection and, when found, uses them to embed server SPIFFE principals in the loaded code's `ProtectionDomain`; a new `loadClass(String, boolean, Principal[])` entry point carries principals via a `ThreadLocal` down to the `defineClass` call sites | DirtyChai + JGDMS | 🟡 JGDMS side complete; DirtyChai side pending |
 
 ---
 
@@ -1573,22 +1638,31 @@ tryGrantPerUriDigestGrants(algo, localDigests, localPrincipals, serverPrincipals
   `ProtectionDomain` with principals from the local SPIRE SVID (the workload's
   own `SpiffeSubject`), not with the peer/server's identity.  For the server
   SPIFFE principal to appear in the `ProtectionDomain` of the loaded proxy code,
-  two additional changes are required (tracked as **Work Item 62**):
-  1. **DirtyChai** must add a `protected loadClass(String name, boolean resolve,
-     Principal[] principals)` overload to `SecureClassLoader`.  This would allow
-     callers to pass the server's SPIFFE principals alongside the normal load
-     request so that they are embedded in the resulting `ProtectionDomain`.
-  2. **JGDMS `RFC3986URLClassLoader`** must implement the same method signature.
-     It should use reflection to detect whether the DirtyChai superclass carries
-     the Principal-aware `loadClass` overload and invoke it when present;
-     otherwise fall back to the standard `loadClass(String, boolean)` (graceful
-     degradation on a non-DirtyChai JDK).
-  Until Work Item 62 is implemented, the server-principal binding in the
-  `DigestGrant` still prevents cross-service grant reuse at issue time (the
-  §9.3 security properties hold at grant construction time), but the
-  `DigestGrant` itself cannot fire during an actual class load on the current
-  DirtyChai build because the server principal is absent from the worker-thread
-  evaluation context at permission-check time.
+  two changes are required (tracked as **Work Item 62**):
+  1. **DirtyChai** must add
+     `protected final Class<?> defineClass(String name, byte[] b, int off, int len, CodeSource cs, Principal[] p)`
+     and
+     `protected final Class<?> defineClass(String name, ByteBuffer b, CodeSource cs, Principal[] p)`
+     overloads to `SecureClassLoader` so that callers can pass the server's
+     SPIFFE principals, which are then embedded in the resulting
+     `ProtectionDomain`.  (**Not yet implemented in DirtyChai.**)
+  2. **JGDMS `RFC3986URLClassLoader`** — ✅ **Implemented (v55).**
+     A new `loadClass(String, boolean, Principal[])` public method sets a
+     `ThreadLocal<Principal[]>`, delegates to the standard
+     `loadClass(String, boolean)`, and clears the ThreadLocal in a `finally`
+     block.  Both `URLHandler.createClass()` and `URLJarHandler.createClass()`
+     now call `defineClassWithPrincipals(…)` which invokes the DirtyChai
+     `defineClass` overload via reflection when available, falling back to the
+     standard path on a standard JDK.  The reflection probe (`DIRTY_CHAI_DEFINE_BYTES`
+     / `DIRTY_CHAI_DEFINE_BUFFER`) runs once at class initialisation and returns
+     `null` on a standard JDK, so the fallback path has zero overhead.
+  Until DirtyChai implements step 1, the JGDMS caller can supply server
+  principals through `loadClass(String, boolean, Principal[])` but they will be
+  silently ignored (DirtyChai overload not present → fallback → standard
+  `defineClass`).  The `DigestGrant` still prevents cross-service grant reuse at
+  issue time (§9.3 security properties hold at grant construction time), but the
+  grant cannot yet fire at class-load time on the current DirtyChai build because
+  the server principal is absent from the `ProtectionDomain`.
 
 ### 9.5 Files changed
 
@@ -1596,22 +1670,25 @@ tryGrantPerUriDigestGrants(algo, localDigests, localPrincipals, serverPrincipals
 |---|---|
 | `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` | `mergePrincipals` helper (package-private); `tryGrantPerUriDigestGrants` takes `serverPrincipals`; call site updated; Javadoc updated |
 | `jgdms-pref-class-loader/.../PreferredProxyCodebaseProviderVerdictTest.java` | 7 new `mergePrincipals` tests |
-| `docs/.../AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md` | §3 row 13 added; §6 WI61 row added; §9 new section |
+| `jgdms-platform/.../RFC3986URLClassLoader.java` | DirtyChai reflection probe; `SERVER_PRINCIPALS` ThreadLocal; `loadClass(String,boolean,Principal[])`; `defineClassWithPrincipals(…)`; `createClass` call-sites updated |
+| `docs/.../AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md` | §3 row 13 added; §6 WI61+WI62 rows added; §9 new section; v55 update |
 | `docs/.../JGDMS-STD-003-MultiSubjectIdentityArchitecture-v3.md` | §DigestGrant note updated |
 
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 54.
-Version 54 corrects two inaccuracies in §9.4 (Work Item 61 Limitations):
-(1) DirtyChai's `SubjectDomainCombiner` enrichment does not apply to worker
-Subjects, so the server SPIFFE principal cannot reach the grant evaluation
-context via that path; (2) DirtyChai currently enriches `ProtectionDomain`s
-with the client's SPIFFE principals only — Work Item 62 (🔲 Not started) tracks
-the DirtyChai `SecureClassLoader` Principal-aware `loadClass` overload and the
-corresponding `RFC3986URLClassLoader` reflection-based adoption in JGDMS.
-Work Item 61 (digest-codesource hijacking defence — Option 1) remains
-✅ Completed for grant construction, but full enforcement at class-load time
-depends on Work Item 62.
+future AI agent to continue without loss of context. This is version 55.
+Version 55 implements the JGDMS side of Work Item 62: `RFC3986URLClassLoader`
+now has a `loadClass(String, boolean, Principal[])` entry point and a
+`defineClassWithPrincipals(…)` helper that, when running on DirtyChai, invokes
+the Principal-aware `defineClass` overload (probed via reflection at class init)
+to embed server SPIFFE principals in the `ProtectionDomain` of loaded classes.
+On a standard JDK the reflection probe returns `null` and the fallback is
+identical to the previous behaviour.  The DirtyChai side of Work Item 62
+(adding the `defineClass(…,Principal[])` overloads to `SecureClassLoader`)
+remains pending in the DirtyChai repository.
+Work Item 61 (digest-codesource hijacking defence — Option 1) is ✅ Completed
+for grant construction.  Full enforcement at class-load time now also requires
+the DirtyChai side of Work Item 62.
 Work Item 58 remains ✅ fully complete in DirtyChai
 (`SecureClassLoader.java` SHA `98e1e31`).*
