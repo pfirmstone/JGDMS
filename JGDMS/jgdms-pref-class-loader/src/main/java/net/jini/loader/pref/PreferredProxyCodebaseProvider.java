@@ -25,7 +25,6 @@ import java.io.InputStream;
 import java.io.InvalidObjectException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
@@ -61,16 +60,15 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.security.auth.Subject;
 import net.jini.constraint.BasicMethodConstraints;
 import net.jini.constraint.StringMethodConstraints;
-import net.jini.core.constraint.InvocationConstraint;
-import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.export.CodebaseAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.context.IntegrityEnforcement;
+import net.jini.io.context.ServerSubject;
 import net.jini.loader.DownloadPermission;
 import net.jini.loader.ProxyCodebaseSpi;
 import net.jini.security.Security;
@@ -467,49 +465,6 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
 
     /**
-     * Extracts the server-side {@link Principal}s declared via
-     * {@link ServerMinPrincipal} constraints in the given
-     * {@link MethodConstraints}, using the {@code getClassAnnotation} method
-     * as a representative key.
-     *
-     * @param mc the method constraints set on the bootstrap proxy, or
-     *           {@code null}
-     * @return an array of server principals, or {@code null} if none are
-     *         found
-     */
-    static Principal[] extractServerPrincipals(MethodConstraints mc) {
-        if (mc == null) return null;
-        Method m;
-        try {
-            m = CodebaseAccessor.class.getMethod("getClassAnnotation");
-        } catch (NoSuchMethodException ex) {
-            logger.log(Level.FINE,
-                    "Could not reflect CodebaseAccessor.getClassAnnotation", ex);
-            return null;
-        }
-        InvocationConstraints ic = mc.getConstraints(m);
-        Set<Principal> principals = new HashSet<Principal>();
-        // Check both required and preferred (optional) constraints so that
-        // policy administrators have access to the connection principal even
-        // when it is declared as an optional rather than a hard requirement.
-        for (InvocationConstraint c : ic.requirements()) {
-            if (c instanceof ServerMinPrincipal) {
-                @SuppressWarnings("unchecked")
-                Set<Principal> elements = ((ServerMinPrincipal) c).elements();
-                principals.addAll(elements);
-            }
-        }
-        for (InvocationConstraint c : ic.preferences()) {
-            if (c instanceof ServerMinPrincipal) {
-                @SuppressWarnings("unchecked")
-                Set<Principal> elements = ((ServerMinPrincipal) c).elements();
-                principals.addAll(elements);
-            }
-        }
-        return principals.isEmpty() ? null : principals.toArray(new Principal[0]);
-    }
-
-    /**
      * Checks whether the given server principals are granted
      * {@link BootstrapPermission}{@code ("loadCodebase")} by the current
      * security policy.
@@ -789,9 +744,9 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      *                        one per non-directory JAR)
      * @param localPrincipals the local client principals to scope the grant to,
      *                        or {@code null} to grant to any principal
-     * @param serverPrincipals the authenticated server principals extracted from
-     *                        the {@code ServerMinPrincipal} constraints; when
-     *                        non-null and non-empty these are merged with
+     * @param serverPrincipals the authenticated server principals from the TLS
+     *                        layer (via {@link net.jini.io.context.ServerSubject});
+     *                        when non-null and non-empty these are merged with
      *                        {@code localPrincipals} so that the grant is bound
      *                        to the specific service that attested to the codebase
      */
@@ -959,12 +914,15 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 	Iterator it = context.iterator();
 	MethodConstraints mc = null;
 	IntegrityEnforcement integrityEnforcement = null;
+	Subject serverSubjectFromContext = null;
 	while(it.hasNext()){
 	    Object o = it.next();
 	    if (o instanceof MethodConstraints){
 		mc = (MethodConstraints) o;
 	    } else if (o instanceof IntegrityEnforcement){
 		integrityEnforcement = (IntegrityEnforcement) o;
+	    } else if (o instanceof ServerSubject) {
+		serverSubjectFromContext = ((ServerSubject) o).getServerSubject();
 	    }
 	}
 	if (mc != null || integrityEnforcement != null){
@@ -978,13 +936,19 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 	final String path = bootstrapProxy.getClassAnnotation();
         Uri [] codebases = PreferredClassProvider.pathToURIs(path);
         final URL [] codebase = PreferredClassProvider.asURL(codebases);
-        // Extract server principals once for both boot-window logic and
-        // loader construction.  Checks requirements() AND preferences() so
-        // that policy administrators have access to the connection principal
-        // even when it is declared as an optional rather than required
-        // constraint.  Future context types may also supply principals
-        // directly in the Collection context.
-        final Principal[] serverPrincipals = extractServerPrincipals(mc);
+        // Extract the authenticated server principals from the TLS-layer
+        // ServerSubject injected by SslConnection.populateContext().  Using
+        // the actual authenticated identity (not client-declared
+        // ServerMinPrincipal constraints) ensures that DigestGrants are
+        // scoped to what the server *proved* during the TLS handshake.
+        final Principal[] serverPrincipals;
+        if (serverSubjectFromContext != null) {
+            Set<Principal> principals = serverSubjectFromContext.getPrincipals();
+            serverPrincipals = principals.isEmpty()
+                    ? null : principals.toArray(new Principal[0]);
+        } else {
+            serverPrincipals = null;
+        }
         Key loaderKey = new Key(
                             Proxy.getInvocationHandler(bootstrapProxy),
                             Arrays.asList(codebases), null

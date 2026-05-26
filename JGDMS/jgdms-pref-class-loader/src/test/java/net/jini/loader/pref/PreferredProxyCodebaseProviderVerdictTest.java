@@ -300,48 +300,6 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     // -------------------------------------------------------------------------
-    // extractServerPrincipals tests
-    // -------------------------------------------------------------------------
-
-    @Test
-    public void extractServerPrincipals_nullConstraints_returnsNull() {
-        assertNull("null mc should yield null principals",
-                PreferredProxyCodebaseProvider.extractServerPrincipals(null));
-    }
-
-    @Test
-    public void extractServerPrincipals_noServerMinPrincipal_returnsNull() {
-        // BasicMethodConstraints with EMPTY constraints
-        net.jini.core.constraint.InvocationConstraints ic =
-                net.jini.core.constraint.InvocationConstraints.EMPTY;
-        net.jini.core.constraint.MethodConstraints mc =
-                new net.jini.constraint.BasicMethodConstraints(ic);
-        assertNull("mc without ServerMinPrincipal should yield null",
-                PreferredProxyCodebaseProvider.extractServerPrincipals(mc));
-    }
-
-    @Test
-    public void extractServerPrincipals_withServerMinPrincipal_returnsPrincipals() {
-        java.security.Principal spiffePrincipal = new java.security.Principal() {
-            public String getName() { return "spiffe://trust.example/svc/reggie"; }
-            public String toString() { return "SpiffeId[" + getName() + "]"; }
-        };
-        net.jini.core.constraint.ServerMinPrincipal smp =
-                new net.jini.core.constraint.ServerMinPrincipal(spiffePrincipal);
-        net.jini.core.constraint.InvocationConstraints ic =
-                new net.jini.core.constraint.InvocationConstraints(smp, null);
-        net.jini.core.constraint.MethodConstraints mc =
-                new net.jini.constraint.BasicMethodConstraints(ic);
-
-        java.security.Principal[] result =
-                PreferredProxyCodebaseProvider.extractServerPrincipals(mc);
-
-        assertNotNull("should find principals in ServerMinPrincipal", result);
-        assertEquals("should have exactly one principal", 1, result.length);
-        assertEquals("spiffe://trust.example/svc/reggie", result[0].getName());
-    }
-
-    // -------------------------------------------------------------------------
     // computeIndividualJarDigests tests
     // -------------------------------------------------------------------------
 
