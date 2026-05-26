@@ -90,6 +90,7 @@ import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.export.CodebaseAccessor;
+import net.jini.export.CodebaseDigestUtil;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
@@ -220,6 +221,9 @@ class TxnManagerImpl /*extends RemoteServer*/
     private String certFactoryType;
     private String certPathEncoding;
     private byte[] encodedCerts;
+    private byte[] codebaseDigestFlat;
+    private int[]  codebaseDigestOffsets;
+    private String codebaseDigestAlgorithm;
 
     /**
      * Constructs a non-activatable transaction manager.
@@ -359,6 +363,18 @@ class TxnManagerImpl /*extends RemoteServer*/
 		this.certFactoryType = init.certFactoryType;
 		this.certPathEncoding = init.certPathEncoding;
 		this.encodedCerts = init.encodedCerts.clone();
+                {
+                    CodebaseDigestUtil.Result dr = null;
+                    try {
+                        dr = CodebaseDigestUtil.compute(getClassAnnotation(), "SHA-256");
+                    } catch (IOException e) {
+                        initLogger.log(Level.WARNING,
+                                "TxnManagerImpl: could not pre-compute codebase digest", e);
+                    }
+                    codebaseDigestFlat      = dr != null ? dr.getFlatDigest()  : null;
+                    codebaseDigestOffsets   = dr != null ? dr.getOffsets()     : null;
+                    codebaseDigestAlgorithm = dr != null ? dr.getAlgorithm()   : null;
+                }
                 participantPreparer = init.participantPreparer;
                 txnLeasePeriodPolicy = init.txnLeasePeriodPolicy;
                 persistenceDirectory = init.persistenceDirectory;
@@ -1279,6 +1295,23 @@ class TxnManagerImpl /*extends RemoteServer*/
     @Override
     public byte[] getEncodedCerts() throws IOException {
 	return encodedCerts.clone();
+    }
+
+    @Override
+    public String getCodebaseDigestAlgorithm() throws IOException {
+        return codebaseDigestAlgorithm;
+    }
+
+    @Override
+    public byte[] getCodebaseDigest() throws IOException {
+        byte[] d = codebaseDigestFlat;
+        return d != null ? d.clone() : null;
+    }
+
+    @Override
+    public int[] getDigestOffsets() throws IOException {
+        int[] o = codebaseDigestOffsets;
+        return o != null ? o.clone() : null;
     }
 
     /**

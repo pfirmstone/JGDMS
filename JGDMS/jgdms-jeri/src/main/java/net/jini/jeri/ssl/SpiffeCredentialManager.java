@@ -47,6 +47,7 @@ import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
+import net.jini.security.Security;
 
 /**
  * Manages SPIFFE X.509-SVID credentials for JGDMS JERI TLS connections.
@@ -650,6 +651,14 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         Svid svid = svidSource.fetch();
         updateSubjectCredentials(svid);
         SpiffeSubjectHolder.set(subject);
+        // Register this Subject as the process-wide local identity so that
+        // Security.currentPrincipals() can return SPIFFE principals even when
+        // no Subject.doAs() wraps the calling thread.
+        final Subject managedSubject = subject;
+        Security.registerLocalPrincipalProvider(() -> {
+            Set<Principal> ps = managedSubject.getPrincipals();
+            return ps.isEmpty() ? null : ps.toArray(new Principal[ps.size()]);
+        });
         scheduleRenewal(svid);
         logger.log(Level.INFO, "SpiffeCredentialManager started; SVID expires at {0}",
                 svid.leafCertificate().getNotAfter());
@@ -690,6 +699,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
             scheduler.shutdownNow();
             clearSubjectCredentials();
             SpiffeSubjectHolder.clear(subject);
+            Security.registerLocalPrincipalProvider(null);
             logger.log(Level.INFO, "SpiffeCredentialManager closed");
         }
     }

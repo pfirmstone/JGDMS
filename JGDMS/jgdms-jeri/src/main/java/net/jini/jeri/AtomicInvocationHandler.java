@@ -267,6 +267,11 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
 	    throw new IllegalArgumentException("not proxy for this");
 	}
 	final ClassLoader proxyLoader = getProxyLoader(proxy.getClass());
+	// Ask the transport layer to populate the context with any
+	// connection-specific information (e.g. the authenticated server
+	// Subject from a TLS handshake) before we snapshot the context as
+	// unmodifiable for the response stream.
+	request.populateContext(context);
 	final Collection unmodContext = Collections.unmodifiableCollection(context);
 	
 	ObjectInputStream in;
