@@ -76,6 +76,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         // Clear the VerdictRegistry so tests do not interfere with each other.
         VerdictRegistryHolder.set(null);
         PreferredProxyCodebaseProvider.resetVerdictRetryBaseDelayMs();
+        PreferredProxyCodebaseProvider.clearVerdictCache();
     }
 
     // -------------------------------------------------------------------------
@@ -253,6 +254,140 @@ public class PreferredProxyCodebaseProviderVerdictTest {
 
         assertEquals("Should retry until the registry responds",
                 3, stub.getGetVerdictByHashCalls());
+    }
+
+    // -------------------------------------------------------------------------
+    // WI48 — in-memory verdict cache tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void parseVerdictCacheTtlMs_null_usesDefault() {
+        assertEquals(PreferredProxyCodebaseProvider.DEFAULT_VERDICT_CACHE_TTL_MS,
+                PreferredProxyCodebaseProvider.parseVerdictCacheTtlMs(null));
+    }
+
+    @Test
+    public void parseVerdictCacheTtlMs_invalid_usesDefault() {
+        assertEquals(PreferredProxyCodebaseProvider.DEFAULT_VERDICT_CACHE_TTL_MS,
+                PreferredProxyCodebaseProvider.parseVerdictCacheTtlMs("not-a-number"));
+        assertEquals(PreferredProxyCodebaseProvider.DEFAULT_VERDICT_CACHE_TTL_MS,
+                PreferredProxyCodebaseProvider.parseVerdictCacheTtlMs("-1"));
+    }
+
+    @Test
+    public void parseVerdictCacheTtlMs_zero_disablesCache() {
+        assertEquals(0L,
+                PreferredProxyCodebaseProvider.parseVerdictCacheTtlMs("0"));
+    }
+
+    @Test
+    public void parseVerdictCacheTtlMs_valid_usesConfiguredValue() {
+        assertEquals(60_000L,
+                PreferredProxyCodebaseProvider.parseVerdictCacheTtlMs("60000"));
+    }
+
+    /**
+     * On a successful verdict lookup the verdict should be stored in the cache
+     * so it can be served during a future registry outage.
+     */
+    @Test
+    public void verdictCache_successfulLookupPopulatesCache() throws Exception {
+        RegistryVerdict verdict = newVerdict(VerdictType.SAFE);
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(verdict);
+
+        PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+
+        // Verify the cache was populated: now make the registry fail entirely and
+        // confirm the fallback serves the cached verdict.
+        StubVerdictRegistry alwaysFails = new StubVerdictRegistry();
+        alwaysFails.setFailTimes(PreferredProxyCodebaseProvider.VERDICT_RETRY_ATTEMPTS + 1);
+
+        // Should NOT throw because we have a valid cached verdict.
+        assertFalse(PreferredProxyCodebaseProvider.checkVerdictForJar(
+                alwaysFails, FAKE_HASH, PATH));
+    }
+
+    /**
+     * When the VerdictRegistry is unreachable on all attempts AND a fresh cache
+     * entry exists, the cached verdict is returned instead of throwing.
+     */
+    @Test
+    public void verdictCache_registryOutage_freshentryShouldNotThrow() throws Exception {
+        // Pre-populate the cache with a SAFE verdict.
+        PreferredProxyCodebaseProvider.CachedVerdict cached =
+                new PreferredProxyCodebaseProvider.CachedVerdict(
+                        newVerdict(VerdictType.SAFE),
+                        System.currentTimeMillis());
+        PreferredProxyCodebaseProvider.VERDICT_CACHE.put(FAKE_HASH, cached);
+
+        StubVerdictRegistry alwaysFails = new StubVerdictRegistry();
+        alwaysFails.setFailTimes(PreferredProxyCodebaseProvider.VERDICT_RETRY_ATTEMPTS + 1);
+
+        // Should not throw.
+        assertFalse(PreferredProxyCodebaseProvider.checkVerdictForJar(
+                alwaysFails, FAKE_HASH, PATH));
+    }
+
+    /**
+     * When the VerdictRegistry is unreachable AND the cache entry is expired
+     * (older than the TTL), the load must be refused (IOException).
+     */
+    @Test
+    public void verdictCache_registryOutage_expiredEntryThrows() throws Exception {
+        // Pre-populate the cache with an old verdict (captured in the past).
+        long expiredTime = System.currentTimeMillis()
+                - PreferredProxyCodebaseProvider.DEFAULT_VERDICT_CACHE_TTL_MS - 1_000L;
+        PreferredProxyCodebaseProvider.CachedVerdict cached =
+                new PreferredProxyCodebaseProvider.CachedVerdict(
+                        newVerdict(VerdictType.SAFE),
+                        expiredTime);
+        PreferredProxyCodebaseProvider.VERDICT_CACHE.put(FAKE_HASH, cached);
+
+        StubVerdictRegistry alwaysFails = new StubVerdictRegistry();
+        alwaysFails.setFailTimes(PreferredProxyCodebaseProvider.VERDICT_RETRY_ATTEMPTS + 1);
+
+        try {
+            PreferredProxyCodebaseProvider.checkVerdictForJar(alwaysFails, FAKE_HASH, PATH);
+            fail("Expected IOException: cache entry is expired");
+        } catch (IOException ex) {
+            assertTrue("Exception should mention registry unavailable",
+                    ex.getMessage().contains("VerdictRegistry unavailable"));
+        }
+    }
+
+    /**
+     * A {@link PreferredProxyCodebaseProvider.CachedVerdict} is alive when
+     * its age is within the TTL and expired when outside it.
+     */
+    @Test
+    public void cachedVerdict_isAlive_withinTtl() throws Exception {
+        long now = System.currentTimeMillis();
+        PreferredProxyCodebaseProvider.CachedVerdict cv =
+                new PreferredProxyCodebaseProvider.CachedVerdict(
+                        newVerdict(VerdictType.SAFE), now - 1_000L);
+        assertTrue("1 s old entry with 5 min TTL should be alive",
+                cv.isAlive(now, 300_000L));
+    }
+
+    @Test
+    public void cachedVerdict_isAlive_expiredTtl() throws Exception {
+        long now = System.currentTimeMillis();
+        PreferredProxyCodebaseProvider.CachedVerdict cv =
+                new PreferredProxyCodebaseProvider.CachedVerdict(
+                        newVerdict(VerdictType.SAFE), now - 400_000L);
+        assertFalse("400 s old entry with 5 min TTL should be expired",
+                cv.isAlive(now, 300_000L));
+    }
+
+    @Test
+    public void cachedVerdict_isAlive_zeroTtlAlwaysExpired() throws Exception {
+        long now = System.currentTimeMillis();
+        PreferredProxyCodebaseProvider.CachedVerdict cv =
+                new PreferredProxyCodebaseProvider.CachedVerdict(
+                        newVerdict(VerdictType.SAFE), now);
+        assertFalse("TTL=0 means cache is disabled, should always be expired",
+                cv.isAlive(now, 0L));
     }
 
     // -------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v55)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v56)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,91 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v56 Change Summary
+
+**Work Item 48 — In-memory signed-verdict cache**
+
+Implements the in-memory signed-verdict cache in `PreferredProxyCodebaseProvider`
+(Work Item 48 / Phase 2.6).
+
+**What changed:**
+
+1. **`VERDICT_CACHE`** — a new `ConcurrentHashMap<String, CachedVerdict>` keyed
+   by SHA-256 hex digest string, storing verdicts alongside their capture
+   timestamp.
+
+2. **`CachedVerdict`** — a package-accessible inner class holding a
+   `RegistryVerdict` and the `capturedAtMs` timestamp.  `isAlive(nowMs, ttlMs)`
+   returns `true` iff `ttlMs > 0 && (nowMs - capturedAtMs) < ttlMs`.
+
+3. **`verdictCacheTtlMs`** — configurable via system property
+   `jgdms.proxy.verdictCacheTtlMs` (default 300 000 ms = 5 min).
+   Setting it to `0` disables the fallback entirely.
+
+4. **`getVerdictByHashWithRetry`** updated:
+   - On a successful lookup the returned `RegistryVerdict` is inserted into
+     `VERDICT_CACHE`.
+   - On exhaustion of all retry attempts, before throwing `IOException`, the
+     method checks `VERDICT_CACHE` for a fresh entry; if one exists it is
+     returned with a `Level.WARNING` log.  If no fresh entry exists, the original
+     `IOException` is thrown unchanged.
+
+5. **`clearVerdictCache()`** — package-private test helper, clears `VERDICT_CACHE`.
+
+6. **Tests** — 8 new tests added to
+   `PreferredProxyCodebaseProviderVerdictTest`, covering `parseVerdictCacheTtlMs`,
+   cache population, cache-hit fallback, cache-expiry, and `CachedVerdict.isAlive`.
+
+**Security property after this change:**
+
+A `VerdictRegistry` outage no longer blocks codebase loads for JARs whose
+verdicts were successfully fetched within the last TTL window.  DANGEROUS
+verdicts cannot be cached (they cause an immediate `IOException` before the
+cache is written).  SAFE and INCONCLUSIVE verdicts are eligible for caching.
+Operators can disable the cache entirely by setting
+`jgdms.proxy.verdictCacheTtlMs=0`.
+
+**Files changed:**
+- `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` — cache
+  field, `CachedVerdict`, `loadVerdictCacheTtlMs`, `parseVerdictCacheTtlMs`,
+  `clearVerdictCache`, `getVerdictByHashWithRetry` updated
+- `jgdms-pref-class-loader/.../PreferredProxyCodebaseProviderVerdictTest.java` — 8 new tests
+
+---
+
+**Work Item 50 — `SubjectAwareExecutor implements ExecutorService`**
+
+Implements the `SubjectAwareExecutor` wrapper (Work Item 50 / Phase 2.4).
+
+**What changed:**
+
+1. **New class `net.jini.security.SubjectAwareExecutor`** in `jgdms-platform`.
+   - Constructor: `SubjectAwareExecutor(ExecutorService delegate)`; null-guards.
+   - At task submission (`execute`, `submit`, `invokeAll`, `invokeAny`):
+     captures `Subject.current()` (user identity from `Subject.callAs()`) and
+     `Security.getContext()` (full `AccessControlContext` including DirtyChai
+     SPIFFE `ProtectionDomain`s).
+   - At task execution on the worker thread:
+     - The captured `SecurityContext` is restored via
+       `AccessController.doPrivileged(ctx.wrap(action), ctx.getAccessControlContext())`.
+     - If the captured user `Subject` is non-null, the task additionally runs
+       inside `Subject.callAs(capturedSubject, task)`.
+   - SPIFFE/SPIRE principals propagate via the `AccessControlContext` path and
+     are NOT re-bound via `Subject.callAs()`.
+   - All `ExecutorService` lifecycle methods (`shutdown`, `shutdownNow`,
+     `isShutdown`, `isTerminated`, `awaitTermination`) delegate directly.
+
+2. **Tests** — 13 new tests in `SubjectAwareExecutorTest` covering: constructor
+   null-guard, Subject propagation via `execute`/`submit`/`invokeAll`, no-Subject
+   path, checked and runtime exception propagation, lifecycle delegation.
+
+**Files changed:**
+- `jgdms-platform/.../net/jini/security/SubjectAwareExecutor.java` — new class
+- `jgdms-platform/.../net/jini/security/SubjectAwareExecutorTest.java` — new tests
+- `docs/.../context_10.md` — this update (v55 → v56)
+
+---
 
 ## v55 Change Summary
 
@@ -1142,9 +1227,9 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 | 2.1 | doAs migration — scan (W9) | Run SpotBugs/javaparser scan for all remaining `doAsPrivileged` in service code; produce migration list | All service modules | 🟠 Sprint 2 |
 | 2.2 | doAs migration — RegistrarImpl (W9) | Migrate `RegistrarImpl` discovery/multicast threads per STD-003 decision matrix; add regression tests | `RegistrarImpl.java` | 🟠 Sprint 2 |
 | 2.3 | doAs migration — AbstractActivationGroup (W9) | Migrate executor path; add regression tests | `AbstractActivationGroup.java` | 🟠 Sprint 2 |
-| 2.4 | `SubjectAwareExecutor` (W7) | Implement `SubjectAwareExecutor implements ExecutorService`; update Javadoc in `AbstractJiniService` to recommend it | New class in `jgdms-platform` | 🟠 Sprint 2 |
+| 2.4 | `SubjectAwareExecutor` (W7) | Implement `SubjectAwareExecutor implements ExecutorService`; update Javadoc in `AbstractJiniService` to recommend it | New class in `jgdms-platform` | ✅ Completed (WI50) |
 | 2.5 | INCONCLUSIVE grant revocation redesign (W3) | Keep `ClassLoader`s cached; add revocable loader-scoped grants / revoke hook on policy change for INCONCLUSIVE proxies | `DynamicPolicyProvider.java`, `Security.java`, grant wrapper classes | ✅ Completed (Option 4 baseline) |
-| 2.6 | In-memory verdict cache (W5) | Add `ConcurrentHashMap<String, RegistryVerdict>` cache in `PreferredProxyCodebaseProvider`; use cached verdict on `RemoteException` if within TTL | `PreferredProxyCodebaseProvider.java` | 🟡 Sprint 3 |
+| 2.6 | In-memory verdict cache (W5) | Add `ConcurrentHashMap<String, RegistryVerdict>` cache in `PreferredProxyCodebaseProvider`; use cached verdict on `RemoteException` if within TTL | `PreferredProxyCodebaseProvider.java` | ✅ Completed (WI48) |
 
 ### Phase 3 — Architectural Changes (new API/protocol)
 
@@ -1198,9 +1283,9 @@ These extend the work-item table in §12 of
 | **45** | VerdictRegistry retry backoff (exponential, 1 s → 2 s → 4 s, 3 attempts) in `checkVerdictForJar()` | 1.4 | ✅ Completed |
 | **46** | INCONCLUSIVE grant revocation redesign while keeping `ClassLoader`s cached | 2.5 | ✅ Completed (Option 4 baseline) |
 | **47** | Boot-window log upgrade (`Level.FINE` → `Level.WARNING` + SHA-256 hash) | 1.1 | ✅ Completed |
-| **48** | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, configurable TTL) | 2.6 | 🔲 Not started |
+| **48** | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, configurable TTL) | 2.6 | ✅ Completed |
 | **49** | SVID exponential-backoff renewal + `isCredentialValid()` / `secondsUntilExpiry()` health endpoint | 1.2 + 1.3 | ✅ Completed |
-| **50** | `SubjectAwareExecutor implements ExecutorService` — Subject[] capture-and-rebind wrapper | 2.4 | 🔲 Not started |
+| **50** | `SubjectAwareExecutor implements ExecutorService` — Subject[] capture-and-rebind wrapper | 2.4 | ✅ Completed |
 | **51** | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode (next major version) | 3.5 | 🔲 Not started |
 | **52** | doAs/doAsPrivileged migration: SpotBugs scan + incremental per-site migration (`RegistrarImpl`, `AbstractActivationGroup`) | 2.1–2.3 | 🔲 Not started |
 | **53** | Negative grants in `DynamicPolicyProvider` — `negativeGrants` set + background sweeper + `implies()` update | 3.3 | 🔲 Not started |
@@ -1677,7 +1762,7 @@ tryGrantPerUriDigestGrants(algo, localDigests, localPrincipals, serverPrincipals
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 55.
+future AI agent to continue without loss of context. This is version 56.
 Version 55 implements the JGDMS side of Work Item 62: `RFC3986URLClassLoader`
 now has a `loadClass(String, boolean, Principal[])` entry point and a
 `defineClassWithPrincipals(…)` helper that, when running on DirtyChai, invokes

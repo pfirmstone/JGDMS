@@ -1,6 +1,6 @@
-# JGDMS + DirtyChai — Independent Security Assessment — AI Agent Context (v1)
+# JGDMS + DirtyChai — Independent Security Assessment — AI Agent Context (v2)
 
-- **Version:** 1
+- **Version:** 2
 - **Date:** 2026-05-26
 - **Produced by:** GitHub Copilot Agent (independent assessment pass)
 - **Assessed against:** context_10.md v55, DirtyChai SECURITY_MODEL.md v2.4
@@ -366,9 +366,9 @@ Listed by impact-per-effort ratio.  All items are well-specified in context_10.
 |---|---|---|---|
 | 1 | **WI62 — DirtyChai `defineClass(…,Principal[])` overloads** | Without this, WI61 cross-service defence is latent and server principals are never in `ProtectionDomain` | Medium (DirtyChai repo, 2 method overloads + test) |
 | 2 | **G-3 — Extend `SerialObjectPermission` to `readProxyDesc()`** | Confirmed open attack surface; symmetric to existing guard; small change | Small (DirtyChai repo, one guard insertion) |
-| 3 | **WI48 — In-memory signed-verdict cache** | Outage resilience with minimal complexity; prerequisite for WI57 | Small (one `ConcurrentHashMap` + TTL eviction in `PreferredProxyCodebaseProvider`) |
+| 3 | **WI48 — In-memory signed-verdict cache** | Outage resilience with minimal complexity; prerequisite for WI57 | ✅ Completed (v2) |
 | 4 | **WI51 — `INCONCLUSIVEPermit`** | Structural fix for fresh INCONCLUSIVE loads after policy change; closes the primary residual gap from WI46 | Medium (VerdictRegistry API extension + `PreferredProxyCodebaseProvider` enforcement) |
-| 5 | **WI50 — `SubjectAwareExecutor`** | Prevents silent identity loss in executor tasks; small, self-contained | Small (one new class in `jgdms-platform`) |
+| 5 | **WI50 — `SubjectAwareExecutor`** | Prevents silent identity loss in executor tasks; small, self-contained | ✅ Completed (v2) |
 | 6 | **WI52 — `doAsPrivileged` scan + migration** | Closes residual POLP gaps in `RegistrarImpl` / `AbstractActivationGroup` | Medium (SpotBugs scan + per-site review) |
 | 7 | **Make `DefaultJwtVerifier` the default** | Closes Weakness 2 default-path gap with zero operational cost | Trivial (register in `BasicInvocationDispatcher` if `JwtRawToken` present) |
 | 8 | **WI53 — Negative grants in `DynamicPolicyProvider`** | Enables policy deny; blocks privilege re-grant after revocation | Medium (background sweeper + `implies()` change) |
@@ -387,9 +387,9 @@ lookup.  Future agents should update this table as items complete.
 | 45 | VerdictRegistry retry backoff (3-attempt exponential) | ✅ Complete |
 | 46 | INCONCLUSIVE grant revocation redesign (Option 4 baseline — externally-voidable loader grants) | ✅ Complete (partial) |
 | 47 | Boot-window log upgrade (`Level.WARNING` + SHA-256 hash) | ✅ Complete |
-| 48 | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, TTL) | 🔲 Not started |
+| 48 | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, TTL) | ✅ Completed (v2) |
 | 49 | SVID exponential-backoff renewal + health endpoint | ✅ Complete |
-| 50 | `SubjectAwareExecutor implements ExecutorService` | 🔲 Not started |
+| 50 | `SubjectAwareExecutor implements ExecutorService` | ✅ Completed (v2) |
 | 51 | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode | 🔲 Not started |
 | 52 | `doAsPrivileged` scan + migration (`RegistrarImpl`, `AbstractActivationGroup`) | 🔲 Not started |
 | 53 | Negative grants in `DynamicPolicyProvider` | 🔲 Not started |

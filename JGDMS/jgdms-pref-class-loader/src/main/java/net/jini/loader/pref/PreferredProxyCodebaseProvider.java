@@ -148,7 +148,38 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     private static final int maxCodebaseJars = loadMaxCodebaseJars();
     private static final long maxJarBytes = loadMaxJarBytes();
     private static final int jarReadTimeoutMs = loadJarReadTimeoutMs();
-    
+
+    /**
+     * System property that controls the in-memory verdict cache TTL in
+     * milliseconds.  When the {@link VerdictRegistry} is unreachable (all
+     * retry attempts exhausted), a cached verdict whose age is within this
+     * window is re-used instead of throwing an {@link IOException}.
+     * Default: 300 000 ms (5 minutes).
+     */
+    static final String VERDICT_CACHE_TTL_MS_PROPERTY = "jgdms.proxy.verdictCacheTtlMs";
+    static final long DEFAULT_VERDICT_CACHE_TTL_MS = 300_000L;
+
+    /** In-memory signed-verdict cache keyed by SHA-256 hex digest string. */
+    static final ConcurrentHashMap<String, CachedVerdict> VERDICT_CACHE =
+            new ConcurrentHashMap<>();
+    private static final long verdictCacheTtlMs = loadVerdictCacheTtlMs();
+
+    /** Holds a cached {@link RegistryVerdict} together with its capture timestamp. */
+    static final class CachedVerdict {
+        final RegistryVerdict verdict;
+        final long capturedAtMs;
+
+        CachedVerdict(RegistryVerdict verdict, long capturedAtMs) {
+            this.verdict = verdict;
+            this.capturedAtMs = capturedAtMs;
+        }
+
+        /** Returns {@code true} if this entry is still within the TTL window. */
+        boolean isAlive(long nowMs, long ttlMs) {
+            return ttlMs > 0 && (nowMs - capturedAtMs) < ttlMs;
+        }
+    }
+
     static {
 	ConcurrentMap<Referrer<Key>,Referrer<ClassLoader>> intern1 =
                 new ConcurrentHashMap<Referrer<Key>,Referrer<ClassLoader>>();
@@ -207,6 +238,11 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
         }
         verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
+    }
+
+    /** Clears the in-memory verdict cache.  For use in tests only. */
+    static void clearVerdictCache() {
+        VERDICT_CACHE.clear();
     }
 
     static int parseMaxConcurrentJarLoads(String value) {
@@ -375,6 +411,48 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             return DEFAULT_JAR_READ_TIMEOUT_MS;
         }
         return parseJarReadTimeoutMs(value);
+    }
+
+    static long parseVerdictCacheTtlMs(String value) {
+        if (value == null) {
+            return DEFAULT_VERDICT_CACHE_TTL_MS;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return DEFAULT_VERDICT_CACHE_TTL_MS;
+        }
+        try {
+            long parsed = Long.parseLong(trimmed);
+            if (parsed >= 0) {
+                return parsed;
+            }
+        } catch (NumberFormatException ex) {
+            // fall back to default below
+        }
+        logger.log(Level.WARNING,
+                "Invalid {0} value: {1}; using default {2}",
+                new Object[]{
+                    VERDICT_CACHE_TTL_MS_PROPERTY,
+                    value,
+                    Long.valueOf(DEFAULT_VERDICT_CACHE_TTL_MS)
+                });
+        return DEFAULT_VERDICT_CACHE_TTL_MS;
+    }
+
+    private static long loadVerdictCacheTtlMs() {
+        String value = null;
+        try {
+            value = System.getProperty(VERDICT_CACHE_TTL_MS_PROPERTY);
+        } catch (SecurityException ex) {
+            logger.log(Level.WARNING,
+                    "Unable to read {0}; using default {1}",
+                    new Object[]{
+                        VERDICT_CACHE_TTL_MS_PROPERTY,
+                        Long.valueOf(DEFAULT_VERDICT_CACHE_TTL_MS)
+                    });
+            return DEFAULT_VERDICT_CACHE_TTL_MS;
+        }
+        return parseVerdictCacheTtlMs(value);
     }
 
     /**
@@ -877,11 +955,29 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         long retryDelayMs = verdictRetryBaseDelayMs;
         for (int attempt = 0; attempt <= VERDICT_RETRY_ATTEMPTS; attempt++) {
             try {
-                return vr.getVerdictByHash(contentHash);
+                RegistryVerdict result = vr.getVerdictByHash(contentHash);
+                // Populate the in-memory cache so we can serve it during
+                // future VerdictRegistry outages (Work Item 48).
+                if (result != null) {
+                    VERDICT_CACHE.put(contentHash,
+                            new CachedVerdict(result, System.currentTimeMillis()));
+                }
+                return result;
             } catch (RemoteException e) {
                 if (attempt == VERDICT_RETRY_ATTEMPTS) {
                     logger.log(Level.SEVERE,
                             "VerdictRegistry unreachable for codebase: {0}", path);
+                    // Fall back to in-memory cache if a fresh enough entry exists.
+                    CachedVerdict cached = VERDICT_CACHE.get(contentHash);
+                    if (cached != null
+                            && cached.isAlive(System.currentTimeMillis(),
+                                             verdictCacheTtlMs)) {
+                        logger.log(Level.WARNING,
+                                "Using cached verdict for JAR (SHA-256: {0})"
+                                + " because VerdictRegistry is unreachable",
+                                contentHash);
+                        return cached.verdict;
+                    }
                     throw new IOException(
                             "VerdictRegistry unavailable; refusing to load codebase: "
                             + path, e);
