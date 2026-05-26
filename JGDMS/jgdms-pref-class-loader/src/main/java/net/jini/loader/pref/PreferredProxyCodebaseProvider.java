@@ -845,7 +845,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      *                        {@code localPrincipals} so that the grant is bound
      *                        to the specific service that attested to the codebase
      */
-    private static void tryGrantPerJarDigestGrants(String algorithm,
+    private static void tryGrantPerUriDigestGrants(String algorithm,
                                                    byte[][] perJarDigests,
                                                    Principal[] localPrincipals,
                                                    Principal[] serverPrincipals) {
@@ -1247,7 +1247,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                             // same JAR bytes from reusing this grant (Option 1 —
                             // digest-codesource hijacking defence).
                             Principal[] localPrincipals = Security.currentPrincipals();
-                            tryGrantPerJarDigestGrants(algo, localDigests,
+                            tryGrantPerUriDigestGrants(algo, localDigests,
                                     localPrincipals, serverPrincipals);
                             logger.log(Level.INFO,
                                     "Boot window: {0} per-JAR codebase digest(s) verified"

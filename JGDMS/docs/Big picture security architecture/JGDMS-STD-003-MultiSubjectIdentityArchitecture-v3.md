@@ -961,7 +961,7 @@ reuse the `DigestGrant` issued for that digest and gain
 
 When `PreferredProxyCodebaseProvider.resolve()` downloads and verifies the
 server's proxy codebase, it issues one `DigestGrant` per JAR via
-`tryGrantPerJarDigestGrants(algorithm, perJarDigests, localPrincipals, serverPrincipals)`.
+`tryGrantPerUriDigestGrants(algorithm, perJarDigests, localPrincipals, serverPrincipals)`.
 The `serverPrincipals` array is extracted from the `ServerMinPrincipal`
 constraint on the bootstrap proxy's `MethodConstraints`.
 

@@ -18,12 +18,12 @@ Closes the security gap where a second authenticated service that ships JAR
 bytes with the same SHA-256 digest as a legitimately-loaded service could reuse
 the per-JAR `DigestGrant` that was issued for that digest.
 
-**Root cause:** `tryGrantPerJarDigestGrants` was binding each `DigestGrant`
+**Root cause:** `tryGrantPerUriDigestGrants` was binding each `DigestGrant`
 only to the **local** SPIFFE principal.  Two distinct services that share a
 library JAR (same content → same digest) would produce the same grant on the
 same client node.
 
-**Fix:** `tryGrantPerJarDigestGrants` now accepts the **server's authenticated
+**Fix:** `tryGrantPerUriDigestGrants` now accepts the **server's authenticated
 SPIFFE principals** (from `extractServerPrincipals(mc)`, which reads the
 `ServerMinPrincipal` constraints on the bootstrap proxy's `MethodConstraints`)
 alongside the local principals.  A new `mergePrincipals` helper merges the two

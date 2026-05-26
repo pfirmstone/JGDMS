@@ -20,7 +20,7 @@ with the same content bytes as a legitimately-loaded service could reuse the
 `LoadClassPermission` without the administrator ever auditing its code.
 
 **Root cause of the gap:**
-The `tryGrantPerJarDigestGrants` helper in
+The `tryGrantPerUriDigestGrants` helper in
 `PreferredProxyCodebaseProvider` previously bound per-JAR `DigestGrant`s
 only to the **local** SPIFFE principal (from `Security.currentPrincipals()`).
 Two distinct services on the same node sharing the same JAR bytes (same
@@ -29,7 +29,7 @@ a grant that was issued when connecting to Service A.
 
 **Fix — Option 1:**
 
-1. `tryGrantPerJarDigestGrants` now accepts a second principal array
+1. `tryGrantPerUriDigestGrants` now accepts a second principal array
    (`serverPrincipals`) alongside `localPrincipals`.
 2. A new package-private helper `mergePrincipals(Principal[], Principal[])` 
    merges the two arrays into a de-duplicated, insertion-ordered set.
@@ -57,7 +57,7 @@ other service's execution context.
 
 **Files changed:**
 - `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java`
-  — `mergePrincipals`, updated `tryGrantPerJarDigestGrants`, updated call
+  — `mergePrincipals`, updated `tryGrantPerUriDigestGrants`, updated call
   site in `resolve()`
 - `jgdms-pref-class-loader/…/PreferredProxyCodebaseProviderVerdictTest.java`
   — 7 new `mergePrincipals` tests (51 tests total, all pass)
@@ -1116,7 +1116,7 @@ These extend the work-item table in §12 of
 | **58** | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix — `CodeSourceKey` includes `digestAlgorithm`+`digest` fields from `DigestCodeSource` in `hashCode()`/`equals()`; `getProtectionDomain` promotes plain `CodeSource` to content-addressed `DigestCodeSource` (SHA-256) with two-layer cache (`JarResponseCache` + `digestCache`) — see §7 | DirtyChai | ✅ Complete |
 | **59** | SPIRE HA deployment documentation — `## High Availability Deployment` section in `docs/spiffe-admin-deployment.md`: HA architecture diagram; shared PostgreSQL datastore; `disk` CA vs Vault `UpstreamAuthority`; HAProxy/NLB TCP load balancer config; agent VIP config; failure-mode analysis table; HA operational checklist | 4.1 | ✅ Completed |
 | **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
-| **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerJarDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
+| **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerUriDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
 
 ---
 
@@ -1460,7 +1460,7 @@ been reverted from this branch.
 
 ### 9.1 The security gap
 
-`PreferredProxyCodebaseProvider.tryGrantPerJarDigestGrants` issues per-JAR
+`PreferredProxyCodebaseProvider.tryGrantPerUriDigestGrants` issues per-JAR
 `DigestGrant`s during the boot window, after verifying the server's codebase
 bytes against the server-attested digests.  Before this fix, each grant was
 bound only to:
@@ -1498,7 +1498,7 @@ per-JAR `DigestGrant`'s principal requirements alongside the local principals.
 - A clone is returned when one side is null/empty so the caller cannot mutate
   the original array.
 
-**Updated `tryGrantPerJarDigestGrants`:**
+**Updated `tryGrantPerUriDigestGrants`:**
 - Accepts `Principal[] serverPrincipals` in addition to `Principal[] localPrincipals`.
 - Calls `mergePrincipals(localPrincipals, serverPrincipals)` to produce the
   combined principal set.
@@ -1507,7 +1507,7 @@ per-JAR `DigestGrant`'s principal requirements alongside the local principals.
 **Updated call site in `resolve()`:**
 ```java
 Principal[] localPrincipals = Security.currentPrincipals();
-tryGrantPerJarDigestGrants(algo, localDigests, localPrincipals, serverPrincipals);
+tryGrantPerUriDigestGrants(algo, localDigests, localPrincipals, serverPrincipals);
 ```
 
 ### 9.3 Security properties after the fix
@@ -1540,7 +1540,7 @@ tryGrantPerJarDigestGrants(algo, localDigests, localPrincipals, serverPrincipals
 
 | File | Change |
 |---|---|
-| `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` | `mergePrincipals` helper (package-private); `tryGrantPerJarDigestGrants` takes `serverPrincipals`; call site updated; Javadoc updated |
+| `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` | `mergePrincipals` helper (package-private); `tryGrantPerUriDigestGrants` takes `serverPrincipals`; call site updated; Javadoc updated |
 | `jgdms-pref-class-loader/.../PreferredProxyCodebaseProviderVerdictTest.java` | 7 new `mergePrincipals` tests |
 | `docs/.../AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md` | §3 row 13 added; §6 WI61 row added; §9 new section |
 | `docs/.../JGDMS-STD-003-MultiSubjectIdentityArchitecture-v3.md` | §DigestGrant note updated |
@@ -1550,7 +1550,7 @@ tryGrantPerJarDigestGrants(algo, localDigests, localPrincipals, serverPrincipals
 *Hand this document (along with context_8 and source files as needed) to a
 future AI agent to continue without loss of context. This is version 53.
 Work Item 61 (digest-codesource hijacking defence — Option 1) is now
-✅ Completed: `tryGrantPerJarDigestGrants` now binds each per-JAR DigestGrant
+✅ Completed: `tryGrantPerUriDigestGrants` now binds each per-JAR DigestGrant
 to both the local and server SPIFFE principals, preventing a second
 authenticated service with the same JAR bytes from reusing the grant.
 Work Item 58 remains ✅ fully complete in DirtyChai
