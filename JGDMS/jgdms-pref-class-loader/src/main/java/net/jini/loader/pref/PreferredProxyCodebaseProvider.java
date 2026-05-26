@@ -467,66 +467,6 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
 
     /**
-     * Computes a combined digest over all non-directory JAR URLs in the given
-     * codebase, in order.
-     *
-     * <p>The algorithm is: for each JAR URL (in order, excluding directory
-     * URLs), compute an inner digest of the entire JAR content bytes; then
-     * feed all inner digest bytes sequentially into an outer
-     * {@link MessageDigest} and return the final outer digest.  This
-     * "hash-of-hashes" approach makes the result independent of the JAR
-     * content layout across URL boundaries.
-     *
-     * <p>For a codebase containing a single JAR this is equivalent to
-     * {@code digest(digest(jarContent))}.
-     *
-     * @param codebase  the JAR URLs; directory URLs are skipped
-     * @param algorithm the digest algorithm name (e.g. {@code "SHA-256"})
-     * @return the combined codebase digest bytes
-     * @throws IOException if a JAR cannot be read or the algorithm is unknown
-     */
-    static byte[] computeCodebaseDigestBytes(URL[] codebase, String algorithm)
-            throws IOException {
-        if (codebase.length > maxCodebaseJars) {
-            throw new IOException(
-                    "Codebase exceeds maximum JAR count ("
-                    + maxCodebaseJars + "): " + codebase.length + " URLs");
-        }
-        MessageDigest outer;
-        try {
-            outer = MessageDigest.getInstance(algorithm);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IOException(algorithm + " MessageDigest not available", ex);
-        }
-        for (URL url : codebase) {
-            if (!isDirectory(url)) {
-                MessageDigest inner;
-                try {
-                    inner = MessageDigest.getInstance(algorithm);
-                } catch (NoSuchAlgorithmException ex) {
-                    throw new IOException(algorithm + " MessageDigest not available", ex);
-                }
-                try (InputStream in = openUrlWithTimeout(url)) {
-                    byte[] buf = new byte[8192];
-                    int n;
-                    long totalRead = 0L;
-                    while ((n = in.read(buf)) > 0) {
-                        totalRead += n;
-                        if (totalRead > maxJarBytes) {
-                            throw new IOException(
-                                    "JAR at " + url + " exceeds maximum allowed size of "
-                                    + maxJarBytes + " bytes during digest computation");
-                        }
-                        inner.update(buf, 0, n);
-                    }
-                }
-                outer.update(inner.digest());
-            }
-        }
-        return outer.digest();
-    }
-
-    /**
      * Extracts the server-side {@link Principal}s declared via
      * {@link ServerMinPrincipal} constraints in the given
      * {@link MethodConstraints}, using the {@code getClassAnnotation} method
@@ -549,7 +489,17 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         }
         InvocationConstraints ic = mc.getConstraints(m);
         Set<Principal> principals = new HashSet<Principal>();
+        // Check both required and preferred (optional) constraints so that
+        // policy administrators have access to the connection principal even
+        // when it is declared as an optional rather than a hard requirement.
         for (InvocationConstraint c : ic.requirements()) {
+            if (c instanceof ServerMinPrincipal) {
+                @SuppressWarnings("unchecked")
+                Set<Principal> elements = ((ServerMinPrincipal) c).elements();
+                principals.addAll(elements);
+            }
+        }
+        for (InvocationConstraint c : ic.preferences()) {
             if (c instanceof ServerMinPrincipal) {
                 @SuppressWarnings("unchecked")
                 Set<Principal> elements = ((ServerMinPrincipal) c).elements();
@@ -1028,6 +978,13 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 	final String path = bootstrapProxy.getClassAnnotation();
         Uri [] codebases = PreferredClassProvider.pathToURIs(path);
         final URL [] codebase = PreferredClassProvider.asURL(codebases);
+        // Extract server principals once for both boot-window logic and
+        // loader construction.  Checks requirements() AND preferences() so
+        // that policy administrators have access to the connection principal
+        // even when it is declared as an optional rather than required
+        // constraint.  Future context types may also supply principals
+        // directly in the Collection context.
+        final Principal[] serverPrincipals = extractServerPrincipals(mc);
         Key loaderKey = new Key(
                             Proxy.getInvocationHandler(bootstrapProxy),
                             Arrays.asList(codebases), null
@@ -1162,7 +1119,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     // Only applied when the client has configured SPIFFE-based
                     // ServerMinPrincipal constraints — this ensures backward
                     // compatibility for deployments without SPIFFE auth.
-                    Principal[] serverPrincipals = extractServerPrincipals(mc);
+                    // serverPrincipals is extracted once before this block.
                     if (serverPrincipals != null && serverPrincipals.length > 0) {
                         // Throws SecurityException if the server's principal
                         // is not granted BootstrapPermission in the local policy.
@@ -1292,7 +1249,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                             public ClassLoader run() {
                                 return new PreferredClassLoader(
                                     codebase, parent, null, false,
-                                    PreferredClassLoader.getLoaderAccessControlContext(codebase)
+                                    PreferredClassLoader.getLoaderAccessControlContext(codebase),
+                                    serverPrincipals
                                 );
                             }
                         }

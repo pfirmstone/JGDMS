@@ -115,6 +115,8 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      * CodeSource, Principal[])} overload, resolved via reflection at class
      * initialisation time.  {@code null} on a standard JDK where the overload
      * does not exist — all callers must treat {@code null} as "not available".
+     * The method is {@code protected} in DirtyChai so no {@code setAccessible}
+     * call is required; the probe simply checks for its presence.
      */
     private static final Method DIRTY_CHAI_DEFINE_BYTES;
 
@@ -124,15 +126,6 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      * initialisation time.  {@code null} on a standard JDK.
      */
     static final Method DIRTY_CHAI_DEFINE_BUFFER;
-
-    /**
-     * Carries server SPIFFE principals from
-     * {@link #loadClass(String, boolean, Principal[])} down to the inner-class
-     * {@code defineClass} calls without changing the {@code URLHandler} API.
-     * Always cleared in a {@code finally} block.
-     */
-    static final ThreadLocal<Principal[]> SERVER_PRINCIPALS =
-            new ThreadLocal<Principal[]>();
 
     static {
         try {
@@ -149,6 +142,8 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             !Uri.asciiStringsUpperCaseEqual(codebaseAnnotationProperty, "URL");
 
         // Probe for DirtyChai Principal-aware defineClass overloads.
+        // The methods are protected in DirtyChai's SecureClassLoader, so no
+        // setAccessible call is required — the probe simply checks for presence.
         // On a standard JDK these methods do not exist and the lookups return
         // null; all callers treat null as "fall back to the standard path".
         Method defBytes = null;
@@ -158,7 +153,6 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                     "defineClass",
                     String.class, byte[].class, int.class, int.class,
                     CodeSource.class, Principal[].class);
-            defBytes.setAccessible(true);
         } catch (NoSuchMethodException ignored) {
             // Standard JDK — DirtyChai overload not present.
         }
@@ -167,7 +161,6 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                     "defineClass",
                     String.class, ByteBuffer.class,
                     CodeSource.class, Principal[].class);
-            defBuffer.setAccessible(true);
         } catch (NoSuchMethodException ignored) {
             // Standard JDK — DirtyChai overload not present.
         }
@@ -186,6 +179,14 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
     private final URLStreamHandlerFactory factory;
 
     private final AccessControlContext creationContext;
+
+    /**
+     * Server SPIFFE (or other workload) principals to embed in every
+     * {@link java.security.ProtectionDomain} created by this loader when
+     * running on a DirtyChai JDK.  Cloned from the constructor argument;
+     * {@code null} on standard deployments or when no principals are known.
+     */
+    private final Principal[] serverPrincipals;
 
     private static class SubURLClassLoader extends RFC3986URLClassLoader {
         // The subclass that overwrites the loadClass() method
@@ -1145,6 +1146,45 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                             URLStreamHandlerFactory factory, 
                             AccessControlContext context)
     {
+        this(searchUrls, parent, factory, context, null);
+    }
+
+    /**
+     * Constructs a new {@code URLClassLoader} instance.The newly created
+     * instance will have the specified {@code ClassLoader} as its parent and
+     * use the specified factory to create stream handlers. URLs that end with
+     * "/" are assumed to be directories, otherwise they are assumed to be JAR
+     * files.
+     * <p>
+     * The {@code serverPrincipals} parameter specifies the peer/server's
+     * workload principals (e.g. SPIFFE principals) to embed in every
+     * {@link java.security.ProtectionDomain} created by this loader when
+     * running on a DirtyChai JDK.  The array is cloned immediately and stored
+     * in a final field; it is safe to pass a shared array.
+     *
+     * @param searchUrls
+     *            the list of URLs where a specific class or file could be
+     *            found.
+     * @param parent
+     *            the {@code ClassLoader} to assign as this loader's parent.
+     * @param factory
+     *            the factory that will be used to create protocol-specific
+     *            stream handlers.
+     * @param context the context used to find classes and resources, if null
+     *            the callers context will be used.
+     * @param serverPrincipals the peer/server's principals to embed in each
+     *            {@code ProtectionDomain}, or {@code null}
+     * @throws SecurityException
+     *             if a security manager exists and its {@code
+     *             checkCreateClassLoader()} method doesn't allow creation of
+     *             new {@code ClassLoader}s.
+     */
+    public RFC3986URLClassLoader( URL[] searchUrls,
+                            ClassLoader parent,
+                            URLStreamHandlerFactory factory,
+                            AccessControlContext context,
+                            Principal[] serverPrincipals)
+    {
         super(searchUrls, parent, factory);  // ClassLoader protectes against finalizer attack.
         this.factory = factory;
         // capture the context of the thread that creates this URLClassLoader
@@ -1161,49 +1201,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             }
         }
         this.originalUrls = new CopyOnWriteArrayList<URL>(origUrls);
-    }
-
-    /**
-     * Loads the named class, injecting the supplied server principals into the
-     * resulting {@code ProtectionDomain} when running on a DirtyChai JDK whose
-     * {@code SecureClassLoader} exposes a Principal-aware
-     * {@code defineClass(String, byte[], int, int, CodeSource, Principal[])}
-     * overload.
-     * <p>
-     * On a standard JDK (where that overload does not exist), or when
-     * {@code serverPrincipals} is {@code null} or empty, this method delegates
-     * directly to {@link #loadClass(String, boolean)} with no behavioural
-     * difference from the normal class-loading path.
-     * <p>
-     * Typical call site in {@code PreferredProxyCodebaseProvider.resolve()}:
-     * <pre>
-     *   classLoader.loadClass(name, false, extractServerPrincipals(mc));
-     * </pre>
-     *
-     * @param name             the binary class name
-     * @param resolve          if {@code true}, {@link #resolveClass} is invoked
-     *                         on the loaded class before returning
-     * @param serverPrincipals the peer/server's SPIFFE (or other workload)
-     *                         principals to embed in the {@code ProtectionDomain},
-     *                         or {@code null}
-     * @return the loaded class
-     * @throws ClassNotFoundException if the class cannot be found
-     */
-    public Class<?> loadClass(String name, boolean resolve,
-                              Principal[] serverPrincipals)
-            throws ClassNotFoundException
-    {
-        if (DIRTY_CHAI_DEFINE_BYTES == null
-                || serverPrincipals == null
-                || serverPrincipals.length == 0) {
-            return loadClass(name, resolve);
-        }
-        SERVER_PRINCIPALS.set(serverPrincipals);
-        try {
-            return loadClass(name, resolve);
-        } finally {
-            SERVER_PRINCIPALS.remove();
-        }
+        this.serverPrincipals = serverPrincipals != null ? serverPrincipals.clone() : null;
     }
 
     /**
@@ -1212,8 +1210,8 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      * when available, otherwise falls back to the standard
      * {@link #defineClass(String, byte[], int, int, CodeSource)}.
      * <p>
-     * The principals to embed are read from the per-thread
-     * {@link #SERVER_PRINCIPALS} slot; if that slot is empty the standard path
+     * The principals to embed are read from the {@link #serverPrincipals} field
+     * set at construction time; if that field is {@code null} the standard path
      * is used regardless of whether DirtyChai is present.
      *
      * @param name   binary class name (or {@code null})
@@ -1226,13 +1224,12 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
     Class<?> defineClassWithPrincipals(String name, byte[] b, int off, int len,
                                        CodeSource cs)
     {
-        Principal[] principals = SERVER_PRINCIPALS.get();
         if (DIRTY_CHAI_DEFINE_BYTES != null
-                && principals != null
-                && principals.length > 0) {
+                && serverPrincipals != null
+                && serverPrincipals.length > 0) {
             try {
                 return (Class<?>) DIRTY_CHAI_DEFINE_BYTES.invoke(
-                        this, name, b, off, len, cs, principals);
+                        this, name, b, off, len, cs, serverPrincipals);
             } catch (InvocationTargetException e) {
                 Throwable cause = e.getCause();
                 if (cause instanceof Error) throw (Error) cause;
