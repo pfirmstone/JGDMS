@@ -469,7 +469,26 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * {@link BootstrapPermission}{@code ("loadCodebase")} by the current
      * security policy.
      *
-     * @param serverPrincipals the authenticated server principals
+     * <p><b>Implementation note:</b> This check is intentionally performed by
+     * calling {@link java.security.Policy#implies Policy.implies(ProtectionDomain, Permission)}
+     * rather than the usual {@link SecurityManager#checkPermission
+     * SecurityManager.checkPermission(Permission, AccessControlContext)} idiom.
+     * The reason is that the standard idiom constructs an
+     * {@code AccessControlContext} containing a new {@code ProtectionDomain}
+     * built from the server principals, but DirtyChai's
+     * {@code CombinerSecurityManager} caches permission checks keyed on the
+     * {@code ProtectionDomain} identity; a freshly-constructed
+     * {@code ProtectionDomain} would never appear in that cache (it cannot
+     * implement {@code equals}/{@code hashCode}) and would force a cache miss
+     * on every bootstrap call.  Calling {@code policy.implies} directly
+     * avoids that overhead while being semantically equivalent for this
+     * one-off bootstrap gate (which fires at most once per discovered service
+     * during the boot window).  A future maintainer should <em>not</em>
+     * replace this with {@code SecurityManager.checkPermission} without
+     * understanding the caching implications above.
+     *
+     * @param serverPrincipals the authenticated server principals (from the
+     *                         TLS-layer {@link net.jini.io.context.ServerSubject})
      * @param path             the codebase annotation string (for messages)
      * @throws SecurityException if the policy does not grant
      *                           {@code BootstrapPermission} to the principals
@@ -1079,11 +1098,10 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     }
                     bootWindowHashes.append(']');
 
-                    // Gate 1: BootstrapPermission check.
-                    // Only applied when the client has configured SPIFFE-based
-                    // ServerMinPrincipal constraints — this ensures backward
-                    // compatibility for deployments without SPIFFE auth.
-                    // serverPrincipals is extracted once before this block.
+                    // Gate 1: BootstrapPermission check against the TLS-authenticated
+                    // server identity supplied by ServerSubject.  Absent a ServerSubject
+                    // (non-TLS or anonymous-server deployment) serverPrincipals is null
+                    // and the gate is skipped for backward compatibility.
                     if (serverPrincipals != null && serverPrincipals.length > 0) {
                         // Throws SecurityException if the server's principal
                         // is not granted BootstrapPermission in the local policy.

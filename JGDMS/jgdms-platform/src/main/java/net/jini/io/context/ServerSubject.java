@@ -20,6 +20,8 @@ package net.jini.io.context;
 
 import javax.security.auth.Subject;
 
+import net.jini.io.context.ContextPermission;
+
 /**
  * A client context element that supplies the authenticated server Subject
  * from the underlying transport layer (e.g. TLS).
@@ -47,6 +49,11 @@ public interface ServerSubject {
      *
      * @return a read-only Subject containing the server's TLS-authenticated
      *         principals, or {@code null} if the server is anonymous
+     *
+     * @throws SecurityException if a security manager exists and its
+     * {@code checkPermission} method invoked with the permission
+     * {@link ContextPermission}{@code ("net.jini.io.context.ServerSubject.getServerSubject")}
+     * throws a {@code SecurityException}
      */
     Subject getServerSubject();
 }

@@ -33,6 +33,7 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
 import java.security.Principal;
+import java.security.Permission;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -56,6 +57,7 @@ import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
+import net.jini.io.context.ContextPermission;
 import net.jini.io.context.ServerSubject;
 import net.jini.jeri.connection.Connection;
 import net.jini.jeri.connection.OutboundRequestHandle;
@@ -529,8 +531,15 @@ class SslConnection extends Utilities implements Connection {
 		    Collections.emptySet(),
 		    Collections.emptySet());
 	    context.add(new ServerSubject() {
+		private static final Permission GET_SERVER_SUBJECT_PERM =
+		    new ContextPermission(
+			"net.jini.io.context.ServerSubject.getServerSubject");
 		@Override
 		public Subject getServerSubject() {
+		    SecurityManager sm = System.getSecurityManager();
+		    if (sm != null) {
+			sm.checkPermission(GET_SERVER_SUBJECT_PERM);
+		    }
 		    return serverSubject;
 		}
 	    });
