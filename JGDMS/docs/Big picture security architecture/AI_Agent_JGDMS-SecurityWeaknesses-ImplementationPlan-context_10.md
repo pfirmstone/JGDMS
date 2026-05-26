@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v53)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v54)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,36 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v54 Change Summary
+
+**Documentation corrections to §9.4 (Work Item 61 Limitations) — DirtyChai SubjectDomainCombiner and ProtectionDomain enrichment**
+
+Two inaccuracies identified by @pfirmstone in the §9.4 Limitations section have been corrected:
+
+1. **SubjectDomainCombiner scope** — the previous text implied that DirtyChai's
+   `SubjectDomainCombiner` enrichment would make the server SPIFFE principal
+   available in the grant evaluation context.  DirtyChai's `SECURITY_MODEL.md`
+   (§7) clarifies that `AccessController.getContext()` injects only
+   **non-`WorkerSubject`** scoped Subjects; worker threads — the typical threads
+   that execute proxy class loads — are explicitly excluded.
+
+2. **ProtectionDomain enrichment scope** — DirtyChai's `SecureClassLoader`
+   currently stamps `ProtectionDomain`s with the **client's** SPIFFE principals
+   (from the local SPIRE SVID), not the peer/server's.  For the server SPIFFE
+   principal to appear in the `ProtectionDomain` of the loaded code, two changes
+   are required (tracked as new Work Item 62):
+   - DirtyChai must add a `protected loadClass(String, boolean, Principal[])`
+     overload to `SecureClassLoader` so callers can supply extra principals to
+     embed in the resulting `ProtectionDomain`.
+   - JGDMS `RFC3986URLClassLoader` must implement the same signature, using
+     reflection to detect whether the DirtyChai `SecureClassLoader` carries that
+     overload and calling it when present (graceful degradation on a
+     non-DirtyChai JDK).
+
+Work Item 62 added to §6 table.
+
+---
 
 ## v53 Change Summary
 
@@ -1117,6 +1147,7 @@ These extend the work-item table in §12 of
 | **59** | SPIRE HA deployment documentation — `## High Availability Deployment` section in `docs/spiffe-admin-deployment.md`: HA architecture diagram; shared PostgreSQL datastore; `disk` CA vs Vault `UpstreamAuthority`; HAProxy/NLB TCP load balancer config; agent VIP config; failure-mode analysis table; HA operational checklist | 4.1 | ✅ Completed |
 | **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
 | **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerUriDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
+| **62** | DirtyChai `SecureClassLoader` Principal-aware `loadClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected loadClass(String, boolean, Principal[])` to `SecureClassLoader` so the caller can embed server SPIFFE principals in the loaded code's `ProtectionDomain`; JGDMS `RFC3986URLClassLoader` implements the same signature and uses reflection to call the DirtyChai overload when present, falling back gracefully on a standard JDK | DirtyChai + JGDMS | 🔲 Not started |
 
 ---
 
@@ -1524,17 +1555,40 @@ tryGrantPerUriDigestGrants(algo, localDigests, localPrincipals, serverPrincipals
 ### 9.4 Limitations
 
 - The server's SPIFFE principal must be present in the grant evaluation context
-  for the grant to fire.  On a standard JDK without DirtyChai's
-  `SubjectDomainCombiner` enrichment, the grant still does not fire (the
-  `DigestCodeSource` type check fails first), so the defense is additive and
-  not regressive.
+  for the grant to fire.  On a standard JDK without DirtyChai, the grant does
+  not fire at all (the `DigestCodeSource` type check fails first), so the
+  defense is additive and not regressive.
+- **DirtyChai `SubjectDomainCombiner` does not help here.**  DirtyChai's
+  `AccessController.getContext()` injects scoped Subjects into the evaluation
+  context only for **non-`WorkerSubject`** Subjects (see §7 of DirtyChai's
+  `SECURITY_MODEL.md`).  Worker threads — the typical executor threads used to
+  load proxy classes — are explicitly excluded.  Their context does **not**
+  automatically carry any scoped Subject, so the server SPIFFE principal cannot
+  reach the grant evaluation context via `SubjectDomainCombiner`.
 - If the client is not configured with `ServerMinPrincipal` constraints
   (`serverPrincipals == null`), the grant falls back to local-principal-only
   binding.  Deployments without SPIFFE are not affected.
-- The grant requires the server principal to be in the local Subject or
-  ProtectionDomain at evaluation time.  Ensuring this is a DirtyChai
-  responsibility; the JGDMS change prepares the correct grant structure for
-  when DirtyChai enriches the ProtectionDomain with the peer's identity.
+- **DirtyChai currently enriches `ProtectionDomain`s with the client's SPIFFE
+  principals only.**  DirtyChai's `SecureClassLoader.defineClass()` stamps each
+  `ProtectionDomain` with principals from the local SPIRE SVID (the workload's
+  own `SpiffeSubject`), not with the peer/server's identity.  For the server
+  SPIFFE principal to appear in the `ProtectionDomain` of the loaded proxy code,
+  two additional changes are required (tracked as **Work Item 62**):
+  1. **DirtyChai** must add a `protected loadClass(String name, boolean resolve,
+     Principal[] principals)` overload to `SecureClassLoader`.  This would allow
+     callers to pass the server's SPIFFE principals alongside the normal load
+     request so that they are embedded in the resulting `ProtectionDomain`.
+  2. **JGDMS `RFC3986URLClassLoader`** must implement the same method signature.
+     It should use reflection to detect whether the DirtyChai superclass carries
+     the Principal-aware `loadClass` overload and invoke it when present;
+     otherwise fall back to the standard `loadClass(String, boolean)` (graceful
+     degradation on a non-DirtyChai JDK).
+  Until Work Item 62 is implemented, the server-principal binding in the
+  `DigestGrant` still prevents cross-service grant reuse at issue time (the
+  §9.3 security properties hold at grant construction time), but the
+  `DigestGrant` itself cannot fire during an actual class load on the current
+  DirtyChai build because the server principal is absent from the worker-thread
+  evaluation context at permission-check time.
 
 ### 9.5 Files changed
 
@@ -1548,10 +1602,16 @@ tryGrantPerUriDigestGrants(algo, localDigests, localPrincipals, serverPrincipals
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 53.
-Work Item 61 (digest-codesource hijacking defence — Option 1) is now
-✅ Completed: `tryGrantPerUriDigestGrants` now binds each per-JAR DigestGrant
-to both the local and server SPIFFE principals, preventing a second
-authenticated service with the same JAR bytes from reusing the grant.
+future AI agent to continue without loss of context. This is version 54.
+Version 54 corrects two inaccuracies in §9.4 (Work Item 61 Limitations):
+(1) DirtyChai's `SubjectDomainCombiner` enrichment does not apply to worker
+Subjects, so the server SPIFFE principal cannot reach the grant evaluation
+context via that path; (2) DirtyChai currently enriches `ProtectionDomain`s
+with the client's SPIFFE principals only — Work Item 62 (🔲 Not started) tracks
+the DirtyChai `SecureClassLoader` Principal-aware `loadClass` overload and the
+corresponding `RFC3986URLClassLoader` reflection-based adoption in JGDMS.
+Work Item 61 (digest-codesource hijacking defence — Option 1) remains
+✅ Completed for grant construction, but full enforcement at class-load time
+depends on Work Item 62.
 Work Item 58 remains ✅ fully complete in DirtyChai
 (`SecureClassLoader.java` SHA `98e1e31`).*
