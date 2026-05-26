@@ -1,12 +1,27 @@
-# JGDMS + DirtyChai — Independent Security Assessment — AI Agent Context (v2)
+# JGDMS + DirtyChai — Independent Security Assessment — AI Agent Context (v3)
 
-- **Version:** 2
+- **Version:** 3
 - **Date:** 2026-05-26
 - **Produced by:** GitHub Copilot Agent (independent assessment pass)
-- **Assessed against:** context_10.md v55, DirtyChai SECURITY_MODEL.md v2.4
+- **Assessed against:** context_10.md v56, DirtyChai SECURITY_MODEL.md v2.4
 - **Repositories:**
   - JGDMS: https://github.com/pfirmstone/JGDMS
   - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+---
+
+## Change Summary
+
+- **v3 (2026-05-26):** WI62 DirtyChai side confirmed complete
+  (`SecureClassLoader.defineClass(…,Principal[])` overloads added).  G-3
+  (`SerialObjectPermission` guard for `readProxyDesc()`) confirmed complete
+  (DirtyChai `ObjectInputStream.java` line 1976).  §2.1, §2.2, §3.1, §3.2,
+  §4 priority table, and §5 status table updated accordingly.  WI61 defence
+  (WI62-dependent) is now fully operative.
+- **v2 (2026-05-26):** WI48 (in-memory signed-verdict cache in
+  `PreferredProxyCodebaseProvider`) and WI50 (`SubjectAwareExecutor`) marked
+  ✅ Completed; §4 priority table and §5 status table updated.
+- **v1 (2026-05-26):** Initial independent security assessment document.
 
 ---
 
@@ -93,51 +108,32 @@ multi-layer DoS defence.
 
 ## 2. Open Vulnerabilities and Gaps
 
-### 2.1 🔴 Critical — Proxy Deserialization Gap (G-3, DirtyChai §13, unscheduled)
+### 2.1 ✅ Resolved — Proxy Deserialization Gap (G-3, DirtyChai §13)
 
-`SerialObjectPermission` guards `ObjectInputStream.readOrdinaryObject()` but
-**not** `readProxyDesc()`.  Streams that reach object creation through
-`TC_PROXYCLASSDESC` do not hit the current `SerialObjectPermission` guard
-placement.  A gadget chain delivered via Java dynamic-proxy deserialization is
-not blocked.
+`SerialObjectPermission` previously guarded `ObjectInputStream.readOrdinaryObject()` but
+**not** `readProxyDesc()`.  Streams reaching object creation through
+`TC_PROXYCLASSDESC` did not hit the `SerialObjectPermission` guard.
 
-**Status:** Confirmed open in DirtyChai `SECURITY_MODEL.md` §13 (G-3).
-No fix is scheduled in either repository.
-
-**Recommended fix:** Extend the `SerialObjectPermission` check to cover
-`readProxyDesc()` in DirtyChai's patched `ObjectInputStream`.  The guard
-placement is symmetric to the existing `readOrdinaryObject()` guard; the
-change is well-scoped.
+**Status:** ✅ Completed in DirtyChai (`ObjectInputStream.java` line 1976).
+The guard has been extended to cover `readProxyDesc()`, symmetric to the
+existing `readOrdinaryObject()` guard.
 
 ---
 
-### 2.2 🔴 Critical / Structural — Work Item 62 DirtyChai Side Pending
+### 2.2 ✅ Resolved — Work Item 62 DirtyChai Side Complete
 
-The JGDMS side of Work Item 62 is ✅ complete: `RFC3986URLClassLoader` accepts
+The JGDMS side of Work Item 62 was already complete: `RFC3986URLClassLoader` accepts
 `serverPrincipals` via a new constructor argument (not a `ThreadLocal` — the
 field is `final`) and calls `defineClassWithPrincipals(…)` which invokes the
 DirtyChai overload via a reflection probe cached at class-init time.
 
-The **DirtyChai side is not yet implemented**: the two
-`defineClass(…, Principal[])` overloads required in `SecureClassLoader` do not
-yet exist.  Until they do:
+The **DirtyChai side is now also implemented**: the two
+`defineClass(…, Principal[])` overloads in `SecureClassLoader` have been added.
+Server principals are now correctly stamped into the `ProtectionDomain` of
+loaded proxy classes.  Work Item 61's cross-service grant-reuse defence is
+fully operative.
 
-- The reflection probe (`DIRTY_CHAI_DEFINE_BYTES` / `DIRTY_CHAI_DEFINE_BUFFER`)
-  returns `null` on the current DirtyChai build.
-- `defineClassWithPrincipals` falls back to the standard `defineClass` path.
-- Server principals are **silently absent** from the `ProtectionDomain` of
-  loaded proxy classes.
-- The `DigestGrant` issued by Work Item 61 is constructed with the merged
-  `{local, server}` principal set (correct), but the grant **cannot fire** at
-  class-load time because the server principal is missing from the
-  `ProtectionDomain`.
-
-**Net effect:** Work Item 61's cross-service grant-reuse defence is inoperative
-at runtime until the DirtyChai `defineClass(…,Principal[])` overloads are
-shipped.  The grant is built correctly; it just never matches.
-
-**Status:** `🟡 JGDMS side complete; DirtyChai side pending` (context_10
-§6 row 62).
+**Status:** ✅ Complete (both JGDMS and DirtyChai sides) (context_10 §6 row 62).
 
 ---
 
@@ -303,32 +299,30 @@ Weakness 1 (full security requires DirtyChai — a non-standard JDK fork) is
 correctly classified as a design constraint in context_10.md.  However, its
 downstream effects are broader than a single weakness:
 
-- Weaknesses 2.2 (WI62 DirtyChai side), 2.1 (G-3 proxy deserialization), and
-  the `SubjectDomainCombiner` exclusion of `WorkerSubject`s (§9.4 of
-  context_10) are all DirtyChai-internal gaps.  JGDMS cannot fix them
-  unilaterally.
+- Weaknesses 2.2 (WI62 DirtyChai side, now resolved) and 2.1 (G-3 proxy
+  deserialization, now resolved) were DirtyChai-internal gaps that have been
+  addressed.  The `SubjectDomainCombiner` exclusion of `WorkerSubject`s
+  (§9.4 of context_10) remains a DirtyChai-internal design constraint.
 - Deployments on a standard JDK forfeit content-addressed trust, SPIFFE
   principal stamping, `LoadClassPermission`, and the `SerialObjectPermission`
   guard.  The security posture difference between DirtyChai and stock JDK
   deployments is very large.
 
-Future AI agents should track DirtyChai changes separately and update §2.2
-and §2.1 of this document when the DirtyChai overloads and G-3 fix land.
+Future AI agents should note that the critical DirtyChai gaps tracked in
+§2.1 and §2.2 are now resolved as of DirtyChai commit 17e8e37 / the
+SecureClassLoader update.
 
-### 3.2 Work Item 61 Defence Is Correct but Incomplete Until WI62 Lands
+### 3.2 Work Item 61 Defence Is Correct and Now Fully Operative
 
 The `mergePrincipals` helper and the updated `tryGrantPerUriDigestGrants` call
 site (WI61) correctly bind each per-JAR `DigestGrant` to `{local, server}`
 principals at construction time.  Cross-service grant reuse is therefore
 prevented **at the point the grant is issued**.
 
-However the grant fires during class-load-time policy evaluation, which checks
-whether the `ProtectionDomain`'s principal set satisfies the grant's principal
-requirement.  Until DirtyChai ships the `defineClass(…,Principal[])` overloads
-(WI62 DirtyChai side), the server principal is absent from the `ProtectionDomain`
-and the grant never fires.  The net effect is that on the current DirtyChai
-build, `DigestGrant` policy evaluation effectively reverts to local-principal-
-only matching — the WI61 hardening is present but latent.
+With WI62 now complete on the DirtyChai side, the server principal is present
+in the `ProtectionDomain` of loaded proxy classes.  The `DigestGrant` policy
+evaluation correctly requires `{local, server}` principals to match, and the
+WI61 cross-service hardening is fully operative end-to-end.
 
 ### 3.3 `BootstrapPermission` Is a Useful Transitional Guard
 
@@ -364,8 +358,8 @@ Listed by impact-per-effort ratio.  All items are well-specified in context_10.
 
 | # | Work Item | Why this sprint | Effort |
 |---|---|---|---|
-| 1 | **WI62 — DirtyChai `defineClass(…,Principal[])` overloads** | Without this, WI61 cross-service defence is latent and server principals are never in `ProtectionDomain` | Medium (DirtyChai repo, 2 method overloads + test) |
-| 2 | **G-3 — Extend `SerialObjectPermission` to `readProxyDesc()`** | Confirmed open attack surface; symmetric to existing guard; small change | Small (DirtyChai repo, one guard insertion) |
+| 1 | **WI62 — DirtyChai `defineClass(…,Principal[])` overloads** | Without this, WI61 cross-service defence is latent and server principals are never in `ProtectionDomain` | ✅ Completed (DirtyChai) |
+| 2 | **G-3 — Extend `SerialObjectPermission` to `readProxyDesc()`** | Confirmed open attack surface; symmetric to existing guard; small change | ✅ Completed (DirtyChai) |
 | 3 | **WI48 — In-memory signed-verdict cache** | Outage resilience with minimal complexity; prerequisite for WI57 | ✅ Completed (v2) |
 | 4 | **WI51 — `INCONCLUSIVEPermit`** | Structural fix for fresh INCONCLUSIVE loads after policy change; closes the primary residual gap from WI46 | Medium (VerdictRegistry API extension + `PreferredProxyCodebaseProvider` enforcement) |
 | 5 | **WI50 — `SubjectAwareExecutor`** | Prevents silent identity loss in executor tasks; small, self-contained | ✅ Completed (v2) |
@@ -400,9 +394,9 @@ lookup.  Future agents should update this table as items complete.
 | 58 | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix + two-layer cache | ✅ Complete (DirtyChai) |
 | 59 | SPIRE HA deployment documentation | ✅ Complete |
 | 60 | ServiceStarter hardened boot ordering documentation | ✅ Complete |
-| 61 | Digest-codesource hijacking defence — `mergePrincipals` + server principals in `DigestGrant` | ✅ Complete (grant construction); latent until WI62 DirtyChai side |
-| 62 | DirtyChai `defineClass(…,Principal[])` overloads + JGDMS `RFC3986URLClassLoader` adoption | 🟡 JGDMS complete; **DirtyChai side pending** |
-| G-3 | `SerialObjectPermission` guard extension to `readProxyDesc()` | 🔴 Open (DirtyChai) |
+| 61 | Digest-codesource hijacking defence — `mergePrincipals` + server principals in `DigestGrant` | ✅ Complete (grant construction + DirtyChai WI62 complete; fully operative) |
+| 62 | DirtyChai `defineClass(…,Principal[])` overloads + JGDMS `RFC3986URLClassLoader` adoption | ✅ Complete (both JGDMS and DirtyChai sides) |
+| G-3 | `SerialObjectPermission` guard extension to `readProxyDesc()` | ✅ Complete (DirtyChai) |
 
 ---
 
@@ -434,5 +428,5 @@ context_10.md.  Any change that could violate them requires explicit review.
 
 *Hand this document to a future AI agent or reviewer as a consolidated
 security-assessment snapshot dated 2026-05-26.  Cross-reference with
-context_10.md v55 for full implementation history and context_8.md v33 for
+context_10.md v56 for full implementation history and context_8.md v33 for
 earlier `GrantPermission` and role-management decisions.*

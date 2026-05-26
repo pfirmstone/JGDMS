@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v56)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v57)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,32 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v57 Change Summary
+
+**WI62 DirtyChai side confirmed complete; G-3 confirmed complete**
+
+Both items tracked in context_11.md were confirmed complete by @pfirmstone:
+
+1. **WI62 DirtyChai side** — `SecureClassLoader.defineClass(…,Principal[])`
+   overloads (two variants) are now present in DirtyChai.  The JGDMS reflection
+   probe in `RFC3986URLClassLoader` will now find and use them, correctly
+   stamping server SPIFFE principals into the `ProtectionDomain` of loaded
+   proxy classes.  Work Item 61's cross-service grant-reuse defence is fully
+   operative end-to-end.
+
+2. **G-3** — `SerialObjectPermission` guard has been extended to cover
+   `readProxyDesc()` in DirtyChai's `ObjectInputStream` (line 1976).  Dynamic-
+   proxy deserialization gadget chains are now blocked symmetrically with the
+   existing `readOrdinaryObject()` guard.
+
+**Files changed:**
+- `docs/.../context_10.md` — §6 WI62 row updated (🟡 → ✅ Complete); §9
+  closing note updated; v56 → v57
+- `docs/.../AI_Agent_JGDMS-SecurityAssessment-context_11.md` — §2.1, §2.2,
+  §3.1, §3.2, §4 priority table, §5 status table updated; v2 → v3
+
+---
 
 ## v56 Change Summary
 
@@ -1297,7 +1323,7 @@ These extend the work-item table in §12 of
 | **59** | SPIRE HA deployment documentation — `## High Availability Deployment` section in `docs/spiffe-admin-deployment.md`: HA architecture diagram; shared PostgreSQL datastore; `disk` CA vs Vault `UpstreamAuthority`; HAProxy/NLB TCP load balancer config; agent VIP config; failure-mode analysis table; HA operational checklist | 4.1 | ✅ Completed |
 | **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
 | **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerUriDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
-| **62** | DirtyChai `SecureClassLoader` Principal-aware `defineClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected final defineClass(String, byte[], int, int, CodeSource, Principal[])` and `defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to `SecureClassLoader`; JGDMS `RFC3986URLClassLoader` probes for these overloads at class init via reflection and, when found, uses them to embed server SPIFFE principals in the loaded code's `ProtectionDomain`; a new `loadClass(String, boolean, Principal[])` entry point carries principals via a `ThreadLocal` down to the `defineClass` call sites | DirtyChai + JGDMS | 🟡 JGDMS side complete; DirtyChai side pending |
+| **62** | DirtyChai `SecureClassLoader` Principal-aware `defineClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected final defineClass(String, byte[], int, int, CodeSource, Principal[])` and `defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to `SecureClassLoader`; JGDMS `RFC3986URLClassLoader` probes for these overloads at class init via reflection and, when found, uses them to embed server SPIFFE principals in the loaded code's `ProtectionDomain`; a new `loadClass(String, boolean, Principal[])` entry point carries principals via a `ThreadLocal` down to the `defineClass` call sites | DirtyChai + JGDMS | ✅ Complete (both JGDMS and DirtyChai sides) |
 
 ---
 
@@ -1770,10 +1796,9 @@ the Principal-aware `defineClass` overload (probed via reflection at class init)
 to embed server SPIFFE principals in the `ProtectionDomain` of loaded classes.
 On a standard JDK the reflection probe returns `null` and the fallback is
 identical to the previous behaviour.  The DirtyChai side of Work Item 62
-(adding the `defineClass(…,Principal[])` overloads to `SecureClassLoader`)
-remains pending in the DirtyChai repository.
+(`defineClass(…,Principal[])` overloads in `SecureClassLoader`) is now ✅
+Complete (confirmed by @pfirmstone — see DirtyChai `SecureClassLoader.java`).
 Work Item 61 (digest-codesource hijacking defence — Option 1) is ✅ Completed
-for grant construction.  Full enforcement at class-load time now also requires
-the DirtyChai side of Work Item 62.
+and is fully operative end-to-end now that WI62 DirtyChai side is also complete.
 Work Item 58 remains ✅ fully complete in DirtyChai
 (`SecureClassLoader.java` SHA `98e1e31`).*
