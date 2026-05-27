@@ -258,6 +258,15 @@ public class ActivatableVerdictRegistryImpl
     }
 
     @Override
+    public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener,
+                                                           MarshalledInstance handback,
+                                                           long leaseDuration)
+            throws RemoteException {
+        getReadyState().check();
+        return impl.registerGlobalVerdictListener(listener, handback, leaseDuration);
+    }
+
+    @Override
     public long renewEventLease(Uuid leaseId, long duration)
             throws UnknownLeaseException, RemoteException {
         getReadyState().check();

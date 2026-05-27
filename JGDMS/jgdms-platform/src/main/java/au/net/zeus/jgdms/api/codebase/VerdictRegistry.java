@@ -223,8 +223,38 @@ public interface VerdictRegistry extends Remote {
             throws RemoteException;
 
     /**
-     * Renews the event-listener lease identified by {@code leaseId} for the
-     * requested duration.
+     * Registers a listener to receive {@link au.net.zeus.jgdms.vr.proxy.VerdictEvent}
+     * notifications for <em>every</em> verdict published by this registry,
+     * regardless of codebase URL or content hash.
+     *
+     * <p>This is the primary subscription mechanism for
+     * {@code ReadReplicaVerdictRegistry} instances, which must maintain a
+     * complete copy of the primary registry's verdict state.  The registry
+     * performs a <em>burst delivery</em> of all currently-held verdicts
+     * immediately before this call returns, so the replica can bootstrap its
+     * local cache from the first notification batch.
+     *
+     * <p>The registration is protected by a lease.  The caller must renew the
+     * lease before it expires using {@link #renewEventLease}, or cancel it
+     * with {@link #cancelEventLease}.
+     *
+     * @param listener      the listener to notify; must be non-null
+     * @param handback      opaque object returned unchanged in every
+     *                      {@link au.net.zeus.jgdms.vr.proxy.VerdictEvent}
+     *                      delivered to {@code listener}; may be {@code null}
+     * @param leaseDuration the requested lease duration in milliseconds, or
+     *                      {@link net.jini.core.lease.Lease#ANY}
+     * @return an {@link EventRegistration} containing the event ID, the
+     *         initial sequence number, and the granted lease
+     * @throws NullPointerException if {@code listener} is {@code null}
+     * @throws RemoteException      if a communication failure occurs
+     */
+    EventRegistration registerGlobalVerdictListener(RemoteEventListener listener,
+                                                    MarshalledInstance handback,
+                                                    long leaseDuration)
+            throws RemoteException;
+
+    /**
      *
      * @param leaseId  the lease cookie returned by
      *                 {@link #registerVerdictListener}; must be non-null

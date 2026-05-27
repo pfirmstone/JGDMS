@@ -67,7 +67,6 @@
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-security-jwt</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
         </dependency>
         <!--<dependency>
             <groupId>bouncycastle</groupId>

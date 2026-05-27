@@ -884,6 +884,58 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     }
 
     @Override
+    public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener,
+                                                           MarshalledInstance handback,
+                                                           long leaseDuration)
+            throws RemoteException {
+        if (listener == null) throw new NullPointerException("listener");
+
+        VerdictRegistry src = eventSource;
+        if (src == null) throw new IllegalStateException(
+                "Service has not been exported yet; call setEventSource first");
+
+        long now        = System.currentTimeMillis();
+        long granted    = clampLeaseDuration(leaseDuration);
+        long expiration = now + granted;
+        Uuid leaseId    = UuidFactory.generate();
+        long eventId    = nextEventId.getAndIncrement();
+
+        // codebaseKey == null is the sentinel for "all verdicts".
+        ListenerRegistration reg = new ListenerRegistration(
+                leaseId, eventId, expiration, listener, handback, null);
+        listenerRegistrations.put(leaseId, reg);
+
+        // Burst-deliver all currently-published verdicts (URL-keyed and
+        // hash-keyed) so the replica/subscriber can bootstrap its local cache.
+        long initialSeqNum = 0L;
+        for (RegistryVerdict v : publishedVerdicts.values()) {
+            long sn = reg.seqNum.incrementAndGet();
+            final long capturedSn = sn;
+            final RegistryVerdict capturedV = v;
+            eventSemaphore.acquireUninterruptibly();
+            executorService.execute(() -> {
+                try { new SendVerdictTask(reg, capturedV, capturedSn).run(); }
+                finally { eventSemaphore.release(); }
+            });
+            initialSeqNum = capturedSn;
+        }
+        for (RegistryVerdict v : hashPublishedVerdicts.values()) {
+            long sn = reg.seqNum.incrementAndGet();
+            final long capturedSn = sn;
+            final RegistryVerdict capturedV = v;
+            eventSemaphore.acquireUninterruptibly();
+            executorService.execute(() -> {
+                try { new SendVerdictTask(reg, capturedV, capturedSn).run(); }
+                finally { eventSemaphore.release(); }
+            });
+            initialSeqNum = capturedSn;
+        }
+
+        Lease lease = new VerdictEventLease(src, leaseId, expiration);
+        return new EventRegistration(eventId, src, lease, initialSeqNum);
+    }
+
+    @Override
     public long renewEventLease(Uuid leaseId, long duration)
             throws UnknownLeaseException, RemoteException {
         if (leaseId == null) throw new NullPointerException("leaseId");
@@ -951,8 +1003,10 @@ public class VerdictRegistryImpl implements VerdictRegistry {
 
     /**
      * Fans out a newly-published {@link RegistryVerdict} to every registered
-     * listener whose codebase key matches.  Expired registrations are pruned
-     * lazily.  Called outside of any lock.
+     * listener whose codebase key matches, and to all <em>global</em>
+     * listeners (those registered via {@link #registerGlobalVerdictListener}
+     * whose {@code codebaseKey} is {@code null}).  Expired registrations are
+     * pruned lazily.  Called outside of any lock.
      *
      * @param codebaseKey the canonical key for the codebase set
      * @param verdict     the verdict that was just published
@@ -962,7 +1016,9 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         for (Map.Entry<Uuid, ListenerRegistration> entry
                 : listenerRegistrations.entrySet()) {
             ListenerRegistration reg = entry.getValue();
-            if (!codebaseKey.equals(reg.codebaseKey)) continue;
+            // reg.codebaseKey == null  → global listener: receives every verdict.
+            // reg.codebaseKey != null  → codebase-scoped: only matching key.
+            if (reg.codebaseKey != null && !codebaseKey.equals(reg.codebaseKey)) continue;
             if (reg.leaseExpiration < now) {
                 listenerRegistrations.remove(entry.getKey());
                 continue;
