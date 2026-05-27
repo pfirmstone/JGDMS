@@ -23,6 +23,8 @@ import java.io.ObjectStreamClass;
 import java.io.ObjectStreamField;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.concurrent.Callable;
 import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -216,6 +218,22 @@ abstract class AbstractActivationGroup extends ActivationGroup
     implements ServerProxyTrust, Replace
 {
     private static final long serialVersionUID = 5758693559430427303L;
+
+    /**
+     * Reflective probe for {@code Subject.callAs(Subject, Callable)}, added in
+     * Java 18.  {@code null} on Java 8–17, where {@code Subject.doAsPrivileged}
+     * is used as a fallback.  Cached once at class-load time.
+     */
+    private static final Method SUBJECT_CALL_AS;
+    static {
+	Method m = null;
+	try {
+	    m = Subject.class.getMethod("callAs", Subject.class, Callable.class);
+	} catch (NoSuchMethodException | SecurityException ignored) {
+	    // Java < 18 — Subject.callAs not available; doAsPrivileged used instead.
+	}
+	SUBJECT_CALL_AS = m;
+    }
 
     private static final String PHOENIX = "org.apache.river.phoenix";
     /** instance has not been created */
@@ -910,10 +928,23 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		    (PrivilegedAction) new GetThreadPoolAction(false) :
 		    new PrivilegedAction() {
 			public Object run() {
-			    return Subject.doAsPrivileged(
-					      login.getSubject(),
-					      new GetThreadPoolAction(false),
-					      null);
+			    if (SUBJECT_CALL_AS != null) {
+				try {
+				    return SUBJECT_CALL_AS.invoke(null, login.getSubject(),
+					(Callable<Object>) () -> new GetThreadPoolAction(false).run());
+				} catch (InvocationTargetException ite) {
+				    Throwable cause = ite.getCause();
+				    if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+				    throw new RuntimeException(cause);
+				} catch (IllegalAccessException iae) {
+				    throw new RuntimeException(iae);
+				}
+			    } else {
+				return Subject.doAsPrivileged(
+						  login.getSubject(),
+						  new GetThreadPoolAction(false),
+						  null);
+			    }
 			}
 		});
 	    systemThreadPool.execute(action, "UnexportGroup");
@@ -989,11 +1020,27 @@ abstract class AbstractActivationGroup extends ActivationGroup
 	try {
 	    if (login == null) {
 		return AccessController.doPrivileged(action);
+	    } else if (SUBJECT_CALL_AS != null) {
+		return AccessController.doPrivileged(
+		    new PrivilegedExceptionAction<Object>() {
+			@Override
+			public Object run() throws Exception {
+			    try {
+				return SUBJECT_CALL_AS.invoke(null, login.getSubject(),
+				    (Callable<Object>) action::run);
+			    } catch (InvocationTargetException ite) {
+				Throwable cause = ite.getCause();
+				if (cause instanceof Exception) throw (Exception) cause;
+				if (cause instanceof Error)     throw (Error)     cause;
+				throw ite;
+			    }
+			}
+		    });
 	    } else {
 		return AccessController.doPrivileged(
 		    new PrivilegedExceptionAction<Object>() {
 			@Override
-		        public Object run() throws Exception {
+			public Object run() throws Exception {
 			    try {
 				return Subject.doAsPrivileged(
 					   login.getSubject(), action, null);
@@ -1001,7 +1048,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
 				throw e.getException();
 			    }
 			}
-		});
+		    });
 	    }
 	} catch (PrivilegedActionException e) {
 	    Exception ex = e.getException();
