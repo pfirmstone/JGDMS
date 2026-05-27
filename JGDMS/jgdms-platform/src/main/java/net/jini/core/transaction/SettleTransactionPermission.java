@@ -23,10 +23,11 @@ import net.jini.security.AccessPermission;
 /**
  * Represents the permission required for a Subject to participate in settling
  * (committing or aborting) a distributed transaction. This permission is
- * checked against <em>every</em> Subject present in a multi-Subject remote
- * call — both the transport Subject and each user Subject propagated via the
- * multi-Subject wire protocol — using
- * {@link net.jini.jeri.BasicInvocationDispatcher#checkAllClientsPermission}.
+ * checked against <em>every</em> Subject participating in the transaction —
+ * both the transport Subject and each user Subject propagated via the
+ * multi-Subject wire protocol — by
+ * {@code TxnManagerImpl.checkAllParticipantsPermission}.  Subjects from each
+ * remote Endpoint that joined the transaction are all verified independently.
  *
  * <p>An instance contains a target name but no actions list; you either have
  * the named permission or you don't. Wildcard matching is supported using the
@@ -60,7 +61,6 @@ import net.jini.security.AccessPermission;
  * equivalent to granting both {@code SettleTransactionPermission("commit")}
  * and {@code SettleTransactionPermission("abort")}.
  *
- * @see net.jini.jeri.BasicInvocationDispatcher#checkAllClientsPermission
  * @since 3.1
  */
 public class SettleTransactionPermission extends AccessPermission {
