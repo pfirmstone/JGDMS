@@ -702,12 +702,16 @@ bytecode. Its goal is the opposite: prevent untrusted code from ever being loade
 `LoadClassPermission` as the primary gate and SCAP as the pre-analysis pipeline. If you need to
 run code you don't trust, you need a different tool (or a different approach).
 
-JGDMS **requires DirtyChai**. Running on bare OpenJDK is not supported: on standard OpenJDK ≤ 23,
-virtual threads are assigned an `AccessControlContext` with no permissions when `SecurityManager`
-is enabled, making JGDMS non-functional. On OpenJDK 24+, the `SecurityManager` API was removed
-entirely. DirtyChai is the only supported JDK. **DirtyChai** is required for SPIFFE support and
-enhanced security, such as JarFile hardening against untrusted input and additional guards; BAE
-is used to cover security gaps that authorization cannot defend against.
+JGDMS **requires DirtyChai** at runtime. Running on bare OpenJDK is not supported: on standard
+OpenJDK ≤ 23, virtual threads are assigned an `AccessControlContext` with no permissions when
+`SecurityManager` is enabled, making JGDMS non-functional. On OpenJDK 24+, the `SecurityManager`
+API was removed entirely. DirtyChai is the only supported runtime JDK. **DirtyChai** is required
+for SPIFFE support and enhanced security, such as JarFile hardening against untrusted input and
+additional guards; BAE is used to cover security gaps that authorization cannot defend against.
+JGDMS is, however, **compile-time compatible with standard OpenJDK**: you can build JGDMS and
+your application code using any standard OpenJDK toolchain. DirtyChai is binary compatible with
+software compiled on OpenJDK — no recompilation is required when switching the runtime JDK from
+OpenJDK to DirtyChai.
 
 ---
 

@@ -28,10 +28,13 @@ delivering the performance and scalability needed for production distributed sys
 
 The two projects are complementary forks of *different* upstreams. JGDMS forks Apache River;
 DirtyChai forks OpenJDK. Running JGDMS on DirtyChai gives you the full security and scalability
-story. Running JGDMS on bare OpenJDK is **not supported**: on standard OpenJDK ≤ 23, virtual
-threads are allocated an `AccessControlContext` with no permissions when `SecurityManager` is
-enabled, making them non-functional in a security context. On OpenJDK 24+, the `SecurityManager`
-API was removed entirely. DirtyChai is required for all supported deployments.
+story. Running JGDMS on bare OpenJDK is **not supported at runtime**: on standard OpenJDK ≤ 23,
+virtual threads are allocated an `AccessControlContext` with no permissions when `SecurityManager`
+is enabled, making them non-functional in a security context. On OpenJDK 24+, the `SecurityManager`
+API was removed entirely. DirtyChai is required for all supported deployments. JGDMS is, however,
+**compile-time compatible with standard OpenJDK** — you can build JGDMS and your application
+code using any standard OpenJDK toolchain. DirtyChai is binary compatible with software compiled
+on OpenJDK, so no recompilation is required when switching to the DirtyChai runtime.
 
 ### Scalability in One Sentence
 
@@ -133,10 +136,14 @@ bytecode. Its goal is the opposite: prevent untrusted code from ever being loade
 `LoadClassPermission` as the primary gate and SCAP as the pre-analysis pipeline. If you need to
 run code you don't trust, you need a different tool.
 
-JGDMS **requires DirtyChai**. Running on bare OpenJDK is not supported: on standard OpenJDK ≤ 23,
-virtual threads are assigned an `AccessControlContext` with no permissions when `SecurityManager`
-is enabled, which prevents their use in a security context. On OpenJDK 24+, the `SecurityManager`
-API was removed entirely. DirtyChai is the only supported JDK.
+JGDMS **requires DirtyChai** at runtime. Running on bare OpenJDK is not supported: on standard
+OpenJDK ≤ 23, virtual threads are assigned an `AccessControlContext` with no permissions when
+`SecurityManager` is enabled, which prevents their use in a security context. On OpenJDK 24+, the
+`SecurityManager` API was removed entirely. DirtyChai is the only supported runtime JDK.
+JGDMS is, however, **compile-time compatible with standard OpenJDK**: you can build JGDMS and
+your application code using any standard OpenJDK toolchain. DirtyChai is binary compatible with
+software compiled on OpenJDK — no recompilation is required when switching the runtime JDK from
+OpenJDK to DirtyChai.
 
 ---
 
