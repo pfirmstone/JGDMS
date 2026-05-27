@@ -1316,6 +1316,69 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
+     * Checks that <em>all</em> Subjects present in the current remote call
+     * have been granted the specified permission. This is an all-of check:
+     * both the transport Subject (the TLS/Kerberos authenticated identity from
+     * {@link ClientSubject}) and every user Subject propagated via the
+     * multi-Subject wire protocol (from {@link ClientUserSubject}) must
+     * individually be granted the permission.
+     *
+     * <p>If a security manager is installed, a {@link ProtectionDomain} is
+     * constructed for each Subject with its principals and the permission is
+     * checked against each domain in turn. If any Subject fails the check, a
+     * {@link SecurityException} is thrown. If no security manager is
+     * installed, this method returns normally. If no user Subjects are present
+     * (a standard single-Subject call), behaviour degrades gracefully to the
+     * transport Subject check alone.
+     *
+     * @param permission the requested permission
+     * @throws SecurityException if any Subject in the current remote call has
+     *         not been granted the specified permission
+     * @throws IllegalStateException if the current thread is not executing an
+     *         incoming remote method for a remote object
+     * @throws NullPointerException if {@code permission} is {@code null}
+     */
+    public static void checkAllClientsPermission(final Permission permission) {
+	if (permission == null) {
+	    throw new NullPointerException();
+	}
+	// Check the transport Subject (throws IllegalStateException if not
+	// in a remote call; returns early if no SecurityManager installed).
+	checkClientPermission(permission);
+
+	SecurityManager sm = System.getSecurityManager();
+	if (sm == null) {
+	    return;
+	}
+	// Check each user Subject from the multi-Subject wire protocol.
+	Subject[] userSubjects = AccessController.doPrivileged(
+	    (PrivilegedAction<Subject[]>) () -> {
+		try {
+		    ClientUserSubject cus = (ClientUserSubject)
+			ServerContext.getServerContextElement(
+			    ClientUserSubject.class);
+		    return cus != null ? cus.getUserSubjects() : new Subject[0];
+		} catch (ServerNotActiveException e) {
+		    return new Subject[0];
+		}
+	    });
+	for (Subject user : userSubjects) {
+	    ProtectionDomain pd = domains.computeIfAbsent(user, s -> {
+		Set<Principal> set = s.getPrincipals();
+		Principal[] prins = set.toArray(new Principal[0]);
+		return new ProtectionDomain(emptyCS, null, null, prins);
+	    });
+	    if (logger.isLoggable(Level.FINEST)) {
+		logger.log(Level.FINEST,
+		    "checkAllClientsPermission: user subject domain: {0}", pd);
+	    }
+	    AccessControlContext acc =
+		new AccessControlContext(new ProtectionDomain[]{pd});
+	    sm.checkPermission(permission, acc);
+	}
+    }
+
+    /**
      * Unmarshals a method representation from the marshal input stream,
      * <code>in</code>, and returns the <code>Method</code> object
      * corresponding to that representation.  For each remote call, the

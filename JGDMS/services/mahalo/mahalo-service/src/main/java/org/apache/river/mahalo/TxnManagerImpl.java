@@ -80,6 +80,7 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.transaction.CannotAbortException;
 import net.jini.core.transaction.CannotCommitException;
 import net.jini.core.transaction.CannotJoinException;
+import net.jini.core.transaction.SettleTransactionPermission;
 import net.jini.core.transaction.TimeoutExpiredException;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
@@ -93,6 +94,7 @@ import net.jini.export.CodebaseAccessor;
 import net.jini.export.CodebaseDigestUtil;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.jeri.BasicInvocationDispatcher;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
@@ -732,6 +734,8 @@ class TxnManagerImpl /*extends RemoteServer*/
 	        new Object[] {Long.valueOf(id), Long.valueOf(waitFor)});
 	}
         readyState.check();
+	BasicInvocationDispatcher.checkAllClientsPermission(
+	    new SettleTransactionPermission("commit"));
 
 	TxnManagerTransaction txntr = txns.get(Long.valueOf(id));
 
@@ -759,6 +763,8 @@ class TxnManagerImpl /*extends RemoteServer*/
     
     public void abort(long id)
     throws UnknownTransactionException, CannotAbortException {
+	BasicInvocationDispatcher.checkAllClientsPermission(
+	    new SettleTransactionPermission("abort"));
     	abort(id, true);
     }
     
@@ -786,6 +792,8 @@ class TxnManagerImpl /*extends RemoteServer*/
     public void abort(long id, long waitFor)
     throws UnknownTransactionException, CannotAbortException,
        TimeoutExpiredException {
+	BasicInvocationDispatcher.checkAllClientsPermission(
+	    new SettleTransactionPermission("abort"));
     	abort(id, waitFor, true);
     }
     
