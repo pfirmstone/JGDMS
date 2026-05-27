@@ -1,7 +1,7 @@
-# JGDMS + DirtyChai — Independent Security Assessment — AI Agent Context (v4)
+# JGDMS + DirtyChai — Independent Security Assessment — AI Agent Context (v5)
 
-- **Version:** 4
-- **Date:** 2026-05-26
+- **Version:** 5
+- **Date:** 2026-05-27
 - **Produced by:** GitHub Copilot Agent (independent assessment pass)
 - **Assessed against:** context_10.md v58, DirtyChai SECURITY_MODEL.md v2.4
 - **Repositories:**
@@ -12,6 +12,14 @@
 
 ## Change Summary
 
+- **v5 (2026-05-27):** §2.8 updated: `SubjectAwareExecutor` enhanced to support
+  multi-Subject contexts using `Subject.currentAll()` + varargs
+  `Subject.callAs(Callable, Subject...)` (DirtyChai extensions), enabling full
+  propagation of multi-principal transaction contexts across thread boundaries.
+  §2.9 updated: WI52 partial completion — `AbstractActivationGroup` two
+  `doAsPrivileged` call sites migrated to `Subject.callAs` via reflective probe
+  (`SUBJECT_CALL_AS`; falls back to `doAsPrivileged` on Java < 18).  §4 and §5
+  tables updated accordingly.
 - **v4 (2026-05-26):** §2.3 marked ✅ Resolved (`DefaultJwtVerifier`
   auto-registered as fallback in `BasicInvocationDispatcher` when no explicit
   verifier is set; `jgdms-security-jwt` promoted to compile scope in jgdms-jeri
@@ -249,27 +257,43 @@ of the architecture depends on.  This item is closed Won't Fix.
 
 ---
 
-### 2.8 ✅ Resolved — `SubjectAwareExecutor` Implemented (Weakness 7)
+### 2.8 ✅ Resolved — `SubjectAwareExecutor` Multi-Subject Support (Weakness 7)
 
-Work Item 50 (`SubjectAwareExecutor implements ExecutorService` — captures
-the active `Subject` at submission via `Subject.current()` and
-`Security.getContext()`, and rebinds it on the worker thread via
-`Subject.callAs()` + `AccessController.doPrivileged()`) — ✅ Completed (v2).
+Work Item 50 (`SubjectAwareExecutor`) was initially completed in v2 with single-Subject
+propagation via `Subject.current()`.  Enhanced in v5 to support multi-Subject contexts:
 
-`SubjectAwareExecutor` is in `net.jini.security` (jgdms-platform).  Executor
-tasks submitted via it carry the full user identity that was active at
-submission time into the worker thread, closing the latent confused-deputy risk
-in services that submit sensitive work via `ExecutorService`.
+- **`captureUserSubjects()`**: On a DirtyChai JDK, invokes `Subject.currentAll()` via
+  reflection to obtain the full outermost-first `Subject[]` stack active at submission
+  time.  Falls back to `Subject.current()` on a standard JDK.
+- **`callAsSubjects(Subject[], Callable)`**: On a DirtyChai JDK with more than one
+  captured Subject, invokes `Subject.callAs(Callable, Subject...)` (the varargs form)
+  via reflection in a single call, so `Subject.currentAll()` on the worker thread
+  returns the full set.  For a single Subject or on a standard JDK the standard
+  `Subject.callAs(Subject, Callable)` API is used.
+
+This enables multi-principal contexts such as distributed transactions where several
+parties are simultaneously active to propagate faithfully across thread boundaries
+when tasks are submitted to a `SubjectAwareExecutor`.
+
+`SubjectAwareExecutor` is in `net.jini.security` (jgdms-platform).
 
 ---
 
-### 2.9 🟡 Medium — `doAsPrivileged` Migration Incomplete (Weakness 9)
+### 2.9 🟡 Medium — `doAsPrivileged` Migration Partial (Weakness 9)
 
 Work Item 52 (SpotBugs/javaparser scan + incremental per-site migration of
-`RegistrarImpl` and `AbstractActivationGroup`) is `🔲 Not started`.  Legacy
-`doAsPrivileged` call sites in service code may run with incorrectly broad
-privilege, undermining POLP in those paths.  The §11 audit table in context_8
-identifies the sites; they have not been migrated.
+`RegistrarImpl` and `AbstractActivationGroup`) is partially complete as of v5.
+
+- **`RegistrarImpl`**: Already uses `Subject.callAs` — no change needed.
+- **`AbstractActivationGroup`**: Two `Subject.doAsPrivileged` call sites migrated to
+  use `Subject.callAs` via a static reflective probe (`SUBJECT_CALL_AS`).  The probe
+  targets `Subject.callAs(Subject, Callable)` (added in Java 18).  On Java 8–17 where
+  the method is absent the probe is `null` and the original `doAsPrivileged` path is
+  taken as a safe fallback, preserving backward compatibility for activation deployments
+  that still run on older JDKs.
+
+Remaining open sites in service code (if any) identified by the §11 audit in context_8
+have not yet been migrated.
 
 ---
 
@@ -388,8 +412,8 @@ Listed by impact-per-effort ratio.  All items are well-specified in context_10.
 | 2 | **G-3 — Extend `SerialObjectPermission` to `readProxyDesc()`** | Confirmed open attack surface; symmetric to existing guard; small change | ✅ Completed (DirtyChai) |
 | 3 | **WI48 — In-memory signed-verdict cache** | Outage resilience with minimal complexity; prerequisite for WI57 | ✅ Completed (v2) |
 | 4 | **WI51 — `INCONCLUSIVEPermit`** | Structural fix for fresh INCONCLUSIVE loads after policy change; closes the primary residual gap from WI46 | Medium (VerdictRegistry API extension + `PreferredProxyCodebaseProvider` enforcement) |
-| 5 | **WI50 — `SubjectAwareExecutor`** | Prevents silent identity loss in executor tasks; small, self-contained | ✅ Completed (v2) |
-| 6 | **WI52 — `doAsPrivileged` scan + migration** | Closes residual POLP gaps in `RegistrarImpl` / `AbstractActivationGroup` | Medium (SpotBugs scan + per-site review) |
+| 5 | **WI50 — `SubjectAwareExecutor`** | Prevents silent identity loss in executor tasks; small, self-contained | ✅ Completed (v2); enhanced multi-Subject (v5) |
+| 6 | **WI52 — `doAsPrivileged` scan + migration** | Closes residual POLP gaps in `RegistrarImpl` / `AbstractActivationGroup` | 🟡 Partial (v5) — `AbstractActivationGroup` migrated; `RegistrarImpl` already uses `callAs` |
 | 7 | **Make `DefaultJwtVerifier` the default** | Closes Weakness 2 default-path gap with zero operational cost | ✅ Completed (v4) |
 | 8 | **WI53 — Negative grants in `DynamicPolicyProvider`** | Enables policy deny; blocks privilege re-grant after revocation | 🚫 Won't Implement — POLP + SecurePolicyWriter address this |
 | 9 | **WI57 — Event-sourced read replicas** | Eliminates VerdictRegistry as availability bottleneck | ✅ Completed (v4) |
@@ -409,9 +433,9 @@ lookup.  Future agents should update this table as items complete.
 | 47 | Boot-window log upgrade (`Level.WARNING` + SHA-256 hash) | ✅ Complete |
 | 48 | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, TTL) | ✅ Completed (v2) |
 | 49 | SVID exponential-backoff renewal + health endpoint | ✅ Complete |
-| 50 | `SubjectAwareExecutor implements ExecutorService` | ✅ Completed (v2) |
+| 50 | `SubjectAwareExecutor implements ExecutorService` | ✅ Completed (v2); multi-Subject (v5) |
 | 51 | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode | 🔲 Not started |
-| 52 | `doAsPrivileged` scan + migration (`RegistrarImpl`, `AbstractActivationGroup`) | 🔲 Not started |
+| 52 | `doAsPrivileged` scan + migration (`RegistrarImpl`, `AbstractActivationGroup`) | 🟡 Partial (v5) |
 | 53 | Negative grants in `DynamicPolicyProvider` | 🚫 Won't Implement |
 | 54 | `CombinerSecurityManager` configurable recursion depth (default 10) + startup `SEVERE` | ✅ Complete |
 | 55 | `DiscoveryCredentialProvider` + `SpiffeDiscoveryCredentialProvider` + `AbstractLookupDiscovery` integration | ✅ Complete |

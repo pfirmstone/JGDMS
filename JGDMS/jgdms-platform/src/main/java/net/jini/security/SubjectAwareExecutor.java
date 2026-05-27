@@ -18,6 +18,8 @@
 
 package net.jini.security;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
@@ -45,10 +47,14 @@ import javax.security.auth.Subject;
  * pieces of the calling thread's identity:
  *
  * <ol>
- *   <li>The <em>user {@link Subject}</em> bound via
- *       {@link Subject#callAs Subject.callAs()} and readable as
- *       {@link Subject#current Subject.current()}.  This is the human-user
- *       identity propagated by the application layer.</li>
+ *   <li>The <em>user {@link Subject}(s)</em> bound via
+ *       {@link Subject#callAs Subject.callAs()} and readable via
+ *       {@link Subject#current Subject.current()}.  On a DirtyChai JDK the
+ *       full stack of subjects (outermost-first) is captured via
+ *       {@code Subject.currentAll()}, enabling multi-principal contexts such as
+ *       distributed transactions where several parties are simultaneously active.
+ *       On a standard JDK only the single subject returned by
+ *       {@code Subject.current()} is captured.</li>
  *   <li>The {@link SecurityContext} returned by {@link Security#getContext()},
  *       which encapsulates the full {@link java.security.AccessControlContext}
  *       including any SPIFFE workload-identity {@link java.security.ProtectionDomain}s
@@ -60,8 +66,18 @@ import javax.security.auth.Subject;
  *   <li>The captured {@link SecurityContext} is restored via
  *       {@link AccessController#doPrivileged(PrivilegedAction,
  *       java.security.AccessControlContext) AccessController.doPrivileged}.</li>
- *   <li>If a user {@link Subject} was captured, the task additionally runs
- *       inside {@link Subject#callAs Subject.callAs(capturedSubject, task)}.</li>
+ *   <li>If one or more user {@link Subject}s were captured:
+ *     <ul>
+ *       <li>On a <b>DirtyChai</b> JDK (where {@code Subject.callAs(Callable,
+ *           Subject...)} is available), all subjects are established in a
+ *           single varargs call so that {@code Subject.currentAll()} on the
+ *           worker thread returns the same set that was active at
+ *           submission time.</li>
+ *       <li>On a <b>standard JDK</b>, only the first (outermost) subject is
+ *           restored via the standard {@link Subject#callAs
+ *           Subject.callAs(Subject, Callable)} API.</li>
+ *     </ul>
+ *   </li>
  * </ol>
  *
  * <h2>SPIFFE workload identity</h2>
@@ -92,13 +108,48 @@ import javax.security.auth.Subject;
  *
  * <p>Service code that submits tasks to a bare {@link ExecutorService} silently
  * loses the user identity that was active at submission time.  Wrapping the
- * executor with {@code SubjectAwareExecutor} prevents that loss.
+ * executor with {@code SubjectAwareExecutor} prevents that loss, and on a
+ * DirtyChai JDK also preserves multi-principal contexts (e.g. a distributed
+ * transaction where several {@code Subject}s are simultaneously active via
+ * {@code Subject.callAs(Callable, Subject...)}).
  *
  * @see Security#getContext()
  * @see Subject#callAs(Subject, java.util.concurrent.Callable)
  * @since 3.1.0
  */
 public final class SubjectAwareExecutor implements ExecutorService {
+
+    /**
+     * DirtyChai JDK extension: {@code Subject.currentAll()} returns all
+     * user Subjects bound to the current thread via {@code Subject.callAs},
+     * outermost-first.  {@code null} on a standard JDK that only provides
+     * {@code Subject.current()}.  Cached once at class-load time.
+     */
+    private static final Method CURRENT_ALL_METHOD;
+
+    /**
+     * DirtyChai JDK extension: {@code Subject.callAs(Callable, Subject...)}
+     * varargs method that establishes multiple Subjects at once.  {@code null}
+     * on a standard JDK.  Cached once at class-load time.
+     */
+    private static final Method CALL_AS_MULTI_SUBJECT;
+
+    static {
+        Method currentAll = null;
+        Method callAsMulti = null;
+        try {
+            currentAll = Subject.class.getMethod("currentAll");
+        } catch (NoSuchMethodException | SecurityException ignored) {
+            // Standard JDK — Subject.currentAll() not available
+        }
+        try {
+            callAsMulti = Subject.class.getMethod("callAs", Callable.class, Subject[].class);
+        } catch (NoSuchMethodException | SecurityException ignored) {
+            // Standard JDK — varargs Subject.callAs(Callable, Subject...) not available
+        }
+        CURRENT_ALL_METHOD = currentAll;
+        CALL_AS_MULTI_SUBJECT = callAsMulti;
+    }
 
     private final ExecutorService delegate;
 
@@ -119,40 +170,99 @@ public final class SubjectAwareExecutor implements ExecutorService {
     // -----------------------------------------------------------------------
 
     /**
-     * Wraps {@code task} with the current thread's Subject + SecurityContext.
+     * Returns all user Subjects bound to the current thread, outermost-first.
+     *
+     * <p>On a DirtyChai JDK, {@link #CURRENT_ALL_METHOD} ({@code Subject.currentAll()})
+     * is invoked to obtain the full {@code Subject[]} array.  On a standard
+     * JDK that only exposes {@code Subject.current()}, a single-element array
+     * is returned.  An empty array is returned when no user Subject is present.
      */
-    private Runnable wrap(Runnable task) {
-        if (task == null) throw new NullPointerException("task must not be null");
-        final Subject subject = Subject.current();
-        final SecurityContext ctx = Security.getContext();
-        return () -> runWithContext(subject, ctx, task);
+    @SuppressWarnings("unchecked")
+    private static Subject[] captureUserSubjects() {
+        if (CURRENT_ALL_METHOD != null) {
+            try {
+                Subject[] arr = (Subject[]) CURRENT_ALL_METHOD.invoke(null);
+                if (arr != null && arr.length > 0) return arr;
+            } catch (Exception ignored) {
+                // Reflective invocation failure — fall through to Subject.current()
+            }
+        }
+        Subject single = Subject.current();
+        return single != null ? new Subject[]{single} : new Subject[0];
     }
 
     /**
-     * Wraps {@code task} with the current thread's Subject + SecurityContext.
+     * Wraps {@code task} with the current thread's Subject(s) + SecurityContext.
+     */
+    private Runnable wrap(Runnable task) {
+        if (task == null) throw new NullPointerException("task must not be null");
+        final Subject[] subjects = captureUserSubjects();
+        final SecurityContext ctx = Security.getContext();
+        return () -> runWithContext(subjects, ctx, task);
+    }
+
+    /**
+     * Wraps {@code task} with the current thread's Subject(s) + SecurityContext.
      */
     private <V> Callable<V> wrap(Callable<V> task) {
         if (task == null) throw new NullPointerException("task must not be null");
-        final Subject subject = Subject.current();
+        final Subject[] subjects = captureUserSubjects();
         final SecurityContext ctx = Security.getContext();
-        return () -> callWithContext(subject, ctx, task);
+        return () -> callWithContext(subjects, ctx, task);
+    }
+
+    /**
+     * Invokes {@code action} with all captured Subjects established.
+     *
+     * <p>On a DirtyChai JDK (where {@link #CALL_AS_MULTI_SUBJECT} is available)
+     * and when more than one Subject was captured, a single varargs
+     * {@code Subject.callAs(Callable, Subject...)} call establishes them all so
+     * that {@code Subject.currentAll()} on the worker thread returns the full set.
+     * For a single Subject, or on a standard JDK, the standard
+     * {@link Subject#callAs(Subject, Callable)} API is used.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static <V> V callAsSubjects(Subject[] subjects, Callable<V> action) throws Exception {
+        if (CALL_AS_MULTI_SUBJECT != null && subjects.length > 1) {
+            // DirtyChai path: single varargs call with all subjects so that
+            // Subject.currentAll() on the worker thread returns the full set.
+            try {
+                return (V) CALL_AS_MULTI_SUBJECT.invoke(null, action, (Object) subjects);
+            } catch (InvocationTargetException ite) {
+                Throwable cause = ite.getCause();
+                if (cause instanceof Exception) throw (Exception) cause;
+                if (cause instanceof Error)     throw (Error)     cause;
+                throw ite;
+            } catch (IllegalAccessException iae) {
+                throw new IllegalStateException(
+                    "Unexpected access denial invoking Subject.callAs", iae);
+            }
+        }
+        // Standard JDK path or single Subject: use first subject only.
+        return Subject.callAs(subjects[0], action);
     }
 
     /**
      * Executes {@code task} inside the captured {@link SecurityContext} and,
-     * if a user {@link Subject} was captured, also inside
+     * if user {@link Subject}s were captured, also inside
      * {@link Subject#callAs Subject.callAs()}.
      */
-    private static void runWithContext(Subject subject,
+    private static void runWithContext(Subject[] subjects,
                                        SecurityContext ctx,
                                        Runnable task) {
         AccessController.doPrivileged(
                 ctx.wrap((PrivilegedAction<Void>) () -> {
-                    if (subject != null) {
-                        Subject.callAs(subject, () -> {
-                            task.run();
-                            return null;
-                        });
+                    if (subjects.length > 0) {
+                        try {
+                            callAsSubjects(subjects, () -> {
+                                task.run();
+                                return null;
+                            });
+                        } catch (RuntimeException re) {
+                            throw re;
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
                     } else {
                         task.run();
                     }
@@ -163,19 +273,19 @@ public final class SubjectAwareExecutor implements ExecutorService {
 
     /**
      * Calls {@code task} inside the captured {@link SecurityContext} and,
-     * if a user {@link Subject} was captured, also inside
+     * if user {@link Subject}s were captured, also inside
      * {@link Subject#callAs Subject.callAs()}.
      *
      * @throws Exception whatever {@code task.call()} throws
      */
-    private static <V> V callWithContext(Subject subject,
+    private static <V> V callWithContext(Subject[] subjects,
                                           SecurityContext ctx,
                                           Callable<V> task) throws Exception {
         try {
             return AccessController.doPrivileged(
                     ctx.wrap((PrivilegedExceptionAction<V>) () -> {
-                        if (subject != null) {
-                            return Subject.callAs(subject, task);
+                        if (subjects.length > 0) {
+                            return callAsSubjects(subjects, task);
                         }
                         return task.call();
                     }),
