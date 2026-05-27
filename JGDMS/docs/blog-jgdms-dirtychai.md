@@ -218,6 +218,10 @@ can dictate multiple people whom must be present for a transaction to complete, 
 is missing, the transaction doesn't have permission to complete, permission can only be attained
 when all users are logged in and present.
 
+The same multi-Subject model extends to distributed transactions: `SettleTransactionPermission`
+captures all participant `Subject`s at join time and checks the full set before permitting commit
+or abort.
+
 `Subject.current()` returns only the first Subject bound via `callAs` — it never falls back to the
 `AccessControlContext`. This ensures the server can always distinguish TLS-verified machine
 identity from wire-asserted human identity.
@@ -236,9 +240,15 @@ particular end user. With SPIFFE/SPIRE, DirtyChai's `SpiffeCredentialManager` co
 - The short-lived X.509 credential (certificate chain + private key) — never written to disk
 
 Because the `WorkerSubject` is **ambient** — present in every `ProtectionDomain` regardless of
-`doPrivileged` nesting — the server never needs to reinstall it per request. When a service calls
-another service (e.g. the Codebase Downloader submitting a JAR to a BAE instance), the JERI SSL
-endpoint locates the outbound TLS credential via `SpiffeSubjectHolder` automatically.
+`doPrivileged` nesting — the server never needs to reinstall it per request. On DirtyChai, JGDMS's
+`RFC3986URLClassLoader` and `PreferredClassLoader` carry the server's `Principal[]` as a `final`
+field and inject it into each `ProtectionDomain` at class-load time; DirtyChai's `SecureClassLoader`
+simultaneously injects the client's process `Principal[]` and `DigestCodeSource` (the codebase's
+SHA-256 hash). The resulting proxy `ProtectionDomain` therefore carries both the server's and
+client's JVM process principals alongside the codebase digest, enabling policy decisions that span
+both sides of the call. When a service calls another service (e.g. the Codebase Downloader
+submitting a JAR to a BAE instance), the JERI SSL endpoint locates the outbound TLS credential via
+`SpiffeSubjectHolder` automatically.
 
 **Remote process identity** travels differently: the remote client's `WorkerSubject` principals
 are carried inside a serialized `AccessControlContext` transmitted over the JERI wire.
@@ -626,6 +636,9 @@ URLs is analyzed once and cached forever. URL changes, CDN migrations, and servi
 invalidate existing verdicts. The analysis pipeline scales with the *number of distinct JARs* in
 the ecosystem, not the number of services.
 
+Clients also maintain a local in-memory verdict cache (configurable TTL, default 5 minutes), so a
+temporary Verdict Registry outage does not interrupt service.
+
 ---
 
 ## What JGDMS Is Good For
@@ -689,7 +702,8 @@ identity, three-layer policy stack, proxy lifecycle, `GrantPermission` intersect
 | Code integrity | SCAP five-host pipeline, quorum-based `RegistryVerdict`, signed `JarAnalysisReport` |
 | Content-hash grants | `DigestGrant` + `DigestCodeSource`: grants conditioned on SHA-256 JAR hash, not just URL |
 | User identity | JWT/OIDC via `JwtLoginModule`/`JwtPrincipal`; sealed `UserSubject`; per-request `callAs` |
-| Multi-user calls | JERI protocol `0x02`: up to 16 `UserSubject`s × 64 principals per call; `ClientUserSubject.getUserSubjects()` |
+| Multi-user calls | JERI protocol `0x02`: up to 16 `UserSubject`s × 64 principals per call; `ClientUserSubject.getUserSubjects()`; `SettleTransactionPermission` extends this to distributed transactions |
+| Subject propagation | `SubjectAwareExecutor` captures and restores `Subject` + security context on worker threads |
 | Workload identity | Sealed `WorkerSubject` (SPIFFE SVID), ambient in every `ProtectionDomain` |
 | Credential management | SPIFFE/SPIRE: short-lived SVIDs, automatic rotation, no keystores |
 | Service discovery | IPv6 unicast + multicast, `LookupLocator("jini://lookup.domain:4160")` |
