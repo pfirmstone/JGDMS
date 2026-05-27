@@ -507,13 +507,13 @@ JGDMS service discovery scales from a laptop LAN to a global IPv6 network.
 │    │    (trust established     │                            │              │
 │    │     before unmarshalling) │                            │              │
 │    │                           │                            │              │
-│    │── query Verdict Registry ─────────────────────────────►│ Host 3       │
-│    │   (SHA-256 hash of proxy JAR)                          │              │
-│    │◄── RegistryVerdict: SAFE ─────────────────────────────►│              │
-│    │                                                        │              │
 │    │── TLS 1.3 + SPIFFE SVID ──────────────────────────────►│              │
 │    │   (mutual authentication; method constraints enforced) │              │
 │    │◄── response ──────────────────────────────────────────►│              │
+│    │                                                        │              │
+│    │── query Verdict Registry ─────────────────────────────►│ Host 3       │
+│    │   (SHA-256 hash of proxy JAR)                          │              │
+│    │◄── RegistryVerdict: SAFE ─────────────────────────────►│              │
 │    │                                                        │              │
 │    │── unmarshal full proxy ── (ProxyCodebaseSpi: ClassLoader, BAE gate)   │
 │    │                                                        │              │
