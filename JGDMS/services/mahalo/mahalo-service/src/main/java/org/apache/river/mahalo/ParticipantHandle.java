@@ -82,6 +82,23 @@ class ParticipantHandle implements Serializable, TransactionConstants {
 		arg.get("prepstate", 0));
     }
     
+    /**
+     * Lightweight constructor for unit tests only.  Does not attempt to
+     * serialise the participant into a {@link StorableObject}, avoiding the
+     * RMI class-loader machinery.  The resulting handle is suitable for
+     * testing code paths that only call {@link #getPrepState()} or
+     * {@link #setPrepState(int)}.
+     *
+     * @param prepstate initial prepare-state; one of the
+     *   {@link net.jini.core.transaction.server.TransactionConstants} values
+     */
+    ParticipantHandle(int prepstate) {
+        this.preparedPart = null;
+        this.storedpart   = null;
+        this.crashcount   = 0;
+        this.prepstate    = prepstate;
+    }
+
     private ParticipantHandle(boolean check, TransactionParticipant preparedPart, 
         long crashcount, int prepstate) throws RemoteException {
         StorableObject storedpart = null;

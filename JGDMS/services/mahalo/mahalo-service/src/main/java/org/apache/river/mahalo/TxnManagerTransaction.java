@@ -28,7 +28,9 @@ import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Vector;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.transaction.CannotAbortException;
@@ -677,6 +679,8 @@ class TxnManagerTransaction
 	    int oldstate = getState();
 	    Integer result = Integer.valueOf(ABORTED);
             Exception alternateException = null;
+            // Holds the async log-write Future when the log write is pipelined with prepare.
+            Future<?> logFuture = null;
 
 
 	    //On an ACTIVE to VOTING transition, create
@@ -691,8 +695,19 @@ class TxnManagerTransaction
 
 	    if (modifyTxnState(VOTING)) {
 
-		if (oldstate == ACTIVE)
-		    log.write(new CommitRecord(phs));
+		if (oldstate == ACTIVE) {
+		    // Pipeline: submit log write concurrently with prepare tasks
+		    // so that disk I/O and network I/O overlap (Granola optimisation).
+		    // The logFuture is awaited before any commit() is dispatched.
+		    final CommitRecord cr = new CommitRecord(phs);
+		    logFuture = threadpool.submit(() -> {
+			try {
+			    log.write(cr);
+			} catch (LogException e) {
+			    throw new RuntimeException(e);
+			}
+		    });
+		}
 
 
 		//preparing a participant can never override
@@ -769,6 +784,21 @@ class TxnManagerTransaction
 
                 if (getState() == COMMITTED)
                     result = Integer.valueOf(COMMITTED);
+	    }
+
+	    // Ensure the commit intent record is durable before any participant
+	    // is instructed to commit.  The log write runs concurrently with the
+	    // prepare phase; by the time all prepare votes arrive the write has
+	    // almost certainly already finished, so this check is nearly free.
+	    if (logFuture != null) {
+		try {
+		    logFuture.get();
+		} catch (ExecutionException ee) {
+		    throw new CannotCommitException("Unable to log commit intent");
+		} catch (InterruptedException ie) {
+		    Thread.currentThread().interrupt();
+		    throw new CannotCommitException("Interrupted during commit intent logging");
+		}
 	    }
 
             if (transactionsLogger.isLoggable(Level.FINEST)) {
@@ -1020,7 +1050,17 @@ class TxnManagerTransaction
 	    //an AbortJob.
 
 	    if (modifyTxnState(ABORTED)) {
-                log.write(new AbortRecord(phs));
+		// Pipeline: submit log write concurrently with abort tasks so that
+		// disk I/O and network I/O overlap (Granola optimisation).
+		// The logFuture is awaited before reporting success to the caller.
+		final AbortRecord ar = new AbortRecord(phs);
+		final Future<?> logFuture = threadpool.submit(() -> {
+		    try {
+			log.write(ar);
+		    } catch (LogException e) {
+			throw new RuntimeException(e);
+		    }
+		});
 
 	        synchronized (jobLock) {
 	            if (!(job instanceof AbortJob)) {
@@ -1030,6 +1070,16 @@ class TxnManagerTransaction
 	                job.scheduleTasks();
 	            }
 	        }
+
+		// Ensure abort intent is durable before reporting success.
+		try {
+		    logFuture.get();
+		} catch (ExecutionException ee) {
+		    throw new CannotAbortException("Unable to log abort intent");
+		} catch (InterruptedException ie) {
+		    Thread.currentThread().interrupt();
+		    throw new CannotAbortException("Interrupted during abort intent logging");
+		}
 	    } else {
 		throw new CannotAbortException("Transaction already COMMITTED");
 	    }

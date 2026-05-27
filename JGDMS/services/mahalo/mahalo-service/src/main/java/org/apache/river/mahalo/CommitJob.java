@@ -239,17 +239,30 @@ class CommitJob extends Job implements TransactionConstants {
 
     /**
      * Creates the <code>TaskManager.Task</code>s necessary to
-     * inform participants to roll-back.
+     * inform participants to roll-forward.
+     *
+     * <p>Handles that voted {@code NOTCHANGED} or are already in a terminal
+     * state ({@code COMMITTED} or {@code ABORTED}) are excluded: they require
+     * no network contact during the commit phase, so creating tasks for them
+     * wastes thread-pool slots without benefit (Granola optimisation).
      */
     Runnable[] createTasks() {
-	Runnable[] tmp = new Runnable[handles.length];
-
-	for (int i = 0; i < handles.length; i++) {
-	    tmp[i] = 
-	        new ParticipantTask(getPool(), getMgr(), this, handles[i]);
-	}
-
-	return tmp;
+        int count = 0;
+        for (ParticipantHandle handle : handles) {
+            int state = handle.getPrepState();
+            if (state != NOTCHANGED && state != COMMITTED && state != ABORTED) {
+                count++;
+            }
+        }
+        Runnable[] tmp = new Runnable[count];
+        int i = 0;
+        for (ParticipantHandle handle : handles) {
+            int state = handle.getPrepState();
+            if (state != NOTCHANGED && state != COMMITTED && state != ABORTED) {
+                tmp[i++] = new ParticipantTask(getPool(), getMgr(), this, handle);
+            }
+        }
+        return tmp;
     }
 
 

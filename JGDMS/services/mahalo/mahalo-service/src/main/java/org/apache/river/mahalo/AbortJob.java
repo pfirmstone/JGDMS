@@ -111,16 +111,28 @@ class AbortJob extends Job implements TransactionConstants {
     /**
      * Creates the <code>TaskManager.Task</code>s necessary to
      * inform participants to roll-back.
+     *
+     * <p>Handles in the {@code NOTCHANGED} or {@code ABORTED} states are
+     * excluded: they made no changes that need rolling back, so contacting
+     * them is unnecessary (Granola optimisation).
      */
     Runnable[] createTasks() {
-	Runnable[] tmp = new Runnable[handles.length];
-
-	for (int i = 0; i < handles.length; i++) {
-	    tmp[i] = 
-	        new ParticipantTask(getPool(), getMgr(), this, handles[i]);
-	}
-
-	return tmp;
+        int count = 0;
+        for (ParticipantHandle handle : handles) {
+            int state = handle.getPrepState();
+            if (state != NOTCHANGED && state != ABORTED) {
+                count++;
+            }
+        }
+        Runnable[] tmp = new Runnable[count];
+        int i = 0;
+        for (ParticipantHandle handle : handles) {
+            int state = handle.getPrepState();
+            if (state != NOTCHANGED && state != ABORTED) {
+                tmp[i++] = new ParticipantTask(getPool(), getMgr(), this, handle);
+            }
+        }
+        return tmp;
     }
 
     /**
