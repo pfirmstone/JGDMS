@@ -240,11 +240,15 @@ particular end user. With SPIFFE/SPIRE, DirtyChai's `SpiffeCredentialManager` co
 - The short-lived X.509 credential (certificate chain + private key) — never written to disk
 
 Because the `WorkerSubject` is **ambient** — present in every `ProtectionDomain` regardless of
-`doPrivileged` nesting — the server never needs to reinstall it per request. On DirtyChai,
+`doPrivileged` nesting — the server never needs to reinstall it per request. On DirtyChai, JGDMS's
 `RFC3986URLClassLoader` and `PreferredClassLoader` carry the server's `Principal[]` as a `final`
-field and inject it into each `ProtectionDomain` at class-load time. When a service calls
-another service (e.g. the Codebase Downloader submitting a JAR to a BAE instance), the JERI SSL
-endpoint locates the outbound TLS credential via `SpiffeSubjectHolder` automatically.
+field and inject it into each `ProtectionDomain` at class-load time; DirtyChai's `SecureClassLoader`
+simultaneously injects the client's process `Principal[]` and `DigestCodeSource` (the codebase's
+SHA-256 hash). The resulting proxy `ProtectionDomain` therefore carries both the server's and
+client's JVM process principals alongside the codebase digest, enabling policy decisions that span
+both sides of the call. When a service calls another service (e.g. the Codebase Downloader
+submitting a JAR to a BAE instance), the JERI SSL endpoint locates the outbound TLS credential via
+`SpiffeSubjectHolder` automatically.
 
 **Remote process identity** travels differently: the remote client's `WorkerSubject` principals
 are carried inside a serialized `AccessControlContext` transmitted over the JERI wire.

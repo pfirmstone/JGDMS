@@ -59,6 +59,8 @@ those nodes that self-assembles, self-heals, and self-authorizes is JGDMS's stor
 | Code integrity | SCAP five-host pipeline, quorum `RegistryVerdict`, signed `JarAnalysisReport` |
 | Content-hash grants | `DigestGrant` + `DigestCodeSource`: grants conditioned on SHA-256 JAR hash, not just URL |
 | User identity | JWT/OIDC via `JwtLoginModule`/`JwtPrincipal`; sealed `UserSubject`; per-request `callAs` |
+| Multi-user calls | JERI protocol `0x02`: up to 16 `UserSubject`s × 64 principals per call; `SettleTransactionPermission` extends this to distributed transaction commit/abort |
+| Subject propagation | `SubjectAwareExecutor` captures and restores `Subject` + security context on worker threads |
 | Workload identity | Sealed `WorkerSubject` (SPIFFE SVID), ambient in every `ProtectionDomain` |
 | Credential management | SPIFFE/SPIRE: short-lived SVIDs, automatic rotation, no keystores |
 | Service discovery | IPv6 unicast + multicast, `LookupLocator("jini://lookup.domain:4160")` |
@@ -270,9 +272,10 @@ its own carrier, lifetime, and routing rule:
 │               Three Identity Layers on a Dispatch Thread            │
 │                                                                     │
 │  Layer 1 — Process Worker  (WorkerSubject, ambient)                 │
-│    SpiffeSubject baked into every ProtectionDomain by               │
-│    SecureClassLoader. Always present at every checkPermission.      │
-│    Never reinstalled per-request.                                   │
+│    RFC3986URLClassLoader / PreferredClassLoader inject the          │
+│    server's Principal[]; DirtyChai SecureClassLoader injects the    │
+│    client's Principal[] + DigestCodeSource at class-load time.      │
+│    Always present at every checkPermission. Never reinstalled.      │
 │                                                                     │
 │  Layer 2 — Remote Process  (serialized ACC ProtectionDomains)       │
 │    Remote client's WorkerSubject principals travel inside a         │
@@ -310,17 +313,29 @@ This makes it possible for a single RPC to carry both an end-user's JWT identity
 delegation-chain Subject, without any out-of-band negotiation. Alternatively, policy can require
 multiple principals to be simultaneously present for a transaction to complete.
 
+The same multi-Subject model extends to distributed transactions: `SettleTransactionPermission`
+captures all participant `Subject`s at join time and checks the full set before permitting commit
+or abort. See [SettleTransactionPermission](#settletransactionpermission) in the appendix.
+
 ![JERI multi-Subject dispatch: decorative illustration of multiple user identities arriving at a service endpoint](images/multi-subject-party-bus.svg)
 
 **Process Worker Subject** (`WorkerSubject`) represents the JVM process itself. With SPIFFE/SPIRE,
 DirtyChai's `SpiffeCredentialManager` constructs a sealed `SpiffeSubject extends WorkerSubject` and
-bakes it into every `ProtectionDomain` via `SecureClassLoader` at class-load time. This Subject
-contains:
+bakes it into every `ProtectionDomain` at class-load time. This Subject contains:
 
 - A `SpiffePrincipal` derived from the SVID URI SAN (e.g.
   `spiffe://jgdms.example.org/host/bae/engine-2`)
 - An `X500Principal` derived from the certificate Subject DN
 - The short-lived X.509 credential (certificate chain + private key) — never written to disk
+
+On DirtyChai, JGDMS's `RFC3986URLClassLoader` and `PreferredClassLoader` carry the server's
+`Principal[]` as a `final` field and inject it into each `ProtectionDomain`; DirtyChai's
+`SecureClassLoader` simultaneously injects the client's process `Principal[]` and `DigestCodeSource`
+(the codebase's SHA-256 hash). The resulting proxy `ProtectionDomain` therefore carries both the
+server's and client's JVM process principals alongside the codebase digest, enabling policy decisions
+that span both sides of the call. See
+[ProtectionDomain Principal Injection](#protectiondomain-principal-injection) in the appendix for
+implementation details.
 
 Because the `WorkerSubject` is **ambient** — present in every `ProtectionDomain` regardless of
 `doPrivileged` nesting — the server never needs to reinstall it per request.
@@ -691,6 +706,10 @@ URLs is analyzed once and cached forever. URL changes, CDN migrations, and servi
 invalidate existing verdicts. The analysis pipeline scales with the *number of distinct JARs* in
 the ecosystem, not the number of services.
 
+Clients maintain a local in-memory verdict cache (configurable TTL via `jgdms.proxy.verdictCacheTtlMs`,
+default 5 minutes; set to 0 to disable) so a temporary Verdict Registry outage does not interrupt
+service. See [Client-Side Verdict Cache](#client-side-verdict-cache) in the appendix for details.
+
 ---
 
 ## What JGDMS Is Good For
@@ -802,6 +821,85 @@ Wire layout: `[httpmdCount: 4B BE][DomainIdentityRecord…][anonCount: 4B BE]`
 Domain stripping (the practice of removing unverifiable domains before transport) was **removed** in
 v23 of the serializer because unverifiable domains act as permission ceilings — removing them is an
 implicit privilege escalation.
+
+### ProtectionDomain Principal Injection
+
+On DirtyChai, two complementary injection paths combine to populate every proxy `ProtectionDomain`
+with the full trust context:
+
+| Class | What it injects | How |
+|---|---|---|
+| `RFC3986URLClassLoader` (5-arg) / `PreferredClassLoader` (7-arg) | Server's `Principal[]` | `final` field passed at construction; injected into each `ProtectionDomain` at `defineClass` time |
+| DirtyChai `SecureClassLoader` | Client's process `Principal[]` + `DigestCodeSource` (codebase SHA-256) | Called by the JDK's class-loading machinery at class-load time |
+
+The combined result is a `ProtectionDomain` that carries both sides of the call and the codebase
+content hash, so a policy grant can simultaneously scope on the server's SPIFFE workload, the
+client's SPIFFE workload, and the exact JAR content — no single axis alone is sufficient.
+
+### SettleTransactionPermission
+
+`SettleTransactionPermission` extends the multi-Subject authorization model to distributed
+transactions. At join time, `TxnManagerImpl` captures the `Subject[]` for each participating
+endpoint. At commit or abort time, `checkAllParticipantsPermission` checks that every captured
+subject set holds the required permission.
+
+This ensures that a transaction cannot be settled by a subset of the parties that initiated it, and
+that policy-mandated quorums (e.g. "both alice and bob must be present to authorize this transfer")
+are enforced at the transaction boundary, not just at the initial RPC.
+
+### SubjectAwareExecutor
+
+`SubjectAwareExecutor` (in `net.jini.security`) wraps any `ExecutorService`. At task submission
+time it captures:
+
+- The current `Subject[]` (via `Subject.currentAll()` on DirtyChai, or `Subject.current()` on a
+  standard JDK wrapped in a one-element array)
+- The current `AccessControlContext` (via `Security.getContext()`)
+
+On the worker thread it restores them via `AccessController.doPrivileged` + `Subject.callAs` (using
+the DirtyChai varargs overload when available, single-subject otherwise). SPIFFE `WorkerSubject`
+propagation happens automatically through the restored `AccessControlContext`.
+
+### Client-Side Verdict Cache
+
+`PreferredProxyCodebaseProvider` maintains a `ConcurrentHashMap` verdict cache keyed by SHA-256
+JAR hash. Behaviour:
+
+- A successful `SAFE` verdict from the Verdict Registry is cached immediately.
+- If the Verdict Registry is unreachable on a subsequent request, the cached entry is used if its
+  age is within the configured TTL.
+- TTL is controlled by the system property `jgdms.proxy.verdictCacheTtlMs` (default `300000` —
+  5 minutes). Set to `0` to disable the cache entirely.
+
+The cache provides resilience against transient Verdict Registry outages without weakening the
+security guarantee: only verdicts that were previously confirmed `SAFE` are served from the cache.
+
+### JAR Download Hardening
+
+`PreferredProxyCodebaseProvider` applies the following limits to outbound JAR fetches:
+
+| Property | Default | Effect |
+|---|---|---|
+| `jgdms.proxy.jarReadTimeoutMs` | `30000` (30 s) | Connect + read timeout per JAR |
+| `jgdms.proxy.maxJarBytes` | `536870912` (512 MiB) | Per-JAR byte limit; fetch aborted on breach |
+| `jgdms.proxy.maxCodebaseJars` | `100` | Maximum JARs per codebase annotation |
+
+`validateDigestOffsets()` is called before `extractJarDigest` to ensure the declared byte-offset
+array is well-formed, preventing crafted `getDigestOffsets()` responses from causing
+out-of-bounds reads.
+
+### BootstrapPermission and LocalPrincipalProvider
+
+During the boot window — before the `VerdictRegistry` is reachable — codebase loading is gated by
+`BootstrapPermission` (`net.jini.loader.pref`, target `"loadCodebase"`). Only callers whose
+`ProtectionDomain` holds this permission (i.e. code already trusted by the bootstrap policy) can
+trigger a SPIFFE-principal-based codebase load before the registry is online.
+
+`LocalPrincipalProvider` is a SPI in `org.apache.river.api.security` that bridges `jgdms-platform`
+and `jgdms-jeri`. `SpiffeCredentialManager.start()` registers the managed `Subject` via
+`Security.registerLocalPrincipalProvider()`. When `Security.currentPrincipals()` is called outside
+a `callAs` scope (e.g. during bootstrapping or on a plain thread), it falls back to the registered
+provider to retrieve the local SPIFFE principals rather than returning an empty set.
 
 ---
 
