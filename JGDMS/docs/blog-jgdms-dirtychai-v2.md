@@ -433,7 +433,7 @@ providers:
 │                                            DynamicPolicyProvider grant)  │
 │                       =                                                  │
 │   Effective dynamic grant, scoped to this specific authenticated         │
-│   endpoint instance.  No single party controls the outcome.             │
+│   endpoint instance.  No single party controls the outcome.              │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -511,8 +511,8 @@ transient dependency vulnerabilities.
 │    No outbound internet. No exec. No JNI. No FFM.                            │
 │    Abnormal exit → CrashReport condemns the codebase.                        │
 │           │                                                                  │
-│           │ signed JarAnalysisReport   (NO direct path from Host 2→Host 3   │
-│           │ goes via Host 4 / client)  ← this isolation is intentional      │
+│           │ signed JarAnalysisReport   (NO direct path from Host 2→Host 3    │
+│           │ goes via Host 4 / client)  ← this isolation is intentional       │
 │           ▼                                                                  │
 │  Host 3 — Verdict Registry  ◄──────────────────── clients query before       │
 │    Accumulates signed reports.                         unmarshalling proxy   │
