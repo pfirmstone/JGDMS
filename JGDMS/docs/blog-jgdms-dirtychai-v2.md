@@ -24,14 +24,14 @@ delivering the performance and scalability needed for production distributed sys
 | Project | What it is | Why it exists |
 |---|---|---|
 | **JGDMS** | A security-hardened fork of [Apache River](https://river.apache.org/) (née Jini) | Provides secure, dynamically-discoverable microservices for the JVM |
-| **DirtyChai** | A community fork of OpenJDK | Restores and extends Java's authorization APIs (removed in Java 24) so JGDMS can run on modern JDKs |
+| **DirtyChai** | A community fork of OpenJDK | Restores and extends Java's authorization APIs (removed in Java 24); adds `SecurityManager` support for virtual threads; required to run JGDMS |
 
 The two projects are complementary forks of *different* upstreams. JGDMS forks Apache River;
 DirtyChai forks OpenJDK. Running JGDMS on DirtyChai gives you the full security and scalability
-story. Running JGDMS on a standard JDK ≤ 23 gives you most of the same security properties with
-a smaller feature set (no SPIFFE, no multi-Subject dispatch varargs, no virtual-thread carrier-pin
-protection). Running JGDMS on OpenJDK 24+ is **not supported** because the `SecurityManager` API
-was removed entirely in Java 24.
+story. Running JGDMS on bare OpenJDK is **not supported**: on standard OpenJDK ≤ 23, virtual
+threads are allocated an `AccessControlContext` with no permissions when `SecurityManager` is
+enabled, making them non-functional in a security context. On OpenJDK 24+, the `SecurityManager`
+API was removed entirely. DirtyChai is required for all supported deployments.
 
 ### Scalability in One Sentence
 
@@ -108,13 +108,19 @@ design goals are:
 - Break deserialization gadget attack chains (`SerialObjectPermission`)
 - Block native code injection (`NativeInvocationPermission`, `NativeMemoryPermission`)
 - Maintain and extend permission guard hooks
-- High performance and vertical scalability with virtual threads
+- High performance and vertical scalability with virtual threads — fixed in DirtyChai by caching
+  immutable `AccessControlContext` instances (minimising ACC object creation) and introducing
+  `DomainIdentity`, a `ProtectionDomain` subclass that implements `equals` and `hashCode` to
+  support `SubjectDomainCombiner` and minimise duplication of `ProtectionDomain` instances that
+  rely on object identity. On bare OpenJDK ≤ 23, virtual threads are assigned an
+  `AccessControlContext` with no permissions when `SecurityManager` is enabled, making them
+  non-functional in a security context.
 - Community redesign of the Authorization API for potential inclusion in OpenJDK mainline
 - `SpiffeX509TrustManager` and `SpiffeX509KeyManager` — SPIFFE/SPIRE zero-touch certificate management
 
-Running JGDMS on DirtyChai restores the full authorization semantics and lets the platform evolve
-beyond the Java 23 ceiling. DirtyChai is also required for SPIFFE support, JarFile hardening
-against untrusted input, and the multi-Subject dispatch varargs API.
+DirtyChai is required to run JGDMS: it restores the full authorization semantics, enables virtual
+threads with `SecurityManager` support, and provides SPIFFE support, `JarFile` hardening against
+untrusted input, and the multi-Subject dispatch varargs API.
 
 ![DirtyChai mascot: decorative tough chai mug in a hard hat with a SPIFFE badge](images/dirty-chai-mascot.svg)
 
@@ -127,8 +133,10 @@ bytecode. Its goal is the opposite: prevent untrusted code from ever being loade
 `LoadClassPermission` as the primary gate and SCAP as the pre-analysis pipeline. If you need to
 run code you don't trust, you need a different tool.
 
-JGDMS **currently requires Java ≤ 23** (or DirtyChai). Running on standard OpenJDK 24+ is not
-supported. DirtyChai is the path forward for modern JDK versions.
+JGDMS **requires DirtyChai**. Running on bare OpenJDK is not supported: on standard OpenJDK ≤ 23,
+virtual threads are assigned an `AccessControlContext` with no permissions when `SecurityManager`
+is enabled, which prevents their use in a security context. On OpenJDK 24+, the `SecurityManager`
+API was removed entirely. DirtyChai is the only supported JDK.
 
 ---
 
@@ -634,7 +642,12 @@ These two sentences are the thesis of the platform. Here is what each means in p
 **Vertical scaling (DirtyChai)** means getting more throughput from a single JVM:
 
 - **Virtual threads with `SecurityManager` enabled** — a combination OpenJDK never achieved.
-  The SCAP `ClinitBlockingVisitor` ensures that JAR files containing blocking class initializers
+  On bare OpenJDK ≤ 23, virtual threads are allocated an `AccessControlContext` with no
+  permissions when `SecurityManager` is enabled. DirtyChai fixes this by caching immutable
+  `AccessControlContext` instances (minimising ACC object creation) and by introducing
+  `DomainIdentity` (a `ProtectionDomain` subclass with `equals`/`hashCode`) to support
+  `SubjectDomainCombiner` and minimise duplication of `ProtectionDomain` instances. The SCAP
+  `ClinitBlockingVisitor` further ensures that JAR files containing blocking class initializers
   (the main carrier-thread pin risk) are flagged before they are ever loaded, enabling confident
   use of virtual threads at scale.
 - **Lock-free `ConcurrentPolicyFile`** — RFC 3986 URI matching, no DNS lookups, less than 1%

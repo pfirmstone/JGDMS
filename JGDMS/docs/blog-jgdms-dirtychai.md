@@ -63,12 +63,18 @@ granted privileges. Its key design goals are:
 - Break deserialization gadget attack chains (`SerialObjectPermission`)
 - Block native code injection (`NativeInvocationPermission`, `NativeMemoryPermission`)
 - Maintain and extend permission guard hooks
-- High performance and scalability
+- High performance and scalability, including full virtual thread support with `SecurityManager`
+  enabled — on bare OpenJDK ≤ 23, virtual threads are assigned an `AccessControlContext` with no
+  permissions when `SecurityManager` is enabled. DirtyChai fixes this by caching immutable
+  `AccessControlContext` instances (minimising ACC object creation) and by introducing
+  `DomainIdentity`, a `ProtectionDomain` subclass that implements `equals` and `hashCode` to
+  support `SubjectDomainCombiner` and minimise duplication of `ProtectionDomain` instances that
+  rely on object identity.
 - Community redesign of the Authorization API for potential inclusion in OpenJDK mainline
 - SpiffeX509TrustManager and SpiffeX509KeyManager - SPIFFE/SPIRE Zero Touch Certificate Management.
 
-Running JGDMS on DirtyChai restores the full authorization semantics and lets the platform evolve
-beyond the Java 23 ceiling.
+Running JGDMS requires DirtyChai: it restores the full authorization semantics and enables virtual
+threads with `SecurityManager` support. DirtyChai is required for all supported deployments.
 
 ![DirtyChai mascot: a tough chai mug in a hard hat with a SPIFFE badge](images/dirty-chai-mascot.svg)
 
@@ -579,9 +585,14 @@ benchmarks.
 ### Virtual Thread Support
 
 DirtyChai includes full virtual thread support with `SecurityManager` enabled — a combination that
-OpenJDK never achieved. The SCAP architecture's `ClinitBlockingVisitor` ensures that JAR
-files containing blocking class initializers — the main virtual-thread carrier-pin risk — are
-flagged before they are ever loaded, enabling confident use of virtual threads at scale.
+OpenJDK never achieved. On bare OpenJDK ≤ 23, virtual threads are assigned an
+`AccessControlContext` with no permissions when `SecurityManager` is enabled, making them
+non-functional in a security context. DirtyChai fixes this by caching immutable
+`AccessControlContext` instances and introducing `DomainIdentity` (a `ProtectionDomain` subclass
+with `equals`/`hashCode`) to support `SubjectDomainCombiner`. The SCAP architecture's
+`ClinitBlockingVisitor` ensures that JAR files containing blocking class initializers — the main
+virtual-thread carrier-thread pin risk — are flagged before they are ever loaded, enabling
+confident use of virtual threads at scale.
 
 ### Lease-Based Resource Management
 
@@ -674,11 +685,12 @@ bytecode. Its goal is the opposite: prevent untrusted code from ever being loade
 `LoadClassPermission` as the primary gate and SCAP as the pre-analysis pipeline. If you need to
 run code you don't trust, you need a different tool (or a different approach).
 
-JGDMS **currently requires Java ≤ 23** (or DirtyChai). OpenJDK removed the `SecurityManager` API
-in Java 24. Running JGDMS on standard OpenJDK 24+ is not supported. DirtyChai is the path forward
-for modern JDK versions.  **DirtyChai** is required for SPIFFE support and enhanced security, such
-as JarFile hardening against untrusted input and additional guards, BAE is used to cover security
-gaps that authorization cannot defend against.
+JGDMS **requires DirtyChai**. Running on bare OpenJDK is not supported: on standard OpenJDK ≤ 23,
+virtual threads are assigned an `AccessControlContext` with no permissions when `SecurityManager`
+is enabled, making JGDMS non-functional. On OpenJDK 24+, the `SecurityManager` API was removed
+entirely. DirtyChai is the only supported JDK. **DirtyChai** is required for SPIFFE support and
+enhanced security, such as JarFile hardening against untrusted input and additional guards; BAE
+is used to cover security gaps that authorization cannot defend against.
 
 ---
 
