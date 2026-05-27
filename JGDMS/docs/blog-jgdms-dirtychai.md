@@ -511,11 +511,12 @@ JGDMS service discovery scales from a laptop LAN to a global IPv6 network.
 │    │   (SHA-256 hash of proxy JAR)                          │              │
 │    │◄── RegistryVerdict: SAFE ─────────────────────────────►│              │
 │    │                                                        │              │
-│    │── unmarshal full proxy ── (ProxyCodebaseSpi: ClassLoader, BAE gate)   │
-│    │                                                        │              │
 │    │── TLS 1.3 + SPIFFE SVID ──────────────────────────────►│              │
 │    │   (mutual authentication; method constraints enforced) │              │
 │    │◄── response ──────────────────────────────────────────►│              │
+│    │                                                        │              │
+│    │── unmarshal full proxy ── (ProxyCodebaseSpi: ClassLoader, BAE gate)   │
+│    │                                                        │              │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
