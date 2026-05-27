@@ -594,6 +594,23 @@ with `equals`/`hashCode`) to support `SubjectDomainCombiner`. The SCAP architect
 virtual-thread carrier-thread pin risk — are flagged before they are ever loaded, enabling
 confident use of virtual threads at scale.
 
+#### Security Enhancement: Per-Thread Access Control at Scale
+
+Proper `AccessControlContext` support for virtual threads is not only a correctness fix — it is a
+significant security enhancement. Each virtual thread carries its own immutable, isolated
+`AccessControlContext`, which means security context (authenticated principals, protection domains,
+granted permissions) is independently maintained per virtual thread. Even though many virtual
+threads may share a carrier platform thread, their security contexts remain fully isolated: a
+request running as one authenticated Subject cannot inadvertently inherit or use the security
+context of a concurrently executing request.
+
+`SubjectDomainCombiner` further strengthens this: it attaches the authenticated Subject's
+principals to every `ProtectionDomain` in the virtual thread's ACC, so every
+`AccessController.checkPermission()` call is evaluated against the correct user's identity. This
+enables millions of concurrent virtual threads — each running under a different authenticated
+Subject — to receive correct, per-principal authorization decisions without any shared mutable
+state, and without security becoming a performance bottleneck at high concurrency.
+
 ### Lease-Based Resource Management
 
 All service registrations and event subscriptions in JGDMS are *leased*: they expire unless

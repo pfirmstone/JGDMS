@@ -650,6 +650,17 @@ These two sentences are the thesis of the platform. Here is what each means in p
   `ClinitBlockingVisitor` further ensures that JAR files containing blocking class initializers
   (the main carrier-thread pin risk) are flagged before they are ever loaded, enabling confident
   use of virtual threads at scale.
+
+  Beyond correctness, this is a significant **security enhancement**: each virtual thread carries
+  its own immutable, isolated `AccessControlContext`, so security context (authenticated
+  principals, protection domains, granted permissions) is independently maintained per thread.
+  Even when virtual threads share a carrier platform thread, their security contexts remain fully
+  isolated — one request cannot inadvertently inherit or use the security context of a concurrent
+  request. `SubjectDomainCombiner` attaches the authenticated Subject's principals to every
+  `ProtectionDomain` in the virtual thread's ACC, so every `AccessController.checkPermission()`
+  call is evaluated against the correct user's identity. This enables millions of concurrent
+  virtual threads — each running under a different authenticated Subject — to receive correct,
+  per-principal authorization decisions without shared mutable state.
 - **Lock-free `ConcurrentPolicyFile`** — RFC 3986 URI matching, no DNS lookups, less than 1%
   overhead on policy checks compared to no policy at all. Authorization decisions do not become a
   bottleneck under high concurrency.
