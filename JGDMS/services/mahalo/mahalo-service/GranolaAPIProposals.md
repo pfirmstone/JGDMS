@@ -387,13 +387,46 @@ public abstract class AbstractTimestampParticipant
 - `TimestampedVote` and `LamportClock` are new `@AtomicSerial` wire types;
   upgrading the participant interface requires coordinating class availability
   on both sides of the wire.
-- **Requires deeper investigation** into:
-  - Whether `ParticipantHandle` serialisation/persistence strategy needs
-    updating for the new `commitTimestamp` field.
-  - Recovery semantics: if the manager crashes after receiving timestamps but
-    before writing `CommitRecord`, can it reconstruct the commit timestamp?
-    (Possible approach: Mahalo conservatively falls back to 2PC on recovery,
-    which is already safe since all participants have already run `prepare()`.)
+
+### Deeper Investigation — `ParticipantHandle` Serialisation and Recovery
+
+#### `ParticipantHandle` serialisation
+
+`ParticipantHandle` is `@AtomicSerial` with serialised fields `storedpart`,
+`crashcount`, and `prepstate`.  Adding a `commitTimestamp` field requires:
+
+1. Declare `/** @serial */ private long commitTimestamp;` (mutable, like
+   `prepstate`, because it is set during the prepare phase).
+2. Add `args.get("commitTimestamp", LamportClock.NO_TIMESTAMP)` to the
+   `GetArg` deserialisation constructor.
+
+Because `@AtomicSerial` uses `GetArg.get(name, defaultValue)`, records
+persisted by an older Mahalo (which have no `commitTimestamp` in the stream)
+will deserialise with `commitTimestamp = 0L` (`NO_TIMESTAMP`).  This is
+exactly the correct value — it signals "no timestamp-ordered commit was
+attempted" — so **no `serialVersionUID` bump is needed** and old log files
+remain readable.
+
+`CommitRecord` stores a `ParticipantHandle[]` snapshot.  Because the whole
+`ParticipantHandle` object is written, a `CommitRecord` written by an
+upgraded Mahalo will include the `commitTimestamp` values automatically.
+
+#### Recovery semantics
+
+Two crash windows matter:
+
+| Crash window | Log state on restart | Recovery action | Correct? |
+|---|---|---|---|
+| After prepare but **before** `CommitRecord` written | No `CommitRecord` present | `TxnManagerTransaction` remains in VOTING state; Mahalo re-runs `CommitJob` (standard 2PC). All `commitTimestamp` fields deserialise as `0L` (NO_TIMESTAMP), so the single-round path is never attempted. Participants must handle idempotent `commit()` calls, which they already must under standard 2PC recovery. | ✅ |
+| After `CommitRecord` written, **before** all `commit()` RPCs sent | `CommitRecord` present | `CommitRecord.recover()` re-adds all handles and re-sets state to VOTING; Mahalo re-runs `CommitJob`. Timestamps from the pre-crash prepare are re-used only if they were persisted in the handle (which they are). If the manager chooses to simplify, it can ignore persisted timestamps on recovery and unconditionally use standard 2PC — always correct. | ✅ |
+
+**Conclusion**: No recovery-code changes are required.  The conservative
+fallback to 2PC on recovery is already correct and safe.  The
+`commitTimestamp` field is an ephemeral optimisation hint; even if it
+survives into a recovered `CommitRecord`, re-running `CommitJob` is safe
+because commit is idempotent.  Persisting the field allows an upgraded
+Mahalo to optionally attempt the single-round path on roll-forward, but
+this is not required for correctness.
 
 ---
 
@@ -563,15 +596,96 @@ This behaviour is appropriate because:
   transaction must be distinguishable from a crash-before-log scenario.  One
   approach is a lightweight `ReadOnlyRecord`; another is to simply abort
   transactions with no `CommitRecord` on recovery (already the default).
-- **Requires deeper investigation** into:
-  - Interaction with `NestableTransactionManager` (nested transactions may
-    upgrade read-only to read-write).
-  - `TransactionConfig` (Option C) uses `@AtomicSerial` as required by
-    JGDMS convention for all wire-serialisable types.  The migration story
-    (how existing callers adopt the new type) needs to be defined.
-  - Security: a malicious client could declare read-only but register a
-    writing participant; the manager's fallback logic must handle this without
-    privilege escalation.
+
+### Deeper Investigation — NestableTransactionManager, Migration, and Security
+
+#### Interaction with `NestableTransactionManager`
+
+`TxnManagerImpl` does **not** currently implement `NestableTransactionManager`
+(the nested-transaction branch is marked `//when I implement nested
+transactions`, line 1078 of `TxnManagerImpl.java`).  Nested transactions are
+therefore out of scope for the current Mahalo implementation.
+
+However, `NestableTransactionManager` extends `TransactionManager`, so the
+default `create(long, boolean readOnly)` / `create(long, TransactionConfig)`
+methods would be inherited.  When nested transactions are eventually
+implemented, the following rule must apply:
+
+> **Rule**: any call to `NestableTransactionManager.promote(id, parts,
+> crashCounts, drop)` that promotes at least one participant into a parent
+> transaction marked `readOnly=true` must **immediately clear the
+> `readOnly` flag** on that parent transaction, downgrading it to a
+> read-write transaction.  The manager cannot know at `promote()` time whether
+> the promoted participant will vote `PREPARED`, so the conservative approach
+> is to downgrade on any `promote()` call.
+
+This is a one-liner in `TxnManagerTransaction`: `this.readOnly = false;` at
+the start of the promote path.  No security or correctness concern arises
+because the downgrade merely causes additional durability work (log write +
+commit phase) that would have been needed anyway had the transaction started
+as read-write.
+
+#### `TransactionConfig` migration story
+
+Adoption is additive and incremental:
+
+| Caller type | Action required | Gets the optimisation? |
+|---|---|---|
+| **Existing callers** using `create(long lease)` | None — existing code compiles and runs unchanged. | No (full 2PC as before). |
+| **New callers** wanting the hint | Change `create(lease)` → `create(lease, new TransactionConfig(true, SERIALIZABLE))`. Requires `TransactionConfig` on the classpath (platform JAR). | Yes, if the service is also upgraded. |
+| **Old proxy, new client** | The default method runs locally on the proxy and delegates to `create(lease)`. | No (graceful fallback). |
+| **New proxy, new client, old service** | The proxy dispatches the call remotely; the old service would receive an unknown method. **Wire compatibility note**: in JGDMS, the remote method is identified by its full signature; if the service does not export the new overload, the invocation throws `NoSuchMethodError` / `RemoteException`. The default-method fallback does not apply here — it only runs locally when the proxy itself does not override the default. **Mitigation**: deploy the new service first; clients fall back to `create(lease)` until the service is upgraded. |
+
+`TransactionConfig` is deployed in the platform JAR as an `@AtomicSerial`
+type in `net.jini.core.transaction.server`.  It is never serialised to an
+old server (the old server never receives a call with it as a parameter);
+it is only serialised when the new proxy dispatches to a new server.
+
+#### Security analysis
+
+A malicious (or buggy) client could declare `readOnly=true` at `create()`
+time but later join a writing participant.
+
+**SettleTransactionPermission** (checked in `TxnManagerImpl.checkAllParticipantsPermission()`
+at both `commit()` and `abort()` time) governs who may settle the
+transaction.  This check is unaffected by the `readOnly` hint.
+
+**The `readOnly` flag cannot bypass security checks** because:
+
+1. The flag only controls whether Mahalo *skips work*.  It never grants any
+   additional permission to any participant.
+2. The decision to skip the commit phase must only be made **after** Mahalo
+   has verified that every participant voted `NOTCHANGED`.  The correct
+   implementation sequence is:
+
+   ```
+   run PrepareJob
+   if (all NOTCHANGED) {
+       // Skip CommitRecord and commit phase — participants hold no data
+       // that requires rollback or commit RPC.
+       modifyTxnState(COMMITTED);
+       return;
+   }
+   // Fall back to full 2PC — ignore the readOnly hint entirely.
+   write CommitRecord;
+   run CommitJob;
+   ```
+
+   If the `CommitRecord` write were skipped **before** gathering all votes,
+   a crash at that moment would leave a committed transaction with no durable
+   record — a correctness violation.  The implementation must never do this.
+
+3. **Attack scenario**: malicious client → `create(lease, readOnly=true)` →
+   joins a `PREPARED` participant → calls `commit()`.  Mahalo receives at
+   least one `PREPARED` vote, falls back to full 2PC, writes `CommitRecord`,
+   runs `CommitJob`.  The hint is silently ignored.  **No security bypass.**
+
+4. **Privilege escalation analysis**: there is none.  The `readOnly` hint
+   reduces Mahalo's work for genuinely read-only transactions; it cannot
+   increase the capabilities of any participant or bypass any access-control
+   check.  Worst case for a false hint is wasted CPU from running
+   `PrepareJob` before falling back to 2PC — identical overhead to a
+   normal transaction.
 
 ---
 
