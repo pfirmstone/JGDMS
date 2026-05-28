@@ -50,6 +50,8 @@ class PrepareAndCommitJob extends Job implements TransactionConstants {
     final ClientLog log;
     final ParticipantHandle handle;
     final int maxtries = 5;
+    /** Coordinator's Lamport timestamp forwarded to the participant. */
+    private final long coordinatorTs;
     
     /*
      * Field that holds the last received remote exception, if any.
@@ -96,7 +98,8 @@ class PrepareAndCommitJob extends Job implements TransactionConstants {
 				WakeupManager wm,
 				ClientLog log,
 				ParticipantHandle handle,
-				AccessControlContext context)
+				AccessControlContext context,
+				long coordinatorTs)
     {
 	super(pool, wm, context);
 
@@ -119,6 +122,7 @@ class PrepareAndCommitJob extends Job implements TransactionConstants {
 					"must have participants");
 
 	this.handle = handle;
+	this.coordinatorTs = coordinatorTs;
     }
 
 
@@ -207,11 +211,24 @@ class PrepareAndCommitJob extends Job implements TransactionConstants {
         //prepare.  Note the RemoteException causes a
         //retry. Here we only log info for the cases
         //where a final outcome is available.
- 
+
         Object response = null;
- 
+
         try {
-            vote = par.prepareAndCommit(tr.mgr, tr.id);
+            // Use prepareWithTimestamp for Opt-3 single-round commit support.
+            // If the participant returns a non-zero timestamp it has already
+            // committed locally (Opt-3); treat that as COMMITTED directly.
+            // If the timestamp is zero the participant voted PREPARED without
+            // committing; return PREPARED so that the outer commit() code
+            // creates a CommitJob to complete the second phase.
+            TransactionParticipant.TimestampedVote tv =
+                par.prepareWithTimestamp(tr.mgr, tr.id, coordinatorTs);
+            vote = tv.vote;
+            if (vote == PREPARED && tv.timestamp != 0L) {
+                // Opt-3: participant already self-committed during prepare.
+                handle.setCommitTimestamp(tv.timestamp);
+                vote = COMMITTED;
+            }
             response = Integer.valueOf(vote);
         } catch (UnknownTransactionException ute) {
             if (reCaught != null) {
@@ -232,8 +249,16 @@ class PrepareAndCommitJob extends Job implements TransactionConstants {
 
         if (response != null) {
 	    handle.setPrepState(vote);
+	    // Use PrepareRecord for the PREPARED (standard 2PC) case so that
+	    // recovery code sees a normal PREPARED handle and can schedule a
+	    // CommitJob.  For COMMITTED (Opt-3), NOTCHANGED and ABORTED keep
+	    // using PrepareAndCommitRecord.
             try {
-                log.write( new PrepareAndCommitRecord(handle, vote));
+                if (vote == PREPARED) {
+                    log.write(new PrepareRecord(handle, vote));
+                } else {
+                    log.write(new PrepareAndCommitRecord(handle, vote));
+                }
             } catch (org.apache.river.mahalo.log.LogException le) {
                 //the full package name used to disambiguate
                 //the LogException

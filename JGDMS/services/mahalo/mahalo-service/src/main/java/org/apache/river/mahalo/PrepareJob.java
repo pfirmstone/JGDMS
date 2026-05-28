@@ -50,6 +50,8 @@ class PrepareJob extends Job implements TransactionConstants {
     final ClientLog log;
     final ParticipantHandle[] handles;
     final int maxtries = 5;
+    /** Coordinator's Lamport timestamp forwarded to each participant. */
+    private final long coordinatorTs;
     /** Logger for operations related messages */
     private static final Logger operationsLogger =
        TxnManagerImpl.operationsLogger;
@@ -78,7 +80,7 @@ class PrepareJob extends Job implements TransactionConstants {
      * @see org.apache.river.mahalo.log.ClientLog
      * @see net.jini.core.transaction.server.TransactionParticipant
      */
-    public PrepareJob(Transaction tr, ExecutorService pool, WakeupManager wm, ClientLog log, ParticipantHandle[] handles, AccessControlContext context) {
+    public PrepareJob(Transaction tr, ExecutorService pool, WakeupManager wm, ClientLog log, ParticipantHandle[] handles, AccessControlContext context, long coordinatorTs) {
 	super(pool, wm, context);
 
 	if (log == null)
@@ -102,6 +104,7 @@ class PrepareJob extends Job implements TransactionConstants {
 					"must have participants");
 
 	this.handles = handles;
+	this.coordinatorTs = coordinatorTs;
     }
 
 
@@ -199,7 +202,7 @@ class PrepareJob extends Job implements TransactionConstants {
             // default method runs locally, calls prepare() remotely, and returns
             // TimestampedVote(vote, NO_TIMESTAMP=0) so the normal 2PC path is taken.
             TransactionParticipant.TimestampedVote tv =
-                par.prepareWithTimestamp(tr.mgr, tr.id, 0L);
+                par.prepareWithTimestamp(tr.mgr, tr.id, coordinatorTs);
             vote = tv.vote;
             handle.setCommitTimestamp(tv.timestamp);
             response = Integer.valueOf(vote);

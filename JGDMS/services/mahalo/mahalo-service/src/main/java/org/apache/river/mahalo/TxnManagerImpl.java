@@ -59,16 +59,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -193,7 +193,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	    new ConcurrentHashMap<>();
     /** Empty CodeSource used when building per-Subject ProtectionDomains. */
     private static final CodeSource EMPTY_CS = new CodeSource(null, (java.security.cert.Certificate[]) null);
-    private final Queue<Long> unsettledtxns = new ConcurrentLinkedQueue<Long>();
+    private final BlockingQueue<Long> unsettledtxns = new LinkedBlockingQueue<>();
     private final InterruptedStatusThread settleThread;
     private final String persistenceDirectory;
     private final ActivationID activationID;
@@ -207,10 +207,8 @@ class TxnManagerImpl /*extends RemoteServer*/
     protected final Exporter exporter;
     /** The login context, for logging out */
     protected volatile LoginContext loginContext = null;
-    /** The generator for our IDs. */
+    /** The generator for our IDs. SecureRandom is internally thread-safe. */
     private static final SecureRandom idGen = new SecureRandom();
-    /** The buffer for generating IDs. */
-    private static final byte[] idGenBuf = new byte[8];
     /**<code>LeaseExpirationMgr</code> used by our <code>LeasePolicy</code>.*/
     private volatile LeaseExpirationMgr expMgr = null;
     private final LeasePeriodPolicy txnLeasePeriodPolicy;
@@ -1043,9 +1041,6 @@ class TxnManagerImpl /*extends RemoteServer*/
 	        "noteUnsettledTxn", new Object[] {Long.valueOf(tid)});
 	}
 	unsettledtxns.add(Long.valueOf(tid));
-        synchronized (this){
-            notifyAll();
-        }
         
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(TxnManagerImpl.class.getName(), 
@@ -1068,25 +1063,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	long tid = 0;
 
 	while (true) {
-            first = unsettledtxns.poll();
-
-	    if (first == null) {
-	        if (transactionsLogger.isLoggable(Level.FINEST)) {
-                    transactionsLogger.log(Level.FINEST,
-                        "Settler waiting");
-	        }
-                // Don't wait forever, in case we're not notified, break out
-                // early and check condition.
-                synchronized (this){
-                    wait(10000L); 
-                }
-                // Due to spurious wakeup and break out after ten seconds, the following log message is inaccurate.
-//	        if (transactionsLogger.isLoggable(Level.FINEST)) {
-//                    transactionsLogger.log(Level.FINEST,
-//                        "Settler notified");
-//	        }
-		continue;
-	    }
+            first = unsettledtxns.take();
 
 	    tid = first.longValue();
 
@@ -1315,14 +1292,13 @@ class TxnManagerImpl /*extends RemoteServer*/
 		TxnManagerImpl.class.getName(), "nextID");
 	}
 	long id;
-	synchronized (idGen) {
-	    do {
-		id = 0;
-		idGen.nextBytes(idGenBuf);
-		for (int i = 0; i < 8; i++)
-		    id = (id << 8) | (idGenBuf[i] & 0xFF);
-	    } while (id == 0);				// skip flag value
-	}
+	byte[] buf = new byte[8];
+	do {
+	    id = 0;
+	    idGen.nextBytes(buf);
+	    for (int i = 0; i < 8; i++)
+		id = (id << 8) | (buf[i] & 0xFF);
+	} while (id == 0);				// skip flag value
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(TxnManagerImpl.class.getName(), "nextID",
 	        Long.valueOf(id));

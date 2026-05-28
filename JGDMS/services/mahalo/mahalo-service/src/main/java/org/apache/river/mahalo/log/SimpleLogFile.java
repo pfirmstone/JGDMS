@@ -276,7 +276,7 @@ public class SimpleLogFile implements Log {
                 persistenceLogger.log(Level.WARNING,
 		"Problem persisting LogRecord", ioe);
 	    }
-// TODO - throw LogException?
+	    throw (LogException) new LogException("SimpleLogFile: write: IOException").initCause(ioe);
         } catch (SecurityException se) {
 	    if (persistenceLogger.isLoggable(Level.WARNING)) {
                 persistenceLogger.log(Level.WARNING,

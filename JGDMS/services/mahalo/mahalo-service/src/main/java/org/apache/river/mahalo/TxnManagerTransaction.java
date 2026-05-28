@@ -28,6 +28,7 @@ import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Vector;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -40,6 +41,7 @@ import net.jini.core.transaction.TimeoutExpiredException;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import net.jini.core.transaction.server.CrashCountException;
+import net.jini.core.transaction.server.LamportClock;
 import net.jini.core.transaction.server.ServerTransaction;
 import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.core.transaction.server.TransactionManager;
@@ -137,7 +139,7 @@ class TxnManagerTransaction
     /**
      * @serial
      */
-    private final List<ParticipantHandle> parts = new ArrayList<ParticipantHandle>();
+    private final List<ParticipantHandle> parts = new CopyOnWriteArrayList<>();
 
     /**
      * @serial
@@ -208,6 +210,14 @@ class TxnManagerTransaction
      * @serial
      */
     private Job job; // sync with jobLock
+
+    /**
+     * Coordinator's Lamport clock.  Ticked once when prepare tasks are
+     * submitted and then advanced by observing each participant's reported
+     * commit timestamp, so that subsequent transactions receive a strictly
+     * greater coordinator timestamp.
+     */
+    private final LamportClock coordinatorClock = new LamportClock();
 
     /**
      * @serial
@@ -372,9 +382,7 @@ class TxnManagerTransaction
                 transactionsLogger.log(Level.FINEST,
                 "Adding ParticipantHandle: {0}", handle);
             }
-	    synchronized (parts){
-		parts.add(handle);
-	    }
+	    parts.add(handle);
 	} catch (Exception e) {
             if (transactionsLogger.isLoggable(Level.SEVERE)) {
                 transactionsLogger.log(Level.SEVERE,
@@ -407,10 +415,8 @@ class TxnManagerTransaction
 	if (handle == null)
 	    throw new NullPointerException("ParticipantHolder: " +
 			"modifyParticipant: cannot modify null handle");
-	synchronized (parts){
-	    int index = parts.indexOf(handle);
-	    if (index > -1) ph = parts.get(index);
-	}
+	int index = parts.indexOf(handle);
+	if (index > -1) ph = parts.get(index);
 
 	if (ph == null) {
             if (operationsLogger.isLoggable(Level.FINER)) {
@@ -509,10 +515,8 @@ class TxnManagerTransaction
 	    // This might have resulted in ParticipantHandles being 
 	    // added to parts more than once, and CrashCountException to have never been
 	    // thrown.
-	    synchronized (parts){
-		int index = parts.indexOf(ph);
-		if (index > -1) phtmp = parts.get(index);
-	    }
+	    int index = parts.indexOf(ph);
+	    if (index > -1) phtmp = parts.get(index);
 
             if (transactionsLogger.isLoggable(Level.FINEST)) {
                 transactionsLogger.log(Level.FINEST,
@@ -743,12 +747,13 @@ class TxnManagerTransaction
 
 	        synchronized (jobLock) {
 		    if (job == null) {
+			long coordTs = coordinatorClock.tick();
 	                if (phs.length == 1)
 		            job = new
 			      PrepareAndCommitJob(
-				  str, threadpool, wm, log, phs[0], context);
+				  str, threadpool, wm, log, phs[0], context, coordTs);
 	                else
-	                    job = new PrepareJob(str, threadpool, wm, log, phs, context);
+	                    job = new PrepareJob(str, threadpool, wm, log, phs, context, coordTs);
 
 	                job.scheduleTasks();
 		    }
@@ -772,30 +777,39 @@ class TxnManagerTransaction
 		//the transaction at this point.
 
 
+                Job currentPrepJob;
                 synchronized (jobLock) {
-		    if ((job instanceof PrepareJob) ||
-			    (job instanceof PrepareAndCommitJob)) {
-                        try {
-                            if (job.isCompleted(Long.MAX_VALUE)) {
-                                result = (Integer) job.computeResult();
-                                if (result.intValue() == ABORTED &&
-                                    job instanceof PrepareAndCommitJob) {
-                                        PrepareAndCommitJob pj = 
-                                            (PrepareAndCommitJob)job;
-                                        alternateException = 
-                                               pj.getAlternateException();
+                    currentPrepJob = job;
+                }
+                if ((currentPrepJob instanceof PrepareJob) ||
+                        (currentPrepJob instanceof PrepareAndCommitJob)) {
+                    try {
+                        if (currentPrepJob.isCompleted(Long.MAX_VALUE)) {
+                            result = (Integer) currentPrepJob.computeResult();
+                            // Advance coordinator clock with participant timestamps (Lamport rule).
+                            for (ParticipantHandle ph : phs) {
+                                long ts = ph.getCommitTimestamp();
+                                if (ts != LamportClock.NO_TIMESTAMP) {
+                                    coordinatorClock.observe(ts);
                                 }
                             }
-                        } catch (JobNotStartedException jnse) {
-                            //no participants voted, so do nothing
-                            result = Integer.valueOf(NOTCHANGED);
-                        } catch (ResultNotReadyException rnre) {
-                            //consider aborted
-                        } catch (JobException je) {
-                            //consider aborted
+                            if (result.intValue() == ABORTED &&
+                                currentPrepJob instanceof PrepareAndCommitJob) {
+                                    PrepareAndCommitJob pj = 
+                                        (PrepareAndCommitJob) currentPrepJob;
+                                    alternateException = 
+                                           pj.getAlternateException();
+                            }
                         }
-		    }
-		}
+                    } catch (JobNotStartedException jnse) {
+                        //no participants voted, so do nothing
+                        result = Integer.valueOf(NOTCHANGED);
+                    } catch (ResultNotReadyException rnre) {
+                        //consider aborted
+                    } catch (JobException je) {
+                        //consider aborted
+                    }
+                }
 	    } else {
 		//Cannot be VOTING, so we either have
 		//an abort or commit in progress.
@@ -985,20 +999,22 @@ class TxnManagerTransaction
 
 		try {
 		    remainder = waitFor - transpired;
+		    Job currentCommitJob;
 		    synchronized (jobLock) {
-		        if (remainder <= 0 || !job.isCompleted(remainder)) {
+		        currentCommitJob = job;
+		    }
+		    if (remainder <= 0 || !currentCommitJob.isCompleted(remainder)) {
 /*
  * Note - SettlerTask will kick off another Commit/Abort task for the same txn
  * which will try go through the VOTING->Commit states again.
  */
 //TODO - Kill off existing task? Postpone SettlerTask? 			
-		            settler.noteUnsettledTxn(str.id);
+		        settler.noteUnsettledTxn(str.id);
 			    throw new TimeoutExpiredException(
 					    "timeout expired", true);
-			} else {
-			    result = (Integer) job.computeResult();
-			    committed = true;
-			}
+		    } else {
+			result = (Integer) currentCommitJob.computeResult();
+			committed = true;
 		    }
 		} catch (ResultNotReadyException rnre) {
 		    //this should not happen, so flag
@@ -1161,24 +1177,24 @@ class TxnManagerTransaction
 	    long remainder = waitFor - transpired;
 
 	    try {
+		Job currentAbortJob;
 		synchronized (jobLock) {
-	            if (remainder<= 0 || !job.isCompleted(remainder)) {
-		        settler.noteUnsettledTxn(str.id);
-		        throw new TimeoutExpiredException(
+		    currentAbortJob = job;
+		}
+	        if (remainder<= 0 || !currentAbortJob.isCompleted(remainder)) {
+		    settler.noteUnsettledTxn(str.id);
+		    throw new TimeoutExpiredException(
 				        "timeout expired",false);
-		    } else {
-	    	       	result = (Integer) job.computeResult();
+		} else {
+	    	       	result = (Integer) currentAbortJob.computeResult();
 	    	       	aborted = true;
-		    }
 		}
 	    }  catch (ResultNotReadyException rnre) {
 		//should not happen, so flag as error
 	    } catch (JobNotStartedException jnse) {
 		//error
 	    } catch (JobException je) {
-                synchronized (jobLock){
-                    settler.noteUnsettledTxn(str.id);
-                }
+                settler.noteUnsettledTxn(str.id);
 		throw new TimeoutExpiredException("timeout expired", false);
 	    }
 
@@ -1325,10 +1341,8 @@ private List<ParticipantHandle> parthandles() {
 	}
 	List<ParticipantHandle> result;
 	
-	synchronized (parts){
-	    if (parts.isEmpty()) return null;
-	    result = new ArrayList<ParticipantHandle>(parts);
-	}
+	if (parts.isEmpty()) return null;
+	result = new ArrayList<ParticipantHandle>(parts);
  
         if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
@@ -1351,22 +1365,20 @@ private List<ParticipantHandle> parthandles() {
 	}
 	StringBuilder sb;
 	int size;
-	synchronized (parts){
-	    size = parts.size();
-	    if ( size == 0 ) return "No participants";
-	    sb = new StringBuilder(size * 40);
-	    ParticipantHandle ph;
-	    sb.append(size).append(" Participants: ");
-	    for (int i=0; i < size; i++) {
-		ph = (ParticipantHandle)parts.get(i);
-		sb.append("{")
-		.append(i)
-		.append(", ")
-		.append(ph.getPreParedParticipant().toString())
-		.append(", ")
-		.append(TxnConstants.getName(ph.getPrepState()))
-		.append("} ");
-	    }
+	size = parts.size();
+	if ( size == 0 ) return "No participants";
+	sb = new StringBuilder(size * 40);
+	ParticipantHandle ph;
+	sb.append(size).append(" Participants: ");
+	for (int i=0; i < size; i++) {
+	    ph = (ParticipantHandle)parts.get(i);
+	    sb.append("{")
+	    .append(i)
+	    .append(", ")
+	    .append(ph.getPreParedParticipant().toString())
+	    .append(", ")
+	    .append(TxnConstants.getName(ph.getPrepState()))
+	    .append("} ");
 	}
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
 		transactionsLogger.log(Level.FINEST,
@@ -1405,12 +1417,9 @@ private List<ParticipantHandle> parthandles() {
 	        "restoreTransientState");
 	}
 	ParticipantHandle[] handles;
-	int size;
-	synchronized(parts){
-	    size = parts.size();
-	    if ( size == 0 ) return;
-	    handles = parts.toArray(new ParticipantHandle[size]);
-	}
+	handles = parts.toArray(new ParticipantHandle[0]);
+	int size = handles.length;
+	if ( size == 0 ) return;
         for (int i=0; i < size; i++) {
 	    handles[i].restoreTransientState(preparer);
             if (transactionsLogger.isLoggable(Level.FINEST)) {
