@@ -168,6 +168,30 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     private static final long verdictCacheTtlMs = loadVerdictCacheTtlMs();
 
     /**
+     * System property that enables strict mode for
+     * {@link VerdictType#INCONCLUSIVE} JAR loads.  When set to {@code "true"},
+     * {@link #checkVerdictForJar} demands an
+     * {@link INCONCLUSIVEPermit}{@code (contentHash)} from the caller's
+     * {@link java.security.AccessControlContext} before proceeding with an
+     * INCONCLUSIVE verdict.  Default: {@code false} (backward-compatible
+     * permissive behaviour — load proceeds with a WARNING log entry only).
+     *
+     * <p>Enabling strict mode requires that a security policy grants
+     * {@code INCONCLUSIVEPermit} to every trusted code path that may load
+     * proxies with INCONCLUSIVE JARs.  The wildcard form
+     * ({@code INCONCLUSIVEPermit "*"}) can be used during a transition
+     * period; per-digest grants are the recommended long-term approach.
+     */
+    static final String INCONCLUSIVE_STRICT_MODE_PROPERTY = "jgdms.proxy.inconclusiveStrictMode";
+
+    /**
+     * Whether INCONCLUSIVE-verdict loads require an explicit
+     * {@link INCONCLUSIVEPermit}.  Volatile so that tests can toggle the
+     * value without reloading the class (see {@link #setInconclusiveStrictMode}).
+     */
+    static volatile boolean inconclusiveStrictMode = loadInconclusiveStrictMode();
+
+    /**
      * Constructor for {@code java.security.DigestCodeSource(CodeSource, String)},
      * reflectively resolved at class-load time (DirtyChai only; {@code null} on
      * standard JDK).  Used by {@link #checkBootstrapPermissionByDigest} to avoid
@@ -249,6 +273,30 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
         }
         verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
+    }
+
+    /**
+     * Overrides the runtime value of {@link #inconclusiveStrictMode}.
+     * For use in tests only.
+     */
+    static void setInconclusiveStrictMode(boolean strict) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
+        }
+        inconclusiveStrictMode = strict;
+    }
+
+    /**
+     * Resets {@link #inconclusiveStrictMode} to the value loaded from the
+     * system property at class-load time.  For use in tests only.
+     */
+    static void resetInconclusiveStrictMode() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
+        }
+        inconclusiveStrictMode = loadInconclusiveStrictMode();
     }
 
     /** Clears the in-memory verdict cache.  For use in tests only. */
@@ -464,6 +512,32 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             return DEFAULT_VERDICT_CACHE_TTL_MS;
         }
         return parseVerdictCacheTtlMs(value);
+    }
+
+    /**
+     * Parses the value of the {@value #INCONCLUSIVE_STRICT_MODE_PROPERTY}
+     * system property.  Returns {@code true} if and only if {@code value} is
+     * (case-insensitively) {@code "true"} after trimming; returns {@code false}
+     * for {@code null}, empty, or any other string.
+     *
+     * @param value the raw property string, or {@code null}
+     * @return the parsed boolean
+     */
+    static boolean parseInconclusiveStrictMode(String value) {
+        return "true".equalsIgnoreCase(value == null ? null : value.trim());
+    }
+
+    private static boolean loadInconclusiveStrictMode() {
+        String value = null;
+        try {
+            value = System.getProperty(INCONCLUSIVE_STRICT_MODE_PROPERTY);
+        } catch (SecurityException ex) {
+            logger.log(Level.WARNING,
+                    "Unable to read {0}; using default false",
+                    INCONCLUSIVE_STRICT_MODE_PROPERTY);
+            return false;
+        }
+        return parseInconclusiveStrictMode(value);
     }
 
     /**
@@ -1024,7 +1098,12 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * <ul>
      *   <li>{@link VerdictType#SAFE} — proceed; logged at {@code FINEST}.</li>
      *   <li>{@link VerdictType#INCONCLUSIVE} — proceed with caution; logged
-     *       at {@code WARNING}.</li>
+     *       at {@code WARNING}.  When
+     *       {@link PreferredProxyCodebaseProvider#INCONCLUSIVE_STRICT_MODE_PROPERTY}
+     *       is {@code "true"}, an {@link INCONCLUSIVEPermit}{@code (contentHash)}
+     *       is additionally demanded from the caller's
+     *       {@link java.security.AccessControlContext}; if not granted,
+     *       {@link IOException} is thrown.</li>
      *   <li>{@link VerdictType#DANGEROUS} — throw {@link IOException}; logged
      *       at {@code SEVERE}.</li>
      *   <li>{@code null} return (no verdict yet) — throw {@link IOException};
@@ -1041,7 +1120,10 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * @return {@code true} if the verdict is {@link VerdictType#INCONCLUSIVE},
      *         otherwise {@code false}
      * @throws IOException if the verdict is absent, DANGEROUS, or the
-     *                     registry is unreachable
+     *                     registry is unreachable; or if the verdict is
+     *                     INCONCLUSIVE and strict mode is enabled but the
+     *                     caller does not hold the required
+     *                     {@link INCONCLUSIVEPermit}
      */
     static boolean checkVerdictForJar(VerdictRegistry vr,
                                        String contentHash,
@@ -1067,6 +1149,22 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             logger.log(Level.WARNING,
                     "JAR verdict is INCONCLUSIVE (SHA-256: {0}); proceeding with caution",
                     contentHash);
+            if (inconclusiveStrictMode) {
+                try {
+                    AccessController.checkPermission(new INCONCLUSIVEPermit(contentHash));
+                } catch (SecurityException ex) {
+                    logger.log(Level.SEVERE,
+                            "Strict mode: INCONCLUSIVE verdict for JAR (SHA-256: {0})"
+                            + " refused — no INCONCLUSIVEPermit granted; codebase: {1}",
+                            new Object[]{contentHash, path});
+                    throw new IOException(
+                            "Strict mode: INCONCLUSIVE verdict for JAR (SHA-256: "
+                            + contentHash
+                            + ") refused — no INCONCLUSIVEPermit granted; codebase: "
+                            + path,
+                            ex);
+                }
+            }
             return true;
         } else {
             // SAFE

@@ -1,9 +1,9 @@
-# JGDMS + DirtyChai — Independent Security Assessment — AI Agent Context (v5)
+# JGDMS + DirtyChai — Independent Security Assessment — AI Agent Context (v6)
 
-- **Version:** 5
-- **Date:** 2026-05-27
+- **Version:** 6
+- **Date:** 2026-05-28
 - **Produced by:** GitHub Copilot Agent (independent assessment pass)
-- **Assessed against:** context_10.md v58, DirtyChai SECURITY_MODEL.md v2.4
+- **Assessed against:** context_10.md v59, DirtyChai SECURITY_MODEL.md v2.4
 - **Repositories:**
   - JGDMS: https://github.com/pfirmstone/JGDMS
   - DirtyChai: https://github.com/pfirmstone/DirtyChai
@@ -12,6 +12,11 @@
 
 ## Change Summary
 
+- **v6 (2026-05-28):** §2.4 updated: WI51 (`INCONCLUSIVEPermit`) completed —
+  new `BasicPermission` subclass gates INCONCLUSIVE-verdict JAR loads when
+  `jgdms.proxy.inconclusiveStrictMode=true`; `checkVerdictForJar()` enhanced
+  with strict-mode branch.  §4 priority table row 4 updated to ✅ Completed.
+  §5 status table row 51 updated to ✅ Completed.  context_10.md bumped v58 → v59.
 - **v5 (2026-05-27):** §2.8 updated: `SubjectAwareExecutor` enhanced to support
   multi-Subject contexts using `Subject.currentAll()` + varargs
   `Subject.callAs(Callable, Subject...)` (DirtyChai extensions), enabling full
@@ -183,16 +188,20 @@ Work Item 46 (Option 4 baseline, ✅ complete) keeps preferred-proxy
 grants for `INCONCLUSIVE` loaders.  `DynamicPolicyProvider.grant()` invalidates
 retained INCONCLUSIVE grants before issuing new ones.
 
-The residual gap:
+The residual gap has now been closed structurally by WI51:
 
-- A **fresh proxy load after a policy change** reuses the cached INCONCLUSIVE
-  `ClassLoader` and does not re-consult `VerdictRegistry`.  The new grants take
-  effect without re-audit.
-- `INCONCLUSIVEPermit` (Work Item 51), which would require explicit
-  administrator authorization per codebase hash for INCONCLUSIVE loads, is
-  `🔲 Not started`.
+- `INCONCLUSIVEPermit` (`net.jini.loader.pref.INCONCLUSIVEPermit`, Work Item 51)
+  is a new `BasicPermission` subclass whose target name is the SHA-256 hex
+  digest of the specific JAR.  When the system property
+  `jgdms.proxy.inconclusiveStrictMode=true` is set,
+  `PreferredProxyCodebaseProvider.checkVerdictForJar()` calls
+  `AccessController.checkPermission(new INCONCLUSIVEPermit(contentHash))`
+  before allowing any INCONCLUSIVE-verdict JAR to load; if not granted,
+  `IOException` is thrown.  The default (strict mode off) preserves
+  backward-compatible behaviour for deployments that have not yet
+  configured their policies for per-digest grants.
 
-**Status:** Partial mitigation in place; structural fix (WI51) pending.
+**Status:** ✅ Resolved — WI46 Option 4 (loader-scoped grants) + WI51 strict mode gate both implemented.
 
 ---
 
@@ -411,7 +420,7 @@ Listed by impact-per-effort ratio.  All items are well-specified in context_10.
 | 1 | **WI62 — DirtyChai `defineClass(…,Principal[])` overloads** | Without this, WI61 cross-service defence is latent and server principals are never in `ProtectionDomain` | ✅ Completed (DirtyChai) |
 | 2 | **G-3 — Extend `SerialObjectPermission` to `readProxyDesc()`** | Confirmed open attack surface; symmetric to existing guard; small change | ✅ Completed (DirtyChai) |
 | 3 | **WI48 — In-memory signed-verdict cache** | Outage resilience with minimal complexity; prerequisite for WI57 | ✅ Completed (v2) |
-| 4 | **WI51 — `INCONCLUSIVEPermit`** | Structural fix for fresh INCONCLUSIVE loads after policy change; closes the primary residual gap from WI46 | Medium (VerdictRegistry API extension + `PreferredProxyCodebaseProvider` enforcement) |
+| 4 | **WI51 — `INCONCLUSIVEPermit`** | Structural fix for fresh INCONCLUSIVE loads after policy change; closes the primary residual gap from WI46 | ✅ Completed (v6) |
 | 5 | **WI50 — `SubjectAwareExecutor`** | Prevents silent identity loss in executor tasks; small, self-contained | ✅ Completed (v2); enhanced multi-Subject (v5) |
 | 6 | **WI52 — `doAsPrivileged` scan + migration** | Closes residual POLP gaps in `RegistrarImpl` / `AbstractActivationGroup` | 🟡 Partial (v5) — `AbstractActivationGroup` migrated; `RegistrarImpl` already uses `callAs` |
 | 7 | **Make `DefaultJwtVerifier` the default** | Closes Weakness 2 default-path gap with zero operational cost | ✅ Completed (v4) |
@@ -434,7 +443,7 @@ lookup.  Future agents should update this table as items complete.
 | 48 | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, TTL) | ✅ Completed (v2) |
 | 49 | SVID exponential-backoff renewal + health endpoint | ✅ Complete |
 | 50 | `SubjectAwareExecutor implements ExecutorService` | ✅ Completed (v2); multi-Subject (v5) |
-| 51 | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode | 🔲 Not started |
+| 51 | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode | ✅ Completed (v6) |
 | 52 | `doAsPrivileged` scan + migration (`RegistrarImpl`, `AbstractActivationGroup`) | 🟡 Partial (v5) |
 | 53 | Negative grants in `DynamicPolicyProvider` | 🚫 Won't Implement |
 | 54 | `CombinerSecurityManager` configurable recursion depth (default 10) + startup `SEVERE` | ✅ Complete |

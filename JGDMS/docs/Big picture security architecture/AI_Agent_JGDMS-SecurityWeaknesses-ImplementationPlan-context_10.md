@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v58)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v59)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,37 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v59 Change Summary
+
+**WI51 completed — `INCONCLUSIVEPermit` strict-mode gate**
+
+Implemented in this version:
+
+1. **WI51 — `INCONCLUSIVEPermit`** — New `BasicPermission` subclass
+   (`net.jini.loader.pref.INCONCLUSIVEPermit`) whose target name is the
+   SHA-256 hex digest of a specific JAR (or `"*"` wildcard).  When the system
+   property `jgdms.proxy.inconclusiveStrictMode` is set to `"true"`,
+   `PreferredProxyCodebaseProvider.checkVerdictForJar()` calls
+   `AccessController.checkPermission(new INCONCLUSIVEPermit(contentHash))`
+   before allowing an INCONCLUSIVE-verdict JAR to load; if the permission is
+   denied, `IOException` is thrown.  Default is `false` (backward-compatible).
+
+**Files changed:**
+- `docs/.../context_10.md` — §6 WI51 row updated (🔲 → ✅ Completed); v58 → v59
+- `docs/.../AI_Agent_JGDMS-SecurityAssessment-context_11.md` — §2.4, §4
+  priority table, §5 status table updated; v5 → v6
+- `jgdms-pref-class-loader/.../INCONCLUSIVEPermit.java` — new file
+- `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` —
+  `INCONCLUSIVE_STRICT_MODE_PROPERTY`, `inconclusiveStrictMode` field,
+  `parseInconclusiveStrictMode()`, `loadInconclusiveStrictMode()`,
+  `setInconclusiveStrictMode()`, `resetInconclusiveStrictMode()` helpers;
+  `checkVerdictForJar()` strict-mode branch
+- `jgdms-pref-class-loader/.../PreferredProxyCodebaseProviderVerdictTest.java` —
+  `INCONCLUSIVEPermit` tests, `parseInconclusiveStrictMode` tests, strict-mode
+  `checkVerdictForJar` tests; `@After` reset
+
+---
 
 ## v58 Change Summary
 
@@ -872,7 +903,7 @@ subsequent uses skip all of the above.
 |---|---|---|---|
 | 1 | Full security requires DirtyChai (non-standard JDK) | 🔴 Critical | **By design — no fix** |
 | 2 | Wire-asserted user principals are unverified | 🔴 Critical | Partially (JwtVerifier SPI opt-in; DefaultJwtVerifier exp/iat/iss/aud; OIDC JWKS opt-in) |
-| 3 | INCONCLUSIVE verdict allows loading; no re-audit on permission change | 🟠 High | Partially (retained, externally-voidable loader-scoped grants for INCONCLUSIVE loaders — WI46 Option 4; structural fix via INCONCLUSIVEPermit pending — WI51) |
+| 3 | INCONCLUSIVE verdict allows loading; no re-audit on permission change | 🟠 High | Partially (retained, externally-voidable loader-scoped grants for INCONCLUSIVE loaders — WI46 Option 4; structural fix via INCONCLUSIVEPermit completed — WI51 ✅) |
 | 4 | VerdictRegistry boot permissive window | 🟠 High | Acknowledged; no fix |
 | 5 | VerdictRegistry outage blocks all new proxy loads | 🟠 High | No (fail-secure, but availability impact) |
 | 6 | SPIRE single point of failure / SVID expiry gap | 🟠 High | Partially (backoff, but no stale-SVID fallback) |
@@ -1311,7 +1342,7 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 | 3.2 | `DiscoveryCredentialProvider` (W11) | Define interface; implement `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder`; integrate into `AbstractLookupDiscovery` | New interface + impl; `AbstractLookupDiscovery.java` | ✅ Completed |
 | 3.3 | Negative grants (W8) | Add `negativeGrants` set to `DynamicPolicyProvider` with same background sweeper as void grants; update `implies()` | `DynamicPolicyProvider.java` | 🟡 Sprint 5 |
 | 3.4 | Persistent verdict cache (W5) | Add disk-based signed `RegistryVerdict` cache to `PreferredProxyCodebaseProvider` | `PreferredProxyCodebaseProvider.java`, new `VerdictCache.java` | 🔵 Sprint 6 |
-| 3.5 | `INCONCLUSIVEPermit` (W3) | Add `INCONCLUSIVEPermit` registry entry to `VerdictRegistry` API; require it for INCONCLUSIVE loads in strict mode | `VerdictRegistry.java`, `PreferredProxyCodebaseProvider.java` | 🔵 Sprint 6 |
+| 3.5 | `INCONCLUSIVEPermit` (W3) | Add `INCONCLUSIVEPermit` registry entry to `VerdictRegistry` API; require it for INCONCLUSIVE loads in strict mode | `VerdictRegistry.java`, `PreferredProxyCodebaseProvider.java` | ✅ Completed |
 
 ### Phase 4 — Operational / Deployment
 
@@ -1358,7 +1389,7 @@ These extend the work-item table in §12 of
 | **48** | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, configurable TTL) | 2.6 | ✅ Completed |
 | **49** | SVID exponential-backoff renewal + `isCredentialValid()` / `secondsUntilExpiry()` health endpoint | 1.2 + 1.3 | ✅ Completed |
 | **50** | `SubjectAwareExecutor implements ExecutorService` — Subject[] capture-and-rebind wrapper | 2.4 | ✅ Completed |
-| **51** | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode (next major version) | 3.5 | 🔲 Not started |
+| **51** | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode (next major version) | 3.5 | ✅ Completed |
 | **52** | doAs/doAsPrivileged migration: SpotBugs scan + incremental per-site migration (`RegistrarImpl`, `AbstractActivationGroup`) | 2.1–2.3 | 🔲 Not started |
 | **53** | Negative grants in `DynamicPolicyProvider` — `negativeGrants` set + background sweeper + `implies()` update | 3.3 | 🔲 Not started |
 | **54** | `CombinerSecurityManager` depth limit — configurable system property (default 10) + startup `SEVERE` warning | 1.6 | 🔲 Not started |

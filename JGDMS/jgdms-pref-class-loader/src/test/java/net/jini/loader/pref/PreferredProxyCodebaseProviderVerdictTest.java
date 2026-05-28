@@ -77,6 +77,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         VerdictRegistryHolder.set(null);
         PreferredProxyCodebaseProvider.resetVerdictRetryBaseDelayMs();
         PreferredProxyCodebaseProvider.clearVerdictCache();
+        PreferredProxyCodebaseProvider.resetInconclusiveStrictMode();
     }
 
     // -------------------------------------------------------------------------
@@ -916,5 +917,176 @@ public class PreferredProxyCodebaseProviderVerdictTest {
             if (serverA.equals(p)) bHasServerA = true;
         assertTrue("grantsA should contain serverA principal", aHasServerA);
         assertFalse("grantsB should NOT contain serverA principal", bHasServerA);
+    }
+
+    // -------------------------------------------------------------------------
+    // INCONCLUSIVEPermit tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void inconclusivePermit_nameConstructorPreservesName() {
+        INCONCLUSIVEPermit p = new INCONCLUSIVEPermit(FAKE_HASH);
+        assertEquals("name should be the supplied hash", FAKE_HASH, p.getName());
+    }
+
+    @Test
+    public void inconclusivePermit_impliesSameHash() {
+        INCONCLUSIVEPermit a = new INCONCLUSIVEPermit(FAKE_HASH);
+        INCONCLUSIVEPermit b = new INCONCLUSIVEPermit(FAKE_HASH);
+        assertTrue("same-hash permissions should imply each other", a.implies(b));
+    }
+
+    @Test
+    public void inconclusivePermit_wildcardImpliesAnyHash() {
+        INCONCLUSIVEPermit wildcard = new INCONCLUSIVEPermit("*");
+        INCONCLUSIVEPermit specific = new INCONCLUSIVEPermit(FAKE_HASH);
+        assertTrue("wildcard should imply any specific hash", wildcard.implies(specific));
+    }
+
+    @Test
+    public void inconclusivePermit_specificDoesNotImplyWildcard() {
+        INCONCLUSIVEPermit specific = new INCONCLUSIVEPermit(FAKE_HASH);
+        INCONCLUSIVEPermit wildcard = new INCONCLUSIVEPermit("*");
+        assertFalse("specific hash should not imply wildcard", specific.implies(wildcard));
+    }
+
+    @Test
+    public void inconclusivePermit_doesNotImplyDifferentType() {
+        INCONCLUSIVEPermit p = new INCONCLUSIVEPermit(FAKE_HASH);
+        assertFalse("INCONCLUSIVEPermit should not imply RuntimePermission",
+                p.implies(new RuntimePermission("exitVM")));
+    }
+
+    @Test
+    public void inconclusivePermit_twoArgConstructorPreservesName() {
+        INCONCLUSIVEPermit p = new INCONCLUSIVEPermit(FAKE_HASH, null);
+        assertEquals("two-arg constructor: name should be the supplied hash",
+                FAKE_HASH, p.getName());
+    }
+
+    @Test
+    public void inconclusivePermit_differentHashesDoNotImply() {
+        String otherHash = "0011223344556677889900aabbccddeeff0011223344556677889900aabbccdd";
+        INCONCLUSIVEPermit a = new INCONCLUSIVEPermit(FAKE_HASH);
+        INCONCLUSIVEPermit b = new INCONCLUSIVEPermit(otherHash);
+        assertFalse("different hashes should not imply each other", a.implies(b));
+    }
+
+    // -------------------------------------------------------------------------
+    // parseInconclusiveStrictMode tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void parseInconclusiveStrictMode_trueString_returnsTrue() {
+        assertTrue(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode("true"));
+    }
+
+    @Test
+    public void parseInconclusiveStrictMode_trueUpperCase_returnsTrue() {
+        assertTrue(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode("TRUE"));
+    }
+
+    @Test
+    public void parseInconclusiveStrictMode_trueMixedCase_returnsTrue() {
+        assertTrue(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode("True"));
+    }
+
+    @Test
+    public void parseInconclusiveStrictMode_trueWithWhitespace_returnsTrue() {
+        assertTrue(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode("  true  "));
+    }
+
+    @Test
+    public void parseInconclusiveStrictMode_null_returnsFalse() {
+        assertFalse(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode(null));
+    }
+
+    @Test
+    public void parseInconclusiveStrictMode_empty_returnsFalse() {
+        assertFalse(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode(""));
+    }
+
+    @Test
+    public void parseInconclusiveStrictMode_falseString_returnsFalse() {
+        assertFalse(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode("false"));
+    }
+
+    @Test
+    public void parseInconclusiveStrictMode_otherString_returnsFalse() {
+        assertFalse(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode("yes"));
+    }
+
+    // -------------------------------------------------------------------------
+    // checkVerdictForJar — strict mode tests
+    // -------------------------------------------------------------------------
+
+    /**
+     * In strict mode, when {@code INCONCLUSIVEPermit} is absent from the
+     * effective policy, the INCONCLUSIVE load is refused with an
+     * {@link IOException} whose cause is a {@link SecurityException}.
+     *
+     * <p>On DirtyChai, {@link java.security.AccessController#checkPermission}
+     * enforces the policy directly via the ACC even when
+     * {@link System#getSecurityManager()} returns {@code null}.
+     */
+    @Test
+    public void checkVerdictForJar_inconclusive_strictMode_withoutPermission_throwsIOException()
+            throws Exception {
+        RegistryVerdict verdict = newVerdict(VerdictType.INCONCLUSIVE);
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(verdict);
+
+        PreferredProxyCodebaseProvider.setInconclusiveStrictMode(true);
+
+        // The test policy does not grant INCONCLUSIVEPermit, so strict mode
+        // must refuse the load.
+        try {
+            PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+            fail("Expected IOException: no INCONCLUSIVEPermit granted in test policy");
+        } catch (IOException ex) {
+            assertTrue("Exception should mention the hash",
+                    ex.getMessage().contains(FAKE_HASH));
+            assertTrue("Exception should mention 'strict'",
+                    ex.getMessage().toLowerCase().contains("strict"));
+            assertNotNull("Exception should have a non-null cause", ex.getCause());
+            assertTrue("Cause should be SecurityException",
+                    ex.getCause() instanceof SecurityException);
+        }
+    }
+
+    /**
+     * When strict mode is OFF (the default), an INCONCLUSIVE verdict always
+     * proceeds regardless of any policy configuration.
+     */
+    @Test
+    public void checkVerdictForJar_inconclusive_nonStrictMode_proceedsWithoutPermissionCheck()
+            throws Exception {
+        RegistryVerdict verdict = newVerdict(VerdictType.INCONCLUSIVE);
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(verdict);
+
+        // Strict mode should be off by default.
+        assertFalse("inconclusiveStrictMode should default to false",
+                PreferredProxyCodebaseProvider.inconclusiveStrictMode);
+
+        assertTrue(PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
+    }
+
+    /**
+     * Verifies that toggling inconclusiveStrictMode via the test helper is
+     * visible to subsequent calls.
+     */
+    @Test
+    public void setInconclusiveStrictMode_togglesField() {
+        assertFalse("initial value should be false",
+                PreferredProxyCodebaseProvider.inconclusiveStrictMode);
+
+        PreferredProxyCodebaseProvider.setInconclusiveStrictMode(true);
+        assertTrue("after setInconclusiveStrictMode(true) field should be true",
+                PreferredProxyCodebaseProvider.inconclusiveStrictMode);
+
+        PreferredProxyCodebaseProvider.resetInconclusiveStrictMode();
+        assertFalse("after reset field should be false again",
+                PreferredProxyCodebaseProvider.inconclusiveStrictMode);
     }
 }
