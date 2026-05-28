@@ -168,15 +168,16 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     private static final long verdictCacheTtlMs = loadVerdictCacheTtlMs();
 
     /**
-     * System property that enables strict mode for
-     * {@link VerdictType#INCONCLUSIVE} JAR loads.  When set to {@code "true"},
-     * {@link #checkVerdictForJar} demands an
-     * {@link INCONCLUSIVEPermit}{@code (contentHash)} from the caller's
+     * System property that controls strict mode for
+     * {@link VerdictType#INCONCLUSIVE} JAR loads.  Strict mode is
+     * <strong>enabled by default</strong>: {@link #checkVerdictForJar} demands
+     * an {@link INCONCLUSIVEPermit}{@code (contentHash)} from the caller's
      * {@link java.security.AccessControlContext} before proceeding with an
-     * INCONCLUSIVE verdict.  Default: {@code false} (backward-compatible
-     * permissive behaviour — load proceeds with a WARNING log entry only).
+     * INCONCLUSIVE verdict.  Set this property to {@code "false"} to disable
+     * strict mode and allow INCONCLUSIVE JARs to load with a WARNING log entry
+     * only (not recommended for production).
      *
-     * <p>Enabling strict mode requires that a security policy grants
+     * <p>Strict mode requires that a security policy grants
      * {@code INCONCLUSIVEPermit} to every trusted code path that may load
      * proxies with INCONCLUSIVE JARs.  The wildcard form
      * ({@code INCONCLUSIVEPermit "*"}) can be used during a transition
@@ -516,15 +517,16 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 
     /**
      * Parses the value of the {@value #INCONCLUSIVE_STRICT_MODE_PROPERTY}
-     * system property.  Returns {@code true} if and only if {@code value} is
-     * (case-insensitively) {@code "true"} after trimming; returns {@code false}
-     * for {@code null}, empty, or any other string.
+     * system property.  Returns {@code false} if and only if {@code value} is
+     * (case-insensitively) {@code "false"} after trimming; returns {@code true}
+     * for {@code null}, empty, or any other string (strict mode is the
+     * default).
      *
      * @param value the raw property string, or {@code null}
      * @return the parsed boolean
      */
     static boolean parseInconclusiveStrictMode(String value) {
-        return "true".equalsIgnoreCase(value == null ? null : value.trim());
+        return !"false".equalsIgnoreCase(value == null ? null : value.trim());
     }
 
     private static boolean loadInconclusiveStrictMode() {
@@ -533,9 +535,9 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             value = System.getProperty(INCONCLUSIVE_STRICT_MODE_PROPERTY);
         } catch (SecurityException ex) {
             logger.log(Level.WARNING,
-                    "Unable to read {0}; using default false",
+                    "Unable to read {0}; defaulting to strict mode",
                     INCONCLUSIVE_STRICT_MODE_PROPERTY);
-            return false;
+            return true;
         }
         return parseInconclusiveStrictMode(value);
     }
@@ -1097,13 +1099,13 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * <p>Verdict semantics:
      * <ul>
      *   <li>{@link VerdictType#SAFE} — proceed; logged at {@code FINEST}.</li>
-     *   <li>{@link VerdictType#INCONCLUSIVE} — proceed with caution; logged
-     *       at {@code WARNING}.  When
+     *   <li>{@link VerdictType#INCONCLUSIVE} — an {@link INCONCLUSIVEPermit}
+     *       {@code (contentHash)} is demanded from the caller's
+     *       {@link java.security.AccessControlContext} by default (strict mode).
+     *       If not granted, {@link IOException} is thrown.  Set
      *       {@link PreferredProxyCodebaseProvider#INCONCLUSIVE_STRICT_MODE_PROPERTY}
-     *       is {@code "true"}, an {@link INCONCLUSIVEPermit}{@code (contentHash)}
-     *       is additionally demanded from the caller's
-     *       {@link java.security.AccessControlContext}; if not granted,
-     *       {@link IOException} is thrown.</li>
+     *       to {@code "false"} to disable strict mode and allow the load to
+     *       proceed with a {@code WARNING} log entry only.</li>
      *   <li>{@link VerdictType#DANGEROUS} — throw {@link IOException}; logged
      *       at {@code SEVERE}.</li>
      *   <li>{@code null} return (no verdict yet) — throw {@link IOException};

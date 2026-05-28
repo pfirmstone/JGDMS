@@ -174,7 +174,8 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         StubVerdictRegistry stub = new StubVerdictRegistry();
         stub.setVerdictToReturn(verdict);
 
-        // INCONCLUSIVE should proceed (log WARNING but not throw).
+        // Disable strict mode: INCONCLUSIVE should proceed (log WARNING but not throw).
+        PreferredProxyCodebaseProvider.setInconclusiveStrictMode(false);
         assertTrue(PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
     }
 
@@ -997,13 +998,13 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     @Test
-    public void parseInconclusiveStrictMode_null_returnsFalse() {
-        assertFalse(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode(null));
+    public void parseInconclusiveStrictMode_null_returnsTrue() {
+        assertTrue(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode(null));
     }
 
     @Test
-    public void parseInconclusiveStrictMode_empty_returnsFalse() {
-        assertFalse(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode(""));
+    public void parseInconclusiveStrictMode_empty_returnsTrue() {
+        assertTrue(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode(""));
     }
 
     @Test
@@ -1012,8 +1013,8 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     @Test
-    public void parseInconclusiveStrictMode_otherString_returnsFalse() {
-        assertFalse(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode("yes"));
+    public void parseInconclusiveStrictMode_otherString_returnsTrue() {
+        assertTrue(PreferredProxyCodebaseProvider.parseInconclusiveStrictMode("yes"));
     }
 
     // -------------------------------------------------------------------------
@@ -1021,8 +1022,8 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     // -------------------------------------------------------------------------
 
     /**
-     * In strict mode, when {@code INCONCLUSIVEPermit} is absent from the
-     * effective policy, the INCONCLUSIVE load is refused with an
+     * In strict mode (the default), when {@code INCONCLUSIVEPermit} is absent
+     * from the effective policy, the INCONCLUSIVE load is refused with an
      * {@link IOException} whose cause is a {@link SecurityException}.
      *
      * <p>On DirtyChai, {@link java.security.AccessController#checkPermission}
@@ -1036,7 +1037,9 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         StubVerdictRegistry stub = new StubVerdictRegistry();
         stub.setVerdictToReturn(verdict);
 
-        PreferredProxyCodebaseProvider.setInconclusiveStrictMode(true);
+        // Strict mode is on by default; no need to set it explicitly.
+        assertTrue("inconclusiveStrictMode should default to true",
+                PreferredProxyCodebaseProvider.inconclusiveStrictMode);
 
         // The test policy does not grant INCONCLUSIVEPermit, so strict mode
         // must refuse the load.
@@ -1055,7 +1058,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     /**
-     * When strict mode is OFF (the default), an INCONCLUSIVE verdict always
+     * When strict mode is explicitly disabled, an INCONCLUSIVE verdict
      * proceeds regardless of any policy configuration.
      */
     @Test
@@ -1065,9 +1068,8 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         StubVerdictRegistry stub = new StubVerdictRegistry();
         stub.setVerdictToReturn(verdict);
 
-        // Strict mode should be off by default.
-        assertFalse("inconclusiveStrictMode should default to false",
-                PreferredProxyCodebaseProvider.inconclusiveStrictMode);
+        // Explicitly disable strict mode for this test.
+        PreferredProxyCodebaseProvider.setInconclusiveStrictMode(false);
 
         assertTrue(PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
     }
@@ -1078,15 +1080,15 @@ public class PreferredProxyCodebaseProviderVerdictTest {
      */
     @Test
     public void setInconclusiveStrictMode_togglesField() {
-        assertFalse("initial value should be false",
+        assertTrue("initial value should be true (strict mode is the default)",
                 PreferredProxyCodebaseProvider.inconclusiveStrictMode);
 
-        PreferredProxyCodebaseProvider.setInconclusiveStrictMode(true);
-        assertTrue("after setInconclusiveStrictMode(true) field should be true",
+        PreferredProxyCodebaseProvider.setInconclusiveStrictMode(false);
+        assertFalse("after setInconclusiveStrictMode(false) field should be false",
                 PreferredProxyCodebaseProvider.inconclusiveStrictMode);
 
         PreferredProxyCodebaseProvider.resetInconclusiveStrictMode();
-        assertFalse("after reset field should be false again",
+        assertTrue("after reset field should be true again",
                 PreferredProxyCodebaseProvider.inconclusiveStrictMode);
     }
 }
