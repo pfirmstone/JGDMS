@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v59)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v60)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,67 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v60 Change Summary
+
+**Granola Opt-3 (single-round commit) and Opt-4C (read-only hint) completed**
+
+Implemented in this version:
+
+1. **Opt-3 — Single-round commit via Lamport timestamps**
+   - New `LamportClock` (`@AtomicSerial`, `net.jini.core.transaction.server`):
+     `NO_TIMESTAMP=0L` sentinel; `tick()`, `observe(long)`, `get()` methods.
+   - New `TransactionParticipant.TimestampedVote` inner `@AtomicSerial` class
+     (fields: `vote`, `timestamp`); new `prepareWithTimestamp(mgr, id, txnTimestamp)`
+     default method (falls back to `prepare()`, returns `NO_TIMESTAMP`).
+   - New `AbstractTimestampParticipant` abstract class extending `TransactionParticipant`:
+     embeds `LamportClock`; `prepareWithTimestamp()` returns non-zero timestamp only
+     for `PREPARED` vote, `NO_TIMESTAMP` otherwise.
+   - `PrepareJob.doWork()` calls `prepareWithTimestamp(mgr, id, 0L)` instead of
+     `prepare()`; stores `tv.timestamp` in `handle.setCommitTimestamp()`.
+   - `ParticipantHandle`: new `commitTimestamp` field (default 0L); added
+     `getCommitTimestamp()`/`setCommitTimestamp(long)`; backward-compatible
+     `@AtomicSerial` deserialisation (`arg.get("commitTimestamp", 0L)`).
+   - `TxnManagerTransaction.commit()`: after `PrepareJob` returns `PREPARED`,
+     checks all handles for `commitTimestamp > 0`; if all have timestamps,
+     calls `modifyTxnState(COMMITTED)` + `log.invalidate()` and returns without
+     dispatching `CommitJob` (single-round path).
+
+2. **Opt-4C — Read-only transaction hint**
+   - `TransactionManager.TransactionConfig` inner `@AtomicSerial` class (fields:
+     `readOnly`, `isolationLevel`; constant `SERIALIZABLE=0`); new default
+     `create(long, TransactionConfig)` method on `TransactionManager`.
+   - `TxnManager` (mahalo-dl internal interface) and `TxnMgrProxy`: explicit
+     `create(long, TransactionConfig)` override dispatches remotely.
+   - `TxnManagerImpl.create(long, TransactionConfig)`: delegates to `create(long)`,
+     then calls `txntr.setReadOnly(config.readOnly)`.
+   - `TxnManagerTransaction`: new `volatile readOnly` field + `setReadOnly()`.
+     In `commit()`: if `readOnly`, skip the async pipelined `CommitRecord` write.
+     If `readOnly && result==NOTCHANGED`: call `modifyTxnState(COMMITTED)` +
+     `log.invalidate()` and return (zero disk I/O).  If `readOnly && result==PREPARED`
+     (false hint): write `CommitRecord` synchronously, then proceed with standard
+     `CommitJob`.
+
+3. **Tests** — 14 new test methods in `GranolaOptimizationsTest`:
+   `LamportClock` unit tests (5), `TimestampedVote` field preservation (1),
+   `AbstractTimestampParticipant` behaviour for PREPARED/ABORTED/NOTCHANGED (4),
+   `TransactionConfig` defaults and readOnly flag (2), single-round commit fast-path
+   and fallback (2), Opt-4C readOnly+NOTCHANGED / false-hint / non-readOnly
+   regression (3).
+
+**Files changed:**
+- `jgdms-platform/.../LamportClock.java` — new
+- `jgdms-platform/.../AbstractTimestampParticipant.java` — new
+- `jgdms-platform/.../TransactionParticipant.java` — `TimestampedVote` + `prepareWithTimestamp()`
+- `jgdms-platform/.../TransactionManager.java` — `TransactionConfig` + `create(long, TransactionConfig)`
+- `mahalo-dl/.../TxnManager.java` — explicit `create(long, TransactionConfig)` override
+- `mahalo-dl/.../TxnMgrProxy.java` — `create(long, TransactionConfig)` dispatch
+- `mahalo-service/.../ParticipantHandle.java` — `commitTimestamp` field + accessors
+- `mahalo-service/.../PrepareJob.java` — call `prepareWithTimestamp`, store timestamp
+- `mahalo-service/.../TxnManagerTransaction.java` — Opt-3 and Opt-4C commit logic
+- `mahalo-service/.../TxnManagerImpl.java` — `create(long, TransactionConfig)` override
+- `mahalo-service/.../GranolaOptimizationsTest.java` — 14 new test methods
+- `docs/.../context_10.md` — v59 → v60; WI63 + WI64 rows added to §6
 
 ## v59 Change Summary
 
@@ -1402,9 +1463,10 @@ These extend the work-item table in §12 of
 | **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerUriDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
 | **62** | DirtyChai `SecureClassLoader` Principal-aware `defineClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected final defineClass(String, byte[], int, int, CodeSource, Principal[])` and `defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to `SecureClassLoader`; JGDMS `RFC3986URLClassLoader` probes for these overloads at class init via reflection and, when found, uses them to embed server SPIFFE principals in the loaded code's `ProtectionDomain`; a new `loadClass(String, boolean, Principal[])` entry point carries principals via a `ThreadLocal` down to the `defineClass` call sites | DirtyChai + JGDMS | ✅ Complete (both JGDMS and DirtyChai sides) |
 
----
+| **63** | Granola Opt-3 — single-round commit via Lamport timestamps: `LamportClock`, `AbstractTimestampParticipant`, `TimestampedVote`, `prepareWithTimestamp()` default method on `TransactionParticipant`; `PrepareJob` calls `prepareWithTimestamp`; `TxnManagerTransaction.commit()` skips `CommitJob` when all handles carry non-zero timestamps | mahalo + jgdms-platform | ✅ Completed |
+| **64** | Granola Opt-4C — read-only transaction hint: `TransactionConfig` class + `create(long, TransactionConfig)` API; `TxnMgrProxy` dispatch; `TxnManagerImpl` override; `TxnManagerTransaction.readOnly` field; skip `CommitRecord` and `CommitJob` when `readOnly && result==NOTCHANGED`; synchronous `CommitRecord` + fallback on false hint | mahalo + jgdms-platform | ✅ Completed |
 
-## 7. Work Item 58 — DirtyChai `CodeSourceKey` Digest Fix ✅ Complete
+--- — DirtyChai `CodeSourceKey` Digest Fix ✅ Complete
 
 **File:** `src/java.base/share/classes/java/security/SecureClassLoader.java` in DirtyChai
 

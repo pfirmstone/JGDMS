@@ -194,7 +194,14 @@ class PrepareJob extends Job implements TransactionConstants {
         Object response = null;
  
         try {
-            vote = par.prepare(tr.mgr, tr.id);
+            // Opt-3: call prepareWithTimestamp() instead of prepare().
+            // For participants that do not override prepareWithTimestamp(), the
+            // default method runs locally, calls prepare() remotely, and returns
+            // TimestampedVote(vote, NO_TIMESTAMP=0) so the normal 2PC path is taken.
+            TransactionParticipant.TimestampedVote tv =
+                par.prepareWithTimestamp(tr.mgr, tr.id, 0L);
+            vote = tv.vote;
+            handle.setCommitTimestamp(tv.timestamp);
             response = Integer.valueOf(vote);
         } catch (TransactionException bte) {
             vote = ABORTED;

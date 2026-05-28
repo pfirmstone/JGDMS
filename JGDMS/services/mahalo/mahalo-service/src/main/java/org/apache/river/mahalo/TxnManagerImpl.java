@@ -646,6 +646,32 @@ class TxnManagerImpl /*extends RemoteServer*/
         return tmp;
     }
 
+    @Override
+    public TransactionManager.Created create(long lease,
+            TransactionManager.TransactionConfig config)
+            throws LeaseDeniedException
+    {
+        if (operationsLogger.isLoggable(Level.FINER)) {
+            operationsLogger.entering(
+		TxnManagerImpl.class.getName(), "create",
+	        new Object[] {Long.valueOf(lease), config});
+	}
+        if (config == null)
+            throw new NullPointerException("TransactionConfig must not be null");
+        TransactionManager.Created result = create(lease);
+        if (config.readOnly) {
+            TxnManagerTransaction txntr =
+                txns.get(Long.valueOf(result.id));
+            if (txntr != null)
+                txntr.setReadOnly(true);
+        }
+        if (operationsLogger.isLoggable(Level.FINER)) {
+            operationsLogger.exiting(
+		TxnManagerImpl.class.getName(), "create", result);
+	}
+        return result;
+    }
+
     public void
         join(long id, TransactionParticipant part, long crashCount)
         throws UnknownTransactionException, CannotJoinException,

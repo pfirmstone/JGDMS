@@ -293,4 +293,125 @@ public interface TransactionManager extends Remote, TransactionConstants {
     void abort(long id, long waitFor)
 	throws UnknownTransactionException, CannotAbortException,
 	       TimeoutExpiredException, RemoteException;
+
+    /**
+     * Begin a new top-level transaction with the supplied configuration.
+     *
+     * <p>This default implementation ignores the configuration and delegates
+     * to {@link #create(long)}, providing backward compatibility for proxies
+     * and servers that have not yet been updated to support
+     * {@link TransactionConfig}.  Upgraded servers should override this method
+     * to honour the configuration (e.g. the {@link TransactionConfig#readOnly}
+     * hint for Opt-4C).
+     *
+     * <p><b>Wire compatibility note:</b> new proxy stubs that override this
+     * method will dispatch it as a remote call to the server.  An old server
+     * that does not export this method will fail with a
+     * {@link RemoteException}.  Deploy the upgraded server before updating
+     * clients.
+     *
+     * @param lease  the requested lease time for the transaction
+     * @param config the transaction configuration; must not be {@code null}
+     * @return the transaction ID and the lease granted
+     *
+     * @throws LeaseDeniedException if this manager is unwilling to grant the
+     *         requested lease time
+     * @throws RemoteException if there is a communication error
+     */
+    default Created create(long lease, TransactionConfig config)
+            throws LeaseDeniedException, RemoteException {
+        return create(lease);
+    }
+
+    /**
+     * Parameter object that carries hints for transaction creation.
+     *
+     * <p>Clients pass a {@code TransactionConfig} to
+     * {@link TransactionManager#create(long, TransactionConfig)} to indicate
+     * properties of the transaction they are about to begin.  Hints are
+     * advisory only; the transaction manager may ignore any of them.
+     *
+     * <p>Currently defined hints:
+     * <ul>
+     *   <li>{@link #readOnly} — the client intends to perform only reads.
+     *       Mahalo uses this to skip the {@code CommitRecord} write and the
+     *       {@code CommitJob} round-trip when all participants vote
+     *       {@code NOTCHANGED} (Opt-4C).</li>
+     *   <li>{@link #isolationLevel} — the requested isolation level;
+     *       currently only {@link #SERIALIZABLE} is defined.</li>
+     * </ul>
+     */
+    @AtomicSerial
+    final class TransactionConfig implements java.io.Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        /** Serializable isolation-level constant: full serialisability. */
+        public static final int SERIALIZABLE = 0;
+
+        /** @return serialisation field descriptors */
+        public static SerialForm[] serialForm() {
+            return new SerialForm[] {
+                new SerialForm("readOnly",       Boolean.TYPE),
+                new SerialForm("isolationLevel", Integer.TYPE)
+            };
+        }
+
+        /** @AtomicSerial serialise method. */
+        public static void serialize(PutArg arg, TransactionConfig tc)
+                throws IOException {
+            arg.put("readOnly",       tc.readOnly);
+            arg.put("isolationLevel", tc.isolationLevel);
+            arg.writeArgs();
+        }
+
+        /** @AtomicSerial deserialisation constructor. */
+        public TransactionConfig(GetArg arg)
+                throws IOException, ClassNotFoundException {
+            this(arg.get("readOnly",       false),
+                 arg.get("isolationLevel", SERIALIZABLE));
+        }
+
+        /**
+         * Creates a default configuration (read-write, {@link #SERIALIZABLE}).
+         */
+        public TransactionConfig() {
+            this(false, SERIALIZABLE);
+        }
+
+        /**
+         * Creates a configuration with explicit settings.
+         *
+         * @param readOnly       {@code true} if the client intends to
+         *                       perform only reads
+         * @param isolationLevel one of the isolation-level constants defined
+         *                       on this class (currently only
+         *                       {@link #SERIALIZABLE})
+         */
+        public TransactionConfig(boolean readOnly, int isolationLevel) {
+            this.readOnly       = readOnly;
+            this.isolationLevel = isolationLevel;
+        }
+
+        /**
+         * {@code true} if the client declares this transaction to be
+         * read-only.  When {@code true} and all participants vote
+         * {@code NOTCHANGED}, Mahalo can skip both the {@code CommitRecord}
+         * write and the {@code CommitJob} entirely (Opt-4C).
+         *
+         * <p>This is a hint only: if any participant votes {@code PREPARED},
+         * Mahalo falls back to full two-phase commit regardless of this flag.
+         *
+         * @serial
+         */
+        public final boolean readOnly;
+
+        /**
+         * The requested isolation level.  Only {@link #SERIALIZABLE} is
+         * currently defined.
+         *
+         * @serial
+         */
+        public final int isolationLevel;
+    }
 }

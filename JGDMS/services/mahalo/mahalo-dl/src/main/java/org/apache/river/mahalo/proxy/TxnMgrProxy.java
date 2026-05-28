@@ -126,6 +126,13 @@ public class TxnMgrProxy implements TransactionManager, Administrable, Serializa
 	return backend.create(lease);
     }
 
+    @Override
+    public Created create(long lease, TransactionManager.TransactionConfig config)
+	throws LeaseDeniedException, RemoteException
+    {
+	return backend.create(lease, config);
+    }
+
     public void join(long id, TransactionParticipant part, long crashCount)
 	throws UnknownTransactionException, CannotJoinException,
 	       CrashCountException, RemoteException

@@ -260,6 +260,14 @@ class TxnManagerTransaction
     private final AccessControlContext context;
 
     /**
+     * When {@code true}, the client declared this transaction as read-only at
+     * creation time (Opt-4C).  Mahalo uses this flag to skip both the
+     * {@code CommitRecord} write and the {@code CommitJob} round-trip when
+     * every participant votes {@code NOTCHANGED}.
+     */
+    private volatile boolean readOnly = false;
+
+    /**
      * Constructs a <code>TxnManagerTransaction</code>
      *
      * @param mgr	<code>TransactionManager</code> which owns
@@ -319,6 +327,21 @@ class TxnManagerTransaction
 	trstate = ACTIVE;  //this is implied since ACTIVE is initial state
 	// Expires is set after object is created when the associated
 	// lease is constructed.
+    }
+
+    /**
+     * Sets the read-only hint for this transaction (Opt-4C).
+     *
+     * <p>When {@code true}, Mahalo skips the {@code CommitRecord} write and
+     * the {@code CommitJob} round-trip if every participant votes
+     * {@code NOTCHANGED}.  This is a hint only: any {@code PREPARED} vote
+     * causes a fallback to full two-phase commit regardless.
+     *
+     * @param readOnly {@code true} if the client declared the transaction
+     *        read-only at creation time
+     */
+    void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
     }
 
 
@@ -699,14 +722,18 @@ class TxnManagerTransaction
 		    // Pipeline: submit log write concurrently with prepare tasks
 		    // so that disk I/O and network I/O overlap (Granola optimisation).
 		    // The logFuture is awaited before any commit() is dispatched.
-		    final CommitRecord cr = new CommitRecord(phs);
-		    logFuture = threadpool.submit(() -> {
-			try {
-			    log.write(cr);
-			} catch (LogException e) {
-			    throw new RuntimeException(e);
-			}
-		    });
+		    // For read-only transactions, skip the log write entirely unless
+		    // a participant later votes PREPARED (Opt-4C).
+		    if (!readOnly) {
+			final CommitRecord cr = new CommitRecord(phs);
+			logFuture = threadpool.submit(() -> {
+			    try {
+				log.write(cr);
+			    } catch (LogException e) {
+				throw new RuntimeException(e);
+			    }
+			});
+		    }
 		}
 
 
@@ -809,6 +836,15 @@ class TxnManagerTransaction
 
 	    switch (result.intValue()) {
 	      case NOTCHANGED:
+		// Opt-4C: if the client declared this a read-only transaction and
+		// every participant voted NOTCHANGED, skip the commit phase entirely
+		// (no CommitRecord was written, no CommitJob is needed).
+		if (readOnly) {
+		    if (!modifyTxnState(COMMITTED))
+			throw new CannotCommitException("attempt to commit ABORTED transaction");
+		    log.invalidate();
+		    return;
+		}
 		break;
 
 	      case ABORTED:
@@ -836,6 +872,50 @@ class TxnManagerTransaction
 		//tallied the votes with an outcome of
 		//PREPARED.  In order to inform participants,
 		//a CommitJob must be scheduled.
+
+		// Opt-3: check whether all participants returned a non-zero
+		// Lamport timestamp from prepareWithTimestamp().  If so, skip
+		// the CommitJob entirely — participants are responsible for
+		// committing autonomously at max(timestamps)+1.
+		{
+		    boolean allTimestamped = true;
+		    long maxTs = 0L;
+		    for (ParticipantHandle ph : phs) {
+			long ts = ph.getCommitTimestamp();
+			if (ts == 0L) {
+			    allTimestamped = false;
+			    break;
+			}
+			if (ts > maxTs) maxTs = ts;
+		    }
+		    if (allTimestamped) {
+			// Single-round optimisation: all participants support
+			// timestamp ordering.  The CommitRecord is already durable
+			// (logFuture was awaited above). Transition directly to
+			// COMMITTED without dispatching commit RPCs.
+			if (modifyTxnState(COMMITTED)) {
+			    if (transactionsLogger.isLoggable(Level.FINEST)) {
+				transactionsLogger.log(Level.FINEST,
+				    "Opt-3: single-round commit at timestamp {0}",
+				    Long.valueOf(maxTs + 1));
+			    }
+			    log.invalidate();
+			    return;
+			}
+			throw new CannotCommitException("attempt to commit ABORTED transaction");
+		    }
+		}
+
+		// Opt-4C false-hint: client declared readOnly but at least one
+		// participant voted PREPARED.  Write the CommitRecord now
+		// (synchronously) since we skipped the pipelined write above.
+		if (readOnly) {
+		    try {
+			log.write(new CommitRecord(phs));
+		    } catch (LogException le) {
+			throw new CannotCommitException("Unable to log commit intent");
+		    }
+		}
 
 		if(modifyTxnState(COMMITTED)) {
 //TODO - log committed state record?		

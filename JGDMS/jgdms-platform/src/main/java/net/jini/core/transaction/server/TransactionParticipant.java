@@ -17,9 +17,15 @@
  */
 package net.jini.core.transaction.server;
 
+import java.io.IOException;
+import java.io.Serializable;
 import net.jini.core.transaction.UnknownTransactionException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * The interface used for participants of the two-phase commit protocol.
@@ -146,4 +152,99 @@ public interface TransactionParticipant extends Remote, TransactionConstants {
      */
     int prepareAndCommit(TransactionManager mgr, long id)
 	throws UnknownTransactionException, RemoteException;
+
+    /**
+     * Requests that the participant prepare itself to commit the transaction
+     * and return a Lamport timestamp for use in the Granola single-round
+     * commit optimisation (Opt-3).
+     *
+     * <p>This is a default method for backward compatibility.  Participants
+     * that do not override it receive a standard {@link #prepare} remote
+     * call; the returned {@link TimestampedVote} will carry
+     * {@link LamportClock#NO_TIMESTAMP} ({@code 0}), telling Mahalo to fall
+     * back to the standard two-phase-commit second round.
+     *
+     * <p>Participants that wish to enable the single-round optimisation
+     * should extend {@link AbstractTimestampParticipant} and override this
+     * method (or the whole class), returning a non-zero timestamp in the
+     * vote.  The coordinator collects all timestamps, computes
+     * {@code max + 1} as the global commit timestamp, and marks the
+     * transaction {@code COMMITTED} without dispatching a {@code CommitJob}.
+     *
+     * @param mgr the manager of the transaction
+     * @param id the transaction ID
+     * @param txnTimestamp the coordinator's current Lamport timestamp
+     *        (may be {@link LamportClock#NO_TIMESTAMP} if the coordinator
+     *        does not maintain a clock)
+     * @return a {@link TimestampedVote} carrying this participant's vote
+     *         ({@code PREPARED}, {@code NOTCHANGED}, or {@code ABORTED})
+     *         and a Lamport timestamp; a timestamp of
+     *         {@link LamportClock#NO_TIMESTAMP} signals that the
+     *         single-round optimisation is not available
+     * @throws UnknownTransactionException if the transaction is unknown
+     * @throws RemoteException if there is a communication error
+     */
+    default TimestampedVote prepareWithTimestamp(
+            TransactionManager mgr, long id, long txnTimestamp)
+            throws UnknownTransactionException, RemoteException {
+        int vote = prepare(mgr, id);
+        return new TimestampedVote(vote, LamportClock.NO_TIMESTAMP);
+    }
+
+    /**
+     * Value object returned by {@link #prepareWithTimestamp} carrying both
+     * the participant's vote and its Lamport timestamp.
+     *
+     * <p>A {@link #timestamp} of {@link LamportClock#NO_TIMESTAMP} ({@code 0})
+     * means the participant does not support timestamp-ordering and the
+     * Granola single-round optimisation is not available.
+     */
+    @AtomicSerial
+    final class TimestampedVote implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        /** The participant's vote: {@code PREPARED}, {@code NOTCHANGED}, or {@code ABORTED}. */
+        public final int vote;
+
+        /**
+         * The participant's Lamport timestamp, or
+         * {@link LamportClock#NO_TIMESTAMP} if timestamp-ordering is not
+         * supported.
+         */
+        public final long timestamp;
+
+        /** @return serialisation field descriptors */
+        public static SerialForm[] serialForm() {
+            return new SerialForm[] {
+                new SerialForm("vote",      Integer.TYPE),
+                new SerialForm("timestamp", Long.TYPE)
+            };
+        }
+
+        /** @AtomicSerial serialise method. */
+        public static void serialize(PutArg arg, TimestampedVote tv)
+                throws IOException {
+            arg.put("vote",      tv.vote);
+            arg.put("timestamp", tv.timestamp);
+            arg.writeArgs();
+        }
+
+        /** @AtomicSerial deserialisation constructor. */
+        public TimestampedVote(GetArg arg)
+                throws IOException, ClassNotFoundException {
+            this(arg.get("vote",      NOTCHANGED),
+                 arg.get("timestamp", LamportClock.NO_TIMESTAMP));
+        }
+
+        /**
+         * @param vote      the participant's vote
+         * @param timestamp the Lamport timestamp ({@link LamportClock#NO_TIMESTAMP}
+         *                  if not applicable)
+         */
+        public TimestampedVote(int vote, long timestamp) {
+            this.vote      = vote;
+            this.timestamp = timestamp;
+        }
+    }
 }

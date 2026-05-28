@@ -24,6 +24,7 @@ import org.apache.river.landlord.Landlord;
 import net.jini.lookup.ServiceProxyAccessor;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.UnknownTransactionException;
 import net.jini.core.transaction.server.TransactionManager;
@@ -55,4 +56,23 @@ public interface TxnManager extends Remote, Landlord, DestroyAdmin,
      */
     public Transaction getTransaction(long id)
 	throws RemoteException, UnknownTransactionException;
+
+    /**
+     * Begin a new top-level transaction with the supplied configuration.
+     * Overrides the default method on {@link TransactionManager} so that
+     * JERI exports this as a proper remote method on the server, allowing
+     * the coordinator-hint (e.g. {@code readOnly}) to be propagated to the
+     * Mahalo implementation.
+     *
+     * @param lease  the requested lease time
+     * @param config the transaction configuration; must not be {@code null}
+     * @return the transaction ID and the lease granted
+     *
+     * @throws LeaseDeniedException if the manager denies the lease
+     * @throws RemoteException if there is a communication error
+     */
+    @Override
+    TransactionManager.Created create(long lease,
+            TransactionManager.TransactionConfig config)
+            throws LeaseDeniedException, RemoteException;
 }
