@@ -873,6 +873,17 @@ class TxnManagerTransaction
 		//PREPARED.  In order to inform participants,
 		//a CommitJob must be scheduled.
 
+		// Opt-3 (single-round commit): if every PREPARED participant
+		// returned a non-zero Lamport timestamp it has already
+		// committed its changes locally during prepareWithTimestamp().
+		// Skip the CommitJob round entirely.
+		if (allPreparedHandlesHaveTimestamps(phs)) {
+		    if (!modifyTxnState(COMMITTED))
+			throw new CannotCommitException("attempt to commit ABORTED transaction");
+		    log.invalidate();
+		    return;
+		}
+
 		// Opt-4C false-hint: client declared readOnly but at least one
 		// participant voted PREPARED.  Write the CommitRecord now
 		// (synchronously) since we skipped the pipelined write above.
@@ -1369,6 +1380,23 @@ private List<ParticipantHandle> parthandles() {
 	return sb.toString();
     }
     
+    /**
+     * Returns {@code true} if every {@code PREPARED} handle in the supplied
+     * array carries a non-zero Lamport commit timestamp, indicating that each
+     * participant already applied its prepared changes during the
+     * {@code prepareWithTimestamp()} call (Granola Opt-3 single-round commit).
+     * {@code NOTCHANGED} handles pass trivially — they hold no locks and
+     * require no commit contact.
+     */
+    private static boolean allPreparedHandlesHaveTimestamps(ParticipantHandle[] phs) {
+        for (ParticipantHandle ph : phs) {
+            if (ph.getPrepState() == PREPARED && ph.getCommitTimestamp() == 0L) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     void restoreTransientState(ProxyPreparer preparer) 
         throws RemoteException
     {

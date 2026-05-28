@@ -61,6 +61,18 @@ import static org.junit.Assert.fail;
  *       {@code CommitRecord} / {@code AbortRecord}) is submitted to the
  *       thread pool concurrently with the participant-task phase so that
  *       disk I/O and network I/O can overlap.</li>
+ *   <li><b>Optimisation 3</b> – Granola single-round commit: when every
+ *       {@code PREPARED} participant returns a non-zero Lamport timestamp
+ *       (meaning it already self-committed via
+ *       {@link AbstractTimestampParticipant#prepareWithTimestamp}), the
+ *       coordinator skips the {@code CommitJob} round entirely and marks the
+ *       transaction {@code COMMITTED} directly.</li>
+ *   <li><b>Optimisation 4C</b> – Read-only hint: when a transaction is
+ *       created with {@code TransactionConfig.readOnly = true} and every
+ *       participant votes {@code NOTCHANGED}, neither a {@code CommitRecord}
+ *       nor a {@code CommitJob} is needed (zero disk I/O, zero network I/O).
+ *       A false hint (at least one {@code PREPARED} vote) falls back to
+ *       standard two-phase commit.</li>
  * </ul>
  *
  * <h2>Design notes</h2>
@@ -653,18 +665,19 @@ public class GranolaOptimizationsTest implements TransactionConstants {
     }
 
     // -----------------------------------------------------------------------
-    // Optimisation 3 — single-round commit (Opt-3 removed: CommitJob always dispatched)
+    // Optimisation 3 — single-round commit (Opt-3)
     // -----------------------------------------------------------------------
 
     /**
      * When every PREPARED handle carries a non-zero Lamport commit timestamp,
-     * the coordinator must still dispatch a {@link CommitJob} so that
-     * participants receive the commit signal and release their locks.
-     * With {@code waitFor=0} the CommitJob times out immediately, confirming
-     * it was scheduled.
+     * each participant has already self-committed during
+     * {@code prepareWithTimestamp()}.  The coordinator must skip
+     * {@link CommitJob} entirely and mark the transaction {@code COMMITTED}
+     * directly.  {@code commit(Long.MAX_VALUE)} must return without throwing
+     * {@link TimeoutExpiredException}.
      */
     @Test
-    public void allTimestampedHandlesStillDispatchCommitJob()
+    public void allTimestampedHandlesSkipCommitJob()
             throws Exception {
         MockLogManager logMgr = new MockLogManager();
 
@@ -677,17 +690,15 @@ public class GranolaOptimizationsTest implements TransactionConstants {
         txnT.add(h1);
         txnT.add(h2);
 
-        // CommitJob must always be dispatched for PREPARED participants.
-        // With waitFor=0 it times out immediately.
-        try {
-            txnT.commit(0L);
-            fail("Expected TimeoutExpiredException: CommitJob must be dispatched for PREPARED participants");
-        } catch (TimeoutExpiredException e) {
-            // expected: CommitJob was scheduled but timed out with waitFor=0
-        }
+        // Single-round path: CommitJob must NOT be dispatched.
+        // commit() must return without a TimeoutExpiredException.
+        txnT.commit(Long.MAX_VALUE);
 
-        // CommitRecord must have been written before CommitJob was dispatched
-        assertEquals("CommitRecord written once", 1, logMgr.log.writeCount.get());
+        // The pipelined CommitRecord write ran concurrently with PrepareJob;
+        // after it was written, the Opt-3 path called log.invalidate() to
+        // signal completion without a separate commit round.
+        assertEquals("CommitRecord written by pipelined write", 1, logMgr.log.writeCount.get());
+        assertEquals("Log invalidated after single-round commit", 1, logMgr.log.invalidateCount.get());
     }
 
     /**

@@ -37,23 +37,24 @@ import net.jini.core.transaction.UnknownTransactionException;
  *   <li>if the vote is {@code PREPARED}, advances the
  *       clock using the coordinator's {@code txnTimestamp} (Lamport
  *       observe-and-tick rule);</li>
+ *   <li>calls {@link #commit} so that the participant's prepared changes are
+ *       applied locally before the method returns — this is the key enabling
+ *       step for the single-round optimisation;</li>
  *   <li>returns a {@link TransactionParticipant.TimestampedVote} with the
  *       updated timestamp, signalling to Mahalo that the single-round path
  *       is available for this participant.</li>
  * </ol>
  *
  * <p>A non-zero timestamp in the returned vote signals to Mahalo that this
- * participant is ready for the single-round optimisation: after collecting
- * all votes with non-zero timestamps, Mahalo computes
- * {@code max(timestamps) + 1} as the global commit timestamp and marks the
- * transaction {@code COMMITTED} without dispatching a second
- * {@code CommitJob} round.  Participants that return non-zero timestamps
- * from this method are responsible for applying their prepared changes
- * autonomously once they observe the global commit timestamp (the Granola
- * independent-transaction semantics).
+ * participant has already applied its prepared changes.  After collecting
+ * all votes with non-zero timestamps, Mahalo marks the transaction
+ * {@code COMMITTED} without dispatching a second {@code CommitJob} round.
+ * Any subsequent {@link #commit} call from the coordinator must be treated
+ * as a no-op by the subclass (idempotent commit contract).
  *
- * <p>Participants that are not prepared to commit autonomously should
- * <em>not</em> extend this class; Mahalo will then fall back to standard
+ * <p>Participants whose {@link #commit} implementation is not idempotent, or
+ * that cannot safely self-commit during the prepare phase, should
+ * <em>not</em> extend this class.  Mahalo falls back to standard
  * two-phase commit for any transaction that involves at least one participant
  * returning {@link LamportClock#NO_TIMESTAMP}.
  *
@@ -97,18 +98,28 @@ public abstract class AbstractTimestampParticipant
     }
 
     /**
-     * Prepares the transaction and returns a {@link TransactionParticipant.TimestampedVote}
-     * with a Lamport timestamp, enabling the Granola single-round commit
-     * optimisation.
+     * Prepares the transaction, self-commits, and returns a
+     * {@link TransactionParticipant.TimestampedVote} with a Lamport timestamp,
+     * enabling the Granola single-round commit optimisation.
      *
      * <p>This implementation calls {@link #prepare(TransactionManager, long)}.
-     * If and only if the vote is {@code PREPARED}, the internal Lamport clock
-     * is advanced via {@link LamportClock#observe(long)} using
-     * {@code txnTimestamp}, and the updated timestamp is included in the
-     * returned vote (always {@code > 0}).  For all other votes
-     * ({@code NOTCHANGED}, {@code ABORTED}) {@link LamportClock#NO_TIMESTAMP}
-     * is returned so that Mahalo falls back to standard two-phase commit for
-     * any transaction that involves such participants.
+     * If and only if the vote is {@code PREPARED}:
+     * <ol>
+     *   <li>the internal Lamport clock is advanced via
+     *       {@link LamportClock#observe(long)} using {@code txnTimestamp};</li>
+     *   <li>{@link #commit(TransactionManager, long)} is called to apply the
+     *       prepared changes locally — enabling Mahalo to skip the
+     *       {@code CommitJob} round entirely when all participants return a
+     *       non-zero timestamp.</li>
+     * </ol>
+     * For all other votes ({@code NOTCHANGED}, {@code ABORTED})
+     * {@link LamportClock#NO_TIMESTAMP} is returned so that Mahalo falls back
+     * to standard two-phase commit for any transaction that involves such
+     * participants.
+     *
+     * <p>Subclass implementations of {@link #commit} must be idempotent: if
+     * Mahalo does send a {@code commit()} RPC after recovering from a crash,
+     * the call must be handled gracefully (e.g. treated as a no-op).
      *
      * {@inheritDoc}
      */
@@ -119,6 +130,10 @@ public abstract class AbstractTimestampParticipant
         int vote = prepare(mgr, id);
         if (vote == PREPARED) {
             long ts = clock.observe(txnTimestamp);
+            // Self-commit: apply prepared changes locally before returning.
+            // This is the key step that allows Mahalo to skip the CommitJob
+            // round (Granola Opt-3 single-round commit).
+            commit(mgr, id);
             return new TimestampedVote(PREPARED, ts);
         }
         return new TimestampedVote(vote, LamportClock.NO_TIMESTAMP);
