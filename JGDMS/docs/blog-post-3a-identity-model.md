@@ -87,6 +87,8 @@ DirtyChai introduces a sealed `Subject` hierarchy with three distinct identity l
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+![The Thread Identity Stack: decorative illustration of three simultaneous principals on every dispatch thread as a layered cake](images/three-layer-thread-stack.svg)
+
 ---
 
 ## Layer 1 — WorkerSubject: The Ambient Process Identity

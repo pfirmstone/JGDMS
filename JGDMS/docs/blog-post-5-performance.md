@@ -16,6 +16,8 @@ This post describes how DirtyChai and JGDMS break that trade-off — not by igno
 designing the infrastructure so that the security properties described in Parts 1–4 *reinforce*
 performance rather than undermining it.
 
+![The Lock-Free Expressway: decorative illustration of virtual threads speeding through lock-free policy checks while legacy threads queue at a global lock](images/lock-free-expressway.svg)
+
 ---
 
 ## Virtual Thread Support: The DomainIdentity Problem

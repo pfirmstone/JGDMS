@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 530">
+  <!-- Light background -->
+  <rect width="700" height="530" fill="#FEFDF8" rx="10"/>
+
+  <!-- Title -->
+  <text x="350" y="40" text-anchor="middle"
+        font-family="Georgia,serif" font-size="26" font-weight="bold" fill="#2c1a00">
+    The Thread Identity Stack&#8482;
+  </text>
+  <text x="350" y="63" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="13" fill="#666">
+    Three principals. Every dispatch thread. No single-factor stacks permitted.
+  </text>
+
+  <!-- ===== CANDLES (above Tier 1) ===== -->
+  <!-- Left candle — UserSubject cream -->
+  <rect x="176" y="68" width="10" height="34" rx="2" fill="#E8D5B7" stroke="#C8A860" stroke-width="1"/>
+  <ellipse cx="181" cy="63" rx="5.5" ry="8.5" fill="#FF8C00"/>
+  <ellipse cx="181" cy="59" rx="3" ry="5.5" fill="#FFE040"/>
+  <!-- Centre candle — Remote ACC amber -->
+  <rect x="230" y="63" width="10" height="39" rx="2" fill="#C87941" stroke="#A05820" stroke-width="1"/>
+  <ellipse cx="235" cy="58" rx="5.5" ry="8.5" fill="#FF8C00"/>
+  <ellipse cx="235" cy="54" rx="3" ry="5.5" fill="#FFE040"/>
+  <!-- Right candle — WorkerSubject espresso -->
+  <rect x="284" y="68" width="10" height="34" rx="2" fill="#5D2E0C" stroke="#3D1E08" stroke-width="1"/>
+  <ellipse cx="289" cy="63" rx="5.5" ry="8.5" fill="#FF8C00"/>
+  <ellipse cx="289" cy="59" rx="3" ry="5.5" fill="#FFE040"/>
+
+  <!-- ===== TIER 1 — UserSubject (top, narrowest) ===== -->
+  <!-- x=120..370, y=102..188 -->
+  <rect x="120" y="102" width="250" height="86" fill="#E8D5B7"/>
+  <!-- Frosting band -->
+  <rect x="120" y="102" width="250" height="18" rx="2" fill="#F5EDD8"/>
+  <!-- Frosting drips -->
+  <path d="M120 120 Q133 128 146 120 Q159 128 172 120 Q185 128 198 120
+           Q211 128 224 120 Q237 128 250 120 Q263 128 276 120
+           Q289 128 302 120 Q315 128 328 120 Q341 128 354 120 Q367 128 370 120"
+        fill="#E8D090"/>
+  <!-- Sprinkles -->
+  <rect x="150" y="107" width="11" height="4" rx="2" fill="#C87941" transform="rotate(-22,155,109)"/>
+  <rect x="190" y="108" width="11" height="4" rx="2" fill="#5D2E0C" transform="rotate(14,195,110)"/>
+  <rect x="228" y="106" width="11" height="4" rx="2" fill="#C87941" transform="rotate(-9,233,108)"/>
+  <rect x="263" y="109" width="11" height="4" rx="2" fill="#5D2E0C" transform="rotate(26,268,111)"/>
+  <rect x="300" y="107" width="11" height="4" rx="2" fill="#C87941" transform="rotate(-16,305,109)"/>
+  <rect x="335" y="108" width="11" height="4" rx="2" fill="#5D2E0C" transform="rotate(10,340,110)"/>
+  <!-- Tier text -->
+  <text x="235" y="142" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="12" font-weight="900" fill="#2c1a00">
+    UserSubject
+  </text>
+  <text x="235" y="158" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#5a3a00">
+    JWT / OIDC · human user identity
+  </text>
+  <text x="235" y="173" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#5a3a00">
+    per-request · Subject.callAs()
+  </text>
+  <!-- Annotation line + label -->
+  <line x1="372" y1="145" x2="456" y2="145" stroke="#8B6914" stroke-width="2"/>
+  <text x="460" y="139" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#8B6914">Layer 3 — User Identity</text>
+  <text x="460" y="153" font-family="Arial,sans-serif" font-size="10" fill="#666">Installed per-request via callAs()</text>
+
+  <!-- ===== TIER 2 — Remote Process ACC (middle) ===== -->
+  <!-- x=80..420, y=188..305 -->
+  <rect x="80" y="188" width="340" height="117" fill="#C87941"/>
+  <!-- Frosting band -->
+  <rect x="80" y="188" width="340" height="18" rx="2" fill="#D8924A"/>
+  <!-- Frosting drips -->
+  <path d="M80 206 Q94 214 108 206 Q122 214 136 206 Q150 214 164 206
+           Q178 214 192 206 Q206 214 220 206 Q234 214 248 206
+           Q262 214 276 206 Q290 214 304 206 Q318 214 332 206
+           Q346 214 360 206 Q374 214 388 206 Q402 214 416 206 Q420 206 420 206"
+        fill="#E8A040"/>
+  <!-- Tier text -->
+  <text x="235" y="232" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="12" font-weight="900" fill="white">
+    Remote Process ACC
+  </text>
+  <text x="235" y="250" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#fff3e8">
+    serialized AccessControlContext · transmitted over JERI wire
+  </text>
+  <text x="235" y="266" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#fff3e8">
+    verifiable DomainIdentityRecords + anonCount domains
+  </text>
+  <text x="235" y="282" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#fff3e8">
+    shed at doPrivileged · caller context only
+  </text>
+  <!-- Annotation line + label -->
+  <line x1="422" y1="244" x2="456" y2="244" stroke="#C87941" stroke-width="2"/>
+  <text x="460" y="238" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#C87941">Layer 2 — Remote Process</text>
+  <text x="460" y="252" font-family="Arial,sans-serif" font-size="10" fill="#666">Wire-borne · shed at doPrivileged</text>
+
+  <!-- ===== TIER 3 — WorkerSubject (bottom, widest) ===== -->
+  <!-- x=40..460, y=305..410 -->
+  <rect x="40" y="305" width="420" height="105" fill="#5D2E0C"/>
+  <!-- Frosting band -->
+  <rect x="40" y="305" width="420" height="18" rx="2" fill="#7A3D12"/>
+  <!-- Frosting drips -->
+  <path d="M40 323 Q57 331 74 323 Q91 331 108 323 Q125 331 142 323
+           Q159 331 176 323 Q193 331 210 323 Q227 331 244 323
+           Q261 331 278 323 Q295 331 312 323 Q329 331 346 323
+           Q363 331 380 323 Q397 331 414 323 Q431 331 448 323 Q460 323 460 323"
+        fill="#6B3018"/>
+  <!-- Tier text -->
+  <text x="235" y="352" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="12" font-weight="900" fill="white">
+    WorkerSubject
+  </text>
+  <text x="235" y="369" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#ffccaa">
+    SPIFFE SVID · process workload identity
+  </text>
+  <text x="235" y="385" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#ffccaa">
+    ambient · baked into every ProtectionDomain at class-load time
+  </text>
+  <text x="235" y="401" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#ffccaa">
+    survives all doPrivileged boundaries · never reinstalled
+  </text>
+  <!-- Annotation line + label -->
+  <line x1="462" y1="362" x2="456" y2="362" stroke="#5D2E0C" stroke-width="2"/>
+  <line x1="462" y1="362" x2="476" y2="362" stroke="#5D2E0C" stroke-width="2"/>
+  <text x="480" y="356" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#5D2E0C">Layer 1 — Process Worker</text>
+  <text x="480" y="370" font-family="Arial,sans-serif" font-size="10" fill="#666">Ambient · always present</text>
+
+  <!-- ===== PLATE ===== -->
+  <rect x="14" y="415" width="462" height="28" rx="14" fill="#D4B896"/>
+  <ellipse cx="245" cy="416" rx="230" ry="13" fill="#E8D0A0"/>
+  <text x="245" y="436" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" font-style="italic" fill="#5a3a00">
+    Dispatch Thread
+  </text>
+
+  <!-- ===== FOOTER ===== -->
+  <text x="350" y="468" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="11" fill="#888">
+    All three layers are simultaneously active. No layer dominates. No principal is optional.
+  </text>
+  <text x="350" y="485" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" fill="#aaa">
+    DirtyChai · JGDMS · Three-Principal Security Model
+  </text>
+</svg>
