@@ -662,8 +662,13 @@ class TxnManagerImpl /*extends RemoteServer*/
         if (config.readOnly) {
             TxnManagerTransaction txntr =
                 txns.get(Long.valueOf(result.id));
-            if (txntr != null)
+            if (txntr != null) {
                 txntr.setReadOnly(true);
+            } else {
+                operationsLogger.log(Level.WARNING,
+                    "readOnly hint lost: transaction {0} was already removed from the active-transactions map",
+                    Long.valueOf(result.id));
+            }
         }
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(

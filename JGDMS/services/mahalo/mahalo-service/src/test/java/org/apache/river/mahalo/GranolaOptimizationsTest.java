@@ -653,18 +653,18 @@ public class GranolaOptimizationsTest implements TransactionConstants {
     }
 
     // -----------------------------------------------------------------------
-    // Optimisation 3 — single-round commit
+    // Optimisation 3 — single-round commit (Opt-3 removed: CommitJob always dispatched)
     // -----------------------------------------------------------------------
 
     /**
-     * When every PREPARED handle carries a non-zero Lamport commit timestamp
-     * (Opt-3), the coordinator must skip CommitJob and commit the transaction
-     * in a single round.  With {@code waitFor=0} and the single-round path
-     * taken, {@code commit()} must return normally; a {@link TimeoutExpiredException}
-     * would indicate the fallback two-phase CommitJob was scheduled instead.
+     * When every PREPARED handle carries a non-zero Lamport commit timestamp,
+     * the coordinator must still dispatch a {@link CommitJob} so that
+     * participants receive the commit signal and release their locks.
+     * With {@code waitFor=0} the CommitJob times out immediately, confirming
+     * it was scheduled.
      */
     @Test
-    public void singleRoundCommitSkipsCommitJobWhenAllTimestamped()
+    public void allTimestampedHandlesStillDispatchCommitJob()
             throws Exception {
         MockLogManager logMgr = new MockLogManager();
 
@@ -677,17 +677,17 @@ public class GranolaOptimizationsTest implements TransactionConstants {
         txnT.add(h1);
         txnT.add(h2);
 
-        // waitFor=0: if CommitJob is scheduled the TimeoutExpiredException is
-        // thrown before tasks complete; single-round path returns immediately.
+        // CommitJob must always be dispatched for PREPARED participants.
+        // With waitFor=0 it times out immediately.
         try {
             txnT.commit(0L);
+            fail("Expected TimeoutExpiredException: CommitJob must be dispatched for PREPARED participants");
         } catch (TimeoutExpiredException e) {
-            fail("Opt-3 single-round path should not schedule CommitJob: " + e);
+            // expected: CommitJob was scheduled but timed out with waitFor=0
         }
 
+        // CommitRecord must have been written before CommitJob was dispatched
         assertEquals("CommitRecord written once", 1, logMgr.log.writeCount.get());
-        assertEquals("Log must be invalidated after single-round commit",
-                1, logMgr.log.invalidateCount.get());
     }
 
     /**
@@ -805,6 +805,46 @@ public class GranolaOptimizationsTest implements TransactionConstants {
         assertEquals("CommitRecord must be written for non-readOnly transaction",
                 1, logMgr.log.writeCount.get());
         assertEquals("Log must be invalidated", 1, logMgr.log.invalidateCount.get());
+    }
+
+    // -----------------------------------------------------------------------
+    // Input validation — TimestampedVote
+    // -----------------------------------------------------------------------
+
+    /** A negative timestamp must be rejected. */
+    @Test(expected = IllegalArgumentException.class)
+    public void timestampedVoteRejectsNegativeTimestamp() {
+        new TransactionParticipant.TimestampedVote(PREPARED, -1L);
+    }
+
+    /** An unknown vote value (not PREPARED/NOTCHANGED/ABORTED) must be rejected. */
+    @Test(expected = IllegalArgumentException.class)
+    public void timestampedVoteRejectsInvalidVote() {
+        new TransactionParticipant.TimestampedVote(99, 0L);
+    }
+
+    /** COMMITTED is not a valid vote from {@code prepareWithTimestamp} and must be rejected. */
+    @Test(expected = IllegalArgumentException.class)
+    public void timestampedVoteRejectsCommittedVote() {
+        new TransactionParticipant.TimestampedVote(COMMITTED, 0L);
+    }
+
+    // -----------------------------------------------------------------------
+    // Input validation — LamportClock overflow
+    // -----------------------------------------------------------------------
+
+    /** {@code observe(Long.MAX_VALUE)} must throw {@code ArithmeticException}. */
+    @Test(expected = ArithmeticException.class)
+    public void lamportClockObserveThrowsOnOverflow() {
+        LamportClock clock = new LamportClock();
+        clock.observe(Long.MAX_VALUE);
+    }
+
+    /** {@code tick()} on a clock at {@code Long.MAX_VALUE} must throw {@code ArithmeticException}. */
+    @Test(expected = ArithmeticException.class)
+    public void lamportClockTickThrowsOnOverflow() {
+        LamportClock clock = new LamportClock(Long.MAX_VALUE);
+        clock.tick();
     }
 
     // -----------------------------------------------------------------------

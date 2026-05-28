@@ -873,39 +873,6 @@ class TxnManagerTransaction
 		//PREPARED.  In order to inform participants,
 		//a CommitJob must be scheduled.
 
-		// Opt-3: check whether all participants returned a non-zero
-		// Lamport timestamp from prepareWithTimestamp().  If so, skip
-		// the CommitJob entirely — participants are responsible for
-		// committing autonomously at max(timestamps)+1.
-		{
-		    boolean allTimestamped = true;
-		    long maxTs = 0L;
-		    for (ParticipantHandle ph : phs) {
-			long ts = ph.getCommitTimestamp();
-			if (ts == 0L) {
-			    allTimestamped = false;
-			    break;
-			}
-			if (ts > maxTs) maxTs = ts;
-		    }
-		    if (allTimestamped) {
-			// Single-round optimisation: all participants support
-			// timestamp ordering.  The CommitRecord is already durable
-			// (logFuture was awaited above). Transition directly to
-			// COMMITTED without dispatching commit RPCs.
-			if (modifyTxnState(COMMITTED)) {
-			    if (transactionsLogger.isLoggable(Level.FINEST)) {
-				transactionsLogger.log(Level.FINEST,
-				    "Opt-3: single-round commit at timestamp {0}",
-				    Long.valueOf(maxTs + 1));
-			    }
-			    log.invalidate();
-			    return;
-			}
-			throw new CannotCommitException("attempt to commit ABORTED transaction");
-		    }
-		}
-
 		// Opt-4C false-hint: client declared readOnly but at least one
 		// participant voted PREPARED.  Write the CommitRecord now
 		// (synchronously) since we skipped the pipelined write above.

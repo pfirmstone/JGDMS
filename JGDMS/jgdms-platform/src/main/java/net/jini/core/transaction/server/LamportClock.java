@@ -123,7 +123,13 @@ public final class LamportClock implements Serializable {
      * @return the updated local timestamp (always {@code > 0})
      */
     public long observe(long remoteTimestamp) {
-        return clock.updateAndGet(local -> Math.max(local, remoteTimestamp) + 1);
+        return clock.updateAndGet(local -> {
+            long maxVal = Math.max(local, remoteTimestamp);
+            if (maxVal == Long.MAX_VALUE)
+                throw new ArithmeticException(
+                        "LamportClock overflow: cannot increment past Long.MAX_VALUE");
+            return maxVal + 1;
+        });
     }
 
     /**
@@ -132,7 +138,12 @@ public final class LamportClock implements Serializable {
      * @return the new timestamp (always {@code > 0})
      */
     public long tick() {
-        return clock.incrementAndGet();
+        return clock.updateAndGet(v -> {
+            if (v == Long.MAX_VALUE)
+                throw new ArithmeticException(
+                        "LamportClock overflow: cannot increment past Long.MAX_VALUE");
+            return v + 1;
+        });
     }
 
     /**

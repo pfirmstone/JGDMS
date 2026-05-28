@@ -233,16 +233,39 @@ public interface TransactionParticipant extends Remote, TransactionConstants {
         /** @AtomicSerial deserialisation constructor. */
         public TimestampedVote(GetArg arg)
                 throws IOException, ClassNotFoundException {
-            this(arg.get("vote",      NOTCHANGED),
-                 arg.get("timestamp", LamportClock.NO_TIMESTAMP));
+            this(checkVote(arg.get("vote",      NOTCHANGED)),
+                 checkTimestamp(arg.get("timestamp", LamportClock.NO_TIMESTAMP)));
+        }
+
+        private static int checkVote(int vote) throws IOException {
+            if (vote != PREPARED && vote != NOTCHANGED && vote != ABORTED)
+                throw new IOException(
+                        "TimestampedVote: invalid vote value: " + vote);
+            return vote;
+        }
+
+        private static long checkTimestamp(long timestamp) throws IOException {
+            if (timestamp < 0)
+                throw new IOException(
+                        "TimestampedVote: timestamp must be >= 0, got: " + timestamp);
+            return timestamp;
         }
 
         /**
          * @param vote      the participant's vote
          * @param timestamp the Lamport timestamp ({@link LamportClock#NO_TIMESTAMP}
          *                  if not applicable)
+         * @throws IllegalArgumentException if {@code vote} is not one of
+         *         {@code PREPARED}, {@code NOTCHANGED}, or {@code ABORTED}, or
+         *         if {@code timestamp} is negative
          */
         public TimestampedVote(int vote, long timestamp) {
+            if (vote != PREPARED && vote != NOTCHANGED && vote != ABORTED)
+                throw new IllegalArgumentException(
+                        "TimestampedVote: invalid vote value: " + vote);
+            if (timestamp < 0)
+                throw new IllegalArgumentException(
+                        "TimestampedVote: timestamp must be >= 0, got: " + timestamp);
             this.vote      = vote;
             this.timestamp = timestamp;
         }

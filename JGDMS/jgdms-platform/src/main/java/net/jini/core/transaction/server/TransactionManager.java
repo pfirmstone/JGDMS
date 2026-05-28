@@ -369,7 +369,14 @@ public interface TransactionManager extends Remote, TransactionConstants {
         public TransactionConfig(GetArg arg)
                 throws IOException, ClassNotFoundException {
             this(arg.get("readOnly",       false),
-                 arg.get("isolationLevel", SERIALIZABLE));
+                 checkIsolationLevel(arg.get("isolationLevel", SERIALIZABLE)));
+        }
+
+        private static int checkIsolationLevel(int level) throws IOException {
+            if (level != SERIALIZABLE)
+                throw new IOException(
+                        "TransactionConfig: unknown isolationLevel: " + level);
+            return level;
         }
 
         /**
