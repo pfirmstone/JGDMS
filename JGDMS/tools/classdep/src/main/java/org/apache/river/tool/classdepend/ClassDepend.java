@@ -284,6 +284,11 @@ public class ClassDepend {
                                 computeNext.addAll(providerClassNames);
 			    } catch (IOException e) {
 				noteClassLoadingFailed(name, e);
+                            } catch (IllegalArgumentException e) {
+                                // ASM cannot parse this class file version (e.g. a newer JDK
+                                // platform class exposed via ClassLoader.getResourceAsStream).
+                                // Treat it as not-found so dependency traversal continues.
+                                noteClassNotFound(name);
 			    } finally {
 				try {
 				    in.close();

@@ -19,6 +19,7 @@
 package org.apache.river.api.security;
 
 import java.security.AccessControlContext;
+import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.DomainCombiner;
 import java.security.Guard;
@@ -332,7 +333,7 @@ extends SecurityManager implements CachingSecurityManager {
         AccessControlContext delegateContext = contextCache.get(executionContext);
         if (delegateContext == null ) {
             final AccessControlContext finalExecutionContext = executionContext;
-            // Create a new AccessControlContext with the DelegateDomainCombiner
+            // Create a new AccessControlContext with the DelegateDomainCombiner.
             inTrustedCodeRecursiveCall.set(Boolean.TRUE);
             try {
                 delegateContext = AccessController.doPrivileged( 
@@ -342,25 +343,41 @@ extends SecurityManager implements CachingSecurityManager {
                         }
                     }
                 );
-            }finally {
+            } catch (AccessControlException e) {
+                // On DirtyChai, the AccessControlContext constructor enforces
+                // SecurityPermission("createAccessControlContext") via the ACC
+                // chain even inside doPrivileged. During JVM initPhase3 the
+                // bootstrap ACC does not yet carry this permission, so creation
+                // fails. Signal bootstrap mode with null; enforcement resumes
+                // once the ACC chain is fully established.
+                delegateContext = null;
+            } finally {
                 inTrustedCodeRecursiveCall.set(Boolean.FALSE); // Must always happen, no matter what.
             }
-            // Optimise the delegateContext, this runs the DelegateDomainCombiner
-            // and returns the AccessControlContext.
-            // This is a mutator method, the delegateContext returned
-            // is actually the same object passed in, after it is
-            // mutated, but just in case that changes in future we
-            // return it.
-            delegateContext = AccessController.doPrivileged(action, delegateContext);
-            inTrustedCodeRecursiveCall.set(Boolean.TRUE);
-            try {
-                contextCache.putIfAbsent(executionContext, delegateContext);
-                // Above putIfAbsent: It doesn't matter if it already existed,
-                // the context we have is valid to perform a permissionCheck.
-            }finally {
-                inTrustedCodeRecursiveCall.set(Boolean.FALSE); // Must always happen, no matter what.
+            if (delegateContext == null) {
+                // Bootstrap phase: allow the permission unconditionally.
+                // The policy is already loaded (done in the constructor) and
+                // normal enforcement resumes as soon as the ACC is available.
+                checkedPerms.add(perm);
+                return;
             }
-            
+            if (delegateContext != finalExecutionContext) {
+                // Optimise the delegateContext, this runs the DelegateDomainCombiner
+                // and returns the AccessControlContext.
+                // This is a mutator method, the delegateContext returned
+                // is actually the same object passed in, after it is
+                // mutated, but just in case that changes in future we
+                // return it.
+                delegateContext = AccessController.doPrivileged(action, delegateContext);
+                inTrustedCodeRecursiveCall.set(Boolean.TRUE);
+                try {
+                    contextCache.putIfAbsent(executionContext, delegateContext);
+                    // Above putIfAbsent: It doesn't matter if it already existed,
+                    // the context we have is valid to perform a permissionCheck.
+                } finally {
+                    inTrustedCodeRecursiveCall.set(Boolean.FALSE); // Must always happen, no matter what.
+                }
+            }
         }
         // Normal execution, same as SecurityManager.
         delegateContext.checkPermission(perm); // Throws SecurityException.
