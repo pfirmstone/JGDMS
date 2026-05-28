@@ -80,7 +80,12 @@ public interface TransactionParticipant extends Remote {
 
     /**
      * Value object returned by {@link #prepareWithTimestamp}.
+     *
+     * <p>Uses {@code @AtomicSerial} (JGDMS convention for all wire-serialisable
+     * types) so that field invariants are validated atomically before the
+     * object instance is created during deserialisation.
      */
+    @AtomicSerial
     final class TimestampedVote implements java.io.Serializable {
         private static final long serialVersionUID = 1L;
         /** One of {@code TransactionConstants.PREPARED}, {@code NOTCHANGED},
@@ -93,9 +98,16 @@ public interface TransactionParticipant extends Remote {
          */
         public final long timestamp;
 
+        /** Normal constructor. */
         public TimestampedVote(int vote, long timestamp) {
             this.vote = vote;
             this.timestamp = timestamp;
+        }
+
+        /** {@code @AtomicSerial} deserialisation constructor. */
+        public TimestampedVote(GetArg args) throws IOException, ClassNotFoundException {
+            this(args.get("vote", 0),
+                 args.get("timestamp", 0L));
         }
     }
 
@@ -174,8 +186,9 @@ the commit round.
   non-trivial.
 - **Mixed cohort** still requires two rounds; no optimization is gained when
   even one participant returns `timestamp == 0`.
-- `TimestampedVote` is a new serialisable type; upgrading the participant
-  interface requires coordinating class availability on the wire.
+- `TimestampedVote` is a new `@AtomicSerial` wire type; upgrading the
+  participant interface requires coordinating class availability on both
+  sides of the wire.
 - **Requires deeper investigation** into:
   - Whether `ParticipantHandle` serialisation/persistence strategy needs
     updating for the new `commitTimestamp` field.
@@ -261,12 +274,33 @@ default Created createReadOnly(long lease)
  * Configuration bag for transaction creation.
  * Additional hints (isolation level, priority, etc.) can be added in
  * future without changing the method signature.
+ *
+ * Uses {@code @AtomicSerial} (JGDMS convention for all wire-serialisable
+ * types) for safe, atomic deserialisation.
  */
+@AtomicSerial
 final class TransactionConfig implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
     /** True if the caller guarantees no participant will modify state. */
-    public boolean readOnly = false;
+    public final boolean readOnly;
     /** Requested isolation level (reserved for future use). */
-    public int isolationLevel = SERIALIZABLE;
+    public final int isolationLevel;
+
+    /** Default constructor — read-write, serializable isolation. */
+    public TransactionConfig() {
+        this(false, SERIALIZABLE);
+    }
+
+    public TransactionConfig(boolean readOnly, int isolationLevel) {
+        this.readOnly = readOnly;
+        this.isolationLevel = isolationLevel;
+    }
+
+    /** {@code @AtomicSerial} deserialisation constructor. */
+    public TransactionConfig(GetArg args) throws IOException, ClassNotFoundException {
+        this(args.get("readOnly", false),
+             args.get("isolationLevel", SERIALIZABLE));
+    }
 }
 
 /**
@@ -334,8 +368,9 @@ This behaviour is appropriate because:
 - **Requires deeper investigation** into:
   - Interaction with `NestableTransactionManager` (nested transactions may
     upgrade read-only to read-write).
-  - Whether `TransactionConfig` (Option C) should be `AtomicSerial`-annotated
-    for JGDMS serialisation safety, and what the migration story is.
+  - `TransactionConfig` (Option C) uses `@AtomicSerial` as required by
+    JGDMS convention for all wire-serialisable types.  The migration story
+    (how existing callers adopt the new type) needs to be defined.
   - Security: a malicious client could declare read-only but register a
     writing participant; the manager's fallback logic must handle this without
     privilege escalation.
