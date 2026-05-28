@@ -140,12 +140,12 @@ code.
 
 ## ProtectionDomain Principal Injection
 
-On DirtyChai, two complementary injection paths combine to populate every proxy `ProtectionDomain`
+JGDMS and DirtyChai, have two complementary injection paths combine to populate every proxy `ProtectionDomain`
 with the full trust context:
 
 | Class | What it injects | How |
 |---|---|---|
-| `RFC3986URLClassLoader` (5-arg) / `PreferredClassLoader` (7-arg) | Server's `Principal[]` | `final` field passed at construction; injected into each `ProtectionDomain` at `defineClass` time |
+| JGDMS `RFC3986URLClassLoader` (5-arg) / `PreferredClassLoader` (7-arg) | Server's `Principal[]` | `final` field passed at construction; injected into each `ProtectionDomain` at `defineClass` time |
 | DirtyChai `SecureClassLoader` | Client's process `Principal[]` + `DigestCodeSource` (codebase SHA-256) | Called by the JDK's class-loading machinery at class-load time |
 
 The combined result is a `ProtectionDomain` that carries both sides of the call and the codebase
