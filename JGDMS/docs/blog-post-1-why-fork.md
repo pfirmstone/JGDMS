@@ -13,7 +13,7 @@ organisations finished moving to it, the APIs they depended on were already sche
 Java 24 delivered on that promise. The result is a JVM that can no longer restrict the actions of
 code it loads from a remote source.
 
-That removal is the inciting event for Dirty Chai, but existential for both projects described here.
+That removal is the inciting event for Dirty Chai, but existential for both projects described here.  This may have proven fortuitous, since it triggered a rethink of the whole security archicture, where previously we remained within the confines of standard platform API's.
 
 A second thread runs through this story: the service-discovery model. gRPC and REST service meshes
 are address-based — you call a URL. Jini (the protocol that Apache River implements) is
