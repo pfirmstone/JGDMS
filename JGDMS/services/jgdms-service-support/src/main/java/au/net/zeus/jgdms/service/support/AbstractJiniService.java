@@ -39,6 +39,7 @@ import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.CodebaseAccessor;
+import net.jini.export.CodebaseDigestUtil;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
@@ -124,6 +125,24 @@ public abstract class AbstractJiniService
     private final String certFactoryType;
     private final String certPathEncoding;
     private final byte[] encodedCerts;
+
+    /**
+     * Cached per-JAR flat digest array; {@code null} until computed in
+     * {@link #doStart()}, or if the codebase annotation contains no JAR URLs.
+     */
+    private volatile byte[] codebaseDigestFlat;
+
+    /**
+     * Per-JAR start-byte offsets into {@link #codebaseDigestFlat};
+     * {@code null} when {@link #codebaseDigestFlat} is {@code null}.
+     */
+    private volatile int[] codebaseDigestOffsets;
+
+    /**
+     * Algorithm used to compute {@link #codebaseDigestFlat}
+     * (e.g. {@code "SHA-256"}); {@code null} when no digest was computed.
+     */
+    private volatile String codebaseDigestAlgorithm;
     private final LifeCycle lifeCycle;
     /**
      * Directory for persistent state, or {@code null} for non-persistent operation.
@@ -290,6 +309,24 @@ public abstract class AbstractJiniService
                 try { l.close(); } catch (IOException ignore) { /* best-effort */ }
                 throw e;
             }
+        }
+
+        // Pre-compute codebase digests for use by getCodebaseDigest() /
+        // getDigestOffsets().  Failures are logged as a warning but do not
+        // abort startup; the getters will simply return null in that case.
+        try {
+            CodebaseDigestUtil.Result dr =
+                    CodebaseDigestUtil.compute(getClassAnnotation(), "SHA-256");
+            if (dr != null) {
+                codebaseDigestFlat      = dr.getFlatDigest();
+                codebaseDigestOffsets   = dr.getOffsets();
+                codebaseDigestAlgorithm = dr.getAlgorithm();
+            }
+        } catch (IOException e) {
+            logger.log(Level.WARNING,
+                    "{0}: could not pre-compute codebase digest — "
+                    + "getCodebaseDigest() will return null",
+                    getClass().getSimpleName());
         }
 
         Object stub = exporter.export(this);
@@ -869,5 +906,41 @@ public abstract class AbstractJiniService
     @Override
     public final byte[] getEncodedCerts() throws IOException {
         return encodedCerts.clone();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns {@code "SHA-256"} once the codebase digest has been
+     * successfully pre-computed during {@link #start()}, or {@code null} if
+     * the annotation contained no JAR URLs or the computation failed.
+     */
+    @Override
+    public final String getCodebaseDigestAlgorithm() throws IOException {
+        return codebaseDigestAlgorithm;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the flat per-JAR digest array pre-computed during
+     * {@link #start()}, or {@code null} if not available.
+     */
+    @Override
+    public final byte[] getCodebaseDigest() throws IOException {
+        byte[] d = codebaseDigestFlat;
+        return d != null ? d.clone() : null;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the per-JAR byte offsets pre-computed during
+     * {@link #start()}, or {@code null} if not available.
+     */
+    @Override
+    public final int[] getDigestOffsets() throws IOException {
+        int[] o = codebaseDigestOffsets;
+        return o != null ? o.clone() : null;
     }
 }

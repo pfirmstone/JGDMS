@@ -43,6 +43,7 @@ import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.Policy;
+import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -414,7 +415,39 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 				boolean requireDlPerm,
                                 AccessControlContext context)
     {
-	this(urls, parent, exportAnnotation, requireDlPerm, null, context);
+	this(urls, parent, exportAnnotation, requireDlPerm, null, context, null);
+    }
+
+    /**
+     * Creates a new <code>PreferredClassLoader</code> with the specified
+     * server principals, for use with DirtyChai.  The principals are embedded
+     * in every {@link java.security.ProtectionDomain} created by this loader
+     * when running on a DirtyChai JDK.
+     *
+     * @param urls the path of URLs to load classes and resources from
+     * @param parent the parent class loader for delegation
+     * @param exportAnnotation the export class annotation string, or
+     * {@code null}
+     * @param requireDlPerm if {@code true}, require
+     * {@link net.jini.loader.DownloadPermission}
+     * @param context the {@code AccessControlContext}
+     * @param serverPrincipals the peer/server's principals to embed in
+     *        each {@code ProtectionDomain}, or {@code null}
+     *
+     * @throws SecurityException if there is a security manager and an
+     * invocation of its {@link SecurityManager#checkCreateClassLoader
+     * checkCreateClassLoader} method fails
+     *
+     * @since 3.1
+     **/
+    public PreferredClassLoader(URL[] urls,
+				ClassLoader parent,
+				String exportAnnotation,
+				boolean requireDlPerm,
+                                AccessControlContext context,
+                                Principal[] serverPrincipals)
+    {
+	this(urls, parent, exportAnnotation, requireDlPerm, null, context, serverPrincipals);
     }
     
 
@@ -469,7 +502,50 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 				URLStreamHandlerFactory factory,
                                 AccessControlContext context)
     {
-	super(urls, parent, factory, context);
+	this(urls, parent, exportAnnotation, requireDlPerm, factory, context, null);
+    }
+
+    /**
+     * Creates a new <code>PreferredClassLoader</code> that loads
+     * classes and resources from the specified path of URLs,
+     * delegates to the specified parent class loader, and uses the
+     * specified {@link URLStreamHandlerFactory} when creating new URL
+     * objects. This constructor passes <code>factory</code> to the
+     * superclass constructor that has a <code>URLStreamHandlerFactory</code> 
+     * parameter.
+     * <p>
+     * The {@code serverPrincipals} parameter specifies the peer/server's
+     * workload principals (e.g. SPIFFE principals) to embed in every
+     * {@link java.security.ProtectionDomain} created by this loader when
+     * running on a DirtyChai JDK.  The array is cloned and stored
+     * in a final field in the superclass.
+     *
+     * @param urls the path of URLs to load classes and resources from
+     * @param parent the parent class loader for delegation
+     * @param exportAnnotation the export class annotation string, or
+     * {@code null}
+     * @param requireDlPerm if {@code true}, require
+     * {@link net.jini.loader.DownloadPermission}
+     * @param factory the {@code URLStreamHandlerFactory}, or {@code null}
+     * @param context the {@code AccessControlContext}
+     * @param serverPrincipals the peer/server's principals to embed in
+     *        each {@code ProtectionDomain}, or {@code null}
+     *
+     * @throws SecurityException if there is a security manager and an
+     * invocation of its {@link SecurityManager#checkCreateClassLoader
+     * checkCreateClassLoader} method fails
+     *
+     * @since 3.1
+     **/
+    public PreferredClassLoader(URL[] urls,
+				ClassLoader parent,
+				String exportAnnotation,
+				boolean requireDlPerm,
+				URLStreamHandlerFactory factory,
+                                AccessControlContext context,
+                                Principal[] serverPrincipals)
+    {
+	super(urls, parent, factory, context, serverPrincipals);
 	firstURL = (urls.length > 0 ? urls[0] : null);
 	if (exportAnnotation != null) {
 	    this.exportAnnotation = exportAnnotation;
@@ -537,7 +613,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	    */
 	    perms = AccessController.doPrivileged(
 		new PreferredPermissionsPrivilegedAction(
-			urls, jarHandler, parent));
+				urls, jarHandler, parent));
 	}
         exceptionWhileLoadingPreferred = except;
         preferredResources = pref;

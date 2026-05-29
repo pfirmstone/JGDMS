@@ -105,6 +105,7 @@ import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.export.CodebaseAccessor;
+import net.jini.export.CodebaseDigestUtil;
 import net.jini.io.MarshalledInstance;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.lookup.ServiceAttributesAccessor;
@@ -525,6 +526,9 @@ public class OutriggerServerImpl
     private String certFactoryType;
     private String certPathEncoding;
     private byte[] encodedCerts;
+    private byte[] codebaseDigestFlat;
+    private int[]  codebaseDigestOffsets;
+    private String codebaseDigestAlgorithm;
 
     /**
      * Create a new <code>OutriggerServerImpl</code> server (possibly a
@@ -611,6 +615,18 @@ public class OutriggerServerImpl
 	    this.certFactoryType = h.certFactoryType;
 	    this.certPathEncoding = h.certPathEncoding;
 	    this.encodedCerts = h.encodedCerts.clone();
+            {
+                CodebaseDigestUtil.Result dr = null;
+                try {
+                    dr = CodebaseDigestUtil.compute(getClassAnnotation(), "SHA-256");
+                } catch (java.io.IOException e) {
+                    lifecycleLogger.log(java.util.logging.Level.WARNING,
+                            "OutriggerServerImpl: could not pre-compute codebase digest", e);
+                }
+                codebaseDigestFlat      = dr != null ? dr.getFlatDigest()  : null;
+                codebaseDigestOffsets   = dr != null ? dr.getOffsets()     : null;
+                codebaseDigestAlgorithm = dr != null ? dr.getAlgorithm()   : null;
+            }
             exporter = h.exporter;
             contents = h.contents;
             templates = h.templates;
@@ -920,6 +936,23 @@ public class OutriggerServerImpl
     @Override
     public byte[] getEncodedCerts() throws IOException {
 	return encodedCerts.clone();
+    }
+
+    @Override
+    public String getCodebaseDigestAlgorithm() throws IOException {
+        return codebaseDigestAlgorithm;
+    }
+
+    @Override
+    public byte[] getCodebaseDigest() throws IOException {
+        byte[] d = codebaseDigestFlat;
+        return d != null ? d.clone() : null;
+    }
+
+    @Override
+    public int[] getDigestOffsets() throws IOException {
+        int[] o = codebaseDigestOffsets;
+        return o != null ? o.clone() : null;
     }
 
     private static class InitHolder {

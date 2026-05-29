@@ -80,6 +80,7 @@ import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.discovery.LookupDiscoveryRegistration;
 import net.jini.discovery.RemoteDiscoveryEvent;
 import net.jini.export.CodebaseAccessor;
+import net.jini.export.CodebaseDigestUtil;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
@@ -226,6 +227,23 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
     @Override
     public byte[] getEncodedCerts() throws IOException {
 	return encodedCerts.clone();
+    }
+
+    @Override
+    public String getCodebaseDigestAlgorithm() throws IOException {
+        return codebaseDigestAlgorithm;
+    }
+
+    @Override
+    public byte[] getCodebaseDigest() throws IOException {
+        byte[] d = codebaseDigestFlat;
+        return d != null ? d.clone() : null;
+    }
+
+    @Override
+    public int[] getDigestOffsets() throws IOException {
+        int[] o = codebaseDigestOffsets;
+        return o != null ? o.clone() : null;
     }
 
     /** Data structure - associated with a <code>ServiceRegistrar</code> -
@@ -429,6 +447,9 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
     private String certFactoryType;
     private String certPathEncoding;
     private byte[] encodedCerts;
+    private byte[] codebaseDigestFlat;
+    private int[]  codebaseDigestOffsets;
+    private String codebaseDigestAlgorithm;
 
     /* ************************* BEGIN Constructors ************************ */
     /**
@@ -530,6 +551,18 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
 	this.certFactoryType = i.certFactoryType;
 	this.certPathEncoding = i.certPathEncoding;
 	this.encodedCerts = i.encodedCerts.clone();
+        {
+            CodebaseDigestUtil.Result dr = null;
+            try {
+                dr = CodebaseDigestUtil.compute(getClassAnnotation(), "SHA-256");
+            } catch (java.io.IOException e) {
+                startupLogger.log(java.util.logging.Level.WARNING,
+                        "FiddlerImpl: could not pre-compute codebase digest", e);
+            }
+            codebaseDigestFlat      = dr != null ? dr.getFlatDigest()  : null;
+            codebaseDigestOffsets   = dr != null ? dr.getOffsets()     : null;
+            codebaseDigestAlgorithm = dr != null ? dr.getAlgorithm()   : null;
+        }
         discoveryMgr = i.discoveryMgr;
         listenerPreparer = i.listenerPreparer;
         locatorToJoinPreparer = i.locatorToJoinPreparer;

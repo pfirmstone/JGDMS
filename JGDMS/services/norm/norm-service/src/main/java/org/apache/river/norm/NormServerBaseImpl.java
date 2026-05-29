@@ -92,6 +92,7 @@ import org.apache.river.norm.proxy.*;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import net.jini.export.CodebaseAccessor;
+import net.jini.export.CodebaseDigestUtil;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
@@ -248,6 +249,9 @@ abstract class NormServerBaseImpl
     private final String certPathEncoding;
     private final byte[] encodedCerts;
     private final String codebase;
+    private final byte[] codebaseDigestFlat;
+    private final int[]  codebaseDigestOffsets;
+    private final String codebaseDigestAlgorithm;
 
     ////////////////////////////////
     // Methods defined in NormServer
@@ -347,6 +351,23 @@ abstract class NormServerBaseImpl
     @Override
     public byte[] getEncodedCerts() throws IOException {
 	return encodedCerts.clone();
+    }
+
+    @Override
+    public String getCodebaseDigestAlgorithm() throws IOException {
+        return codebaseDigestAlgorithm;
+    }
+
+    @Override
+    public byte[] getCodebaseDigest() throws IOException {
+        byte[] d = codebaseDigestFlat;
+        return d != null ? d.clone() : null;
+    }
+
+    @Override
+    public int[] getDigestOffsets() throws IOException {
+        int[] o = codebaseDigestOffsets;
+        return o != null ? o.clone() : null;
     }
 
 
@@ -2071,5 +2092,15 @@ abstract class NormServerBaseImpl
 	this.certFactoryType = init.certFactoryType;
 	this.certPathEncoding = init.certPathEncoding;
 	this.encodedCerts = init.encodedCerts.clone();
+        CodebaseDigestUtil.Result dr = null;
+        try {
+            dr = CodebaseDigestUtil.compute(getClassAnnotation(), "SHA-256");
+        } catch (IOException e) {
+            logger.log(java.util.logging.Level.WARNING,
+                    "NormServerBaseImpl: could not pre-compute codebase digest", e);
+        }
+        codebaseDigestFlat      = dr != null ? dr.getFlatDigest()  : null;
+        codebaseDigestOffsets   = dr != null ? dr.getOffsets()     : null;
+        codebaseDigestAlgorithm = dr != null ? dr.getAlgorithm()   : null;
     }
 }

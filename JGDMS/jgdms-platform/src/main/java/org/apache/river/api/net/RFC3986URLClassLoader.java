@@ -28,6 +28,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectStreamException;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
@@ -37,10 +39,12 @@ import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.net.URLDecoder;
 import java.net.URLStreamHandlerFactory;
+import java.nio.ByteBuffer;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
+import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
@@ -105,7 +109,24 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
     private final static boolean uri;
     
     private final static Logger logger = Logger.getLogger(RFC3986URLClassLoader.class.getName());
-    
+
+    /**
+     * DirtyChai {@code SecureClassLoader.defineClass(String, byte[], int, int,
+     * CodeSource, Principal[])} overload, resolved via reflection at class
+     * initialisation time.  {@code null} on a standard JDK where the overload
+     * does not exist — all callers must treat {@code null} as "not available".
+     * The method is {@code protected} in DirtyChai so no {@code setAccessible}
+     * call is required; the probe simply checks for its presence.
+     */
+    private static final Method DIRTY_CHAI_DEFINE_BYTES;
+
+    /**
+     * DirtyChai {@code SecureClassLoader.defineClass(String, ByteBuffer,
+     * CodeSource, Principal[])} overload, resolved via reflection at class
+     * initialisation time.  {@code null} on a standard JDK.
+     */
+    static final Method DIRTY_CHAI_DEFINE_BUFFER;
+
     static {
         try {
             registerAsParallelCapable();//Since 1.7
@@ -119,6 +140,32 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
 	if (prop != null && prop.trim().length() > 0) codebaseAnnotationProperty = prop;
         uri = codebaseAnnotationProperty == null || 
             !Uri.asciiStringsUpperCaseEqual(codebaseAnnotationProperty, "URL");
+
+        // Probe for DirtyChai Principal-aware defineClass overloads.
+        // The methods are protected in DirtyChai's SecureClassLoader, so no
+        // setAccessible call is required — the probe simply checks for presence.
+        // On a standard JDK these methods do not exist and the lookups return
+        // null; all callers treat null as "fall back to the standard path".
+        Method defBytes = null;
+        Method defBuffer = null;
+        try {
+            defBytes = java.security.SecureClassLoader.class.getDeclaredMethod(
+                    "defineClass",
+                    String.class, byte[].class, int.class, int.class,
+                    CodeSource.class, Principal[].class);
+        } catch (NoSuchMethodException ignored) {
+            // Standard JDK — DirtyChai overload not present.
+        }
+        try {
+            defBuffer = java.security.SecureClassLoader.class.getDeclaredMethod(
+                    "defineClass",
+                    String.class, ByteBuffer.class,
+                    CodeSource.class, Principal[].class);
+        } catch (NoSuchMethodException ignored) {
+            // Standard JDK — DirtyChai overload not present.
+        }
+        DIRTY_CHAI_DEFINE_BYTES = defBytes;
+        DIRTY_CHAI_DEFINE_BUFFER = defBuffer;
     }
     
     private final List<URL> originalUrls; // Copy on Write
@@ -132,6 +179,14 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
     private final URLStreamHandlerFactory factory;
 
     private final AccessControlContext creationContext;
+
+    /**
+     * Server SPIFFE (or other workload) principals to embed in every
+     * {@link java.security.ProtectionDomain} created by this loader when
+     * running on a DirtyChai JDK.  Cloned from the constructor argument;
+     * {@code null} on standard deployments or when no principals are known.
+     */
+    private final Principal[] serverPrincipals;
 
     private static class SubURLClassLoader extends RFC3986URLClassLoader {
         // The subclass that overwrites the loadClass() method
@@ -349,20 +404,11 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                 }
             }
             // The package is defined and isn't sealed, safe to define class.
-            if (uri) return loader.defineClass(
-                    origName,
-                    clBuf,
-                    0, 
-                    clBuf != null ? clBuf.length: 0,
-                    new UriCodeSource(codeSourceUrl, (Certificate[]) null, null)
-            );
-            return loader.defineClass(
-                    origName, 
-                    clBuf,
-                    0, 
-                    clBuf != null ? clBuf.length: 0,
-                    new CodeSource(codeSourceUrl, (Certificate[]) null)
-            );
+            CodeSource cs = uri
+                    ? new UriCodeSource(codeSourceUrl, (Certificate[]) null, null)
+                    : new CodeSource(codeSourceUrl, (Certificate[]) null);
+            return loader.defineClassWithPrincipals(origName, clBuf, 0,
+                    clBuf != null ? clBuf.length : 0, cs);
         }
 
         URL findResource(String name) {
@@ -549,13 +595,8 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             CodeSource codeS = uri ? 
                 new UriCodeSource(codeSourceUrl, entry.getCertificates(),null) 
                 : new CodeSource(codeSourceUrl, entry.getCertificates());
-            return loader.defineClass(
-                    origName,
-                    clBuf,
-                    0,
-		    clBuf.length,
-                    codeS
-            );
+            return loader.defineClassWithPrincipals(origName, clBuf, 0,
+                    clBuf.length, codeS);
         }
 
         URL findResourceInOwn(String name) {
@@ -1105,6 +1146,45 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                             URLStreamHandlerFactory factory, 
                             AccessControlContext context)
     {
+        this(searchUrls, parent, factory, context, null);
+    }
+
+    /**
+     * Constructs a new {@code URLClassLoader} instance.The newly created
+     * instance will have the specified {@code ClassLoader} as its parent and
+     * use the specified factory to create stream handlers. URLs that end with
+     * "/" are assumed to be directories, otherwise they are assumed to be JAR
+     * files.
+     * <p>
+     * The {@code serverPrincipals} parameter specifies the peer/server's
+     * workload principals (e.g. SPIFFE principals) to embed in every
+     * {@link java.security.ProtectionDomain} created by this loader when
+     * running on a DirtyChai JDK.  The array is cloned immediately and stored
+     * in a final field; it is safe to pass a shared array.
+     *
+     * @param searchUrls
+     *            the list of URLs where a specific class or file could be
+     *            found.
+     * @param parent
+     *            the {@code ClassLoader} to assign as this loader's parent.
+     * @param factory
+     *            the factory that will be used to create protocol-specific
+     *            stream handlers.
+     * @param context the context used to find classes and resources, if null
+     *            the callers context will be used.
+     * @param serverPrincipals the peer/server's principals to embed in each
+     *            {@code ProtectionDomain}, or {@code null}
+     * @throws SecurityException
+     *             if a security manager exists and its {@code
+     *             checkCreateClassLoader()} method doesn't allow creation of
+     *             new {@code ClassLoader}s.
+     */
+    public RFC3986URLClassLoader( URL[] searchUrls,
+                            ClassLoader parent,
+                            URLStreamHandlerFactory factory,
+                            AccessControlContext context,
+                            Principal[] serverPrincipals)
+    {
         super(searchUrls, parent, factory);  // ClassLoader protectes against finalizer attack.
         this.factory = factory;
         // capture the context of the thread that creates this URLClassLoader
@@ -1121,6 +1201,46 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             }
         }
         this.originalUrls = new CopyOnWriteArrayList<URL>(origUrls);
+        this.serverPrincipals = serverPrincipals != null ? serverPrincipals.clone() : null;
+    }
+
+    /**
+     * Calls DirtyChai's Principal-aware
+     * {@code SecureClassLoader.defineClass(String, byte[], int, int, CodeSource, Principal[])}
+     * when available, otherwise falls back to the standard
+     * {@link #defineClass(String, byte[], int, int, CodeSource)}.
+     * <p>
+     * The principals to embed are read from the {@link #serverPrincipals} field
+     * set at construction time; if that field is {@code null} the standard path
+     * is used regardless of whether DirtyChai is present.
+     *
+     * @param name   binary class name (or {@code null})
+     * @param b      class bytes
+     * @param off    offset in {@code b}
+     * @param len    byte count
+     * @param cs     {@code CodeSource}, or {@code null}
+     * @return the defined {@code Class}
+     */
+    Class<?> defineClassWithPrincipals(String name, byte[] b, int off, int len,
+                                       CodeSource cs)
+    {
+        if (DIRTY_CHAI_DEFINE_BYTES != null
+                && serverPrincipals != null
+                && serverPrincipals.length > 0) {
+            try {
+                return (Class<?>) DIRTY_CHAI_DEFINE_BYTES.invoke(
+                        this, name, b, off, len, cs, serverPrincipals);
+            } catch (InvocationTargetException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof Error) throw (Error) cause;
+                if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+                throw new RuntimeException("defineClass failed", cause);
+            } catch (IllegalAccessException e) {
+                logger.log(Level.FINE,
+                        "DirtyChai defineClass(…,Principal[]) not accessible; using standard path", e);
+            }
+        }
+        return defineClass(name, b, off, len, cs);
     }
 
     /**

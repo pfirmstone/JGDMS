@@ -44,18 +44,29 @@ import java.rmi.RemoteException;
 import net.jini.activation.arg.ActivationException;
 import net.jini.activation.arg.ActivationID;
 import net.jini.activation.arg.ActivationSystem;
+import java.rmi.server.ServerNotActiveException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.security.CodeSource;
+import java.security.Permission;
+import java.security.Principal;
+import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.security.ProtectionDomain;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
@@ -80,6 +91,7 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.transaction.CannotAbortException;
 import net.jini.core.transaction.CannotCommitException;
 import net.jini.core.transaction.CannotJoinException;
+import net.jini.core.transaction.SettleTransactionPermission;
 import net.jini.core.transaction.TimeoutExpiredException;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
@@ -90,8 +102,13 @@ import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.export.CodebaseAccessor;
+import net.jini.export.CodebaseDigestUtil;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.export.ServerContext;
+import net.jini.io.context.ClientSubject;
+import net.jini.io.context.ClientUserSubject;
+import net.jini.jeri.BasicInvocationDispatcher;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
@@ -165,6 +182,17 @@ class TxnManagerImpl /*extends RemoteServer*/
     /* Map of transaction ids are their associated, internal 
      * transaction representations */
     private final ConcurrentMap<Long,TxnManagerTransaction> txns;
+    /**
+     * Maps each active transaction ID to the list of Subject arrays captured at
+     * {@link #join} time, one array per joining participant.  Each array contains
+     * the transport Subject (index 0, may be {@code null}) followed by any user
+     * Subjects propagated via the multi-Subject wire protocol.  Entries are
+     * removed when the corresponding transaction is committed or aborted.
+     */
+    private final ConcurrentHashMap<Long, List<Subject[]>> participantSubjects =
+	    new ConcurrentHashMap<>();
+    /** Empty CodeSource used when building per-Subject ProtectionDomains. */
+    private static final CodeSource EMPTY_CS = new CodeSource(null, (java.security.cert.Certificate[]) null);
     private final Queue<Long> unsettledtxns = new ConcurrentLinkedQueue<Long>();
     private final InterruptedStatusThread settleThread;
     private final String persistenceDirectory;
@@ -220,6 +248,9 @@ class TxnManagerImpl /*extends RemoteServer*/
     private String certFactoryType;
     private String certPathEncoding;
     private byte[] encodedCerts;
+    private byte[] codebaseDigestFlat;
+    private int[]  codebaseDigestOffsets;
+    private String codebaseDigestAlgorithm;
 
     /**
      * Constructs a non-activatable transaction manager.
@@ -359,6 +390,18 @@ class TxnManagerImpl /*extends RemoteServer*/
 		this.certFactoryType = init.certFactoryType;
 		this.certPathEncoding = init.certPathEncoding;
 		this.encodedCerts = init.encodedCerts.clone();
+                {
+                    CodebaseDigestUtil.Result dr = null;
+                    try {
+                        dr = CodebaseDigestUtil.compute(getClassAnnotation(), "SHA-256");
+                    } catch (IOException e) {
+                        initLogger.log(Level.WARNING,
+                                "TxnManagerImpl: could not pre-compute codebase digest", e);
+                    }
+                    codebaseDigestFlat      = dr != null ? dr.getFlatDigest()  : null;
+                    codebaseDigestOffsets   = dr != null ? dr.getOffsets()     : null;
+                    codebaseDigestAlgorithm = dr != null ? dr.getAlgorithm()   : null;
+                }
                 participantPreparer = init.participantPreparer;
                 txnLeasePeriodPolicy = init.txnLeasePeriodPolicy;
                 persistenceDirectory = init.persistenceDirectory;
@@ -633,12 +676,106 @@ class TxnManagerImpl /*extends RemoteServer*/
 
 	// txntr.join does expiration check
 	txntr.join(preparedTarget, crashCount);
+	// Capture the joining client's Subjects for later permission checking at
+	// commit/abort time (participants may join from different remote Endpoints).
+	Subject[] joinSubjects = captureCurrentSubjects();
+	if (joinSubjects.length > 0) {
+	    participantSubjects
+		.computeIfAbsent(id, k -> new CopyOnWriteArrayList<>())
+		.add(joinSubjects);
+	}
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(
 		TxnManagerImpl.class.getName(), "join");
 	}
     }
 
+
+    /**
+     * Captures all Subjects associated with the current remote call: the
+     * transport Subject (from {@link ClientSubject}) and any user Subjects
+     * propagated via the multi-Subject wire protocol (from
+     * {@link ClientUserSubject}).  Returns an empty array if not currently
+     * executing in a remote call.
+     */
+    private static Subject[] captureCurrentSubjects() {
+	return AccessController.doPrivileged((PrivilegedAction<Subject[]>) () -> {
+	    List<Subject> result = new ArrayList<>();
+	    try {
+		ClientSubject cs = (ClientSubject)
+		    ServerContext.getServerContextElement(ClientSubject.class);
+		if (cs != null) {
+		    Subject transport = cs.getClientSubject();
+		    if (transport != null) result.add(transport);
+		}
+		ClientUserSubject cus = (ClientUserSubject)
+		    ServerContext.getServerContextElement(ClientUserSubject.class);
+		if (cus != null) {
+		    result.addAll(Arrays.asList(cus.getUserSubjects()));
+		}
+	    } catch (ServerNotActiveException e) {
+		// not in a remote call — return empty
+	    }
+	    return result.toArray(new Subject[0]);
+	});
+    }
+
+    /**
+     * Checks that the specified permission is granted to every Subject in
+     * {@code subjects}.  Each Subject is checked independently using a
+     * {@link ProtectionDomain} built from its principals.  If no security
+     * manager is installed the check is skipped.
+     *
+     * @throws SecurityException if any Subject has not been granted {@code perm}
+     */
+    private static void checkSubjectsPermission(Subject[] subjects, Permission perm) {
+	SecurityManager sm = System.getSecurityManager();
+	if (sm == null) return;
+	for (Subject s : subjects) {
+	    Set<Principal> set = s.getPrincipals();
+	    Principal[] prins = set.toArray(new Principal[0]);
+	    ProtectionDomain pd = new ProtectionDomain(EMPTY_CS, null, null, prins);
+	    AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{pd});
+	    sm.checkPermission(perm, acc);
+	}
+    }
+
+    /**
+     * Checks that the specified permission is granted to all Subjects
+     * participating in the current transaction, including:
+     * <ol>
+     *   <li>The current remote caller (transport Subject + user Subjects from
+     *       the multi-Subject wire protocol).</li>
+     *   <li>Every participant that previously called {@link #join} for the
+     *       given transaction, regardless of which remote Endpoint they used.</li>
+     * </ol>
+     *
+     * @param txId the transaction ID
+     * @param perm the permission to check
+     * @throws SecurityException if any Subject has not been granted {@code perm}
+     * @throws IllegalStateException if the current thread is not executing an
+     *         incoming remote method
+     */
+    private void checkAllParticipantsPermission(long txId, Permission perm) {
+	// Check the current caller's transport Subject.
+	// checkClientPermission throws IllegalStateException if not in a remote
+	// call and returns early if no SecurityManager is installed.
+	BasicInvocationDispatcher.checkClientPermission(perm);
+	// Also check any user Subjects of the current caller (multi-Subject wire protocol).
+	Subject[] callerSubjects = captureCurrentSubjects();
+	// captureCurrentSubjects() starts with the transport subject at index 0
+	// (already checked via checkClientPermission above); check user subjects only.
+	for (int i = 1; i < callerSubjects.length; i++) {
+	    checkSubjectsPermission(new Subject[]{callerSubjects[i]}, perm);
+	}
+	// Check all previously-joined participants' subjects (from their endpoints).
+	List<Subject[]> stored = participantSubjects.get(txId);
+	if (stored != null) {
+	    for (Subject[] subjects : stored) {
+		checkSubjectsPermission(subjects, perm);
+	    }
+	}
+    }
 
     public int getState(long id)
         throws UnknownTransactionException
@@ -716,6 +853,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	        new Object[] {Long.valueOf(id), Long.valueOf(waitFor)});
 	}
         readyState.check();
+	checkAllParticipantsPermission(id, new SettleTransactionPermission("commit"));
 
 	TxnManagerTransaction txntr = txns.get(Long.valueOf(id));
 
@@ -730,6 +868,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	// txntr.commit does expiration check
 	txntr.commit(waitFor);
         txns.remove(Long.valueOf(id), txntr); // Only removed if commit doesn't throw exception.
+	participantSubjects.remove(id);
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
@@ -743,6 +882,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     
     public void abort(long id)
     throws UnknownTransactionException, CannotAbortException {
+	checkAllParticipantsPermission(id, new SettleTransactionPermission("abort"));
     	abort(id, true);
     }
     
@@ -770,6 +910,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     public void abort(long id, long waitFor)
     throws UnknownTransactionException, CannotAbortException,
        TimeoutExpiredException {
+	checkAllParticipantsPermission(id, new SettleTransactionPermission("abort"));
     	abort(id, waitFor, true);
     }
     
@@ -818,6 +959,7 @@ class TxnManagerImpl /*extends RemoteServer*/
             if (t instanceof RuntimeException) throw (RuntimeException) t;
         }
 	txns.remove(Long.valueOf(id), txntr);
+	participantSubjects.remove(id);
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
@@ -1279,6 +1421,23 @@ class TxnManagerImpl /*extends RemoteServer*/
     @Override
     public byte[] getEncodedCerts() throws IOException {
 	return encodedCerts.clone();
+    }
+
+    @Override
+    public String getCodebaseDigestAlgorithm() throws IOException {
+        return codebaseDigestAlgorithm;
+    }
+
+    @Override
+    public byte[] getCodebaseDigest() throws IOException {
+        byte[] d = codebaseDigestFlat;
+        return d != null ? d.clone() : null;
+    }
+
+    @Override
+    public int[] getDigestOffsets() throws IOException {
+        int[] o = codebaseDigestOffsets;
+        return o != null ? o.clone() : null;
     }
 
     /**

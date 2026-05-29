@@ -32,9 +32,14 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
+import java.security.Principal;
+import java.security.Permission;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,13 +48,17 @@ import java.util.logging.Logger;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLProtocolException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
+import net.jini.io.context.ContextPermission;
+import net.jini.io.context.ServerSubject;
 import net.jini.jeri.connection.Connection;
 import net.jini.jeri.connection.OutboundRequestHandle;
 import net.jini.security.Security;
@@ -491,7 +500,50 @@ class SslConnection extends Utilities implements Connection {
 	if (context == null) {
 	    throw new NullPointerException("Context cannot be null");
 	}
-	/* No context info */
+	// Add the authenticated server Subject to the context so that
+	// PreferredProxyCodebaseProvider.resolve() can scope DigestGrants to
+	// the actual TLS-verified server identity rather than to client-declared
+	// ServerMinPrincipal constraints.  Only added when the server has
+	// authenticated (serverPrincipal != null after the TLS handshake).
+	X500Principal serverX500 = authManager.getServerPrincipal();
+	if (serverX500 != null) {
+	    Set<Principal> principals = new HashSet<Principal>();
+	    principals.add(serverX500);
+	    // Also include SPIFFE principal(s) from the URI Subject
+	    // Alternative Name(s) in the server certificate, if present.
+	    SSLSession currentSession = session;
+	    if (currentSession != null) {
+		try {
+		    Certificate[] peerCerts = currentSession.getPeerCertificates();
+		    if (peerCerts != null && peerCerts.length > 0
+			    && peerCerts[0] instanceof X509Certificate) {
+			principals.addAll(
+			    SpiffePrincipal.fromCertificate(
+				(X509Certificate) peerCerts[0]));
+		    }
+		} catch (SSLPeerUnverifiedException e) {
+		    // Server is anonymous — no peer certificates; ignore.
+		}
+	    }
+	    final Subject serverSubject = new Subject(
+		    true,
+		    Collections.unmodifiableSet(principals),
+		    Collections.emptySet(),
+		    Collections.emptySet());
+	    context.add(new ServerSubject() {
+		private static final Permission GET_SERVER_SUBJECT_PERM =
+		    new ContextPermission(
+			"net.jini.io.context.ServerSubject.getServerSubject");
+		@Override
+		public Subject getServerSubject() {
+		    SecurityManager sm = System.getSecurityManager();
+		    if (sm != null) {
+			sm.checkPermission(GET_SERVER_SUBJECT_PERM);
+		    }
+		    return serverSubject;
+		}
+	    });
+	}
     }
 
     /* inherit javadoc */

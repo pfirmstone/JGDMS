@@ -172,6 +172,15 @@ public class VerdictRegistryProxy
     }
 
     @Override
+    public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener,
+                                                           MarshalledInstance handback,
+                                                           long leaseDuration)
+            throws RemoteException {
+        return ((VerdictRegistry) server).registerGlobalVerdictListener(
+                listener, handback, leaseDuration);
+    }
+
+    @Override
     public long renewEventLease(Uuid leaseId, long duration)
             throws UnknownLeaseException, RemoteException {
         return ((VerdictRegistry) server).renewEventLease(leaseId, duration);
@@ -294,6 +303,15 @@ public class VerdictRegistryProxy
                 throws RemoteException {
             return ((VerdictRegistry) server).registerVerdictListener(
                     listener, codebaseUrls, handback, leaseDuration);
+        }
+
+        @Override
+        public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener,
+                                                               MarshalledInstance handback,
+                                                               long leaseDuration)
+                throws RemoteException {
+            return ((VerdictRegistry) server).registerGlobalVerdictListener(
+                    listener, handback, leaseDuration);
         }
 
         @Override

@@ -63,12 +63,18 @@ granted privileges. Its key design goals are:
 - Break deserialization gadget attack chains (`SerialObjectPermission`)
 - Block native code injection (`NativeInvocationPermission`, `NativeMemoryPermission`)
 - Maintain and extend permission guard hooks
-- High performance and scalability
+- High performance and scalability, including full virtual thread support with `SecurityManager`
+  enabled — on bare OpenJDK ≤ 23, virtual threads are assigned an `AccessControlContext` with no
+  permissions when `SecurityManager` is enabled. DirtyChai fixes this by caching immutable
+  `AccessControlContext` instances (minimising ACC object creation) and by introducing
+  `DomainIdentity`, a `ProtectionDomain` subclass that implements `equals` and `hashCode` to
+  support `SubjectDomainCombiner` and minimise duplication of `ProtectionDomain` instances that
+  rely on object identity.
 - Community redesign of the Authorization API for potential inclusion in OpenJDK mainline
 - SpiffeX509TrustManager and SpiffeX509KeyManager - SPIFFE/SPIRE Zero Touch Certificate Management.
 
-Running JGDMS on DirtyChai restores the full authorization semantics and lets the platform evolve
-beyond the Java 23 ceiling.
+Running JGDMS requires DirtyChai: it restores the full authorization semantics and enables virtual
+threads with `SecurityManager` support. DirtyChai is required for all supported deployments.
 
 ![DirtyChai mascot: a tough chai mug in a hard hat with a SPIFFE badge](images/dirty-chai-mascot.svg)
 
@@ -218,6 +224,10 @@ can dictate multiple people whom must be present for a transaction to complete, 
 is missing, the transaction doesn't have permission to complete, permission can only be attained
 when all users are logged in and present.
 
+The same multi-Subject model extends to distributed transactions: `SettleTransactionPermission`
+captures all participant `Subject`s at join time and checks the full set before permitting commit
+or abort.
+
 `Subject.current()` returns only the first Subject bound via `callAs` — it never falls back to the
 `AccessControlContext`. This ensures the server can always distinguish TLS-verified machine
 identity from wire-asserted human identity.
@@ -236,9 +246,15 @@ particular end user. With SPIFFE/SPIRE, DirtyChai's `SpiffeCredentialManager` co
 - The short-lived X.509 credential (certificate chain + private key) — never written to disk
 
 Because the `WorkerSubject` is **ambient** — present in every `ProtectionDomain` regardless of
-`doPrivileged` nesting — the server never needs to reinstall it per request. When a service calls
-another service (e.g. the Codebase Downloader submitting a JAR to a BAE instance), the JERI SSL
-endpoint locates the outbound TLS credential via `SpiffeSubjectHolder` automatically.
+`doPrivileged` nesting — the server never needs to reinstall it per request. On DirtyChai, JGDMS's
+`RFC3986URLClassLoader` and `PreferredClassLoader` carry the server's `Principal[]` as a `final`
+field and inject it into each `ProtectionDomain` at class-load time; DirtyChai's `SecureClassLoader`
+simultaneously injects the client's process `Principal[]` and `DigestCodeSource` (the codebase's
+SHA-256 hash). The resulting proxy `ProtectionDomain` therefore carries both the server's and
+client's JVM process principals alongside the codebase digest, enabling policy decisions that span
+both sides of the call. When a service calls another service (e.g. the Codebase Downloader
+submitting a JAR to a BAE instance), the JERI SSL endpoint locates the outbound TLS credential via
+`SpiffeSubjectHolder` automatically.
 
 **Remote process identity** travels differently: the remote client's `WorkerSubject` principals
 are carried inside a serialized `AccessControlContext` transmitted over the JERI wire.
@@ -491,15 +507,16 @@ JGDMS service discovery scales from a laptop LAN to a global IPv6 network.
 │    │    (trust established     │                            │              │
 │    │     before unmarshalling) │                            │              │
 │    │                           │                            │              │
+│    │── TLS 1.3 + SPIFFE SVID ──────────────────────────────►│              │
+│    │   (mutual authentication; method constraints enforced) │              │
+│    │◄── response ──────────────────────────────────────────►│              │
+│    │                                                        │              │
 │    │── query Verdict Registry ─────────────────────────────►│ Host 3       │
 │    │   (SHA-256 hash of proxy JAR)                          │              │
 │    │◄── RegistryVerdict: SAFE ─────────────────────────────►│              │
 │    │                                                        │              │
 │    │── unmarshal full proxy ── (ProxyCodebaseSpi: ClassLoader, BAE gate)   │
 │    │                                                        │              │
-│    │── TLS 1.3 + SPIFFE SVID ──────────────────────────────►│              │
-│    │   (mutual authentication; method constraints enforced) │              │
-│    │◄── response ──────────────────────────────────────────►│              │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -569,9 +586,31 @@ benchmarks.
 ### Virtual Thread Support
 
 DirtyChai includes full virtual thread support with `SecurityManager` enabled — a combination that
-OpenJDK never achieved. The SCAP architecture's `ClinitBlockingVisitor` ensures that JAR
-files containing blocking class initializers — the main virtual-thread carrier-pin risk — are
-flagged before they are ever loaded, enabling confident use of virtual threads at scale.
+OpenJDK never achieved. On bare OpenJDK ≤ 23, virtual threads are assigned an
+`AccessControlContext` with no permissions when `SecurityManager` is enabled, making them
+non-functional in a security context. DirtyChai fixes this by caching immutable
+`AccessControlContext` instances and introducing `DomainIdentity` (a `ProtectionDomain` subclass
+with `equals`/`hashCode`) to support `SubjectDomainCombiner`. The SCAP architecture's
+`ClinitBlockingVisitor` ensures that JAR files containing blocking class initializers — the main
+virtual-thread carrier-thread pin risk — are flagged before they are ever loaded, enabling
+confident use of virtual threads at scale.
+
+#### Security Enhancement: Per-Thread Access Control at Scale
+
+Proper `AccessControlContext` support for virtual threads is not only a correctness fix — it is a
+significant security enhancement. Each virtual thread carries its own immutable, isolated
+`AccessControlContext`, which means security context (authenticated principals, protection domains,
+granted permissions) is independently maintained per virtual thread. Even though many virtual
+threads may share a carrier platform thread, their security contexts remain fully isolated: a
+request running as one authenticated Subject cannot inadvertently inherit or use the security
+context of a concurrently executing request.
+
+`SubjectDomainCombiner` further strengthens this: it attaches the authenticated Subject's
+principals to every `ProtectionDomain` in the virtual thread's ACC, so every
+`AccessController.checkPermission()` call is evaluated against the correct user's identity. This
+enables millions of concurrent virtual threads — each running under a different authenticated
+Subject — to receive correct, per-principal authorization decisions without any shared mutable
+state, and without security becoming a performance bottleneck at high concurrency.
 
 ### Lease-Based Resource Management
 
@@ -626,6 +665,9 @@ URLs is analyzed once and cached forever. URL changes, CDN migrations, and servi
 invalidate existing verdicts. The analysis pipeline scales with the *number of distinct JARs* in
 the ecosystem, not the number of services.
 
+Clients also maintain a local in-memory verdict cache (configurable TTL, default 5 minutes), so a
+temporary Verdict Registry outage does not interrupt service.
+
 ---
 
 ## What JGDMS Is Good For
@@ -661,11 +703,16 @@ bytecode. Its goal is the opposite: prevent untrusted code from ever being loade
 `LoadClassPermission` as the primary gate and SCAP as the pre-analysis pipeline. If you need to
 run code you don't trust, you need a different tool (or a different approach).
 
-JGDMS **currently requires Java ≤ 23** (or DirtyChai). OpenJDK removed the `SecurityManager` API
-in Java 24. Running JGDMS on standard OpenJDK 24+ is not supported. DirtyChai is the path forward
-for modern JDK versions.  **DirtyChai** is required for SPIFFE support and enhanced security, such
-as JarFile hardening against untrusted input and additional guards, BAE is used to cover security
-gaps that authorization cannot defend against.
+JGDMS **requires DirtyChai** at runtime. Running on bare OpenJDK is not supported: on standard
+OpenJDK ≤ 23, virtual threads are assigned an `AccessControlContext` with no permissions when
+`SecurityManager` is enabled, making JGDMS non-functional. On OpenJDK 24+, the `SecurityManager`
+API was removed entirely. DirtyChai is the only supported runtime JDK. **DirtyChai** is required
+for SPIFFE support and enhanced security, such as JarFile hardening against untrusted input and
+additional guards; BAE is used to cover security gaps that authorization cannot defend against.
+JGDMS is, however, **compile-time compatible with standard OpenJDK**: you can build JGDMS and
+your application code using any standard OpenJDK toolchain. DirtyChai is binary compatible with
+software compiled on OpenJDK — no recompilation is required when switching the runtime JDK from
+OpenJDK to DirtyChai.
 
 ---
 
@@ -689,7 +736,8 @@ identity, three-layer policy stack, proxy lifecycle, `GrantPermission` intersect
 | Code integrity | SCAP five-host pipeline, quorum-based `RegistryVerdict`, signed `JarAnalysisReport` |
 | Content-hash grants | `DigestGrant` + `DigestCodeSource`: grants conditioned on SHA-256 JAR hash, not just URL |
 | User identity | JWT/OIDC via `JwtLoginModule`/`JwtPrincipal`; sealed `UserSubject`; per-request `callAs` |
-| Multi-user calls | JERI protocol `0x02`: up to 16 `UserSubject`s × 64 principals per call; `ClientUserSubject.getUserSubjects()` |
+| Multi-user calls | JERI protocol `0x02`: up to 16 `UserSubject`s × 64 principals per call; `ClientUserSubject.getUserSubjects()`; `SettleTransactionPermission` extends this to distributed transactions |
+| Subject propagation | `SubjectAwareExecutor` captures and restores `Subject` + security context on worker threads |
 | Workload identity | Sealed `WorkerSubject` (SPIFFE SVID), ambient in every `ProtectionDomain` |
 | Credential management | SPIFFE/SPIRE: short-lived SVIDs, automatic rotation, no keystores |
 | Service discovery | IPv6 unicast + multicast, `LookupLocator("jini://lookup.domain:4160")` |

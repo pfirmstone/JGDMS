@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v50)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v58)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -10,6 +10,342 @@ and is the forward-reference added in §19 of that document.
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
 
+## v58 Change Summary
+
+**WI57 completed; §2.3 DefaultJwtVerifier default; §2.5 DigestCodeSource boot guard; §2.7 Won't Fix; §2.10 Won't Implement**
+
+Implemented in this version:
+
+1. **WI57 — Event-sourced VerdictRegistry read replicas** — `ReadReplicaVerdictRegistry`
+   implements `VerdictRegistry` + `RemoteEventListener` + `LeaseListener`; subscribes
+   to primary via new `registerGlobalVerdictListener()` API; verifies DER signatures;
+   re-subscribes on `UnknownLeaseException` with exponential backoff.
+   `VerdictRegistryHolder` extended with `setInstances()`/`getAll()` ordered fallback
+   list; `getVerdictByHashWithRetry()` iterates all configured registries before
+   falling back to TTL cache.
+
+2. **§2.3 DefaultJwtVerifier default** — `BasicInvocationDispatcher` now holds a
+   `DEFAULT_JWT_VERIFIER` constant; `verifyJwtWithCache()` uses it as fallback when
+   no operator verifier is configured.  `jgdms-security-jwt` promoted to compile
+   scope in jgdms-jeri POM.
+
+3. **§2.5 DigestCodeSource boot guard** — `PreferredProxyCodebaseProvider` probes for
+   `java.security.DigestCodeSource` (DirtyChai) at class-load time; on DirtyChai
+   deployments the boot-window else-branch now demands `BootstrapPermission` against
+   a `DigestCodeSource`-backed `ProtectionDomain` rather than proceeding permissively.
+
+4. **§2.7 SPIRE SVID expiry** — closed Won't Fix; deploy SPIRE HA.
+
+5. **§2.10 Negative grants** — closed Won't Implement; POLP + `SecurePolicyWriter`
+   address this; negative grants risk blacklist whack-a-mole policies.
+
+**Files changed:**
+- `docs/.../context_10.md` — §6 WI57 row updated (🔲 → ✅ Completed); §9
+  closing note updated; v57 → v58
+- `docs/.../AI_Agent_JGDMS-SecurityAssessment-context_11.md` — §2.3, §2.5, §2.6,
+  §2.7, §2.8, §2.10, §2.11, §4 priority table, §5 status table updated; v3 → v4
+- `jgdms-jeri/pom.xml` — `jgdms-security-jwt` test → compile scope
+- `jgdms-jeri/.../BasicInvocationDispatcher.java` — `DEFAULT_JWT_VERIFIER` constant + fallback
+- `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` — DigestCodeSource boot guard + WI57 client fallback
+- `jgdms-pref-class-loader/.../VerdictRegistryHolder.java` — `setInstances()` / `getAll()`
+- `jgdms-platform/.../VerdictRegistry.java` — `registerGlobalVerdictListener()` API
+- `verdict-registry-service/.../VerdictRegistryImpl.java` — global listener + burst delivery
+- `verdict-registry-service/.../ReadReplicaVerdictRegistry.java` — new file
+- `verdict-registry-service/.../ActivatableVerdictRegistryImpl.java` — delegation
+- `verdict-registry-dl/.../VerdictRegistryProxy.java` — delegation
+
+---
+
+## v57 Change Summary
+
+**WI62 DirtyChai side confirmed complete; G-3 confirmed complete**
+
+Both items tracked in context_11.md were confirmed complete by @pfirmstone:
+
+1. **WI62 DirtyChai side** — `SecureClassLoader.defineClass(…,Principal[])`
+   overloads (two variants) are now present in DirtyChai.  The JGDMS reflection
+   probe in `RFC3986URLClassLoader` will now find and use them, correctly
+   stamping server SPIFFE principals into the `ProtectionDomain` of loaded
+   proxy classes.  Work Item 61's cross-service grant-reuse defence is fully
+   operative end-to-end.
+
+2. **G-3** — `SerialObjectPermission` guard has been extended to cover
+   `readProxyDesc()` in DirtyChai's `ObjectInputStream` (line 1976).  Dynamic-
+   proxy deserialization gadget chains are now blocked symmetrically with the
+   existing `readOrdinaryObject()` guard.
+
+**Files changed:**
+- `docs/.../context_10.md` — §6 WI62 row updated (🟡 → ✅ Complete); §9
+  closing note updated; v56 → v57
+- `docs/.../AI_Agent_JGDMS-SecurityAssessment-context_11.md` — §2.1, §2.2,
+  §3.1, §3.2, §4 priority table, §5 status table updated; v2 → v3
+
+---
+
+## v56 Change Summary
+
+**Work Item 48 — In-memory signed-verdict cache**
+
+Implements the in-memory signed-verdict cache in `PreferredProxyCodebaseProvider`
+(Work Item 48 / Phase 2.6).
+
+**What changed:**
+
+1. **`VERDICT_CACHE`** — a new `ConcurrentHashMap<String, CachedVerdict>` keyed
+   by SHA-256 hex digest string, storing verdicts alongside their capture
+   timestamp.
+
+2. **`CachedVerdict`** — a package-accessible inner class holding a
+   `RegistryVerdict` and the `capturedAtMs` timestamp.  `isAlive(nowMs, ttlMs)`
+   returns `true` iff `ttlMs > 0 && (nowMs - capturedAtMs) < ttlMs`.
+
+3. **`verdictCacheTtlMs`** — configurable via system property
+   `jgdms.proxy.verdictCacheTtlMs` (default 300 000 ms = 5 min).
+   Setting it to `0` disables the fallback entirely.
+
+4. **`getVerdictByHashWithRetry`** updated:
+   - On a successful lookup the returned `RegistryVerdict` is inserted into
+     `VERDICT_CACHE`.
+   - On exhaustion of all retry attempts, before throwing `IOException`, the
+     method checks `VERDICT_CACHE` for a fresh entry; if one exists it is
+     returned with a `Level.WARNING` log.  If no fresh entry exists, the original
+     `IOException` is thrown unchanged.
+
+5. **`clearVerdictCache()`** — package-private test helper, clears `VERDICT_CACHE`.
+
+6. **Tests** — 8 new tests added to
+   `PreferredProxyCodebaseProviderVerdictTest`, covering `parseVerdictCacheTtlMs`,
+   cache population, cache-hit fallback, cache-expiry, and `CachedVerdict.isAlive`.
+
+**Security property after this change:**
+
+A `VerdictRegistry` outage no longer blocks codebase loads for JARs whose
+verdicts were successfully fetched within the last TTL window.  DANGEROUS
+verdicts cannot be cached (they cause an immediate `IOException` before the
+cache is written).  SAFE and INCONCLUSIVE verdicts are eligible for caching.
+Operators can disable the cache entirely by setting
+`jgdms.proxy.verdictCacheTtlMs=0`.
+
+**Files changed:**
+- `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` — cache
+  field, `CachedVerdict`, `loadVerdictCacheTtlMs`, `parseVerdictCacheTtlMs`,
+  `clearVerdictCache`, `getVerdictByHashWithRetry` updated
+- `jgdms-pref-class-loader/.../PreferredProxyCodebaseProviderVerdictTest.java` — 8 new tests
+
+---
+
+**Work Item 50 — `SubjectAwareExecutor implements ExecutorService`**
+
+Implements the `SubjectAwareExecutor` wrapper (Work Item 50 / Phase 2.4).
+
+**What changed:**
+
+1. **New class `net.jini.security.SubjectAwareExecutor`** in `jgdms-platform`.
+   - Constructor: `SubjectAwareExecutor(ExecutorService delegate)`; null-guards.
+   - At task submission (`execute`, `submit`, `invokeAll`, `invokeAny`):
+     captures `Subject.current()` (user identity from `Subject.callAs()`) and
+     `Security.getContext()` (full `AccessControlContext` including DirtyChai
+     SPIFFE `ProtectionDomain`s).
+   - At task execution on the worker thread:
+     - The captured `SecurityContext` is restored via
+       `AccessController.doPrivileged(ctx.wrap(action), ctx.getAccessControlContext())`.
+     - If the captured user `Subject` is non-null, the task additionally runs
+       inside `Subject.callAs(capturedSubject, task)`.
+   - SPIFFE/SPIRE principals propagate via the `AccessControlContext` path and
+     are NOT re-bound via `Subject.callAs()`.
+   - All `ExecutorService` lifecycle methods (`shutdown`, `shutdownNow`,
+     `isShutdown`, `isTerminated`, `awaitTermination`) delegate directly.
+
+2. **Tests** — 13 new tests in `SubjectAwareExecutorTest` covering: constructor
+   null-guard, Subject propagation via `execute`/`submit`/`invokeAll`, no-Subject
+   path, checked and runtime exception propagation, lifecycle delegation.
+
+**Files changed:**
+- `jgdms-platform/.../net/jini/security/SubjectAwareExecutor.java` — new class
+- `jgdms-platform/.../net/jini/security/SubjectAwareExecutorTest.java` — new tests
+- `docs/.../context_10.md` — this update (v55 → v56)
+
+---
+
+## v55 Change Summary
+
+**Work Item 62 (JGDMS side) — `RFC3986URLClassLoader` Principal-aware `loadClass` / `defineClass`**
+
+Implements the JGDMS half of Work Item 62.  The DirtyChai half (adding the
+`defineClass(String, byte[], int, int, CodeSource, Principal[])` and
+`defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to
+`SecureClassLoader`) is tracked in the DirtyChai repository and is out of
+scope for this PR.
+
+**What changed in `RFC3986URLClassLoader`:**
+
+1. **Reflection probe** — at class initialisation the static block probes
+   `java.security.SecureClassLoader` for the two DirtyChai `defineClass`
+   overloads:
+   - `defineClass(String, byte[], int, int, CodeSource, Principal[])`
+   - `defineClass(String, ByteBuffer, CodeSource, Principal[])`
+
+   The results are stored in `DIRTY_CHAI_DEFINE_BYTES` and
+   `DIRTY_CHAI_DEFINE_BUFFER` (`null` on a standard JDK).
+
+2. **`ThreadLocal<Principal[]> SERVER_PRINCIPALS`** — a package-accessible
+   thread-local that carries the server principals from the new
+   `loadClass(String, boolean, Principal[])` entry point down to the inner
+   `URLHandler.createClass()` and `URLJarHandler.createClass()` calls, without
+   changing the `URLHandler` API.
+
+3. **`loadClass(String, boolean, Principal[])` (new public method)** — sets the
+   ThreadLocal with the supplied server principals, delegates to the standard
+   `loadClass(String, boolean)`, and clears the ThreadLocal in a `finally`
+   block.  When DirtyChai is absent (`DIRTY_CHAI_DEFINE_BYTES == null`) or
+   principals are null/empty, delegates to `loadClass(String, boolean)` directly
+   with no overhead.
+
+4. **`defineClassWithPrincipals(…)` (new package-private method)** — called by
+   both `URLHandler.createClass()` and `URLJarHandler.createClass()` instead of
+   the raw `defineClass(…)`.  When `DIRTY_CHAI_DEFINE_BYTES != null` and
+   `SERVER_PRINCIPALS.get()` is non-empty, it invokes the DirtyChai overload via
+   the cached `Method` reference; otherwise it falls back to the standard
+   `defineClass(name, b, off, len, cs)`.
+
+**Security property after this change:**
+
+When running on DirtyChai and the caller passes server principals via
+`loadClass(String, boolean, Principal[])`, the `ProtectionDomain` of every
+class loaded from the remote codebase will carry both the client's SPIFFE
+principals (stamped by DirtyChai's `SecureClassLoader`) **and** the server's
+SPIFFE principals (injected by this change).  Policy `principal` clauses can
+then match both identities simultaneously, enabling per-service access control
+on the loaded code.
+
+**Graceful degradation:**
+
+On a standard JDK (no DirtyChai), the reflection probe finds nothing, all the
+new code paths are bypassed at zero cost, and class loading behaviour is
+identical to the previous version.  All 51 existing tests pass unchanged.
+
+**Files changed:**
+- `jgdms-platform/.../RFC3986URLClassLoader.java` — reflection probe, ThreadLocal,
+  `loadClass(String, boolean, Principal[])`, `defineClassWithPrincipals(…)`,
+  two `createClass` call-sites updated
+- `docs/.../context_10.md` — this update (v54 → v55)
+
+---
+
+## v54 Change Summary
+
+**Documentation corrections to §9.4 (Work Item 61 Limitations) — DirtyChai SubjectDomainCombiner and ProtectionDomain enrichment**
+
+Two inaccuracies identified by @pfirmstone in the §9.4 Limitations section have been corrected:
+
+1. **SubjectDomainCombiner scope** — the previous text implied that DirtyChai's
+   `SubjectDomainCombiner` enrichment would make the server SPIFFE principal
+   available in the grant evaluation context.  DirtyChai's `SECURITY_MODEL.md`
+   (§7) clarifies that `AccessController.getContext()` injects only
+   **non-`WorkerSubject`** scoped Subjects; worker threads — the typical threads
+   that execute proxy class loads — are explicitly excluded.
+
+2. **ProtectionDomain enrichment scope** — DirtyChai's `SecureClassLoader`
+   currently stamps `ProtectionDomain`s with the **client's** SPIFFE principals
+   (from the local SPIRE SVID), not the peer/server's.  For the server SPIFFE
+   principal to appear in the `ProtectionDomain` of the loaded code, two changes
+   are required (tracked as new Work Item 62):
+   - DirtyChai must add a `protected loadClass(String, boolean, Principal[])`
+     overload to `SecureClassLoader` so callers can supply extra principals to
+     embed in the resulting `ProtectionDomain`.
+   - JGDMS `RFC3986URLClassLoader` must implement the same signature, using
+     reflection to detect whether the DirtyChai `SecureClassLoader` carries that
+     overload and calling it when present (graceful degradation on a
+     non-DirtyChai JDK).
+
+Work Item 62 added to §6 table.
+
+---
+
+## v53 Change Summary
+
+**Work Item 61 completed — Digest-codesource hijacking defence (Option 1)**
+
+Closes a security gap where a second authenticated service that ships a JAR
+with the same content bytes as a legitimately-loaded service could reuse the
+`DigestGrant` issued for that digest, thereby gaining `DownloadPermission` and
+`LoadClassPermission` without the administrator ever auditing its code.
+
+**Root cause of the gap:**
+The `tryGrantPerUriDigestGrants` helper in
+`PreferredProxyCodebaseProvider` previously bound per-JAR `DigestGrant`s
+only to the **local** SPIFFE principal (from `Security.currentPrincipals()`).
+Two distinct services on the same node sharing the same JAR bytes (same
+SHA-256 digest) would produce the same grant, so Service B could benefit from
+a grant that was issued when connecting to Service A.
+
+**Fix — Option 1:**
+
+1. `tryGrantPerUriDigestGrants` now accepts a second principal array
+   (`serverPrincipals`) alongside `localPrincipals`.
+2. A new package-private helper `mergePrincipals(Principal[], Principal[])` 
+   merges the two arrays into a de-duplicated, insertion-ordered set.
+3. Each per-JAR `DigestGrant` is now built with the **union of local and
+   server principals**.  The grant fires only when the policy evaluation
+   context carries **all** of those principals — i.e. both the local
+   workload identity and the specific server that attested to those JAR
+   bytes.
+4. The call site in `resolve()` passes `serverPrincipals` (already extracted
+   from the `ServerMinPrincipal` constraints in the `MethodConstraints`) to
+   the helper.
+5. Seven new unit tests in
+   `PreferredProxyCodebaseProviderVerdictTest` cover `mergePrincipals`
+   exhaustively (both-null, both-empty, first-null, second-null, disjoint,
+   duplicate-dropped, and the key property that different server principals
+   produce distinct grant sets).
+
+**Security gap addressed:**
+A second authenticated service (Service B) that deploys a JAR with the same
+content digest as Service A will receive a `DigestGrant` bound to
+`{local, serverB}`, which is different from Service A's grant
+`{local, serverA}`.  Neither grant fires for the other service's code,
+because the server principal required by each grant is not present in the
+other service's execution context.
+
+**Files changed:**
+- `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java`
+  — `mergePrincipals`, updated `tryGrantPerUriDigestGrants`, updated call
+  site in `resolve()`
+- `jgdms-pref-class-loader/…/PreferredProxyCodebaseProviderVerdictTest.java`
+  — 7 new `mergePrincipals` tests (51 tests total, all pass)
+- §3 weakness table — new row for the digest-codesource hijacking gap
+- §6 work items table — new row Work Item 61 (`✅ Completed`)
+
+---
+
+## v51 Change Summary
+
+**Work Item 4.1 (SPIRE HA) completed — HA deployment topology added to `spiffe-admin-deployment.md`**
+
+- Added a new `## High Availability Deployment` section to
+  `docs/spiffe-admin-deployment.md` covering:
+  - HA architecture diagram (multiple SPIRE servers → shared PostgreSQL → TCP LB →
+    SPIRE agents → JGDMS JVMs).
+  - HA prerequisites (SPIRE 1.8+, PostgreSQL 14+, TCP load balancer).
+  - Shared datastore configuration (`DataStore "sql"` PostgreSQL plugin with
+    connection-string, pool, and TLS guidance).
+  - CA options: shared `disk` `keys.json` (simplest) vs Vault `UpstreamAuthority`
+    (recommended for production).
+  - Load balancer configuration (HAProxy example + AWS/GCP guidance; health check
+    on SPIRE's `/health/live` HTTP endpoint).
+  - Full `spire-server.conf` HA instance example.
+  - SPIRE agent configuration pointing at the LB VIP (no code change required).
+  - Note that `SpiffeCredentialManager` requires no changes — it is topology-agnostic.
+  - Failure mode analysis table (single-server failure, both-server failure, datastore
+    failure, agent failure, full-site failure).
+  - HA operational checklist (infrastructure, server deployment, agent deployment,
+    JGDMS services, failover test).
+- §5 Phase 4 table updated: Status column added; Item 4.1 marked `✅ Completed`.
+- §6 Work Items table updated: Item 59 added and marked `✅ Completed`.
+- Version header bumped from v50 → v51.
+
+---
+
 ## v50 Change Summary
 
 **Work Item 55 completed — DiscoveryCredentialProvider with SPIFFE-backed Subject propagation**
@@ -18,8 +354,11 @@ and is the forward-reference added in §19 of that document.
   to formalize discovery credential sourcing.
 - Added `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder`.
 - Integrated discovery credential provider wiring in `AbstractLookupDiscovery`
-  so outbound multicast/unicast discovery operations can run under provider
-  `Subject` via `Subject.doAs(...)`.
+  so outbound multicast/unicast discovery operations use the provider `Subject`'s
+  SPIFFE principals (embedded in ACC `ProtectionDomain`s by DirtyChai);
+  `Subject.doAs(...)` is **not** used — it is incompatible with SPIFFE `Subject`s
+  (`Subject.callAs` rejects them, and `SubjectDomainCombiner` cannot obtain
+  them).
 - Added focused unit tests for SPIFFE discovery credential provider behavior.
 - §5 Phase 3 table updated: Phase 3.2 priority changed from `🟡 Sprint 4` to
   `✅ Completed`.
@@ -533,7 +872,7 @@ subsequent uses skip all of the above.
 |---|---|---|---|
 | 1 | Full security requires DirtyChai (non-standard JDK) | 🔴 Critical | **By design — no fix** |
 | 2 | Wire-asserted user principals are unverified | 🔴 Critical | Partially (JwtVerifier SPI opt-in; DefaultJwtVerifier exp/iat/iss/aud; OIDC JWKS opt-in) |
-| 3 | INCONCLUSIVE verdict allows loading; no re-audit on permission change | 🟠 High | No |
+| 3 | INCONCLUSIVE verdict allows loading; no re-audit on permission change | 🟠 High | Partially (retained, externally-voidable loader-scoped grants for INCONCLUSIVE loaders — WI46 Option 4; structural fix via INCONCLUSIVEPermit pending — WI51) |
 | 4 | VerdictRegistry boot permissive window | 🟠 High | Acknowledged; no fix |
 | 5 | VerdictRegistry outage blocks all new proxy loads | 🟠 High | No (fail-secure, but availability impact) |
 | 6 | SPIRE single point of failure / SVID expiry gap | 🟠 High | Partially (backoff, but no stale-SVID fallback) |
@@ -541,8 +880,9 @@ subsequent uses skip all of the above.
 | 8 | Policy cannot deny, only relax | 🟡 Medium | No — Java platform limitation |
 | 9 | doPrivileged migration incomplete in legacy services | 🟡 Medium | Partially (§11 audit ongoing) |
 | 10 | CombinerSecurityManager recursion depth ceiling | 🟡 Medium | No (fixed at 7) |
-| 11 | DiscoveryCredentialProvider unimplemented | 🟡 Medium | No |
+| 11 | DiscoveryCredentialProvider unimplemented | 🟡 Medium | Yes (SpiffeDiscoveryCredentialProvider backed by SpiffeSubjectHolder; AbstractLookupDiscovery integration — WI55) |
 | 12 | Pack200 full-JAR heap materialization | 🟡 Low | Partially (64 MB cap) |
+| 13 | Digest-codesource hijacking — second authenticated service with same JAR bytes reuses DigestGrant | 🟠 High | ✅ Yes (WI61 — Option 1: DigestGrants now bound to both local and server SPIFFE principals) |
 
 ---
 
@@ -959,9 +1299,9 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 | 2.1 | doAs migration — scan (W9) | Run SpotBugs/javaparser scan for all remaining `doAsPrivileged` in service code; produce migration list | All service modules | 🟠 Sprint 2 |
 | 2.2 | doAs migration — RegistrarImpl (W9) | Migrate `RegistrarImpl` discovery/multicast threads per STD-003 decision matrix; add regression tests | `RegistrarImpl.java` | 🟠 Sprint 2 |
 | 2.3 | doAs migration — AbstractActivationGroup (W9) | Migrate executor path; add regression tests | `AbstractActivationGroup.java` | 🟠 Sprint 2 |
-| 2.4 | `SubjectAwareExecutor` (W7) | Implement `SubjectAwareExecutor implements ExecutorService`; update Javadoc in `AbstractJiniService` to recommend it | New class in `jgdms-platform` | 🟠 Sprint 2 |
+| 2.4 | `SubjectAwareExecutor` (W7) | Implement `SubjectAwareExecutor implements ExecutorService`; update Javadoc in `AbstractJiniService` to recommend it | New class in `jgdms-platform` | ✅ Completed (WI50) |
 | 2.5 | INCONCLUSIVE grant revocation redesign (W3) | Keep `ClassLoader`s cached; add revocable loader-scoped grants / revoke hook on policy change for INCONCLUSIVE proxies | `DynamicPolicyProvider.java`, `Security.java`, grant wrapper classes | ✅ Completed (Option 4 baseline) |
-| 2.6 | In-memory verdict cache (W5) | Add `ConcurrentHashMap<String, RegistryVerdict>` cache in `PreferredProxyCodebaseProvider`; use cached verdict on `RemoteException` if within TTL | `PreferredProxyCodebaseProvider.java` | 🟡 Sprint 3 |
+| 2.6 | In-memory verdict cache (W5) | Add `ConcurrentHashMap<String, RegistryVerdict>` cache in `PreferredProxyCodebaseProvider`; use cached verdict on `RemoteException` if within TTL | `PreferredProxyCodebaseProvider.java` | ✅ Completed (WI48) |
 
 ### Phase 3 — Architectural Changes (new API/protocol)
 
@@ -975,11 +1315,11 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 
 ### Phase 4 — Operational / Deployment
 
-| # | Weakness | Action |
-|---|---|---|
-| 4.1 | SPIRE HA (W6) | Add SPIRE HA deployment topology to `spiffe-admin-deployment.md` |
-| 4.2 | ServiceStarter ordering (W4) | Document recommended startup ordering (VerdictRegistry client first) as the hardened-boot pattern |
-| 4.3 | Policy deny documentation (W8) | Document the negative grants feature (Phase 3.3) with worked examples in `security_architecture_feature_table.md` |
+| # | Weakness | Action | Status |
+|---|---|---|---|
+| 4.1 | SPIRE HA (W6) | Add SPIRE HA deployment topology to `spiffe-admin-deployment.md` | ✅ Completed |
+| 4.2 | ServiceStarter ordering (W4) | Document recommended startup ordering (VerdictRegistry client first) as the hardened-boot pattern | ✅ Completed |
+| 4.3 | Policy deny documentation (W8) | Document the negative grants feature (Phase 3.3) with worked examples in `security_architecture_feature_table.md` | 🔲 Not started |
 
 ### Dependency Graph
 
@@ -1004,7 +1344,7 @@ Phase 3.5 (INCONCLUSIVE P) → Phase 2.5 must be complete first
 
 ---
 
-## 6. Work Items 44–56
+## 6. Work Items 44–60
 
 These extend the work-item table in §12 of
 [context_8](AI_Agent_JGDMS-GrantPermission-RoleManagement-context_8.md).
@@ -1015,18 +1355,21 @@ These extend the work-item table in §12 of
 | **45** | VerdictRegistry retry backoff (exponential, 1 s → 2 s → 4 s, 3 attempts) in `checkVerdictForJar()` | 1.4 | ✅ Completed |
 | **46** | INCONCLUSIVE grant revocation redesign while keeping `ClassLoader`s cached | 2.5 | ✅ Completed (Option 4 baseline) |
 | **47** | Boot-window log upgrade (`Level.FINE` → `Level.WARNING` + SHA-256 hash) | 1.1 | ✅ Completed |
-| **48** | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, configurable TTL) | 2.6 | 🔲 Not started |
+| **48** | In-memory signed-verdict cache (`ConcurrentHashMap<String, RegistryVerdict>`, configurable TTL) | 2.6 | ✅ Completed |
 | **49** | SVID exponential-backoff renewal + `isCredentialValid()` / `secondsUntilExpiry()` health endpoint | 1.2 + 1.3 | ✅ Completed |
-| **50** | `SubjectAwareExecutor implements ExecutorService` — Subject[] capture-and-rebind wrapper | 2.4 | 🔲 Not started |
+| **50** | `SubjectAwareExecutor implements ExecutorService` — Subject[] capture-and-rebind wrapper | 2.4 | ✅ Completed |
 | **51** | `INCONCLUSIVEPermit` registry entry — require for INCONCLUSIVE loads in strict mode (next major version) | 3.5 | 🔲 Not started |
 | **52** | doAs/doAsPrivileged migration: SpotBugs scan + incremental per-site migration (`RegistrarImpl`, `AbstractActivationGroup`) | 2.1–2.3 | 🔲 Not started |
 | **53** | Negative grants in `DynamicPolicyProvider` — `negativeGrants` set + background sweeper + `implies()` update | 3.3 | 🔲 Not started |
 | **54** | `CombinerSecurityManager` depth limit — configurable system property (default 10) + startup `SEVERE` warning | 1.6 | 🔲 Not started |
 | **55** | `DiscoveryCredentialProvider` — interface + `SpiffeDiscoveryCredentialProvider` backed by `SpiffeSubjectHolder` | 3.2 | ✅ Completed |
 | **56** | Pack200 semaphore — `Semaphore(4)` (configurable) around JAR download + decompression in `PreferredProxyCodebaseProvider.resolve()` | 1.5 | ✅ Completed |
-
-| **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | 🔲 Not started |
+| **57** | Event-sourced VerdictRegistry read replicas — new `VerdictRegistry.registerGlobalVerdictListener()` API (wildcard subscription with immediate burst delivery); `ReadReplicaVerdictRegistry` implementation (DER signature verification on receipt, `publishedVerdicts` + `hashPublishedVerdicts` caches, `ready` flag, `LeaseRenewalManager` subscription); `VerdictRegistryHolder` extended to fallback ordered list; client fallback on `RemoteException` | 3 (new) | ✅ Completed |
 | **58** | DirtyChai `SecureClassLoader.CodeSourceKey` digest fix — `CodeSourceKey` includes `digestAlgorithm`+`digest` fields from `DigestCodeSource` in `hashCode()`/`equals()`; `getProtectionDomain` promotes plain `CodeSource` to content-addressed `DigestCodeSource` (SHA-256) with two-layer cache (`JarResponseCache` + `digestCache`) — see §7 | DirtyChai | ✅ Complete |
+| **59** | SPIRE HA deployment documentation — `## High Availability Deployment` section in `docs/spiffe-admin-deployment.md`: HA architecture diagram; shared PostgreSQL datastore; `disk` CA vs Vault `UpstreamAuthority`; HAProxy/NLB TCP load balancer config; agent VIP config; failure-mode analysis table; HA operational checklist | 4.1 | ✅ Completed |
+| **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
+| **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerUriDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
+| **62** | DirtyChai `SecureClassLoader` Principal-aware `defineClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected final defineClass(String, byte[], int, int, CodeSource, Principal[])` and `defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to `SecureClassLoader`; JGDMS `RFC3986URLClassLoader` probes for these overloads at class init via reflection and, when found, uses them to embed server SPIFFE principals in the loaded code's `ProtectionDomain`; a new `loadClass(String, boolean, Principal[])` entry point carries principals via a `ThreadLocal` down to the `defineClass` call sites | DirtyChai + JGDMS | ✅ Complete (both JGDMS and DirtyChai sides) |
 
 ---
 
@@ -1366,12 +1709,141 @@ been reverted from this branch.
 
 ---
 
+## 9. Work Item 61 — Digest-Codesource Hijacking Defence (Option 1)
+
+### 9.1 The security gap
+
+`PreferredProxyCodebaseProvider.tryGrantPerUriDigestGrants` issues per-JAR
+`DigestGrant`s during the boot window, after verifying the server's codebase
+bytes against the server-attested digests.  Before this fix, each grant was
+bound only to:
+
+- the **content digest** of the JAR (matches any `DigestCodeSource` with that
+  digest), and
+- the **local** SPIFFE principals from `Security.currentPrincipals()`.
+
+Both conditions depend solely on the **client side**.  If two distinct
+services — Service A and Service B — deploy JARs with identical content
+(same SHA-256 digest), both services would produce the same `DigestGrant` on
+the same client node (same local SPIFFE identity, same digest bytes).
+
+**Attack scenario:**
+1. Service A (legitimate) connects to a client.  The client issues a
+   `DigestGrant` for digest `D` bound to `{localPrincipal}`.
+2. Service B (different logical service, but shares some library JAR with
+   Service A) also authenticates to the same client.
+3. Service B presents code with digest `D`.
+4. The existing `DigestGrant` fires: digest matches, local principal present.
+5. Service B's code gains `DownloadPermission` and (on DirtyChai)
+   `LoadClassPermission` without Service A's administrator ever auditing it.
+
+### 9.2 Fix — Option 1
+
+The fix adds the **authenticated server's SPIFFE principals** (extracted from
+the `ServerMinPrincipal` constraint via `extractServerPrincipals(mc)`) to the
+per-JAR `DigestGrant`'s principal requirements alongside the local principals.
+
+**New helper:** `mergePrincipals(Principal[] first, Principal[] second)`
+
+- Merges two principal arrays into a de-duplicated, insertion-ordered set.
+- Returns `null` when both inputs are null/empty (backward-compatible: grant
+  then applies to any principal, same as before this fix).
+- A clone is returned when one side is null/empty so the caller cannot mutate
+  the original array.
+
+**Updated `tryGrantPerUriDigestGrants`:**
+- Accepts `Principal[] serverPrincipals` in addition to `Principal[] localPrincipals`.
+- Calls `mergePrincipals(localPrincipals, serverPrincipals)` to produce the
+  combined principal set.
+- Passes the combined set to `PermissionGrantBuilder.principals(...)`.
+
+**Updated call site in `resolve()`:**
+```java
+Principal[] localPrincipals = Security.currentPrincipals();
+tryGrantPerUriDigestGrants(algo, localDigests, localPrincipals, serverPrincipals);
+```
+
+### 9.3 Security properties after the fix
+
+| Property | Before | After (Option 1) |
+|---|---|---|
+| Grant bound to local SPIFFE | ✅ | ✅ (unchanged) |
+| Grant bound to server SPIFFE | ❌ | ✅ |
+| Same JAR bytes from different services | Same grant | Distinct grants |
+| Service B reuses Service A's DigestGrant | Possible | Not possible — server principal mismatch |
+| Non-SPIFFE deployments (no serverPrincipals) | Unchanged | Unchanged — `mergePrincipals` with null server returns local only |
+| DirtyChai grant evaluation | Works when local principal in context | Works when both local AND server principal in context |
+
+### 9.4 Limitations
+
+- The server's SPIFFE principal must be present in the grant evaluation context
+  for the grant to fire.  On a standard JDK without DirtyChai, the grant does
+  not fire at all (the `DigestCodeSource` type check fails first), so the
+  defense is additive and not regressive.
+- **DirtyChai `SubjectDomainCombiner` does not help here.**  DirtyChai's
+  `AccessController.getContext()` injects scoped Subjects into the evaluation
+  context only for **non-`WorkerSubject`** Subjects (see §7 of DirtyChai's
+  `SECURITY_MODEL.md`).  Worker threads — the typical executor threads used to
+  load proxy classes — are explicitly excluded.  Their context does **not**
+  automatically carry any scoped Subject, so the server SPIFFE principal cannot
+  reach the grant evaluation context via `SubjectDomainCombiner`.
+- If the client is not configured with `ServerMinPrincipal` constraints
+  (`serverPrincipals == null`), the grant falls back to local-principal-only
+  binding.  Deployments without SPIFFE are not affected.
+- **DirtyChai currently enriches `ProtectionDomain`s with the client's SPIFFE
+  principals only.**  DirtyChai's `SecureClassLoader.defineClass()` stamps each
+  `ProtectionDomain` with principals from the local SPIRE SVID (the workload's
+  own `SpiffeSubject`), not with the peer/server's identity.  For the server
+  SPIFFE principal to appear in the `ProtectionDomain` of the loaded proxy code,
+  two changes are required (tracked as **Work Item 62**):
+  1. **DirtyChai** must add
+     `protected final Class<?> defineClass(String name, byte[] b, int off, int len, CodeSource cs, Principal[] p)`
+     and
+     `protected final Class<?> defineClass(String name, ByteBuffer b, CodeSource cs, Principal[] p)`
+     overloads to `SecureClassLoader` so that callers can pass the server's
+     SPIFFE principals, which are then embedded in the resulting
+     `ProtectionDomain`.  (**Not yet implemented in DirtyChai.**)
+  2. **JGDMS `RFC3986URLClassLoader`** — ✅ **Implemented (v55).**
+     A new `loadClass(String, boolean, Principal[])` public method sets a
+     `ThreadLocal<Principal[]>`, delegates to the standard
+     `loadClass(String, boolean)`, and clears the ThreadLocal in a `finally`
+     block.  Both `URLHandler.createClass()` and `URLJarHandler.createClass()`
+     now call `defineClassWithPrincipals(…)` which invokes the DirtyChai
+     `defineClass` overload via reflection when available, falling back to the
+     standard path on a standard JDK.  The reflection probe (`DIRTY_CHAI_DEFINE_BYTES`
+     / `DIRTY_CHAI_DEFINE_BUFFER`) runs once at class initialisation and returns
+     `null` on a standard JDK, so the fallback path has zero overhead.
+  Until DirtyChai implements step 1, the JGDMS caller can supply server
+  principals through `loadClass(String, boolean, Principal[])` but they will be
+  silently ignored (DirtyChai overload not present → fallback → standard
+  `defineClass`).  The `DigestGrant` still prevents cross-service grant reuse at
+  issue time (§9.3 security properties hold at grant construction time), but the
+  grant cannot yet fire at class-load time on the current DirtyChai build because
+  the server principal is absent from the `ProtectionDomain`.
+
+### 9.5 Files changed
+
+| File | Change |
+|---|---|
+| `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` | `mergePrincipals` helper (package-private); `tryGrantPerUriDigestGrants` takes `serverPrincipals`; call site updated; Javadoc updated |
+| `jgdms-pref-class-loader/.../PreferredProxyCodebaseProviderVerdictTest.java` | 7 new `mergePrincipals` tests |
+| `jgdms-platform/.../RFC3986URLClassLoader.java` | DirtyChai reflection probe; `SERVER_PRINCIPALS` ThreadLocal; `loadClass(String,boolean,Principal[])`; `defineClassWithPrincipals(…)`; `createClass` call-sites updated |
+| `docs/.../AI_Agent_JGDMS-SecurityWeaknesses-ImplementationPlan-context_10.md` | §3 row 13 added; §6 WI61+WI62 rows added; §9 new section; v55 update |
+| `docs/.../JGDMS-STD-003-MultiSubjectIdentityArchitecture-v3.md` | §DigestGrant note updated |
+
+---
+
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 49.
-Work Item 46 now records an explicit options decision in §8.8: Option 4
-(retained, externally-voidable loader-scoped grants while keeping preferred
-proxy `ClassLoader`s cached) is the implemented baseline, and Option 5
-(`INCONCLUSIVEPermit`) is the future hardening path. §8 also records that GC
-after clearing strong references is at most a best-effort secondary effect
-rather than a dependable mitigation. Work Item 58 remains ✅ fully complete in DirtyChai
+future AI agent to continue without loss of context. This is version 58.
+Version 57 confirms WI62 DirtyChai side and G-3 complete.  Version 58 completes
+WI57 (event-sourced VerdictRegistry read replicas: `ReadReplicaVerdictRegistry`,
+`registerGlobalVerdictListener()` API, `VerdictRegistryHolder` ordered fallback
+list); makes `DefaultJwtVerifier` the automatic fallback in
+`BasicInvocationDispatcher`; adds DigestCodeSource boot-window guard in
+`PreferredProxyCodebaseProvider` (partial structural fix for §2.5, DirtyChai
+deployments only).  §2.7 SPIRE SVID expiry closed Won't Fix (deploy SPIRE HA);
+§2.10 negative grants closed Won't Implement (POLP + SecurePolicyWriter).
+Work Item 61 (digest-codesource hijacking defence — Option 1) is ✅ Completed
+and is fully operative end-to-end now that WI62 DirtyChai side is also complete.
+Work Item 58 remains ✅ fully complete in DirtyChai
 (`SecureClassLoader.java` SHA `98e1e31`).*
