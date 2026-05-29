@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v58)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v61)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,45 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v61 Change Summary
+
+**WI65–67 planned — JWT RBAC principal matching and SecurePolicyWriter role-grant mode**
+
+*Note: v59 and v60 were completed in a separate branch session covering Granola
+transaction optimisations (WI63 — Opt-3 single-round commit via
+`LamportClock.prepareWithTimestamp`; WI64 — Opt-4C `readOnly` hint via
+`TransactionConfig.setReadOnly`). Those items are not present in this clone's
+context_10.md. WI numbering in this branch resumes at WI65.*
+
+**New weakness added:**
+- §3 row 14 — Policy cannot express JWT role-based grants; individual users must
+  be enumerated rather than roles (🟡 Medium).
+
+**New options analysis added:**
+- §4.12 — Weakness 14 — JWT RBAC Role-Based Grant Matching, documenting Options
+  A–D and recommending Option A (`RoleMatchingPrincipal` interface +
+  `JwtRolePrincipal` + `SecurityPolicyWriter` role-grant properties).
+
+**New work items added:**
+- WI65 — `RoleMatchingPrincipal` interface in `org.apache.river.api.security` +
+  `PrincipalGrant.implies(Principal[])` update.
+- WI66 — `JwtRolePrincipal` class in `net.jini.security.jwt`.
+- WI67 — `SecurityPolicyWriter` JWT role-grant mode
+  (`SecurityPolicyWriter.jwt.roleGrant` + `SecurityPolicyWriter.jwt.roleClaims`).
+
+**Phase plan updated:**
+- §5 Phase 3 rows 3.6–3.8 added for WI65–67.
+
+**New §10 added:**
+- Detailed specification for WI65–67 covering all implementation file paths,
+  method signatures, `PrincipalGrant.implies` integration mechanics, and
+  `SecurityPolicyWriter` property semantics.
+
+**Files changed:**
+- `docs/.../context_10.md` — this update; v58 → v61
+
+---
 
 ## v58 Change Summary
 
@@ -883,6 +922,7 @@ subsequent uses skip all of the above.
 | 11 | DiscoveryCredentialProvider unimplemented | 🟡 Medium | Yes (SpiffeDiscoveryCredentialProvider backed by SpiffeSubjectHolder; AbstractLookupDiscovery integration — WI55) |
 | 12 | Pack200 full-JAR heap materialization | 🟡 Low | Partially (64 MB cap) |
 | 13 | Digest-codesource hijacking — second authenticated service with same JAR bytes reuses DigestGrant | 🟠 High | ✅ Yes (WI61 — Option 1: DigestGrants now bound to both local and server SPIFFE principals) |
+| 14 | Policy cannot express JWT role-based grants — individual users must be enumerated rather than roles; `PrincipalGrant.implies` uses equality matching only | 🟡 Medium | No (WI65–67 planned) |
 
 ---
 
@@ -1279,7 +1319,62 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 
 ---
 
-## 5. Phased Implementation Plan
+### 4.12 Weakness 14 — Policy Cannot Express JWT Role-Based Grants
+
+**Current state:** `PrincipalGrant.implies(Principal[])` in
+`jgdms-platform/src/main/java/org/apache/river/api/security/PrincipalGrant.java`
+uses two paths internally:
+
+1. **Unresolved path** (`hasUnresolved == true`): iterates grant principals; for
+   `UnresolvedPrincipal` instances calls `UnresolvedPrincipal.implies(Principal)`,
+   which supports class-name and name wildcards (`"*"`).
+2. **Fast path** (`hasUnresolved == false`): calls `subjects.containsAll(grantPrincipals)`,
+   which is pure equality via `Set.contains`.
+
+There is no matching path for role-type or claim-type matching beyond the full
+wildcard.  A policy administrator who wants to grant permissions to all JWT users
+with a `group:admins` claim can write `principal net.jini.security.jwt.JwtPrincipal
+"group:admins"` and that does work (one `JwtPrincipal` is added per group membership
+by `JwtLoginModule`).  However, there is no way to write:
+
+- "grant to any principal whose claim name is `group`" (i.e., any group membership)
+  without naming every possible group value, and
+- a role-wildcard that automatically covers future groups.
+
+Additionally, `SecurityPolicyWriter` (the shutdown-hook policy-capture tool in
+`tools/security-policy-debug`) always writes the full `JwtPrincipal("group:admins")`
+form, recording individual subject principals captured at runtime.  There is no
+mechanism to write role-level grants that survive user rotation without policy
+regeneration.
+
+**Source files:**
+- `jgdms-platform/src/main/java/org/apache/river/api/security/PrincipalGrant.java` — lines 203–255
+- `jgdms-platform/src/main/java/org/apache/river/api/security/UnresolvedPrincipal.java` — lines 113–120
+- `jgdms-security-jwt/src/main/java/net/jini/security/jwt/JwtPrincipal.java` — `getClaimName()` line 96, `getClaimValue()` line 105
+- `tools/security-policy-debug/src/main/java/org/apache/river/tool/SecurityPolicyWriter.java` — principal-writing loop lines 432–441
+
+| Option | Summary | Pros | Cons |
+|---|---|---|---|
+| **A** | New `RoleMatchingPrincipal extends Principal` interface with `impliesPrincipal(Principal)`; new `JwtRolePrincipal` class; `PrincipalGrant` checks `instanceof RoleMatchingPrincipal`; `SecurityPolicyWriter` role-grant properties | Generalizes existing `UnresolvedPrincipal` pattern; future-proof SPI; backward compatible; single `PrincipalGrant.implies` code path handles all cases | Two new public types; slight impl complexity in `PrincipalGrant` |
+| **B** | Extend `UnresolvedPrincipal` to support prefix wildcard (e.g., `"group:*"`) | Reuses existing infrastructure; single class change | `UnresolvedPrincipal` is already used for class-resolution deferral; overloading it with role semantics conflates two concepts; syntax is non-obvious |
+| **C** | New `JwtGroupPrincipal(claimName)` hard-coded for the `group` claim only | Minimal code; targeted | Covers only the `group` claim; cannot express role semantics for `role`, `scope`, or custom claims without further subclasses |
+| **D** | External role-mapping properties file; `SecurityPolicyWriter` writes a concrete policy based on role-to-group mappings at the time of capture | No new runtime principal types | Static snapshot; policy must be regenerated whenever group membership changes; adds operational overhead |
+
+**Recommendation:** Option A.
+
+The `RoleMatchingPrincipal` interface generalises the pattern already established
+by `UnresolvedPrincipal.implies(Principal)`, keeping a single matching SPI in
+`PrincipalGrant.implies`.  `JwtRolePrincipal` implements this interface and performs
+claim-name equality against incoming `JwtPrincipal` instances from the live Subject,
+making grants role-level and independent of individual group membership changes.
+
+`SecurityPolicyWriter` role-grant mode allows captured runtime policy to be written
+at the role grain rather than the user grain, making the policy file stable across
+user rotations while still being generated automatically from a running system.
+
+See Work Items 65, 66, 67.
+
+---
 
 ### Phase 1 — Low Risk, High Impact (no API/protocol changes)
 
@@ -1312,6 +1407,9 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 | 3.3 | Negative grants (W8) | Add `negativeGrants` set to `DynamicPolicyProvider` with same background sweeper as void grants; update `implies()` | `DynamicPolicyProvider.java` | 🟡 Sprint 5 |
 | 3.4 | Persistent verdict cache (W5) | Add disk-based signed `RegistryVerdict` cache to `PreferredProxyCodebaseProvider` | `PreferredProxyCodebaseProvider.java`, new `VerdictCache.java` | 🔵 Sprint 6 |
 | 3.5 | `INCONCLUSIVEPermit` (W3) | Add `INCONCLUSIVEPermit` registry entry to `VerdictRegistry` API; require it for INCONCLUSIVE loads in strict mode | `VerdictRegistry.java`, `PreferredProxyCodebaseProvider.java` | 🔵 Sprint 6 |
+| 3.6 | `RoleMatchingPrincipal` interface + `PrincipalGrant` update (W14) | Add `boolean impliesPrincipal(Principal p)` interface to `org.apache.river.api.security`; update `PrincipalGrant.implies(Principal[])` to handle `instanceof RoleMatchingPrincipal` alongside existing `instanceof UnresolvedPrincipal` branch; add unit tests | `jgdms-platform`: new `RoleMatchingPrincipal.java`, `PrincipalGrant.java` | 🔲 Not started |
+| 3.7 | `JwtRolePrincipal` (W14) | New class `net.jini.security.jwt.JwtRolePrincipal implements RoleMatchingPrincipal`; `getName()` returns claim name; `impliesPrincipal` checks `instanceof JwtPrincipal && claimName.equals(getClaimName())`; add unit tests | `jgdms-security-jwt`: new `JwtRolePrincipal.java` | 🔲 Not started |
+| 3.8 | `SecurityPolicyWriter` JWT role-grant mode (W14) | Add `SecurityPolicyWriter.jwt.roleGrant` (boolean, default `false`) and `SecurityPolicyWriter.jwt.roleClaims` (comma-separated, default `"group"`) system properties; principal-writing loop replaces matching `JwtPrincipal("claimName:X")` with `JwtRolePrincipal "claimName"` when enabled | `tools/security-policy-debug`: `SecurityPolicyWriter.java` | 🔲 Not started |
 
 ### Phase 4 — Operational / Deployment
 
@@ -1340,11 +1438,14 @@ Phase 3.2 (DiscoveryCred)  → depends on SpiffeCredentialManager (Phase 1.2)
 Phase 3.3 (neg grants)     → depends on DynamicPolicyProvider stability
 Phase 3.4 (persist cache)  → Phase 2.6 must be complete first
 Phase 3.5 (INCONCLUSIVE P) → Phase 2.5 must be complete first
+Phase 3.6 (RoleMatchingP)  → standalone (new interface + PrincipalGrant hook)
+Phase 3.7 (JwtRolePrinc.)  → Phase 3.6 must be complete first (interface dependency)
+Phase 3.8 (PolicyWriter)   → Phase 3.7 must be complete first (writes JwtRolePrincipal class names)
 ```
 
 ---
 
-## 6. Work Items 44–60
+## 6. Work Items 44–67
 
 These extend the work-item table in §12 of
 [context_8](AI_Agent_JGDMS-GrantPermission-RoleManagement-context_8.md).
@@ -1370,6 +1471,9 @@ These extend the work-item table in §12 of
 | **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
 | **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerUriDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
 | **62** | DirtyChai `SecureClassLoader` Principal-aware `defineClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected final defineClass(String, byte[], int, int, CodeSource, Principal[])` and `defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to `SecureClassLoader`; JGDMS `RFC3986URLClassLoader` probes for these overloads at class init via reflection and, when found, uses them to embed server SPIFFE principals in the loaded code's `ProtectionDomain`; a new `loadClass(String, boolean, Principal[])` entry point carries principals via a `ThreadLocal` down to the `defineClass` call sites | DirtyChai + JGDMS | ✅ Complete (both JGDMS and DirtyChai sides) |
+| **65** | `RoleMatchingPrincipal` interface + `PrincipalGrant` update — new `interface RoleMatchingPrincipal extends Principal` in `org.apache.river.api.security` with `boolean impliesPrincipal(Principal p)`; `PrincipalGrant.implies(Principal[])` updated to iterate grant principals and, for any implementing `RoleMatchingPrincipal`, call `impliesPrincipal(subjectPrincipal)` — alongside the existing `instanceof UnresolvedPrincipal` branch; `hasUnresolved` flag semantics extended to also be `true` when any grant principal is a `RoleMatchingPrincipal`; unit tests in `jgdms-platform` | 3.6 | 🔲 Not started |
+| **66** | `JwtRolePrincipal` — new class `net.jini.security.jwt.JwtRolePrincipal implements RoleMatchingPrincipal, Serializable`; constructor `JwtRolePrincipal(String claimName)` validates non-null non-empty claim name; `getName()` returns the claim name (e.g., `"group"`); `impliesPrincipal(Principal p)` returns `true` iff `p instanceof JwtPrincipal && claimName.equals(((JwtPrincipal) p).getClaimName())`; `equals`/`hashCode` by class + claimName; unit tests in `jgdms-security-jwt` covering: basic matching, non-match on different claim name, non-match on non-JwtPrincipal, equals/hashCode contract | 3.7 | 🔲 Not started |
+| **67** | `SecurityPolicyWriter` JWT role-grant mode — two new system properties read once at shutdown-hook registration time: `SecurityPolicyWriter.jwt.roleGrant` (boolean `true`/`false`, default `false`) and `SecurityPolicyWriter.jwt.roleClaims` (comma-separated claim names treated as roles, default `"group"`); when `roleGrant=true` the principal-writing loop (currently writing `principal net.jini.security.jwt.JwtPrincipal "group:admins"`) instead writes `principal net.jini.security.jwt.JwtRolePrincipal "group"` for any `JwtPrincipal` whose claim name appears in `roleClaims`; principals whose claim names are not in `roleClaims` continue to be written verbatim | 3.8 | 🔲 Not started |
 
 ---
 
@@ -1833,17 +1937,345 @@ tryGrantPerUriDigestGrants(algo, localDigests, localPrincipals, serverPrincipals
 
 ---
 
+## 10. Work Items 65–67 — JWT RBAC Principal Matching
+
+### 10.1 Motivation and Scope
+
+JGDMS's `PrincipalGrant` mechanism currently grants permissions using exact
+principal equality (via `Set.containsAll`) or class/name wildcards via the
+`UnresolvedPrincipal.implies(Principal)` path.  For JWT-based identity there is a
+meaningful intermediate level of granularity — the **claim name** — that maps
+directly to RBAC roles:
+
+```
+JwtPrincipal("group:admins")   →  subject principal for user in the "admins" group
+JwtPrincipal("group:operators") →  subject principal for user in the "operators" group
+JwtRolePrincipal("group")       →  grant-side principal that matches any group claim
+```
+
+`JwtLoginModule` already creates one `JwtPrincipal(claimName + ":" + claimValue)`
+per group membership when authenticating a JWT.  The matching gap is only on the
+grant side: there is no grant-side principal that can say "allow anyone who has any
+value for claim `group`".
+
+Work Items 65–67 close this gap without changing the wire protocol, without
+modifying the `JwtPrincipal` class used in the JERI wire subject block, and without
+touching the `UnresolvedPrincipal` semantics.
+
+### 10.2 WI65 — `RoleMatchingPrincipal` Interface
+
+**Module:** `jgdms-platform`
+**Package:** `org.apache.river.api.security`
+**New file:** `RoleMatchingPrincipal.java`
+
+```java
+package org.apache.river.api.security;
+
+import java.security.Principal;
+
+/**
+ * A grant-side Principal that determines whether it is satisfied by a
+ * given subject Principal through a flexible matching rule, rather than
+ * strict equality.
+ *
+ * <p>Implementations are used in {@link PrincipalGrant} policy entries
+ * to express role-level grants.  When {@code PrincipalGrant.implies}
+ * encounters a principal implementing this interface it delegates the
+ * match decision to {@link #impliesPrincipal(Principal)} rather than
+ * using {@code equals}.
+ *
+ * @see UnresolvedPrincipal
+ */
+public interface RoleMatchingPrincipal extends Principal {
+
+    /**
+     * Returns {@code true} if this role principal is satisfied by the
+     * given subject principal.
+     *
+     * @param subjectPrincipal a principal present in the authenticated Subject
+     * @return {@code true} if this grant entry covers {@code subjectPrincipal}
+     */
+    boolean impliesPrincipal(Principal subjectPrincipal);
+}
+```
+
+**`PrincipalGrant` changes (file:**
+`jgdms-platform/src/main/java/org/apache/river/api/security/PrincipalGrant.java`**)**
+
+The `hasUnresolved` flag (currently set when any grant principal is an
+`UnresolvedPrincipal`) must also be set when any grant principal implements
+`RoleMatchingPrincipal`.  The matching loop already iterates every grant principal
+when `hasUnresolved == true`; the only additional change is to add an `instanceof
+RoleMatchingPrincipal` branch inside that loop.
+
+Affected constructor(s): wherever `hasUnresolved` is initialised, add:
+
+```java
+if (p instanceof RoleMatchingPrincipal) {
+    hasUnresolved = true;
+}
+```
+
+Affected `implies(Principal[])` loop (lines 208–232 in the current source):
+
+```java
+// existing UnresolvedPrincipal branch
+if (grantPrincipal instanceof UnresolvedPrincipal up) {
+    boolean found = false;
+    for (Principal sp : subjectPrincipals) {
+        if (up.implies(sp)) { found = true; break; }
+    }
+    if (!found) return false;
+// NEW RoleMatchingPrincipal branch
+} else if (grantPrincipal instanceof RoleMatchingPrincipal rmp) {
+    boolean found = false;
+    for (Principal sp : subjectPrincipals) {
+        if (rmp.impliesPrincipal(sp)) { found = true; break; }
+    }
+    if (!found) return false;
+} else {
+    // existing equality path
+    if (!subjectSet.contains(grantPrincipal)) return false;
+}
+```
+
+The fast path (`subjectSet.containsAll(grantPrincipals)`) is only reached when
+`hasUnresolved == false`, so the new check is zero-cost for grants that contain
+only plain resolved principals.
+
+**Unit tests** (in `jgdms-platform` test suite):
+- Grant with `RoleMatchingPrincipal` matching a compatible subject principal →
+  `implies` returns `true`.
+- Grant with `RoleMatchingPrincipal` against non-matching subject principals →
+  `implies` returns `false`.
+- Mixed grant: `RoleMatchingPrincipal` + plain principal; all must be satisfied.
+- Verify `hasUnresolved` is set for grants containing a `RoleMatchingPrincipal`.
+
+### 10.3 WI66 — `JwtRolePrincipal`
+
+**Module:** `jgdms-security-jwt`
+**Package:** `net.jini.security.jwt`
+**New file:** `JwtRolePrincipal.java`
+
+```java
+package net.jini.security.jwt;
+
+import org.apache.river.api.security.RoleMatchingPrincipal;
+import java.io.Serializable;
+import java.security.Principal;
+import java.util.Objects;
+
+/**
+ * A grant-side Principal that matches any {@link JwtPrincipal} whose
+ * claim name equals the claim name supplied at construction time.
+ *
+ * <p>Example policy file usage:
+ * <pre>
+ *   grant principal net.jini.security.jwt.JwtRolePrincipal "group" {
+ *       permission ...;
+ *   };
+ * </pre>
+ * This grant fires for any authenticated user who holds at least one
+ * {@code JwtPrincipal} of the form {@code group:<any-value>} in their Subject.
+ *
+ * <p>Instances are grant-side only; they are never placed on the wire.
+ * Standard {@code Serializable} is sufficient (no {@code @AtomicSerial} needed).
+ */
+public final class JwtRolePrincipal implements RoleMatchingPrincipal, Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /** The JWT claim name this role principal matches against (e.g., {@code "group"}). */
+    private final String claimName;
+
+    /**
+     * Constructs a {@code JwtRolePrincipal} that matches any {@link JwtPrincipal}
+     * whose {@linkplain JwtPrincipal#getClaimName() claim name} equals
+     * {@code claimName}.
+     *
+     * @param claimName the JWT claim name (non-null, non-empty)
+     * @throws IllegalArgumentException if {@code claimName} is null or empty
+     */
+    public JwtRolePrincipal(String claimName) {
+        if (claimName == null || claimName.isEmpty()) {
+            throw new IllegalArgumentException("claimName must not be null or empty");
+        }
+        this.claimName = claimName;
+    }
+
+    /**
+     * Returns the claim name (e.g., {@code "group"}).
+     */
+    @Override
+    public String getName() {
+        return claimName;
+    }
+
+    /**
+     * Returns {@code true} if {@code subjectPrincipal} is a {@link JwtPrincipal}
+     * whose {@linkplain JwtPrincipal#getClaimName() claim name} equals this
+     * principal's claim name.
+     */
+    @Override
+    public boolean impliesPrincipal(Principal subjectPrincipal) {
+        if (!(subjectPrincipal instanceof JwtPrincipal jp)) return false;
+        return claimName.equals(jp.getClaimName());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof JwtRolePrincipal other)) return false;
+        return claimName.equals(other.claimName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(JwtRolePrincipal.class, claimName);
+    }
+
+    @Override
+    public String toString() {
+        return "JwtRolePrincipal(" + claimName + ")";
+    }
+}
+```
+
+**Note on serialization:** `JwtRolePrincipal` is a grant-side type only. It is
+never placed on the JERI wire subject block (that is `JwtPrincipal`'s role).
+Standard `Serializable` is sufficient — the `@AtomicSerial` requirement in JGDMS
+applies to wire-transmitted types.
+
+**Note on `PermissionGrantBuilderImp`:** No new `PermissionGrantBuilder` context
+is needed.  `JwtRolePrincipal` is passed as a normal principal to the existing
+`PRINCIPAL = 3` context (`PrincipalGrant`).  `PrincipalGrant`'s constructor
+detects `RoleMatchingPrincipal` and sets `hasUnresolved = true`.
+
+**Unit tests** (in `jgdms-security-jwt` test suite):
+- `impliesPrincipal(new JwtPrincipal("group:admins"))` with `JwtRolePrincipal("group")`
+  → `true`.
+- `impliesPrincipal(new JwtPrincipal("role:superuser"))` with `JwtRolePrincipal("group")`
+  → `false` (different claim name).
+- `impliesPrincipal(new SomePrincipal("group"))` (not a `JwtPrincipal`) → `false`.
+- `equals` / `hashCode` contract: two `JwtRolePrincipal("group")` instances are equal.
+- Constructor rejects null and empty string.
+- `getName()` returns the claim name.
+
+### 10.4 WI67 — `SecurityPolicyWriter` JWT Role-Grant Mode
+
+**Module:** `tools/security-policy-debug`
+**File:**
+`tools/security-policy-debug/src/main/java/org/apache/river/tool/SecurityPolicyWriter.java`
+
+**New system properties:**
+
+| Property | Type | Default | Meaning |
+|---|---|---|---|
+| `SecurityPolicyWriter.jwt.roleGrant` | boolean | `false` | When `true`, matching `JwtPrincipal` entries in the captured Subject are written as `JwtRolePrincipal` at the claim-name level |
+| `SecurityPolicyWriter.jwt.roleClaims` | comma-separated strings | `"group"` | The set of JWT claim names to treat as roles; only `JwtPrincipal` instances whose claim name appears in this set are replaced with `JwtRolePrincipal` |
+
+**Behaviour:**
+
+The shutdown hook in `SecurityPolicyWriter` iterates each `SubjectDomain`'s
+principals when building a grant entry.  Currently each `JwtPrincipal` is written
+as:
+
+```
+principal net.jini.security.jwt.JwtPrincipal "group:admins"
+```
+
+When `SecurityPolicyWriter.jwt.roleGrant=true` and the claim name (`"group"`) is in
+`roleClaims`, the writer instead emits:
+
+```
+principal net.jini.security.jwt.JwtRolePrincipal "group"
+```
+
+Only one `JwtRolePrincipal` line per unique claim name is written per grant block
+(duplicates from multiple group memberships are collapsed to a single role principal
+entry).
+
+Principals whose claim name is **not** in `roleClaims` (e.g., `sub:alice@example.com`,
+`iss:https://accounts.example.com`) are written verbatim as before.
+
+**Implementation outline** (changes to the existing principal-writing loop):
+
+```java
+boolean jwtRoleGrant = Boolean.getBoolean("SecurityPolicyWriter.jwt.roleGrant");
+Set<String> roleClaims = jwtRoleGrant
+    ? parseRoleClaims(System.getProperty("SecurityPolicyWriter.jwt.roleClaims", "group"))
+    : Collections.emptySet();
+
+Set<String> writtenRoleClaims = new HashSet<>(); // per grant block
+
+for (Principal p : domain.getSubject().getPrincipals()) {
+    if (jwtRoleGrant && p instanceof JwtPrincipal jp
+            && roleClaims.contains(jp.getClaimName())) {
+        // Write role-level entry, deduplicating within this grant block
+        if (writtenRoleClaims.add(jp.getClaimName())) {
+            writer.write("  principal net.jini.security.jwt.JwtRolePrincipal \""
+                    + jp.getClaimName() + "\"");
+        }
+    } else {
+        writer.write("  principal " + p.getClass().getName() + " \"" + p.getName() + "\"");
+    }
+}
+```
+
+**Policy output comparison:**
+
+Before (default mode):
+```
+grant principal net.jini.security.jwt.JwtPrincipal "group:admins",
+      principal net.jini.security.jwt.JwtPrincipal "group:operators",
+      principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://example.org/service/api" {
+    permission java.io.FilePermission "/data/reports/*", "read";
+};
+```
+
+After (`SecurityPolicyWriter.jwt.roleGrant=true`, `SecurityPolicyWriter.jwt.roleClaims=group`):
+```
+grant principal net.jini.security.jwt.JwtRolePrincipal "group",
+      principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://example.org/service/api" {
+    permission java.io.FilePermission "/data/reports/*", "read";
+};
+```
+
+The role-grant form matches **any** future user who belongs to any group, combined
+with the specific SPIFFE workload identity.  This is the intended RBAC semantics.
+
+### 10.5 Interaction with `PermissionGrantBuilder` and Policy File Parsing
+
+The `PermissionGrantBuilderImp` uses context `PRINCIPAL = 3` to build
+`PrincipalGrant` instances.  When a policy file contains:
+
+```
+principal net.jini.security.jwt.JwtRolePrincipal "group"
+```
+
+the `PolicyParser` (in `jgdms-policy-provider`) will:
+1. Create a `PermissionGrantBuilderImp` with context 3.
+2. Call `principals(new JwtRolePrincipal("group"))`.
+3. Call `build()`, producing a `PrincipalGrant` with `hasUnresolved = true` (because
+   `JwtRolePrincipal implements RoleMatchingPrincipal`).
+
+No changes are needed to `PermissionGrantBuilderImp` or `PolicyParser`.
+
+The `UnresolvedPrincipal` class is not changed and continues to support its
+existing wildcard semantics independently.
+
+### 10.6 Testing Checklist
+
+| Test class | Coverage |
+|---|---|
+| `PrincipalGrantRoleMatchingTest` (new, `jgdms-platform`) | `RoleMatchingPrincipal` hook in `implies`; mixed grants; `hasUnresolved` flag |
+| `JwtRolePrincipalTest` (new, `jgdms-security-jwt`) | `impliesPrincipal` positive and negative; equals/hashCode; constructor validation; `getName()` |
+| `SecurityPolicyWriterRoleGrantTest` (new, `tools/security-policy-debug`) | Role-grant output format; deduplication; non-role claims written verbatim; default behaviour unchanged when property is absent |
+
+---
+
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 58.
-Version 57 confirms WI62 DirtyChai side and G-3 complete.  Version 58 completes
-WI57 (event-sourced VerdictRegistry read replicas: `ReadReplicaVerdictRegistry`,
-`registerGlobalVerdictListener()` API, `VerdictRegistryHolder` ordered fallback
-list); makes `DefaultJwtVerifier` the automatic fallback in
-`BasicInvocationDispatcher`; adds DigestCodeSource boot-window guard in
-`PreferredProxyCodebaseProvider` (partial structural fix for §2.5, DirtyChai
-deployments only).  §2.7 SPIRE SVID expiry closed Won't Fix (deploy SPIRE HA);
-§2.10 negative grants closed Won't Implement (POLP + SecurePolicyWriter).
-Work Item 61 (digest-codesource hijacking defence — Option 1) is ✅ Completed
-and is fully operative end-to-end now that WI62 DirtyChai side is also complete.
-Work Item 58 remains ✅ fully complete in DirtyChai
-(`SecureClassLoader.java` SHA `98e1e31`).*
+future AI agent to continue without loss of context. This is version 61.
+Version 61 adds planning documentation for Work Items 65–67 (JWT RBAC
+`RoleMatchingPrincipal` / `JwtRolePrincipal` / `SecurityPolicyWriter` role-grant
+mode). No code changes have been made yet; WI65–67 are all 🔲 Not started.*
