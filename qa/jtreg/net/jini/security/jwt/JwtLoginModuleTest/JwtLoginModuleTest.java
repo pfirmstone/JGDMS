@@ -57,9 +57,9 @@ import javax.net.ssl.TrustManagerFactory;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginException;
 
-import net.jini.security.jwt.JwtExpiryClaim;
-import net.jini.security.jwt.JwtLoginModule;
-import net.jini.security.jwt.JwtPrincipal;
+import au.zeus.jgdms.security.jwt.JwtExpiryClaim;
+import au.zeus.jgdms.security.jwt.JwtLoginModule;
+import au.zeus.jgdms.security.jwt.JwtPrincipal;
 
 /**
  * jtreg integration test for {@code JwtLoginModule}.
