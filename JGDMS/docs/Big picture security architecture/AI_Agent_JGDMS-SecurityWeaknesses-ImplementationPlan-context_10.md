@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v58)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v62)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,49 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v62 Change Summary
+
+**WI65 replanned — SecurityPolicyWriter JWT role-claim filter (no new types)**
+
+*Note: v59 and v60 were completed in a separate branch session covering Granola
+transaction optimisations (WI63 — Opt-3 single-round commit via
+`LamportClock.prepareWithTimestamp`; WI64 — Opt-4C `readOnly` hint via
+`TransactionConfig.setReadOnly`). Those items are not present in this clone's
+context_10.md. WI numbering in this branch resumes at WI65.*
+
+The v61 plan (WI65 `RoleMatchingPrincipal` interface, WI66 `JwtRolePrincipal`
+class, WI67 `SecurityPolicyWriter` rewrite) was revised following review feedback
+that it introduced unnecessary complexity.  The correct approach is simpler: no new
+principal types are needed, `PrincipalGrant.implies` is unchanged, and only
+`SecurityPolicyWriter` needs a small filter to capture role-level JWT principals
+using the existing `JwtPrincipal` format.
+
+**Weakness description updated:**
+- §3 row 14 — `SecurityPolicyWriter` captures all JWT principals (including
+  individual-user claims like `sub`, `email`) rather than restricting to
+  role-grain claim names (e.g., `group:administrators`) (🟡 Medium).
+
+**Options analysis revised:**
+- §4.12 — removed over-engineered Option A; recommendation is now the targeted
+  `SecurityPolicyWriter` filter (Option B in the revised table).
+
+**Work items revised:**
+- WI65 — `SecurityPolicyWriter` JWT role-claim filter (single system property
+  `SecurityPolicyWriter.jwt.roleClaims`; no new classes).
+- WI66 and WI67 removed (subsumed into WI65 as originally numbered).
+
+**Phase plan updated:**
+- §5 Phase 3 rows 3.6–3.8 replaced by single row 3.6 (WI65).
+
+**§10 replaced:**
+- Simple spec for the `SecurityPolicyWriter` filter; removed all
+  `RoleMatchingPrincipal`/`JwtRolePrincipal` content.
+
+**Files changed:**
+- `docs/.../context_10.md` — this update; v61 → v62
+
+---
 
 ## v58 Change Summary
 
@@ -883,6 +926,7 @@ subsequent uses skip all of the above.
 | 11 | DiscoveryCredentialProvider unimplemented | 🟡 Medium | Yes (SpiffeDiscoveryCredentialProvider backed by SpiffeSubjectHolder; AbstractLookupDiscovery integration — WI55) |
 | 12 | Pack200 full-JAR heap materialization | 🟡 Low | Partially (64 MB cap) |
 | 13 | Digest-codesource hijacking — second authenticated service with same JAR bytes reuses DigestGrant | 🟠 High | ✅ Yes (WI61 — Option 1: DigestGrants now bound to both local and server SPIFFE principals) |
+| 14 | `SecurityPolicyWriter` captures all JWT principals including individual-user claims (`sub`, `email`) rather than restricting to role-grain claim names (e.g., `group:administrators`); policy files must be regenerated whenever group membership changes | 🟡 Medium | No (WI65 planned) |
 
 ---
 
@@ -1279,7 +1323,64 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 
 ---
 
-## 5. Phased Implementation Plan
+### 4.12 Weakness 14 — SecurityPolicyWriter Captures Individual-User JWT Principals
+
+**Current state:** `SecurityPolicyWriter` (the shutdown-hook policy-capture tool
+in `tools/security-policy-debug`) iterates every principal in each captured
+`SubjectDomain` and writes it verbatim.  For JWT-based identity this means the
+generated policy file includes individual-user claim principals such as:
+
+```
+principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org"
+principal net.jini.security.jwt.JwtPrincipal "email:alice@example.org"
+principal net.jini.security.jwt.JwtPrincipal "group:administrators"
+```
+
+The intent for a role-based policy is to grant access based on group membership
+(e.g., `group:administrators`), not based on individual user identity claims
+(`sub`, `email`).  Including individual-user claims in the captured grant makes
+the policy file tied to a specific user's session and must be manually edited
+after capture to remove them.
+
+`JwtLoginModule` already creates one `JwtPrincipal(claimName + ":" + claimValue)`
+per claim entry.  The fix is entirely in the writer: the policy administrator
+specifies which claim names represent roles; the writer includes only those, and
+omits individual-user claims.
+
+**Source files:**
+- `jgdms-security-jwt/src/main/java/net/jini/security/jwt/JwtPrincipal.java` — `getClaimName()` line 96
+- `tools/security-policy-debug/src/main/java/org/apache/river/tool/SecurityPolicyWriter.java` — principal-writing loop lines 432–441
+
+| Option | Summary | Pros | Cons |
+|---|---|---|---|
+| **A** | New `RoleMatchingPrincipal` interface + `JwtRolePrincipal` class + `PrincipalGrant` hook | Future-proof SPI; generalises `UnresolvedPrincipal` pattern | Two new public types; `PrincipalGrant` complexity; over-engineered for the stated need |
+| **B** | `SecurityPolicyWriter.jwt.roleClaims` system property — writer includes only `JwtPrincipal` instances whose claim name is in the configured set; policy format stays as `JwtPrincipal "group:administrators"` | No new types; no runtime matching change; single targeted change to the writer | Policy still lists explicit role values (e.g., `group:administrators`); does not provide a wildcard match for all values of a claim |
+
+**Recommendation:** Option B.
+
+The real problem is that `SecurityPolicyWriter` captures the wrong JWT principals
+(individual-user `sub`/`email` claims) rather than role principals (`group` claims).
+The existing `JwtPrincipal "group:administrators"` format is correct for policy —
+it matches subjects who have exactly that group membership.  No new principal types
+or matching infrastructure are needed; only the writer needs to know which claim
+names represent roles.
+
+Example generated policy (with `SecurityPolicyWriter.jwt.roleClaims=group`):
+
+```
+grant codeBase "file:/opt/jgdms/order-svc/-"
+      principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://.../host/selinux/order-svc"
+      principal net.jini.security.jwt.JwtPrincipal "group:administrators" {
+    permission OrderPermission "submit";
+};
+```
+
+Individual-user claims (`sub:alice@example.org`, `email:alice@example.org`) are
+omitted from the grant because `sub` and `email` are not in `roleClaims`.
+
+See Work Item 65.
+
+---
 
 ### Phase 1 — Low Risk, High Impact (no API/protocol changes)
 
@@ -1312,6 +1413,7 @@ bounded-resource patterns in the JGDMS architecture. See Work Item 56.
 | 3.3 | Negative grants (W8) | Add `negativeGrants` set to `DynamicPolicyProvider` with same background sweeper as void grants; update `implies()` | `DynamicPolicyProvider.java` | 🟡 Sprint 5 |
 | 3.4 | Persistent verdict cache (W5) | Add disk-based signed `RegistryVerdict` cache to `PreferredProxyCodebaseProvider` | `PreferredProxyCodebaseProvider.java`, new `VerdictCache.java` | 🔵 Sprint 6 |
 | 3.5 | `INCONCLUSIVEPermit` (W3) | Add `INCONCLUSIVEPermit` registry entry to `VerdictRegistry` API; require it for INCONCLUSIVE loads in strict mode | `VerdictRegistry.java`, `PreferredProxyCodebaseProvider.java` | 🔵 Sprint 6 |
+| 3.6 | `SecurityPolicyWriter` JWT role-claim filter (W14) | Add `SecurityPolicyWriter.jwt.roleClaims` system property (comma-separated claim names, default `"group"`); principal-writing loop skips `JwtPrincipal` instances whose claim name is **not** in `roleClaims`; add unit tests | `tools/security-policy-debug`: `SecurityPolicyWriter.java` | 🔲 Not started |
 
 ### Phase 4 — Operational / Deployment
 
@@ -1340,11 +1442,12 @@ Phase 3.2 (DiscoveryCred)  → depends on SpiffeCredentialManager (Phase 1.2)
 Phase 3.3 (neg grants)     → depends on DynamicPolicyProvider stability
 Phase 3.4 (persist cache)  → Phase 2.6 must be complete first
 Phase 3.5 (INCONCLUSIVE P) → Phase 2.5 must be complete first
+Phase 3.6 (PolicyWriter)   → standalone (no interface/class dependency)
 ```
 
 ---
 
-## 6. Work Items 44–60
+## 6. Work Items 44–67
 
 These extend the work-item table in §12 of
 [context_8](AI_Agent_JGDMS-GrantPermission-RoleManagement-context_8.md).
@@ -1370,6 +1473,7 @@ These extend the work-item table in §12 of
 | **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
 | **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerUriDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
 | **62** | DirtyChai `SecureClassLoader` Principal-aware `defineClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected final defineClass(String, byte[], int, int, CodeSource, Principal[])` and `defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to `SecureClassLoader`; JGDMS `RFC3986URLClassLoader` probes for these overloads at class init via reflection and, when found, uses them to embed server SPIFFE principals in the loaded code's `ProtectionDomain`; a new `loadClass(String, boolean, Principal[])` entry point carries principals via a `ThreadLocal` down to the `defineClass` call sites | DirtyChai + JGDMS | ✅ Complete (both JGDMS and DirtyChai sides) |
+| **65** | `SecurityPolicyWriter` JWT role-claim filter — new system property `SecurityPolicyWriter.jwt.roleClaims` (comma-separated claim names, default `"group"`); the principal-writing loop skips any `JwtPrincipal` whose `getClaimName()` is **not** in the configured set, so only role-grain JWT principals (e.g., `group:administrators`) appear in the generated grant; non-JWT principals and `JwtPrincipal` instances in the role-claims set are written verbatim; unit tests cover: role claim included, non-role claim omitted, property absent writes all JWT principals (backward-compatible default), custom claim name list | 3.6 | 🔲 Not started |
 
 ---
 
@@ -1833,17 +1937,103 @@ tryGrantPerUriDigestGrants(algo, localDigests, localPrincipals, serverPrincipals
 
 ---
 
+## 10. Work Item 65 — `SecurityPolicyWriter` JWT Role-Claim Filter
+
+### 10.1 Motivation
+
+`SecurityPolicyWriter` is a shutdown-hook tool that captures the permissions
+exercised at runtime and writes them as a JGDMS policy file.  When a JWT-authenticated
+user is present in the captured `SubjectDomain`, the writer currently emits every
+`JwtPrincipal` in the Subject verbatim, including individual-user claims:
+
+```
+principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org"
+principal net.jini.security.jwt.JwtPrincipal "email:alice@example.org"
+principal net.jini.security.jwt.JwtPrincipal "group:administrators"
+```
+
+A policy grant that includes `sub` or `email` claims is effectively user-specific
+and must be regenerated whenever the user changes.  Role-based grants should
+reference only role claims (e.g., `group:administrators`) and omit individual-user
+identity claims.
+
+No changes are needed to `PrincipalGrant`, `JwtPrincipal`, or any runtime matching
+infrastructure.  The fix is localised to the writer.
+
+### 10.2 Implementation
+
+**Module:** `tools/security-policy-debug`  
+**File:** `tools/security-policy-debug/src/main/java/org/apache/river/tool/SecurityPolicyWriter.java`  
+**Principal-writing loop:** lines 432–441 (approximate; search for `getClass().getName()` + `getName()`)
+
+**New system property:**
+
+| Property | Type | Default | Meaning |
+|---|---|---|---|
+| `SecurityPolicyWriter.jwt.roleClaims` | comma-separated strings | *(absent — all JWT principals written)* | When present, only `JwtPrincipal` instances whose `getClaimName()` appears in this set are written; all others are omitted |
+
+When the property is absent the writer behaves exactly as before (backward
+compatible).
+
+**Implementation outline:**
+
+```java
+// Read once at shutdown-hook registration time
+String roleClaimsProp = System.getProperty("SecurityPolicyWriter.jwt.roleClaims");
+Set<String> roleClaims = (roleClaimsProp != null)
+    ? new HashSet<>(Arrays.asList(roleClaimsProp.split("\\s*,\\s*")))
+    : null; // null == property absent == write all
+
+// Inside the principal-writing loop:
+for (Principal p : domain.getSubject().getPrincipals()) {
+    if (roleClaims != null && p instanceof JwtPrincipal jp) {
+        // Only write this JwtPrincipal if its claim name is in the role set
+        if (!roleClaims.contains(jp.getClaimName())) {
+            continue; // omit individual-user claims (sub, email, iss, …)
+        }
+    }
+    writer.write("  principal " + p.getClass().getName() + " \"" + p.getName() + "\"");
+}
+```
+
+**Policy output comparison:**
+
+Before (property absent — current default):
+```
+grant codeBase "file:/opt/jgdms/order-svc/-"
+      principal net.jini.jeri.ssl.SpiffePrincipal  "spiffe://.../host/selinux/order-svc"
+      principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org"
+      principal net.jini.security.jwt.JwtPrincipal "email:alice@example.org"
+      principal net.jini.security.jwt.JwtPrincipal "group:administrators" {
+    permission OrderPermission "submit";
+};
+```
+
+After (`-DSecurityPolicyWriter.jwt.roleClaims=group`):
+```
+grant codeBase "file:/opt/jgdms/order-svc/-"
+      principal net.jini.jeri.ssl.SpiffePrincipal  "spiffe://.../host/selinux/order-svc"
+      principal net.jini.security.jwt.JwtPrincipal "group:administrators" {
+    permission OrderPermission "submit";
+};
+```
+
+The `sub` and `email` principals are omitted.  The grant still uses the existing
+`JwtPrincipal "group:administrators"` format — no new classes are introduced and
+`PrincipalGrant.implies` is unchanged.
+
+### 10.3 Testing Checklist
+
+| Test class | Coverage |
+|---|---|
+| `SecurityPolicyWriterRoleClaimsTest` (new, `tools/security-policy-debug`) | Role claim written; non-role JWT claim omitted; non-JWT principal written regardless; property absent → all JWT principals written (backward compat); multiple claim names in property |
+
+---
+
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 58.
-Version 57 confirms WI62 DirtyChai side and G-3 complete.  Version 58 completes
-WI57 (event-sourced VerdictRegistry read replicas: `ReadReplicaVerdictRegistry`,
-`registerGlobalVerdictListener()` API, `VerdictRegistryHolder` ordered fallback
-list); makes `DefaultJwtVerifier` the automatic fallback in
-`BasicInvocationDispatcher`; adds DigestCodeSource boot-window guard in
-`PreferredProxyCodebaseProvider` (partial structural fix for §2.5, DirtyChai
-deployments only).  §2.7 SPIRE SVID expiry closed Won't Fix (deploy SPIRE HA);
-§2.10 negative grants closed Won't Implement (POLP + SecurePolicyWriter).
-Work Item 61 (digest-codesource hijacking defence — Option 1) is ✅ Completed
-and is fully operative end-to-end now that WI62 DirtyChai side is also complete.
-Work Item 58 remains ✅ fully complete in DirtyChai
-(`SecureClassLoader.java` SHA `98e1e31`).*
+future AI agent to continue without loss of context. This is version 62.
+Version 62 revises the WI65 plan: the over-engineered RoleMatchingPrincipal
+interface and JwtRolePrincipal class have been removed; WI65 is now solely a
+targeted SecurityPolicyWriter filter that omits non-role JWT principals from
+captured policy grants. WI66 and WI67 are removed. No code changes have been
+made yet; WI65 is 🔲 Not started.*
