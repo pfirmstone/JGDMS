@@ -309,6 +309,23 @@ public abstract class PermissionGrant {
     public abstract boolean isDyanamic();
 
     /**
+     * Returns the Principal array associated with this PermissionGrant, which
+     * may be empty (but not null) when the grant is not principal-constrained.
+     *
+     * <p>Subclasses that represent principal-based grants (e.g.
+     * {@code PrincipalGrant}) should override this method to return the actual
+     * principals.  The default implementation returns an empty array, which is
+     * appropriate for grants that are not associated with any Principal
+     * (e.g. codebase-only grants with no principal constraint).
+     *
+     * @return a non-null array of {@link Principal} objects; may be empty.
+     * @since 3.1.1
+     */
+    public Principal[] getPrincipals() {
+        return new Principal[0];
+    }
+
+    /**
      * Returns an unmodifiable Collection of permissions defined by this
      * PermissionGrant, which may be empty, but not null.
      * @return Collection containing Permission objects.

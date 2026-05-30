@@ -308,6 +308,17 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
            .permissions(perms.toArray(new Permission[perms.size()]));
         return pgb;
     }
+
+    /**
+     * Returns the principals associated with this grant.
+     *
+     * @return a non-null, non-empty array of Principal objects.
+     */
+    @Override
+    public Principal[] getPrincipals() {
+        return pals.toArray(new Principal[pals.size()]);
+    }
+
     
     public boolean isVoid() {        
         if (getPermissions().isEmpty() ) return true;
