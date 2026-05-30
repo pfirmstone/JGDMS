@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v63)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v64)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,34 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v64 Change Summary
+
+**Reverted `getPrincipals()` runtime additions — PolicyCondenser remains independent**
+
+`PolicyCondenser` is an auditing tool, not a runtime component.  The `getPrincipals()`
+no-arg default method added to `PermissionGrant` and the corresponding override in
+`PrincipalGrant` (both from v63) have been removed.  Those additions were introduced
+to support an earlier API-based filtering approach that was superseded by the
+text-preprocessing implementation.  Keeping them in the runtime API would create a
+path for incorporating PolicyCondenser-style filtering into runtime policy parsing,
+which violates the design principle that PolicyCondenser remains a standalone offline
+auditing tool.
+
+The text-preprocessing implementation in `PolicyCondenser` works entirely on policy
+file text (via `StreamTokenizer`) before parsing, so it has no dependency on the
+runtime principal API and requires no changes to `PermissionGrant` or `PrincipalGrant`.
+
+**Source files changed:**
+- `jgdms-platform/.../PermissionGrant.java` — `getPrincipals()` no-arg default method
+  removed (was added in v63; not used by the text-preprocessing approach)
+- `jgdms-platform/.../PrincipalGrant.java` — `getPrincipals()` override removed
+  (was added in v63; not used by the text-preprocessing approach)
+
+**Files changed:**
+- `docs/.../context_10.md` — this update; v63 → v64
+
+---
 
 ## v63 Change Summary
 
@@ -41,10 +69,6 @@ calls `filterJwtFromText(text, roleClaims)`:
 `SecurityPolicyWriter` is unchanged.
 
 **Source files changed:**
-- `jgdms-platform/.../PermissionGrant.java` — `getPrincipals()` no-arg default method
-  added for correctness (effective after next DirtyChai JDK rebuild)
-- `jgdms-platform/.../PrincipalGrant.java` — `getPrincipals()` override added for
-  correctness (effective after next DirtyChai JDK rebuild)
 - `tools/policy-condenser/.../PolicyCondenser.java` — text-preprocessing approach;
   `preprocessJwtFilter`, `filterJwtFromText`, `appendFilteredGrant`,
   `readPermissionEntry`, `isNonRoleJwtByName`, `escapePolicy` added;
@@ -1524,7 +1548,7 @@ These extend the work-item table in §12 of
 | **60** | ServiceStarter hardened boot ordering documentation — `## Hardened Boot Pattern — ServiceStarter Ordering` section in `docs/standard-safe-codebase-audit-pipeline.md`: VerdictRegistry client first, then inject/register, then start all remaining service descriptors; fail-fast guidance when VerdictRegistry is unreachable at startup | 4.2 | ✅ Completed |
 | **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerUriDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
 | **62** | DirtyChai `SecureClassLoader` Principal-aware `defineClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected final defineClass(String, byte[], int, int, CodeSource, Principal[])` and `defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to `SecureClassLoader`; JGDMS `RFC3986URLClassLoader` probes for these overloads at class init via reflection and, when found, uses them to embed server SPIFFE principals in the loaded code's `ProtectionDomain`; a new `loadClass(String, boolean, Principal[])` entry point carries principals via a `ThreadLocal` down to the `defineClass` call sites | DirtyChai + JGDMS | ✅ Complete (both JGDMS and DirtyChai sides) |
-| **65** | `PolicyCondenser` JWT role-claim filter — `PolicyCondenser.jwt.roleClaims` system property (comma-separated claim names); text-preprocessing step using `StreamTokenizer` filters non-role `au.zeus.jgdms.security.jwt.JwtPrincipal` entries from each grant header before `DefaultPolicyParser.parse()`; grants whose entire principal list is filtered are dropped entirely (to avoid creating unconstrained grants); `jgdms-security-jwt` not required on the classpath; backward-compatible default (absent property writes all principals); 6 unit tests: role claim kept, non-role claim dropped, non-JWT always kept, property absent writes all, multiple claim names, mixed principals partial filter.  `PermissionGrant.getPrincipals()` and `PrincipalGrant.getPrincipals()` source changes also added for correctness (effective after next DirtyChai JDK rebuild). | 3.6 | ✅ Completed |
+| **65** | `PolicyCondenser` JWT role-claim filter — `PolicyCondenser.jwt.roleClaims` system property (comma-separated claim names); text-preprocessing step using `StreamTokenizer` filters non-role `au.zeus.jgdms.security.jwt.JwtPrincipal` entries from each grant header before `DefaultPolicyParser.parse()`; grants whose entire principal list is filtered are dropped entirely (to avoid creating unconstrained grants); `jgdms-security-jwt` not required on the classpath; backward-compatible default (absent property writes all principals); 6 unit tests: role claim kept, non-role claim dropped, non-JWT always kept, property absent writes all, multiple claim names, mixed principals partial filter.  No runtime changes needed — PolicyCondenser operates as a standalone offline auditing tool. | 3.6 | ✅ Completed |
 
 ---
 
@@ -2050,8 +2074,6 @@ name is compared as a plain string.
 
 | File | Change |
 |---|---|
-| `jgdms-platform/.../PermissionGrant.java` | `getPrincipals()` no-arg default method (effective after next DirtyChai JDK rebuild) |
-| `jgdms-platform/.../PrincipalGrant.java` | `getPrincipals()` override returning `pals` array (effective after next DirtyChai JDK rebuild) |
 | `tools/policy-condenser/.../PolicyCondenser.java` | `preprocessJwtFilter`, `filterJwtFromText`, `appendFilteredGrant`, `readPermissionEntry`, `isNonRoleJwtByName`, `escapePolicy` added; `applyJwtRoleFilter`/`isNonRoleJwtPrincipal` removed; `condense()` restructured |
 | `tools/policy-condenser/.../PolicyCondenserTest.java` | 6 JWT filter tests; verified by grant count and file-text inspection |
 
