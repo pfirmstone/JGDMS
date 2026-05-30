@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.jini.security.jwt;
+package au.zeus.jgdms.security.jwt;
 
 import java.time.Instant;
 import java.util.Map;
+import net.jini.security.jwt.JwtVerificationException;
+import net.jini.security.jwt.JwtVerifier;
 
 /**
  * A claims-only {@link JwtVerifier} implementation that validates JWT

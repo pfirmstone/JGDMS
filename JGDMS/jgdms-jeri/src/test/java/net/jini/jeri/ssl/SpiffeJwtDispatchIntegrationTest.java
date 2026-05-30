@@ -29,7 +29,7 @@ import javax.security.auth.Subject;
 import javax.security.auth.x500.X500PrivateCredential;
 import net.jini.jeri.BasicInvocationDispatcher;
 import net.jini.jeri.BasicInvocationHandler;
-import net.jini.security.jwt.JwtPrincipal;
+import au.zeus.jgdms.security.jwt.JwtPrincipal;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;

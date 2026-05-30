@@ -93,7 +93,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import net.jini.security.jwt.DefaultJwtVerifier;
+import au.zeus.jgdms.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
 import org.apache.river.api.io.AccessControlContextSerializer;
@@ -219,7 +219,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
             "javax.security.auth.x500.X500Principal",
             "javax.security.auth.kerberos.KerberosPrincipal",
             "net.jini.jeri.ssl.SpiffePrincipal",
-            "net.jini.security.jwt.JwtPrincipal"
+            "au.zeus.jgdms.security.jwt.JwtPrincipal"
         );
         Map<String, Constructor<? extends Principal>> ctorMap = new HashMap<>();
         for (String cname : allowed) {

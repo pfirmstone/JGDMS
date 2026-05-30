@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.jini.security.jwt;
+package au.zeus.jgdms.security.jwt;
 
 import java.security.Principal;
 import java.util.Objects;
@@ -38,7 +38,7 @@ import java.util.Objects;
  * <pre>
  * grant codeBase "file:/opt/jgdms/order-svc/-"
  *       principal SpiffePrincipal "spiffe://.../host/selinux/order-svc"
- *       principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org" {
+ *       principal au.zeus.jgdms.security.jwt.JwtPrincipal "sub:alice@example.org" {
  *     permission OrderPermission "submit";
  * };
  * </pre>
