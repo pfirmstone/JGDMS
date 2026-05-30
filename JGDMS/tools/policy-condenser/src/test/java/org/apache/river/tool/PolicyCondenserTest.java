@@ -234,4 +234,209 @@ public class PolicyCondenserTest {
 	int zzzPos = text.indexOf("file:/zzz.jar");
 	assertTrue("aaa.jar grant should appear before zzz.jar grant", aaaPos < zzzPos);
     }
+
+    /**
+     * When {@code PolicyCondenser.jwt.roleClaims=group}, a JwtPrincipal with
+     * claim name {@code group} must be kept and one with claim name {@code sub}
+     * must be omitted.
+     */
+    @Test
+    public void testJwtRoleClaimKept() throws Exception {
+	System.setProperty("PolicyCondenser.jwt.roleClaims", "group");
+	try {
+	    File policyFile = new File(tempDir, "jwt-role.policy");
+	    try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
+		pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"group:admins\" {");
+		pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
+		pw.println("};");
+	    }
+
+	    PolicyCondenser.main(new String[]{policyFile.getAbsolutePath()});
+
+	    File condensedFile = new File(tempDir, "jwt-role.policy.con");
+	    assertTrue("Condensed file should exist", condensedFile.exists());
+
+	    PolicyParser parser = new DefaultPolicyParser();
+	    Collection<PermissionGrant> grants =
+		parser.parse(condensedFile.toURI().toURL(), new Properties());
+
+	    assertEquals("Role-grain JwtPrincipal grant must be retained", 1, grants.size());
+	} finally {
+	    System.clearProperty("PolicyCondenser.jwt.roleClaims");
+	}
+    }
+
+    /**
+     * When {@code PolicyCondenser.jwt.roleClaims=group}, a grant whose only
+     * principal is {@code JwtPrincipal "sub:alice"} must be dropped entirely
+     * (to avoid creating an unconstrained policy entry).
+     */
+    @Test
+    public void testNonRoleJwtClaimDropped() throws Exception {
+	System.setProperty("PolicyCondenser.jwt.roleClaims", "group");
+	try {
+	    File policyFile = new File(tempDir, "jwt-nonrole.policy");
+	    try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
+		pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"sub:alice\" {");
+		pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
+		pw.println("};");
+	    }
+
+	    PolicyCondenser.main(new String[]{policyFile.getAbsolutePath()});
+
+	    File condensedFile = new File(tempDir, "jwt-nonrole.policy.con");
+	    assertTrue("Condensed file should exist", condensedFile.exists());
+
+	    PolicyParser parser = new DefaultPolicyParser();
+	    Collection<PermissionGrant> grants =
+		parser.parse(condensedFile.toURI().toURL(), new Properties());
+
+	    assertEquals("Grant with only non-role JWT principal must be dropped", 0, grants.size());
+	} finally {
+	    System.clearProperty("PolicyCondenser.jwt.roleClaims");
+	}
+    }
+
+    /**
+     * Non-JWT principals (e.g. X500Principal) must always be written
+     * regardless of the {@code PolicyCondenser.jwt.roleClaims} setting.
+     */
+    @Test
+    public void testNonJwtPrincipalAlwaysKept() throws Exception {
+	System.setProperty("PolicyCondenser.jwt.roleClaims", "group");
+	try {
+	    File policyFile = new File(tempDir, "jwt-nonjwt.policy");
+	    try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
+		pw.println("grant principal javax.security.auth.x500.X500Principal \"CN=test\" {");
+		pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
+		pw.println("};");
+	    }
+
+	    PolicyCondenser.main(new String[]{policyFile.getAbsolutePath()});
+
+	    File condensedFile = new File(tempDir, "jwt-nonjwt.policy.con");
+	    assertTrue("Condensed file should exist", condensedFile.exists());
+
+	    PolicyParser parser = new DefaultPolicyParser();
+	    Collection<PermissionGrant> grants =
+		parser.parse(condensedFile.toURI().toURL(), new Properties());
+
+	    assertEquals("Non-JWT principal grant must be retained", 1, grants.size());
+	} finally {
+	    System.clearProperty("PolicyCondenser.jwt.roleClaims");
+	}
+    }
+
+    /**
+     * When {@code PolicyCondenser.jwt.roleClaims} is absent, all JWT
+     * principals are written verbatim (backward-compatible default).
+     */
+    @Test
+    public void testPropertyAbsentWritesAllJwtPrincipals() throws Exception {
+	System.clearProperty("PolicyCondenser.jwt.roleClaims"); // ensure absent
+	File policyFile = new File(tempDir, "jwt-all.policy");
+	try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
+	    pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"sub:alice\" {");
+	    pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
+	    pw.println("};");
+	    pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"group:admins\" {");
+	    pw.println("    permission java.util.PropertyPermission \"user.dir\", \"read\";");
+	    pw.println("};");
+	}
+
+	PolicyCondenser.main(new String[]{policyFile.getAbsolutePath()});
+
+	File condensedFile = new File(tempDir, "jwt-all.policy.con");
+	assertTrue("Condensed file should exist", condensedFile.exists());
+
+	PolicyParser parser = new DefaultPolicyParser();
+	Collection<PermissionGrant> grants =
+	    parser.parse(condensedFile.toURI().toURL(), new Properties());
+
+	assertEquals("Without property all JWT principal grants must be written", 2, grants.size());
+    }
+
+    /**
+     * A custom comma-separated claim name list must honour all specified names.
+     * Grants for {@code role:editor} and {@code group:admins} are both kept
+     * when {@code PolicyCondenser.jwt.roleClaims=role,group}.
+     */
+    @Test
+    public void testMultipleClaimNamesInProperty() throws Exception {
+	System.setProperty("PolicyCondenser.jwt.roleClaims", "role,group");
+	try {
+	    File policyFile = new File(tempDir, "jwt-multi.policy");
+	    try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
+		pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"role:editor\" {");
+		pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
+		pw.println("};");
+		pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"group:admins\" {");
+		pw.println("    permission java.util.PropertyPermission \"user.dir\", \"read\";");
+		pw.println("};");
+		pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"sub:bob\" {");
+		pw.println("    permission java.util.PropertyPermission \"os.name\", \"read\";");
+		pw.println("};");
+	    }
+
+	    PolicyCondenser.main(new String[]{policyFile.getAbsolutePath()});
+
+	    File condensedFile = new File(tempDir, "jwt-multi.policy.con");
+	    assertTrue("Condensed file should exist", condensedFile.exists());
+
+	    PolicyParser parser = new DefaultPolicyParser();
+	    Collection<PermissionGrant> grants =
+		parser.parse(condensedFile.toURI().toURL(), new Properties());
+
+	    assertEquals("role and group claims must be kept, sub must be dropped", 2, grants.size());
+	} finally {
+	    System.clearProperty("PolicyCondenser.jwt.roleClaims");
+	}
+    }
+
+    /**
+     * When a grant has mixed principals (one role JWT, one non-role JWT, one
+     * non-JWT), only the non-role JWT principal is filtered out; the grant
+     * itself is retained with the remaining principals.
+     */
+    @Test
+    public void testMixedPrincipalsPartialFilter() throws Exception {
+	System.setProperty("PolicyCondenser.jwt.roleClaims", "group");
+	try {
+	    File policyFile = new File(tempDir, "jwt-mixed.policy");
+	    try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
+		pw.println("grant");
+		pw.println("  principal javax.security.auth.x500.X500Principal \"CN=svc\"");
+		pw.println("  principal au.zeus.jgdms.security.jwt.JwtPrincipal \"group:admins\"");
+		pw.println("  principal au.zeus.jgdms.security.jwt.JwtPrincipal \"sub:alice\"");
+		pw.println("  {");
+		pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
+		pw.println("};");
+	    }
+
+	    PolicyCondenser.main(new String[]{policyFile.getAbsolutePath()});
+
+	    File condensedFile = new File(tempDir, "jwt-mixed.policy.con");
+	    assertTrue("Condensed file should exist", condensedFile.exists());
+
+	    PolicyParser parser = new DefaultPolicyParser();
+	    Collection<PermissionGrant> grants =
+		parser.parse(condensedFile.toURI().toURL(), new Properties());
+
+	    assertEquals("Mixed-principal grant must be retained (not dropped)", 1, grants.size());
+	    // Verify by reading the condensed file text: "group:admins" retained, "sub:alice" filtered
+	    StringBuilder sb = new StringBuilder();
+	    try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(condensedFile))) {
+		String line;
+		while ((line = br.readLine()) != null) {
+		    sb.append(line).append('\n');
+		}
+	    }
+	    String condensedText = sb.toString();
+	    assertTrue("group:admins must be kept", condensedText.contains("group:admins"));
+	    assertFalse("sub:alice must be filtered out", condensedText.contains("sub:alice"));
+	} finally {
+	    System.clearProperty("PolicyCondenser.jwt.roleClaims");
+	}
+    }
+
 }
