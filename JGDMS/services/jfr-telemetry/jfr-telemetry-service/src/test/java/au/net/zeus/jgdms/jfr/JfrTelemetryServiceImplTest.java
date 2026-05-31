@@ -93,6 +93,10 @@ public class JfrTelemetryServiceImplTest {
                 throws UnknownLeaseException { return 0L; }
         @Override
         public void cancelEventLease(Uuid id) throws UnknownLeaseException {}
+
+        public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener, MarshalledInstance handback, long leaseDuration) throws RemoteException {
+            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        }
     }
 
     // -------------------------------------------------------------------------

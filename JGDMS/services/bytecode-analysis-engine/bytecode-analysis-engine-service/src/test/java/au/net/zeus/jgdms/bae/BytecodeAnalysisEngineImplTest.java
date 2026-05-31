@@ -50,6 +50,9 @@ import java.util.jar.JarOutputStream;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.api.net.Uri;
 import org.junit.Before;
 import org.junit.Test;
@@ -127,6 +130,11 @@ public class BytecodeAnalysisEngineImplTest {
             public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
             @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
+
+            @Override
+            public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener, MarshalledInstance handback, long leaseDuration) throws RemoteException {
+                throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            }
         };
     }
 
@@ -699,6 +707,11 @@ public class BytecodeAnalysisEngineImplTest {
             public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
             @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
+
+            @Override
+            public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener, MarshalledInstance handback, long leaseDuration) throws RemoteException {
+                throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            }
         };
 
         // Two-thread pool; 400 ms timeout.
@@ -941,6 +954,11 @@ public class BytecodeAnalysisEngineImplTest {
             public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
             @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
+
+            @Override
+            public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener, MarshalledInstance handback, long leaseDuration) throws RemoteException {
+                throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            }
         };
     }
 
@@ -1881,6 +1899,11 @@ public class BytecodeAnalysisEngineImplTest {
             @Override public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
             @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
+
+            @Override
+            public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener, MarshalledInstance handback, long leaseDuration) throws RemoteException {
+                throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            }
         };
 
         ThreadPoolExecutor executor = new ThreadPoolExecutor(

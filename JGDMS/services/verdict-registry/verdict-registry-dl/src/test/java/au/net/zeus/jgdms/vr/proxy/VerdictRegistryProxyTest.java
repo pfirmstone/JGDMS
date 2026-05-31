@@ -152,6 +152,11 @@ public class VerdictRegistryProxyTest {
         public Object getAdmin() throws RemoteException {
             return adminObject;
         }
+
+        @Override
+        public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener, MarshalledInstance handback, long leaseDuration) throws RemoteException {
+            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        }
     }
 
     /**

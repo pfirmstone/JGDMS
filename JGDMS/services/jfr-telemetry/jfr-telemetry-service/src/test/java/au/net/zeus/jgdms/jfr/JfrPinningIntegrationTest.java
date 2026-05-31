@@ -127,6 +127,10 @@ public class JfrPinningIntegrationTest {
                 Set<Uri> u, MarshalledInstance h, long d) { return null; }
         public long renewEventLease(Uuid id, long d) throws UnknownLeaseException { return 0L; }
         public void cancelEventLease(Uuid id) throws UnknownLeaseException {}
+
+        public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener, MarshalledInstance handback, long leaseDuration) throws RemoteException {
+            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        }
     }
 
     // -------------------------------------------------------------------------

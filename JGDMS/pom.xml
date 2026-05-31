@@ -108,11 +108,11 @@
     </snapshotRepository>-->
       <snapshotRepository>
           <id>ossrh</id>
-          <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+          <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
       </snapshotRepository>
       <repository>
           <id>ossrh</id>
-          <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+          <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
       </repository>
     <site>
       <id>${project.artifactId}-site</id>
@@ -176,7 +176,7 @@
   <repositories>
     <repository>
       <id>ossrh-snapshots</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+      <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
       <releases>
         <enabled>false</enabled>
       </releases>
@@ -438,7 +438,7 @@
           <extensions>true</extensions>
           <configuration>
               <serverId>ossrh</serverId>
-              <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+              <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
               <autoReleaseAfterClose>true</autoReleaseAfterClose>
           </configuration>
       </plugin>

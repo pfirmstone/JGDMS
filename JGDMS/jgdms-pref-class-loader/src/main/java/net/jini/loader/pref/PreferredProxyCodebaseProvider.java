@@ -1255,7 +1255,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      */
     private static boolean isDirectory(URL url) {
         String file = url.getFile();
-        return (file.length() > 0 && file.charAt(file.length() - 1) == File.separatorChar);
+        return (file.length() > 0 && file.charAt(file.length() - 1) == '/');
     }
 
     @Override
