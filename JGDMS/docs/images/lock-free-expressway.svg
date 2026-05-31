@@ -1,0 +1,234 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 490">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C9E8FF"/>
+      <stop offset="100%" stop-color="#E8F5FF"/>
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#555"/>
+      <stop offset="100%" stop-color="#444"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="800" height="490" fill="url(#sky)"/>
+
+  <!-- Title -->
+  <text x="400" y="36" text-anchor="middle"
+        font-family="Georgia,serif" font-size="24" font-weight="bold" fill="#003060">
+    The Lock-Free Expressway&#8482;
+  </text>
+  <text x="400" y="58" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="13" fill="#444">
+    Security doesn&#8217;t have to be a traffic jam.
+  </text>
+
+  <!-- ===== OVERHEAD GANTRY SIGN ===== -->
+  <!-- Gantry posts -->
+  <rect x="95"  y="175" width="14" height="115" fill="#888"/>
+  <rect x="691" y="175" width="14" height="115" fill="#888"/>
+  <!-- Horizontal beam -->
+  <rect x="95" y="172" width="610" height="14" fill="#999"/>
+  <!-- Sign board -->
+  <rect x="88" y="140" width="624" height="46" rx="6" fill="#003060"/>
+  <rect x="90" y="142" width="620" height="42" rx="5" fill="#004080" stroke="#6699CC" stroke-width="1.5"/>
+  <!-- Sign text -->
+  <text x="400" y="158" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="13" font-weight="900" fill="#FFE000">
+    ConcurrentPolicyFile&#8482;
+  </text>
+  <text x="400" y="175" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="11" fill="#aaddff">
+    Lock-Free · No DNS · &lt; 1% overhead · Virtual-thread safe
+  </text>
+
+  <!-- ===== ROAD ===== -->
+  <rect y="290" width="800" height="120" fill="url(#road)"/>
+  <!-- Kerb / pavement -->
+  <rect y="410" width="800" height="80" fill="#9A8050"/>
+  <rect y="406" width="800" height="8" fill="#C8B878"/>
+
+  <!-- Center dividing line (double yellow — no crossing) -->
+  <rect x="397" y="290" width="3" height="120" fill="#FFD700"/>
+  <rect x="403" y="290" width="3" height="120" fill="#FFD700"/>
+
+  <!-- Road edge lines -->
+  <rect y="293" width="800" height="4" fill="#EEE" opacity="0.5"/>
+  <rect y="406" width="800" height="4" fill="#EEE" opacity="0.5"/>
+
+  <!-- ===== LANE LABELS (in sky) ===== -->
+  <!-- Left label: VIRTUAL THREAD FASTLANE -->
+  <rect x="70" y="95" width="260" height="38" rx="6" fill="#1A6B1A"/>
+  <text x="200" y="109" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="11" font-weight="900" fill="white">
+    VIRTUAL THREAD FASTLANE
+  </text>
+  <text x="200" y="126" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#90EE90">
+    Lock-free · callAs() · DomainIdentity
+  </text>
+  <!-- Right label: LEGACY LOCK LANE -->
+  <rect x="470" y="95" width="260" height="38" rx="6" fill="#8B0000"/>
+  <text x="600" y="109" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" font-size="11" font-weight="900" fill="white">
+    LEGACY LOCK LANE
+  </text>
+  <text x="600" y="126" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="9" fill="#FFAAAA">
+    Global read lock · thread contention
+  </text>
+
+  <!-- ===== TRAFFIC LIGHTS ===== -->
+  <!-- Left: GREEN GO light -->
+  <rect x="22" y="225" width="22" height="56" rx="4" fill="#222"/>
+  <circle cx="33" cy="237" r="8" fill="#444"/>
+  <circle cx="33" cy="252" r="8" fill="#444"/>
+  <circle cx="33" cy="267" r="8" fill="#00DD00"/>
+  <circle cx="33" cy="267" r="5" fill="#00FF44" opacity="0.8"/>
+  <!-- Right: RED STOP light -->
+  <rect x="756" y="225" width="22" height="56" rx="4" fill="#222"/>
+  <circle cx="767" cy="237" r="8" fill="#DD0000"/>
+  <circle cx="767" cy="237" r="5" fill="#FF2222" opacity="0.8"/>
+  <circle cx="767" cy="252" r="8" fill="#444"/>
+  <circle cx="767" cy="267" r="8" fill="#444"/>
+
+  <!-- ===== FAST LANE CARS (5 colorful, going right, with motion lines) ===== -->
+  <!-- Macro: car at (cx, cy_top, color) — cy_top = top of body rectangle -->
+  <!-- cy_top = 300; car height=38; wheel cy = 300+38+14 = 352 -->
+
+  <!-- Car 1 — red, cx=55 -->
+  <g>
+    <line x1="5"   y1="308" x2="15"  y2="308" stroke="#ccc" stroke-width="2.5" opacity="0.7"/>
+    <line x1="2"   y1="317" x2="15"  y2="317" stroke="#ccc" stroke-width="2.5" opacity="0.6"/>
+    <line x1="5"   y1="326" x2="15"  y2="326" stroke="#ccc" stroke-width="2.5" opacity="0.5"/>
+    <rect x="16"  y="300" width="78" height="38" rx="6" fill="#E74C3C"/>
+    <rect x="26"  y="303" width="48" height="22" rx="3" fill="#aaddff" opacity="0.85"/>
+    <circle cx="34"  cy="352" r="16" fill="#222"/>
+    <circle cx="34"  cy="352" r="8"  fill="#888"/>
+    <circle cx="34"  cy="352" r="4"  fill="#bbb"/>
+    <circle cx="76"  cy="352" r="16" fill="#222"/>
+    <circle cx="76"  cy="352" r="8"  fill="#888"/>
+    <circle cx="76"  cy="352" r="4"  fill="#bbb"/>
+    <!-- SPIFFE badge sticker -->
+    <rect x="64" y="315" width="26" height="14" rx="2" fill="#2255aa"/>
+    <text x="77" y="325" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="bold" fill="white">SPIFFE</text>
+  </g>
+
+  <!-- Car 2 — blue, cx=160 -->
+  <g>
+    <line x1="102"  y1="308" x2="118" y2="308" stroke="#ccc" stroke-width="2.5" opacity="0.7"/>
+    <line x1="100"  y1="317" x2="118" y2="317" stroke="#ccc" stroke-width="2.5" opacity="0.6"/>
+    <line x1="103"  y1="326" x2="118" y2="326" stroke="#ccc" stroke-width="2.5" opacity="0.5"/>
+    <rect x="120"  y="300" width="78" height="38" rx="6" fill="#3498DB"/>
+    <rect x="130"  y="303" width="48" height="22" rx="3" fill="#aaddff" opacity="0.85"/>
+    <circle cx="138" cy="352" r="16" fill="#222"/>
+    <circle cx="138" cy="352" r="8"  fill="#888"/>
+    <circle cx="138" cy="352" r="4"  fill="#bbb"/>
+    <circle cx="180" cy="352" r="16" fill="#222"/>
+    <circle cx="180" cy="352" r="8"  fill="#888"/>
+    <circle cx="180" cy="352" r="4"  fill="#bbb"/>
+    <rect x="168" y="315" width="26" height="14" rx="2" fill="#2255aa"/>
+    <text x="181" y="325" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="bold" fill="white">SPIFFE</text>
+  </g>
+
+  <!-- Car 3 — green, cx=235 -->
+  <g>
+    <line x1="204"  y1="308" x2="222" y2="308" stroke="#ccc" stroke-width="2.5" opacity="0.7"/>
+    <line x1="202"  y1="317" x2="222" y2="317" stroke="#ccc" stroke-width="2.5" opacity="0.6"/>
+    <line x1="205"  y1="326" x2="222" y2="326" stroke="#ccc" stroke-width="2.5" opacity="0.5"/>
+    <rect x="224"  y="300" width="78" height="38" rx="6" fill="#27AE60"/>
+    <rect x="234"  y="303" width="48" height="22" rx="3" fill="#aaddff" opacity="0.85"/>
+    <circle cx="242" cy="352" r="16" fill="#222"/>
+    <circle cx="242" cy="352" r="8"  fill="#888"/>
+    <circle cx="242" cy="352" r="4"  fill="#bbb"/>
+    <circle cx="284" cy="352" r="16" fill="#222"/>
+    <circle cx="284" cy="352" r="8"  fill="#888"/>
+    <circle cx="284" cy="352" r="4"  fill="#bbb"/>
+    <rect x="272" y="315" width="26" height="14" rx="2" fill="#2255aa"/>
+    <text x="285" y="325" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="bold" fill="white">SPIFFE</text>
+  </g>
+
+  <!-- Car 4 — purple, cx=308 -->
+  <g>
+    <line x1="304"  y1="308" x2="322" y2="308" stroke="#ccc" stroke-width="2.5" opacity="0.7"/>
+    <line x1="302"  y1="317" x2="322" y2="317" stroke="#ccc" stroke-width="2.5" opacity="0.6"/>
+    <line x1="305"  y1="326" x2="322" y2="326" stroke="#ccc" stroke-width="2.5" opacity="0.5"/>
+    <rect x="324"  y="300" width="78" height="38" rx="6" fill="#8E44AD"/>
+    <rect x="334"  y="303" width="48" height="22" rx="3" fill="#aaddff" opacity="0.85"/>
+    <circle cx="342" cy="352" r="16" fill="#222"/>
+    <circle cx="342" cy="352" r="8"  fill="#888"/>
+    <circle cx="342" cy="352" r="4"  fill="#bbb"/>
+    <circle cx="384" cy="352" r="16" fill="#222"/>
+    <circle cx="384" cy="352" r="8"  fill="#888"/>
+    <circle cx="384" cy="352" r="4"  fill="#bbb"/>
+    <rect x="372" y="315" width="26" height="14" rx="2" fill="#2255aa"/>
+    <text x="385" y="325" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="bold" fill="white">SPIFFE</text>
+  </g>
+
+  <!-- ===== LEGACY LOCK LANE: TOLLBOOTH + QUEUE ===== -->
+  <!-- Tollbooth building -->
+  <rect x="574" y="255" width="54" height="135" rx="4" fill="#8B0000"/>
+  <!-- Tollbooth window -->
+  <rect x="582" y="272" width="38" height="28" rx="3" fill="#aaddff" opacity="0.7"/>
+  <!-- Barrier arm (horizontal, blocking the lane) -->
+  <rect x="416" y="298" width="158" height="10" rx="5" fill="#FF0000"/>
+  <!-- Barrier stripes (alternating red/white) -->
+  <rect x="420" y="298" width="20" height="10" fill="#CC0000" opacity="0.7"/>
+  <rect x="460" y="298" width="20" height="10" fill="#CC0000" opacity="0.7"/>
+  <rect x="500" y="298" width="20" height="10" fill="#CC0000" opacity="0.7"/>
+  <rect x="540" y="298" width="20" height="10" fill="#CC0000" opacity="0.7"/>
+  <!-- "GLOBAL READ LOCK" sign on tollbooth -->
+  <rect x="565" y="233" width="72" height="32" rx="4" fill="#CC0000"/>
+  <text x="601" y="245" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-size="8" font-weight="900" fill="white">GLOBAL</text>
+  <text x="601" y="257" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" fill="white">READ LOCK</text>
+  <!-- Tollbooth operator (sad face) -->
+  <circle cx="601" cy="297" r="10" fill="#F5CBA7"/>
+  <line x1="596" y1="301" x2="600" y2="304" stroke="#333" stroke-width="1.5"/>
+  <line x1="602" y1="304" x2="606" y2="301" stroke="#333" stroke-width="1.5"/>
+  <circle cx="597" cy="294" r="2" fill="#333"/>
+  <circle cx="605" cy="294" r="2" fill="#333"/>
+
+  <!-- Queued car 1 — gray, just before barrier -->
+  <g>
+    <rect x="424"  y="300" width="78" height="38" rx="6" fill="#888"/>
+    <rect x="434"  y="303" width="48" height="22" rx="3" fill="#99bbcc" opacity="0.6"/>
+    <!-- Sad face in window -->
+    <circle cx="450" cy="312" r="5" fill="#F5CBA7"/>
+    <path d="M447 316 Q450 314 453 316" fill="none" stroke="#333" stroke-width="1.2"/>
+    <circle cx="466" cy="312" r="5" fill="#F5CBA7"/>
+    <path d="M463 316 Q466 314 469 316" fill="none" stroke="#333" stroke-width="1.2"/>
+    <circle cx="440" cy="352" r="16" fill="#222"/>
+    <circle cx="440" cy="352" r="8"  fill="#666"/>
+    <circle cx="440" cy="352" r="4"  fill="#aaa"/>
+    <circle cx="486" cy="352" r="16" fill="#222"/>
+    <circle cx="486" cy="352" r="8"  fill="#666"/>
+    <circle cx="486" cy="352" r="4"  fill="#aaa"/>
+  </g>
+
+  <!-- Queued car 2 — gray -->
+  <g>
+    <rect x="660"  y="300" width="78" height="38" rx="6" fill="#888"/>
+    <rect x="670"  y="303" width="48" height="22" rx="3" fill="#99bbcc" opacity="0.6"/>
+    <!-- Sad face -->
+    <circle cx="686" cy="312" r="5" fill="#F5CBA7"/>
+    <path d="M683 316 Q686 314 689 316" fill="none" stroke="#333" stroke-width="1.2"/>
+    <circle cx="702" cy="312" r="5" fill="#F5CBA7"/>
+    <path d="M699 316 Q702 314 705 316" fill="none" stroke="#333" stroke-width="1.2"/>
+    <circle cx="676" cy="352" r="16" fill="#222"/>
+    <circle cx="676" cy="352" r="8"  fill="#666"/>
+    <circle cx="676" cy="352" r="4"  fill="#aaa"/>
+    <circle cx="722" cy="352" r="16" fill="#222"/>
+    <circle cx="722" cy="352" r="8"  fill="#666"/>
+    <circle cx="722" cy="352" r="4"  fill="#aaa"/>
+  </g>
+
+  <!-- ===== FOOTER ===== -->
+  <text x="400" y="450" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="11" fill="#555">
+    DirtyChai scales vertically. JGDMS scales horizontally.
+  </text>
+  <text x="400" y="467" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="10" fill="#888">
+    Virtual threads · DomainIdentity · ConcurrentPolicyFile · RFC3986URLClassLoader
+  </text>
+</svg>
