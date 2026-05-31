@@ -59,7 +59,7 @@ import javax.security.auth.login.LoginException;
 
 import au.zeus.jgdms.security.jwt.JwtExpiryClaim;
 import au.zeus.jgdms.security.jwt.JwtLoginModule;
-import au.zeus.jgdms.security.jwt.JwtPrincipal;
+import net.jini.security.jwt.JwtPrincipal;
 
 /**
  * jtreg integration test for {@code JwtLoginModule}.

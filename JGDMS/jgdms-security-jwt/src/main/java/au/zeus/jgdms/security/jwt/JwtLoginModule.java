@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.jwt.JwtRawToken;
+import net.jini.security.jwt.JwtPrincipal;
 
 /**
  * A JAAS {@link LoginModule} that authenticates a user by validating a JWT

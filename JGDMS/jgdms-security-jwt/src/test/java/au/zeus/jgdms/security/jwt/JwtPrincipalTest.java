@@ -17,6 +17,7 @@
  */
 package au.zeus.jgdms.security.jwt;
 
+import net.jini.security.jwt.JwtPrincipal;
 import org.junit.Test;
 
 import java.time.Instant;

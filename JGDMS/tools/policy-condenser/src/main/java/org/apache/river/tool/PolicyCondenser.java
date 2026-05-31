@@ -56,7 +56,7 @@ import org.apache.river.api.security.PolicyParser;
  * 
  * <p>When the system property {@code PolicyCondenser.jwt.roleClaims} is set to
  * a comma-separated list of JWT claim names (e.g. {@code group,role}), any
- * {@code au.zeus.jgdms.security.jwt.JwtPrincipal} entry in the policy whose
+ * {@code net.jini.security.jwt.JwtPrincipal} entry in the policy whose
  * claim name is <em>not</em> in the configured set is omitted from the
  * condensed output.  Grants whose entire principal set is removed by this
  * filter are dropped entirely (to avoid accidentally creating a grant with no
@@ -72,10 +72,11 @@ public class PolicyCondenser {
     /**
      * Fully-qualified class name of {@code JwtPrincipal} as it appears in
      * policy files written by the JERI dispatcher.  Compared as a plain
-     * string so that {@code jgdms-security-jwt} need not be on the classpath.
+     * string so that {@code jgdms-platform} need not be on the classpath
+     * (though in practice it always is).
      */
     private static final String JWT_PRINCIPAL_CLASS =
-            "au.zeus.jgdms.security.jwt.JwtPrincipal";
+            "net.jini.security.jwt.JwtPrincipal";
 
     /**
      * System property that controls which JWT claim names are treated as

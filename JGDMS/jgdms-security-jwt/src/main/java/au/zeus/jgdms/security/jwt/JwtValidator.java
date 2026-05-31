@@ -91,7 +91,7 @@ final class JwtValidator {
     /**
      * Maximum number of elements accepted from a JWT array claim (e.g. {@code groups}).
      * Prevents memory exhaustion from a JWT carrying an unbounded list of groups,
-     * which would also create that many {@link JwtPrincipal} objects in the Subject.
+     * which would also create that many {@link net.jini.security.jwt.JwtPrincipal} objects in the Subject.
      */
     static final int MAX_GROUPS = 200;
 
