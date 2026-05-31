@@ -308,6 +308,7 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
            .permissions(perms.toArray(new Permission[perms.size()]));
         return pgb;
     }
+
     
     public boolean isVoid() {        
         if (getPermissions().isEmpty() ) return true;

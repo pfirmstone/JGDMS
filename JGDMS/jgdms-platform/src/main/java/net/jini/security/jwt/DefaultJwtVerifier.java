@@ -17,7 +17,10 @@
  */
 package net.jini.security.jwt;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -44,8 +47,9 @@ import java.util.Map;
  *
  * <h2>Full OIDC verification</h2>
  * For cryptographic signature verification, configure a custom
- * {@link JwtVerifier} that delegates to {@link JwtValidator} after obtaining
- * the public keys via {@link JwksKeyCache}.
+ * {@link JwtVerifier} implementation (e.g. {@code JwtLoginModule} in
+ * {@code jgdms-security-jwt}) that delegates to a JWKS-backed validator after
+ * obtaining the public keys.
  *
  * <h2>Thread safety</h2>
  * Instances are immutable and safe for concurrent use by multiple threads.
@@ -61,7 +65,7 @@ public final class DefaultJwtVerifier implements JwtVerifier {
      * Maximum length of a JWT token string accepted by this verifier.
      * Tokens longer than this are rejected before any parsing.
      */
-    private static final int MAX_TOKEN_LENGTH = JwtValidator.MAX_TOKEN_LENGTH;
+    static final int MAX_TOKEN_LENGTH = 65_536;
 
     private final String expectedIssuer;   // null → skip iss check
     private final String expectedAudience; // null → skip aud check
@@ -80,7 +84,7 @@ public final class DefaultJwtVerifier implements JwtVerifier {
      *
      * @param expectedIssuer    required value of the {@code iss} claim, or
      *                          {@code null} to skip the check
-     * @param expectedAudience  required value (substring match) of the
+     * @param expectedAudience  required value (exact element match) of the
      *                          {@code aud} claim, or {@code null} to skip
      */
     public DefaultJwtVerifier(String expectedIssuer, String expectedAudience) {
@@ -115,9 +119,9 @@ public final class DefaultJwtVerifier implements JwtVerifier {
 
         Map<String, String> payload;
         try {
-            payload = JwtValidator.parseClaimsJson(
-                    new String(java.util.Base64.getUrlDecoder().decode(parts[1]),
-                               java.nio.charset.StandardCharsets.UTF_8));
+            payload = parseClaimsJson(
+                    new String(Base64.getUrlDecoder().decode(parts[1]),
+                               StandardCharsets.UTF_8));
         } catch (Exception e) {
             throw new JwtVerificationException(
                     "Failed to decode JWT payload: " + e.getMessage(), e);
@@ -183,9 +187,9 @@ public final class DefaultJwtVerifier implements JwtVerifier {
 
     /**
      * Returns {@code true} if {@code rawAud} contains {@code expected} as an
-     * exact element.  {@code JwtValidator.parseClaimsJson} represents a JSON
-     * {@code aud} array as a comma-separated string; a scalar {@code aud} is
-     * stored as-is.  This method handles both by splitting on {@code ,} and
+     * exact element.  The {@code aud} claim may be a scalar string or a
+     * comma-separated list (as produced by {@link #parseClaimsJson} for JSON
+     * arrays).  This method handles both by splitting on {@code ,} and
      * comparing each trimmed token with {@link String#equals}.
      *
      * <p>Exact matching prevents false positives: {@code "example.com"} would
@@ -197,5 +201,133 @@ public final class DefaultJwtVerifier implements JwtVerifier {
             if (part.trim().equals(expected)) return true;
         }
         return false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Minimal JSON claims parser — no external dependencies, JDK only.
+    // Handles the flat object structure of a JWT payload; parses string scalar
+    // values and arrays (joined with commas) sufficient for exp/iat/iss/aud.
+    // -------------------------------------------------------------------------
+
+    /**
+     * Parses a flat JWT claims JSON object into a string map.
+     * Numeric values are kept as their raw decimal string representation.
+     * JSON arrays are stored as comma-joined strings under the claim key.
+     */
+    static Map<String, String> parseClaimsJson(String json) {
+        Map<String, String> result = new HashMap<>();
+        if (json == null || json.isEmpty()) return result;
+
+        int[] pos = {0};
+        skipWhitespace(json, pos);
+        if (pos[0] >= json.length() || json.charAt(pos[0]) != '{') return result;
+        pos[0]++; // consume '{'
+
+        while (pos[0] < json.length()) {
+            skipWhitespace(json, pos);
+            if (pos[0] >= json.length()) break;
+            char c = json.charAt(pos[0]);
+            if (c == '}') break;
+            if (c == ',') { pos[0]++; continue; }
+
+            String key = readString(json, pos);
+            if (key == null) break;
+            skipWhitespace(json, pos);
+            if (pos[0] >= json.length() || json.charAt(pos[0]) != ':') break;
+            pos[0]++; // consume ':'
+            skipWhitespace(json, pos);
+
+            if (pos[0] >= json.length()) break;
+            char v = json.charAt(pos[0]);
+
+            if (v == '"') {
+                String value = readString(json, pos);
+                if (value != null) result.put(key, value);
+            } else if (v == '[') {
+                result.put(key, readStringArray(json, pos));
+            } else {
+                String raw = readRawScalar(json, pos);
+                if (raw != null) result.put(key, raw);
+            }
+        }
+        return result;
+    }
+
+    private static String readStringArray(String json, int[] pos) {
+        if (pos[0] >= json.length() || json.charAt(pos[0]) != '[') return "";
+        pos[0]++; // consume '['
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        while (pos[0] < json.length()) {
+            skipWhitespace(json, pos);
+            if (pos[0] >= json.length()) break;
+            char c = json.charAt(pos[0]);
+            if (c == ']') { pos[0]++; break; }
+            if (c == ',') { pos[0]++; continue; }
+            String item = (c == '"') ? readString(json, pos) : readRawScalar(json, pos);
+            if (item != null) {
+                if (!first) sb.append(',');
+                sb.append(item);
+                first = false;
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String readRawScalar(String json, int[] pos) {
+        int start = pos[0];
+        while (pos[0] < json.length()) {
+            char d = json.charAt(pos[0]);
+            if (d == ',' || d == '}' || d == ']' || d == ' ' || d == '\t'
+                    || d == '\r' || d == '\n') break;
+            pos[0]++;
+        }
+        if (pos[0] > start) return json.substring(start, pos[0]);
+        pos[0]++;
+        return null;
+    }
+
+    private static String readString(String json, int[] pos) {
+        if (pos[0] >= json.length() || json.charAt(pos[0]) != '"') return null;
+        pos[0]++; // consume opening '"'
+        StringBuilder sb = new StringBuilder();
+        while (pos[0] < json.length()) {
+            char c = json.charAt(pos[0]++);
+            if (c == '"') return sb.toString();
+            if (c == '\\' && pos[0] < json.length()) {
+                char esc = json.charAt(pos[0]++);
+                switch (esc) {
+                    case '"': sb.append('"'); break;
+                    case '\\': sb.append('\\'); break;
+                    case '/':  sb.append('/');  break;
+                    case 'b':  sb.append('\b'); break;
+                    case 'f':  sb.append('\f'); break;
+                    case 'n':  sb.append('\n'); break;
+                    case 'r':  sb.append('\r'); break;
+                    case 't':  sb.append('\t'); break;
+                    case 'u':
+                        if (pos[0] + 4 <= json.length()) {
+                            try {
+                                int cp = Integer.parseInt(json, pos[0], pos[0] + 4, 16);
+                                sb.append((char) cp);
+                            } catch (NumberFormatException ignored) { }
+                            pos[0] += 4;
+                        }
+                        break;
+                    default: sb.append(esc);
+                }
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString(); // unterminated string — return what we have
+    }
+
+    private static void skipWhitespace(String json, int[] pos) {
+        while (pos[0] < json.length()) {
+            char c = json.charAt(pos[0]);
+            if (c == ' ' || c == '\t' || c == '\r' || c == '\n') pos[0]++;
+            else break;
+        }
     }
 }

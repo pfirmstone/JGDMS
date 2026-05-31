@@ -228,7 +228,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                 Class<? extends Principal> cls =
                     (Class<? extends Principal>) Class.forName(cname, false,
                         // System classloader is required: SpiffePrincipal and JwtPrincipal are
-                        // JGDMS application-classpath classes, not JDK built-ins.  The allowlist
+                        // JGDMS application-classpath classes (jgdms-jeri / jgdms-platform),
+                        // not JDK built-ins.  The allowlist
                         // (not the classloader) is the security boundary — unknown names return
                         // RemotePrincipal without any classloading.
                         ClassLoader.getSystemClassLoader());
@@ -266,7 +267,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 
     /**
      * Maximum byte length of a single raw JWT token accepted from the wire.
-     * Matches {@code JwtValidator.MAX_TOKEN_LENGTH}.
+     * Matches {@code DefaultJwtVerifier.MAX_TOKEN_LENGTH}.
      */
     private static final int MAX_JWT_BYTES = 65_536;
 

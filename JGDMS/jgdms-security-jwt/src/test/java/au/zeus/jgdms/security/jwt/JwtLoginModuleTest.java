@@ -15,8 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.jini.security.jwt;
+package au.zeus.jgdms.security.jwt;
 
+import net.jini.security.jwt.JwtPrincipal;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;

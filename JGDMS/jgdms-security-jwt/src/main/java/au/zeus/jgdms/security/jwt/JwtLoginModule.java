@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.jini.security.jwt;
+package au.zeus.jgdms.security.jwt;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.Callback;
@@ -45,6 +45,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.security.jwt.JwtRawToken;
+import net.jini.security.jwt.JwtPrincipal;
 
 /**
  * A JAAS {@link LoginModule} that authenticates a user by validating a JWT
