@@ -17,7 +17,6 @@
  */
 package au.zeus.jgdms.security.jwt;
 
-import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -30,11 +29,12 @@ import java.util.Objects;
  * to determine when to proactively fetch a new access token (typically at
  * 80% of the remaining lifetime before expiry).
  *
+ * <p>This credential is an in-process, transient object and is intentionally
+ * not serializable.  It must not be transmitted over the wire.
+ *
  * @since 3.1.1
  */
-public final class JwtExpiryClaim implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public final class JwtExpiryClaim {
 
     private final Instant expiry;
 

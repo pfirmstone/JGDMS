@@ -246,7 +246,7 @@ public class PolicyCondenserTest {
 	try {
 	    File policyFile = new File(tempDir, "jwt-role.policy");
 	    try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
-		pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"group:admins\" {");
+		pw.println("grant principal net.jini.security.jwt.JwtPrincipal \"group:admins\" {");
 		pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
 		pw.println("};");
 	    }
@@ -277,7 +277,7 @@ public class PolicyCondenserTest {
 	try {
 	    File policyFile = new File(tempDir, "jwt-nonrole.policy");
 	    try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
-		pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"sub:alice\" {");
+		pw.println("grant principal net.jini.security.jwt.JwtPrincipal \"sub:alice\" {");
 		pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
 		pw.println("};");
 	    }
@@ -336,10 +336,10 @@ public class PolicyCondenserTest {
 	System.clearProperty("PolicyCondenser.jwt.roleClaims"); // ensure absent
 	File policyFile = new File(tempDir, "jwt-all.policy");
 	try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
-	    pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"sub:alice\" {");
+	    pw.println("grant principal net.jini.security.jwt.JwtPrincipal \"sub:alice\" {");
 	    pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
 	    pw.println("};");
-	    pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"group:admins\" {");
+	    pw.println("grant principal net.jini.security.jwt.JwtPrincipal \"group:admins\" {");
 	    pw.println("    permission java.util.PropertyPermission \"user.dir\", \"read\";");
 	    pw.println("};");
 	}
@@ -367,13 +367,13 @@ public class PolicyCondenserTest {
 	try {
 	    File policyFile = new File(tempDir, "jwt-multi.policy");
 	    try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
-		pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"role:editor\" {");
+		pw.println("grant principal net.jini.security.jwt.JwtPrincipal \"role:editor\" {");
 		pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
 		pw.println("};");
-		pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"group:admins\" {");
+		pw.println("grant principal net.jini.security.jwt.JwtPrincipal \"group:admins\" {");
 		pw.println("    permission java.util.PropertyPermission \"user.dir\", \"read\";");
 		pw.println("};");
-		pw.println("grant principal au.zeus.jgdms.security.jwt.JwtPrincipal \"sub:bob\" {");
+		pw.println("grant principal net.jini.security.jwt.JwtPrincipal \"sub:bob\" {");
 		pw.println("    permission java.util.PropertyPermission \"os.name\", \"read\";");
 		pw.println("};");
 	    }
@@ -406,8 +406,8 @@ public class PolicyCondenserTest {
 	    try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
 		pw.println("grant");
 		pw.println("  principal javax.security.auth.x500.X500Principal \"CN=svc\"");
-		pw.println("  principal au.zeus.jgdms.security.jwt.JwtPrincipal \"group:admins\"");
-		pw.println("  principal au.zeus.jgdms.security.jwt.JwtPrincipal \"sub:alice\"");
+		pw.println("  principal net.jini.security.jwt.JwtPrincipal \"group:admins\"");
+		pw.println("  principal net.jini.security.jwt.JwtPrincipal \"sub:alice\"");
 		pw.println("  {");
 		pw.println("    permission java.util.PropertyPermission \"java.home\", \"read\";");
 		pw.println("};");

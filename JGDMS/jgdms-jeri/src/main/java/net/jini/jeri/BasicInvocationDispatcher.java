@@ -93,7 +93,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import au.zeus.jgdms.security.jwt.DefaultJwtVerifier;
+import net.jini.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
 import org.apache.river.api.io.AccessControlContextSerializer;
@@ -219,7 +219,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
             "javax.security.auth.x500.X500Principal",
             "javax.security.auth.kerberos.KerberosPrincipal",
             "net.jini.jeri.ssl.SpiffePrincipal",
-            "au.zeus.jgdms.security.jwt.JwtPrincipal"
+            "net.jini.security.jwt.JwtPrincipal"
         );
         Map<String, Constructor<? extends Principal>> ctorMap = new HashMap<>();
         for (String cname : allowed) {
@@ -228,7 +228,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                 Class<? extends Principal> cls =
                     (Class<? extends Principal>) Class.forName(cname, false,
                         // System classloader is required: SpiffePrincipal and JwtPrincipal are
-                        // JGDMS application-classpath classes, not JDK built-ins.  The allowlist
+                        // JGDMS application-classpath classes (jgdms-jeri / jgdms-platform),
+                        // not JDK built-ins.  The allowlist
                         // (not the classloader) is the security boundary — unknown names return
                         // RemotePrincipal without any classloading.
                         ClassLoader.getSystemClassLoader());
@@ -266,7 +267,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 
     /**
      * Maximum byte length of a single raw JWT token accepted from the wire.
-     * Matches {@code JwtValidator.MAX_TOKEN_LENGTH}.
+     * Matches {@code DefaultJwtVerifier.MAX_TOKEN_LENGTH}.
      */
     private static final int MAX_JWT_BYTES = 65_536;
 
