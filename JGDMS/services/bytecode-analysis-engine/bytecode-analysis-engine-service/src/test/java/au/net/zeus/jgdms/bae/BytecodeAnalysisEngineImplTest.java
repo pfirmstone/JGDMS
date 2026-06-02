@@ -127,6 +127,9 @@ public class BytecodeAnalysisEngineImplTest {
             public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
             @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
+            @Override public net.jini.core.event.EventRegistration registerGlobalVerdictListener(
+                    net.jini.core.event.RemoteEventListener l,
+                    net.jini.io.MarshalledInstance h, long d) { return null; }
         };
     }
 
@@ -699,6 +702,9 @@ public class BytecodeAnalysisEngineImplTest {
             public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
             @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
+            @Override public net.jini.core.event.EventRegistration registerGlobalVerdictListener(
+                    net.jini.core.event.RemoteEventListener l,
+                    net.jini.io.MarshalledInstance h, long d) { return null; }
         };
 
         // Two-thread pool; 400 ms timeout.
@@ -941,6 +947,9 @@ public class BytecodeAnalysisEngineImplTest {
             public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
             @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
+            @Override public net.jini.core.event.EventRegistration registerGlobalVerdictListener(
+                    net.jini.core.event.RemoteEventListener l,
+                    net.jini.io.MarshalledInstance h, long d) { return null; }
         };
     }
 
@@ -1881,6 +1890,9 @@ public class BytecodeAnalysisEngineImplTest {
             @Override public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
                     String hash) { return null; }
             @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
+            @Override public net.jini.core.event.EventRegistration registerGlobalVerdictListener(
+                    net.jini.core.event.RemoteEventListener l,
+                    net.jini.io.MarshalledInstance h, long d) { return null; }
         };
 
         ThreadPoolExecutor executor = new ThreadPoolExecutor(

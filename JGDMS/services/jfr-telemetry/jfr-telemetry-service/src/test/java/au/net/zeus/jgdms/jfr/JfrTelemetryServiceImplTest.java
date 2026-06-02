@@ -93,6 +93,9 @@ public class JfrTelemetryServiceImplTest {
                 throws UnknownLeaseException { return 0L; }
         @Override
         public void cancelEventLease(Uuid id) throws UnknownLeaseException {}
+        @Override
+        public EventRegistration registerGlobalVerdictListener(
+                RemoteEventListener l, MarshalledInstance h, long d) { return null; }
     }
 
     // -------------------------------------------------------------------------

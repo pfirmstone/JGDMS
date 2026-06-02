@@ -127,6 +127,8 @@ public class JfrPinningIntegrationTest {
                 Set<Uri> u, MarshalledInstance h, long d) { return null; }
         public long renewEventLease(Uuid id, long d) throws UnknownLeaseException { return 0L; }
         public void cancelEventLease(Uuid id) throws UnknownLeaseException {}
+        public EventRegistration registerGlobalVerdictListener(
+                RemoteEventListener l, MarshalledInstance h, long d) { return null; }
     }
 
     // -------------------------------------------------------------------------

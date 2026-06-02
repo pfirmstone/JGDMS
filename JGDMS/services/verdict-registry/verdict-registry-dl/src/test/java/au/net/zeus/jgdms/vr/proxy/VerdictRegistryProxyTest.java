@@ -149,6 +149,14 @@ public class VerdictRegistryProxyTest {
         }
 
         @Override
+        public EventRegistration registerGlobalVerdictListener(RemoteEventListener listener,
+                                                               MarshalledInstance handback,
+                                                               long leaseDuration)
+                throws RemoteException {
+            return null;
+        }
+
+        @Override
         public Object getAdmin() throws RemoteException {
             return adminObject;
         }

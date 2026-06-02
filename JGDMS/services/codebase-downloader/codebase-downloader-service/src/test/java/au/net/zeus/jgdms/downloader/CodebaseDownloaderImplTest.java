@@ -158,6 +158,8 @@ public class CodebaseDownloaderImplTest {
         @Override public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdict(Set<Uri> u) { return null; }
         @Override public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(String h) { return null; }
         @Override public void reportPinning(au.net.zeus.jgdms.api.telemetry.PinningReport report) {}
+        @Override public net.jini.core.event.EventRegistration registerGlobalVerdictListener(
+                RemoteEventListener l, MarshalledInstance h, long d) { return null; }
     }
 
     // -------------------------------------------------------------------------
