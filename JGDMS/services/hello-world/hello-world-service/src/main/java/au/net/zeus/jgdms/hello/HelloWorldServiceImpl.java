@@ -19,13 +19,10 @@ package au.net.zeus.jgdms.hello;
 
 import java.rmi.RemoteException;
 import net.jini.activation.arg.ActivationID;
-import net.jini.config.ConfigurationException;
-import net.jini.config.ConfigurationProvider;
 import net.jini.id.Uuid;
 import au.net.zeus.jgdms.api.hello.HelloService;
 import au.net.zeus.jgdms.hello.proxy.HelloServiceProxy;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
-import au.net.zeus.jgdms.service.support.JiniServiceParameters;
 import org.apache.river.start.lifecycle.LifeCycle;
 
 /**
@@ -48,7 +45,8 @@ import org.apache.river.start.lifecycle.LifeCycle;
  * <h2>Configuration component</h2>
  * All Jini configuration entries are read from component
  * {@value #COMPONENT}.  The common infrastructure entries are documented in
- * {@link JiniServiceParameters}.  No service-specific mandatory entries exist.
+ * {@link au.net.zeus.jgdms.service.support.JiniServiceParameters}.  No
+ * service-specific mandatory entries exist.
  *
  * <h2>Activatable constructor</h2>
  * The {@code (ActivationID, String[])} constructor satisfies the Phoenix
@@ -95,52 +93,28 @@ public class HelloWorldServiceImpl
      * Activatable constructor.  Required by Phoenix.
      *
      * @param activationID the activation ID assigned by the activation system
-     * @param data         configuration arguments for
-     *                     {@link ConfigurationProvider#getInstance}
-     * @throws ConfigurationException if a mandatory configuration entry is
-     *                                missing or invalid
-     * @throws Exception              if construction otherwise fails
+     * @param data         configuration arguments
+     * @throws Exception if construction fails
      */
     public HelloWorldServiceImpl(ActivationID activationID,
                                  String[] data)
             throws Exception {
-        this(new HelloServiceParameters(
-                     ConfigurationProvider.getInstance(
-                             data,
-                             HelloWorldServiceImpl.class.getClassLoader()),
-                     activationID),
-             null);
+        super(activationID, data, COMPONENT, HelloService.class);
+        this.impl = new HelloServiceImpl();
     }
 
     /**
      * Non-activatable constructor for use with
      * {@code NonActivatableServiceDescriptor} / {@code ServiceStarter}.
      *
-     * @param configArgs configuration arguments for
-     *                   {@link ConfigurationProvider#getInstance}
+     * @param configArgs configuration arguments
      * @param lifeCycle  lifecycle callback; may be {@code null}
-     * @throws ConfigurationException if a mandatory configuration entry is
-     *                                missing or invalid
-     * @throws Exception              if construction otherwise fails
+     * @throws Exception if construction fails
      */
     public HelloWorldServiceImpl(String[] configArgs,
                                  LifeCycle lifeCycle)
             throws Exception {
-        this(new HelloServiceParameters(
-                     ConfigurationProvider.getInstance(
-                             configArgs,
-                             HelloWorldServiceImpl.class.getClassLoader()),
-                     null),
-             lifeCycle);
-    }
-
-    /**
-     * Internal constructor: receives pre-validated parameters.
-     */
-    private HelloWorldServiceImpl(HelloServiceParameters params,
-                                   LifeCycle lifeCycle)
-            throws java.io.IOException {
-        super(params, lifeCycle);
+        super(configArgs, lifeCycle, COMPONENT, HelloService.class);
         this.impl = new HelloServiceImpl();
     }
 
@@ -166,35 +140,5 @@ public class HelloWorldServiceImpl
     public String sayHello(String name) throws RemoteException {
         getReadyState().check();
         return impl.sayHello(name);
-    }
-
-    // -------------------------------------------------------------------------
-    // Parameter object
-    // -------------------------------------------------------------------------
-
-    /**
-     * Parameter object for {@link HelloWorldServiceImpl}.
-     *
-     * <p>Reads and validates all Jini service configuration entries before the
-     * service object is constructed.  There are no service-specific mandatory
-     * entries beyond the common infrastructure entries documented in
-     * {@link JiniServiceParameters}.
-     */
-    public static final class HelloServiceParameters extends JiniServiceParameters {
-
-        /**
-         * Reads Hello World Service configuration.
-         *
-         * @param config       the Jini configuration; must be non-null
-         * @param activationID the Phoenix activation ID, or {@code null} for
-         *                     non-activatable deployments
-         * @throws ConfigurationException if any mandatory entry is missing or
-         *                                invalid
-         */
-        public HelloServiceParameters(net.jini.config.Configuration config,
-                                      ActivationID activationID)
-                throws ConfigurationException {
-            super(config, COMPONENT, activationID, HelloService.class);
-        }
     }
 }

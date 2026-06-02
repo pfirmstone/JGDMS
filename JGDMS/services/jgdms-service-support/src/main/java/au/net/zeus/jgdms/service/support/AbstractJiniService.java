@@ -48,6 +48,8 @@ import net.jini.lookup.JoinManager;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
+import net.jini.activation.arg.ActivationID;
+import net.jini.config.ConfigurationProvider;
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.api.util.Startable;
 import org.apache.river.proxy.CodebaseProvider;
@@ -244,6 +246,101 @@ public abstract class AbstractJiniService
         this.encodedCerts          = params.encodedCerts.clone();
         this.persistDir            = params.persistDir;
         this.lifeCycle             = lifeCycle;
+    }
+
+    /**
+     * Convenience non-activatable constructor for services with no
+     * service-specific configuration entries.
+     *
+     * <p>This constructor eliminates the boilerplate public constructors that
+     * every simple service previously had to copy-paste.  It creates a
+     * {@link DefaultJiniServiceParameters} from the supplied arguments and
+     * delegates to
+     * {@link #AbstractJiniService(JiniServiceParameters, LifeCycle)}.
+     *
+     * <p>Services that need to read additional configuration entries must
+     * supply a custom {@link JiniServiceParameters} subclass and use the
+     * {@link #AbstractJiniService(JiniServiceParameters, LifeCycle)} constructor
+     * directly.
+     *
+     * <h2>Usage</h2>
+     * <pre>
+     * public MyServiceImpl(String[] configArgs, LifeCycle lifeCycle)
+     *         throws Exception {
+     *     super(configArgs, lifeCycle, COMPONENT, MyService.class);
+     * }
+     * </pre>
+     *
+     * @param configArgs       configuration arguments passed to
+     *                         {@link ConfigurationProvider#getInstance}
+     * @param lifeCycle        lifecycle callback; may be {@code null}
+     * @param component        the configuration component name for this
+     *                         service (e.g. {@code "com.example.myservice"})
+     * @param serviceInterface the primary remote interface of the service;
+     *                         used to build a default exporter and for
+     *                         codebase fallback
+     * @throws Exception if configuration reading or parameter validation
+     *                   fails
+     */
+    protected AbstractJiniService(String[] configArgs,
+                                  LifeCycle lifeCycle,
+                                  String component,
+                                  Class<?> serviceInterface)
+            throws Exception {
+        this(new DefaultJiniServiceParameters(
+                     ConfigurationProvider.getInstance(
+                             configArgs,
+                             serviceInterface.getClassLoader()),
+                     component, null, serviceInterface),
+             lifeCycle);
+    }
+
+    /**
+     * Convenience activatable constructor for services with no
+     * service-specific configuration entries.
+     *
+     * <p>This constructor eliminates the boilerplate activatable constructor
+     * that every simple service previously had to copy-paste.  It creates a
+     * {@link DefaultJiniServiceParameters} from the supplied arguments and
+     * delegates to
+     * {@link #AbstractJiniService(JiniServiceParameters, LifeCycle)}.
+     *
+     * <p>Services that need to read additional configuration entries must
+     * supply a custom {@link JiniServiceParameters} subclass and use the
+     * {@link #AbstractJiniService(JiniServiceParameters, LifeCycle)} constructor
+     * directly.
+     *
+     * <h2>Usage</h2>
+     * <pre>
+     * public MyServiceImpl(ActivationID activationID, String[] data)
+     *         throws Exception {
+     *     super(activationID, data, COMPONENT, MyService.class);
+     * }
+     * </pre>
+     *
+     * @param activationID     the activation ID assigned by the Phoenix
+     *                         activation system
+     * @param data             configuration arguments passed to
+     *                         {@link ConfigurationProvider#getInstance}
+     * @param component        the configuration component name for this
+     *                         service (e.g. {@code "com.example.myservice"})
+     * @param serviceInterface the primary remote interface of the service;
+     *                         used to build a default exporter and for
+     *                         codebase fallback
+     * @throws Exception if configuration reading or parameter validation
+     *                   fails
+     */
+    protected AbstractJiniService(ActivationID activationID,
+                                  String[] data,
+                                  String component,
+                                  Class<?> serviceInterface)
+            throws Exception {
+        this(new DefaultJiniServiceParameters(
+                     ConfigurationProvider.getInstance(
+                             data,
+                             serviceInterface.getClassLoader()),
+                     component, activationID, serviceInterface),
+             null);
     }
 
     // -------------------------------------------------------------------------
