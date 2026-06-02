@@ -1,20 +1,7 @@
-/* Grants required for SecurityManager used a startup: */
-
-grant codebase "file:${jsk.home}${/}lib${/}*
-{
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib-dl${/}*
-{
-    permission java.security.AllPermission "", "";
-};
-
-/* end grants required for SecurityManager during startup. */
-
 grant {
-    permission java.io.FilePermission "${java.io.tmpdir}${/}-", "read,write,delete";
-    permission java.net.SocketPermission "*:*", "connect,resolve";
     permission java.util.PropertyPermission "*", "read,write";
-    permission java.lang.RuntimePermission "exitVM", "";
+    permission java.lang.RuntimePermission "exitVM";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.net.SocketPermission "*:*", "connect,resolve";
 };
+

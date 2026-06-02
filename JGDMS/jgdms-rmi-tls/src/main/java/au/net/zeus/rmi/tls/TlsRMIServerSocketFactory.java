@@ -30,22 +30,20 @@ import javax.security.auth.Subject;
  */
 public final class TlsRMIServerSocketFactory implements RMIServerSocketFactory {
 
-    public ServerSocket createServerSocket(int port) throws IOException {
-	final AccessControlContext acc = AccessController.getContext();
-	Subject subject = AccessController.doPrivileged(
-	    new PrivilegedAction<Subject>() {
-		@Override
-		public Subject run() {
-		    return Subject.getSubject(acc);
-		}
-	    }
-	);
+	public ServerSocket createServerSocket(int port) throws IOException {
+	// Use SPIFFE-first subject resolution: process SPIFFE → legacy user Subject
+	Subject subject = Utilities.getTlsSubject();
+	if (subject == null) {
+		throw new IOException(
+		"Unable to serve TLS connection: no TLS-capable Subject found. " +
+		"Server must be configured with X.509 or SPIFFE credentials.");
+	}
 	SSLContext sslContext = Utilities.getServerSSLContextInfo(subject);
 	SSLServerSocket socket;
 	socket = (SSLServerSocket) sslContext.getServerSocketFactory().createServerSocket(port);
 	socket.setUseClientMode(false);
 	socket.setNeedClientAuth(true);
 	return socket;
-    }
+	}
     
 }

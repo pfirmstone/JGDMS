@@ -1,169 +1,148 @@
-grant codebase "file:${jsk.home}${/}lib${/}*
+grant codebase "jrt:/java.security.jgss",
 {
-    permission java.security.AllPermission "", "";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "file:${jsk.home}${/}lib-dl${/}*
+grant codebase "jrt:/java.smartcardio",
 {
-    permission java.security.AllPermission "", "";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/jdk.security.auth" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/java.xml.crypto",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/jdk.crypto.cryptoki" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.crypto.cryptoki",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/java.smartcardio" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.crypto.ec",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/java.xml.crypto" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.crypto.mscapi",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/java.security.jgss" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.localedata",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/jdk.crypto.ec" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.security.auth",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/jdk.crypto.mscapi" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.security.jgss",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/jdk.localedata" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/org.openjsse",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/jdk.security.jgss" {
-    permission java.security.AllPermission "", "";
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${fiddler}",
+{
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant codebase "jrt:/org.openjsse" {
-    permission java.security.AllPermission "", "";
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${mahalo}",
+{
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant codebase "httpmd://${HOST}/*" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${mercury}",
+{
+    permission net.jini.security.AccessPermission "*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${norm}",
+{
+    permission net.jini.security.AccessPermission "*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${outrigger}",
+{
+    permission net.jini.security.AccessPermission "*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${reggie}",
+{
+    permission net.jini.security.AccessPermission "*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${test}",
+{
+    permission net.jini.security.AccessPermission "*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Fiddler",
+{
+    permission net.jini.security.AccessPermission "*";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo",
 {
-      permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar", "read";
-      permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
-      permission java.net.SocketPermission "${HOST}", "resolve";
-      permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-      permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
-      permission java.lang.RuntimePermission, "modifyThread";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
-{
-      permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar", "read";
-      permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
-      permission java.net.SocketPermission "${HOST}", "resolve";
-      permission java.lang.RuntimePermission, "modifyThread";
-      permission java.lang.RuntimePermission "createPlatformThread";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+    permission net.jini.security.AccessPermission "*";
+    permission java.lang.RuntimePermission "createPlatformThread";
     permission java.lang.RuntimePermission "createVirtualThread";
-      permission net.jini.security.AuthenticationPermission 
-        "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"",
-        "connect";
-      permission net.jini.security.AuthenticationPermission 
-        "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"",
-        "connect";
-      permission net.jini.security.AuthenticationPermission 
-        "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"",
-        "connect";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mercury",
 {
-      permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar", "read";
-      permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
-      permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
-      permission java.lang.RuntimePermission, "modifyThread";
-      permission java.lang.RuntimePermission "createPlatformThread";
-      permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
+    permission net.jini.security.AccessPermission "*";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Norm",
 {
-      permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar", "read";
-      permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
-      permission java.lang.RuntimePermission, "modifyThread";
+    permission net.jini.security.AccessPermission "*";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Outrigger",
 {
-      permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar", "read";
-      permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
-      permission java.lang.RuntimePermission, "modifyThread";
+    permission net.jini.security.AccessPermission "*";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Norm"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Phoenix",
 {
-      permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar", "read";
-      permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
-      permission java.lang.RuntimePermission, "modifyThread";
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Reggie",
 {
-      permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar", "read";
-      permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
-      permission java.lang.RuntimePermission, "modifyThread";
-      permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
+    permission net.jini.security.AccessPermission "*";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
 };
 
-//Kerberos Principals
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${fiddler}"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
+    permission net.jini.security.AccessPermission "*";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
 };
 
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
-{
-      permission net.jini.security.AccessPermission "*";
+grant {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${mercury}"
-{
-      permission net.jini.security.AccessPermission "*";
-};
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${outrigger}"
-{
-      permission net.jini.security.AccessPermission "*";
-};
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
-{
-      permission net.jini.security.AccessPermission "*";
-};
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${norm}"
-{
-      permission net.jini.security.AccessPermission "*";
-};
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
-{
-      permission net.jini.security.AccessPermission "*";
-};
-
 

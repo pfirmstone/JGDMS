@@ -1,0 +1,2469 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ !
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ !
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<project name="qa" basedir="." default="build" >
+
+    <description>This Ant scripts provides numerous tasks to build and run the
+        the River QA test harness and tests</description>
+
+    <!-- Root of the River source distribution -->
+    <property name="root" location=".." />
+
+    <!--
+    Override this to build/run QA tests against an external River installation
+    
+    This parameter is a problem when running the jtreg tests on windows.  jsk.home
+    becomes the basis for jsk.home which is used in qa/jtreg/net/testlibrary/HTTPD
+    (and maybe other places as well).  If this value is left as the default value
+    of root ("..") then the property value becomes something like "C:\path\to\river"
+    When this values eventually finds its way into HTTPD it becomes "Cpathtoriver"
+    which obviously fails to resolve.
+    The way around this is therefore to specific jsk.home in ../build.properties
+    with the value "C:/path/to/river"
+    -->
+    <!-- <property name="jsk.home" location="${root}"/> -->    
+
+    <!-- Import common settings and macros -->
+    <import file="${root}/common.xml"/>
+
+    <!-- directory settings -->
+    <property name="trust.dir" location="harness/trust"/>
+    <property name="result.dir" location="result"/>
+
+    <!-- javadoc setings -->
+    <property name="javadoc.doc-title" value="${product.title} QA Harness and Test API Documentation"/>
+    <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
+
+    <!-- jtreg environment setup -->
+    <property environment="env"/>
+    <!-- location of the River jtreg tests -->
+    <property name="jtreg.dir" location="${jsk.home}/qa/jtreg" />
+    <!-- location of the jtreg distribution, override in <river root>/build.properties -->
+    <!-- or override in <river root>/qa/build.properties -->
+    <property name="jtreg.home" location="${env.JT_HOME}" />
+    <!-- probably should rename the environment variable, to enable using the correct -->
+    <!-- jdk version for the jtreg tests -->
+    <property name="jdk.home" location="${env.JDK_HOME}"/>
+    <property name="jtlib.tmp" location="${jtreg.dir}/JTlib-tmp"/>
+
+    <!-- classpath for use by ClassDep in this build -->
+    <path id="classdep.cp">
+        <path refid="river.jars"/>
+        <pathelement location="${build.classes.dir}"/>
+        <!-- jiniharness.jar needed so ClassDep can resolve harness classes
+             (e.g. OverrideProvider) referenced by test/support classes -->
+        <pathelement location="${lib.dir}/jiniharness.jar"/>
+    </path>
+
+    <path id="javadoc.classpath">
+        <path refid="river.jars"/>
+        <path location="${build.classes.dir}"/>
+    </path>
+
+    <path id="ext.dirs.path">
+        <pathelement path="${java.ext.dirs}" />
+        <!--<pathelement path="${lib-ext.dir}" />
+        <pathelement path="${river.lib-ext.dir}" />-->
+    </path>
+
+    <property name="ext.dirs" refid="ext.dirs.path" />
+    <property name="log.config" value="${src.dir}/org/apache/river/test/resources/qa1.logging" />
+    <property name="log.config.file" location="${log.config}" />
+    <property name="security.policy" location="harness/policy/qa.policy" />
+    <property name="harness.props" location="${src.dir}/org/apache/river/test/resources/qaHarness.prop"/>
+    <!--possible values: any combination of jeri,jsse,http,https,kerberos,none
+        default: none -->
+    <property name="harness.configs" value="jsse"/>
+    <!-- possible values: activatable,transient,persistent
+        default: transient -->
+    <property name="harness.servicemode" value="activatable"/>
+    <!-- enable this property if you want the QA harness to generate
+        HTML reports for each test in the qa/results directory -->
+    <property name="harness.generateHtml" value="false"/>
+    <property name="harness.generateHtml.title" value="${product.title} QA test results"/>
+    <property name="result.zip" value="${result.dir}/qaresults-${os.arch}-${os.name}-${java.version}.zip"/>
+
+    <!-- resources to copy to classes dir -->
+    <property name="resources" value="**/resources*/**, **/*.td, **/*.properties,
+        **/*.policy, **/*.config, **/*.logging, **/*.prop" />
+
+    <target name="clean" depends="clean-result, clean-build, clean-lib, clean-trust, clean-doc"
+            description="Clean up build">
+        <delete dir="${jtreg.dir}/JTwork"/>
+        <delete dir="${jtreg.dir}/JTreport"/>
+        <delete file="${river-runtime.markerfile}" />
+    </target>
+
+    <target name="clean-result">
+        <delete dir="${result.dir}"/>
+    </target>
+
+    <target name="clean-build">
+        <delete dir="${build.dir}" />
+    </target>
+
+    <target name="clean-lib">
+        <delete dir="${lib.dir}" />
+        <delete dir="${lib-ext.dir}" />
+    </target>
+
+    <target name="clean-doc">
+        <delete dir="${doc.api.dir}" />
+    </target>
+
+    <target name="clean-trust">
+        <delete verbose="true" >
+            <fileset dir="${trust.dir}">
+                <include name="*.cert" />
+                <include name="*.password" />
+                <include name="*.keystore" />
+                <include name="*.request" />
+                <include name="*.key" />
+                <include name="truststore" />
+            </fileset>
+        </delete>
+    </target>
+
+    <target name="harness-runtime" depends="jars,jinitests.jar" description="builds the complete harness" />
+
+    <!-- == check if river-runtime needs rebuilding == -->
+
+    <property name="river-runtime.markerfile" location="riverruntimelastbuild" />
+
+    <target name="river-runtime" depends="is-river-runtime-uptodate" unless="river-runtime.uptodate">
+        <ant dir="${root}" target="river-runtime" inheritall="false"/>
+        <touch file="${river-runtime.markerfile}" />
+    </target>
+
+    <target name="is-river-runtime-uptodate">
+        <uptodate property="river-runtime.uptodate" targetfile="${river-runtime.markerfile}" >
+            <srcfiles dir="${root}" >
+                <include name="src/" />
+            </srcfiles>
+        </uptodate>
+    </target>
+
+    <!-- ============================================== -->
+
+    <target name="james-brown" >
+        <property name="soul.dir" location="soul"/>
+        <delete dir="${soul.dir}" quiet="true"/>
+        <mkdir  dir="${soul.dir}"/>
+        <tstamp><format property="soul.tstamp" pattern="yyyyMMddHHmmsssSSS"/></tstamp>
+        <property name="soul" value="${soul.dir}/soul.${soul.tstamp}" />
+        <touch file="${soul}" />
+    </target>
+
+    <target name="prep" description="Prepare the build">
+        <mkdir dir="${build.dir}" />
+        <mkdir dir="${build.classes.dir}" />
+        <mkdir dir="${build.deps.dir}" />
+        <mkdir dir="${lib.dir}" />
+        <mkdir dir="${lib-ext.dir}" />
+    </target>
+
+    <target name="copy-resources" depends="prep">
+        <copy todir="${build.classes.dir}">
+            <fileset dir="${src.dir}" includes="${resources}" />
+        </copy>
+    </target>
+
+    <target name="compile" depends="copy-resources" description="Build classes">
+        <property name="qa.source" value="8" />
+        <property name="qa.target" value="8" />
+        <javac-cmd source="${qa.source}" target="${qa.target}" source.dir="${src.dir}" dest.dir="${build.classes.dir}">
+            <classpath refid="river.jars"/>
+            <compilerarg value="-J-Xmx128m" />
+        </javac-cmd>
+    </target>
+
+    <target name="build" depends="jars,doc" />
+
+    <target name="jtreg" depends="" description="Run jtreg tests">
+        <taskdef name="jtreg" classname="com.sun.javatest.regtest.Main$$Ant"
+                classpath="${jtreg.home}/jtreg.jar" />
+        <!--test.props, please note: file paths cannot contain backslashes in 
+            test properties file.-->
+        <echo file="${jtreg.dir}/test.props" message="jsk.home=${jsk.home}"/>
+        <echo message="MS Windows platforms require jsk.home to be defined in 
+            your build.properties file, otherwise test failures will occur"/>
+        <!--<echo file="${jtreg.dir}/test.props" message="sun.security.krb5.debug=true" append="true-->
+        <!--Change the httpd port number here-->
+        <!--<echo file="${jtreg.dir}/test.props" message="jsk.port=8081" append="true"/>-->
+        <!--Code Coverage Options-->
+        <!--<echo file="${jtreg.dir}/test.props" message="jcov.options=" append="true"/>-->
+        <mkdir dir="${jtreg.dir}/JTlib-tmp" />
+        <copy todir="${jtreg.dir}/JTlib-tmp">
+            <filelist dir="${river.lib.dir}">
+                <file name="jgdms-collections-${jgdms.version}.jar"/>
+                <!--<file name="jgdms-iiop-${jgdms.version}.jar"/>-->
+                <file name="jgdms-jeri-${jgdms.version}.jar"/>
+                <file name="jgdms-lib-${jgdms.version}.jar"/>
+                <file name="jgdms-platform-${jgdms.version}.jar"/>
+                <file name="jgdms-pref-class-loader-${jgdms.version}.jar"/>
+                <file name="jgdms-url-integrity-${jgdms.version}.jar"/>
+                <file name="classdep-${jgdms.version}.jar"/>
+                <file name="classserver-${jgdms.version}.jar"/>
+                <file name="asm-*.jar"/>
+		    <!--<file name="asm-commons-9.7.jar"/>-->
+                <file name="high-scale-lib-*.jar"/>
+                <file name="jgdms-activation-${jgdms.version}.jar"/>
+                <file name="jgdms-activation-parameters-${jgdms.version}.jar"/>
+                <file name="checkconfigurationfile-${jgdms.version}.jar"/>
+                <!--<file name="jsk-lib.jar"/>
+                <file name="jsk-platform.jar"/>
+                <file name="jsk-resources.jar"/>
+                <file name="phoenix-init.jar"/>
+                <file name="tools.jar"/>
+                <file name="classserver.jar"/>
+                <file name="high-scale-lib.jar"/>-->
+            </filelist>
+            <filelist dir="${river.lib-dl.dir}">
+                <file name="jgdms-lib-dl-${jgdms.version}.jar"/>
+                <file name="phoenix-dl-${jgdms.version}.jar"/>
+            </filelist>
+        </copy>
+        <!--<move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>-->
+        <jtreg  dir="${jtreg.dir}" verbose="all,nopass" failonerror="false"
+                errorproperty="jtreg.fail" failureproperty="jtreg.fail"
+                reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
+                jdk="${jdk.home}">
+            <!--<arg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
+            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-jeri-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-platform-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-${jgdms.version}.jar${path.separator}${jtlib.tmp}/classdep-${jgdms.version}.jar${path.separator}${jtlib.tmp}/classserver-${jgdms.version}.jar${path.separator}${jtlib.tmp}/asm-9.7.1.jar${path.separator}${jtlib.tmp}/asm-commons-9.7.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-activation-parameters-${jgdms.version}.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-${jgdms.version}.jar${path.separator}${jtlib.tmp}/phoenix-dl-${jgdms.version}.jar"/>
+            <arg value="-timeout:16"/>
+            <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
+            <arg value="-Djtreg.dir=${jtreg.dir}"/>
+            <arg value="-Dtest.src=${jtreg.dir}"/>
+            <arg value="-Dsun.rmi.registry.registryFilter=*"/>
+            <arg value="-Dsun.rmi.transport.dgcFilter=*"/>
+            <arg value="-Djava.rmi.server.useCodebaseOnly=false"/>
+            <arg value="-Djava.rmi.server.RMIClassLoaderSpi=net.jini.loader.pref.PreferredClassProvider"/>
+            <arg value="-Dscratch.dir=${jtreg.dir}/JTwork/scratch"/>
+            <arg value="-Djava.util.logging.config.file=${jsk.home}qa/src/org/apache/river/test/resources/qa1.logging"/>
+            <arg value="-ignore:quiet"/>
+            <arg value="-xml:verify"/>           
+            <!-- This argument only runs the tests that failed on the last test run -->
+            <!--<arg value="-status:fail"/>-->
+            <!--<arg value="-Djava.security.debug=access,failure"/>-->
+            <!-- -DtestLevel Controls the amount of information printed.
+             *  0 - Just print final results and failures.
+             *  5 - Include stack trace for unexpected exceptions (default).
+             * 10 - Print test number and class for each new top level test class
+             * 15 - Print test number and class for every test.
+             * 20 - Print full test entry and pass/fail for every test.
+             * 25 - Include passing results.
+             * 30 - Include additional test debugging output, including time. -->
+            <arg value="-DtestLevel=5"/>
+            <!--<arg value="-Dsun.security.krb5.debug=true"/>-->
+            <!--<arg value="-Djavax.net.debug=ssl"/>-->
+            <!--<arg value="-J-Djavatest.maxOutputSize=300000"/>-->
+            <!--<arg value="net/jini/jeri/kerberos/UnitTests/runTestPerformance.sh" />-->
+            <!--<arg value="-Bug:6307813"/>-->
+            <!--<arg value="-Bug:4408449"/>-->
+            <!--<arg value="-Bug:6313626"/>-->
+            <!--<arg value="-Bug:4849581"/>-->
+            <!--<arg value="net/jini/security/policy/DynamicPolicyProvider/dynamicBasePolicy/Test.java"/>-->
+            <!--<arg value="net/jini/security/Security/implicitGrants/Test.java"/>-->
+            <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
+            <!--<arg value="net/jini/url/httpmd/TestEqual.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestEndpoint.java"/>-->
+            <!--2 test failures in:--> 
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
+            <!--<arg value="net/jini/loader/pref/PreferredResources/correctInterpretation/CorrectInterpretation.java"/>-->
+            <!--<arg value="net/jini/config/TestAPI/TestConstructor.java"/>-->
+            <!--<arg value="net/jini/io/MarshalInputStream/verifyWithEqualLoaders/VerifyWithEqualLoaders.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestConnectionContext.java"/>-->
+            <!--<arg value="net/jini/jeri/BasicJeriExporter/dgcServerExposure/DgcServerExposure.java"/>-->
+            <!--<arg value="net/jini/jeri/BasicJeriExporter/operations/Operations.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestEndpoint.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestServerEndpoint.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestUtilities.java"/>-->
+            <!--<arg value="net/jini/loader/pref/PreferredClassProvider/checkBoomerangs/CheckBoomerangs.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestConnectionContext.java"/>-->
+        </jtreg>
+        <delete>
+            <filelist dir="${jtreg.dir}/JTlib-tmp">
+                <file name="jgdms-collections-${jgdms.version}.jar"/>
+                <!--<file name="jgdms-iiop-${jgdms.version}.jar"/>-->
+                <file name="jgdms-jeri-${jgdms.version}.jar"/>
+                <file name="jgdms-lib-${jgdms.version}.jar"/>
+                <file name="jgdms-platform-${jgdms.version}.jar"/>
+                <file name="jgdms-pref-class-loader-${jgdms.version}.jar"/>
+                <file name="jgdms-url-integrity-${jgdms.version}.jar"/>
+                <file name="classdep-${jgdms.version}.jar"/>
+                <file name="classserver-${jgdms.version}.jar"/>
+                <file name="asm-*.jar"/>
+		<!--<file name="asm-commons-9.7.jar"/>-->
+                <file name="high-scale-lib-*.jar"/>
+                <file name="jgdms-activation-${jgdms.version}.jar"/>
+                <file name="jgdms-activation-parameters-${jgdms.version}.jar"/>
+                <file name="checkconfigurationfile-${jgdms.version}.jar"/>
+                <!--<file name="jsk-lib.jar"/>
+                <file name="jsk-platform.jar"/>
+                <file name="jsk-resources.jar"/>
+                <file name="phoenix-init.jar"/>
+                <file name="tools.jar"/>
+                <file name="classserver.jar"/>
+                <file name="high-scale-lib.jar"/>-->
+            </filelist>
+        </delete>
+        <delete>
+            <filelist dir="${jtreg.dir}/JTlib-tmp">
+                <file name="jgdms-lib-dl-${jgdms.version}.jar"/>        
+                <file name="phoenix-dl-${jgdms.version}.jar"/>
+            </filelist>
+        </delete>
+        <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
+        <delete dir="${jtreg.dir}/JTlib-tmp"/>
+        <delete file="${jtreg.dir}/test.props"/>
+        <fail if="jtreg.fail"/>
+    </target>
+
+    <!-- Run this in case the jtreg target got cancelled somehow before moving the JARs back -->
+    <target name="jtreg-teardown" depends="" description="Move back JARs">
+        <move todir="${river.lib.dir}">
+            <filelist dir="${jtreg.dir}/JTlib-tmp">
+                <file name="jgdms-collections-${jgdms.version}.jar"/>
+                <!--<file name="jgdms-iiop-${jgdms.version}.jar"/>-->
+                <file name="jgdms-jeri-${jgdms.version}.jar"/>
+                <file name="jgdms-lib-${jgdms.version}.jar"/>
+                <file name="jgdms-platform-${jgdms.version}.jar"/>
+                <file name="jgdms-pref-class-loader-${jgdms.version}.jar"/>
+                <file name="jgdms-url-integrity-${jgdms.version}.jar"/>
+                <file name="classdep-${jgdms.version}.jar"/>
+                <file name="classserver-${jgdms.version}.jar"/>
+                <file name="asm-*.jar"/>
+		<!--<file name="asm-commons-9.7.jar"/>-->
+                <file name="high-scale-lib-*.jar"/>
+                <file name="jgdms-activation-${jgdms.version}.jar"/>
+                <file name="jgdms-activation-parameters-${jgdms.version}.jar"/>
+                <file name="checkconfigurationfile-${jgdms.version}.jar"/>
+                <!--<file name="jsk-lib.jar"/>
+                <file name="jsk-platform.jar"/>
+                <file name="jsk-resources.jar"/>
+                <file name="phoenix-init.jar"/>
+                <file name="tools.jar"/>
+                <file name="classserver.jar"/>
+                <file name="high-scale-lib.jar"/>-->
+            </filelist>
+        </move>
+        <move todir="${river.lib-dl.dir}">
+            <filelist dir="${jtreg.dir}/JTlib-tmp">
+                <file name="jgdms-lib-dl-${jgdms.version}.jar"/>
+                <file name="phoenix-dl-${jgdms.version}.jar"/>
+            </filelist>
+        </move>
+        <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
+        <delete dir="${jtreg.dir}/JTlib-tmp"/>
+        <delete file="${jtreg.dir}/test.props"/>
+    </target>
+
+    <macrodef name="testrun">
+        <element name="tr-elements" optional="true" implicit="true"/>
+        <sequential>
+            <java classname="org.apache.river.qa.harness.QARunner" fork="yes" failOnError="false" resultproperty="testrunresult">
+                <!--Note these arguments only apply to the qa harness, they aren't
+                propagated to client test jvm's to do that you must set the
+                global or client vm args in the file:
+                src/org/apache/river/qa/resources/qaDefaults.properties-->
+                <!-- JDK extension directories (include our lib-ext dirs, for the custom policy providers) -->
+                <!--<jvmarg value="-Xbootclasspath/a:${river-ext.lib-dir}"/>-->
+                <!--<jvmarg value="-Djava.ext.dirs=${ext.dirs}"/>-->
+                <!--Use the following security manager if you need to discover which jar
+                file requires a particular permission, note this only works for the harness here -->
+                <!--<jvmarg value="-Djava.security.manager=org.apache.river.tool.SecurityPolicyWriter"/>-->
+                <!--<jvmarg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
+                <!--Enable the following if you don't want to use any other policy's note == -->
+                <!--<jvmarg value="-Djava.security.policy==${security.policy}" />-->
+                <jvmarg value="-Djava.security.policy=${security.policy}" />
+                <!--<jvmarg value="-Djava.security.debug=access" />-->
+                <jvmarg value="-Djava.util.logging.config.file=${log.config.file}" />
+                <jvmarg value="-Djava.util.logging.manager=org.apache.river.logging.LogManager"/>
+                <jvmarg value="-Djsk.home=${jsk.home}/JGDMS/dist/target/JGDMS-${jgdms.version}" />
+                <jvmarg value="-Dqa.home=${basedir}" />
+                <jvmarg value="-Djgdms.version=${jgdms.version}" />
+                <!--We have a problem with path to properties and the src directory
+                it appears that the src directory was added later, however links
+                to property files aren't reflective of this and conflict with 
+                the path to those property files in jar archives needs looking into
+                this is now solved by setting the -->
+                <jvmarg value="-Dorg.apache.river.test.home=${basedir}" />
+                <jvmarg value="-Dorg.apache.river.qa.harness.harnessJar=${basedir}/lib/jiniharness.jar"/>
+                <jvmarg value="-Dorg.apache.river.qa.harness.configs=${harness.configs}" />
+                <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml=${harness.generateHtml}" />
+                <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml.title=${harness.generateHtml.title}" />
+                <!--<jvmarg value="-Dorg.apache.river.tool.SecurityPolicyWriter.Directory=${jsk.home}/qa/build/policy"/>-->
+                <jvmarg value="-Dorg.apache.river.qa.harness.generateJunitXml=true" />                
+                <!-- VM args for each test run: include our JDK extension directories
+                $${org.apache.river.qa.harness.globalvmargs},-Dorg.apache.river.test.home=$${org.apache.river.test.home},-Dorg.apache.river.test.port=$${org.apache.river.test.port},-Dorg.apache.river.qa.harness.policies=&lt;url: org/apache/river/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
+                <!--<jvmarg value="-Dorg.apache.river.qa.harness.globalvmargs=$${org.apache.river.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>-->
+                <jvmarg value="-Dorg.apache.river.qa.harness.globalvmargs=$${org.apache.river.qa.harness.globalvmargs}"/>
+                <arg path="${harness.props}" />
+                <arg value="-testJar"/>
+                <arg path="${lib.dir}/jinitests.jar" />
+                <!-- Run harness in activatable (default), transient or persistent mode -->
+                <arg value="-org.apache.river.qa.harness.serviceMode"/>
+                <arg value="${harness.servicemode}" />
+                <tr-elements/>
+                <classpath>
+                    <fileset dir="${lib.dir}">
+                        <include name="jiniharness.jar"/>
+                    </fileset>
+                    <fileset dir="${lib-ext.dir}">
+                        <!--<include name="jsk-policy.jar"/>-->
+                        <include name="jgdms-platform-${jgdms.version}.jar"/>
+                    </fileset>
+                    <fileset dir="${river.lib.dir}">
+                        <include name="jgdms-collections-${jgdms.version}.jar"/>
+                        <!--<include name="jgdms-iiop-${jgdms.version}.jar"/>-->
+                        <include name="jgdms-jeri-${jgdms.version}.jar"/>
+                        <include name="jgdms-lib-${jgdms.version}.jar"/>
+                        <include name="jgdms-lib-dl-${jgdms.version}.jar"/>
+                        <include name="jgdms-platform-${jgdms.version}.jar"/>
+                        <include name="jgdms-pref-class-loader-${jgdms.version}.jar"/>
+                        <include name="jgdms-url-integrity-${jgdms.version}.jar"/>
+                        <include name="classdep-${jgdms.version}.jar"/>
+                        <include name="classserver-${jgdms.version}.jar"/>
+                        <include name="service-starter-${jgdms.version}.jar"/>
+                        <include name="asm-9.7.1.jar"/>
+                        <include name="asm-commons-9.7.1.jar"/>
+                        <include name="high-scale-lib-1.0.6.jar"/>
+                        <include name="bcprov-jdk15on-1.59.jar"/>
+                        <include name="bctls-jdk15on-1.59.jar"/>
+                        <!-- The next must be manually copied -->
+                        <include name="security-policy-debug-${jgdms.version}.jar"/>
+                    </fileset>
+                    <fileset dir="${river.lib-dl.dir}">
+                        <include name="jgdms-lib-dl-${jgdms.version}.jar"/>
+                    </fileset>
+                </classpath>
+                <env key="SOUL" value="${soul}"/>
+                <sysproperty key="SOUL" value="${soul}"/>
+            </java>
+        </sequential>
+    </macrodef>
+
+    <target name="run-tests" depends="james-brown" description="Execute specific QA test(s)">
+	<fail message="use 'ant -Drun.tests=org/apache/river/test/impl/yourowntest.td run-tests'" unless="run.tests" />
+        <testrun>
+            <!-- Run specific test(s) -->
+            <arg value="-tests"/>
+            <arg value="${run.tests}" />
+        </testrun>
+        <antcall target="collect-result"/>
+        <fail>
+            <condition>
+                <not>
+                    <equals arg1="${testrunresult}" arg2="0"/>
+                </not>
+            </condition>
+        </fail>
+    </target>
+    
+    <target name="run-all" depends="run, jtreg" description="Execute QA and Jtreg tests" />
+
+    <target name="run-categories" depends="james-brown" description="Execute QA test categories">
+        <!-- categories can be found under packages org.apache.river.test.impl and org.apache.river.test.spec, some of them: -->
+        <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
+        config,constraint,discoverymanager,discoveryservice,joinmanager,url,lookupservice,
+        eventmailbox,jeri,iiop,reliability,scalability,thread,renewalservice"/>-->
+        <property name="run.categories" value="joinmanager"/>
+        <testrun>
+             <!-- Run one or more test categories -->
+            <arg value="-categories"/>
+            <arg value="${run.categories}" />
+        </testrun>
+        <antcall target="collect-result"/>
+        <fail>
+            <condition>
+                <not>
+                    <equals arg1="${testrunresult}" arg2="0"/>
+                </not>
+            </condition>
+        </fail>
+    </target>
+
+    <condition property="resultHtmlAvailable">
+        <and>
+            <available file="${result.dir}/index.html"/>
+            <istrue value="${harness.generateHtml}"/>
+        </and>
+    </condition>
+
+    <target name="collect-result" if="resultHtmlAvailable">
+        <delete file="${result.zip}" quiet="true"/>
+        <copy file="${log.config}" tofile="${result.dir}/logging.properties"/>
+        <copy file="${harness.props}" tofile="${result.dir}/qaHarness.prop"/>
+        <zip basedir="${result.dir}" file="${result.zip}" />
+    </target>
+
+    <target name="run" depends="james-brown">
+        <property name="run.categories"
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager,stress"/>
+        <antcall target="run-categories"/>
+    </target>
+    
+    <!--
+      policy-update target
+      ====================
+      Runs the full QA test suite with SecurityPolicyWriter as the security
+      manager so that every test appends any permissions it actually needs to
+      its policy file.  After all tests have completed, PolicyUpdatePostProcessor
+      is invoked to:
+        1. Restore the protected policy files (those used by tests that require
+           a SecurityException) to their VCS-tracked state using git checkout,
+           undoing any writes made by SecurityPolicyWriter.
+        2. Condense all other policy files in-place using PolicyCondenser.
+
+      Usage:
+        ant -Dpolicy.update=true policy-update
+
+      The policy-condenser JAR location defaults to the Maven build output.
+      Override with -Dpolicy.condenser.jar=/path/to/policy-condenser.jar.
+    -->
+    <property name="policy.condenser.jar"
+              location="${root}/JGDMS/tools/policy-condenser/target/policy-condenser-${jgdms.version}.jar"/>
+
+    <!-- Shared macrodef that runs PolicyUpdatePostProcessor after any test run -->
+    <macrodef name="policy-post-process">
+        <sequential>
+            <java classname="org.apache.river.tool.PolicyUpdatePostProcessor"
+                  fork="yes"
+                  failonerror="true">
+                <arg value="--qa-dir"/>
+                <arg file="${basedir}"/>
+                <classpath>
+                    <pathelement location="${policy.condenser.jar}"/>
+                    <fileset dir="${lib-ext.dir}">
+                        <include name="jgdms-platform-${jgdms.version}.jar"/>
+                    </fileset>
+                    <fileset dir="${river.lib.dir}">
+                        <include name="jgdms-platform-${jgdms.version}.jar"/>
+                        <include name="jgdms-collections-${jgdms.version}.jar"/>
+                    </fileset>
+                </classpath>
+            </java>
+        </sequential>
+    </macrodef>
+
+
+
+    <!--
+      policy-update targets
+      =====================
+      Each policy-update target invokes an internal run target that passes
+       -Dorg.apache.river.qa.harness.securitymanager=polpAudit
+      to the harness JVM.  QAConfig.getGlobalVMArgs() reads this property and
+      substitutes the -Djava.security.manager entry passed to test/service JVMs
+      so polpAudit (DirtyChai audit policy manager) is active in every child JVM during policy-update runs.
+      BootstrapPermission is now routed through Security.checkPermission() which
+      calls SecurityManager.checkPermission(), so it is captured and written to
+      the policy files.
+      Normal runs (run, run-categories, run-tests) use the default security manager
+      set in qaDefaults.properties (-Djava.security.manager=default).
+    -->
+    <target name="policy-update-run-all" depends="james-brown">
+        <property name="run.categories"
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager,stress"/>
+        <testrun>
+            <jvmarg value="-Dorg.apache.river.qa.harness.securitymanager=org.apache.river.tool.SecurityPolicyWriter"/>
+            <arg value="-categories"/>
+            <arg value="${run.categories}"/>
+        </testrun>
+        <antcall target="collect-result"/>
+    </target>
+
+    <target name="policy-update-run-categories" depends="james-brown">
+        <property name="run.categories" value="joinmanager"/>
+        <testrun>
+            <jvmarg value="-Dorg.apache.river.qa.harness.securitymanager=polpAudit"/>
+            <arg value="-categories"/>
+            <arg value="${run.categories}"/>
+        </testrun>
+        <antcall target="collect-result"/>
+    </target>
+
+    <target name="policy-update-run-tests" depends="james-brown">
+        <fail message="use ant -Drun.tests=org/apache/river/test/impl/yourowntest.td policy-update-tests" unless="run.tests"/>
+        <testrun>
+            <jvmarg value="-Dorg.apache.river.qa.harness.securitymanager=polpAudit"/>
+            <arg value="-tests"/>
+            <arg value="${run.tests}"/>
+        </testrun>
+        <antcall target="collect-result"/>
+    </target>
+
+    <target name="policy-update" depends="policy-update-run-all"
+            description="Run all QA tests with SecurityPolicyWriter to update policy files, then condense non-protected policy files">
+        <policy-post-process/>
+    </target>
+
+    <target name="policy-update-categories" depends="policy-update-run-categories"
+            description="Run the current run.categories tests with SecurityPolicyWriter to update policy files. Usage: ant -Drun.categories=txnmanager,start policy-update-categories">
+        <policy-post-process/>
+    </target>
+
+    <target name="policy-update-tests" depends="policy-update-run-tests"
+            description="Run specific test(s) with SecurityPolicyWriter to update policy files. Usage: ant -Drun.tests=org/apache/river/test/impl/mahalo/LeaseTest.td policy-update-tests">
+        <policy-post-process/>
+    </target>
+
+    <target name="run-arm" depends="river-runtime,jars-arm">
+        <property name="run.categories"
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager"/>
+        <antcall target="run-categories"/>
+    </target>
+
+<!-- depends="compile" -->
+    <target name="doc" 
+		description="Generate javadoc documentation">
+        <delete dir="${doc.api.dir}" quiet="true"/>
+        <mkdir  dir="${doc.api.dir}"/>
+
+        <javadoc
+                author="true"
+                breakiterator="yes"
+                destdir="${doc.api.dir}"
+                doctitle="${javadoc.doc-title}"
+                serialwarn="${verbose}"
+                source="5"
+                linkoffline="${jdk.doc.url} ${jdk.packages}"
+                use="true"
+                version="true"
+                windowtitle="${javadoc.win-title}"
+                maxmemory="256M"
+                verbose="${verbose}"
+                >
+            <bottom><![CDATA[${api.copyright}]]></bottom>
+            <!--<classpath>
+                <fileset refid="asm.jars"/>
+            </classpath>-->
+            <sourcepath>
+                <pathelement path="${src.dir}/../../src/"/>
+                <pathelement path="${src.dir}"/>
+            </sourcepath>
+            <package name="org.apache.river.qa.*"/>
+            <package name="org.apache.river.test.*"/>
+            <package name="org.apache.river.tool.*"/>
+        </javadoc>
+
+        <mkdir dir="${doc.api.dir}/doc-files"/>
+        <copy file="${root}/NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE"/>
+    </target>
+    
+    <target name="jars" depends="stubs, trust,
+        harness-jars,
+        qa1-end2end.jar,
+        qa1-fiddler-dl.jar,
+        qa1-joinmanager-dl.jar,
+        qa1-mahalo-dl.jar,
+        qa1-mercury.jar,
+        qa1-mercury-dl.jar,
+        qa1-mercury-bogusimpl.jar,
+        qa1-wrapper.jar,
+        qa1-norm-dl.jar,
+        qa1-outrigger-dl.jar,
+        qa1-multihomedmetainf.jar,
+        jinitests.jar,
+        qa1-mainwrapper.jar,
+        qa1-start-cb1.jar,
+        qa1-start-cb2.jar,
+        qa1-start-cb3.jar,
+        qa1-start-probe.jar,
+        qa1-start-probe-dl.jar,
+        qa1-start-tests.jar,
+        qa1-start-testservice1.jar,
+        qa1-start-testservice1-dl.jar,
+        qa1-start-testservice2.jar,
+        qa1-start-testservice2-dl.jar,
+        qa1-start-testservice-common.jar,
+        qa1-start-testservice-common-dl.jar,
+        qa1-start-testservicenocons.jar,
+        qa1-start-testservicenocons-dl.jar,
+        qa1-lookup-simulator.jar,
+        qa1-lookup-simulator-dl.jar,
+        qa1-share-dl.jar,
+        qa1-reggie-race.jar,
+        qa1-reggie-race-dl.jar,
+        fullloggingfilter.jar,
+        qa1-discoveryservice-dl.jar,
+        qa1-export-servercontext-tests-non-null.jar,
+        qa1-export-servercontext-tests-null.jar,
+        qa1-export-servercontext-tests-providers-parsing.jar,
+        qa1-io-util-dl.jar,
+        qa1-io-marshalinputstream-test.jar,
+        qa1-io-marshalledinstance-test.jar,
+        qa1-javaspace-dl.jar,
+        qa1-lookupservice-dl.jar,
+        qa1-renewalservice-dl.jar,
+        qa1-securityDoPrivileged.jar,
+        qa1-securityUtil.jar,
+        qa1-servicediscovery-dl.jar,
+        qa1-httpmd.jar,
+        qa1-httpmd-same.jar,
+        qa1-httpmd-another.jar,
+        ld.jar,
+        qa1-loader-pref.jar,
+        qa1-policy-provider.jar"
+        description="Generate all JAR files"/>
+
+    <target name="jars-arm" depends="trust,
+        harness-jars-arm,
+        qa1-end2end.jar,
+        qa1-fiddler-dl.jar,
+        qa1-joinmanager-dl.jar,
+        qa1-mahalo-dl.jar,
+        qa1-mercury.jar,
+        qa1-mercury-dl.jar,
+        qa1-mercury-bogusimpl.jar,
+        qa1-wrapper.jar,
+        qa1-norm-dl.jar,
+        qa1-outrigger-dl.jar,
+        qa1-multihomedmetainf.jar,
+        jinitests,
+        qa1-mainwrapper.jar,
+        qa1-start-cb1.jar,
+        qa1-start-cb2.jar,
+        qa1-start-cb3.jar,
+        qa1-start-probe.jar,
+        qa1-start-probe-dl.jar,
+        qa1-start-tests.jar,
+        qa1-start-testservice1.jar,
+        qa1-start-testservice1-dl.jar,
+        qa1-start-testservice2.jar,
+        qa1-start-testservice2-dl.jar,
+        qa1-start-testservice-common.jar,
+        qa1-start-testservice-common-dl.jar,
+        qa1-start-testservicenocons.jar,
+        qa1-start-testservicenocons-dl.jar,
+        qa1-lookup-simulator.jar,
+        qa1-lookup-simulator-dl.jar,
+        qa1-share-dl.jar,
+        qa1-reggie-race.jar,
+        qa1-reggie-race-dl.jar,
+        fullloggingfilter.jar,
+        qa1-discoveryservice-dl.jar,
+        qa1-export-servercontext-tests-non-null.jar,
+        qa1-export-servercontext-tests-null.jar,
+        qa1-export-servercontext-tests-providers-parsing.jar,
+        qa1-io-util-dl.jar,
+        qa1-io-marshalinputstream-test.jar,
+        qa1-io-marshalledinstance-test.jar,
+        qa1-javaspace-dl.jar,
+        qa1-lookupservice-dl.jar,
+        qa1-renewalservice-dl.jar,
+        qa1-securityDoPrivileged.jar,
+        qa1-securityUtil.jar,
+        qa1-servicediscovery-dl.jar,
+        qa1-httpmd.jar,
+        qa1-httpmd-same.jar,
+        qa1-httpmd-another.jar,
+        ld.jar,
+        qa1-loader-pref.jar,
+        qa1-policy-provider.jar"
+        description="Generate all JAR files"/>
+
+    <target name="harness-jars" description="build all harness jars" depends="stubs, trust,
+        qaman.jar,
+        mergedpolicyprovider.jar,
+        nonactivatablegroup.jar,
+        nonactivatablegroup-dl.jar,
+        harness-killer.jar,
+        harness-killer-dl.jar,
+        jiniharness.jar" />
+        
+        <target name="harness-jars-arm" description="build all harness jars" depends="trust,
+        qaman.jar,
+        mergedpolicyprovider.jar,
+        nonactivatablegroup.jar,
+        nonactivatablegroup-dl.jar,
+        harness-killer.jar,
+        harness-killer-dl.jar,
+        jiniharness.jar" />
+
+    <target name="stubs" depends="compile" description="Compile stubs"/>
+        <!--harness-killer.stubs,
+        nonactivatablegroup.stubs,
+        qa1-fiddler.stubs,
+        qa1-joinmanager.stubs,
+        qa1-mercury.stubs,
+        qa1-norm.stubs,
+        qa1-outrigger.stubs,
+        qa1-start.stubs,
+        qa1-lookup-simulator.stubs,
+        qa1-share.stubs,
+        qa1-discoveryservice.stubs,
+        qa1-javaspace.stubs,
+        qa1-lookupservice.stubs,
+        qa1-renewalservice.stubs,
+        iiop.stubs"-->
+        
+    <target name="harness-killer.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/qa/harness/KillerImpl.class" />
+        </rmic>-->
+    </target>
+
+    <target name="harness-killer.jar" depends="harness-killer.stubs">
+        <property name="harness-killer.deps" location="${build.deps.dir}/harness-killer.deps" />
+        <classdep output="${harness-killer.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in net.jini"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg value="org.apache.river.qa.harness.KillerImpl"/>
+            <!--<arg value="org.apache.river.qa.harness.KillerImpl_Stub"/>-->
+        </classdep>
+        <jar destfile="${lib.dir}/harness-killer.jar" index="false">
+            <!--<fileset dir="${river.classes.dir}" includesfile="${harness-killer.deps}" />-->
+            <fileset dir="${build.classes.dir}" includesfile="${harness-killer.deps}" />
+        </jar>
+    </target>
+
+    <target name="harness-killer-dl.jar" depends="harness-killer.stubs">
+        <property name="harness-killer-dl.deps" location="${build.deps.dir}/harness-killer-dl.deps" />
+        <classdep output="${harness-killer-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+             <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg value="org.apache.river.qa.harness.VMKiller"/>
+            <!--<arg value="org.apache.river.qa.harness.KillerImpl_Stub"/>-->
+        </classdep>
+        <jar destfile="${lib.dir}/harness-killer-dl.jar" index="false">
+            <!--<fileset dir="${river.classes.dir}"  includesfile="${harness-killer-dl.deps}" />-->
+            <fileset dir="${build.classes.dir}"  includesfile="${harness-killer-dl.deps}" />
+        </jar>
+    </target>
+
+    <target name="nonactivatablegroup.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/qa/harness/NonActivatableGroupImpl$$GroupImpl.class" />
+        </rmic>-->
+    </target>
+
+    <target name="nonactivatablegroup.jar" depends="nonactivatablegroup.stubs">
+        <property name="nonactivatablegroup.deps" location="${build.deps.dir}/nonactivatablegroup.deps" />
+        <classdep output="${nonactivatablegroup.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="-out org.apache.river.start"	/>
+            <arg value="org.apache.river.qa.harness.NonActivatableGroupImpl"/>
+            <!--<arg value="org.apache.river.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>-->
+        </classdep>
+        <jar destfile="${lib.dir}/nonactivatablegroup.jar" index="false">
+            <!--<fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup.deps}" />-->
+            <fileset dir="${build.classes.dir}"  includesfile="${nonactivatablegroup.deps}" />
+        </jar>
+    </target>
+
+    <target name="nonactivatablegroup-dl.jar" depends="nonactivatablegroup.stubs">
+        <!--<property name="nonactivatablegroup-dl.deps" location="${build.deps.dir}/nonactivatablegroup-dl.deps" />
+        <classdep output="${nonactivatablegroup-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>-->
+            <!--<arg value="org.apache.river.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>-->
+        <!--</classdep>
+        <jar destfile="${lib.dir}/nonactivatablegroup-dl.jar" index="false">
+            <fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup-dl.deps}" />
+            <fileset dir="${build.classes.dir}"  includesfile="${nonactivatablegroup-dl.deps}" />
+        </jar>-->
+    </target>
+
+    <target name="mergedpolicyprovider.jar" depends="compile">
+        <property name="mergedpolicyprovider.deps" location="${build.deps.dir}/mergedpolicyprovider.deps" />
+        <classdep output="${mergedpolicyprovider.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.qa"/>
+            <arg value="org.apache.river.qa.harness.MergedPolicyProvider"/>
+        </classdep>
+        <jar destfile="${lib-ext.dir}/mergedpolicyprovider.jar" index="false" >
+            <!--<fileset dir="${river.classes.dir}" includesfile="${mergedpolicyprovider.deps}"/>-->
+            <fileset dir="${build.classes.dir}" includesfile="${mergedpolicyprovider.deps}"/>
+        </jar>
+    </target>
+
+    <target name="qa1-end2end.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-end2end.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/end2end/e2etest/**/*" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-wrapper.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-wrapper.jar" index="false">
+            <metainf dir="${src.dir}/org/apache/river/test/impl/end2end/META-INF/">
+                <include name="**/*" />
+            </metainf>
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/end2end/jssewrapper/**/*" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-fiddler.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/share/DiscoveryServiceUtil$$BasicEventListener.class" />
+            <include name="org/apache/river/test/spec/discoveryservice/AbstractBaseTest$$LDSEventListener.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-fiddler-dl.jar" depends="qa1-fiddler.stubs">
+        <property name="qa1-fiddler-dl.deps" location="${build.deps.dir}/qa1-fiddler-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-fiddler-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-fiddler-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.share.AttributesUtil$$TestAttr00"/>
+            <arg value="org.apache.river.test.share.AttributesUtil$$TestAttrSC00"/>
+            <!--<arg value="org.apache.river.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
+            <arg value="org.apache.river.test.spec.discoveryservice.AbstractBaseTest$$LDSEventListener_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-fiddler-dl.jar" index="false" >
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-fiddler-dl.deps}" />
+            <!--<fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-joinmanager.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/impl/joinmanager/LeaseRenewDurRFE$$RemoteTestServiceImpl.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-joinmanager-dl.jar" depends="qa1-joinmanager.stubs">
+        <property name="qa1-joinmanager-dl.deps" location="${build.deps.dir}/qa1-joinmanager-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-joinmanager-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-joinmanager-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.spec.joinmanager.AbstractBaseTest$$TestService"/>
+            <arg value="org.apache.river.test.impl.joinmanager.LeaseRenewDurRFE$$TestServiceProxy$$ConstrainableTestServiceProxy"/>
+            <arg value="org.apache.river.test.share.AttributesUtil$$TestAttr00"/>
+            <arg value="org.apache.river.test.share.AttributesUtil$$TestAttrSC00"/>
+            <!--<arg value="org.apache.river.test.impl.joinmanager.LeaseRenewDurRFE$$RemoteTestServiceImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-joinmanager-dl.jar" index="false" >
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-joinmanager-dl.deps}" />
+            <!--<fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-mahalo-dl.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-mahalo-dl.jar" index="false" >
+            <!--<fileset dir="${river.classes.dir}">
+                <include name="net/jini/lookup/entry/Name.class"/>
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-mercury.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/impl/mercury/TestListenerImpl.class" />
+            <include name="org/apache/river/test/impl/mercury/TestPullListenerImpl.class" />
+            <include name="org/apache/river/test/impl/mercury/TestGeneratorImpl.class" />
+            <include name="org/apache/river/test/impl/mercury/DisableListenerImpl.class" />
+            <include name="org/apache/river/test/impl/mercury/DisableNSOListenerImpl.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-mercury.jar" depends="qa1-mercury.stubs">
+        <property name="qa1-mercury.deps" location="${build.deps.dir}/qa1-mercury.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-mercury.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-mercury.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.mercury.NSOListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.REListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.UEListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>-->
+            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>-->
+            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>-->
+            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>-->
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-mercury.jar" index="false" >
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-mercury.deps}" />-->
+        </jar>
+        <classdep output="${qa1-mercury.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in net.jini"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.mercury.NSOListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.REListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.UEListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>-->
+            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>-->
+            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>-->
+            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>-->
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-mercury.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-mercury.deps}" />-->
+        </jar>
+    </target>
+
+    <target name="qa1-mercury-dl.jar" depends="qa1-mercury.stubs">
+        <property name="qa1-mercury-dl.deps" location="${build.deps.dir}/qa1-mercury-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-mercury-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-mercury-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGenerator"/>
+            <arg value="org.apache.river.test.impl.mercury.TestListener"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableListener"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-mercury-dl.jar" index="false">
+            <metainf dir="${src.dir}/manifest/mercury-dl/META-INF">
+                <include name="**/*" />
+            </metainf>
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />-->
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/mercury/MyUnknownEventException.class"/>
+            </fileset>
+            <!--<fileset dir="${river.classes.dir}">
+                <include name="net/jini/lookup/entry/Name.class"/>
+            </fileset>-->
+        </jar>
+        <!--<classdep output="${qa1-mercury-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in net.jini"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg value="org.apache.river.landlord.LandlordProxyVerifier"/>
+            <arg value="org.apache.river.proxy.BasicProxyTrustVerifier"/>-->
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>-->
+
+        <!--</classdep>
+        <jar destfile="${lib.dir}/qa1-mercury-dl.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />
+            <fileset dir="${river.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />
+        </jar>-->
+    </target>
+
+    <target name="qa1-mercury-bogusimpl.jar" depends="compile">
+        <property name="qa1-mercury-bogusimpl.deps" location="${build.deps.dir}/qa1-mercury-bogusimpl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-mercury-bogusimpl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-mercury-bogusimpl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.mercury.DelayedBasicJeriExporter"/>
+            <arg value="org.apache.river.test.impl.mercury.MyLocalRemoteEvent"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-mercury-bogusimpl.jar" index="false" >
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury-bogusimpl.deps}" />
+        </jar>
+    </target>
+
+    <target name="qa1-norm.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/impl/norm/LeaseBackEndImpl.class" />
+            <include name="org/apache/river/test/impl/norm/RemoteListener.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-norm-dl.jar" depends="qa1-norm.stubs">
+        <property name="qa1-norm-dl.deps" location="${build.deps.dir}/qa1-norm-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-norm-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-norm-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.norm.LocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.ConstrainableLocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.DestructingLocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.ConstrainableDestructingLocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.FailingLocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.ConstrainableFailingLocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.TestLease"/>
+            <arg value="org.apache.river.test.impl.norm.ConstrainableTestLease"/>
+            <arg value="org.apache.river.test.share.AttrOne"/>
+            <arg value="org.apache.river.test.share.SunOfAttrOne"/>
+            <arg value="org.apache.river.test.share.AttrTwo"/>
+            <arg value="org.apache.river.test.impl.norm.LeaseBackEndImpl$$VerifierImpl"/>
+            <arg value="org.apache.river.test.impl.norm.LocalLease$$VerifierImpl"/>
+            <!--<arg value="org.apache.river.test.impl.norm.LeaseBackEndImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.norm.RemoteListener_Stub"/>-->
+            <arg value="org.apache.river.test.impl.norm.TestLease"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-norm-dl.jar" index="false" >
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-norm-dl.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-norm-dl.deps}" />
+            <fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-outrigger.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/impl/outrigger/transaction/SimpleEventListener.class" />
+            <include name="org/apache/river/test/impl/outrigger/matching/ARemoteInterfaceImpl.class" />
+            <include name="org/apache/river/test/impl/outrigger/matching/MonitoredSpaceListener.class" />
+            <include name="org/apache/river/test/impl/outrigger/matching/TestSpaceListener.class" />
+            <include name="org/apache/river/test/impl/outrigger/notify/ThrowRuntimeException$$Listener.class" />
+            <include name="org/apache/river/test/impl/outrigger/leasing/LeasedSpaceListener.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-outrigger-dl.jar" depends="qa1-outrigger.stubs">
+        <property name="qa1-outrigger-dl.deps" location="${build.deps.dir}/qa1-outrigger-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-outrigger-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-outrigger-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.outrigger.transaction.SimpleEventListener"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.ARemoteInterfaceImpl"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.MonitoredSpaceListener"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.TestSpaceListener"/>
+            <arg value="org.apache.river.test.impl.outrigger.notify.ThrowRuntimeException$$Listener"/>
+            <arg value="org.apache.river.test.impl.outrigger.leasing.LeasedSpaceListener"/>
+            <!--<arg value="org.apache.river.test.impl.outrigger.transaction.SimpleEventListener_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.ARemoteInterfaceImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.MonitoredSpaceListener_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.TestSpaceListener_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.notify.ThrowRuntimeException$$Listener_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.leasing.LeasedSpaceListener_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-outrigger-dl.jar" index="false" >
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-outrigger-dl.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-outrigger-dl.deps}" />
+            <fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-multihomedmetainf.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-multihomedmetainf.jar" index="false" >
+            <!--<metainf dir="${src.dir}/org/apache/river/test/impl/reggie/META-INF">
+                <include name="**/*" />
+            </metainf>-->
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/reggie/**/*"/>
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="jinitests.jar" depends="stubs,jinitests"/>
+
+    <target name="jinitests">
+        <property name="jinitests.deps" location="${build.deps.dir}/jinitests.deps" />
+        <!--
+        <delete file="${lib.dir}/jinitests.jar" quiet="true"/>
+        -->
+        <classdep output="${jinitests.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-in org.apache.river.fiddler"/>
+            <arg line="${jskprivate.include}" />
+            <arg path="${build.classes.dir}/org/apache/river/test/impl"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/jinitests.jar" index="false" >
+            <metainf dir="${src.dir}/manifest/qa1/META-INF">
+                <include name="**/*" />
+            </metainf>
+            <fileset dir="${build.classes.dir}" includesfile="${jinitests.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />-->
+            <fileset dir="${build.classes.dir}" includes="${resources}"
+                excludes="org/apache/river/qa*, org/apache/river/tool*" />
+        </jar>
+        <classdep output="${jinitests.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-in org.apache.river.fiddler"/>
+            <arg line="${jskprivate.include}" />
+            <arg path="${build.classes.dir}/org/apache/river/test/spec"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/jinitests.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${jinitests.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />-->
+        </jar>
+        <classdep output="${jinitests.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp.with.harness"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-in org.apache.river.fiddler"/>
+            <arg line="${jskprivate.include}" />
+            <arg path="${build.classes.dir}/org/apache/river/test/share"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/support"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/services/lookupsimulator/LookupSimulatorProxyInterface.class"/>
+            <arg path="${build.classes.dir}/org/apache/river/fiddler/FiddlerAdmin.class"/>
+            <arg path="${build.classes.dir}/org/apache/river/fiddler/JavaSpaceAdmin.class"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/jinitests.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${jinitests.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />-->
+            <!--<fileset dir="${river.src.dir}">
+                <include name="org/apache/river/start/resources/**/*" />
+                <exclude name="org/apache/river/start/resources/**/*.svn" />
+            </fileset>
+            <fileset dir="${src.dir}">
+                <include name="interopExclusionList.txt" />
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-mainwrapper.jar" depends="compile">
+        <property name="qa1-mainwrapper.deps" location="${build.deps.dir}/qa1-mainwrapper.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-mainwrapper.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-mainwrapper.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="org.apache.river.qa.harness.MainWrapper"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-mainwrapper.jar" index="false" >
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-mainwrapper.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-mainwrapper.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="jiniharness.jar" depends="compile">
+        <property name="jiniharness.deps" location="${build.deps.dir}/jiniharness.deps" />
+        <classdep output="${jiniharness.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg path="${build.classes.dir}/org/apache/river/qa/harness"/>
+            <arg line="${jskprivate.include}" />
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-in org.apache.river.qa"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="org.apache.river.start.DestroySharedGroup"/>
+        </classdep>
+        <jar destfile="${lib.dir}/jiniharness.jar" index="false" >
+            <fileset dir="${build.classes.dir}" includesfile="${jiniharness.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${jiniharness.deps}"/>-->
+            <fileset dir="${basedir}">
+                <include name="harness/**" />
+            </fileset>
+            <fileset dir="${src.dir}">
+                <include name="org/apache/river/qa/resources/**/*" />
+            </fileset>
+        </jar>
+    </target>
+
+    <!-- TODO: find out where this is used for -->
+    <target name="qaman.jar" depends="compile">
+        <property name="qaman.deps" location="${build.deps.dir}/qaman.deps" />
+        <classdep output="${qaman.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-show org.apache.river.test"/>
+            <arg line="-show org.apache.river.qa"/>
+            <arg line="-show org.apache.river.qaman"/>
+            <arg line="org.apache.river.qa.harness.QARunner"/>
+        </classdep>
+        <jar destfile="${lib.dir}/qaman.jar" index="false" manifest="${src.dir}/manifest/qa1.mf">
+            <fileset dir="${build.classes.dir}" includesfile="${qaman.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qaman.deps}"/>-->
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/qaman/**/*" />
+            </fileset>
+            <fileset dir="${river.lib.dir}">
+                <include name="jgdms-collections-${jgdms.version}.jar"/>
+                <include name="jgdms-iiop-${jgdms.version}.jar"/>
+                <include name="jgdms-jeri-${jgdms.version}.jar"/>
+                <include name="jgdms-lib-${jgdms.version}.jar"/>
+                <include name="jgdms-lib-dl-${jgdms.version}.jar"/>
+                <include name="jgdms-platform-${jgdms.version}.jar"/>
+                <include name="jgdms-pref-class-loader-${jgdms.version}.jar"/>
+                <include name="jgdms-url-integrity-${jgdms.version}.jar"/>
+                <include name="classdep-${jgdms.version}.jar"/>
+                <include name="classserver-${jgdms.version}.jar"/>
+                <include name="service-starter-${jgdms.version}.jar"/>
+                <include name="asm-9.7.jar"/>
+                <include name="asm-commons-9.7.jar"/>
+                <include name="high-scale-lib-1.0.6.jar"/>
+                <include name="bcprov-jdk15on-1.59.jar"/>
+                <include name="bctls-jdk15on-1.59.jar"/>
+                <!-- The next must be manually copied -->
+                <include name="security-policy-debug-${jgdms.version}.jar"/>
+            </fileset>
+            <!--<fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/start/resources/**/*" />
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-start.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/impl/start/ProbeImpl.class" />
+            <include name="org/apache/river/test/impl/start/BadServiceProxyAccessorImpl.class" />
+            <include name="org/apache/river/test/impl/start/TestServiceImpl.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-start-probe-dl.jar" depends="qa1-start.stubs">
+        <property name="qa1-start-probe-dl.deps" location="${build.deps.dir}/qa1-start-probe-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-start-probe-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-start-probe-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="org.apache.river.test.impl.start.ProbeImpl"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl"/>
+            <!--<arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-start-probe-dl.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-start-probe-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-probe-dl.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-start-probe.jar" depends="qa1-start.stubs">
+        <property name="qa1-start-probe.deps" location="${build.deps.dir}/qa1-start-probe.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-start-probe.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-start-probe.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="org.apache.river.test.impl.start.ProbeImpl"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl"/>
+            <!--<arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>-->
+            <arg line="org.apache.river.test.impl.start.UnsharedProbeImpl"/>
+            <arg line="org.apache.river.test.impl.start.NoStubProbeImpl"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-start-probe.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-start-probe.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-probe.deps}"/>-->
+        </jar>
+        <classdep output="${qa1-start-probe.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in net.jini"/>
+            <arg line="${jskplatform.exclude}" />
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.ProbeImpl"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl"/>
+            <!--<arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>-->
+            <arg line="org.apache.river.test.impl.start.UnsharedProbeImpl"/>
+            <arg line="org.apache.river.test.impl.start.NoStubProbeImpl"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-start-probe.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-start-probe.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-probe.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-start-tests.jar" depends="qa1-start.stubs">
+        <property name="qa1-start-tests.deps" location="${build.deps.dir}/qa1-start-tests.deps" />
+        <jar destfile="${lib.dir}/qa1-start-tests.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/start/ClassLoaderTest.class" />
+                <include name="org/apache/river/test/impl/start/ClasspathTest.class" />
+                <include name="org/apache/river/test/impl/start/CodebaseTest.class" />
+                <include name="org/apache/river/test/impl/start/SecurityTest.class" />
+                <include name="org/apache/river/test/impl/start/SecurityTestNonActivatable.class" />
+                <include name="org/apache/river/test/impl/start/loadersplitpolicyprovider/LoaderSplitPolicyProviderTest.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/GetContextTest.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/MainPolicyNotFoundTest.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/NullCasesTest.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/SubPoliciesTest.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/UntrustedGetContextClassLoader.class" />
+            </fileset>
+        </jar>
+        <classdep output="${qa1-start-tests.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-out org.apache.river.harness"/>
+            <arg line="-out org.apache.river.qa.harness"/>
+            <arg line="org.apache.river.test.impl.start.ClassLoaderTest"/>
+            <arg line="org.apache.river.test.impl.start.ClasspathTest"/>
+            <arg line="org.apache.river.test.impl.start.CodebaseTest"/>
+            <arg line="org.apache.river.test.impl.start.SecurityTest"/>
+            <arg line="org.apache.river.test.impl.start.SecurityTestNonActivatable"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-start-tests.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-start-tests.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-tests.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-start-testservice1.jar" depends="qa1-start.stubs">
+        <property name="qa1-start-testservice1.deps" location="${build.deps.dir}/qa1-start-testservice1.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-start-testservice1.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-start-testservice1.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceImpl"/>
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-start-testservice1.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice1.deps}"/>
+            <fileset dir="${build.classes.dir}">
+                <!--<include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class" />-->
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass2.class"/>
+            </fileset>
+        </jar>
+        <classdep output="${qa1-start-testservice1.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceImpl"/>
+            <!--<arg line="org.apache.river.test.impl.start.TestServiceImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-start-testservice1.jar" index="false" update="true">
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice1.deps}"/>
+            <fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/start/resources/**/*" />
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-start-testservice1-dl.jar" depends="qa1-start.stubs">
+        <jar destfile="${lib.dir}/qa1-start-testservice1-dl.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/start/TestService.class" />
+                <!--<include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class"/>-->
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass2.class"/>
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-start-testservice2.jar" depends="qa1-start.stubs">
+        <property name="qa1-start-testservice2.deps" location="${build.deps.dir}/qa1-start-testservice2.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-start-testservice2.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-start-testservice2.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceImpl"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-start-testservice2.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice2.deps}"/>
+            <fileset dir="${build.classes.dir}">
+                <!--<include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class" />-->
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass3.class"/>
+            </fileset>
+        </jar>
+        <classdep output="${qa1-start-testservice2.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceImpl"/>
+            <!--<arg line="org.apache.river.test.impl.start.TestServiceImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-start-testservice2.jar" index="false" update="true">
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice2.deps}"/>
+            <fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/start/resources/**/*" />
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-start-testservice2-dl.jar" depends="qa1-start.stubs">
+        <jar destfile="${lib.dir}/qa1-start-testservice2-dl.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/start/TestService.class" />
+                <!--<include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class"/>-->
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass3.class"/>
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-start-testservice-common.jar" depends="qa1-start.stubs">
+        <property name="qa1-start-testservice-common.deps" location="${build.deps.dir}/qa1-start-testservice-common.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-start-testservice-common.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-start-testservice-common.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceDummyClass0"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceSharedMap"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-start-testservice-common.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice-common.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice-common.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-start-testservice-common-dl.jar" depends="qa1-start.stubs">
+        <property name="qa1-start-testservice-common-dl.deps" location="${build.deps.dir}/qa1-start-testservice-common-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-start-testservice-common-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-start-testservice-common-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceDummyClass0"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-start-testservice-common-dl.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice-common-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice-common-dl.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-start-testservicenocons.jar" depends="qa1-start.stubs">
+        <jar destfile="${lib.dir}/qa1-start-testservicenocons.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/start/TestServiceNoConsImpl.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-start-testservicenocons-dl.jar" depends="qa1-start.stubs">
+        <jar destfile="${lib.dir}/qa1-start-testservicenocons-dl.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/start/TestService.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-start-cb1.jar" depends="qa1-start.stubs">
+        <jar destfile="${lib.dir}/qa1-start-cb1.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/start/loadersplitpolicyprovider/Foo.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/GetContext*.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-start-cb2.jar" depends="qa1-start.stubs">
+        <jar destfile="${lib.dir}/qa1-start-cb2.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/start/loadersplitpolicyprovider/Bar.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/RestoreContext*.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-start-cb3.jar" depends="qa1-start.stubs">
+        <jar destfile="${lib.dir}/qa1-start-cb3.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/CheckContextAction.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-lookup-simulator.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/services/lookupsimulator/LookupSimulatorImpl.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-lookup-simulator.jar" depends="qa1-lookup-simulator.stubs">
+        <property name="qa1-lookup-simulator.deps" location="${build.deps.dir}/qa1-lookup-simulator.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-lookup-simulator.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-lookup-simulator.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
+            <!--<arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-lookup-simulator.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-lookup-simulator.deps}"/>
+        </jar>
+        <classdep output="${qa1-lookup-simulator.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in net.jini"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
+            <!--<arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-lookup-simulator.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-lookup-simulator.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-lookup-simulator.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-lookup-simulator-dl.jar" depends="qa1-lookup-simulator.stubs">
+        <property name="qa1-lookup-simulator-dl.deps" location="${build.deps.dir}/qa1-lookup-simulator-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-lookup-simulator-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-lookup-simulator-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorProxy"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorConstrainableProxy"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorProxyVerifier"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
+            <!--<arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-lookup-simulator-dl.jar" index="false">
+            <metainf dir="${src.dir}/manifest/simulator-dl/META-INF">
+                <include name="**/*" />
+            </metainf>
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-lookup-simulator-dl.deps}"/>
+        </jar>
+        <classdep output="${qa1-lookup-simulator-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in net.jini"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
+            <!--<arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>-->
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-lookup-simulator-dl.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-lookup-simulator-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-lookup-simulator-dl.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-share.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/share/KillVMUtil$$KillVMObjectImpl.class" />
+            <include name="org/apache/river/test/share/TesterTransactionManager.class" />
+            <include name="org/apache/river/test/share/LeaseBackEndImpl.class" />
+            <include name="org/apache/river/test/share/TestParticipantImpl.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-share-dl.jar" depends="qa1-share.stubs">
+        <property name="qa1-share-dl.deps" location="${build.deps.dir}/qa1-share-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-share-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-share-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.share.AttrOne"/>
+            <arg line="org.apache.river.test.share.AttrTwo"/>
+            <arg line="org.apache.river.test.share.SunOfAttrOne"/>
+            <arg line="org.apache.river.test.share.TestLease"/>
+            <arg line="org.apache.river.test.share.ConstrainableTestLease"/>
+            <arg line="org.apache.river.test.share.ConstrainableUnreadableTestLease"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerProxy"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerConstrainableProxy"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerProxyVerifier"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl$$VerifierImpl"/>
+            <!--<arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>-->
+            <arg line="org.apache.river.test.share.TestParticipant"/>
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-share-dl.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-share-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-share-dl.deps}"/>-->
+        </jar>
+        <classdep output="${qa1-share-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in net.jini"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerProxy"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerConstrainableProxy"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerProxyVerifier"/>
+            <arg line="org.apache.river.proxy.BasicProxyTrustVerifier"/>
+            <!--<arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>-->
+            <arg line="org.apache.river.test.share.TestParticipant"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-share-dl.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-share-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-share-dl.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-reggie-race.jar" depends="qa1-share.stubs">
+        <property name="qa1-reggie-race.deps" location="${build.deps.dir}/qa1-reggie-race.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-reggie-race.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-reggie-race.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in net.jini"/>
+            <arg line="-in org.apache.river"/>
+            <!--<arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>-->
+            <arg line="org.apache.river.test.share.TestParticipant"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-reggie-race.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-reggie-race.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-reggie-race.deps}"/>
+            <fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/start/resources/**/*" />
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-reggie-race-dl.jar" depends="qa1-share.stubs">
+        <property name="qa1-reggie-race-dl.deps" location="${build.deps.dir}/qa1-reggie-race-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-reggie-race-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-reggie-race-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in net.jini"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="net.jini.lookup.entry.Name"/>
+            <arg line="net.jini.lookup.entry.ServiceInfo"/>
+            <arg line="org.apache.river.lookup.entry.BasicServiceType"/>
+            <arg line="org.apache.river.reliableLog.LogException"/>
+            <!--<arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>-->
+            <arg line="org.apache.river.test.share.TestParticipant"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-reggie-race-dl.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-reggie-race-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-reggie-race-dl.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="fullloggingfilter.jar" depends="compile">
+        <property name="fullloggingfilter.deps" location="${build.deps.dir}/fullloggingfilter.deps" />
+        <!--
+        <delete file="${lib.dir}/fullloggingfilter.jar" quiet="true"/>
+        -->
+        <classdep output="${fullloggingfilter.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.support.FullLoggingFilter"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/fullloggingfilter.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${fullloggingfilter.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${fullloggingfilter.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-discoveryservice.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/share/DiscoveryServiceUtil$$BasicEventListener.class" />
+            <include name="org/apache/river/test/spec/discoveryservice/lease/LeaseExpiration$$ServiceEventListener.class" />
+            <include name="org/apache/river/test/spec/discoveryservice/AbstractBaseTest$$LDSEventListener.class"/>
+        </rmic>-->
+    </target>
+
+    <target name="qa1-discoveryservice-dl.jar" depends="qa1-discoveryservice.stubs">
+        <property name="qa1-discoveryservice-dl.deps" location="${build.deps.dir}/qa1-discoveryservice-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-discoveryservice-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-discoveryservice-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <!--<arg line="org.apache.river.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
+            <arg line="org.apache.river.test.spec.discoveryservice.lease.LeaseExpiration$$ServiceEventListener_Stub"/>
+            <arg line="org.apache.river.test.spec.discoveryservice.AbstractBaseTest$$LDSEventListener_Stub"/>-->
+            <arg line="org.apache.river.test.share.AttributesUtil$$TestAttr00"/>
+            <arg line="org.apache.river.test.share.AttributesUtil$$TestAttrSC00"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-discoveryservice-dl.jar" index="false">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-discoveryservice-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-discoveryservice-dl.deps}"/>
+            <fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-export-servercontext-tests-non-null.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-export-servercontext-tests-non-null.jar" index="false">
+            <metainf dir="${src.dir}/manifest/qa1-export-servercontext-tests/non-null-context/META-INF">
+                <include name="**/*" />
+            </metainf>
+        </jar>
+    </target>
+
+    <target name="qa1-export-servercontext-tests-null.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-export-servercontext-tests-null.jar" index="false">
+            <metainf dir="${src.dir}/manifest/qa1-export-servercontext-tests/null-context/META-INF">
+                <include name="**/*" />
+            </metainf>
+        </jar>
+    </target>
+
+    <target name="qa1-export-servercontext-tests-providers-parsing.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-export-servercontext-tests-providers-parsing.jar" index="false">
+            <metainf dir="${src.dir}/manifest/qa1-export-servercontext-tests/providers-parsing/META-INF">
+                <include name="**/*" />
+            </metainf>
+        </jar>
+    </target>
+
+    <!--<target name="iiop.stubs" depends="compile">-->
+        <!--<rmic base="${build.classes.dir}" iiop="true" classpathref="river.jars">
+            <include name="org/apache/river/test/spec/iiop/util/TestRemoteObject.class" />
+        </rmic>-->
+        <!--<exec executable="rmic">
+            <arg value="-iiop"/>
+            <arg value="-classpath"/>
+            <arg value="${build.classes.dir}"/>
+            <arg value="-d"/>
+            <arg value="${build.classes.dir}"/>
+            <arg value="org.apache.river.test.spec.iiop.util.TestRemoteObject"/>
+        </exec>
+    </target>-->
+
+    <target name="qa1-io-util-dl.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-io-util-dl.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/io/util/FakeArgument.class" />
+                <include name="org/apache/river/test/spec/io/util/FakeInterface.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-io-marshalinputstream-test.jar" depends="compile">
+        <property name="qa1-io-marshalinputstream-test.deps" location="${build.deps.dir}/qa1-io-marshalinputstream-test.deps" />
+        <jar destfile="${lib.dir}/qa1-io-marshalinputstream-test.jar" index="false">
+            <metainf dir="${src.dir}/manifest/qa1-io-tests/META-INF">
+                <include name="**/*" />
+            </metainf>
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/io/marshalinputstream/*.class"/>
+            </fileset>
+        </jar>
+        <classdep output="${qa1-io-marshalinputstream-test.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-out org.apache.river.test.harness"/>
+            <arg line="-out org.apache.river.test.spec.io.util.FakeArgument"/>
+            <arg line="-out org.apache.river.test.spec.io.util.FakeInterface"/>
+            <arg line="-in net.jini"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="org.apache.river.test.spec.io.util.FakeIntegrityVerifier"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/spec/io/marshalinputstream"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-io-marshalinputstream-test.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-io-marshalinputstream-test.deps}"/>
+        </jar>
+    </target>
+
+    <target name="qa1-io-marshalledinstance-test.jar" depends="compile">
+        <property name="qa1-io-marshalledinstance-test.deps" location="${build.deps.dir}/qa1-io-marshalledinstance-test.deps" />
+        <jar destfile="${lib.dir}/qa1-io-marshalledinstance-test.jar" index="false">
+            <metainf dir="${src.dir}/manifest/qa1-io-tests/META-INF">
+                <include name="**/*" />
+            </metainf>
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/io/marshalledinstance/*.class"/>
+            </fileset>
+        </jar>
+        <classdep output="${qa1-io-marshalledinstance-test.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-out org.apache.river.test.harness"/>
+            <arg line="-in net.jini"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="org.apache.river.test.spec.io.util.FakeIntegrityVerifier"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/spec/io/marshalledinstance"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-io-marshalledinstance-test.jar" index="false" update="true">
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-io-marshalledinstance-test.deps}"/>
+        </jar>
+    </target>
+
+    <target name="qa1-javaspace.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/spec/javaspace/conformance/ParticipantImpl.class" />
+            <include name="org/apache/river/test/spec/javaspace/conformance/NotifyCounter.class" />
+            <include name="org/apache/river/test/spec/javaspace/conformance/TestEventListener05.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-javaspace-dl.jar" depends="qa1-javaspace.stubs">
+        <property name="qa1-javaspace-dl.deps" location="${build.deps.dir}/qa1-javaspace-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-javaspace-dl.jar" quiet="true"/>
+        -->
+        <!--<classdep output="${qa1-javaspace-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>-->
+            <!--<arg line="org.apache.river.test.spec.javaspace.conformance.ParticipantImpl_Stub"/>
+            <arg line="org.apache.river.test.spec.javaspace.conformance.NotifyCounter_Stub"/>
+            <arg line="org.apache.river.test.spec.javaspace.conformance.TestEventListener05_Stub"/>-->
+
+        <!--</classdep>-->
+        <jar destfile="${lib.dir}/qa1-javaspace-dl.jar" index="false">
+            <!--<fileset dir="${build.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>
+            <fileset dir="${river.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>
+            <fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
+            </fileset>-->
+        </jar>
+    </target>
+
+    <target name="qa1-lookupservice.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/EvntLeaseExpiration$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/NotifyOnAttrAdd$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/NotifyOnAttrMod$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/NotifyOnAttrDel$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/NotifyOnSrvcLeaseExpiration$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/MultipleEvntLeaseRenewals$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrAddNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrAddNonNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrModNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrModNonNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrDelNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrDelNonNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboSrvcReg$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboSrvcLeaseExp$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnEntrySrvcReg$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnEntryAttrAddNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnEntryAttrAddNonNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/LeaseMapRenew$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/LeaseMapCancel$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/ExpiredEventLeaseRenew$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/ExpiredEventLeaseCancel$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/ExpiredLeaseMapRenew$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/ExpiredLeaseMapCancel$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/NotifyOnAttrSet$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/NotifyOnComboAttrSet$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/NotifyExceptionTest$$Listener.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-lookupservice-dl.jar" depends="qa1-lookupservice.stubs">
+        <property name="qa1-lookupservice-dl.deps" location="${build.deps.dir}/qa1-lookupservice-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-lookupservice-dl.jar" quiet="true"/>
+        -->
+        <!--<classdep output="${qa1-lookupservice-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test.spec"/>-->
+            <!--<arg line="org.apache.river.test.spec.lookupservice.test_set00.EvntLeaseExpiration$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrAdd$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrMod$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrDel$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnSrvcLeaseExpiration$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.MultipleEvntLeaseRenewals$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrAddNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrAddNonNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrModNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrModNonNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrDelNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrDelNonNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboSrvcReg$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboSrvcLeaseExp$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnEntryAttrAddNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnEntryAttrAddNonNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.LeaseMapCancel$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.ExpiredEventLeaseRenew$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.ExpiredEventLeaseCancel$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.ExpiredLeaseMapRenew$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.ExpiredLeaseMapCancel$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyOnAttrSet$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyOnComboAttrSet$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyExceptionTest$$Listener_Stub"/>-->
+
+        <!--</classdep>-->
+        <jar destfile="${lib.dir}/qa1-lookupservice-dl.jar" index="false">
+            <!--<fileset dir="${build.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>
+            <fileset dir="${river.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>
+            <fileset dir="${river.classes.dir}">
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
+                <include name="org/apache/river/test/spec/lookupservice/attribute/**/*"/>
+            </fileset>-->
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/lookupservice/attribute/**/*"/>
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-renewalservice.stubs" depends="compile">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+            <include name="org/apache/river/test/share/LeaseBackEndImpl.class" />
+            <include name="org/apache/river/test/share/RemoteListener.class" />
+        </rmic>-->
+    </target>
+
+    <target name="qa1-renewalservice-dl.jar" depends="qa1-renewalservice.stubs">
+        <property name="qa1-renewalservice-dl.deps" location="${build.deps.dir}/qa1-renewalservice-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-renewalservice-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-renewalservice-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl$$VerifierImpl"/>
+            <!--<arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.RemoteListener_Stub"/>-->
+            <arg line="org.apache.river.test.share.TestLease"/>
+            <arg line="org.apache.river.test.share.ConstrainableTestLease"/>
+            <arg line="org.apache.river.test.share.UnreadableTestLease"/>
+            <arg line="org.apache.river.test.share.ConstrainableUnreadableTestLease"/>
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-renewalservice-dl.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/io/marshalledinstance/*.class"/>
+                <includesfile name="${qa1-renewalservice-dl.deps}" />
+            </fileset>
+        </jar>
+        <classdep output="${qa1-renewalservice-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in net.jini"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="org.apache.river.proxy.BasicProxyTrustVerifier"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-renewalservice-dl.jar" index="false" update="true">
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-renewalservice-dl.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-securityDoPrivileged.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-securityDoPrivileged.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/security/security/DoPrivilegedTest.class" />
+                <include name="org/apache/river/test/spec/security/security/DoPrivilegedExceptionTest.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-securityUtil.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-securityUtil.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/security/util/FakeCaller.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-servicediscovery-dl.jar" depends="compile">
+        <property name="qa1-servicediscovery-dl.deps" location="${build.deps.dir}/qa1-servicediscovery-dl.deps" />
+        <!--
+        <delete file="${lib.dir}/qa1-servicediscovery-dl.jar" quiet="true"/>
+        -->
+        <classdep output="${qa1-servicediscovery-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in net.jini.lookup"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-hide net.jini.lookup"/>
+            <!--<arg line="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>-->
+            <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestService"/>
+            <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestServiceIntAttr"/>
+            <arg line="net.jini.lookup.entry.Name"/>
+
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-servicediscovery-dl.jar" index="false">
+            <metainf dir="${src.dir}/manifest/servicediscovery-dl/META-INF">
+                <include name="**/*" />
+            </metainf>
+            <fileset dir="${build.classes.dir}" includesfile="${qa1-servicediscovery-dl.deps}"/>
+        </jar>
+        <classdep output="${qa1-servicediscovery-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="-in net.jini.lookup"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.proxy.BasicProxyTrustVerifier"/>
+            <arg line="-show net.jini.lookup"/>
+            <arg line="-show org.apache.river.proxy"/>
+            <!--<arg line="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>-->
+            <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestService"/>
+            <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestServiceIntAttr"/>
+            <arg line="net.jini.lookup.entry.Name"/>
+        </classdep>
+        <jar destfile="${lib.dir}/qa1-servicediscovery-dl.jar" index="false" update="true">
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-servicediscovery-dl.deps}"/>-->
+        </jar>
+    </target>
+
+    <target name="qa1-httpmd.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-httpmd.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/url/httpmd/*/*.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-httpmd-same.jar" depends="qa1-httpmd.jar">
+        <delete file="${lib.dir}/qa1-httpmd-same.jar" quiet="true"/>
+        <copy file="${lib.dir}/qa1-httpmd.jar" tofile="${lib.dir}/qa1-httpmd-same.jar" />
+    </target>
+
+    <target name="qa1-httpmd-another.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-httpmd-another.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/url/httpmd/handler/*.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="ld.jar" depends="compile">
+        <jar destfile="${lib.dir}/ld.jar" index="false">
+            <metainf dir="${src.dir}/org/apache/river/test/impl/lookupdiscovery/util/META-INF">
+                <include name="**/*" />
+            </metainf>
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/impl/lookupdiscovery/util/*.class" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-loader-pref.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-loader-pref.jar" index="false">
+            <metainf dir="${src.dir}/org/apache/river/test/spec/loader/util/classes/META-INF">
+                <include name="**/*" />
+            </metainf>
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/loader/util/resources/**/*" />
+                <include name="org/apache/river/test/spec/loader/util/classes/**/*" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="qa1-policy-provider.jar" depends="compile">
+        <jar destfile="${lib.dir}/qa1-policy-provider.jar" index="false">
+            <metainf dir="${src.dir}/org/apache/river/test/spec/policyprovider/util/classes/META-INF">
+                <include name="**/*" />
+            </metainf>
+            <fileset dir="${build.classes.dir}">
+                <include name="org/apache/river/test/spec/policyprovider/util/classes/**/*" />
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="trust" depends="keystores, password, truststore"
+        description="Generate keys, passwords and certificates"/>
+
+    <target name="keystores" depends="are-keystores-available" unless="keystores-available" >
+        <echo>creating keystores</echo>
+        <delete>
+            <fileset dir="${trust.dir}" >
+                <include name="*.keystore" />
+                <include name="*.request"/>
+                <include name="*.chain"/>
+                <include name="*.key"/>
+                <include name="*.cert" /> <!-- keystore macro sideeffect? -->
+            </fileset>
+        </delete>
+        <keystore target="tester" dir="${trust.dir}" dname="Tester" />
+        <keystore target="reggie" dir="${trust.dir}" dname="Reggie" />
+        <keystore target="phoenix" dir="${trust.dir}" dname="Phoenix" />
+        <keystore target="mercury" dir="${trust.dir}" dname="Mercury" />
+        <keystore target="norm" dir="${trust.dir}" dname="Norm" />
+        <keystore target="outrigger" dir="${trust.dir}" dname="Outrigger" />
+        <keystore target="mahalo" dir="${trust.dir}" dname="Mahalo" />
+        <keystore target="fiddler" dir="${trust.dir}" dname="Fiddler" />
+        <keystore target="group" dir="${trust.dir}" dname="Group" />
+        <certreq target ="tester" dir="${trust.dir}" />
+        <certreq target="reggie" dir="${trust.dir}" />
+        <certreq target="phoenix" dir="${trust.dir}"  />
+        <certreq target="mercury" dir="${trust.dir}"  />
+        <certreq target="norm" dir="${trust.dir}" />
+        <certreq target="outrigger" dir="${trust.dir}" />
+        <certreq target="mahalo" dir="${trust.dir}"  />
+        <certreq target="fiddler" dir="${trust.dir}" />
+        <certreq target="group" dir="${trust.dir}"  />
+        <cacert dir="${trust.dir}" jtregdir="${jtreg.dir}" 
+                bclib="${jtreg.dir}/certs/lib/bouncy-castle"
+                properties="${trust.dir}/test-ca.properties"/>
+        <signrequests dir="${trust.dir}" jtregdir="${jtreg.dir}" 
+                bclib="${jtreg.dir}/certs/lib/bouncy-castle"
+                properties="${trust.dir}/test-ca.properties"/>
+        <importchain target="tester" keystore="tester.keystore" password="testerpw" dir="${trust.dir}" dname="Tester" />
+        <importchain target="reggie" keystore="reggie.keystore" password="reggiepw" dir="${trust.dir}" dname="Reggie" />
+        <importchain target="phoenix" keystore="phoenix.keystore" password="phoenixpw" dir="${trust.dir}" dname="Phoenix" />
+        <importchain target="mercury" keystore="mercury.keystore" password="mercurypw" dir="${trust.dir}" dname="Mercury" />
+        <importchain target="norm" keystore="norm.keystore" password="normpw" dir="${trust.dir}" dname="Norm" />
+        <importchain target="outrigger" keystore="outrigger.keystore" password="outriggerpw" dir="${trust.dir}" dname="Outrigger" />
+        <importchain target="mahalo" keystore="mahalo.keystore" password="mahalopw" dir="${trust.dir}" dname="Mahalo" />
+        <importchain target="fiddler" keystore="fiddler.keystore" password="fiddlerpw" dir="${trust.dir}" dname="Fiddler" />
+        <importchain target="group" keystore="group.keystore" password="grouppw" dir="${trust.dir}" dname="Group" />
+        <!-- Must import CA Cert into each keystore or we get 
+        javax.net.ssl.SSLHandshakeException: Received fatal alert: bad_certificate -->
+        <importcert target="test-ca" keystore="tester.keystore" password="testerpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="reggie.keystore" password="reggiepw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="phoenix.keystore" password="phoenixpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="mercury.keystore" password="mercurypw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="norm.keystore" password="normpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="outrigger.keystore" password="outriggerpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="mahalo.keystore" password="mahalopw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="fiddler.keystore" password="fiddlerpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="group.keystore" password="grouppw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+    </target>
+
+    <target name="are-keystores-available" >
+        <condition property="keystores-available" >
+            <and>
+                <available file="${trust.dir}/tester.keystore" />
+                <available file="${trust.dir}/reggie.keystore" />
+                <available file="${trust.dir}/phoenix.keystore" />
+                <available file="${trust.dir}/mercury.keystore" />
+                <available file="${trust.dir}/norm.keystore" />
+                <available file="${trust.dir}/outrigger.keystore" />
+                <available file="${trust.dir}/mahalo.keystore" />
+                <available file="${trust.dir}/fiddler.keystore" />
+                <available file="${trust.dir}/group.keystore" />
+
+                <!-- if *.cert are not used, please modify keystore macro to remove it after use -->
+                <!-- and remove this block -->
+                <available file="${trust.dir}/tester.cert" />
+                <available file="${trust.dir}/reggie.cert" />
+                <available file="${trust.dir}/phoenix.cert" />
+                <available file="${trust.dir}/mercury.cert" />
+                <available file="${trust.dir}/norm.cert" />
+                <available file="${trust.dir}/outrigger.cert" />
+                <available file="${trust.dir}/mahalo.cert" />
+                <available file="${trust.dir}/fiddler.cert" />
+                <available file="${trust.dir}/group.cert" />
+                
+                <available file="${trust.dir}/tester.request" />
+                <available file="${trust.dir}/reggie.request" />
+                <available file="${trust.dir}/phoenix.request" />
+                <available file="${trust.dir}/mercury.request" />
+                <available file="${trust.dir}/norm.request" />
+                <available file="${trust.dir}/outrigger.request" />
+                <available file="${trust.dir}/mahalo.request" />
+                <available file="${trust.dir}/fiddler.request" />
+                <available file="${trust.dir}/group.request" />
+            </and>
+        </condition>
+    </target>
+
+    <target name="password" depends="are-passwords-available" unless="passwords-available" >
+        <echo>creating passwords</echo>
+        <echo file="${trust.dir}/tester.password" message="testerpw" />
+        <echo file="${trust.dir}/reggie.password" message="reggiepw" />
+        <echo file="${trust.dir}/phoenix.password" message="phoenixpw" />
+        <echo file="${trust.dir}/mercury.password" message="mercurypw" />
+        <echo file="${trust.dir}/norm.password" message="normpw" />
+        <echo file="${trust.dir}/outrigger.password" message="outriggerpw" />
+        <echo file="${trust.dir}/mahalo.password" message="mahalopw" />
+        <echo file="${trust.dir}/fiddler.password" message="fiddlerpw" />
+        <echo file="${trust.dir}/group.password" message="grouppw"  />
+    </target>
+
+    <target name="are-passwords-available" >
+        <condition property="passwords-available" >
+            <and>
+                <available file="${trust.dir}/tester.password" />
+                <available file="${trust.dir}/reggie.password" />
+                <available file="${trust.dir}/phoenix.password" />
+                <available file="${trust.dir}/mercury.password" />
+                <available file="${trust.dir}/norm.password" />
+                <available file="${trust.dir}/outrigger.password" />
+                <available file="${trust.dir}/mahalo.password" />
+                <available file="${trust.dir}/fiddler.password" />
+                <available file="${trust.dir}/group.password" />
+            </and>
+        </condition>
+    </target>
+
+    <target name="truststore">
+        <delete file="${trust.dir}/truststore" quiet="true" />
+        <!--<truststore target="test-ca" dir="${trust.dir}" />-->
+        <!-- certs required by x500 discovery provider -->
+        <importcert target="tester" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Tester" />
+        <importcert target="reggie" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Reggie" />
+        <importcert target="fiddler" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Fiddler" />
+        <importcert target="test-ca" keystore="truststore" password="trustpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+    </target>
+
+</project>

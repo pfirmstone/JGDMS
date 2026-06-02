@@ -1,42 +1,20 @@
-grant codeBase "file:${java.home}/lib/ext/*" {
-  permission java.security.AllPermission; 
-}; 
-
-grant codeBase "file:${jtlib.tmp}/*" {
-  permission java.security.AllPermission;
+grant codebase "file:/C:/Program%20Files/DirtyChai/jdk/lib/ext/*",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
 grant {
-  // permissions needed to move classes into separate codebase directories
-  permission java.io.FilePermission
-    "${test.classes}${/}-", "read,write,delete";
-  permission java.io.FilePermission
-    ".${/}-", "read,write,delete";
-  permission java.io.FilePermission
-    "${test.classes}", "read";
-
-  // needed by TestLibrary to determine test environment
-  permission java.util.PropertyPermission "test.classes", "read";
-  permission java.util.PropertyPermission "test.src", "read";
-  permission java.util.PropertyPermission "user.dir", "read";
-  permission java.util.PropertyPermission "java.home", "read";
-  permission java.util.PropertyPermission "test.class.path", "read";
-  permission java.util.PropertyPermission "java.rmi.server.RMIClassLoaderSpi", "write";
-
-  // HTTPD needs these
-    permission java.io.FilePermission "..${/}..${/}test.props", "read";
-  permission java.lang.RuntimePermission "createClassLoader";
-
-  // TestParams needs these??
-  permission java.util.PropertyPermission "java.security.policy", "read";
-  permission java.util.PropertyPermission "java.security.manager", "read";
-
-  // permission to connect to class server
-  permission java.net.SocketPermission "*:1024-", "connect";
-
-  permission java.lang.reflect.ReflectPermission "newProxyInPackage.java.util.zip";
-
-  // MS Windows Platform
-  permission java.io.FilePermission "${jtreg.dir}${/}JTwork${/}classes${/}testlibrary", "read";
-  permission java.io.FilePermission "${jtreg.dir}${/}JTwork${/}classes${/}testlibrary${/}-", "read";
+    permission java.util.PropertyPermission "java.home", "read";
+    permission java.util.PropertyPermission "java.rmi.server.RMIClassLoaderSpi", "write";
+    permission java.util.PropertyPermission "java.security.manager", "read";
+    permission java.util.PropertyPermission "java.security.policy", "read";
+    permission java.util.PropertyPermission "test.class.path", "read";
+    permission java.util.PropertyPermission "test.classes", "read";
+    permission java.util.PropertyPermission "test.src", "read";
+    permission java.util.PropertyPermission "user.dir", "read";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.java.util.zip";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
 };
+

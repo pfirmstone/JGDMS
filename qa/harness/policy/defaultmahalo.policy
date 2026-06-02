@@ -1,59 +1,12 @@
-grant codebase "file:${jsk.home}${/}lib${/}*
+grant codebase "jrt:/jdk.localedata",
 {
-    permission java.security.AllPermission "", "";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "file:${jsk.home}${/}lib-dl${/}*
-{
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.localedata" {
-    permission java.security.AllPermission "", "";
-};
-
-grant { 
+grant {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
-};
-
-// Grants required for later versions of jdk1.7 for classes that override
-// ObjectOutputStream, unfortunately the way this is implemented it isn't 
-// possible to perform as a privileged action from the overriding class.
-grant {
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jsk-lib.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${jsk-dl.jar}", "read";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${collections.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jsk-lib.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${activation.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}" {
-    permission java.security.AllPermission "", "";
-};

@@ -177,9 +177,19 @@ class SslServerEndpointImpl extends Utilities {
 	    result.add(p);
 	}
 	return result;
-    }
+	}
 
-    /** Returns the SSLSocketFactory, calling sslInit if needed. */
+	/**
+	 * Returns true if the Subject has principals that can be used for TLS
+	 * identity selection in this endpoint (X500Principal or SpiffePrincipal).
+	 */
+	private static boolean hasTlsIdentity(Subject subject) {
+	if (subject == null) return false;
+	return !subject.getPrincipals(X500Principal.class).isEmpty()
+		|| !subject.getPrincipals(SpiffePrincipal.class).isEmpty();
+	}
+
+	/** Returns the SSLSocketFactory, calling sslInit if needed. */
     final SSLSocketFactory getSSLSocketFactory() {
 	return listenEndpoint.getSSLSocketFactory();
     }
@@ -248,12 +258,15 @@ class SslServerEndpointImpl extends Utilities {
 
     /* -- Implement ServerCapabilities -- */
 
-    final InvocationConstraints checkConstraints(
+	final InvocationConstraints checkConstraints(
 	InvocationConstraints constraints)
 	throws UnsupportedConstraintException
-    {
+	{
+		// Resolve the server subject lazily if needed (may have been deferred
+		// from construction time to ensure the login Subject is in the ACC).
+		listenEndpoint.resolveSubjectIfNeeded();
 	try {
-	    listenEndpoint.checkListenPermissions(false);
+		listenEndpoint.checkListenPermissions(false);
 	} catch (SecurityException e) {
 	    if (logger.isLoggable(Levels.FAILED)) {
 		logThrow(logger, Levels.FAILED,
@@ -523,14 +536,31 @@ class SslServerEndpointImpl extends Utilities {
                 new GetLongAction("org.apache.river.jeri.ssl.maxServerSessionDuration",
                                   24L * 60L * 60L * 1000L))).longValue();
         
-        /** The server subject, or null if the server is anonymous. */
-        private final Subject serverSubject;
+		/**
+		 * Whether to resolve the server subject lazily from the ambient
+		 * security context (SPIFFE, Subject.current(), or ACC) at the time
+		 * of first use, rather than at construction time.  Set when the
+		 * caller passed {@code null} as the serverSubject.
+		 */
+		private final boolean useCurrentSubject;
 
-        /**
-         * The principals to use for authentication, or null if the server is
-         * anonymous.
-         */
-        final Set<X500Principal> serverPrincipals;
+		/** The server subject, or null if the server is anonymous. */
+		private volatile Subject serverSubject;
+
+		/**
+		 * True once a non-null subject has been successfully resolved from the
+		 * ambient context (Subject.current() or ACC).  Prevents re-resolution
+		 * after the subject has been established, while still allowing retries
+		 * if the first call happened before doAsPrivileged established the
+		 * SubjectDomainCombiner (e.g. during config parsing).
+		 */
+		private boolean subjectResolved = false;
+
+		/**
+		 * The principals to use for authentication, or null if the server is
+		 * anonymous.  Lazily computed when useCurrentSubject is true.
+		 */
+		private volatile Set<X500Principal> serverPrincipals;
 
         /**
          * The host name that clients should use to connect to this server, or null
@@ -556,73 +586,72 @@ class SslServerEndpointImpl extends Utilities {
         private final Permission[] listenPermissions;
         
         
-        /** The factory for creating JSSE sockets -- set by sslInit */
-        private SSLSocketFactory sslSocketFactory; // Synchronized on this
+		/** The factory for creating JSSE sockets -- set by sslInit */
+		private volatile SSLSocketFactory sslSocketFactory;
 
-        /**
-         * The authentication manager for the SSLContext for this endpoint -- set
-         * by sslInit.
-         */
-        private ServerAuthManager authManager; // Synchronized on this
+		/**
+		 * The authentication manager for the SSLContext for this endpoint -- set
+		 * by sslInit.
+		 */
+		private volatile ServerAuthManager authManager;
+
+		/**
+		 * True while a background SSL-context rebuild is scheduled or running
+		 * after a SPIFFE subject rotation.  Prevents duplicate background tasks
+		 * from being submitted on every call during the rebuild window.
+		 */
+		private boolean refreshScheduled = false;
         
-        SslListenEndpoint(Subject serverSubject,
-                            X500Principal[] serverPrincipals,
-                            String serverHost,
-                            int port,
-                            SocketFactory socketFactory,
-                            ServerSocketFactory serverSocketFactory)
-        {
-            this.serverConnectionManager = defaultServerConnectionManager;
-            this.serverHost = serverHost;
-            this.port = port;
-            this.socketFactory = socketFactory;
-            this.serverSocketFactory = serverSocketFactory;
-            boolean useCurrentSubject = serverSubject == null;
-            if (useCurrentSubject) {
-                final AccessControlContext acc = AccessController.getContext();
-                serverSubject = AccessController.doPrivileged(
-                    new PrivilegedAction<Subject>() {
-                        @Override
-                        public Subject run() {
-                            return Subject.getSubject(acc);
-                        }
-                    });
-                if (serverSubject == null)
-                    serverSubject = SpiffeSubjectHolder.get();
-            }
-            this.serverPrincipals = (serverPrincipals == null)
-                ? computePrincipals(serverSubject)
-                : checkPrincipals(serverPrincipals);
-            Permission [] listenPerms;
-            if (this.serverPrincipals == null) {
-                listenPerms = null;
-            } else {
-                listenPerms =
-                    new AuthenticationPermission[this.serverPrincipals.size()];
-                int i = 0;
-                for (Iterator iter = this.serverPrincipals.iterator();
-                     iter.hasNext();
-                     i++)
-                {
-                    Principal p = (Principal) iter.next();
-                    listenPerms[i] = new AuthenticationPermission(
-                        Collections.singleton(p), null, "listen");
-                }
-            }
-            if (this.serverPrincipals == null ||
-                /* Don't use current subject without any permission */
-                (useCurrentSubject &&
-                 serverPrincipals != null &&
-                 !hasListenPermissions(listenPerms, port)))
-            {
-                this.serverSubject = null;
-                listenPerms = null;
-            } else {
-                this.serverSubject = serverSubject;
-            }
-            this.listenPermissions = listenPerms;
-            
-        }
+		SslListenEndpoint(Subject serverSubject,
+							X500Principal[] serverPrincipals,
+							String serverHost,
+							int port,
+							SocketFactory socketFactory,
+							ServerSocketFactory serverSocketFactory)
+		{
+			this.serverConnectionManager = defaultServerConnectionManager;
+			this.serverHost = serverHost;
+			this.port = port;
+			this.socketFactory = socketFactory;
+			this.serverSocketFactory = serverSocketFactory;
+			this.useCurrentSubject = (serverSubject == null && serverPrincipals == null);
+				if (this.useCurrentSubject) {
+					// Subject and principals resolved lazily at first use
+					// (checkConstraints / sslInit / listen) so Subject.doAsPrivileged
+					// has already established the login Subject in the ACC by then.
+					this.serverSubject = null;
+					this.serverPrincipals = null;
+					this.listenPermissions = null;
+				} else {
+					this.serverSubject = serverSubject;
+					this.serverPrincipals = (serverPrincipals == null)
+						? computePrincipals(serverSubject)
+						: checkPrincipals(serverPrincipals);
+					Permission[] listenPerms;
+					if (this.serverPrincipals == null) {
+						listenPerms = null;
+					} else {
+						listenPerms =
+							new AuthenticationPermission[this.serverPrincipals.size()];
+						int i = 0;
+						for (Iterator iter = this.serverPrincipals.iterator();
+							 iter.hasNext();
+							 i++)
+						{
+							Principal p = (Principal) iter.next();
+							listenPerms[i] = new AuthenticationPermission(
+								Collections.singleton(p), null, "listen");
+						}
+					}
+					if (this.serverPrincipals == null ||
+						!hasListenPermissions(listenPerms, port))
+					{
+						this.serverSubject = null;
+						listenPerms = null;
+					}
+					this.listenPermissions = listenPerms;
+				}
+			}
 
 	/* inherit javadoc */
         @Override
@@ -673,38 +702,206 @@ class SslServerEndpointImpl extends Utilities {
             }
         }
         
-        /**
-         * Initializes the sslSocketFactory and authManager fields.  Wait to do
-         * this until needed, because creating the SSLContext requires initializing
-         * the secure random number generator, which can be time consuming.
-         */
-        private void sslInit() {
-            assert Thread.holdsLock(this);
-            SSLContextInfo info = getServerSSLContextInfo(
-                serverSubject, serverPrincipals);
-            sslSocketFactory = info.sslContext.getSocketFactory();
-            authManager = (ServerAuthManager) info.authManager;
-        }
+		/**
+		 * Resolves the server Subject from the ambient security context,
+		 * called at the start of every operation that reads
+		 * {@link #serverSubject} or {@link #serverPrincipals}.
+		 *
+		 * <p>When {@link #useCurrentSubject} is {@code false} the Subject
+		 * was supplied explicitly at construction time and is never changed.</p>
+		 *
+		 * <p>When {@link #useCurrentSubject} is {@code true} the resolution
+		 * order is:</p>
+		 * <ol>
+		 *   <li><b>SPIFFE</b> — always re-fetched on every call because the
+		 *       process-wide SPIFFE SVID rotates (typically hourly).  If the
+		 *       Subject reference changes the cached {@code sslSocketFactory}
+		 *       and {@code authManager} are invalidated so that
+		 *       {@link #sslInit()} recreates them with the fresh credentials.</li>
+		 *   <li><b>{@code Subject.current()}</b> — thread-scoped Subject set
+		 *       by {@code Subject.callAs()} or {@code Subject.doAsPrivileged()}.
+		 *       Only consulted when SPIFFE returns {@code null} and no subject
+		 *       has been cached yet.</li>
+		 *   <li><b>ACC-derived</b> — {@code Subject.getSubject(acc)} using the
+		 *       current {@code AccessControlContext}.  Not wrapped in any
+		 *       {@code doPrivileged} call so the {@code SubjectDomainCombiner}
+		 *       installed by the outer {@code Subject.doAsPrivileged} is
+		 *       preserved.  Only consulted once; the result is cached.</li>
+		 * </ol>
+		 */
+		synchronized void resolveSubjectIfNeeded() {
+			if (!useCurrentSubject) {
+				return; // Subject was supplied explicitly — never re-resolve
+			}
 
-        /** Returns the SSLSocketFactory, calling sslInit if needed. */
-        final SSLSocketFactory getSSLSocketFactory() {
-            synchronized (this) {
-                if (sslSocketFactory == null) {
-                    sslInit();
-                }
-                return sslSocketFactory;
-            }
-        }
-        
-        /** Returns the ServerAuthManager, calling sslInit if needed. */
-        final ServerAuthManager getAuthManager() {
-            synchronized (this) {
-                if (authManager == null) {
-                    sslInit();
-                }
-            return authManager;
-            }
-        }
+			if (logger.isLoggable(Level.FINE)) {
+				logger.log(Level.FINE,
+					"resolveSubjectIfNeeded: serverSubject={0}, thread={1}",
+					new Object[]{ serverSubject, Thread.currentThread().getName() });
+			}
+
+			// Priority 1: Process-wide SPIFFE Subject.
+			// Always re-fetch: the SPIFFE SVID rotates (typically hourly) and
+			// SpiffeSubjectHolder.get() returns the current live Subject.
+			Subject spiffe = SpiffeSubjectHolder.get();
+			if (spiffe != null) {
+				if (spiffe != serverSubject) {
+					// Subject has been refreshed — update subject state and
+					// schedule a background SSL context rebuild so the hot path
+					// (getSSLSocketFactory / getAuthManager) is never blocked.
+					// The old factories remain in service until the rebuild
+					// completes and the volatile write swaps them in.
+					serverSubject = spiffe;
+					serverPrincipals = computePrincipals(spiffe);
+					scheduleSSLContextRebuild();
+				}
+				return;
+			}
+
+			// SPIFFE not available.  For the remaining sources the Subject is
+			// constant for the duration of the call stack (it comes from a
+			// LoginContext or doAsPrivileged scope), so cache it once we find one.
+			// Do NOT use serverSubject != null as the guard — it may have resolved
+			// to null on a pre-login call (e.g. during config parsing before
+			// doAsPrivileged establishes the SubjectDomainCombiner).  Instead use
+			// the explicit subjectResolved flag which is only set on success.
+			if (subjectResolved) {
+				return;
+			}
+
+			Subject resolved = null;
+
+			// Priority 2: Thread-scoped Subject.current() (Subject.callAs /
+			// doAsPrivileged sets this on DirtyChai).
+			Subject current = Subject.current();
+			if (logger.isLoggable(Level.FINE)) {
+				logger.log(Level.FINE,
+					"resolveSubjectIfNeeded: Subject.current()={0}", current);
+			}
+			if (current != null && hasTlsIdentity(current)) {
+				resolved = current;
+			}
+
+			// Priority 3: Subject stored in the current AccessControlContext.
+			// Do NOT wrap in doPrivileged / doPrivilegedWithCombiner — that
+			// creates a fresh privileged context and severs the
+			// SubjectDomainCombiner installed by the outer doAsPrivileged.
+			if (resolved == null) {
+				try {
+					AccessControlContext acc = AccessController.getContext();
+					if (acc != null) {
+						Subject accSubject = Subject.getSubject(acc);
+						if (logger.isLoggable(Level.FINE)) {
+							logger.log(Level.FINE,
+								"resolveSubjectIfNeeded: Subject.getSubject(acc)={0}", accSubject);
+						}
+						if (accSubject != null && hasTlsIdentity(accSubject)) {
+							resolved = accSubject;
+						}
+					}
+				} catch (SecurityException | IllegalArgumentException e) {
+					// ignore
+				} catch (Exception e) {
+					// DirtyChai BUG-001: Subject.getSubject(acc) unconditionally calls
+					// ResourcesMgr.getString("invalid.null.AccessControlContext.provided")
+					// before the null-check, but that resource key is missing from the
+					// DirtyChai security bundle, so MissingResourceException is always
+					// thrown even for a non-null acc.  Treat as "no ACC subject".
+					// See docs/DirtyChai-known-bugs.md BUG-001.
+				}
+			}
+
+			if (resolved != null) {
+				serverSubject = resolved;
+				serverPrincipals = computePrincipals(resolved);
+				subjectResolved = true;
+			} else if (logger.isLoggable(Level.FINE)) {
+				logger.log(Level.FINE,
+					"resolveSubjectIfNeeded: no TLS-capable subject found on thread {0}",
+					Thread.currentThread().getName());
+			}
+		}
+
+		/**
+		 * Schedules a background task to rebuild the SSL context after a SPIFFE
+		 * subject rotation.  The old {@code sslSocketFactory} and
+		 * {@code authManager} remain live until the rebuild completes and the
+		 * volatile fields are swapped in.  At most one rebuild task is queued at
+		 * a time; subsequent rotation detections during the window are no-ops.
+		 *
+		 * <p>Must be called while holding {@code this} monitor.</p>
+		 */
+		private void scheduleSSLContextRebuild() {
+			assert Thread.holdsLock(this);
+			if (refreshScheduled) {
+				return; // a rebuild is already in flight
+			}
+			refreshScheduled = true;
+			final SslListenEndpoint self = this;
+			systemExecutor.execute(new Runnable() {
+				@Override
+				public void run() {
+					synchronized (self) {
+						try {
+							// Re-read the latest subject inside the lock in case
+							// it rotated again between scheduling and execution.
+							Subject latest = SpiffeSubjectHolder.get();
+							if (latest != null && latest != serverSubject) {
+								serverSubject = latest;
+								serverPrincipals = computePrincipals(latest);
+							}
+							SSLContextInfo info = getServerSSLContextInfo(
+									serverSubject, serverPrincipals);
+							// Volatile writes — immediately visible to all threads.
+							sslSocketFactory = info.sslContext.getSocketFactory();
+							authManager = (ServerAuthManager) info.authManager;
+						} finally {
+							refreshScheduled = false;
+						}
+					}
+				}
+			}, "SSL context rebuild after SPIFFE rotation");
+		}
+
+		/**
+		 * Initializes the sslSocketFactory and authManager fields.  Wait to do
+		 * this until needed, because creating the SSLContext requires initializing
+		 * the secure random number generator, which can be time consuming.
+		 * Only called for the initial setup; SPIFFE rotation rebuilds are handled
+		 * by the background task in {@link #scheduleSSLContextRebuild()}.
+		 */
+		private void sslInit() {
+			assert Thread.holdsLock(this);
+			resolveSubjectIfNeeded();
+			SSLContextInfo info = getServerSSLContextInfo(
+				serverSubject, serverPrincipals);
+			sslSocketFactory = info.sslContext.getSocketFactory();
+			authManager = (ServerAuthManager) info.authManager;
+		}
+
+		/** Returns the SSLSocketFactory, calling sslInit if needed. */
+		final SSLSocketFactory getSSLSocketFactory() {
+			if (sslSocketFactory == null) {
+				synchronized (this) {
+					if (sslSocketFactory == null) {
+						sslInit();
+					}
+				}
+			}
+			return sslSocketFactory;
+		}
+
+		/** Returns the ServerAuthManager, calling sslInit if needed. */
+		final ServerAuthManager getAuthManager() {
+			if (authManager == null) {
+				synchronized (this) {
+					if (authManager == null) {
+						sslInit();
+					}
+				}
+			}
+			return authManager;
+		}
 
 	/* inherit javadoc */
 	public ListenHandle listen(RequestDispatcher requestDispatcher)
@@ -726,9 +923,10 @@ class SslServerEndpointImpl extends Utilities {
 	 * when the server endpoint was created.
 	 */
 	private void checkCredentials() throws UnsupportedConstraintException {
-	    if (serverSubject == null) {
+		resolveSubjectIfNeeded();
+		if (serverSubject == null) {
 		return;
-	    }
+		}
 	    checkListenPermissions(false, listenPermissions, port);
 	    Set principals = serverSubject.getPrincipals();
 	    /* Keep track of progress; remove entry when check is done */
@@ -807,7 +1005,15 @@ class SslServerEndpointImpl extends Utilities {
 
 	/** Returns a hash code value for this object. */
 	public int hashCode() {
-	    return getClass().hashCode()
+		if (useCurrentSubject) {
+		// serverSubject is resolved lazily; omit it so that two endpoints
+		// for the same port created before and after resolution hash equally.
+		return getClass().hashCode()
+			^ port
+			^ (serverSocketFactory != null
+			   ? serverSocketFactory.hashCode() : 0);
+		}
+		return getClass().hashCode()
 		^ System.identityHashCode(serverSubject)
 		^ (serverPrincipals == null ? 0 : serverPrincipals.hashCode())
 		^ port
@@ -823,15 +1029,30 @@ class SslServerEndpointImpl extends Utilities {
 	 * the same port; and have server socket factories that are both null,
 	 * or have the same actual class and are equal. Note that the server
 	 * host and socket factory are ignored.
+	 * <p>
+	 * When {@code useCurrentSubject} is {@code true} the subject is resolved
+	 * lazily from the ambient security context, so {@code serverSubject} may be
+	 * {@code null} on one instance and non-null on another that represents the
+	 * same logical endpoint.  In that case only the port and server socket
+	 * factory are compared so that {@code BasicExportTable} can correctly
+	 * reuse an already-listening socket rather than attempting to bind the
+	 * port a second time.
 	 */
 	public boolean equals(Object object) {
-	    if (this == object) {
+		if (this == object) {
 		return true;
-	    } else if (object == null || getClass() != object.getClass()) {
+		} else if (object == null || getClass() != object.getClass()) {
 		return false;
-	    }
-	    SslListenEndpoint other = (SslListenEndpoint) object;
-	    return serverSubject == other.serverSubject
+		}
+		SslListenEndpoint other = (SslListenEndpoint) object;
+		if (useCurrentSubject || other.useCurrentSubject) {
+		// Both endpoints will resolve their subject from the same ambient
+		// context, so treat them as equal if port and socket factory match.
+		return port == other.port
+			&& Util.sameClassAndEquals(serverSocketFactory,
+						   other.serverSocketFactory);
+		}
+		return serverSubject == other.serverSubject
 		&& safeEquals(serverPrincipals, other.serverPrincipals)
 		&& port == other.port
 		&& Util.sameClassAndEquals(serverSocketFactory,

@@ -553,11 +553,26 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * @return the input stream for reading the resource
      * @throws IOException if the connection cannot be established or times out
      */
-    private static InputStream openUrlWithTimeout(URL url) throws IOException {
-        URLConnection conn = url.openConnection();
-        conn.setConnectTimeout(jarReadTimeoutMs);
-        conn.setReadTimeout(jarReadTimeoutMs);
-        return conn.getInputStream();
+    private static InputStream openUrlWithTimeout(final URL url) throws IOException {
+        // doPrivileged stops the stack-walk at this trusted frame so that
+        // unprivileged proxy/deserialisation frames above us do not cause
+        // AccessController.doPrivilegedWithCombiner (inside HttpURLConnection)
+        // to fail the SecurityPermission("createAccessControlContext") check.
+        try {
+            return AccessController.doPrivileged((PrivilegedAction<InputStream>) () -> {
+                try {
+                    URLConnection conn = url.openConnection();
+                    conn.setConnectTimeout(jarReadTimeoutMs);
+                    conn.setReadTimeout(jarReadTimeoutMs);
+                    return conn.getInputStream();
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            });
+        } catch (RuntimeException ex) {
+            if (ex.getCause() instanceof IOException) throw (IOException) ex.getCause();
+            throw ex;
+        }
     }
 
     private static boolean containsJarCodebase(URL[] codebase) {
@@ -634,23 +649,19 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * {@link BootstrapPermission}{@code ("loadCodebase")} by the current
      * security policy.
      *
-     * <p><b>Implementation note:</b> This check is intentionally performed by
-     * calling {@link java.security.Policy#implies Policy.implies(ProtectionDomain, Permission)}
-     * rather than the usual {@link SecurityManager#checkPermission
-     * SecurityManager.checkPermission(Permission, AccessControlContext)} idiom.
-     * The reason is that the standard idiom constructs an
-     * {@code AccessControlContext} containing a new {@code ProtectionDomain}
-     * built from the server principals, but DirtyChai's
-     * {@code CombinerSecurityManager} caches permission checks keyed on the
-     * {@code ProtectionDomain} identity; a freshly-constructed
-     * {@code ProtectionDomain} would never appear in that cache (it cannot
-     * implement {@code equals}/{@code hashCode}) and would force a cache miss
-     * on every bootstrap call.  Calling {@code policy.implies} directly
-     * avoids that overhead while being semantically equivalent for this
-     * one-off bootstrap gate (which fires at most once per discovered service
-     * during the boot window).  A future maintainer should <em>not</em>
-     * replace this with {@code SecurityManager.checkPermission} without
-     * understanding the caching implications above.
+     * <p><b>Implementation note:</b> This check is performed via
+     * {@link net.jini.security.Security#checkPermission(java.security.Permission,
+     * java.security.ProtectionDomain...)} rather than calling
+     * {@link java.security.Policy#implies Policy.implies(ProtectionDomain, Permission)}
+     * directly.  Routing through the {@link SecurityManager} ensures that
+     * policy-audit security managers (e.g. {@code SecurityPolicyWriter} /
+     * {@code polpAudit}) observe the check and can record the required
+     * {@code BootstrapPermission} during policy-update runs.  An
+     * {@link java.security.AccessControlContext} containing a freshly-constructed
+     * {@link ProtectionDomain} carrying the server principals is built via
+     * {@code AccessControlContext.create()} on DirtyChai (virtual-thread-safe)
+     * or via the standard constructor on OpenJDK, keeping compile-time
+     * compatibility with both runtimes.
      *
      * @param serverPrincipals the authenticated server principals (from the
      *                         TLS-layer {@link net.jini.io.context.ServerSubject})
@@ -659,17 +670,14 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      *                           {@code BootstrapPermission} to the principals
      */
     private static void checkBootstrapPermission(Principal[] serverPrincipals,
-                                                  String path) {
-        final Policy policy = AccessController.doPrivileged(
-                new PrivilegedAction<Policy>() {
-                    @Override
-                    public Policy run() {
-                        return Policy.getPolicy();
-                    }
-                });
+                                                   String path) {
         ProtectionDomain serverDomain =
                 new ProtectionDomain(null, null, null, serverPrincipals);
-        if (!policy.implies(serverDomain, new BootstrapPermission(BootstrapPermission.TARGET_NAME))) {
+        try {
+            Security.checkPermission(
+                    new BootstrapPermission(BootstrapPermission.TARGET_NAME),
+                    serverDomain);
+        } catch (SecurityException e) {
             logger.log(Level.SEVERE,
                     "Server principal denied BootstrapPermission;"
                     + " refusing codebase: {0}",
@@ -737,14 +745,6 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             return;
         }
 
-        final Policy policy = AccessController.doPrivileged(
-                new PrivilegedAction<Policy>() {
-                    @Override
-                    public Policy run() {
-                       return Policy.getPolicy();
-                    }
-                });
-
         Principal[] principals = (serverPrincipals != null && serverPrincipals.length > 0)
                 ? serverPrincipals : new Principal[0];
         BootstrapPermission bootPerm =
@@ -780,7 +780,14 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             }
 
             ProtectionDomain pd = new ProtectionDomain(cs, null, null, principals);
-            if (!policy.implies(pd, bootPerm)) {
+            boolean denied;
+            try {
+                Security.checkPermission(bootPerm, pd);
+                denied = false;
+            } catch (SecurityException e) {
+                denied = true;
+            }
+            if (denied) {
                 logger.log(Level.SEVERE,
                        "Boot window: JAR denied BootstrapPermission (digest/URL check);"
                        + " refusing codebase: {0}; jar: {1}; SHA-256: {2}",

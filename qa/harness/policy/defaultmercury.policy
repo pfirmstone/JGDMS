@@ -1,48 +1,11 @@
-grant codebase "file:${jsk.home}${/}lib${/}${mercury.jar}" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.localedata",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "file:${jsk.home}${/}lib-dl${/}${mercury-dl.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.localedata" {
-    permission java.security.AllPermission "", "";
-};
-
-grant { 
+grant {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${collections.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jsk-lib.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${activation.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}" {
-    permission java.security.AllPermission "", "";
-};

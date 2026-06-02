@@ -37,25 +37,22 @@ public final class TlsRMIClientSocketFactory implements RMIClientSocketFactory {
     }
 	
     
-    public Socket createSocket(String host, int port) throws IOException {
-	final AccessControlContext acc = AccessController.getContext();
-	Subject subject = AccessController.doPrivileged(
-	    new PrivilegedAction<Subject>() {
-		@Override
-		public Subject run() {
-		    return Subject.getSubject(acc);
-		}
-	    }
-	);
-	if (subject == null) throw new IOException("Unable to connect to server: client not logged in, null subject");
+	public Socket createSocket(String host, int port) throws IOException {
+	// Use SPIFFE-first subject resolution: process SPIFFE → legacy user Subject
+	Subject subject = Utilities.getTlsSubject();
+	if (subject == null) {
+		throw new IOException(
+		"Unable to connect to server: no TLS-capable Subject found. " +
+		"Client must be logged in with X.509 or SPIFFE credentials.");
+	}
 	SSLContext sslContext = Utilities.getClientSSLContextInfo(subject);
 	SSLSocket socket;
 	// Exclusive access while handshake occurs.
 	synchronized (sslContext){
-	    socket = (SSLSocket) sslContext.getSocketFactory().createSocket(host, port);
-	    socket.startHandshake();
+		socket = (SSLSocket) sslContext.getSocketFactory().createSocket(host, port);
+		socket.startHandshake();
 	}
 	return socket;
-    }
+	}
     
 }

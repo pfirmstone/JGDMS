@@ -322,3 +322,9 @@ grant codebase "file:${jsk.home}${/}lib${/}${reggie-dl.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultsecurereggie.policy";
 };
 
+
+grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+

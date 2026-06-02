@@ -67,6 +67,12 @@
         <pathelement location="${build.classes.dir}"/>
     </path>
 
+    <!-- Extended classdep classpath including jiniharness.jar for resolving harness types in test/share and test/support. Only valid after jiniharness.jar is built. -->
+    <path id="classdep.cp.with.harness">
+        <path refid="classdep.cp"/>
+        <pathelement location="${lib.dir}/jiniharness.jar"/>
+    </path>
+
     <path id="javadoc.classpath">
         <path refid="river.jars"/>
         <path location="${build.classes.dir}"/>
@@ -383,7 +389,7 @@
                 <!--<jvmarg value="-Djava.ext.dirs=${ext.dirs}"/>-->
                 <!--Use the following security manager if you need to discover which jar
                 file requires a particular permission, note this only works for the harness here -->
-                <!--<jvmarg value="-Djava.security.manager=org.apache.river.tool.SecurityPolicyWriter"/>-->
+                <!--<jvmarg value="-Djava.security.manager=polpAudit"/>-->
                 <!--<jvmarg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
                 <!--Enable the following if you don't want to use any other policy's note == -->
                 <!--<jvmarg value="-Djava.security.policy==${security.policy}" />-->
@@ -404,7 +410,7 @@
                 <jvmarg value="-Dorg.apache.river.qa.harness.configs=${harness.configs}" />
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml=${harness.generateHtml}" />
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml.title=${harness.generateHtml.title}" />
-                <!--<jvmarg value="-Dorg.apache.river.tool.SecurityPolicyWriter.Directory=${jsk.home}/qa/build/policy"/>-->
+                <!--<jvmarg value="-DpolpAudit.Directory=${jsk.home}/qa/build/policy"/>-->
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateJunitXml=true" />                
                 <!-- VM args for each test run: include our JDK extension directories
                 $${org.apache.river.qa.harness.globalvmargs},-Dorg.apache.river.test.home=$${org.apache.river.test.home},-Dorg.apache.river.test.port=$${org.apache.river.test.port},-Dorg.apache.river.qa.harness.policies=&lt;url: org/apache/river/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
@@ -536,24 +542,88 @@
     <property name="policy.condenser.jar"
               location="${root}/JGDMS/tools/policy-condenser/target/policy-condenser-${jgdms.version}.jar"/>
 
-    <target name="policy-update" depends="run"
-            description="Run all QA tests to update policy files, then condense non-protected policy files">
-        <java classname="org.apache.river.tool.PolicyUpdatePostProcessor"
-              fork="yes"
-              failonerror="true">
-            <arg value="--qa-dir"/>
-            <arg file="${basedir}"/>
-            <classpath>
-                <pathelement location="${policy.condenser.jar}"/>
-                <fileset dir="${lib-ext.dir}">
-                    <include name="jgdms-platform-${jgdms.version}.jar"/>
-                </fileset>
-                <fileset dir="${river.lib.dir}">
-                    <include name="jgdms-platform-${jgdms.version}.jar"/>
-                    <include name="jgdms-collections-${jgdms.version}.jar"/>
-                </fileset>
-            </classpath>
-        </java>
+    <!-- Shared macrodef that runs PolicyUpdatePostProcessor after any test run -->
+    <macrodef name="policy-post-process">
+        <sequential>
+            <java classname="org.apache.river.tool.PolicyUpdatePostProcessor"
+                  fork="yes"
+                  failonerror="true">
+                <arg value="--qa-dir"/>
+                <arg file="${basedir}"/>
+                <classpath>
+                    <pathelement location="${policy.condenser.jar}"/>
+                    <fileset dir="${lib-ext.dir}">
+                        <include name="jgdms-platform-${jgdms.version}.jar"/>
+                    </fileset>
+                    <fileset dir="${river.lib.dir}">
+                        <include name="jgdms-platform-${jgdms.version}.jar"/>
+                        <include name="jgdms-collections-${jgdms.version}.jar"/>
+                    </fileset>
+                </classpath>
+            </java>
+        </sequential>
+    </macrodef>
+
+
+
+    <!--
+      policy-update targets
+      =====================
+      Each policy-update target invokes an internal run target that passes
+      -Dorg.apache.river.qa.harness.securitymanager=polpAudit
+      to the harness JVM.  QAConfig.getGlobalVMArgs() reads this property and
+      substitutes the -Djava.security.manager entry passed to test/service JVMs
+      so polpAudit (DirtyChai audit policy manager) is active in every child JVM during policy-update runs.
+      BootstrapPermission is now routed through Security.checkPermission() which
+      calls SecurityManager.checkPermission(), so it is captured and written to
+      the policy files.
+      Normal runs (run, run-categories, run-tests) use the default security manager
+      set in qaDefaults.properties (-Djava.security.manager=default).
+    -->
+    <target name="policy-update-run-all" depends="james-brown">
+        <property name="run.categories"
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager,stress"/>
+        <testrun>
+            <jvmarg value="-Dorg.apache.river.qa.harness.securitymanager=polpAudit"/>
+            <arg value="-categories"/>
+            <arg value="${run.categories}"/>
+        </testrun>
+        <antcall target="collect-result"/>
+    </target>
+
+    <target name="policy-update-run-categories" depends="james-brown">
+        <property name="run.categories" value="joinmanager"/>
+        <testrun>
+            <jvmarg value="-Dorg.apache.river.qa.harness.securitymanager=polpAudit"/>
+            <arg value="-categories"/>
+            <arg value="${run.categories}"/>
+        </testrun>
+        <antcall target="collect-result"/>
+    </target>
+
+    <target name="policy-update-run-tests" depends="james-brown">
+        <fail message="use ant -Drun.tests=org/apache/river/test/impl/yourowntest.td policy-update-tests" unless="run.tests"/>
+        <testrun>
+            <jvmarg value="-Dorg.apache.river.qa.harness.securitymanager=polpAudit"/>
+            <arg value="-tests"/>
+            <arg value="${run.tests}"/>
+        </testrun>
+        <antcall target="collect-result"/>
+    </target>
+
+    <target name="policy-update" depends="policy-update-run-all"
+            description="Run all QA tests with polpAudit to update policy files, then condense non-protected policy files">
+        <policy-post-process/>
+    </target>
+
+    <target name="policy-update-categories" depends="policy-update-run-categories"
+            description="Run the current run.categories tests with polpAudit to update policy files. Usage: ant -Drun.categories=txnmanager,start policy-update-categories">
+        <policy-post-process/>
+    </target>
+
+    <target name="policy-update-tests" depends="policy-update-run-tests"
+            description="Run specific test(s) with polpAudit to update policy files. Usage: ant -Drun.tests=org/apache/river/test/impl/mahalo/LeaseTest.td policy-update-tests">
+        <policy-post-process/>
     </target>
 
     <target name="run-arm" depends="river-runtime,jars-arm">
@@ -1170,7 +1240,7 @@
         </jar>
     </target>
 
-    <target name="jinitests.jar" depends="stubs,jinitests"/>
+    <target name="jinitests.jar" depends="stubs,jiniharness.jar,jinitests"/>
 
     <target name="jinitests">
         <property name="jinitests.deps" location="${build.deps.dir}/jinitests.deps" />
@@ -1212,7 +1282,7 @@
         </jar>
         <classdep output="${jinitests.deps}">
             <arg value="-cp"/>
-            <arg pathref="classdep.cp"/>
+            <arg pathref="classdep.cp.with.harness"/>
             <arg value="-files"/>
             <arg line="-in org.apache.river.test"/>
             <arg line="-in org.apache.river.fiddler"/>

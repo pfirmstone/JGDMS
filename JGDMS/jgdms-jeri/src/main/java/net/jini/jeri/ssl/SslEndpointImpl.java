@@ -292,12 +292,23 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	 * through Subject.callAs() rather than Subject.doAs().
 	 */
 	final AccessControlContext acc = AccessController.getContext();
-	Subject clientSubject = (Subject) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() {
-		    return Subject.getSubject(acc);
-		}
-	    });
+	Subject clientSubject = null;
+	if (acc != null) {
+		clientSubject = (Subject) AccessController.doPrivileged(
+		new PrivilegedAction() {
+			public Object run() {
+			try {
+				return Subject.getSubject(acc);
+			} catch (Exception e) {
+				// DirtyChai BUG-001: Subject.getSubject(acc) always throws
+				// MissingResourceException due to a missing resource key in the
+				// security bundle.  Treat as "no ACC subject available".
+				// See docs/DirtyChai-known-bugs.md BUG-001.
+				return null;
+			}
+			}
+		});
+	}
 	/*
 	 * DirtyChai now captures Subject.current() into AccessController.getContext()
 	 * (pfirmstone/DirtyChai@2d26e787ccd1868d061bc8ef86ff264ea64f8c8f).

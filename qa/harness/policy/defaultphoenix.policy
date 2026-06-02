@@ -1,169 +1,83 @@
-grant codebase "file:${jsk.home}${/}lib${/}${phoenix.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${phoenix-common.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${phoenix-dl.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jsk-lib.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${collections.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jsk.pref.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${activation.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.localedata" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.qa.harness.harnessJar}
+grant codebase "jrt:/jdk.localedata",
 {
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "file:${org.apache.river.qa.harness.testJar}
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${fiddler}",
 {
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
 };
 
-// not sure the following is necessary, but just in case
-grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${mahalo}",
 {
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
 };
 
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${mercury}",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
 
-grant { 
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${norm}",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${outrigger}",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${phoenix}",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${reggie}",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Fiddler",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mercury",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Norm",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Outrigger",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Phoenix",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Reggie",
+{
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
 };
 
 grant {
-      permission org.apache.river.phoenix.dl.ExecOptionPermission "*";
-    // for a start test
-      permission org.apache.river.phoenix.dl.ExecPermission "/bin/javax";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.phoenix.dl.ExecOptionPermission "*";
+    permission org.apache.river.phoenix.dl.ExecPermission "/bin/javax";
+    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
-
-
-//X500 Principals
-grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Norm"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-
-grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-
-};
-
-//Kerberos policy grants
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${fiddler}"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${mercury}"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${outrigger}"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${norm}"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-};
-
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
-{
-      permission org.apache.river.phoenix.dl.SystemPermission
-                 "java.rmi.activation.ActivationSystem.*";
-
-};
-
-
 

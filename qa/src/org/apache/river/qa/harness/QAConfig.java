@@ -1835,7 +1835,27 @@ public final class QAConfig implements Serializable {
      String[] getGlobalVMArgs() {
 	String vmArgs = 
 	    getStringConfigVal("org.apache.river.qa.harness.globalvmargs", null);
-	return parseArgList(vmArgs);
+	String[] args = parseArgList(vmArgs);
+	String smOverride = System.getProperty("org.apache.river.qa.harness.securitymanager");
+	if (smOverride != null && args != null) {
+	    boolean hasSmProp = false;
+	    for (int i = 0; i < args.length; i++) {
+		if (args[i].startsWith("-Djava.security.manager=")) {
+		    args[i] = "-Djava.security.manager=" + smOverride;
+		}
+		if (args[i].startsWith("-Dorg.apache.river.qa.harness.securitymanager=")) {
+		    args[i] = "-Dorg.apache.river.qa.harness.securitymanager=" + smOverride;
+		    hasSmProp = true;
+		}
+	    }
+	    if (!hasSmProp) {
+		String[] extended = new String[args.length + 1];
+		System.arraycopy(args, 0, extended, 0, args.length);
+		extended[args.length] = "-Dorg.apache.river.qa.harness.securitymanager=" + smOverride;
+		args = extended;
+	    }
+	}
+	return args;
      }
      
      /**

@@ -1560,24 +1560,41 @@ Jini services.
 JERI's SSL and Kerberos transport endpoints each locate the client Subject in a
 **different order**, reflecting the different credential types each transport needs.
 
-#### `SslEndpointImpl.getCallContext()` — TLS/SPIFFE workload identity first
+**CRITICAL ARCHITECTURAL CONSTRAINT:** The SPIFFE process `WorkerSubject` (from
+DirtyChai's `SpiffeCredentialManager`) **MUST NEVER** appear in `Subject.getSubject(acc)`
+or `Subject.current()`.  These two methods return **only user Subjects**.  The SPIFFE
+process identity exists **exclusively** in:
+1. `SpiffeSubjectHolder.get()` — the singleton process Subject
+2. `ProtectionDomain` principals baked in at class-load time by `SecureClassLoader`
+
+This is a fundamental isolation boundary between the two identity layers.
+
+#### `SslEndpointImpl.getCallContext()` and `SslServerEndpointImpl.SslListenEndpoint` — TLS/SPIFFE workload identity first
 
 ```
-Priority 1: Subject.getSubject(acc)        — ACC Subject, accepted only if it has
-            X500Principal or SpiffePrincipal (TLS-usable identity)
-Priority 2: SpiffeSubjectHolder.get()      — process-wide SPIFFE Subject registered by
-            SpiffeCredentialManager.start() (used when no doAs() wraps the call)
-Priority 3: Subject.current()             — ScopedValue, LAST RESORT ONLY
-            accepted only if it contains X500Principal or SpiffePrincipal;
-            a Kerberos-only Subject is REJECTED (cannot authenticate TLS)
+Priority 1: SpiffeSubjectHolder.get()      — process-wide SPIFFE Subject registered by
+            SpiffeCredentialManager.start() (ALWAYS try this first for TLS)
+Priority 2: Subject.getSubject(acc)        — ACC Subject (from Subject.doAs()), accepted
+            ONLY if it has X500Principal or SpiffePrincipal (legacy X.509 user credential
+            or explicit SPIFFE assignment via doAs)
+Priority 3: Subject.current()             — ScopedValue Subject (from Subject.callAs()),
+            accepted ONLY if it has X500Principal or SpiffePrincipal (OpenJDK callAs
+            compatibility for legacy X.509 user credential or explicit SPIFFE assignment);
+            Kerberos-only Subject is REJECTED (cannot authenticate TLS)
 ```
 
 **Rationale:** TLS requires an X.509 certificate (or SPIFFE SVID) in the Subject's
-private credential set.  After DirtyChai `2d26e787`, `AccessController.getContext()`
-can capture `Subject.current()` into the ACC.  Therefore `SslEndpointImpl` must filter
-the ACC-derived Subject too: Kerberos-only/non-TLS user Subjects are ignored so they do
-not displace workload/SPIFFE TLS identity.  `Subject.current()` remains a legacy fallback
-only when it carries X.500/SPIFFE principals.
+private credential set.  The SPIFFE process Subject is **always** the primary source for
+TLS — this is the machine/workload identity.  `Subject.getSubject(acc)` (Priority 2) and
+`Subject.current()` (Priority 3) are **fallbacks for legacy X.509 user credentials only**
+— they will **never** contain a SPIFFE `WorkerSubject` from the process-wide holder
+because that would violate the isolation boundary.  However, Priority 2 and Priority 3
+both accept `SpiffePrincipal`-carrying Subjects to support explicit SPIFFE Subject
+assignment via `Subject.doAs()` or `Subject.callAs()` (for testing or specialized
+configurations).  Priority 3 provides **OpenJDK `Subject.callAs()` compatibility**,
+allowing code written for standard JDK to work on DirtyChai without modification.
+Checking these sources allows legacy deployments where a human user's X.509 certificate
+is used for TLS authentication, but this is not the modern JGDMS pattern.
 
 #### `KerberosEndpoint.newRequest()` — user/human identity first
 
@@ -1601,14 +1618,15 @@ reference.  Different users never share Kerberos connections.  Workload connecti
 
 #### Side-by-side comparison
 
-| | SSL (`SslEndpointImpl`) | Kerberos (`KerberosEndpoint`) |
+| | SSL (`SslEndpointImpl` / `SslServerEndpointImpl`) | Kerberos (`KerberosEndpoint`) |
 |---|---|---|
 | **Credential needed** | X.509 certificate / SPIFFE SVID | Kerberos TGT (`KerberosPrincipal`) |
-| **Primary Subject source** | `Subject.getSubject(acc)` (filtered to TLS principals) | `Subject.current()` (user, `callAs`) |
-| **Fallback Subject source** | `SpiffeSubjectHolder` → `Subject.current()` | `Subject.getSubject(acc)` (KerberosPrincipal filter) |
+| **Primary Subject source** | `SpiffeSubjectHolder.get()` (process SPIFFE, Priority 1) | `Subject.current()` (user, `callAs`) |
+| **Fallback Subject source** | `Subject.getSubject(acc)` (Priority 2, TLS-filtered) → `Subject.current()` (Priority 3, TLS-filtered) | `Subject.getSubject(acc)` (KerberosPrincipal filter) |
 | **`Subject.current()` filter** | Must have `X500Principal` or `SpiffePrincipal`; Kerberos-only → rejected | Must have `KerberosPrincipal`; X500-only → rejected |
+| **OpenJDK `Subject.callAs()` compatibility** | ✅ **Yes** — Priority 3 supports OpenJDK-style `callAs` with X.509 or SPIFFE credentials | ✅ **Yes** — Priority 1 `Subject.current()` for Kerberos |
 | **Connection cache isolation** | Not per-user (workload identity is shared) | Per-Subject; different users never share a connection |
-| **Why** | TLS is a machine/workload concern; human Subject has no TLS credentials | Kerberos is a per-user concern; per-user credentials must not be mixed |
+| **Why** | TLS is a machine/workload concern; SPIFFE process identity is preferred; human Subject fallback for legacy X.509 | Kerberos is a per-user concern; per-user credentials must not be mixed |
 
 #### Interaction with JERI Dispatch
 
@@ -1625,9 +1643,9 @@ at class load time by `SecureClassLoader`; no per-request `doAs(workerSubject, .
 needed or performed.
 
 An outbound TLS call made from inside `invoke()` will use the process-wide SPIFFE workload
-Subject via `SpiffeSubjectHolder` (or the filtered ACC Subject), and may also check
-`Subject.current()` (X500/SPIFFE only) — `SslEndpointImpl` checks ACC first, then
-`SpiffeSubjectHolder`, then `Subject.current()` (X500/SPIFFE only).
+Subject via `SpiffeSubjectHolder` (Priority 1), or fall back to `Subject.getSubject(acc)`
+(Priority 2, filtered to X500/SPIFFE), or `Subject.current()` (Priority 3, filtered to
+X500/SPIFFE for OpenJDK `callAs` compatibility).
 An outbound Kerberos call made from inside `invoke()` will use `userSubject` (from
 `Subject.current()`), so the GSS context is established as the authenticated client user.
 This means the server naturally acts on behalf of the user for Kerberos connections but

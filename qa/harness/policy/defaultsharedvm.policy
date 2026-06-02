@@ -1,271 +1,26 @@
-grant codebase "file:/${jsk.home}/lib/${phoenix-init.jar}"
+grant codebase "jrt:/jdk.localedata",
 {
-    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
 };
 
-grant codebase "file:/${jsk.home}/lib/${activation.jar}"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
 {
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "${HOST}:9080", "connect,resolve";
-    permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
-    permission java.net.SocketPermission "*", "connect,accept,resolve";
-    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+    permission java.io.FilePermission "C:UserspeterDocumentsNetBeansProjectsJGDMSJGDMSdist	argetJGDMS-3.1.1-SNAPSHOTlibjgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant {
+    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.io.SerializablePermission "enableSubstitution";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission java.util.PropertyPermission "java.net.preferIPv6Addresses", "read";
+    permission java.util.PropertyPermission "java.rmi.server.codebase", "read";
     permission java.util.PropertyPermission "java.rmi.server.hostname", "read";
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
     permission java.util.PropertyPermission "net.jini.activation.port", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.portAbitraryIfInUse", "read";
+    permission java.util.PropertyPermission "net.jini.loader.codebaseAnnotation", "read";
     permission java.util.PropertyPermission "net.jini.security.allowInsecureConnections", "read";
     permission java.util.PropertyPermission "org.apache.river.activation.enableActivateGrant", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.RuntimePermission "setFactory";
-};
-
-grant codebase "http://${HOST}:9080/${phoenix-dl.jar}"
-{
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-
-grant codebase "file:/${jsk.home}/lib/${reggie.jar}"
-{
-    permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "${HOST}.lan", "resolve";
-    permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
-    permission java.net.SocketPermission "*", "connect,accept,resolve";
-    permission java.net.SocketPermission "[ff05:0:0:0:0:0:0:156]", "connect,accept,resolve";
-    permission java.net.SocketPermission "localhost:0", "listen,resolve";
-    permission java.net.SocketPermission "localhost:4160", "listen,resolve";
-    permission java.util.PropertyPermission "java.net.preferIPv6Addresses", "read";
-    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
-    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.portAbitraryIfInUse", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
-    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}reggie${/}reggie.config", "read";
-    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.RuntimePermission "shutdownHooks";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jsk-lib.jar}"
-{
-    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
-};
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
-    permission java.io.SerializablePermission "enableSubclassImplementation";
-    permission java.io.SerializablePermission "enableSubstitution";
-    permission java.util.logging.LoggingPermission "control";
-    permission java.net.SocketPermission "*", "connect,accept,resolve";
-    permission java.net.SocketPermission "${HOST}", "connect,accept,resolve";
-    permission java.net.SocketPermission "${HOST}.lan", "resolve";
-    permission java.net.SocketPermission "[0:0:0:0:0:0:0:0]", "resolve";
-    permission java.net.SocketPermission "[ff05:0:0:0:0:0:0:156]", "connect,accept,resolve";
-    permission java.net.SocketPermission "localhost:0", "listen,resolve";
-    permission java.net.SocketPermission "localhost:4160", "listen,resolve";
-    permission java.util.PropertyPermission "*", "read,write";
-    permission java.net.NetPermission "getCookieHandler";
-    permission java.net.NetPermission "getNetworkInformation";
-    permission java.net.NetPermission "getProxySelector";
-    permission java.net.NetPermission "getResponseCache";
-    permission java.security.SecurityPermission "createAccessControlContext";
-    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
-    permission java.security.SecurityPermission "getDomainCombiner";
-    permission java.security.SecurityPermission "getPolicy";
-    permission java.security.SecurityPermission "getProperty.jdk.security.provider.preferred";
-    permission java.security.SecurityPermission "getProperty.jdk.serialFilter";
-    permission java.security.SecurityPermission "getProperty.org.apache.river.start.servicePolicyProvider";
-    permission java.security.SecurityPermission "getProperty.securerandom.drbg.config";
-    permission java.security.SecurityPermission "getProperty.securerandom.source";
-    permission java.security.SecurityPermission "getProperty.security.provider.1";
-    permission java.security.SecurityPermission "getProperty.security.provider.10";
-    permission java.security.SecurityPermission "getProperty.security.provider.11";
-    permission java.security.SecurityPermission "getProperty.security.provider.12";
-    permission java.security.SecurityPermission "getProperty.security.provider.13";
-    permission java.security.SecurityPermission "getProperty.security.provider.14";
-    permission java.security.SecurityPermission "getProperty.security.provider.2";
-    permission java.security.SecurityPermission "getProperty.security.provider.3";
-    permission java.security.SecurityPermission "getProperty.security.provider.4";
-    permission java.security.SecurityPermission "getProperty.security.provider.5";
-    permission java.security.SecurityPermission "getProperty.security.provider.6";
-    permission java.security.SecurityPermission "getProperty.security.provider.7";
-    permission java.security.SecurityPermission "getProperty.security.provider.8";
-    permission java.security.SecurityPermission "getProperty.security.provider.9";
-    permission java.security.SecurityPermission "putProviderProperty.SUN";
-    permission java.security.SecurityPermission "setPolicy";
-    permission javax.security.auth.AuthPermission "getSubject";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
-    permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
-    permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
-    permission java.io.FilePermission "${java.home}${/}bin${/}net.dll", "read";
-    permission java.io.FilePermission "${java.home}${/}bin${/}nio.dll", "read";
-    permission java.io.FilePermission "${java.home}${/}conf${/}net.properties", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
-    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${group.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${disco.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${loader.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}reggie${/}reggie.config", "read";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}sharedgroup${/}sharedgroup.config", "read";
-    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
-    permission java.lang.RuntimePermission "accessDeclaredMembers";
-    permission java.lang.RuntimePermission "createClassLoader";
-    permission java.lang.RuntimePermission "createSecurityManager";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.RuntimePermission "getProtectionDomain";
-    permission java.lang.RuntimePermission "localeServiceProvider";
-    permission java.lang.RuntimePermission "loggerFinder";
-    permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "createPlatformThread";
-    permission java.lang.RuntimePermission "createVirtualThread";
-    permission java.lang.RuntimePermission "reflectionFactoryAccess";
-    permission java.lang.RuntimePermission "selectorProvider";
-    permission java.lang.RuntimePermission "setContextClassLoader";
-    permission java.lang.RuntimePermission "setFactory";
-    permission java.lang.RuntimePermission "shutdownHooks";
-    permission java.lang.RuntimePermission "sun.rmi.runtime.RuntimeUtil.getInstance";
-    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/phoenix-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9082/qa1-lookupservice-dl.jar", "GET:";
-};
-
-grant codebase "file:/${jsk.home}/lib/${group.jar}"
-{
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "*", "connect,accept,resolve";
-    permission java.net.SocketPermission "localhost:0", "listen,resolve";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}sharedgroup${/}sharedgroup.config", "read";
-    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission java.lang.RuntimePermission "exitVM.0";
-    permission java.lang.RuntimePermission "getClassLoader";
-};
-
-grant codebase "file:/${jsk.home}/lib-dl/${reggie-dl.jar}"
-{
-    permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
-    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${disco.jar}"
-{
-    permission javax.security.auth.AuthPermission "getSubject";
-    permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
-};
-
-grant codebase "jrt:/jdk.localedata"
-{
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jgdms-rmi-tls.jar}"
-{
-    permission javax.security.auth.AuthPermission "getSubject";
-};
-
-grant codebase "file:/${jsk.home}/lib-dl/${jsk-dl.jar}"
-{
-    permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
-};
-
-grant codebase "file:/${jsk.home}/lib/${phoenix-group.jar}"
-{
-    permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "${HOST}.lan", "resolve";
-    permission java.net.SocketPermission "${HOST}:9080", "connect,resolve";
-    permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
-    permission java.net.SocketPermission "*", "connect,accept,resolve";
-    permission java.net.SocketPermission "[ff05:0:0:0:0:0:0:156]", "connect,accept,resolve";
-    permission java.net.SocketPermission "localhost:0", "listen,resolve";
-    permission java.net.SocketPermission "localhost:4160", "listen,resolve";
-    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
-    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
-    permission java.security.SecurityPermission "getPolicy";
-    permission java.security.SecurityPermission "setPolicy";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
-    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${group.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}reggie${/}reggie.config", "read";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}sharedgroup${/}sharedgroup.config", "read";
-    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.lang.RuntimePermission "createClassLoader";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.RuntimePermission "setContextClassLoader";
-    permission java.lang.RuntimePermission "setFactory";
-    permission java.lang.RuntimePermission "shutdownHooks";
-    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-};
-
-grant codebase "file:/${jsk.home}/lib/${loader.jar}"
-{
-    permission java.net.SocketPermission "${HOST}", "connect,accept,resolve";
-    permission java.util.PropertyPermission "java.rmi.server.codebase", "read";
-    permission java.util.PropertyPermission "net.jini.loader.codebaseAnnotation", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${group.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
-    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
-    permission java.lang.RuntimePermission "createClassLoader";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/phoenix-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9082/qa1-lookupservice-dl.jar", "GET:";
-};
-
-grant codebase "file:/${jsk.home}/lib/${collections.jar}"
-{
-    permission java.net.SocketPermission "*", "accept,resolve";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "createPlatformThread";
-    permission java.lang.RuntimePermission "createVirtualThread";
-    permission java.lang.RuntimePermission "setContextClassLoader";
-    permission java.lang.RuntimePermission "shutdownHooks";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
-{
-    permission java.io.SerializablePermission "enableSubclassImplementation";
-    permission java.io.SerializablePermission "enableSubstitution";
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "${HOST}:9080", "connect,resolve";
-    permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
-    permission java.net.SocketPermission "[0:0:0:0:0:0:0:0]", "resolve";
-    permission java.net.SocketPermission "*", "connect,accept,resolve";
-    permission java.net.SocketPermission "localhost:0", "listen,resolve";
     permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.client.initialInboundRation", "read";
     permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.server.initialInboundRation", "read";
     permission java.util.PropertyPermission "org.apache.river.jeri.connectionTimeout", "read";
@@ -285,83 +40,78 @@ grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
     permission java.util.PropertyPermission "org.apache.river.jeri.ssl.secureRandomAlgorithm", "read";
     permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
     permission java.util.PropertyPermission "org.apache.river.jeri.tcp.useNIO", "read";
-    permission javax.security.auth.AuthPermission "getSubject";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
-    permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
-    permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
-    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.RuntimePermission "modifyThread";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.security.SecurityPermission "createAccessControlContext";
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getDomainCombiner";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "getProperty.jdk.security.provider.preferred";
+    permission java.security.SecurityPermission "getProperty.jdk.serialFilter";
+    permission java.security.SecurityPermission "getProperty.jdk.serialFilterFactory";
+    permission java.security.SecurityPermission "getProperty.org.apache.river.start.servicePolicyProvider";
+    permission java.security.SecurityPermission "getProperty.securerandom.drbg.config";
+    permission java.security.SecurityPermission "getProperty.securerandom.source";
+    permission java.security.SecurityPermission "getProperty.security.provider.1";
+    permission java.security.SecurityPermission "getProperty.security.provider.10";
+    permission java.security.SecurityPermission "getProperty.security.provider.11";
+    permission java.security.SecurityPermission "getProperty.security.provider.12";
+    permission java.security.SecurityPermission "getProperty.security.provider.13";
+    permission java.security.SecurityPermission "getProperty.security.provider.14";
+    permission java.security.SecurityPermission "getProperty.security.provider.2";
+    permission java.security.SecurityPermission "getProperty.security.provider.3";
+    permission java.security.SecurityPermission "getProperty.security.provider.4";
+    permission java.security.SecurityPermission "getProperty.security.provider.5";
+    permission java.security.SecurityPermission "getProperty.security.provider.6";
+    permission java.security.SecurityPermission "getProperty.security.provider.7";
+    permission java.security.SecurityPermission "getProperty.security.provider.8";
+    permission java.security.SecurityPermission "getProperty.security.provider.9";
+    permission java.security.SecurityPermission "putProviderProperty.SUN";
+    permission java.security.SecurityPermission "setPolicy";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "createClassLoader";
     permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createSecurityManager";
     permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.lang.RuntimePermission "exitVM.0";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "localeServiceProvider";
+    permission java.lang.RuntimePermission "loggerFinder";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "reflectionFactoryAccess";
+    permission java.lang.RuntimePermission "selectorProvider";
     permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.lang.RuntimePermission "setFactory";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission java.lang.RuntimePermission "sun.rmi.runtime.RuntimeUtil.getInstance";
+    permission java.util.logging.LoggingPermission "control";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-};
-
-grant codebase "file:/${jsk.home}/lib/${sharedvm.jar}"
-{
-    permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "${HOST}.lan", "resolve";
-    permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
-    permission java.net.SocketPermission "*", "connect,resolve";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission java.net.NetPermission "getCookieHandler";
+    permission java.net.NetPermission "getNetworkInformation";
+    permission java.net.NetPermission "getProxySelector";
+    permission java.net.NetPermission "getResponseCache";
+    permission java.net.SocketPermission "*", "accept,resolve";
     permission java.net.SocketPermission "*", "connect,accept,resolve";
+    permission java.net.SocketPermission "*", "connect,resolve";
+    permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:0]", "resolve";
     permission java.net.SocketPermission "[ff05:0:0:0:0:0:0:156]", "connect,accept,resolve";
     permission java.net.SocketPermission "localhost:0", "listen,resolve";
     permission java.net.SocketPermission "localhost:4160", "listen,resolve";
-    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
-    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
-    permission java.security.SecurityPermission "getPolicy";
-    permission java.security.SecurityPermission "getProperty.org.apache.river.start.servicePolicyProvider";
-    permission java.security.SecurityPermission "setPolicy";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
-    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${group.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}reggie${/}reggie.config", "read";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}sharedgroup${/}sharedgroup.config", "read";
-    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission java.lang.RuntimePermission "createClassLoader";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.RuntimePermission "setContextClassLoader";
-    permission java.lang.RuntimePermission "shutdownHooks";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Tester"
-{
-    permission java.io.FilePermission "C:\Users\peter\Documents\NetBeansProjects\JGDMS\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\jgdms-rmi-tls-3.1.1-SNAPSHOT.jar" "read";
-};
-grant codebase "file:/${jsk.home}/lib/${phoenix-init.jar}"
-{
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}phoenix${/}phoenix.config", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${activation.jar}"
-{
-    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
-    permission java.security.SecurityPermission "getProperty.jdk.serialFilterFactory";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}phoenix${/}phoenix.config", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${phoenix-group.jar}"
-{
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}phoenix${/}phoenix.config", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
-{
-    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
 };
 

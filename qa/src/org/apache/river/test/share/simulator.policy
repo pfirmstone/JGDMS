@@ -1,140 +1,120 @@
-grant codebase "file:${jsk.home}${/}lib${/}reggie.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}jsk-platform.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}jsk-lib.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
+grant codebase "jrt:/org.openjsse",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=fiddler"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${fiddler}",
 {
-      permission net.jini.security.AccessPermission "multicastRequest";
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${group}",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=mahalo"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${mahalo}",
 {
-      permission net.jini.security.AccessPermission "multicastRequest";
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${mercury}",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=mercury"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${norm}",
 {
-      permission net.jini.security.AccessPermission "multicastRequest";
-
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${outrigger}",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=outrigger"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${reggie}",
 {
-      permission net.jini.security.AccessPermission "multicastRequest";
-
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Norm"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "${test}",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=norm"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Fiddler",
 {
-      permission net.jini.security.AccessPermission "multicastRequest";
-
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=reggie"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mercury",
 {
-      permission net.jini.security.AccessPermission "multicastRequest";
-
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Norm",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=tester"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Outrigger",
 {
-      permission net.jini.security.AccessPermission "multicastRequest";
+    permission net.jini.security.AccessPermission "*";
 };
 
-//Kerberos Principals
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${fiddler}"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Reggie",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "*";
 };
 
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${mercury}"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=fiddler",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "multicastRequest";
 };
 
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${outrigger}"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=mahalo",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "multicastRequest";
 };
 
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=mercury",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "multicastRequest";
 };
 
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${norm}"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=norm",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "multicastRequest";
 };
 
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${group}"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=outrigger",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "multicastRequest";
 };
 
-grant principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=reggie",
 {
-      permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AccessPermission "multicastRequest";
 };
 
-// this grant is a workaround needed because the MergedPolicyProvider
-// is not visible to services started with the service starter
-grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-lookup-simulator.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/org.openjsse" {
-    permission java.security.AllPermission "", "";
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=tester",
+{
+    permission net.jini.security.AccessPermission "multicastRequest";
 };
 
 grant {
     permission javax.net.ssl.SSLPermission "getSSLSessionContext";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
+

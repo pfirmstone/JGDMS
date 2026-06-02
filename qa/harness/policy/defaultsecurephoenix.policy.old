@@ -241,3 +241,8 @@ grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
                 "java.rmi.activation.ActivationMonitor.*";
 
 };
+grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+

@@ -470,7 +470,14 @@ public final class AccessControlContextSerializer implements Serializable {
     private static ProtectionDomain[] extractDomains(final AccessControlContext acc) {
         if (acc == null) return new ProtectionDomain[0];
         final ExtractingDomainCombiner extractor = new ExtractingDomainCombiner(acc.getDomainCombiner());
-        final AccessControlContext wrapped = new AccessControlContext(acc, extractor);
+        // Constructing an AccessControlContext with a DomainCombiner requires
+        // SecurityPermission("createAccessControlContext").  The permission check
+        // walks the full call stack, so a less-privileged frame in the remote-proxy
+        // invocation chain can cause it to fail even when the policy grants it to
+        // this code.  Wrapping in doPrivileged stops the stack-walk here so only
+        // this trusted code's domain is checked.
+        final AccessControlContext wrapped = AccessController.doPrivileged(
+                (PrivilegedAction<AccessControlContext>) () -> new AccessControlContext(acc, extractor));
         /*
          * The JVM invokes DomainCombiner.combine() only when an AccessController
          * stack-walk is triggered.  We force that walk by calling checkPermission

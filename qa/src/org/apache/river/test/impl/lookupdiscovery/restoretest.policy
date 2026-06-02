@@ -1,133 +1,69 @@
-grant codebase "file:${jsk.home}${/}lib${/}jgdms-platform-${jgdms.version}.jar" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/java.security.jgss",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "file:${jsk.home}${/}lib${/}jsk-lib.jar" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/java.smartcardio",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/java.xml.crypto",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/jdk.security.auth" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.crypto.cryptoki",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/jdk.crypto.cryptoki" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.crypto.ec",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/java.smartcardio" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.crypto.mscapi",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/java.xml.crypto" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.localedata",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/java.security.jgss" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.security.auth",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/jdk.crypto.ec" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.security.jgss",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant codebase "jrt:/jdk.crypto.mscapi" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.localedata" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.security.jgss" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.qa.harness.testJar}" {
-    permission java.util.PropertyPermission "*", "read,write";
-    permission java.io.FilePermission "<<ALL FILES>>", "read,execute";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "write,delete";
-    permission java.net.SocketPermission "*", "accept,connect,listen,resolve";
-    permission java.lang.RuntimePermission "createClassLoader";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission net.jini.security.GrantPermission
-        "java.security.AllPermission \"\", \"\"";
-    permission net.jini.discovery.DiscoveryPermission "*";
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www.protocol.c";
-    permission java.net.URLPermission "http://${HOST}:9080/*", "GET:";
-    permission net.jini.security.AuthenticationPermission 
-        "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"",
-        "connect";
-    permission javax.security.auth.AuthPermission "getSubject";
-};
-
-grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${qa.home}${/}lib${/}harness.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${qa.home}${/}lib${/}ld.jar" {
-    permission net.jini.discovery.DiscoveryPermission "*";
-    permission java.net.SocketPermission "*", "connect";
-    permission java.io.FilePermission "${org.apache.river.test.home}${/}lib${/}ld.jar", "read";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}classserver-${jgdms.version}.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}jgdms-pref-class-loader-${jgdms.version}.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}jgdms-activation-${jgdms.version}.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}jgdms-jeri-${jgdms.version}.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}jgdms-discovery-providers-${jgdms.version}.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}jgdms-collections-${jgdms.version}.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}service-starter-${jgdms.version}.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}jgdms-url-integrity-${jgdms.version}.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Tester" {
-    permission net.jini.security.AuthenticationPermission 
-        "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"",
-        "connect";
-    permission net.jini.security.AuthenticationPermission
-        "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"",
-        "connect";
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
 };
 
 grant {
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}-", "read";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+    permission java.util.PropertyPermission "*", "read,write";
     permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
+    permission net.jini.discovery.DiscoveryPermission "*";
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.io.FilePermission "${org.apache.river.test.home}${/}lib${/}ld.jar", "read";
+    permission java.io.FilePermission "<<ALL FILES>>", "read,execute";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write,delete";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www.protocol.c";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission net.jini.security.GrantPermission "java.security.AllPermission \"\", \"\"";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.net.SocketPermission "*", "connect,listen,accept,resolve";
+    permission java.net.SocketPermission "*", "connect,resolve";
 };
+

@@ -1,28 +1,13 @@
-grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib-dl${/}${reggie-dl.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.localedata" {
-    permission java.security.AllPermission "", "";
+grant codebase "jrt:/jdk.localedata",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
 grant {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
     permission java.net.SocketPermission "medusa", "resolve";
 };
 
-grant codebase "file:${jsk.home}${/}lib${/}*
-{
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib-dl${/}*
-{
-    permission java.security.AllPermission "", "";
-};

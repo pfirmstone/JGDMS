@@ -155,9 +155,9 @@ org.apache.river.api.io.level=SEVERE
 #net.jini.jeri.tcp.server.level = SEVERE
 
 # For SSL 
-net.jini.jeri.ssl.level = SEVERE
-net.jini.jeri.ssl.client.level = SEVERE
-net.jini.jeri.ssl.server.level = SEVERE
+net.jini.jeri.ssl.level = FINE
+net.jini.jeri.ssl.client.level = FINE
+net.jini.jeri.ssl.server.level = FINE
 #net.jini.jeri.ssl.init.level = SEVERE
 
 # For Kerberos 

@@ -1055,3 +1055,9 @@ grant codebase "httpmd://${HOST}:9080/${phoenix-dl.jar}",
     permission java.lang.RuntimePermission "modifyThreadGroup";
 };
 
+
+grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+

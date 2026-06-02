@@ -26,6 +26,9 @@ import java.security.PrivateKey;
 import java.security.PrivilegedAction;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.lang.reflect.Method;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -139,14 +142,50 @@ class Utilities {
 		10000L
 	    );
     
-    private static final ConcurrentMap<Subject,SSLContext> CLIENT_TLS_CONTEXT_MAP = 
-	    RC.concurrentMap(
+	private static final ConcurrentMap<Subject,SSLContext> CLIENT_TLS_CONTEXT_MAP = 
+		RC.concurrentMap(
 		new ConcurrentHashMap<Referrer<Subject>,Referrer<SSLContext>>(),
 		Ref.WEAK,
 		Ref.SOFT,
 		10000L,
 		10000L
-	    );
+		);
+
+	// Reflection support for SPIFFE types from jgdms-jeri (optional dependency)
+	private static final Class<?> SPIFFE_PRINCIPAL_CLASS;
+	private static final Class<?> SPIFFE_SUBJECT_HOLDER_CLASS;
+	private static final Method SPIFFE_SUBJECT_HOLDER_GET;
+	private static final Method SUBJECT_CURRENT;
+
+	static {
+		Class<?> spiffePrincipalClass = null;
+		Class<?> spiffeSubjectHolderClass = null;
+		Method spiffeSubjectHolderGet = null;
+		Method subjectCurrent = null;
+		try {
+			spiffePrincipalClass = Class.forName("net.jini.jeri.ssl.SpiffePrincipal");
+			spiffeSubjectHolderClass = Class.forName("net.jini.jeri.ssl.SpiffeSubjectHolder");
+			spiffeSubjectHolderGet = spiffeSubjectHolderClass.getMethod("get");
+		} catch (ClassNotFoundException | NoSuchMethodException e) {
+			// SPIFFE support not available - will fall back to X500 only
+			if (INIT_LOGGER.isLoggable(Level.FINE)) {
+				INIT_LOGGER.log(Level.FINE, "SPIFFE support not available", e);
+			}
+		}
+		try {
+			// Subject.current() only available in Java 18+
+			subjectCurrent = Subject.class.getMethod("current");
+		} catch (NoSuchMethodException e) {
+			// Subject.current() not available - older JVM
+			if (INIT_LOGGER.isLoggable(Level.FINE)) {
+				INIT_LOGGER.log(Level.FINE, "Subject.current() not available", e);
+			}
+		}
+		SPIFFE_PRINCIPAL_CLASS = spiffePrincipalClass;
+		SPIFFE_SUBJECT_HOLDER_CLASS = spiffeSubjectHolderClass;
+		SPIFFE_SUBJECT_HOLDER_GET = spiffeSubjectHolderGet;
+		SUBJECT_CURRENT = subjectCurrent;
+	}
     
     private static final ConcurrentMap<Subject,ClientSubjectKeyManager> CLIENT_TLS_MANAGER_MAP = 
 	    RC.concurrentMap(
@@ -489,8 +528,106 @@ class Utilities {
     
     
 
-/** Returns a String that includes relevant information about a Subject */
-    static String subjectString(Subject subject) {
+/**
+	 * Returns true if the Subject has principals that can be used for TLS
+	 * identity selection. Checks for X500Principal and SpiffePrincipal
+	 * (via reflection if available).
+	 */
+	@SuppressWarnings("unchecked")
+	static boolean hasTlsIdentity(Subject subject) {
+		if (subject == null) return false;
+
+		// Check for X500Principal (always available)
+		if (!subject.getPrincipals(X500Principal.class).isEmpty()) {
+			return true;
+		}
+
+		// Check for SpiffePrincipal (if SPIFFE support is loaded)
+		if (SPIFFE_PRINCIPAL_CLASS != null) {
+			try {
+				// Use reflection to avoid compile-time dependency
+				Method getPrincipals = Subject.class.getMethod(
+					"getPrincipals", Class.class);
+				Set<?> spiffePrincipals = (Set<?>) getPrincipals.invoke(
+					subject, SPIFFE_PRINCIPAL_CLASS);
+				if (spiffePrincipals != null && !spiffePrincipals.isEmpty()) {
+					return true;
+				}
+			} catch (Exception e) {
+				// Ignore - fall through to return false
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Resolves the TLS identity Subject using DirtyChai's SPIFFE-first policy:
+	 * 1. Try ACC-derived Subject (from Subject.doAs) if it has TLS identity
+	 * 2. Try process-wide SPIFFE Subject (from SpiffeSubjectHolder)
+	 * 3. Try Subject.current() (from Subject.callAs) if it has TLS identity
+	 * 
+	 * This ensures the process-level SPIFFE identity is preferred before
+	 * legacy user Subject sources.
+	 * 
+	 * @return the resolved Subject, or null if no TLS-capable Subject found
+	 */
+	static Subject getTlsSubject() {
+		// Priority 1: Process-wide SPIFFE Subject (if available)
+		if (SPIFFE_SUBJECT_HOLDER_GET != null) {
+			try {
+				Subject spiffeSubject = (Subject) SPIFFE_SUBJECT_HOLDER_GET.invoke(null);
+				if (spiffeSubject != null) {
+					return spiffeSubject;
+				}
+			} catch (Exception e) {
+				if (INIT_LOGGER.isLoggable(Level.FINE)) {
+					INIT_LOGGER.log(Level.FINE, 
+						"Failed to get SPIFFE process subject", e);
+				}
+			}
+		}
+
+		// Priority 2: Subject.current() for Subject.callAs() and
+		// Subject.doAsPrivileged() compatibility (only if TLS-capable).
+		// Subject.doAsPrivileged(subject, action, null) sets the Subject
+		// on the current thread but not in the AccessControlContext,
+		// so Subject.current() must be checked before Subject.getSubject(acc).
+		if (SUBJECT_CURRENT != null) {
+			try {
+				Subject current = (Subject) SUBJECT_CURRENT.invoke(null);
+				if (current != null && hasTlsIdentity(current)) {
+					return current;
+				}
+			} catch (Exception e) {
+				// Ignore - Subject.current() invocation failed
+			}
+		}
+
+		// Priority 3: ACC-derived Subject (from Subject.doAs/doAsPrivileged).
+		// Do NOT wrap in doPrivileged/doPrivilegedWithCombiner — that creates a
+		// fresh privileged context and severs the SubjectDomainCombiner installed
+		// by the outer Subject.doAsPrivileged call.  Call getContext() directly
+		// on the current stack so the combiner chain is preserved.
+		try {
+			AccessControlContext acc = AccessController.getContext();
+			if (acc != null) {
+				Subject accSubject = Subject.getSubject(acc);
+				if (accSubject != null && hasTlsIdentity(accSubject)) {
+					return accSubject;
+				}
+			}
+		} catch (SecurityException | IllegalArgumentException e) {
+			// Fall through to return null
+		} catch (Exception e) {
+			// Catch MissingResourceException from JDK resource bundle failure
+		}
+
+		return null;
+	}
+
+	/** Returns a String that includes relevant information about a Subject */
+	static String subjectString(Subject subject) {
 	if (subject == null) {
 	    return "null subject";
 	} else {

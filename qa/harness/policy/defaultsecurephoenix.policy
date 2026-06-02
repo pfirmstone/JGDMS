@@ -1,29 +1,100 @@
-grant codebase "file:/${jsk.home}/lib/${platform.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+grant codebase "jrt:/java.base/java.lang.System$LoggerFinder",
+{
+    permission java.lang.RuntimePermission "readModuleTopology";
+};
+
+grant codebase "jrt:/java.security.jgss",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.net.URLPermission "jrt:/java.security.jgss", "GET:";
+    permission java.security.SecurityPermission "putProviderProperty.SunJGSS";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+};
+
+grant codebase "jrt:/java.smartcardio",
+{
+    permission java.security.SecurityPermission "putProviderProperty.SunPCSC";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+};
+
+grant codebase "jrt:/java.xml.crypto",
+{
+    permission java.util.PropertyPermission "java.specification.version", "read";
+    permission java.security.SecurityPermission "putProviderProperty.XMLDSig";
+};
+
+grant codebase "jrt:/jdk.crypto.cryptoki",
+{
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+};
+
+grant codebase "jrt:/jdk.crypto.ec",
+{
+    permission java.security.SecurityPermission "putProviderProperty.SunEC";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.jca";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.pkcs";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math.intpoly";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
+    permission java.lang.RuntimePermission "loadLibrary.sunec";
+};
+
+grant codebase "jrt:/jdk.crypto.mscapi",
+{
+    permission java.security.SecurityPermission "putProviderProperty.SunMSCAPI";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "loadLibrary.sunmscapi";
+};
+
+grant codebase "jrt:/jdk.localedata",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.net.URLPermission "jrt:/jdk.localedata", "GET:";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
+};
+
+grant codebase "jrt:/jdk.security.auth",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.net.URLPermission "jrt:/jdk.security.auth", "GET:";
+    permission javax.security.auth.AuthPermission "modifyPrincipals";
+    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.krb5";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+};
+
+grant codebase "jrt:/jdk.security.jgss",
+{
+    permission java.security.SecurityPermission "putProviderProperty.JdkSASL";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+};
+
+grant codebase "jrt:/org.openjsse",
+{
+    permission java.util.PropertyPermission "java.specification.version", "read";
+    permission java.security.SecurityPermission "putProviderProperty.OpenJSSE";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+};
+
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Phoenix",
 {
     permission java.io.SerializablePermission "enableSubclassImplementation";
     permission java.io.SerializablePermission "enableSubstitution";
-    permission java.lang.RuntimePermission "getProtectionDomain";
-    permission java.lang.RuntimePermission "shutdownHooks";
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
-    permission java.net.SocketPermission "localhost:1098", "listen,resolve";
-    permission java.net.SocketPermission "localhost:2000", "listen,resolve";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Mercury\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Norm\"", "accept";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "accept";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
-    permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}phoenix.keystore", "read";
-    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
-    permission javax.security.auth.AuthPermission "getSubject";
-    permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
     permission java.util.PropertyPermission "java.home", "read";
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
     permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
     permission java.util.PropertyPermission "javax.net.ssl.trustStorePassword", "read";
     permission java.util.PropertyPermission "javax.net.ssl.trustStoreType", "read";
@@ -38,44 +109,775 @@ grant codebase "file:/${jsk.home}/lib/${platform.jar}",
     permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
     permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
     permission java.util.PropertyPermission "qa.home", "read";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log10022197617164150893dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log10022197617164150893dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log10502415356913698024dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log10502415356913698024dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log10508449109499122876dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log10508449109499122876dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log10786908495206456406dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log10786908495206456406dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log10902939699844777633dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log10902939699844777633dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log11184486451460630597dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log11184486451460630597dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log11368859213185697279dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log11368859213185697279dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log11882557462053047263dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log11882557462053047263dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12037989199876324361dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12037989199876324361dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12102365558004839457dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12102365558004839457dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12204045072846270271dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12204045072846270271dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log122283319358406214dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log122283319358406214dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1252255800271031160dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1252255800271031160dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12799133073236397687dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12799133073236397687dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12970581602921180148dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12970581602921180148dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13353832323096484645dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13353832323096484645dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13361528957144547554dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13361528957144547554dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1353288720694097919dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1353288720694097919dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13603570431436662198dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13603570431436662198dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13654203037148515019dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13654203037148515019dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13763711506334928835dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13763711506334928835dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13829287108143634741dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13829287108143634741dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13980899399040446464dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13980899399040446464dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13989635980390692070dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13989635980390692070dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13995206028819335216dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13995206028819335216dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log14014964995767504974dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log14014964995767504974dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1405701038372881585dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1405701038372881585dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log14329711711134236032dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log14329711711134236032dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log14707433852366734964dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log14707433852366734964dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15095986484059186442dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15095986484059186442dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15358384846626238992dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15358384846626238992dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15609415995981726218dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15609415995981726218dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15713667165014620611dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15713667165014620611dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15723452642473442921dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15723452642473442921dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15788720138958856974dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log15788720138958856974dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16307551830238219935dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16307551830238219935dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1633014883419352749dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1633014883419352749dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16780216635908275730dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16780216635908275730dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16810670761077046813dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16810670761077046813dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16816457806443876497dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16816457806443876497dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16840572302457174319dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16840572302457174319dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16868801419458460016dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log16868801419458460016dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17153024249957355218dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17153024249957355218dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17181192556521677442dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17181192556521677442dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17416016844611454518dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17416016844611454518dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17623346886507200477dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17623346886507200477dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17629834639954727181dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17629834639954727181dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17681737545213604980dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log17681737545213604980dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log18104737115287276034dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log18104737115287276034dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1818552895246191994dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1818552895246191994dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log18404254432353426731dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log18404254432353426731dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1927538577841210540dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1927538577841210540dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log2111143358976599487dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log2111143358976599487dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log2211076092409663561dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log2211076092409663561dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log2232226381961331328dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log2232226381961331328dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log2270497185902804027dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log2270497185902804027dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log2524978031711094081dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log2524978031711094081dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log301166358532293982dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log301166358532293982dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3053385865756247819dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3053385865756247819dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3067202892362218020dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3067202892362218020dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3385530374769194174dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3385530374769194174dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3418951735538221306dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3418951735538221306dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3452069263035953745dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3452069263035953745dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3571266888267444475dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3571266888267444475dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3740573652490440853dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3740573652490440853dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3743632357508552219dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3743632357508552219dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3794600401275443166dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3794600401275443166dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3853829511501043998dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3853829511501043998dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3863376857096497468dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log3863376857096497468dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log4209869488635180657dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log4209869488635180657dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log4355968581657706080dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log4355968581657706080dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log4663382015995506999dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log4663382015995506999dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log5430032974036863169dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log5430032974036863169dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log551475971959637199dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log551475971959637199dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log5566386875701965474dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log5566386875701965474dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6061339127262871421dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6061339127262871421dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6199052687534836546dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6199052687534836546dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6400264475621952262dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6400264475621952262dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6494072959761297287dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6494072959761297287dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6554643007385531434dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6554643007385531434dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6569727381720101566dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log6569727381720101566dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7202353480489307271dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7202353480489307271dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7205016104470189130dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7205016104470189130dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7253232337517154134dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7253232337517154134dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7302231726473658684dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7302231726473658684dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7305738472227745198dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7305738472227745198dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7443123821696276788dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7443123821696276788dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7746304219568364155dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7746304219568364155dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7769219391838564750dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log7769219391838564750dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log77788961731000980dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log77788961731000980dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log781124288802962265dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log781124288802962265dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8014596202228405159dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8014596202228405159dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8075287403063570469dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8075287403063570469dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8089096092599877192dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8089096092599877192dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8099329844370879959dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8099329844370879959dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log825936208466693687dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log825936208466693687dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8330812587603396479dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8330812587603396479dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8353648447969936303dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8353648447969936303dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8489598777707105694dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8489598777707105694dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8495516099163447129dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8495516099163447129dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8706811700663098647dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8706811700663098647dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8835230458418952932dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8835230458418952932dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log885401904364358176dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log885401904364358176dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8994566403760358310dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log8994566403760358310dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9121239311838055157dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9121239311838055157dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9135649465015759780dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9135649465015759780dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9193024180023918447dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9193024180023918447dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9325905302725235393dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9325905302725235393dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9557400950236563520dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9557400950236563520dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9603575748440437929dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9603575748440437929dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9778676983511327492dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9778676983511327492dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9864513550214863873dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9864513550214863873dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9882418967663899762dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9882418967663899762dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9914679472912545405dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log9914679472912545405dir", "write";
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
     permission org.apache.river.phoenix.dl.MonitorPermission "net.jini.activation.arg.ActivationMonitor.inactiveObject";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission javax.security.auth.AuthPermission "getSubjectFromDomainCombiner";
+    permission java.security.SecurityPermission "putProviderProperty.HybridAndDHAsKEM";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission java.net.SocketPermission "*", "resolve";
+    permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
+    permission java.net.SocketPermission "*:2000", "connect,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49722", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49723", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49724", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49725", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49726", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49727", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49734", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49735", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49736", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49737", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49738", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49739", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49745", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49746", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49747", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49748", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49749", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49750", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49763", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49764", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49765", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49766", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49767", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49768", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49776", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49777", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49778", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49779", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49780", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49781", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49790", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49791", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49792", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49793", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49794", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49795", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49890", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49891", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49894", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49895", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49896", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49897", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49906", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49907", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49908", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49909", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49910", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49911", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49922", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49924", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49925", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49928", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49929", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49930", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49937", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49938", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49939", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49940", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49942", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49943", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49953", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49954", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49955", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49956", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49957", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49958", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49971", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49972", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49973", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49974", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49975", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:49976", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50005", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50006", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50007", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50008", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50009", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50010", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50023", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50025", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50026", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50027", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50028", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50029", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50039", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50040", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50041", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50044", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50045", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50046", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50063", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50064", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50065", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50066", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50067", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50068", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50089", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50090", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50091", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50092", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50093", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50094", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50118", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50119", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50120", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50121", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50122", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50123", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50133", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50134", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50135", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50136", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50137", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50138", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50156", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50157", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50158", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50159", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50160", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50161", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50182", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50183", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50184", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50185", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50186", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50189", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50202", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50203", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50204", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50205", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50206", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50207", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50219", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50220", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50221", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50222", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50223", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50224", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50241", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50242", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50243", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50244", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50245", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50246", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50258", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50259", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50260", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50261", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50262", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50263", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50271", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50272", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50273", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50274", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50275", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50276", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50289", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50290", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50291", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50292", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50293", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50294", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50305", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50306", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50307", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50308", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50309", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50311", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50320", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50321", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50322", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50323", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50324", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50325", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50334", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50335", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50336", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50337", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50338", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50346", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50356", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50357", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50358", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50359", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50360", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50361", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50370", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50371", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50372", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50373", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50374", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50375", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50391", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50392", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50393", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50394", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50395", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50396", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50405", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50406", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50421", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50424", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50425", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50426", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50435", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50436", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50437", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50438", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50439", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50440", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50452", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50454", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50455", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50456", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50457", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50458", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50732", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50733", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50734", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50736", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50737", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50738", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50747", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50748", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50749", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50750", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50751", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50752", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50769", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50770", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50771", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50772", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50773", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50774", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50781", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50782", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50783", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50784", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50785", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50786", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50793", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50794", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50795", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50796", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50797", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50798", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50813", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50814", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50815", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50816", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50817", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50818", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50834", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50835", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50836", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50837", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50838", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50839", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50847", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50851", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50852", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50853", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50854", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50855", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50868", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50869", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50870", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50871", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50872", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50873", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50881", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50883", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50885", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50886", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50887", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50888", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50898", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50899", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50900", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50901", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50902", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50903", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50916", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50917", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50918", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50919", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50920", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50921", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50939", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50940", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50942", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50943", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50944", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50945", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50952", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50953", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50954", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50957", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50958", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50959", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50972", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50973", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50974", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50976", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50977", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50978", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50985", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50986", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50987", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50988", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50989", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:50990", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51058", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51059", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51060", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51061", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51062", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51063", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51071", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51072", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51073", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51074", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51075", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51076", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51101", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51102", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51103", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51104", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51105", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51106", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51124", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51125", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51126", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51127", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51128", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51129", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51142", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51145", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51146", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51147", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51148", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51149", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51163", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51164", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51165", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51166", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51167", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51168", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51177", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51178", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51179", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51180", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51181", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51182", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51201", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51205", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51206", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51207", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51208", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51209", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51223", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51224", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51227", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51228", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51229", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51230", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51262", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51263", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51264", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51265", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51266", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51267", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51275", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51276", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51277", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51278", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51279", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51280", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51299", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51300", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51301", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51302", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51303", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51304", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51701", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51702", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51703", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51704", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51705", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51706", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51715", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51716", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51717", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51718", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51719", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51720", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51733", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51735", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51736", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51737", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51738", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51739", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51749", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51750", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51751", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51752", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51753", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51754", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51762", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51763", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51764", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51765", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51766", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51767", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51774", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51775", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51776", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51777", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51778", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51779", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51806", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51807", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51808", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51809", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51810", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51811", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51822", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51823", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51824", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51825", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51826", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:51827", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61737", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61738", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61739", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61740", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61741", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61742", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61754", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61755", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61756", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61757", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61758", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61759", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:9ca0:dfeb:b9a7:96fd%16]:1098", "connect,resolve";
+    permission java.net.SocketPermission "localhost:1098", "listen,resolve";
+    permission java.net.SocketPermission "localhost:2000", "listen,resolve";
 };
 
-grant codebase "jrt:/jdk.crypto.cryptoki"
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
 {
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.io.FilePermission "C:UserspeterDocumentsNetBeansProjectsJGDMSJGDMSdist	argetJGDMS-3.1.1-SNAPSHOTlibjgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "shutdownHooks";
 };
 
-grant codebase "file:/${jsk.home}/lib/${activation.jar}"
-{
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-
-grant codebase "jrt:/java.smartcardio"
-{
-    permission java.security.SecurityPermission "putProviderProperty.SunPCSC";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
-};
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
+grant {
     permission java.io.SerializablePermission "enableSubclassImplementation";
     permission java.io.SerializablePermission "enableSubstitution";
     permission java.io.SerializablePermission "serialFilter";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission java.util.PropertyPermission "java.rmi.server.codebase", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStorePassword", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStoreType", "read";
+    permission java.util.PropertyPermission "jgdms.proxy.inconclusiveStrictMode", "read";
+    permission java.util.PropertyPermission "jgdms.proxy.jarReadTimeoutMs", "read";
+    permission java.util.PropertyPermission "jgdms.proxy.maxCodebaseJars", "read";
+    permission java.util.PropertyPermission "jgdms.proxy.maxConcurrentJarLoads", "read";
+    permission java.util.PropertyPermission "jgdms.proxy.maxJarBytes", "read";
+    permission java.util.PropertyPermission "jgdms.proxy.verdictCacheTtlMs", "read";
+    permission java.util.PropertyPermission "net.jini.loader.codebaseAnnotation", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.client.initialInboundRation", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.server.initialInboundRation", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.connectionTimeout", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.checkInterval", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.cleanInterval", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.leaseValue", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.minimumDuration", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.handshakeTimeout", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.server.suppressStackTraces", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jceProvider", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jsseProvider", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.secureRandomAlgorithm", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.tcp.useNIO", "read";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1136979176204087132dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12204304308659402941dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log13998431410837598496dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log4938968115116328085dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log870460455360335774dir", "read";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Phoenix";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "getLoginConfiguration";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission javax.security.auth.AuthPermission "getSubjectFromDomainCombiner";
+    permission javax.security.auth.AuthPermission "modifyPrincipals";
+    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+    permission javax.security.auth.AuthPermission "setLoginConfiguration";
     permission java.security.SecurityPermission "createAccessControlContext";
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.security.SecurityPermission "getPolicy";
     permission java.security.SecurityPermission "getProperty.auth.login.defaultCallbackHandler";
     permission java.security.SecurityPermission "getProperty.crypto.policy";
     permission java.security.SecurityPermission "getProperty.jdk.certpath.disabledAlgorithms";
+    permission java.security.SecurityPermission "getProperty.jdk.crypto.disabledAlgorithms";
+    permission java.security.SecurityPermission "getProperty.jdk.includeInExceptions";
     permission java.security.SecurityPermission "getProperty.jdk.security.allowNonCaAnchor";
     permission java.security.SecurityPermission "getProperty.jdk.security.caDistrustPolicies";
     permission java.security.SecurityPermission "getProperty.jdk.security.provider.preferred";
     permission java.security.SecurityPermission "getProperty.jdk.serialFilter";
+    permission java.security.SecurityPermission "getProperty.jdk.serialFilterFactory";
     permission java.security.SecurityPermission "getProperty.jdk.tls.alpnCharset";
     permission java.security.SecurityPermission "getProperty.jdk.tls.disabledAlgorithms";
     permission java.security.SecurityPermission "getProperty.jdk.tls.keyLimits";
@@ -108,6 +910,7 @@ grant codebase "file:/${jsk.home}/lib/${platform.jar}"
     permission java.security.SecurityPermission "getProperty.sun.rmi.transport.dgcFilter";
     permission java.security.SecurityPermission "putProviderProperty.JdkLDAP";
     permission java.security.SecurityPermission "putProviderProperty.JdkSASL";
+    permission java.security.SecurityPermission "putProviderProperty.OpenJSSE";
     permission java.security.SecurityPermission "putProviderProperty.SUN";
     permission java.security.SecurityPermission "putProviderProperty.SunEC";
     permission java.security.SecurityPermission "putProviderProperty.SunJCE";
@@ -131,481 +934,222 @@ grant codebase "file:/${jsk.home}/lib/${platform.jar}"
     permission java.lang.RuntimePermission "accessDeclaredMembers";
     permission java.lang.RuntimePermission "accessSystemModules";
     permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "createPlatformThread";
     permission java.lang.RuntimePermission "createSecurityManager";
+    permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.lang.RuntimePermission "enableContextClassLoaderOverride";
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "getStackWalkerWithClassReference";
+    permission java.lang.RuntimePermission "getenv.TEMP";
+    permission java.lang.RuntimePermission "loadLibrary.extnet";
+    permission java.lang.RuntimePermission "loadLibrary.net";
+    permission java.lang.RuntimePermission "loadLibrary.nio";
+    permission java.lang.RuntimePermission "loadLibrary.sunec";
     permission java.lang.RuntimePermission "loadLibrary.sunmscapi";
     permission java.lang.RuntimePermission "localeServiceProvider";
     permission java.lang.RuntimePermission "loggerFinder";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "createPlatformThread";
-    permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "readFileDescriptor";
+    permission java.lang.RuntimePermission "readModuleTopology";
     permission java.lang.RuntimePermission "reflectionFactoryAccess";
+    permission java.lang.RuntimePermission "selectorProvider";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "shutdownHooks";
     permission java.lang.RuntimePermission "sun.rmi.runtime.RuntimeUtil.getInstance";
     permission java.lang.RuntimePermission "writeFileDescriptor";
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "${HOST}.lan", "resolve";
-    permission java.net.SocketPermission "*:1024-", "accept,resolve";
+    permission java.util.logging.LoggingPermission "control";
+    permission au.zeus.jdk.authorization.guards.DefineClassPermission "ALLOW";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission java.net.NetPermission "accessUnixDomainSocket";
     permission java.net.NetPermission "getNetworkInformation";
     permission java.net.NetPermission "getProxySelector";
-    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
-    permission java.io.FilePermission "${java.home}${/}bin${/}-", "read";
-    permission java.io.FilePermission "${java.home}${/}conf${/}net.properties", "read";
-    permission java.io.FilePermission "${java.home}${/}conf${/}security${/}policy${/}unlimited", "read";
-    permission java.io.FilePermission "${java.home}${/}conf${/}security${/}policy${/}unlimited${/}default_US_export.policy", "read";
-    permission java.io.FilePermission "${java.home}${/}conf${/}security${/}policy${/}unlimited${/}default_local.policy", "read";
-    permission java.io.FilePermission "${java.home}${/}lib${/}security${/}blacklisted.certs", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${loader.jar}", "read";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${phoenix.jar}", "read";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}phoenix${/}phoenix.config", "read";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}jsselogins", "read";
-    permission java.io.FilePermission "${qa.home}${/}lib${/}jiniharness.jar", "read";
-    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "read";
-    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Phoenix";
-    permission javax.security.auth.AuthPermission "doAsPrivileged";
-    permission javax.security.auth.AuthPermission "getLoginConfiguration";
-    permission javax.security.auth.AuthPermission "getSubject";
-    permission javax.security.auth.AuthPermission "getSubjectFromDomainCombiner";
-    permission javax.security.auth.AuthPermission "modifyPrincipals";
-    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
-    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
-    permission javax.security.auth.AuthPermission "setLoginConfiguration";
-    permission java.util.logging.LoggingPermission "control";
+    permission java.net.NetPermission "setResponseCache";
     permission net.jini.io.context.ContextPermission "net.jini.io.context.ClientSubject.getClientSubject";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
-    permission java.util.PropertyPermission "*", "read,write";
-};
-
-grant codebase "jrt:/jdk.crypto.ec"
-{
-    permission java.security.SecurityPermission "putProviderProperty.SunEC";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.jca";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.pkcs";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math.intpoly";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
-};
-
-grant codebase "file:/${jsk.home}/lib/${phoenix.jar}"
-{
-    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}phoenix${/}phoenix.config", "read";
-    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Phoenix";
-    permission javax.security.auth.AuthPermission "doAsPrivileged";
-};
-
-grant codebase "file:/${jsk.home}/lib/${collections.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-};
-
-grant codebase "jrt:/java.xml.crypto"
-{
-    permission java.security.SecurityPermission "putProviderProperty.XMLDSig";
-    permission java.util.PropertyPermission "java.specification.version", "read";
-};
-
-grant codebase "jrt:/jdk.security.jgss"
-{
-    permission java.security.SecurityPermission "putProviderProperty.JdkSASL";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
-};
-
-grant codebase "file:/${jsk.home}/lib/${loader.jar}"
-{
-    permission java.lang.RuntimePermission "createClassLoader";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.util.PropertyPermission "java.rmi.server.codebase", "read";
-    permission java.util.PropertyPermission "net.jini.loader.codebaseAnnotation", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${collections.jar}"
-{
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "createPlatformThread";
-    permission java.lang.RuntimePermission "createVirtualThread";
-    permission java.lang.RuntimePermission "setContextClassLoader";
-    permission java.lang.RuntimePermission "shutdownHooks";
-    permission java.net.SocketPermission "${HOST}.lan", "resolve";
     permission java.net.SocketPermission "*:1024-", "accept,resolve";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
 };
 
-grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/phoenix-3.1.1-SNAPSHOT.jar"
 {
-    permission java.io.SerializablePermission "enableSubclassImplementation";
-    permission java.io.SerializablePermission "enableSubstitution";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "createPlatformThread";
-    permission java.lang.RuntimePermission "createVirtualThread";
-    permission java.lang.RuntimePermission "setContextClassLoader";
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "${HOST}.lan", "resolve";
-    permission java.net.SocketPermission "*:1024-", "accept,resolve";
-    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}phoenix${/}phoenix.config", "read";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}phoenix-3.1.1-SNAPSHOT.jar", "read";
+};
+
+
+{
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}${loader.jar}", "read";
     permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "read";
-    permission javax.security.auth.AuthPermission "getSubject";
-    permission net.jini.io.context.ContextPermission "net.jini.io.context.ClientSubject.getClientSubject";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
-    permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.client.initialInboundRation", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.server.initialInboundRation", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.connectionTimeout", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.checkInterval", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.cleanInterval", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.leaseValue", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.minimumDuration", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.handshakeTimeout", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.server.suppressStackTraces", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.tcp.useNIO", "read";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission java.net.SocketPermission "${HOST}.lan", "resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61546", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61550", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61568", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61571", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61572", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:61584", "accept,resolve";
 };
 
-grant codebase "jrt:/java.security.jgss"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/phoenix-common-3.1.1-SNAPSHOT.jar"
 {
-    permission java.security.SecurityPermission "putProviderProperty.SunJGSS";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}phoenix-common-3.1.1-SNAPSHOT.jar", "read";
 };
 
-grant codebase "file:/${jsk.home}/lib-dl/${phoenix-dl.jar}"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/phoenix-3.1.1-SNAPSHOT.jar",
 {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+    permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
 };
 
-grant codebase "jrt:/jdk.crypto.mscapi"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-url-integrity-3.1.1-SNAPSHOT.jar"
 {
-    permission java.security.SecurityPermission "putProviderProperty.SunMSCAPI";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
-    permission java.lang.RuntimePermission "loadLibrary.sunmscapi";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-url-integrity-3.1.1-SNAPSHOT.jar", "read";
 };
 
-grant codebase "file:/${jsk.home}/lib/${loader.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-rmi-tls-3.1.1-SNAPSHOT.jar"
 {
-    permission java.net.SocketPermission "*", "resolve";
-    permission java.net.SocketPermission "*:2000", "connect,resolve";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar",
+{
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
-    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:2000", "connect,resolve";
 };
 
-grant codebase "jrt:/jdk.security.auth"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-collections-3.1.1-SNAPSHOT.jar"
 {
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.krb5";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
-    permission java.lang.RuntimePermission "getProtectionDomain";
-    permission java.io.FilePermission "${qa.home}${/}lib${/}jiniharness.jar", "read";
-    permission javax.security.auth.AuthPermission "modifyPrincipals";
-    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
-    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-collections-3.1.1-SNAPSHOT.jar", "read";
 };
 
-grant codebase "file:/${jsk.home}/lib/${jgdms-rmi-tls.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-activation-3.1.1-SNAPSHOT.jar"
 {
-    permission java.net.SocketPermission "localhost:1098", "listen,resolve";
-    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStorePassword", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStoreType", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jceProvider", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jsseProvider", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.secureRandomAlgorithm", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar", "read";
 };
 
-grant codebase "jrt:/jdk.localedata"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-jeri-3.1.1-SNAPSHOT.jar",
 {
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jgdms-rmi-tls.jar}"
-{
-    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "read";
-    permission javax.security.auth.AuthPermission "getSubject";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission java.io.SerializablePermission "enableSubclassImplementation";
-    permission java.io.SerializablePermission "enableSubstitution";
-    permission java.lang.RuntimePermission "shutdownHooks";
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
-    permission java.net.SocketPermission "localhost:2000", "listen,resolve";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "accept";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "accept";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
-    permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
-    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
-    permission javax.security.auth.AuthPermission "getSubject";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission javax.security.auth.AuthPermission "doAs";
     permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStorePassword", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStoreType", "read";
-    permission java.util.PropertyPermission "line.separator", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.certificateType", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.cipherSuites", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jceProvider", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jsseProvider", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxClientSessionDuration", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxServerSessionDuration", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.secureRandomAlgorithm", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jsk-lib.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
-};
-
-grant codebase "file:/${jsk.home}/lib/${phoenix.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission java.io.SerializablePermission "enableSubclassImplementation";
-    permission java.io.SerializablePermission "enableSubstitution";
-    permission java.lang.RuntimePermission "getProtectionDomain";
-    permission java.lang.RuntimePermission "shutdownHooks";
-    permission java.net.SocketPermission "${HOST}", "resolve";
-    permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
-    permission java.net.SocketPermission "localhost:1098", "listen,resolve";
+    permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
+    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:2000", "connect,resolve";
     permission java.net.SocketPermission "localhost:2000", "listen,resolve";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
+};
+
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/phoenix-dl-3.1.1-SNAPSHOT.jar"
+{
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}phoenix-dl-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar"
+{
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/phoenix-3.1.1-SNAPSHOT.jar",
+{
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "accept";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "accept";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
-    permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}phoenix.keystore", "read";
-    permission javax.security.auth.AuthPermission "getSubject";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.util.PropertyPermission "java.home", "read";
-    permission java.util.PropertyPermission "line.separator", "read";
-    permission java.util.PropertyPermission "qa.home", "read";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.security.SecurityPermission "putProviderProperty.HybridAndDHAsKEM";
+    permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}phoenix.keystore", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir", "write";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Logfile.1", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Logfile.1", "write";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Snapshot.1", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Snapshot.1", "write";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Version_Number", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Version_Number", "write";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:2000", "connect,resolve";
+    permission java.net.SocketPermission "localhost:1098", "listen,resolve";
+    permission java.net.SocketPermission "localhost:2000", "listen,resolve";
 };
 
-// org/apache/river/test/spec/lookupdiscovery/MulticastMonitorStop.td
-
-// org/apache/river/test/spec/locatordiscovery/SetLocatorsDups.td
-
-// org/apache/river/test/impl/discoverymanager/RemoveGroupsLocsDiscard.td
-
-// org/apache/river/test/spec/lookupservice/test_set00/MultipleEvntLeaseRenewals.td
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar"
 {
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Norm\"", "accept";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar", "read";
 };
 
-grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-rmi-tls-3.1.1-SNAPSHOT.jar",
 {
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Norm\"", "accept";
-};
-
-grant codebase "file:/${jsk.home}/lib/${phoenix.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Norm\"", "accept";
-};
-
-// org/apache/river/test/impl/norm/UseRenewalServiceLeaseTest_renew2.td
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "accept";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "accept";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
-};
-
-grant codebase "file:/${jsk.home}/lib/${phoenix.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "accept";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
-};
-
-// org/apache/river/test/impl/outrigger/transaction/PreparedTransactionTestCommit.td
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Mercury\"", "accept";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Mercury\"", "accept";
-};
-
-grant codebase "file:/${jsk.home}/lib/${phoenix.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Mercury\"", "accept";
-};
-
-// org/apache/river/test/impl/mercury/InterOpTest.td
-
-// org/apache/river/test/impl/mahalo/RandomStressTest.td
-
-// run.categories=lookupservice
-
-
-grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${phoenix.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
-};
-
-
-// run.categories=javaspace
-
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
-    permission java.lang.RuntimePermission "loadLibrary.net";
-    permission java.lang.RuntimePermission "loadLibrary.nio";
-    permission java.lang.RuntimePermission "loadLibrary.sunec";
-    permission java.io.FilePermission "${java.io.tmpdir}log4938968115116328085dir", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log4938968115116328085dir${/}Logfile.1", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log4938968115116328085dir${/}Snapshot.1", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log4938968115116328085dir${/}Version_Number", "read";
-    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultsecurephoenix.policy.new", "read";
-};
-
-grant codebase "jrt:/jdk.crypto.ec"
-{
-    permission java.lang.RuntimePermission "loadLibrary.sunec";
-};
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
-    permission java.io.FilePermission "${java.io.tmpdir}log13998431410837598496dir", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log13998431410837598496dir${/}Logfile.1", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log13998431410837598496dir${/}Snapshot.1", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log13998431410837598496dir${/}Version_Number", "read";
-};
-
-grant codebase "jrt:/org.openjsse"
-{
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
-    permission java.lang.RuntimePermission "accessDeclaredMembers";
-    permission java.util.PropertyPermission "java.specification.version", "read";
-    permission java.security.SecurityPermission "putProviderProperty.OpenJSSE";
-    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-};
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
-    permission java.io.FilePermission "${java.io.tmpdir}log12204304308659402941dir", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log12204304308659402941dir${/}Logfile.1", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log12204304308659402941dir${/}Snapshot.1", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log12204304308659402941dir${/}Version_Number", "read";
-    permission java.security.SecurityPermission "putProviderProperty.OpenJSSE";
-};
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
-    permission java.io.FilePermission "${java.io.tmpdir}log870460455360335774dir", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log870460455360335774dir${/}Logfile.1", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log870460455360335774dir${/}Snapshot.1", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log870460455360335774dir${/}Version_Number", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
-    permission java.io.FilePermission "${java.io.tmpdir}log1136979176204087132dir", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log1136979176204087132dir${/}Logfile.1", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log1136979176204087132dir${/}Snapshot.1", "read";
-    permission java.io.FilePermission "${java.io.tmpdir}log1136979176204087132dir${/}Version_Number", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jgdms-rmi-tls.jar}"
-{
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jceProvider", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jsseProvider", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.secureRandomAlgorithm", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
-};
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
+    permission java.security.SecurityPermission "putProviderProperty.HybridAndDHAsKEM";
     permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+    permission java.net.SocketPermission "localhost:1098", "listen,resolve";
 };
 
-grant codebase "file:/${jsk.home}/lib/${jgdms-rmi-tls.jar}"
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-jeri-3.1.1-SNAPSHOT.jar"
 {
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-jeri-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-platform-3.1.1-SNAPSHOT.jar"
+{
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}phoenix${/}phoenix.config", "read";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-platform-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-jeri-3.1.1-SNAPSHOT.jar",
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+    permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
+};
+
+grant // codebase "jrt:/jdk.security.auth"
+{
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}lib${/}jiniharness.jar", "read";
+};
+
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-activation-parameters-3.1.1-SNAPSHOT.jar"
+{
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-parameters-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-lib-3.1.1-SNAPSHOT.jar",
+{
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir", "write";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Logfile.1", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Logfile.1", "write";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Snapshot.1", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Snapshot.1", "write";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Version_Number", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}log2392886720488851940dir${/}Version_Number", "write";
+};
+
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-lib-3.1.1-SNAPSHOT.jar"
+{
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-lib-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-platform-3.1.1-SNAPSHOT.jar",
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
+    permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}phoenix.keystore", "read";
     permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStorePassword", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStoreType", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:2000", "connect,resolve";
+    permission java.net.SocketPermission "localhost:2000", "listen,resolve";
 };
 
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
-    permission java.security.SecurityPermission "getProperty.jdk.includeInExceptions";
-};
-
-grant codebase "file:/${jsk.home}/lib/${jgdms-rmi-tls.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission java.net.SocketPermission "[fe80:0:0:0:9ca0:dfeb:b9a7:96fd%16]:1098", "connect,resolve";
-};
-
-grant codebase "file:/${jsk.home}/lib/${platform.jar}"
-{
-    permission java.io.FilePermission "${java.home}${/}lib${/}security${/}blocked.certs", "read";
-    permission java.security.SecurityPermission "getProperty.jdk.serialFilterFactory";
-};
-
-grant codebase "file:/${jsk.home}/lib/${loader.jar}",
-    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
-{
-    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Tester"
-{
-    permission java.io.FilePermission "C:\Users\peter\Documents\NetBeansProjects\JGDMS\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\jgdms-rmi-tls-3.1.1-SNAPSHOT.jar" "read";
-};

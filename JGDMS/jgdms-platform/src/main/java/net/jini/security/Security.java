@@ -19,6 +19,7 @@
 package net.jini.security;
 
 import java.lang.ref.SoftReference;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.rmi.RemoteException;
@@ -242,6 +243,90 @@ public final class Security {
             policyLogger = Logger.getLogger("net.jini.security.policy");
             return policyLogger;
         }
+    }
+
+    /**
+     * Reflective handle to {@code AccessControlContext.create(ProtectionDomain...)},
+     * which is the virtual-thread-safe factory method introduced in DirtyChai.
+     * On a standard OpenJDK build this method does not exist and the field is
+     * {@code null}, in which case {@link #checkPermission} falls back to the
+     * {@code new AccessControlContext(ProtectionDomain[])} constructor.
+     */
+    private static final Method ACC_CREATE = AccessController.doPrivileged(
+            new PrivilegedAction<Method>() {
+                @Override
+                public Method run() {
+                    try {
+                        Method m = AccessControlContext.class.getMethod(
+                                "create", ProtectionDomain[].class);
+                        m.setAccessible(true);
+                        return m;
+                    } catch (NoSuchMethodException ex) {
+                        // Standard OpenJDK: fall back to constructor path.
+                        return null;
+                    }
+                }
+            });
+
+    /**
+     * Checks that the given {@link Permission} is granted to an
+     * {@link AccessControlContext} that contains exactly the supplied
+     * {@link ProtectionDomain}s, by routing through
+     * {@link SecurityManager#checkPermission(Permission, Object)} so that
+     * audit security managers (e.g. {@code SecurityPolicyWriter} /
+     * {@code polpAudit}) observe the check and can record the permission.
+     *
+     * <p>Unlike calling {@code Policy.implies()} directly, this method ensures
+     * that any installed {@link SecurityManager} is notified of the check,
+     * which is necessary for policy-audit tooling to capture permissions that
+     * would otherwise bypass the security manager entirely.  If no
+     * {@link SecurityManager} is installed this method returns immediately
+     * without performing any check.
+     *
+     * <p>The {@link AccessControlContext} is constructed via the DirtyChai
+     * {@code AccessControlContext.create(ProtectionDomain...)} factory method
+     * when running on DirtyChai (virtual-thread-safe), and falls back to the
+     * standard {@code new AccessControlContext(ProtectionDomain[])} constructor
+     * on OpenJDK so that this library remains compile-time compatible with
+     * both runtimes.
+     *
+     * @param perm    the permission to check; must not be {@code null}
+     * @param domains one or more protection domains to include in the context
+     * @throws SecurityException if the installed security manager or policy
+     *                           denies {@code perm} to the given domains
+     * @throws NullPointerException if {@code perm} or {@code domains} is
+     *                              {@code null}
+     * @since 3.1
+     */
+    public static void checkPermission(Permission perm,
+                                       ProtectionDomain... domains) {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm == null) {
+            // No security manager installed — nothing to check.
+            return;
+        }
+        // Build an AccessControlContext containing only the supplied domains.
+        final ProtectionDomain[] domainsCopy = domains.clone();
+        AccessControlContext acc = AccessController.doPrivileged(
+                new PrivilegedAction<AccessControlContext>() {
+                    @Override
+                    public AccessControlContext run() {
+                        if (ACC_CREATE != null) {
+                            // DirtyChai: use the virtual-thread-safe factory.
+                            try {
+                                return (AccessControlContext)
+                                        ACC_CREATE.invoke(null,
+                                                (Object) domainsCopy);
+                            } catch (Exception ex) {
+                                // Fall through to constructor.
+                            }
+                        }
+                        // OpenJDK fallback.
+                        return new AccessControlContext(domainsCopy);
+                    }
+                });
+        // Route through the security manager so audit managers capture it.
+        sm.checkPermission(perm, acc);
     }
 
     /**

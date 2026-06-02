@@ -1,66 +1,11 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership. The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-keystore "file:${test.src}/keystore";
-
-grant codebase "file:${java.class.path}" {
-  permission java.security.AllPermission;
-};
-
-grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
-  permission java.security.AllPermission;
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/tools/policy-condenser/target/policy-condenser-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-collections-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-platform-3.1.1-SNAPSHOT.jar",
+{
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
 grant {
     permission java.util.PropertyPermission "*", "read";
     permission org.apache.river.phoenix.SystemPermission "getServerSubject";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant principal "client1" {
-    permission org.apache.river.phoenix.SystemPermission "getProxyVerifier";
-    permission org.apache.river.phoenix.SystemPermission "registerGroup";
-    permission org.apache.river.phoenix.SystemPermission "getActivationGroupDesc";
-    permission org.apache.river.phoenix.SystemPermission "registerObject";
-    permission org.apache.river.phoenix.SystemPermission "getActivationDesc";
-    permission org.apache.river.phoenix.SystemPermission "unregisterObject";
-    permission org.apache.river.phoenix.ActivatorPermission "activate";
-    permission org.apache.river.phoenix.ExecOptionPermission "-Djava.security.auth.login.config=${test.src}${/}login";
-    permission org.apache.river.phoenix.ExecOptionPermission "-Djavax.net.ssl.trustStore=${test.src}${/}keystore";
-    permission org.apache.river.phoenix.ExecOptionPermission "-Djava.security.policy=${test.src}${/}group.security.policy";
-};
-
-grant principal "client2" {
-    permission org.apache.river.phoenix.SystemPermission "getProxyVerifier";
-    permission org.apache.river.phoenix.SystemPermission "registerObject";
-    permission org.apache.river.phoenix.SystemPermission "getActivationDesc";
-    permission org.apache.river.phoenix.SystemPermission "unregisterObject";
-    permission org.apache.river.phoenix.ActivatorPermission "getProxyVerifier";
-    permission org.apache.river.phoenix.SystemPermission "setActivationDesc";
-    permission org.apache.river.phoenix.SystemPermission "setActivationGroupDesc";
-    permission org.apache.river.phoenix.ExecPermission "foobar";
-    permission org.apache.river.phoenix.ExecOptionPermission "-baz";
-};
-
-grant principal "server" {
-    permission org.apache.river.phoenix.SystemPermission "getProxyVerifier";
-    permission org.apache.river.phoenix.SystemPermission "shutdown";
-    permission org.apache.river.phoenix.SystemPermission "activeGroup";
-    permission org.apache.river.phoenix.MonitorPermission "activeObject";
-    permission org.apache.river.phoenix.MonitorPermission "inactiveGroup";
-    permission org.apache.river.phoenix.MonitorPermission "inactiveObject";
-};
