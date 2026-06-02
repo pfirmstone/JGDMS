@@ -1,0 +1,56 @@
+/*
+ * Security policy — Hello World Client
+ *
+ * This is a restrictive example policy.  In production, tighten each grant
+ * to the minimal set of permissions the client actually needs.
+ *
+ * Adjust the codebase URLs to match your deployment layout.
+ */
+
+/* -------------------------------------------------------------------------
+ * Client application codebase (hello-world-client.jar)
+ * Requires permissions to: connect to lookup services, discover via
+ * multicast, download proxy classes, and read configuration.
+ * ------------------------------------------------------------------------- */
+grant codebase "file:${hello.client.codebase}/-" {
+
+    /* Connect to discovered lookup services and the remote service. */
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+
+    /* Multicast discovery. */
+    permission java.net.SocketPermission "224.0.1.85:4160", "connect,accept";
+    permission java.net.MulticastSocketPermission "224.0.1.85:4160", "connect,accept";
+
+    /* Read the client configuration file. */
+    permission java.io.FilePermission "${hello.config.dir}/-", "read";
+
+    /* Allow reading system properties needed by JGDMS. */
+    permission java.util.PropertyPermission "*", "read";
+
+    /* Allow class loading for downloaded proxy code. */
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "createClassLoader";
+};
+
+/* -------------------------------------------------------------------------
+ * Downloaded hello-world-dl.jar (HelloServiceProxy) — run with minimal
+ * permissions.  Only needs to call back to the server.
+ * ------------------------------------------------------------------------- */
+grant codebase "file:${hello.dl.codebase}/-" {
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+    permission java.util.PropertyPermission "*", "read";
+};
+
+/* -------------------------------------------------------------------------
+ * Jini lookup service download classes — full trust.
+ * ------------------------------------------------------------------------- */
+grant codebase "file:${reggie.dl.codebase}/-" {
+    permission java.security.AllPermission;
+};
+
+/* -------------------------------------------------------------------------
+ * JGDMS platform and infrastructure — full trust.
+ * ------------------------------------------------------------------------- */
+grant codebase "file:${jgdms.lib.dir}/-" {
+    permission java.security.AllPermission;
+};
