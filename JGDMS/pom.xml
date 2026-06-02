@@ -85,6 +85,7 @@
     <module>services/policy-service</module>
     <module>services/jfr-telemetry</module>
     <module>services/codebase-downloader</module>
+    <module>services/hello-world</module>
     <module>tools</module>
     <module>phoenix-activation</module>
     <!--<module>groovy-config</module>-->
