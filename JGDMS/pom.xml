@@ -89,6 +89,7 @@
     <module>tools</module>
     <module>phoenix-activation</module>
     <!--<module>groovy-config</module>-->
+    <module>jgdms-service-archetype</module>
     <module>dist</module>
     <module>browser</module>
     <module>extra</module>
