@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
-Bnd-LastModified: 1780389085679
+Bnd-LastModified: 1780389697790
 Bundle-Description: Server-side implementation of the Hello World serv
  ice.  Contains         HelloServiceImpl (core logic) and HelloWorldSe
  rviceImpl (Jini wrapper         extending AbstractJiniService), plus 
@@ -18,13 +18,14 @@ Bundle-SCM: url="https://github.com/pfirmstone/JGDMS/services/hello-wo
  nection="scm:git:git@github.com:pfirmstone/JGDMS.git/services/hello-w
  orld/hello-world-service",tag="jgdms-3.1.0"
 Bundle-SymbolicName: hello-world-service
-Bundle-Version: 3.1.1.202606020831
+Bundle-Version: 3.1.1.202606020841
 Created-By: 27-internal (N/A)
 Import-Package: au.net.zeus.jgdms.api.hello,au.net.zeus.jgdms.hello.pr
  oxy,au.net.zeus.jgdms.proxy,au.net.zeus.jgdms.service.support,java.io
  ,java.lang,java.lang.invoke,java.rmi,java.util.logging,net.jini.activ
- ation.arg,net.jini.config,net.jini.id,org.apache.river.start.lifecycl
- e,org.apache.river.thread
+ ation.arg;version="[3.1,4)",net.jini.config;version="[3.1,4)",net.jin
+ i.id;version="[3.1,4)",org.apache.river.start.lifecycle;version="[3.1
+ ,4)",org.apache.river.thread;version="[3.1,4)"
 Private-Package: au.net.zeus.jgdms.hello
 Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=21))"
 Tool: Bnd-6.4.0.202211291949

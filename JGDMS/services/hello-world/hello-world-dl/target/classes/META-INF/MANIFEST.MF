@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
-Bnd-LastModified: 1780389085554
+Bnd-LastModified: 1780389697742
 Bundle-Description: Download-side (client-facing) classes for the Hell
  o World service:         HelloServiceProxy and its constrainable vari
  ant.  These classes are         downloaded to client JVMs from the se
@@ -18,11 +18,12 @@ Bundle-SCM: url="https://github.com/pfirmstone/JGDMS/services/hello-wo
  cm:git:git@github.com:pfirmstone/JGDMS.git/services/hello-world/hello
  -world-dl",tag="jgdms-3.1.0"
 Bundle-SymbolicName: hello-world-dl
-Bundle-Version: 3.1.1.202606020831
+Bundle-Version: 3.1.1.202606020841
 Created-By: 27-internal (N/A)
 Import-Package: au.net.zeus.jgdms.api.hello,au.net.zeus.jgdms.proxy,ja
- va.io,java.lang,java.rmi,net.jini.core.constraint,net.jini.id,org.apa
- che.river.api.io
+ va.io,java.lang,java.rmi,net.jini.core.constraint;version="[3.1,4)",n
+ et.jini.id;version="[3.1,4)",org.apache.river.api.io;version="[3.1,4)
+ "
 Private-Package: au.net.zeus.jgdms.hello.proxy
 Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=21))"
 Tool: Bnd-6.4.0.202211291949
