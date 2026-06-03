@@ -1,4 +1,4 @@
-# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v64)
+# JGDMS — Security Weaknesses & Implementation Plan — AI Agent Context (v65)
 
 **Purpose:** This document captures the security-weakness analysis and phased
 implementation plan produced during the Copilot conversation dated 2026-05-12.
@@ -9,6 +9,104 @@ and is the forward-reference added in §19 of that document.
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
 - DirtyChai: https://github.com/pfirmstone/DirtyChai
+
+## v65 Change Summary
+
+**WI66 completed — BAE crash-guard: convert BAE pod crashes to pending verdicts**
+
+Closes the security gap where a weaponised JAR that crashes the BAE
+mid-analysis generates no audit trail and remains permanently unclassified in
+the VerdictRegistry.
+
+**Root cause of the gap:**
+The SCAP pipeline (host2 BAE) analyses JARs one at a time.  If the BAE JVM
+crashes, OOMs, or is SIGKILL-terminated _while_ processing a JAR, the in-flight
+JAR receives no verdict.  A future client loading that JAR will get an
+`INCONCLUSIVE` result (registry has no entry) and, under the current
+permissive-INCONCLUSIVE policy, the JAR may be loaded without triggering an
+alert.
+
+**Implementation — three-component Kubernetes mechanism:**
+
+1. **BAE application contract** — The BAE application writes the JAR's SHA-256
+   digest (64 hex chars) to `/tmp/current-job` _before_ beginning analysis, and
+   deletes it _after_ successful completion.  A Kubernetes `preStop` lifecycle
+   hook also deletes the marker on graceful SIGTERM-initiated shutdown (rolling
+   updates, scale-downs), preventing false verdicts.
+
+2. **crash-guard init container** (`bitnami/kubectl`) — Runs before the BAE
+   container on every pod start.  If a residual `/tmp/current-job` exists it:
+   - Reads the last container exit code and restart count from the Kubernetes API.
+   - Classifies the crash by exit code:
+
+     | Exit code | Signal | Verdict |
+     |-----------|--------|---------|
+     | 143 | SIGTERM (graceful) | No verdict — clear marker |
+     | 137 | SIGKILL / OOM | `SUSPICIOUS_OOM` |
+     | 134 | SIGABRT | `SUSPICIOUS_CRASH` |
+     | 138 | SIGBUS | `SUSPICIOUS_CRASH` |
+     | 0 with marker | Abnormal exit | `SUSPICIOUS_CRASH` |
+     | other non-zero | Java exception | `ANALYSIS_ERROR` |
+     | any, restarts ≥ threshold | CrashLoopBackOff | `DANGEROUS` (escalated) |
+
+   - Patches the pod with four `jgdms.io/pending-crash-verdict-*` annotations.
+   - Clears the marker so the next BAE start sees a clean state.
+
+3. **Downloader consumption (host4)** — The Downloader monitors BAE pod
+   annotations on each Jini lookup discovery cycle.  When it finds a
+   `jgdms.io/pending-crash-verdict-digest` annotation, it forwards the verdict
+   to the VerdictRegistry via JERI and clears the annotation.  After this, any
+   `PreferredProxyCodebaseProvider.checkVerdictForJar()` call for that digest
+   will see a `SUSPICIOUS_*` or `DANGEROUS` verdict and reject the JAR.
+
+**Security properties preserved:**
+- BAE isolation invariant maintained — init container calls Kubernetes API only,
+  never the VerdictRegistry directly.  The BAE → Registry (`DENIED`) rule in
+  `host2-bae-policy` is preserved.
+- Main BAE container has no ServiceAccount token (`automountServiceAccountToken:
+  false`); the projected SA token is mounted only into the init container and
+  expires after `tokenExpirationSeconds` seconds.
+- SIGTERM false-positive prevention: exit code 143 explicitly produces no verdict;
+  `preStop` hook ensures the marker is cleared before SIGTERM arrives.
+- Minimal RBAC: `jgdms-bae-pod-annotator` Role grants only `get` and `patch` on
+  `pods` in the `jgdms-scap` namespace; no cluster-level permissions.
+
+**CrashLoopBackOff Prometheus alert** (optional) — `bae-crashloop-alert.yaml`
+fires a `critical` alert when a BAE pod enters `CrashLoopBackOff` (at which
+point the crash-guard init container can no longer run).
+
+**Files changed:**
+- `deploy/README.md` — new `## BAE crash-guard` section (how it works, BAE
+  contract, Downloader contract, configuration reference, production hardening,
+  security properties preserved)
+- `deploy/helm/jgdms-scap/templates/bae-crash-guard-cm.yaml` — ConfigMap with
+  `crash-guard.sh` shell script (exit-code classification, kubectl annotation
+  patch, log output)
+- `deploy/helm/jgdms-scap/templates/bae-crash-rbac.yaml` — Role +
+  RoleBinding for `jgdms-bae` ServiceAccount (`get`/`patch` on `pods`)
+- `deploy/helm/jgdms-scap/templates/bae-crashloop-alert.yaml` — PrometheusRule
+  (`BAECrashLoopBackOff` critical + `BAEFrequentCrashes` warning)
+- `deploy/helm/jgdms-scap/templates/host2-bae.yaml` — crash-guard init
+  container, `preStop` lifecycle hook, projected SA token volume,
+  `crash-guard-tmp` scratch volume, `automountServiceAccountToken: false`
+- `deploy/helm/jgdms-scap/templates/network-policy.yaml` — port-443 egress
+  rule for Kubernetes API server (conditionally enabled by
+  `host2.crashGuard.enabled`)
+- `deploy/helm/jgdms-scap/values.yaml` — `host2.crashGuard.*` and
+  `prometheus.*` value sections
+- `deploy/k8s/host2-bae/crash-rbac.yaml` — raw Kubernetes RBAC equivalent
+- `deploy/k8s/host2-bae/crash-guard-cm.yaml` — raw Kubernetes ConfigMap
+- `deploy/k8s/host2-bae/deployment.yaml` — raw Kubernetes Deployment with init
+  container, preStop hook, projected SA token, crash-guard-tmp volume
+- `deploy/k8s/network-policy.yaml` — raw Kubernetes port-443 egress for BAE
+- `docs/.../context_10.md` — this update; v64 → v65
+
+**Sections updated:**
+- §3 row 15 added (Weakness 15: BAE mid-analysis crash leaves JAR unclassified)
+- §5 Phase 4 table: item 4.4 added (✅ Completed)
+- §6 WI66 added (✅ Completed)
+
+---
 
 ## v64 Change Summary
 
@@ -1006,6 +1104,7 @@ subsequent uses skip all of the above.
 | 12 | Pack200 full-JAR heap materialization | 🟡 Low | Partially (64 MB cap) |
 | 13 | Digest-codesource hijacking — second authenticated service with same JAR bytes reuses DigestGrant | 🟠 High | ✅ Yes (WI61 — Option 1: DigestGrants now bound to both local and server SPIFFE principals) |
 | 14 | `SecurityPolicyWriter` captures all JWT principals including individual-user claims (`sub`, `email`) rather than restricting to role-grain claim names (e.g., `group:administrators`); policy files must be regenerated whenever group membership changes | 🟡 Medium | ✅ Completed (WI65) |
+| 15 | BAE mid-analysis crash leaves in-flight JAR permanently unclassified in VerdictRegistry; a weaponised JAR that OOMs or crashes the BAE generates no audit trail and will subsequently load with INCONCLUSIVE result | 🟠 High | ✅ Completed (WI66 — Kubernetes crash-guard) |
 
 ---
 
@@ -1497,6 +1596,7 @@ See Work Item 65.
 | 4.1 | SPIRE HA (W6) | Add SPIRE HA deployment topology to `spiffe-admin-deployment.md` | ✅ Completed |
 | 4.2 | ServiceStarter ordering (W4) | Document recommended startup ordering (VerdictRegistry client first) as the hardened-boot pattern | ✅ Completed |
 | 4.3 | Policy deny documentation (W8) | Document the negative grants feature (Phase 3.3) with worked examples in `security_architecture_feature_table.md` | 🔲 Not started |
+| 4.4 | BAE crash-guard (W15) | Kubernetes init container + Downloader annotation contract + Prometheus alert; converts BAE pod crashes into `SUSPICIOUS_*` / `DANGEROUS` / `ANALYSIS_ERROR` verdicts in VerdictRegistry | ✅ Completed (WI66) |
 
 ### Dependency Graph
 
@@ -1549,6 +1649,7 @@ These extend the work-item table in §12 of
 | **61** | Digest-codesource hijacking defence (Option 1) — `mergePrincipals` helper + `serverPrincipals` parameter added to `tryGrantPerUriDigestGrants`; per-JAR `DigestGrant` now bound to union of local and server SPIFFE principals; 7 unit tests added; security docs updated | 1.7 | ✅ Completed |
 | **62** | DirtyChai `SecureClassLoader` Principal-aware `defineClass` + JGDMS `RFC3986URLClassLoader` adoption — DirtyChai adds `protected final defineClass(String, byte[], int, int, CodeSource, Principal[])` and `defineClass(String, ByteBuffer, CodeSource, Principal[])` overloads to `SecureClassLoader`; JGDMS `RFC3986URLClassLoader` probes for these overloads at class init via reflection and, when found, uses them to embed server SPIFFE principals in the loaded code's `ProtectionDomain`; a new `loadClass(String, boolean, Principal[])` entry point carries principals via a `ThreadLocal` down to the `defineClass` call sites | DirtyChai + JGDMS | ✅ Complete (both JGDMS and DirtyChai sides) |
 | **65** | `PolicyCondenser` JWT role-claim filter — `PolicyCondenser.jwt.roleClaims` system property (comma-separated claim names); text-preprocessing step using `StreamTokenizer` filters non-role `au.zeus.jgdms.security.jwt.JwtPrincipal` entries from each grant header before `DefaultPolicyParser.parse()`; grants whose entire principal list is filtered are dropped entirely (to avoid creating unconstrained grants); `jgdms-security-jwt` not required on the classpath; backward-compatible default (absent property writes all principals); 6 unit tests: role claim kept, non-role claim dropped, non-JWT always kept, property absent writes all, multiple claim names, mixed principals partial filter.  No runtime changes needed — PolicyCondenser operates as a standalone offline auditing tool. | 3.6 | ✅ Completed |
+| **66** | BAE crash-guard (Kubernetes) — Converts BAE pod crashes into security-actionable verdicts, closing the gap where a weaponised JAR can crash the BAE mid-analysis with no audit trail. Three-component mechanism: (1) BAE application writes SHA-256 digest of the in-flight JAR to `/tmp/current-job` before analysis and deletes it on success; (2) Kubernetes `bitnami/kubectl` init container on every pod start detects residual markers, classifies the crash by exit code (143→no verdict, 137→`SUSPICIOUS_OOM`, 134/138→`SUSPICIOUS_CRASH`, 0-with-marker/other-nonzero→`SUSPICIOUS_CRASH`/`ANALYSIS_ERROR`, restarts≥threshold→`DANGEROUS`), patches the pod with four `jgdms.io/pending-crash-verdict-*` annotations, and clears the marker; (3) Downloader (host4) forwards pending annotations to VerdictRegistry via JERI and clears them. BAE isolation invariant preserved (init container calls Kubernetes API only). RBAC: `get`+`patch` on `pods` in `jgdms-scap` namespace only. CrashLoopBackOff Prometheus alert included (optional). | 4.4 | ✅ Completed |
 
 ---
 
@@ -2091,8 +2192,10 @@ name is compared as a plain string.
 ---
 
 *Hand this document (along with context_8 and source files as needed) to a
-future AI agent to continue without loss of context. This is version 63.
-Version 63 completes WI65: the JWT role-claim filter is implemented in
-PolicyCondenser using text-preprocessing (StreamTokenizer), not in
-SecurityPolicyWriter. The DirtyChai JDK constraint that prevents runtime
-getPrincipals() access was the key design driver.*
+future AI agent to continue without loss of context. This is version 65.
+Version 65 completes WI66: the BAE crash-guard Kubernetes mechanism converts
+BAE pod crashes into `SUSPICIOUS_*`/`DANGEROUS`/`ANALYSIS_ERROR` verdicts in
+the VerdictRegistry via a three-component design (BAE `/tmp/current-job` marker
+contract, `bitnami/kubectl` crash-guard init container, Downloader annotation
+forwarding).  The BAE isolation invariant (BAE pod cannot reach VerdictRegistry
+directly) is preserved — the init container calls the Kubernetes API only.*
