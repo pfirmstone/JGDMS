@@ -36,6 +36,7 @@ import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
+import net.jini.security.Security;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -139,7 +140,7 @@ class ObjectStreamClassContainer {
 			domains.add(clazz.getProtectionDomain());
 			clazz = clazz.getSuperclass();
 		    }
-		    return new AccessControlContext(domains.toArray(new ProtectionDomain[domains.size()]));
+			return Security.create(domains.toArray(new ProtectionDomain[domains.size()]));
 		}
 	    });
 	    sm.checkPermission(perm, context);

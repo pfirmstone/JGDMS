@@ -84,6 +84,7 @@ import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.ClientSubject;
 import net.jini.security.AccessPermission;
+import net.jini.security.Security;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
@@ -1312,7 +1313,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
             logger.log(Level.FINEST, "SecurityManager: " + sm + "\nPolicy: " + p +
                     "\nProtectionDomain: " + pd);
         }
-	AccessControlContext acc = new AccessControlContext(new ProtectionDomain []{pd});
+	AccessControlContext acc = Security.create(new ProtectionDomain []{pd});
 	sm.checkPermission(permission, acc);
     }
 

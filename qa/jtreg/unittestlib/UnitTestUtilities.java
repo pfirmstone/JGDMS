@@ -32,6 +32,7 @@ import java.security.Policy;
 import java.security.ProtectionDomain;
 import java.security.UnresolvedPermission;
 import java.security.cert.Certificate;
+import net.jini.security.Security;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
@@ -378,10 +379,10 @@ public class UnitTestUtilities {
 		perms.add(permissions[i]);
 	    }
 	}
-	return new AccessControlContext(
-	    new ProtectionDomain[] {
+	return Security.create(
+		new ProtectionDomain[] {
 		new ProtectionDomain(null, perms)
-	    });
+		});
     }
 
     private static Field unresolvedPermissionType;

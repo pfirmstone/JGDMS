@@ -35,6 +35,7 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
+import net.jini.security.Security;
 
 public class CatchSecurityException {
 
@@ -47,12 +48,12 @@ public class CatchSecurityException {
     private static final String PROPERTY_DEFAULT = "foo";
     private static final String PROPERTY_VALUE = "bar";
 
-    private static final AccessControlContext unrestrictiveContext =
-	new AccessControlContext(new ProtectionDomain[0]);
+	private static final AccessControlContext unrestrictiveContext =
+	Security.create(new ProtectionDomain[0]);
 
-    private static final AccessControlContext restrictiveContext =
-	new AccessControlContext(new ProtectionDomain[] {
-	    new ProtectionDomain(null, null),
+	private static final AccessControlContext restrictiveContext =
+	Security.create(new ProtectionDomain[] {
+		new ProtectionDomain(null, null),
 	});
 
     private static int failureCount = 0;

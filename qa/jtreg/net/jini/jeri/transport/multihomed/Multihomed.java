@@ -81,6 +81,7 @@ import net.jini.jeri.ssl.HttpsServerEndpoint;
 import net.jini.jeri.ssl.SslServerEndpoint;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.AuthenticationPermission;
+import net.jini.security.Security;
 
 public class Multihomed {
 
@@ -289,13 +290,13 @@ public class Multihomed {
 	if (isKerberos) {
 	    permissions.add(new AuthenticationPermission("* \"*\"", "connect"));
 	}
-	AccessControlContext acc = new AccessControlContext(
-				    new ProtectionDomain[] {
-				    new ProtectionDomain(null, permissions),
+	AccessControlContext acc = Security.create(
+					new ProtectionDomain[] {
+					new ProtectionDomain(null, permissions),
 	});
 	if (isKerberos) {
-	    // kerberos needs the current subject
-	    return new AccessControlContext(acc, sdc);
+		// kerberos needs the current subject
+		return Security.create(acc, sdc);
 	} else {
 	    return acc;
 	}

@@ -116,6 +116,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.security.ProxyPreparer;
+import net.jini.security.Security;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
 import org.apache.river.proxy.CodebaseProvider;
@@ -764,8 +765,8 @@ class TxnManagerImpl /*extends RemoteServer*/
 	    Set<Principal> set = s.getPrincipals();
 	    Principal[] prins = set.toArray(new Principal[0]);
 	    ProtectionDomain pd = new ProtectionDomain(EMPTY_CS, null, null, prins);
-	    AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{pd});
-	    sm.checkPermission(perm, acc);
+		AccessControlContext acc = Security.create(new ProtectionDomain[]{pd});
+		sm.checkPermission(perm, acc);
 	}
     }
 

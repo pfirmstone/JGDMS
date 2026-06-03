@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Set;
 import java.nio.charset.StandardCharsets;
 import javax.security.auth.Subject;
+import net.jini.security.Security;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -269,7 +270,7 @@ public final class AccessControlContextSerializer implements Serializable {
 
     public static AccessControlContext unmarshalForTransport(byte[] data, Subject authenticatedSubject) throws IOException {
         ProtectionDomain[] domains = unmarshalHttpmdDomains(data, authenticatedSubject);
-        return domains.length == 0 ? null : new AccessControlContext(domains);
+        return domains.length == 0 ? null : Security.create(domains);
     }
 
     /**
@@ -398,7 +399,7 @@ public final class AccessControlContextSerializer implements Serializable {
         ProtectionDomain[] all = new ProtectionDomain[total];
         System.arraycopy(httpmd, 0, all, 0, httpmd.length);
         System.arraycopy(digest, 0, all, httpmd.length, digest.length);
-        return new AccessControlContext(all);
+        return Security.create(all);
     }
 
     private final DomainIdentityRecord[] domains;
@@ -424,7 +425,7 @@ public final class AccessControlContextSerializer implements Serializable {
     }
 
     private AccessControlContextSerializer(DomainIdentityRecord[] domains) throws IOException {
-        this(domains, new AccessControlContext(toProtectionDomains(domains, null)));
+        this(domains, Security.create(toProtectionDomains(domains, null)));
     }
 
     private AccessControlContextSerializer(DomainIdentityRecord[] domains, AccessControlContext context) {
@@ -477,7 +478,7 @@ public final class AccessControlContextSerializer implements Serializable {
         // this code.  Wrapping in doPrivileged stops the stack-walk here so only
         // this trusted code's domain is checked.
         final AccessControlContext wrapped = AccessController.doPrivileged(
-                (PrivilegedAction<AccessControlContext>) () -> new AccessControlContext(acc, extractor));
+                (PrivilegedAction<AccessControlContext>) () -> Security.create(acc, extractor));
         /*
          * The JVM invokes DomainCombiner.combine() only when an AccessController
          * stack-walk is triggered.  We force that walk by calling checkPermission

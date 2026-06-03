@@ -32,6 +32,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import net.jini.loader.pref.PreferredClassProvider;
+import net.jini.security.Security;
 
 public class ConstructorCheck {
     public static void main(String[] args) throws Exception {
@@ -47,9 +48,9 @@ public class ConstructorCheck {
 	Thread.currentThread().setContextClassLoader(secretLoader);
 
 	AccessControlContext noPermsAcc =
-	    new AccessControlContext(new ProtectionDomain[] {
+		Security.create(new ProtectionDomain[] {
 		new ProtectionDomain(null, null)
-	    });
+		});
 	try {
 	    ClassLoader loader = (ClassLoader)
 		AccessController.doPrivileged(new PrivilegedAction() {

@@ -62,6 +62,7 @@ import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
 import org.apache.river.api.net.RFC3986URLClassLoader;
 import org.apache.river.api.net.Uri;
+import net.jini.security.Security;
 import org.apache.river.api.security.AdvisoryDynamicPermissions;
 import org.apache.river.api.security.AdvisoryPermissionParser;
 
@@ -1434,7 +1435,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	ProtectionDomain pd = new ProtectionDomain(
 	    new CodeSource((urls.length > 0 ? urls[0] : null),
 			   (Certificate[]) null), perms, null, null);
-	return new AccessControlContext(new ProtectionDomain[] { pd });
+	return Security.create(new ProtectionDomain[] { pd });
     }
 
     /**

@@ -163,7 +163,7 @@ extends SecurityManager implements CachingSecurityManager {
         ProtectionDomain [] context = new ProtectionDomain[1];
         privilegedDomain = this.getClass().getProtectionDomain();
         context[0] = privilegedDomain;
-        SMPrivilegedContext = new AccessControlContext(context);
+        SMPrivilegedContext = Security.create(context);
         dc = new DelegateDomainCombiner();
         ConcurrentMap<Referrer<AccessControlContext>, 
                 Referrer<AccessControlContext>> internal = 
@@ -339,7 +339,7 @@ extends SecurityManager implements CachingSecurityManager {
                 delegateContext = AccessController.doPrivileged( 
                     new PrivilegedAction<AccessControlContext>(){
                         public AccessControlContext run() {
-                            return new AccessControlContext(finalExecutionContext, dc);
+                            return Security.create(finalExecutionContext, dc);
                         }
                     }
                 );

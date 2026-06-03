@@ -105,16 +105,16 @@ public final class BasicUntrustedObjectSecurityContext
 	final AccessControlContext racc = (AccessControlContext)
 	    AccessController.doPrivileged(new PrivilegedAction() {
 		public Object run() {
-		    DomainCombiner comb0 = acc0.getDomainCombiner();
-		    AccessControlContext acc1 =
-			new AccessControlContext(acc0, new Combiner(comb0));
-		    AccessControlContext acc2 = (AccessControlContext)
+			DomainCombiner comb0 = acc0.getDomainCombiner();
+			AccessControlContext acc1 =
+			Security.create(acc0, new Combiner(comb0));
+			AccessControlContext acc2 = (AccessControlContext)
 			AccessController.doPrivileged(new PrivilegedAction() {
-				public Object run() {
-				    return AccessController.getContext();
-				}
-			    }, acc1);
-		    return new AccessControlContext(acc2, comb0);
+					public Object run() {
+						return AccessController.getContext();
+					}
+					}, acc1);
+			return Security.create(acc2, comb0);
 		}
 	    });
 	return (SecurityContext) AccessController.doPrivileged(

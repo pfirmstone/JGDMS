@@ -31,6 +31,7 @@ import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.ProtectionDomain;
+import net.jini.security.Security;
 import java.util.Properties;
 import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.login.LoginContext;
@@ -133,10 +134,10 @@ class TestUtilities extends UnitTestUtilities {
 		    permissions.add(perms[i]);
 	    }
 	}
-	return new AccessControlContext(
-	    new ProtectionDomain[] {
+	return Security.create(
+		new ProtectionDomain[] {
 		new ProtectionDomain(null, permissions)
-	    });
+		});
     }
 
     /* -- Methods for accessing connections -- */

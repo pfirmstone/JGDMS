@@ -448,11 +448,13 @@
                         <include name="high-scale-lib-1.0.6.jar"/>
                         <include name="bcprov-jdk15on-1.59.jar"/>
                         <include name="bctls-jdk15on-1.59.jar"/>
+                        <include name="phoenix-group-${jgdms.version}.jar"/>
                         <!-- The next must be manually copied -->
                         <include name="security-policy-debug-${jgdms.version}.jar"/>
                     </fileset>
                     <fileset dir="${river.lib-dl.dir}">
                         <include name="jgdms-lib-dl-${jgdms.version}.jar"/>
+                        <include name="phoenix-dl-${jgdms.version}.jar"/>
                     </fileset>
                 </classpath>
                 <env key="SOUL" value="${soul}"/>

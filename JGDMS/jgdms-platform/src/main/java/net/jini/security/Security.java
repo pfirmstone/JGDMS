@@ -19,6 +19,7 @@
 package net.jini.security;
 
 import java.lang.ref.SoftReference;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -252,15 +253,27 @@ public final class Security {
      * {@code null}, in which case {@link #checkPermission} falls back to the
      * {@code new AccessControlContext(ProtectionDomain[])} constructor.
      */
-    private static final Method ACC_CREATE = AccessController.doPrivileged(
+    private static final Method ACC_CREATE_PD = AccessController.doPrivileged(
             new PrivilegedAction<Method>() {
                 @Override
                 public Method run() {
                     try {
-                        Method m = AccessControlContext.class.getMethod(
+                        return AccessControlContext.class.getMethod(
                                 "create", ProtectionDomain[].class);
-                        m.setAccessible(true);
-                        return m;
+                    } catch (NoSuchMethodException ex) {
+                        // Standard OpenJDK: fall back to constructor path.
+                        return null;
+                    }
+                }
+            });
+    
+    private static final Method ACC_CREATE_ACDC = AccessController.doPrivileged(
+            new PrivilegedAction<Method>() {
+                @Override
+                public Method run() {
+                    try {
+                        return AccessControlContext.class.getMethod(
+                                "create", new Class[]{ AccessControlContext.class, DomainCombiner.class});
                     } catch (NoSuchMethodException ex) {
                         // Standard OpenJDK: fall back to constructor path.
                         return null;
@@ -306,27 +319,71 @@ public final class Security {
             return;
         }
         // Build an AccessControlContext containing only the supplied domains.
-        final ProtectionDomain[] domainsCopy = domains.clone();
         AccessControlContext acc = AccessController.doPrivileged(
                 new PrivilegedAction<AccessControlContext>() {
                     @Override
                     public AccessControlContext run() {
-                        if (ACC_CREATE != null) {
-                            // DirtyChai: use the virtual-thread-safe factory.
-                            try {
-                                return (AccessControlContext)
-                                        ACC_CREATE.invoke(null,
-                                                (Object) domainsCopy);
-                            } catch (Exception ex) {
-                                // Fall through to constructor.
-                            }
-                        }
-                        // OpenJDK fallback.
-                        return new AccessControlContext(domainsCopy);
+                        return create(domains);
                     }
                 });
         // Route through the security manager so audit managers capture it.
         sm.checkPermission(perm, acc);
+    }
+    
+    /**
+     * Convenience method that creates an AccessControlContext using DirtyChai's
+     * factory method, or falls back to an AccessControlContext on other Java
+     * platforms.
+     * 
+     * @param domains array containing context ProtectionDomain's.
+     * @return a cached or newly created AccessControlContext.
+     */
+    public static AccessControlContext create(ProtectionDomain [] domains){
+        // Build an AccessControlContext containing only the supplied domains.
+        if (ACC_CREATE_PD != null) {
+            // DirtyChai: use the virtual-thread-safe factory.
+            try {
+                return (AccessControlContext)
+                        ACC_CREATE_PD.invoke(null,
+                                (Object) domains);
+            } catch (IllegalAccessException ex) {
+                // Fall through to constructor.
+            } catch (InvocationTargetException ex){
+                Throwable t = ex.getCause();
+                if (t instanceof SecurityException se) throw se;
+                // Fall through to constructor.
+            }
+        }
+        // OpenJDK fallback.
+        return new AccessControlContext(domains);
+    }
+    
+    /**
+     * Convenience method that creates an AccessControlContext using DirtyChai's
+     * factory method, or falls back to an AccessControlContext on other Java
+     * platforms.
+     * 
+     * @param context AccessControlContext
+     * @param combiner DomainCombiner or null.
+     * @return a cached or newly created AccessControlContext.
+     */
+    public static AccessControlContext create(AccessControlContext context, DomainCombiner combiner){
+        // Build an AccessControlContext containing only the supplied domains.
+        if (ACC_CREATE_ACDC != null) {
+            // DirtyChai: use the virtual-thread-safe factory.
+            try {
+                return (AccessControlContext)
+                    ACC_CREATE_ACDC.invoke(null, new Object[]{context, combiner});
+            } catch (IllegalAccessException ex) {
+                // Fall through to constructor.
+            } catch (InvocationTargetException ex){
+                Throwable t = ex.getCause();
+                if (t instanceof SecurityException se) throw se;
+                // Fall through to constructor.
+            }
+        }
+        // OpenJDK fallback.
+        return new AccessControlContext(context, combiner);
     }
 
     /**
@@ -1020,9 +1077,9 @@ public final class Security {
 
             @Override
             public AccessControlContext run() {
-                AccessControlContext context = acc != null ? acc : new AccessControlContext(new ProtectionDomain[0]);
+                AccessControlContext context = acc != null ? acc : create(new ProtectionDomain[0]);
                 if (subject == null) return context;
-                return new AccessControlContext(context, new DistributedSubjectCombiner(subject));
+                return create(context, new DistributedSubjectCombiner(subject));
             }
             
         });
@@ -1048,7 +1105,7 @@ public final class Security {
 	if (pds == null) {
 	    pds = new ProtectionDomain[0];
 	}
-	return new AccessControlContext(new AccessControlContext(pds), comb);
+	return create(create(pds), comb);
     }
 
     /**

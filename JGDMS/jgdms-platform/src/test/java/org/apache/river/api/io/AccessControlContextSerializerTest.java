@@ -23,6 +23,7 @@ import java.net.URLStreamHandler;
 import java.security.AccessControlContext;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
+import net.jini.security.Security;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import org.junit.Assert;
@@ -45,7 +46,7 @@ public class AccessControlContextSerializerTest {
             ProtectionDomain plainPd = new ProtectionDomain(
                     new CodeSource(plain, (java.security.cert.Certificate[]) null),
                     null, null, new java.security.Principal[0]);
-            AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{httpmdPd, plainPd});
+            AccessControlContext acc = Security.create(new ProtectionDomain[]{httpmdPd, plainPd});
 
             byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
             Assert.assertTrue(encoded.length > 0);
@@ -81,7 +82,7 @@ public class AccessControlContextSerializerTest {
             ProtectionDomain pd = new ProtectionDomain(
                     new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
                     null, null, new java.security.Principal[0]);
-            AccessControlContext original = new AccessControlContext(new ProtectionDomain[]{pd});
+            AccessControlContext original = Security.create(new ProtectionDomain[]{pd});
 
             java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
             java.io.ObjectOutputStream out = new AtomicMarshalOutputStream(baos, null);
@@ -243,7 +244,7 @@ public class AccessControlContextSerializerTest {
             ProtectionDomain pd = new ProtectionDomain(
                     new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
                     null, null, new java.security.Principal[0]);
-            AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{pd});
+            AccessControlContext acc = Security.create(new ProtectionDomain[]{pd});
 
             byte[] digestBytes = AccessControlContextSerializer.marshalDigestForTransport(acc);
             Assert.assertEquals("no DigestCodeSource domains → empty digestTransportBytes",
@@ -276,7 +277,7 @@ public class AccessControlContextSerializerTest {
             ProtectionDomain pd = new ProtectionDomain(
                     new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
                     null, null, new java.security.Principal[0]);
-            AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{pd});
+            AccessControlContext acc = Security.create(new ProtectionDomain[]{pd});
             byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
             Assert.assertTrue("encoded payload must be non-empty", encoded.length > 0);
             // First 4 bytes are always the HTTPMD domain count.
@@ -331,7 +332,7 @@ public class AccessControlContextSerializerTest {
             ProtectionDomain plain2Pd = new ProtectionDomain(
                     new CodeSource(plain2, (java.security.cert.Certificate[]) null),
                     null, null, new java.security.Principal[0]);
-            AccessControlContext acc = new AccessControlContext(
+            AccessControlContext acc = Security.create(
                     new ProtectionDomain[]{httpmdPd, plain1Pd, plain2Pd});
 
             byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
@@ -365,7 +366,7 @@ public class AccessControlContextSerializerTest {
         ProtectionDomain plainPd = new ProtectionDomain(
                 new CodeSource(plain, (java.security.cert.Certificate[]) null),
                 null, null, new java.security.Principal[0]);
-        AccessControlContext acc = new AccessControlContext(new ProtectionDomain[]{plainPd});
+        AccessControlContext acc = Security.create(new ProtectionDomain[]{plainPd});
         byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);
         Assert.assertEquals("no HTTPMD domain → empty payload", 0, encoded.length);
     }
@@ -407,7 +408,7 @@ public class AccessControlContextSerializerTest {
                     new CodeSource(jrtCryptoEc, (java.security.cert.Certificate[]) null),
                     null, null, new java.security.Principal[0]);
 
-            AccessControlContext acc = new AccessControlContext(
+            AccessControlContext acc = Security.create(
                     new ProtectionDomain[]{httpmdPd, jrtBasePd, jrtCryptoPd});
 
             byte[] encoded = AccessControlContextSerializer.marshalForTransport(acc);

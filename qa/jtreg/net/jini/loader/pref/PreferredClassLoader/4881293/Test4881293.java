@@ -29,6 +29,7 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import net.jini.loader.pref.PreferredClassLoader;
+import net.jini.security.Security;
 
 public class Test4881293 {
     public static void main(String[] args) throws Exception {
@@ -53,8 +54,8 @@ public class Test4881293 {
 		"TEST ERROR: restricted class not found", e);
 	}
 
-	AccessControlContext restrictedACC = new AccessControlContext(
-	    new ProtectionDomain[] { new ProtectionDomain(null, null) });
+	AccessControlContext restrictedACC = Security.create(
+		new ProtectionDomain[] { new ProtectionDomain(null, null) });
 
 	try {
 	    try {

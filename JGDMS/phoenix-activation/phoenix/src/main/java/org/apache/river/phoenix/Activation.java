@@ -1829,20 +1829,54 @@ class Activation implements Serializable {
             } finally {
                 activation.readLock.unlock();
             }
-	    MarshalledObject marshalledProxy =
-		inst.newInstance(id, descriptor);
-            nstub = new MarshalledWrapper(marshalledProxy);
-            activation.writeLock.lock();
-            try {
-                stub = nstub;
-                return nstub;
-            } finally {
-                activation.writeLock.unlock();
-            }
+		// Perform the outbound newInstance call under Phoenix's own server
+		// Subject, not the client's Subject that is current on this thread
+		// due to BasicInvocationDispatcher.invokeWithClientSubject wrapping.
+		// Without this, JSSE would try to authenticate as the client (e.g.
+		// CN=Tester) which has no private key in the Phoenix JVM.
+		final ActivationInstantiator finalInst = inst;
+		final ActivationID finalId = id;
+		final ActivationDesc finalDesc = descriptor;
+		final LoginContext login = activation.login;
+		MarshalledObject marshalledProxy;
+		try {
+		PrivilegedExceptionAction<MarshalledObject> action =
+			new PrivilegedExceptionAction<MarshalledObject>() {
+			@Override
+			public MarshalledObject run() throws Exception {
+				return finalInst.newInstance(finalId, finalDesc);
+			}
+			};
+		if (login != null) {
+			marshalledProxy = Subject.doAsPrivileged(
+			login.getSubject(), action, null);
+		} else {
+			marshalledProxy = action.run();
+		}
+		} catch (java.security.PrivilegedActionException e) {
+		Exception cause = e.getException();
+		if (cause instanceof RemoteException) throw (RemoteException) cause;
+		if (cause instanceof ActivationException) throw (ActivationException) cause;
+		if (cause instanceof IOException) throw (IOException) cause;
+		throw new RemoteException("newInstance failed", cause);
+		} catch (Exception e) {
+		if (e instanceof RemoteException) throw (RemoteException) e;
+		if (e instanceof ActivationException) throw (ActivationException) e;
+		if (e instanceof IOException) throw (IOException) e;
+		throw new RemoteException("newInstance failed", e);
+		}
+			nstub = new MarshalledWrapper(marshalledProxy);
+			activation.writeLock.lock();
+			try {
+				stub = nstub;
+				return nstub;
+			} finally {
+				activation.writeLock.unlock();
+			}
 	}
-	
+
 	void reset() {
-	    stub = null;
+		stub = null;
 	}
 
 	void removed() {

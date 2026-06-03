@@ -43,6 +43,7 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
+import net.jini.security.Security;
 import net.jini.jeri.InboundRequest;
 import net.jini.jeri.RequestDispatcher;
 import net.jini.jeri.ServerEndpoint;
@@ -118,8 +119,8 @@ public class LocalHostExposure {
 	 * name in its detail message.
 	 */
 	System.err.println("Trying without permission:");
-	AccessControlContext acc = new AccessControlContext(
-	    new ProtectionDomain[] { new ProtectionDomain(null, null) });
+	AccessControlContext acc = Security.create(
+		new ProtectionDomain[] { new ProtectionDomain(null, null) });
 	try {
 	    AccessController.doPrivileged(new PrivilegedExceptionAction() {
 		public Object run() throws IOException {
