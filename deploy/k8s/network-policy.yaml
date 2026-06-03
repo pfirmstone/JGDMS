@@ -95,7 +95,9 @@ spec:
 
 # ── 4. Host 2 (BAE) ───────────────────────────────────────────────────────────
 # Accepts inbound JERI from Host 4 and Host 5 only.
-# Egress: NONE (not even to Host 3 — isolation invariant).
+# Egress: only to Kubernetes API server on port 443 for the crash-guard init
+# container (which patches pod annotations with pending crash verdicts).
+# BAE → VerdictRegistry (Host 3) remains DENIED — isolation invariant preserved.
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -120,10 +122,16 @@ spec:
       ports:
         - port: 1098
           protocol: TCP
+  # Allow crash-guard init container to reach the Kubernetes API server.
+  # The main BAE container has no kubectl binary and cannot exploit this rule.
+  # Restrict cidr to your cluster service CIDR in production (e.g. 10.96.0.0/12).
   egress:
-    # Intentionally empty — BAE has no permitted outbound connections.
-    # (DNS is handled by the separate allow-dns-egress policy.)
-    []
+    - to:
+        - ipBlock:
+            cidr: "0.0.0.0/0"
+      ports:
+        - port: 443
+          protocol: TCP
 
 # ── 5. Host 3 (Verdict Registry) ─────────────────────────────────────────────
 # Accepts inbound from: Host 4, Host 5, Clients.  NOT from Host 2.

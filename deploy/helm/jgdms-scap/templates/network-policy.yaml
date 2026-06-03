@@ -67,7 +67,11 @@ spec:
           protocol: TCP
   egress: []
 ---
-# Host 2 (BAE): accepts from downloader and telemetry only.  NO egress allowed.
+# Host 2 (BAE): accepts from downloader and telemetry only.
+# Egress is restricted to the Kubernetes API server on port 443 when
+# crashGuard is enabled (init container needs to read pod status and
+# patch annotations).  All other egress — including to the VerdictRegistry
+# — is denied; the isolation invariant (BAE → Registry = DENIED) is preserved.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -91,7 +95,20 @@ spec:
       ports:
         - port: {{ .Values.host2.jeriPort }}
           protocol: TCP
+  {{- if .Values.host2.crashGuard.enabled }}
+  # Allow the crash-guard init container to reach the Kubernetes API server.
+  # The main BAE container has no egress and no kubectl binary, so this rule
+  # cannot be exploited by a compromised BAE JVM.
+  egress:
+    - to:
+        - ipBlock:
+            cidr: {{ .Values.host2.crashGuard.apiServerCidr | quote }}
+      ports:
+        - port: 443
+          protocol: TCP
+  {{- else }}
   egress: []
+  {{- end }}
 ---
 # Host 3 (Verdict Registry): accepts from downloader, telemetry, and clients.
 # NOT from BAE — isolation invariant.

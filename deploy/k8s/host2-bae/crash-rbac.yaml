@@ -1,0 +1,32 @@
+# Crash-guard RBAC for the jgdms-bae ServiceAccount.
+#
+# The crash-guard init container needs to:
+#   - GET the pod's own status (to read restartCount and last exit code)
+#   - PATCH the pod's annotations (to record pending crash verdicts)
+#
+# Only pods in the jgdms-scap namespace are affected.
+# The main BAE container has no kubectl binary and cannot exploit this role.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jgdms-bae-pod-annotator
+  namespace: jgdms-scap
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jgdms-bae-pod-annotator
+  namespace: jgdms-scap
+subjects:
+  - kind: ServiceAccount
+    name: jgdms-bae
+    namespace: jgdms-scap
+roleRef:
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+  name: jgdms-bae-pod-annotator

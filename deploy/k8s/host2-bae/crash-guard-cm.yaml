@@ -1,0 +1,113 @@
+# ConfigMap containing the crash-guard init container script.
+#
+# See deploy/helm/jgdms-scap/templates/bae-crash-guard-cm.yaml for full
+# documentation of the crash-guard mechanism.
+#
+# CLBO_THRESHOLD is hardcoded to 5 in this static manifest.
+# Use the Helm chart if you need to tune this value.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bae-crash-guard-script
+  namespace: jgdms-scap
+  labels:
+    app.kubernetes.io/component: bae
+data:
+  crash-guard.sh: |
+    #!/bin/sh
+    # crash-guard — SCAP BAE crash-verdict init container script.
+    # See deploy/helm/jgdms-scap/templates/bae-crash-guard-cm.yaml for docs.
+    set -eu
+
+    JOB_FILE="/tmp/current-job"
+    NS="${POD_NAMESPACE}"
+    POD="${POD_NAME}"
+    CLBO_THRESHOLD="${CRASH_LOOP_THRESHOLD:-5}"
+
+    # ── Nothing to do on a clean start ─────────────────────────────────────
+    if [ ! -f "$JOB_FILE" ]; then
+        echo "[crash-guard] No in-flight job marker — clean start."
+        exit 0
+    fi
+
+    DIGEST=$(cat "$JOB_FILE")
+    echo "[crash-guard] In-flight job marker found: digest=$DIGEST"
+
+    # ── Fetch last exit code and restart count from the Kubernetes API ──────
+    EXIT_CODE=$(kubectl get pod "$POD" -n "$NS" \
+        -o jsonpath='{.status.containerStatuses[?(@.name=="bae")].lastState.terminated.exitCode}' \
+        2>/dev/null || true)
+    if [ -z "$EXIT_CODE" ]; then EXIT_CODE=0; fi
+
+    RESTART_COUNT=$(kubectl get pod "$POD" -n "$NS" \
+        -o jsonpath='{.status.containerStatuses[?(@.name=="bae")].restartCount}' \
+        2>/dev/null || true)
+    if [ -z "$RESTART_COUNT" ]; then RESTART_COUNT=0; fi
+
+    echo "[crash-guard] last exit=$EXIT_CODE restartCount=$RESTART_COUNT"
+
+    # ── Exit 143 (SIGTERM) = graceful Kubernetes-initiated shutdown ──────────
+    # The BAE's preStop hook normally clears the job marker before SIGTERM
+    # arrives.  However hard eviction (grace period = 0) or a race between
+    # preStop and SIGTERM can leave the marker.  In both cases, SIGTERM is
+    # not a security signal — clear the marker and exit cleanly.
+    if [ "$EXIT_CODE" -eq 143 ]; then
+        echo "[crash-guard] SIGTERM detected — not a security crash. Clearing marker."
+        rm -f "$JOB_FILE"
+        exit 0
+    fi
+
+    # ── Classify crash by exit code ─────────────────────────────────────────
+    case "$EXIT_CODE" in
+        137)
+            # SIGKILL from the OOM killer — possible decompression bomb or
+            # unbounded class generation in the analysed JAR.
+            VERDICT="SUSPICIOUS_OOM"
+            ;;
+        134|138)
+            # SIGABRT (134) or SIGBUS (138) — JVM hs_err crash dump was likely
+            # written.  Possible bytecode exploit triggering a native JVM bug
+            # or a verifier bypass causing memory corruption.
+            VERDICT="SUSPICIOUS_CRASH"
+            ;;
+        0)
+            # Job marker present but last exit was 0 — the BAE exited cleanly
+            # without deleting the marker.  This indicates an abnormal
+            # shutdown path; treat conservatively.
+            VERDICT="SUSPICIOUS_CRASH"
+            ;;
+        *)
+            # Uncaught Java exception or other non-zero clean exit.
+            # Less alarming — may be a BAE bug rather than a hostile JAR.
+            VERDICT="ANALYSIS_ERROR"
+            ;;
+    esac
+
+    # ── Escalate to DANGEROUS at CrashLoopBackOff threshold ─────────────────
+    # After CLBO_THRESHOLD restarts Kubernetes stops restarting the container.
+    # The same digest is consistently crashing the BAE, which is strong
+    # evidence of a weaponised JAR.
+    if [ "$RESTART_COUNT" -ge "$CLBO_THRESHOLD" ]; then
+        VERDICT="DANGEROUS"
+        echo "[crash-guard] DANGEROUS escalation after $RESTART_COUNT restarts on the same pod."
+    fi
+
+    echo "[crash-guard] Recording verdict=$VERDICT for digest=$DIGEST"
+
+    # ── Patch pod annotations ────────────────────────────────────────────────
+    # The Downloader (host4) monitors jgdms.io/pending-crash-verdict-* on all
+    # BAE pods during its Jini lookup discovery cycle and forwards the verdict
+    # to the VerdictRegistry (host3) via JERI.  Once consumed, the Downloader
+    # clears these annotations.
+    kubectl annotate pod "$POD" -n "$NS" --overwrite \
+        "jgdms.io/pending-crash-verdict-digest=$DIGEST" \
+        "jgdms.io/pending-crash-verdict-verdict=$VERDICT" \
+        "jgdms.io/pending-crash-verdict-exit=$EXIT_CODE" \
+        "jgdms.io/pending-crash-verdict-restarts=$RESTART_COUNT"
+
+    echo "[crash-guard] Pending crash verdict annotation set on pod $POD."
+
+    # ── Clear the job marker ─────────────────────────────────────────────────
+    rm -f "$JOB_FILE"
+    echo "[crash-guard] Job marker cleared. BAE may proceed."

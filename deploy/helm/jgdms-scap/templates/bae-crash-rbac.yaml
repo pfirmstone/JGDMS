@@ -1,0 +1,42 @@
+{{/*
+bae-crash-rbac.yaml — RBAC for the BAE crash-guard init container.
+
+The crash-guard init container runs kubectl to:
+  - GET the pod's last container exit code and restart count.
+  - PATCH pod annotations to record a pending crash verdict.
+
+These are the minimum privileges required.  The Role is namespace-scoped
+and limited to pods only; no other resources are accessible.
+*/}}
+{{- if .Values.host2.crashGuard.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jgdms-bae-pod-annotator
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app.kubernetes.io/component: bae
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jgdms-bae-pod-annotator
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app.kubernetes.io/component: bae
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jgdms-bae-pod-annotator
+subjects:
+  - kind: ServiceAccount
+    name: jgdms-bae
+    namespace: {{ include "jgdms-scap.namespace" . }}
+{{- end }}

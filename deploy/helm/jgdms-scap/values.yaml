@@ -85,6 +85,49 @@ host2:
       cpu: "2"
       memory: "2Gi"
 
+  # ── Crash-guard init container ──────────────────────────────────────────────
+  # When enabled, a crash-guard init container runs before every BAE container
+  # start.  If a job-marker file (/tmp/current-job) was left by a previous BAE
+  # crash, the init container annotates the pod with a pending crash verdict
+  # that the Downloader (host4) forwards to the VerdictRegistry (host3).
+  #
+  # BAE application requirement: the BAE implementation MUST write the SHA-256
+  # digest of the JAR it is currently analysing to /tmp/current-job before
+  # beginning analysis, and delete it after successful completion.  The preStop
+  # lifecycle hook configured in this chart clears the marker automatically on
+  # graceful SIGTERM-initiated shutdown.
+  crashGuard:
+    enabled: true
+
+    # Image used for the crash-guard init container.
+    # bitnami/kubectl provides a minimal Alpine image with kubectl pre-installed.
+    image:
+      repository: bitnami/kubectl
+      tag: ""            # defaults to "latest"
+      pullPolicy: IfNotPresent
+
+    # Number of container restarts after which the verdict is escalated from
+    # SUSPICIOUS_* / ANALYSIS_ERROR to DANGEROUS.  Should match the
+    # CrashLoopBackOff restart threshold expected from Kubernetes (typically 5).
+    crashLoopThreshold: 5
+
+    # Lifetime (seconds) of the projected ServiceAccount token injected into
+    # the crash-guard init container for Kubernetes API access.  The token is
+    # only valid for this short window; the main BAE container does not receive
+    # it (automountServiceAccountToken remains false at the pod level).
+    tokenExpirationSeconds: 600
+
+    # Kubernetes API server egress CIDR for the BAE NetworkPolicy.
+    # The crash-guard init container calls the Kubernetes API on port 443 to
+    # read pod status (exit code, restart count) and patch annotations.
+    # Set to your cluster's service CIDR for tighter isolation.
+    # Examples:
+    #   kubeadm default:  "10.96.0.0/12"
+    #   GKE default:      "10.0.0.0/8"
+    # Leave as "0.0.0.0/0" if the API server IP is unknown (e.g. managed k8s
+    # with a public endpoint).
+    apiServerCidr: "0.0.0.0/0"
+
 # ── Host 3 — Verdict Registry ─────────────────────────────────────────────────
 host3:
   enabled: true
@@ -153,3 +196,27 @@ spire:
   # Path on the host node where the SPIRE agent writes SVID files.
   # This must match the DaemonSet configuration in spire-agent.yaml.
   hostSvidPath: "/run/spire/svid"
+
+# ── Prometheus / Prometheus Operator integration ───────────────────────────────
+prometheus:
+  # Set enabled: true if the Prometheus Operator CRD (PrometheusRule) is
+  # installed in the cluster.  Renders bae-crashloop-alert.yaml.
+  prometheusOperator:
+    enabled: false
+    # Additional labels to add to every PrometheusRule so that your
+    # Prometheus instance selects it (via ruleSelector.matchLabels).
+    # Example:
+    #   ruleLabels:
+    #     release: kube-prometheus-stack
+    ruleLabels: {}
+
+  # How often Prometheus evaluates the BAE crash alert rules.
+  evaluationInterval: "30s"
+
+  # Per-alert tuning.
+  baeAlerts:
+    # How long a pod must be in CrashLoopBackOff before firing the critical alert.
+    crashLoopFor: "1m"
+    # How long the frequent-crash condition must hold before firing the warning.
+    # "0m" means fire immediately on the first evaluation that satisfies the expr.
+    frequentCrashFor: "0m"

@@ -1,0 +1,102 @@
+{{/*
+bae-crashloop-alert.yaml — PrometheusRule for BAE CrashLoopBackOff escalation.
+
+Requires the Prometheus Operator CRD (monitoring.coreos.com/v1).
+Enable with: prometheus.prometheusOperator.enabled: true
+
+When a BAE pod enters CrashLoopBackOff it means Kubernetes has stopped
+restarting it after repeated failures.  At this point the crash-guard init
+container can no longer run, so automatic verdict submission via annotations
+is blocked.  This alert fires an out-of-band notification so operators can:
+  - Manually submit a DANGEROUS verdict to the VerdictRegistry for the
+    in-flight digest visible in the pod's jgdms.io/pending-crash-verdict-*
+    annotations.
+  - Investigate the hs_err_pid*.log crash dump (if exit 134/138) or the
+    OOM killer log (if exit 137).
+  - Quarantine the digest in the BAE signing-key revocation list.
+*/}}
+{{- if .Values.prometheus.prometheusOperator.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: jgdms-bae-crashloop
+  namespace: {{ include "jgdms-scap.namespace" . }}
+  labels:
+    app.kubernetes.io/component: bae
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{- with .Values.prometheus.prometheusOperator.ruleLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: jgdms.bae.crash
+      interval: {{ .Values.prometheus.evaluationInterval | default "30s" | quote }}
+      rules:
+
+        # ── BAE pod in CrashLoopBackOff ──────────────────────────────────────
+        # Fires when any host2-bae container is waiting in CrashLoopBackOff.
+        # Kubernetes has stopped restarting it — manual operator action required
+        # to submit the DANGEROUS verdict and clear the pending annotation.
+        - alert: BAECrashLoopBackOff
+          expr: |
+            kube_pod_container_status_waiting_reason{
+              reason="CrashLoopBackOff",
+              namespace="{{ include "jgdms-scap.namespace" . }}",
+              container="bae"
+            } == 1
+          for: {{ .Values.prometheus.baeAlerts.crashLoopFor | default "1m" | quote }}
+          labels:
+            severity: critical
+            scap_component: bae
+          annotations:
+            summary: "BAE pod {{ "{{" }} $labels.pod {{ "}}" }} is in CrashLoopBackOff"
+            description: |
+              BAE pod {{ "{{" }} $labels.pod {{ "}}" }} has entered CrashLoopBackOff.
+              Kubernetes has stopped automatic restarts. The crash-guard init
+              container cannot run while the pod is in this state, so the pending
+              crash verdict may not have been forwarded to the VerdictRegistry.
+
+              Operator actions:
+              1. Inspect the pod annotations for the in-flight digest:
+                   kubectl get pod {{ "{{" }} $labels.pod {{ "}}" }} \
+                     -n {{ include "jgdms-scap.namespace" . }} \
+                     -o jsonpath='{.metadata.annotations}' | python3 -m json.tool
+              2. Manually submit a DANGEROUS verdict for that digest to the
+                 VerdictRegistry via the SCAP admin API.
+              3. Review the crash dump:
+                   kubectl logs {{ "{{" }} $labels.pod {{ "}}" }} -n {{ include "jgdms-scap.namespace" . }} --previous
+              4. Once the root cause is understood, delete and recreate the pod
+                 to allow Kubernetes to restart it.
+
+        # ── BAE pod restarting frequently (pre-CLBO warning) ─────────────────
+        # Fires when a BAE container has restarted more than the
+        # crashLoopThreshold within the last 10 minutes.  This fires before
+        # CLBO and allows proactive investigation while the crash-guard init
+        # container can still run.
+        - alert: BAEFrequentCrashes
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{
+                namespace="{{ include "jgdms-scap.namespace" . }}",
+                container="bae"
+              }[10m]
+            ) >= {{ .Values.host2.crashGuard.crashLoopThreshold }}
+          for: {{ .Values.prometheus.baeAlerts.frequentCrashFor | default "0m" | quote }}
+          labels:
+            severity: warning
+            scap_component: bae
+          annotations:
+            summary: "BAE pod {{ "{{" }} $labels.pod {{ "}}" }} has crashed {{ "{{" }} $value {{ "}}" }} times in 10 min"
+            description: |
+              BAE pod {{ "{{" }} $labels.pod {{ "}}" }} has restarted {{ "{{" }} $value | humanize {{ "}}" }} times
+              in the last 10 minutes. The crash-guard init container is recording
+              pending crash verdicts as pod annotations.  Verify that the
+              Downloader (host4) is consuming and forwarding these verdicts to
+              the VerdictRegistry (host3).
+
+              Check pending verdicts:
+                kubectl get pod {{ "{{" }} $labels.pod {{ "}}" }} \
+                  -n {{ include "jgdms-scap.namespace" . }} \
+                  -o jsonpath='{.metadata.annotations}' | python3 -m json.tool
+{{- end }}

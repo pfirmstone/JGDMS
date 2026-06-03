@@ -50,6 +50,8 @@ metadata:
   labels:
     app: host2-bae
     scap-role: bae
+    app.kubernetes.io/component: bae
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   replicas: {{ .Values.host2.replicas }}
   selector:
@@ -62,6 +64,10 @@ spec:
         scap-role: bae
     spec:
       serviceAccountName: jgdms-bae
+      # Keep automountServiceAccountToken false at the pod level.
+      # The crash-guard init container receives a short-lived projected
+      # ServiceAccount token via an explicit volume (see volumes below).
+      # The main BAE container does NOT receive any SA token.
       automountServiceAccountToken: false
       {{- if .Values.host2.requireSelinuxNodes }}
       nodeSelector:
@@ -77,6 +83,52 @@ spec:
         seLinuxOptions:
           type: {{ .Values.host2.selinuxType | quote }}
         {{- end }}
+      {{- if .Values.host2.crashGuard.enabled }}
+      # ── Crash-guard init container ────────────────────────────────────────
+      # Runs before the BAE container on every pod start.  Detects mid-analysis
+      # crashes by checking for a residual /tmp/current-job marker, classifies
+      # the crash by exit code, and patches the pod with pending-crash-verdict
+      # annotations for the Downloader (host4) to forward to the VerdictRegistry.
+      initContainers:
+        - name: crash-guard
+          image: {{ include "jgdms-scap.image" (dict "repo" .Values.host2.crashGuard.image.repository "tag" .Values.host2.crashGuard.image.tag "global" .Values.global) }}
+          imagePullPolicy: {{ .Values.host2.crashGuard.image.pullPolicy }}
+          command: ["/bin/sh", "/scripts/crash-guard.sh"]
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CRASH_LOOP_THRESHOLD
+              value: {{ .Values.host2.crashGuard.crashLoopThreshold | quote }}
+          volumeMounts:
+            - name: crash-guard-script
+              mountPath: /scripts
+              readOnly: true
+            - name: crash-guard-token
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: crash-guard-tmp
+              mountPath: /crash-guard-tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+      {{- end }}
       containers:
         - name: bae
           image: {{ include "jgdms-scap.image" (dict "repo" .Values.host2.image.repository "tag" .Values.host2.image.tag "global" .Values.global) }}
@@ -98,6 +150,18 @@ spec:
               value: "/opt/jgdms/keys/engine-signing-key.pem"
             - name: ENGINE_SIGNING_CERT
               value: "/opt/jgdms/keys/engine-signing-cert.pem"
+          {{- if .Values.host2.crashGuard.enabled }}
+          # ── preStop hook: clear the job marker on graceful shutdown ──────────
+          # When Kubernetes terminates the BAE container gracefully (SIGTERM),
+          # this hook removes /tmp/current-job before SIGTERM is sent.
+          # This prevents the crash-guard init container from generating a false
+          # SUSPICIOUS verdict on the next container restart (e.g. after a
+          # rolling update or a liveness-probe-triggered restart).
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -f /tmp/current-job"]
+          {{- end }}
           volumeMounts:
             {{- include "jgdms-scap.spireVolumeMount" . | nindent 12 }}
             - name: engine-signing-key
@@ -118,6 +182,29 @@ spec:
             secretName: {{ .Values.host2.signingKey.existingSecret | default "bae-engine-signing-key" }}
         - name: tmp
           emptyDir: {}
+        {{- if .Values.host2.crashGuard.enabled }}
+        # Script ConfigMap for the crash-guard init container.
+        - name: crash-guard-script
+          configMap:
+            name: bae-crash-guard-script
+            defaultMode: 0555
+        # Projected ServiceAccount token — short-lived, init container only.
+        # The main BAE container does NOT have access to this volume.
+        - name: crash-guard-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: {{ .Values.host2.crashGuard.tokenExpirationSeconds }}
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+        # Scratch space for the crash-guard init container (kubectl cache, etc.).
+        - name: crash-guard-tmp
+          emptyDir: {}
+        {{- end }}
 ---
 apiVersion: v1
 kind: Service
