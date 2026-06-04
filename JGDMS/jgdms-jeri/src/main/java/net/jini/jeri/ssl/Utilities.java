@@ -21,10 +21,12 @@ package net.jini.jeri.ssl;
 import org.apache.river.action.GetPropertyAction;
 import org.apache.river.collection.WeakSoftTable;
 import java.lang.ref.ReferenceQueue;
+import java.security.AccessController;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Principal;
+import java.security.PrivilegedAction;
 import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.CertificateException;
@@ -47,6 +49,7 @@ import javax.net.ssl.TrustManager;
 import javax.security.auth.AuthPermission;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
+import javax.security.auth.x500.X500PrivateCredential;
 import net.jini.core.constraint.ClientMaxPrincipal;
 import net.jini.core.constraint.ClientMinPrincipal;
 import net.jini.core.constraint.ConstraintAlternatives;
@@ -1208,5 +1211,29 @@ abstract class Utilities
 	r.setParameters(params);
 	r.setThrown(e);
 	logger.log(r);
+    }
+    
+    /**
+     * Returns true if the Subject has principals that can be used for TLS
+     * identity selection in this endpoint (X500Principal or SpiffePrincipal).
+     */
+    protected static boolean hasTlsIdentity(Subject subject) {
+        if (subject == null) return false;
+        if ( !subject.getPrincipals(X500Principal.class).isEmpty()
+                || !subject.getPrincipals(SpiffePrincipal.class).isEmpty()){
+            Set<?> privateCreds = AccessController.doPrivileged( new PrivilegedAction<Set<?>>(){               
+                public Set<?> run(){
+                    return subject.getPrivateCredentials();
+                }
+            });
+            synchronized (privateCreds) {
+                for (Object cred : privateCreds) {
+                    if (cred instanceof X500PrivateCredential) { // SPIFFE credential check also
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 }

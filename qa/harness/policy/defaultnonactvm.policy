@@ -312,3 +312,470 @@ grant {
     permission java.net.SocketPermission "localhost:0", "listen,resolve";
 };
 
+grant
+{
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Tester\"", "read";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
+    permission java.security.SecurityPermission "putProviderProperty.HybridAndDHAsKEM";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission java.net.SocketPermission "${HOST}.lan", "resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:54172", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:54182", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:54183", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:54186", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:54187", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:7ec6:c463:ac28:1fd0%8]:54188", "accept,resolve";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-url-integrity-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-url-integrity-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant     principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-url-integrity-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:67dbc2a21f1a26c566203fc6ccf27ce4d6cd432154e6ee24eb9a3ca2438edf9c",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-collections-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.security.SecurityPermission "putProviderProperty.HybridAndDHAsKEM";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-collections-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-activation-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:aadcad3db824c8f8c9b658aa07990cfaabd8bc53b4f459931e0ac259b5005c00",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/service-starter-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:7edfbb661101a13cfaf9b74700ff5540232aeb0d459b3245c8d4c058b222b0a3",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/mahalo-service-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:71cdfb1729525265dcccc6624faaa7329ac04bd66880dcbf614aa80761d41919",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "callAs";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Mahalo";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}mahalo${/}mahalo.config", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/service-starter-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}service-starter-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "jrt:/java.security.jgss"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.net.URLPermission "jrt:/java.security.jgss", "GET:";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/mahalo-dl-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-parameters-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-discovery-providers-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-discovery-providers-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "jrt:/java.base/java.lang.System$LoggerFinder"
+{
+    permission java.lang.RuntimePermission "readModuleTopology";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-jeri-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission au.zeus.jdk.authorization.guards.DefineClassPermission "ALLOW";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.security.SecurityPermission "getProperty.net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
+    permission java.security.SecurityPermission "putProviderProperty.HybridAndDHAsKEM";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "callAs";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Mahalo";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-parameters-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}mahalo${/}mahalo.config", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}starter${/}starter.config", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-jeri-3.1.1-SNAPSHOT.jar", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-platform-3.1.1-SNAPSHOT.jar"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "PROXY";
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission au.zeus.jdk.authorization.guards.DefineClassPermission "ALLOW";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.security.SecurityPermission "getProperty.net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "callAs";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Mahalo";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-parameters-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-discovery-providers-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}mahalo${/}mahalo.config", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}starter${/}starter.config", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-platform-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+    permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:4160", "listen,resolve";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/service-starter-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:7edfbb661101a13cfaf9b74700ff5540232aeb0d459b3245c8d4c058b222b0a3",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.security.SecurityPermission "getProperty.net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "callAs";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Mahalo";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-parameters-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}mahalo${/}mahalo.config", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-jeri-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:451a905b33ad59f549b5ed7e611390f6a492bbd969ff7a63069cdd8e3a5c74fc",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-jeri-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:451a905b33ad59f549b5ed7e611390f6a492bbd969ff7a63069cdd8e3a5c74fc",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/lib/nonactivatablegroup.jar",
+    digest "SHA-256:aa7fad34060e1d8bfdb4155d81da0c01ac25efc5302992b53afe20e5b8deaf55",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/lib/nonactivatablegroup.jar",
+    digest "SHA-256:aa7fad34060e1d8bfdb4155d81da0c01ac25efc5302992b53afe20e5b8deaf55",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.security.SecurityPermission "getProperty.net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "callAs";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Mahalo";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-parameters-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}mahalo${/}mahalo.config", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-platform-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:644ceac1ca5e1473de40a40e20f39746d9a8fcca52f224d38e08b7beccc94b44",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.security.SecurityPermission "getProperty.net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Mahalo";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-parameters-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}mahalo${/}mahalo.config", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+    permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:4160", "listen,resolve";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-platform-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:644ceac1ca5e1473de40a40e20f39746d9a8fcca52f224d38e08b7beccc94b44",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/lib/nonactivatablegroup.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.security.SecurityPermission "getProperty.net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "callAs";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Mahalo";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-parameters-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}mahalo${/}mahalo.config", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}configs${/}jsse${/}starter${/}starter.config", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}lib${/}nonactivatablegroup.jar", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+};
+
+grant codebase "jrt:/jdk.localedata"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.net.URLPermission "jrt:/jdk.localedata", "GET:";
+    permission java.lang.RuntimePermission "readModuleTopology";
+};
+
+grant codebase "jrt:/jdk.security.auth"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.net.URLPermission "jrt:/jdk.security.auth", "GET:";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}lib${/}jiniharness.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-activation-parameters-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-parameters-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:aadcad3db824c8f8c9b658aa07990cfaabd8bc53b4f459931e0ac259b5005c00",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-activation-parameters-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/mahalo-service-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission au.zeus.jdk.authorization.guards.DefineClassPermission "ALLOW";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-lib-3.1.1-SNAPSHOT.jar"
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.io.FilePermission "file:${/}C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}jgdms-lib-3.1.1-SNAPSHOT.jar", "read";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/mahalo-service-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:71cdfb1729525265dcccc6624faaa7329ac04bd66880dcbf614aa80761d41919",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib-dl${/}mahalo-dl-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}dist${/}target${/}JGDMS-3.1.1-SNAPSHOT${/}lib${/}mahalo-service-3.1.1-SNAPSHOT.jar", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}mahalo.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}outrigger.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}qa${/}harness${/}trust${/}tester.keystore", "read";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+};
+

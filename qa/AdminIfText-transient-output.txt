@@ -1,0 +1,1549 @@
+Buildfile: C:\Users\peter\Documents\GitHub\JGDMS\qa\build.xml
+
+james-brown:
+   [delete] Deleting directory C:\Users\peter\Documents\GitHub\JGDMS\qa\soul
+    [mkdir] Created dir: C:\Users\peter\Documents\GitHub\JGDMS\qa\soul
+    [touch] Creating C:\Users\peter\Documents\GitHub\JGDMS\qa\soul\soul.202606041944016123
+
+policy-update-run-tests:
+     [java] 
+     [java] -----------------------------------------
+     [java] CONFIGURATION FILE:
+     [java] 
+     [java]    C:\Users\peter\Documents\GitHub\JGDMS\qa\src\org\apache\river\test\resources\qaHarness.prop
+     [java] 
+     [java] -----------------------------------------
+     [java] SETTING UP THE TEST LIST:
+     [java] 
+     [java]    Adding test: org/apache/river/test/impl/mahalo/AdminIFTest.td
+     [java] 
+     [java] -----------------------------------------
+     [java] GENERAL HARNESS CONFIGURATION INFORMATION:
+     [java] 
+     [java]    Date started:
+     [java]       Thu Jun 04 19:44:17 AEST 2026
+     [java]    Installation directory of the JSK:
+     [java]       jsk.home=C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT
+     [java]    Installation directory of the harness:
+     [java]       qa.home=C:\Users\peter\Documents\GitHub\JGDMS\qa
+     [java]    Categories being tested:
+     [java]       categories=No Categories
+     [java] -----------------------------------------
+     [java] ENVIRONMENT PROPERTIES:
+     [java] 
+     [java]    JVM information:
+     [java]       OpenJDK 64-Bit Server VM, 27-internal-adhoc.peter.DirtyChai, 64 bit VM mode
+     [java]       Oracle Corporation
+     [java]    OS information:
+     [java]       Windows 10, 10.0, amd64
+     [java] 
+     [java] -----------------------------------------
+     [java] STARTING TO RUN THE TESTS
+     [java] 
+     [java] 
+     [java] 
+     [java] TIME: 7:44:17?pm
+     [java] 
+     [java] QAConfig.loadTestConfiguration FINE: Configuration name: -
+     [java] QAConfig.loadTestConfiguration FINE: Test configuration loaded: org.apache.river.qa.harness.QAConfiguration@23223dd8
+     [java] Running org/apache/river/test/impl/mahalo/AdminIFTest.td
+     [java] Time is Thu Jun 04 19:44:17 AEST 2026
+     [java] Starting test in separate process with command:
+     [java] 'C:\Program Files\DirtyChai\jdk\bin\java' -cp C:\Users\peter\Documents\GitHub\JGDMS\qa\lib\jiniharness.jar;C:\Users\peter\Documents\GitHub\JGDMS\qa\lib\jinitests.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-discovery-providers-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\classserver-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-jeri-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-platform-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-collections-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-lib-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\service-starter-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib-dl\jgdms-lib-dl-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\high-scale-lib-1.0.6.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-activation-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-activation-parameters-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-rmi-tls-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib-dl\phoenix-dl-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\phoenix-group-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\phoenix-init-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-destroy-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-url-integrity-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\bcprov-jdk15on-1.59.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\bctls-jdk15on-1.59.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\security-policy-debug-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\javax.transaction-api-1.3.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\openjdk-orb-8.1.4.Final.jar -ea -esa -Djava.security.policy=file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/policy/defaultsecuretest.policy '-Djava.rmi.server.codebase=httpmd://DESKTOP-LOI9FL7:9082/qa1-share-dl.jar;sha-256=6da8d9a8336a90a9abe180213924790e79471d353c2faf4724f06baebd72726a httpmd://DESKTOP-LOI9FL7:9082/qa1-mahalo-dl.jar;sha-256=a8cf9752b785fa0d3c0cbee8d15c5f57aa319e175ca6eeb5099925c2179c066b' -Djava.security.manager=polpAudit -DSecurityPolicyWriter.path.properties=C:\Users\peter\Documents\GitHub\JGDMS\qa/harness/policy/securitypolicywriterpath.properties -Djava.net.preferIPv6Addresses=true -Dsun.net.maxDatagramSockets=1024 -Djdk.io.permissionsUseCanonicalPath=true -DHOST=DESKTOP-LOI9FL7 -Djgdms.version=3.1.1-SNAPSHOT -Dhigh-scale-lib.jar=high-scale-lib-1.0.6.jar -Ddisco.jar=jgdms-discovery-providers-3.1.1-SNAPSHOT.jar -Dcollections.jar=jgdms-collections-3.1.1-SNAPSHOT.jar -Dstart.jar=service-starter-3.1.1-SNAPSHOT.jar -Ddestroy.jar=jgdms-destroy-3.1.1-SNAPSHOT.jar -Dgroup.jar=group-service-3.1.1-SNAPSHOT.jar -Dfiddler.jar=fiddler-service-3.1.1-SNAPSHOT.jar -Dfiddler-dl.jar=fiddler-dl-3.1.1-SNAPSHOT.jar -Dmahalo.jar=mahalo-service-3.1.1-SNAPSHOT.jar -Dmahalo-dl.jar=mahalo-dl-3.1.1-SNAPSHOT.jar -Dmercury.jar=mercury-service-3.1.1-SNAPSHOT.jar -Dmercury-dl.jar=mercury-dl-3.1.1-SNAPSHOT.jar -Dnorm.jar=norm-service-3.1.1-SNAPSHOT.jar -Dnorm-dl.jar=norm-dl-3.1.1-SNAPSHOT.jar -Doutrigger.jar=outrigger-service-3.1.1-SNAPSHOT.jar -Doutrigger-dl.jar=outrigger-dl-3.1.1-SNAPSHOT.jar -Doutrigger-snaplogstore.jar=outrigger-snaplogstore-3.1.1-SNAPSHOT.jar -Dreggie.jar=reggie-service-3.1.1-SNAPSHOT.jar -Dreggie-dl.jar=reggie-dl-3.1.1-SNAPSHOT.jar -Djsk-lib.jar=jgdms-lib-3.1.1-SNAPSHOT.jar -Dloader.jar=jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar -Dactivation.jar=jgdms-activation-3.1.1-SNAPSHOT.jar -Dactivation-param.jar=jgdms-activation-parameters-3.1.1-SNAPSHOT.jar -Djsk-dl.jar=jgdms-lib-dl-3.1.1-SNAPSHOT.jar -Dplatform.jar=jgdms-platform-3.1.1-SNAPSHOT.jar -Djeri.jar=jgdms-jeri-3.1.1-SNAPSHOT.jar -Djsk.iiop.jar=jgdms-iiop-3.1.1-SNAPSHOT.jar -Djsk.pref.jar=jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar -Djsk.url.jar=jgdms-url-integrity-3.1.1-SNAPSHOT.jar -Djgdms-rmi-tls.jar=jgdms-rmi-tls-3.1.1-SNAPSHOT.jar -Dsharedvm.jar=service-starter-3.1.1-SNAPSHOT.jar -Dbouncy-jce.jar=bcprov-jdk15on-1.59.jar -Dbouncy-jsse.jar=bctls-jdk15on-1.59.jar -Dclassserver.jar=classserver-3.1.1-SNAPSHOT.jar -Dphoenix.jar=phoenix-3.1.1-SNAPSHOT.jar -Dphoenix-common.jar=phoenix-common-3.1.1-SNAPSHOT.jar -Dphoenix-dl.jar=phoenix-dl-3.1.1-SNAPSHOT.jar -Dphoenix-group.jar=phoenix-group-3.1.1-SNAPSHOT.jar -Dphoenix-init.jar=phoenix-init-3.1.1-SNAPSHOT.jar -Dorg.apache.river.jsk.port=9080 -Dorg.apache.river.qa.port=9081 -Djsk.home=C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT -Dqa.home=C:\Users\peter\Documents\GitHub\JGDMS\qa -Dorg.apache.river.qa.harness.harnessJar=C:\Users\peter\Documents\GitHub\JGDMS\qa\lib\jiniharness.jar -Dorg.apache.river.qa.harness.testJar=C:\Users\peter\Documents\GitHub\JGDMS\qa\lib\jinitests.jar -Dorg.apache.river.qa.harness.runjiniserver=true -Dorg.apache.river.qa.harness.runkitserver=true -Djava.security.properties=file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/trust/dynamic-policy.properties -Dorg.apache.river.qa.harness.testhosts= -Djava.util.logging.config.file=C:\Users\peter\Documents\GitHub\JGDMS\qa\src\org\apache\river\test\resources\qa1.logging -Dnet.jini.core.lookup.ServiceRegistrar.portAbitraryIfInUse=true -Dorg.apache.river.discovery.x500.trustStore=C:\Users\peter\Documents\GitHub\JGDMS\qaharnesstrusttruststore -Dorg.apache.river.discovery.x500.trustStorePassword=trustpw -Dnet.jini.security.allowInsecureConnections=true -Djava.protocol.handler.pkgs=net.jini.url -Djava.security.auth.login.config=file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/trust/jsselogins -Djavax.net.ssl.trustStore=harness\trust\truststore -Djavax.net.ssl.trustStorePassword=trustpw -Dorg.apache.river.discovery.x500.trustStore=file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/trust/truststore -Djava.security.properties=file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/trust/dynamic-policy.properties -Dorg.apache.river.test.home=C:\Users\peter\Documents\GitHub\JGDMS\qa -Dorg.apache.river.test.port=9082 -Dorg.apache.river.qa.harness.policies=file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/src/org/apache/river/test/resources/jinitest.policy -Dorg.apache.river.qa.harness.securitymanager=polpAudit -Dorg.apache.river.test.impl.mahalo.RandomStressTest.timeout=15000 -Dorg.apache.river.test.share.lookup=false -DtestCategories=txnmanager,txnmanager_impl -Dorg.apache.river.test.impl.mahalo.RandomStressTest.parts=20 -Dinclude0=mahalo.properties -Dorg.apache.river.test.impl.mahalo.RandomStressTest.threads=150 -DtestClass=AdminIFTest -Dorg.apache.river.test.impl.mahalo.RandomStressTest.tasks=1000 '-DtestCodebase=http://${HOST}:${org.apache.river.test.port}/qa1-share-dl.jar http://${HOST}:${org.apache.river.test.port}/qa1-mahalo-dl.jar' org.apache.river.qa.harness.MasterTest org/apache/river/test/impl/mahalo/AdminIFTest.td 
+     [java] June 04, 2026 7:44:18 PM jdk.internal.logger.BootstrapLogger$LogEvent log
+     [java] INFO: policy location: file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/policy/defaultsecuretest.policy
+     [java] June 04, 2026 7:44:18 PM org.apache.river.qa.harness.MasterTest main
+     [java] FINE: Starting MasterTest
+     [java] 
+     [java] TIME: 7:44:18?pm
+     [java] 
+     [java] QAConfig.loadTestConfiguration FINE: Configuration name: -
+     [java] QAConfig.loadTestConfiguration FINE: Test configuration loaded: org.apache.river.qa.harness.QAConfiguration@3a62c01e
+     [java] MasterTest.doTest INFO: 
+     [java] ============================== CALLING CONSTRUCT() ==============================
+     [java] 
+     [java] AdminManager.startService FINE: starting qaClassServer
+     [java] FINE: 
+     [java] FINE: Parameters for qaClassServer(.0):
+     [java] FINE:      type              : classServer
+     [java] FINE:      impl              : org.apache.river.tool.ClassServer
+     [java] FINE:      directory         : C:\Users\peter\Documents\GitHub\JGDMS\qa\lib
+     [java] FINE:      options           : -ea -esa
+     [java] AdminManager.startService FINE: starting jiniClassServer
+     [java] FINE: 
+     [java] FINE: Parameters for jiniClassServer(.0):
+     [java] FINE:      type              : classServer
+     [java] FINE:      impl              : org.apache.river.tool.ClassServer
+     [java] FINE:      directory         : C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib-dl
+     [java] FINE:      options           : -ea -esa
+     [java] AdminManager.startService FINE: starting testClassServer
+     [java] FINE: 
+     [java] FINE: Parameters for testClassServer(.0):
+     [java] FINE:      type              : classServer
+     [java] FINE:      impl              : org.apache.river.tool.ClassServer
+     [java] FINE:      directory         : C:\Users\peter\Documents\GitHub\JGDMS\qa\lib
+     [java] FINE:      options           : -ea -esa
+     [java] TestBase.construct FINE: Test Name = org.apache.river.test.impl.mahalo.AdminIFTest
+     [java] MasterTest.doTest INFO: 
+     [java] =============================== CALLING RUN() ===============================
+     [java] 
+     [java] AdminIFTest.run INFO: Starting up class org.apache.river.test.impl.mahalo.AdminIFTest
+     [java] TestBase.dbgSpecSrvcs FINE: TestBase.specifyServices({net.jini.core.transaction.server.TransactionManager})
+     [java] TestBase.dbgSpecSrvcs FINE: specifyServices groups=null locator=null useLookup =false
+     [java] TestBase.specifyServices FINE: Starting service #0: net.jini.core.transaction.server.TransactionManager
+     [java] AdminManager.startService FINE: starting net.jini.core.transaction.server.TransactionManager
+     [java] QAConfig.getServiceHost FINE: Selecting service host
+     [java] QAConfig.getServiceHost FINE: Not distributed - selecting this host
+     [java] AdminManager.startService FINE: starting nonActivatableGroup
+     [java] QAConfig.genIntegrityCodebase WARNING: WARNING: file not found for codebase http://DESKTOP-LOI9FL7:9081/nonactivatablegroup-dl.jar in directory C:\Users\peter\Documents\GitHub\JGDMS\qa\lib, DISCARDING
+     [java] FINE: 
+     [java] FINE: Parameters for nonActivatableGroup(.0):
+     [java] FINE:      type              : nonactivatablegroup
+     [java] FINE:      codebase          : 
+     [java] FINE:      impl              : org.apache.river.qa.harness.NonActivatableGroupImpl
+     [java] FINE:      policy file       : file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/policy/defaultnonactvm.policy
+     [java] FINE:      classpath         : C:\Users\peter\Documents\GitHub\JGDMS\qa\lib\nonactivatablegroup.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-discovery-providers-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-lib-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib-dl\jgdms-lib-dl-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-jeri-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\service-starter-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-platform-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-collections-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\high-scale-lib-1.0.6.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-url-integrity-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-url-integrity-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-activation-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-activation-parameters-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-rmi-tls-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\bcprov-jdk15on-1.59.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\bctls-jdk15on-1.59.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\security-policy-debug-3.1.1-SNAPSHOT.jar
+     [java] FINE:      options           : -esa -ea -server
+     [java] FINE:      properties        : -Ddisco.jar=jgdms-discovery-providers-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dbouncy-jsse.jar=bctls-jdk15on-1.59.jar
+     [java] FINE:                        : -Djavax.net.ssl.trustStorePassword=trustpw
+     [java] FINE:                        : -DHOST=DESKTOP-LOI9FL7
+     [java] FINE:                        : -Dstart.jar=service-starter-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dorg.apache.river.qa.harness.securitymanager=polpAudit
+     [java] FINE:                        : -Dactivation.jar=jgdms-activation-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dphoenix.jar=phoenix-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Djsk-lib.jar=jgdms-lib-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dfiddler-dl.jar=fiddler-dl-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dhigh-scale-lib.jar=high-scale-lib-1.0.6.jar
+     [java] FINE:                        : -Dplatform.jar=jgdms-platform-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -DSecurityPolicyWriter.path.properties=C:\Users\peter\Documents\GitHub\JGDMS\qa/harness/policy/securitypolicywriterpath.properties
+     [java] FINE:                        : -Dorg.apache.river.jsk.port=9080
+     [java] FINE:                        : -Dmahalo.jar=mahalo-service-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Djsk.pref.jar=jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dorg.apache.river.qa.port=9081
+     [java] FINE:                        : -Dorg.apache.river.test.port=9082
+     [java] FINE:                        : -Dreggie.jar=reggie-service-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Djava.net.preferIPv6Addresses=true
+     [java] FINE:                        : -Dreggie-dl.jar=reggie-dl-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dbouncy-jce.jar=bcprov-jdk15on-1.59.jar
+     [java] FINE:                        : -Dqa.home=C:\Users\peter\Documents\GitHub\JGDMS\qa
+     [java] FINE:                        : -Dorg.apache.river.qa.harness.harnessJar=C:\Users\peter\Documents\GitHub\JGDMS\qa\lib\jiniharness.jar
+     [java] FINE:                        : -Dfiddler.jar=fiddler-service-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dgroup.jar=group-service-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Djeri.jar=jgdms-jeri-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dphoenix-common.jar=phoenix-common-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dmercury.jar=mercury-service-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Djava.security.properties=file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/trust/dynamic-policy.properties
+     [java] FINE:                        : -Dmahalo-dl.jar=mahalo-dl-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Doutrigger-snaplogstore.jar=outrigger-snaplogstore-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dorg.apache.river.discovery.x500.trustStore=file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/trust/truststore
+     [java] FINE:                        : -Dsharedvm.jar=service-starter-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dorg.apache.river.test.home=C:\Users\peter\Documents\GitHub\JGDMS\qa
+     [java] FINE:                        : -Djdk.io.permissionsUseCanonicalPath=true
+     [java] FINE:                        : -Dorg.apache.river.qa.harness.runjiniserver=true
+     [java] FINE:                        : -Djavax.net.ssl.trustStore=harness\trust\truststore
+     [java] FINE:                        : -Djgdms-rmi-tls.jar=jgdms-rmi-tls-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Djava.util.logging.config.file=C:\Users\peter\Documents\GitHub\JGDMS\qa\src\org\apache\river\test\resources\qa1.logging
+     [java] FINE:                        : -Djava.protocol.handler.pkgs=net.jini.url
+     [java] FINE:                        : -Djava.security.manager=polpAudit
+     [java] FINE:                        : -Djsk-dl.jar=jgdms-lib-dl-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dorg.apache.river.discovery.x500.trustStorePassword=trustpw
+     [java] FINE:                        : -Dnorm.jar=norm-service-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dclassserver.jar=classserver-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dorg.apache.river.qa.harness.runkitserver=true
+     [java] FINE:                        : -Dloader.jar=jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Djava.security.auth.login.config=file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/trust/jsselogins
+     [java] FINE:                        : -Ddestroy.jar=jgdms-destroy-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dmercury-dl.jar=mercury-dl-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dphoenix-dl.jar=phoenix-dl-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Doutrigger.jar=outrigger-service-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Doutrigger-dl.jar=outrigger-dl-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Djsk.iiop.jar=jgdms-iiop-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Djgdms.version=3.1.1-SNAPSHOT
+     [java] FINE:                        : -Dphoenix-group.jar=phoenix-group-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dcollections.jar=jgdms-collections-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dphoenix-init.jar=phoenix-init-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dactivation-param.jar=jgdms-activation-parameters-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dorg.apache.river.qa.harness.policies=file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/src/org/apache/river/test/resources/jinitest.policy
+     [java] FINE:                        : -Dsun.net.maxDatagramSockets=1024
+     [java] FINE:                        : -Djsk.home=C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT
+     [java] FINE:                        : -Dorg.apache.river.qa.harness.testhosts=
+     [java] FINE:                        : -Djsk.url.jar=jgdms-url-integrity-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dnet.jini.security.allowInsecureConnections=true
+     [java] FINE:                        : -Dnorm-dl.jar=norm-dl-3.1.1-SNAPSHOT.jar
+     [java] FINE:                        : -Dorg.apache.river.qa.harness.testJar=C:\Users\peter\Documents\GitHub\JGDMS\qa\lib\jinitests.jar
+     [java] FINE:                        : -Dnet.jini.core.lookup.ServiceRegistrar.portAbitraryIfInUse=true
+     [java] NonActGrp-out: June 04, 2026 7:44:27 PM jdk.internal.logger.BootstrapLogger$LogEvent log
+     [java] NonActGrp-out: INFO: policy location: file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/policy/defaultnonactvm.policy
+     [java] FINE: 
+     [java] FINE: Parameters for net.jini.core.transaction.server.TransactionManager(.0):
+     [java] FINE:      type              : transient
+     [java] FINE:      codebase          : httpmd://DESKTOP-LOI9FL7:9080/mahalo-dl-3.1.1-SNAPSHOT.jar;sha-256=eaeec8eae7f371109e4ca0371ed5580d7ad781d8724c2830d0693633a6750e0e httpmd://DESKTOP-LOI9FL7:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar;sha-256=d65e03faf32a9e93328930878ed590e5fc30eebe9c4119ff49e677a119eadbbb
+     [java] FINE:      impl              : org.apache.river.mahalo.TransientMahaloImpl
+     [java] FINE:      component name    : org.apache.river.mahalo
+     [java] FINE:      policy file       : file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/policy/defaultsecuremahalo.policy
+     [java] FINE:      classpath         : C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\mahalo-service-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib-dl\mahalo-dl-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-activation-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-activation-parameters-3.1.1-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT\lib\jgdms-rmi-tls-3.1.1-SNAPSHOT.jar
+     [java] FINE:      service conf file : file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/configs/jsse/mahalo/mahalo.config
+     [java] FINE:      starter conf file : file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/configs/jsse/starter/starter.config
+     [java] FINE:      proxy preparer    : test.mahaloPreparer
+     [java] FINE:      option args 0     : file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/harness/configs/jsse/mahalo/mahalo.config
+     [java] FINE:      option args 1     : org.apache.river.mahalo.initialLookupGroups = new String[]{"QATestDefaultGroup_DESKTOP-LOI9FL7_1780566257557"}
+     [java] FINE:      option args 2     : org.apache.river.mahalo.persistenceDirectory = "C:\\cygwin64\\tmp\\mahalo_log4217195239408826451dir"
+     [java] FINE:      option args 3     : org.apache.river.mahalo.serverExporter = exporter.transientExporter
+     [java] FINE:      option args 4     : multicast.ttl=0
+     [java] FINE: 
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslServerEndpoint getInstance
+     [java] NonActGrp-out: FINE: created SslServerEndpoint[0]
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslListenEndpoint resolveSubjectIfNeeded
+     [java] NonActGrp-out: FINE: resolveSubjectIfNeeded: serverSubject=null, thread=(JSK) mux request dispatch
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslListenEndpoint resolveSubjectIfNeeded
+     [java] NonActGrp-out: FINE: resolveSubjectIfNeeded: Subject.current()=null
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslListenEndpoint resolveSubjectIfNeeded
+     [java] NonActGrp-out: FINE: resolveSubjectIfNeeded: Subject.getSubject(acc)=Subject:
+     [java] NonActGrp-out: 	Principal: CN=Tester
+     [java] NonActGrp-out: 	Public Credential: 
+     [java] NonActGrp-out: X.509 Cert Path: length = 2.
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out: =========================================================Certificate 1 start.
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Tester
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 3072 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 3880148769331492653274265637940546031665121669602586618901847344224480679663120566313257027742076574828892701998020881108630968653266080479012212470885101038450878194116112601247932583041503477671603162038297075716697867080462384113417423574864097454645600820279362618576105226884419921054620499774180666618618409471843256156779535831132995328996085936810216748548938749450590464489681286815040269772535854597800248386743429833595190016628559284649741328763068759632375189516146611823870946582593465111596139845643057658482392494391571874859961080869383041333303249313725983269386052678361313129839559702352291812723136044149535107414857660292856092900951190743729944040939459353967806117649415104810453035574988629566906553085195756276882272375496414771147834524349677645271069699902489881988399029726847187329197517965157979712736520413695755688626131704645732746313324984663761391920179781433304472679108383472953263514627
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fd:c8
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 71 19 1A F2 14 45 4A 84   5F 5D EE AA 95 26 67 43  q....EJ._]...&gC
+     [java] NonActGrp-out: 0010: 66 83 05 8E 9F 85 63 38   2F B3 5C 47 87 2F 6E 9B  f.....c8/.\G./n.
+     [java] NonActGrp-out: 0020: 30 70 65 FC D3 A0 0C 78   9D A1 CB DD E7 F5 4A AC  0pe....x......J.
+     [java] NonActGrp-out: 0030: 2A B8 6E 06 06 57 EE 47   2F E2 93 5C 6C 5E 23 1D  *.n..W.G/..\l^#.
+     [java] NonActGrp-out: 0040: B7 A5 E6 61 C4 07 75 02   EE 93 98 DA C4 C1 56 10  ...a..u.......V.
+     [java] NonActGrp-out: 0050: 71 6E CB 58 2A 39 A0 74   AB 76 B2 48 B3 B1 02 B4  qn.X*9.t.v.H....
+     [java] NonActGrp-out: 0060: B2 46 4A AE 6A 88 DD 0F   E7 AC 2B 46 0C FE 35 15  .FJ.j.....+F..5.
+     [java] NonActGrp-out: 0070: 75 84 C5 B8 48 A6 75 BF   3D 9A 23 7D 9D D0 DC 1A  u...H.u.=.#.....
+     [java] NonActGrp-out: 0080: 4B 5A D4 59 04 3C 4A 80   8E 27 47 C4 80 42 4E DB  KZ.Y.<J..'G..BN.
+     [java] NonActGrp-out: 0090: 71 66 60 33 86 4B C5 61   B0 75 EF 4F 9B 00 1D EE  qf`3.K.a.u.O....
+     [java] NonActGrp-out: 00A0: 14 B5 56 9F DF 16 CA 70   F9 42 C3 D5 33 D7 76 51  ..V....p.B..3.vQ
+     [java] NonActGrp-out: 00B0: F8 DC F1 02 76 E6 A4 A4   05 CA DF F4 75 EE 79 CC  ....v.......u.y.
+     [java] NonActGrp-out: 00C0: 29 E8 BE BD 0F 23 06 83   4D B4 69 94 74 36 04 72  )....#..M.i.t6.r
+     [java] NonActGrp-out: 00D0: 9E EC B9 AE 6F 15 A4 84   EB F9 90 8F EB 7E BB 1C  ....o...........
+     [java] NonActGrp-out: 00E0: BC 78 AB 4E 8F FF 5D 4D   C0 A8 61 72 8E B5 36 84  .x.N..]M..ar..6.
+     [java] NonActGrp-out: 00F0: BF 42 68 FF 81 03 97 52   E6 2B B4 15 80 5C 47 72  .Bh....R.+...\Gr
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: =========================================================Certificate 1 end.
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: =========================================================Certificate 2 start.
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 2048 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 25101242164816488759835594331917444299267415582224801319664456210493524429824262378707313071294599641722341024064192954243665522685490616514904548547208390761107324472971403485031435396959637879989740100116494163515748653816506171196985189159735457900898422492213076228264717792951636187977788376334697899843414852207597778189276823514339846899490613041091499266810022178135504432086323937177035694120054590221707417729988896077240587946138314009584307317382842360594120003107591888374158390986646866395775540724116876868454045669699601216226655719638380185449543224714084472919379249793265216858226816344270029415393
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fa:61
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 53 C6 9C 6F 5A 7F 2F 3C   B4 FD 51 C9 D3 1A C6 8C  S..oZ./<..Q.....
+     [java] NonActGrp-out: 0010: 60 16 D9 AF 0D EB 3C B9   A7 35 4A D8 1D 0E 91 81  `.....<..5J.....
+     [java] NonActGrp-out: 0020: 9A F6 47 99 01 F7 34 F1   F5 90 56 B2 47 31 84 22  ..G...4...V.G1."
+     [java] NonActGrp-out: 0030: 8E EC 79 90 31 C0 CB 78   32 04 C8 CF BE 27 A8 A8  ..y.1..x2....'..
+     [java] NonActGrp-out: 0040: D4 B6 14 FC 43 A9 76 46   D7 0C 66 7F 1F 5B E2 3D  ....C.vF..f..[.=
+     [java] NonActGrp-out: 0050: E3 AC 4C 6D 47 79 19 3F   EB 26 F5 6B 72 F1 75 68  ..LmGy.?.&.kr.uh
+     [java] NonActGrp-out: 0060: EF 8D 16 65 86 20 92 BC   7F 6D AA 66 23 F7 2B F4  ...e. ...m.f#.+.
+     [java] NonActGrp-out: 0070: 5E 4A F5 3E A0 3D 80 CD   F5 65 DC 28 D1 B4 99 1E  ^J.>.=...e.(....
+     [java] NonActGrp-out: 0080: BA 61 EC 6B F6 5F AD 42   C1 F4 67 7B 8B 34 8E 5E  .a.k._.B..g..4.^
+     [java] NonActGrp-out: 0090: 62 E2 3A A6 9E 0E F9 44   9F 05 36 F3 BA 13 F9 80  b.:....D..6.....
+     [java] NonActGrp-out: 00A0: 40 06 90 8E 6E BA 64 2F   7F A4 1A 49 AF DC 1E 8D  @...n.d/...I....
+     [java] NonActGrp-out: 00B0: 0E F8 4A E9 7F EC 6A 5B   E2 3E EE 22 F2 D8 6C D2  ..J...j[.>."..l.
+     [java] NonActGrp-out: 00C0: 8D 24 66 08 4B 77 C4 E2   A1 82 1B 46 7C BD 47 24  .$f.Kw.....F..G$
+     [java] NonActGrp-out: 00D0: CB 90 7D 10 08 36 2D 82   EF 5B 61 91 9E CC 24 4D  .....6-..[a...$M
+     [java] NonActGrp-out: 00E0: 4A 54 44 EF 8A 4A 7B 06   60 3F 96 B3 CA C0 17 25  JTD..J..`?.....%
+     [java] NonActGrp-out: 00F0: A4 2C 2B E1 91 27 10 07   69 86 DB FE 91 E1 BC 79  .,+..'..i......y
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: =========================================================Certificate 2 end.
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: 	Private Credential: javax.security.auth.x500.X500PrivateCredential@11d1c5d2
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle <init>
+     [java] NonActGrp-out: FINE: created SslListenHandle[null:54177]
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslServerEndpointImpl enumerateListenEndpoints
+     [java] NonActGrp-out: FINE: enumerate listen endpoints for SslServerEndpointImpl[[CN=Tester], 0]
+     [java] NonActGrp-out: returns SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslListenEndpoint resolveSubjectIfNeeded
+     [java] NonActGrp-out: FINE: resolveSubjectIfNeeded: serverSubject=Subject:
+     [java] NonActGrp-out: 	Principal: CN=Tester
+     [java] NonActGrp-out: 	Public Credential: 
+     [java] NonActGrp-out: X.509 Cert Path: length = 2.
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out: =========================================================Certificate 1 start.
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Tester
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 3072 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 3880148769331492653274265637940546031665121669602586618901847344224480679663120566313257027742076574828892701998020881108630968653266080479012212470885101038450878194116112601247932583041503477671603162038297075716697867080462384113417423574864097454645600820279362618576105226884419921054620499774180666618618409471843256156779535831132995328996085936810216748548938749450590464489681286815040269772535854597800248386743429833595190016628559284649741328763068759632375189516146611823870946582593465111596139845643057658482392494391571874859961080869383041333303249313725983269386052678361313129839559702352291812723136044149535107414857660292856092900951190743729944040939459353967806117649415104810453035574988629566906553085195756276882272375496414771147834524349677645271069699902489881988399029726847187329197517965157979712736520413695755688626131704645732746313324984663761391920179781433304472679108383472953263514627
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fd:c8
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 71 19 1A F2 14 45 4A 84   5F 5D EE AA 95 26 67 43  q....EJ._]...&gC
+     [java] NonActGrp-out: 0010: 66 83 05 8E 9F 85 63 38   2F B3 5C 47 87 2F 6E 9B  f.....c8/.\G./n.
+     [java] NonActGrp-out: 0020: 30 70 65 FC D3 A0 0C 78   9D A1 CB DD E7 F5 4A AC  0pe....x......J.
+     [java] NonActGrp-out: 0030: 2A B8 6E 06 06 57 EE 47   2F E2 93 5C 6C 5E 23 1D  *.n..W.G/..\l^#.
+     [java] NonActGrp-out: 0040: B7 A5 E6 61 C4 07 75 02   EE 93 98 DA C4 C1 56 10  ...a..u.......V.
+     [java] NonActGrp-out: 0050: 71 6E CB 58 2A 39 A0 74   AB 76 B2 48 B3 B1 02 B4  qn.X*9.t.v.H....
+     [java] NonActGrp-out: 0060: B2 46 4A AE 6A 88 DD 0F   E7 AC 2B 46 0C FE 35 15  .FJ.j.....+F..5.
+     [java] NonActGrp-out: 0070: 75 84 C5 B8 48 A6 75 BF   3D 9A 23 7D 9D D0 DC 1A  u...H.u.=.#.....
+     [java] NonActGrp-out: 0080: 4B 5A D4 59 04 3C 4A 80   8E 27 47 C4 80 42 4E DB  KZ.Y.<J..'G..BN.
+     [java] NonActGrp-out: 0090: 71 66 60 33 86 4B C5 61   B0 75 EF 4F 9B 00 1D EE  qf`3.K.a.u.O....
+     [java] NonActGrp-out: 00A0: 14 B5 56 9F DF 16 CA 70   F9 42 C3 D5 33 D7 76 51  ..V....p.B..3.vQ
+     [java] NonActGrp-out: 00B0: F8 DC F1 02 76 E6 A4 A4   05 CA DF F4 75 EE 79 CC  ....v.......u.y.
+     [java] NonActGrp-out: 00C0: 29 E8 BE BD 0F 23 06 83   4D B4 69 94 74 36 04 72  )....#..M.i.t6.r
+     [java] NonActGrp-out: 00D0: 9E EC B9 AE 6F 15 A4 84   EB F9 90 8F EB 7E BB 1C  ....o...........
+     [java] NonActGrp-out: 00E0: BC 78 AB 4E 8F FF 5D 4D   C0 A8 61 72 8E B5 36 84  .x.N..]M..ar..6.
+     [java] NonActGrp-out: 00F0: BF 42 68 FF 81 03 97 52   E6 2B B4 15 80 5C 47 72  .Bh....R.+...\Gr
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: =========================================================Certificate 1 end.
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: =========================================================Certificate 2 start.
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 2048 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 25101242164816488759835594331917444299267415582224801319664456210493524429824262378707313071294599641722341024064192954243665522685490616514904548547208390761107324472971403485031435396959637879989740100116494163515748653816506171196985189159735457900898422492213076228264717792951636187977788376334697899843414852207597778189276823514339846899490613041091499266810022178135504432086323937177035694120054590221707417729988896077240587946138314009584307317382842360594120003107591888374158390986646866395775540724116876868454045669699601216226655719638380185449543224714084472919379249793265216858226816344270029415393
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fa:61
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 53 C6 9C 6F 5A 7F 2F 3C   B4 FD 51 C9 D3 1A C6 8C  S..oZ./<..Q.....
+     [java] NonActGrp-out: 0010: 60 16 D9 AF 0D EB 3C B9   A7 35 4A D8 1D 0E 91 81  `.....<..5J.....
+     [java] NonActGrp-out: 0020: 9A F6 47 99 01 F7 34 F1   F5 90 56 B2 47 31 84 22  ..G...4...V.G1."
+     [java] NonActGrp-out: 0030: 8E EC 79 90 31 C0 CB 78   32 04 C8 CF BE 27 A8 A8  ..y.1..x2....'..
+     [java] NonActGrp-out: 0040: D4 B6 14 FC 43 A9 76 46   D7 0C 66 7F 1F 5B E2 3D  ....C.vF..f..[.=
+     [java] NonActGrp-out: 0050: E3 AC 4C 6D 47 79 19 3F   EB 26 F5 6B 72 F1 75 68  ..LmGy.?.&.kr.uh
+     [java] NonActGrp-out: 0060: EF 8D 16 65 86 20 92 BC   7F 6D AA 66 23 F7 2B F4  ...e. ...m.f#.+.
+     [java] NonActGrp-out: 0070: 5E 4A F5 3E A0 3D 80 CD   F5 65 DC 28 D1 B4 99 1E  ^J.>.=...e.(....
+     [java] NonActGrp-out: 0080: BA 61 EC 6B F6 5F AD 42   C1 F4 67 7B 8B 34 8E 5E  .a.k._.B..g..4.^
+     [java] NonActGrp-out: 0090: 62 E2 3A A6 9E 0E F9 44   9F 05 36 F3 BA 13 F9 80  b.:....D..6.....
+     [java] NonActGrp-out: 00A0: 40 06 90 8E 6E BA 64 2F   7F A4 1A 49 AF DC 1E 8D  @...n.d/...I....
+     [java] NonActGrp-out: 00B0: 0E F8 4A E9 7F EC 6A 5B   E2 3E EE 22 F2 D8 6C D2  ..J...j[.>."..l.
+     [java] NonActGrp-out: 00C0: 8D 24 66 08 4B 77 C4 E2   A1 82 1B 46 7C BD 47 24  .$f.Kw.....F..G$
+     [java] NonActGrp-out: 00D0: CB 90 7D 10 08 36 2D 82   EF 5B 61 91 9E CC 24 4D  .....6-..[a...$M
+     [java] NonActGrp-out: 00E0: 4A 54 44 EF 8A 4A 7B 06   60 3F 96 B3 CA C0 17 25  JTD..J..`?.....%
+     [java] NonActGrp-out: 00F0: A4 2C 2B E1 91 27 10 07   69 86 DB FE 91 E1 BC 79  .,+..'..i......y
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: =========================================================Certificate 2 end.
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: 	Private Credential: javax.security.auth.x500.X500PrivateCredential@11d1c5d2
+     [java] NonActGrp-out: , thread=(JSK) mux request dispatch
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslServerEndpointImpl checkConstraints
+     [java] NonActGrp-out: FINE: check constraints for SslServerEndpoint[[CN=Tester], 0]
+     [java] NonActGrp-out: with InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] NonActGrp-out: returns InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslEndpointImpl getCallContext
+     [java] NonActGrp-out: FINE: new request for SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out: with InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] NonActGrp-out: and Subject@3e4172ce{
+     [java] NonActGrp-out:   Principal: CN=Tester
+     [java] NonActGrp-out:     Public key: RSAPublicKeyImpl@b69eb2c
+     [java] NonActGrp-out:     Private key: RSAPrivateCrtKeyImpl@322b87f9}
+     [java] NonActGrp-out: returns CallContext[
+     [java] NonActGrp-out:   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out:   clientSubject=Subject@3e4172ce
+     [java] NonActGrp-out:   clientAuthRequired=true
+     [java] NonActGrp-out:   clientPrincipals=[CN=Tester]
+     [java] NonActGrp-out:   serverPrincipals=null
+     [java] NonActGrp-out:   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java] NonActGrp-out:   integrity=required
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslEndpointImpl connect
+     [java] NonActGrp-out: FINE: choose connection for CallContext[
+     [java] NonActGrp-out:   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out:   clientSubject=Subject@3e4172ce
+     [java] NonActGrp-out:   clientAuthRequired=true
+     [java] NonActGrp-out:   clientPrincipals=[CN=Tester]
+     [java] NonActGrp-out:   serverPrincipals=null
+     [java] NonActGrp-out:   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java] NonActGrp-out:   integrity=required
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: with active []
+     [java] NonActGrp-out: and idle []
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:28 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslListenEndpoint resolveSubjectIfNeeded
+     [java] NonActGrp-out: FINE: resolveSubjectIfNeeded: serverSubject=Subject:
+     [java] NonActGrp-out: 	Principal: CN=Tester
+     [java] NonActGrp-out: 	Public Credential: 
+     [java] NonActGrp-out: X.509 Cert Path: length = 2.
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out: =========================================================Certificate 1 start.
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Tester
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 3072 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 3880148769331492653274265637940546031665121669602586618901847344224480679663120566313257027742076574828892701998020881108630968653266080479012212470885101038450878194116112601247932583041503477671603162038297075716697867080462384113417423574864097454645600820279362618576105226884419921054620499774180666618618409471843256156779535831132995328996085936810216748548938749450590464489681286815040269772535854597800248386743429833595190016628559284649741328763068759632375189516146611823870946582593465111596139845643057658482392494391571874859961080869383041333303249313725983269386052678361313129839559702352291812723136044149535107414857660292856092900951190743729944040939459353967806117649415104810453035574988629566906553085195756276882272375496414771147834524349677645271069699902489881988399029726847187329197517965157979712736520413695755688626131704645732746313324984663761391920179781433304472679108383472953263514627
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fd:c8
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 71 19 1A F2 14 45 4A 84   5F 5D EE AA 95 26 67 43  q....EJ._]...&gC
+     [java] NonActGrp-out: 0010: 66 83 05 8E 9F 85 63 38   2F B3 5C 47 87 2F 6E 9B  f.....c8/.\G./n.
+     [java] NonActGrp-out: 0020: 30 70 65 FC D3 A0 0C 78   9D A1 CB DD E7 F5 4A AC  0pe....x......J.
+     [java] NonActGrp-out: 0030: 2A B8 6E 06 06 57 EE 47   2F E2 93 5C 6C 5E 23 1D  *.n..W.G/..\l^#.
+     [java] NonActGrp-out: 0040: B7 A5 E6 61 C4 07 75 02   EE 93 98 DA C4 C1 56 10  ...a..u.......V.
+     [java] NonActGrp-out: 0050: 71 6E CB 58 2A 39 A0 74   AB 76 B2 48 B3 B1 02 B4  qn.X*9.t.v.H....
+     [java] NonActGrp-out: 0060: B2 46 4A AE 6A 88 DD 0F   E7 AC 2B 46 0C FE 35 15  .FJ.j.....+F..5.
+     [java] NonActGrp-out: 0070: 75 84 C5 B8 48 A6 75 BF   3D 9A 23 7D 9D D0 DC 1A  u...H.u.=.#.....
+     [java] NonActGrp-out: 0080: 4B 5A D4 59 04 3C 4A 80   8E 27 47 C4 80 42 4E DB  KZ.Y.<J..'G..BN.
+     [java] NonActGrp-out: 0090: 71 66 60 33 86 4B C5 61   B0 75 EF 4F 9B 00 1D EE  qf`3.K.a.u.O....
+     [java] NonActGrp-out: 00A0: 14 B5 56 9F DF 16 CA 70   F9 42 C3 D5 33 D7 76 51  ..V....p.B..3.vQ
+     [java] NonActGrp-out: 00B0: F8 DC F1 02 76 E6 A4 A4   05 CA DF F4 75 EE 79 CC  ....v.......u.y.
+     [java] NonActGrp-out: 00C0: 29 E8 BE BD 0F 23 06 83   4D B4 69 94 74 36 04 72  )....#..M.i.t6.r
+     [java] NonActGrp-out: 00D0: 9E EC B9 AE 6F 15 A4 84   EB F9 90 8F EB 7E BB 1C  ....o...........
+     [java] NonActGrp-out: 00E0: BC 78 AB 4E 8F FF 5D 4D   C0 A8 61 72 8E B5 36 84  .x.N..]M..ar..6.
+     [java] NonActGrp-out: 00F0: BF 42 68 FF 81 03 97 52   E6 2B B4 15 80 5C 47 72  .Bh....R.+...\Gr
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: =========================================================Certificate 1 end.
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: =========================================================Certificate 2 start.
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 2048 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 25101242164816488759835594331917444299267415582224801319664456210493524429824262378707313071294599641722341024064192954243665522685490616514904548547208390761107324472971403485031435396959637879989740100116494163515748653816506171196985189159735457900898422492213076228264717792951636187977788376334697899843414852207597778189276823514339846899490613041091499266810022178135504432086323937177035694120054590221707417729988896077240587946138314009584307317382842360594120003107591888374158390986646866395775540724116876868454045669699601216226655719638380185449543224714084472919379249793265216858226816344270029415393
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fa:61
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 53 C6 9C 6F 5A 7F 2F 3C   B4 FD 51 C9 D3 1A C6 8C  S..oZ./<..Q.....
+     [java] NonActGrp-out: 0010: 60 16 D9 AF 0D EB 3C B9   A7 35 4A D8 1D 0E 91 81  `.....<..5J.....
+     [java] NonActGrp-out: 0020: 9A F6 47 99 01 F7 34 F1   F5 90 56 B2 47 31 84 22  ..G...4...V.G1."
+     [java] NonActGrp-out: 0030: 8E EC 79 90 31 C0 CB 78   32 04 C8 CF BE 27 A8 A8  ..y.1..x2....'..
+     [java] NonActGrp-out: 0040: D4 B6 14 FC 43 A9 76 46   D7 0C 66 7F 1F 5B E2 3D  ....C.vF..f..[.=
+     [java] NonActGrp-out: 0050: E3 AC 4C 6D 47 79 19 3F   EB 26 F5 6B 72 F1 75 68  ..LmGy.?.&.kr.uh
+     [java] NonActGrp-out: 0060: EF 8D 16 65 86 20 92 BC   7F 6D AA 66 23 F7 2B F4  ...e. ...m.f#.+.
+     [java] NonActGrp-out: 0070: 5E 4A F5 3E A0 3D 80 CD   F5 65 DC 28 D1 B4 99 1E  ^J.>.=...e.(....
+     [java] NonActGrp-out: 0080: BA 61 EC 6B F6 5F AD 42   C1 F4 67 7B 8B 34 8E 5E  .a.k._.B..g..4.^
+     [java] NonActGrp-out: 0090: 62 E2 3A A6 9E 0E F9 44   9F 05 36 F3 BA 13 F9 80  b.:....D..6.....
+     [java] NonActGrp-out: 00A0: 40 06 90 8E 6E BA 64 2F   7F A4 1A 49 AF DC 1E 8D  @...n.d/...I....
+     [java] NonActGrp-out: 00B0: 0E F8 4A E9 7F EC 6A 5B   E2 3E EE 22 F2 D8 6C D2  ..J...j[.>."..l.
+     [java] NonActGrp-out: 00C0: 8D 24 66 08 4B 77 C4 E2   A1 82 1B 46 7C BD 47 24  .$f.Kw.....F..G$
+     [java] NonActGrp-out: 00D0: CB 90 7D 10 08 36 2D 82   EF 5B 61 91 9E CC 24 4D  .....6-..[a...$M
+     [java] NonActGrp-out: 00E0: 4A 54 44 EF 8A 4A 7B 06   60 3F 96 B3 CA C0 17 25  JTD..J..`?.....%
+     [java] NonActGrp-out: 00F0: A4 2C 2B E1 91 27 10 07   69 86 DB FE 91 E1 BC 79  .,+..'..i......y
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: =========================================================Certificate 2 end.
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: 	Private Credential: javax.security.auth.x500.X500PrivateCredential@11d1c5d2
+     [java] NonActGrp-out: , thread=(JSK) SslListenHandle[null:54177]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type EC
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type EdDSA
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type RSA
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns 19e9092fdc8@cn=test ca,ou=jini group,o=sun microsystems inc,l=burlington,st=ma,c=us
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.FilterX509TrustManager checkServerTrusted
+     [java] NonActGrp-out: FINE: check server trusted succeeds for auth type RSA
+     [java] NonActGrp-out: chain [[
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Tester
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 3072 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 3880148769331492653274265637940546031665121669602586618901847344224480679663120566313257027742076574828892701998020881108630968653266080479012212470885101038450878194116112601247932583041503477671603162038297075716697867080462384113417423574864097454645600820279362618576105226884419921054620499774180666618618409471843256156779535831132995328996085936810216748548938749450590464489681286815040269772535854597800248386743429833595190016628559284649741328763068759632375189516146611823870946582593465111596139845643057658482392494391571874859961080869383041333303249313725983269386052678361313129839559702352291812723136044149535107414857660292856092900951190743729944040939459353967806117649415104810453035574988629566906553085195756276882272375496414771147834524349677645271069699902489881988399029726847187329197517965157979712736520413695755688626131704645732746313324984663761391920179781433304472679108383472953263514627
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fd:c8
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 71 19 1A F2 14 45 4A 84   5F 5D EE AA 95 26 67 43  q....EJ._]...&gC
+     [java] NonActGrp-out: 0010: 66 83 05 8E 9F 85 63 38   2F B3 5C 47 87 2F 6E 9B  f.....c8/.\G./n.
+     [java] NonActGrp-out: 0020: 30 70 65 FC D3 A0 0C 78   9D A1 CB DD E7 F5 4A AC  0pe....x......J.
+     [java] NonActGrp-out: 0030: 2A B8 6E 06 06 57 EE 47   2F E2 93 5C 6C 5E 23 1D  *.n..W.G/..\l^#.
+     [java] NonActGrp-out: 0040: B7 A5 E6 61 C4 07 75 02   EE 93 98 DA C4 C1 56 10  ...a..u.......V.
+     [java] NonActGrp-out: 0050: 71 6E CB 58 2A 39 A0 74   AB 76 B2 48 B3 B1 02 B4  qn.X*9.t.v.H....
+     [java] NonActGrp-out: 0060: B2 46 4A AE 6A 88 DD 0F   E7 AC 2B 46 0C FE 35 15  .FJ.j.....+F..5.
+     [java] NonActGrp-out: 0070: 75 84 C5 B8 48 A6 75 BF   3D 9A 23 7D 9D D0 DC 1A  u...H.u.=.#.....
+     [java] NonActGrp-out: 0080: 4B 5A D4 59 04 3C 4A 80   8E 27 47 C4 80 42 4E DB  KZ.Y.<J..'G..BN.
+     [java] NonActGrp-out: 0090: 71 66 60 33 86 4B C5 61   B0 75 EF 4F 9B 00 1D EE  qf`3.K.a.u.O....
+     [java] NonActGrp-out: 00A0: 14 B5 56 9F DF 16 CA 70   F9 42 C3 D5 33 D7 76 51  ..V....p.B..3.vQ
+     [java] NonActGrp-out: 00B0: F8 DC F1 02 76 E6 A4 A4   05 CA DF F4 75 EE 79 CC  ....v.......u.y.
+     [java] NonActGrp-out: 00C0: 29 E8 BE BD 0F 23 06 83   4D B4 69 94 74 36 04 72  )....#..M.i.t6.r
+     [java] NonActGrp-out: 00D0: 9E EC B9 AE 6F 15 A4 84   EB F9 90 8F EB 7E BB 1C  ....o...........
+     [java] NonActGrp-out: 00E0: BC 78 AB 4E 8F FF 5D 4D   C0 A8 61 72 8E B5 36 84  .x.N..]M..ar..6.
+     [java] NonActGrp-out: 00F0: BF 42 68 FF 81 03 97 52   E6 2B B4 15 80 5C 47 72  .Bh....R.+...\Gr
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ], [
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 2048 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 25101242164816488759835594331917444299267415582224801319664456210493524429824262378707313071294599641722341024064192954243665522685490616514904548547208390761107324472971403485031435396959637879989740100116494163515748653816506171196985189159735457900898422492213076228264717792951636187977788376334697899843414852207597778189276823514339846899490613041091499266810022178135504432086323937177035694120054590221707417729988896077240587946138314009584307317382842360594120003107591888374158390986646866395775540724116876868454045669699601216226655719638380185449543224714084472919379249793265216858226816344270029415393
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fa:61
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 53 C6 9C 6F 5A 7F 2F 3C   B4 FD 51 C9 D3 1A C6 8C  S..oZ./<..Q.....
+     [java] NonActGrp-out: 0010: 60 16 D9 AF 0D EB 3C B9   A7 35 4A D8 1D 0E 91 81  `.....<..5J.....
+     [java] NonActGrp-out: 0020: 9A F6 47 99 01 F7 34 F1   F5 90 56 B2 47 31 84 22  ..G...4...V.G1."
+     [java] NonActGrp-out: 0030: 8E EC 79 90 31 C0 CB 78   32 04 C8 CF BE 27 A8 A8  ..y.1..x2....'..
+     [java] NonActGrp-out: 0040: D4 B6 14 FC 43 A9 76 46   D7 0C 66 7F 1F 5B E2 3D  ....C.vF..f..[.=
+     [java] NonActGrp-out: 0050: E3 AC 4C 6D 47 79 19 3F   EB 26 F5 6B 72 F1 75 68  ..LmGy.?.&.kr.uh
+     [java] NonActGrp-out: 0060: EF 8D 16 65 86 20 92 BC   7F 6D AA 66 23 F7 2B F4  ...e. ...m.f#.+.
+     [java] NonActGrp-out: 0070: 5E 4A F5 3E A0 3D 80 CD   F5 65 DC 28 D1 B4 99 1E  ^J.>.=...e.(....
+     [java] NonActGrp-out: 0080: BA 61 EC 6B F6 5F AD 42   C1 F4 67 7B 8B 34 8E 5E  .a.k._.B..g..4.^
+     [java] NonActGrp-out: 0090: 62 E2 3A A6 9E 0E F9 44   9F 05 36 F3 BA 13 F9 80  b.:....D..6.....
+     [java] NonActGrp-out: 00A0: 40 06 90 8E 6E BA 64 2F   7F A4 1A 49 AF DC 1E 8D  @...n.d/...I....
+     [java] NonActGrp-out: 00B0: 0E F8 4A E9 7F EC 6A 5B   E2 3E EE 22 F2 D8 6C D2  ..J...j[.>."..l.
+     [java] NonActGrp-out: 00C0: 8D 24 66 08 4B 77 C4 E2   A1 82 1B 46 7C BD 47 24  .$f.Kw.....F..G$
+     [java] NonActGrp-out: 00D0: CB 90 7D 10 08 36 2D 82   EF 5B 61 91 9E CC 24 4D  .....6-..[a...$M
+     [java] NonActGrp-out: 00E0: 4A 54 44 EF 8A 4A 7B 06   60 3F 96 B3 CA C0 17 25  JTD..J..`?.....%
+     [java] NonActGrp-out: 00F0: A4 2C 2B E1 91 27 10 07   69 86 DB FE 91 E1 BC 79  .,+..'..i......y
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ClientAuthManager chooseClientAlias
+     [java] NonActGrp-out: FINE: choose client alias for key types [EC, EdDSA, RSA, RSASSA-PSS]
+     [java] NonActGrp-out: and issuers [CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US, CN=Reggie, CN=Tester, CN=Fiddler]
+     [java] NonActGrp-out: returns 19e9092fdc8@cn=test ca,ou=jini group,o=sun microsystems inc,l=burlington,st=ma,c=us
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.FilterX509TrustManager checkClientTrusted
+     [java] NonActGrp-out: FINE: check client trusted succeeds for auth type RSA
+     [java] NonActGrp-out: chain [[
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Tester
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 3072 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 3880148769331492653274265637940546031665121669602586618901847344224480679663120566313257027742076574828892701998020881108630968653266080479012212470885101038450878194116112601247932583041503477671603162038297075716697867080462384113417423574864097454645600820279362618576105226884419921054620499774180666618618409471843256156779535831132995328996085936810216748548938749450590464489681286815040269772535854597800248386743429833595190016628559284649741328763068759632375189516146611823870946582593465111596139845643057658482392494391571874859961080869383041333303249313725983269386052678361313129839559702352291812723136044149535107414857660292856092900951190743729944040939459353967806117649415104810453035574988629566906553085195756276882272375496414771147834524349677645271069699902489881988399029726847187329197517965157979712736520413695755688626131704645732746313324984663761391920179781433304472679108383472953263514627
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fd:c8
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 71 19 1A F2 14 45 4A 84   5F 5D EE AA 95 26 67 43  q....EJ._]...&gC
+     [java] NonActGrp-out: 0010: 66 83 05 8E 9F 85 63 38   2F B3 5C 47 87 2F 6E 9B  f.....c8/.\G./n.
+     [java] NonActGrp-out: 0020: 30 70 65 FC D3 A0 0C 78   9D A1 CB DD E7 F5 4A AC  0pe....x......J.
+     [java] NonActGrp-out: 0030: 2A B8 6E 06 06 57 EE 47   2F E2 93 5C 6C 5E 23 1D  *.n..W.G/..\l^#.
+     [java] NonActGrp-out: 0040: B7 A5 E6 61 C4 07 75 02   EE 93 98 DA C4 C1 56 10  ...a..u.......V.
+     [java] NonActGrp-out: 0050: 71 6E CB 58 2A 39 A0 74   AB 76 B2 48 B3 B1 02 B4  qn.X*9.t.v.H....
+     [java] NonActGrp-out: 0060: B2 46 4A AE 6A 88 DD 0F   E7 AC 2B 46 0C FE 35 15  .FJ.j.....+F..5.
+     [java] NonActGrp-out: 0070: 75 84 C5 B8 48 A6 75 BF   3D 9A 23 7D 9D D0 DC 1A  u...H.u.=.#.....
+     [java] NonActGrp-out: 0080: 4B 5A D4 59 04 3C 4A 80   8E 27 47 C4 80 42 4E DB  KZ.Y.<J..'G..BN.
+     [java] NonActGrp-out: 0090: 71 66 60 33 86 4B C5 61   B0 75 EF 4F 9B 00 1D EE  qf`3.K.a.u.O....
+     [java] NonActGrp-out: 00A0: 14 B5 56 9F DF 16 CA 70   F9 42 C3 D5 33 D7 76 51  ..V....p.B..3.vQ
+     [java] NonActGrp-out: 00B0: F8 DC F1 02 76 E6 A4 A4   05 CA DF F4 75 EE 79 CC  ....v.......u.y.
+     [java] NonActGrp-out: 00C0: 29 E8 BE BD 0F 23 06 83   4D B4 69 94 74 36 04 72  )....#..M.i.t6.r
+     [java] NonActGrp-out: 00D0: 9E EC B9 AE 6F 15 A4 84   EB F9 90 8F EB 7E BB 1C  ....o...........
+     [java] NonActGrp-out: 00E0: BC 78 AB 4E 8F FF 5D 4D   C0 A8 61 72 8E B5 36 84  .x.N..]M..ar..6.
+     [java] NonActGrp-out: 00F0: BF 42 68 FF 81 03 97 52   E6 2B B4 15 80 5C 47 72  .Bh....R.+...\Gr
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ], [
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 2048 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 25101242164816488759835594331917444299267415582224801319664456210493524429824262378707313071294599641722341024064192954243665522685490616514904548547208390761107324472971403485031435396959637879989740100116494163515748653816506171196985189159735457900898422492213076228264717792951636187977788376334697899843414852207597778189276823514339846899490613041091499266810022178135504432086323937177035694120054590221707417729988896077240587946138314009584307317382842360594120003107591888374158390986646866395775540724116876868454045669699601216226655719638380185449543224714084472919379249793265216858226816344270029415393
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fa:61
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 53 C6 9C 6F 5A 7F 2F 3C   B4 FD 51 C9 D3 1A C6 8C  S..oZ./<..Q.....
+     [java] NonActGrp-out: 0010: 60 16 D9 AF 0D EB 3C B9   A7 35 4A D8 1D 0E 91 81  `.....<..5J.....
+     [java] NonActGrp-out: 0020: 9A F6 47 99 01 F7 34 F1   F5 90 56 B2 47 31 84 22  ..G...4...V.G1."
+     [java] NonActGrp-out: 0030: 8E EC 79 90 31 C0 CB 78   32 04 C8 CF BE 27 A8 A8  ..y.1..x2....'..
+     [java] NonActGrp-out: 0040: D4 B6 14 FC 43 A9 76 46   D7 0C 66 7F 1F 5B E2 3D  ....C.vF..f..[.=
+     [java] NonActGrp-out: 0050: E3 AC 4C 6D 47 79 19 3F   EB 26 F5 6B 72 F1 75 68  ..LmGy.?.&.kr.uh
+     [java] NonActGrp-out: 0060: EF 8D 16 65 86 20 92 BC   7F 6D AA 66 23 F7 2B F4  ...e. ...m.f#.+.
+     [java] NonActGrp-out: 0070: 5E 4A F5 3E A0 3D 80 CD   F5 65 DC 28 D1 B4 99 1E  ^J.>.=...e.(....
+     [java] NonActGrp-out: 0080: BA 61 EC 6B F6 5F AD 42   C1 F4 67 7B 8B 34 8E 5E  .a.k._.B..g..4.^
+     [java] NonActGrp-out: 0090: 62 E2 3A A6 9E 0E F9 44   9F 05 36 F3 BA 13 F9 80  b.:....D..6.....
+     [java] NonActGrp-out: 00A0: 40 06 90 8E 6E BA 64 2F   7F A4 1A 49 AF DC 1E 8D  @...n.d/...I....
+     [java] NonActGrp-out: 00B0: 0E F8 4A E9 7F EC 6A 5B   E2 3E EE 22 F2 D8 6C D2  ..J...j[.>."..l.
+     [java] NonActGrp-out: 00C0: 8D 24 66 08 4B 77 C4 E2   A1 82 1B 46 7C BD 47 24  .$f.Kw.....F..G$
+     [java] NonActGrp-out: 00D0: CB 90 7D 10 08 36 2D 82   EF 5B 61 91 9E CC 24 4D  .....6-..[a...$M
+     [java] NonActGrp-out: 00E0: 4A 54 44 EF 8A 4A 7B 06   60 3F 96 B3 CA C0 17 25  JTD..J..`?.....%
+     [java] NonActGrp-out: 00F0: A4 2C 2B E1 91 27 10 07   69 86 DB FE 91 E1 BC 79  .,+..'..i......y
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslConnection establishCallContext
+     [java] NonActGrp-out: FINE: new connection for CallContext[
+     [java] NonActGrp-out:   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out:   clientSubject=Subject@3e4172ce
+     [java] NonActGrp-out:   clientAuthRequired=true
+     [java] NonActGrp-out:   clientPrincipals=[CN=Tester]
+     [java] NonActGrp-out:   serverPrincipals=null
+     [java] NonActGrp-out:   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java] NonActGrp-out:   integrity=required
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: creates SslConnection[Session(1780566269003|TLS_AES_256_GCM_SHA384), 54182=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection <init>
+     [java] NonActGrp-out: FINE: created SslServerConnection[Session(1780566268983|TLS_AES_256_GCM_SHA384), null:54177<=fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54182]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection checkConstraints
+     [java] NonActGrp-out: FINE: check constraints for SslServerConnection[Session(1780566268983|TLS_AES_256_GCM_SHA384), null:54177<=fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54182]
+     [java] NonActGrp-out: with InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] NonActGrp-out: returns InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl getCallContext
+     [java] NonActGrp-out: FINE: new request for SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out: with InvocationConstraints[reqs: {}, prefs: {}]
+     [java] NonActGrp-out: and Subject@3e4172ce{
+     [java] NonActGrp-out:   Principal: CN=Tester
+     [java] NonActGrp-out:     Public key: RSAPublicKeyImpl@b69eb2c
+     [java] NonActGrp-out:     Private key: RSAPrivateCrtKeyImpl@322b87f9}
+     [java] NonActGrp-out: returns CallContext[
+     [java] NonActGrp-out:   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out:   clientSubject=Subject@3e4172ce
+     [java] NonActGrp-out:   clientAuthRequired=true
+     [java] NonActGrp-out:   clientPrincipals=[CN=Tester]
+     [java] NonActGrp-out:   serverPrincipals=null
+     [java] NonActGrp-out:   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl connect
+     [java] NonActGrp-out: FINE: choose connection for CallContext[
+     [java] NonActGrp-out:   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out:   clientSubject=Subject@3e4172ce
+     [java] NonActGrp-out:   clientAuthRequired=true
+     [java] NonActGrp-out:   clientPrincipals=[CN=Tester]
+     [java] NonActGrp-out:   serverPrincipals=null
+     [java] NonActGrp-out:   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out: with active []
+     [java] NonActGrp-out: and idle [SslConnection[Session(1780566269003|TLS_AES_256_GCM_SHA384), 54182=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]
+     [java] NonActGrp-out: returns SslConnection[Session(1780566269003|TLS_AES_256_GCM_SHA384), 54182=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection checkConstraints
+     [java] NonActGrp-out: FINE: check constraints for SslServerConnection[Session(1780566268983|TLS_AES_256_GCM_SHA384), null:54177<=fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54182]
+     [java] NonActGrp-out: with InvocationConstraints[reqs: {}, prefs: {}]
+     [java] NonActGrp-out: returns InvocationConstraints[reqs: {}, prefs: {}]
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl getCallContext
+     [java] FINE: new request for SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] with InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] and Subject@94f6bfb{
+     [java]   Principal: CN=Tester
+     [java]     Public key: RSAPublicKeyImpl@3bfc6a5e
+     [java]     Private key: RSAPrivateCrtKeyImpl@65753040}
+     [java] returns CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=null
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl connect
+     [java] FINE: choose connection for CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=null
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] with active []
+     [java] and idle []
+     [java] returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type EC
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type EdDSA
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type RSA
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns 19e9092fdc8@cn=test ca,ou=jini group,o=sun microsystems inc,l=burlington,st=ma,c=us
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.FilterX509TrustManager checkServerTrusted
+     [java] FINE: check server trusted succeeds for auth type RSA
+     [java] chain [[
+     [java] [
+     [java]   Version: V1
+     [java]   Subject: CN=Tester
+     [java]   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] 
+     [java]   Key:  Sun RSA public key, 3072 bits
+     [java]   params: null
+     [java]   modulus: 3880148769331492653274265637940546031665121669602586618901847344224480679663120566313257027742076574828892701998020881108630968653266080479012212470885101038450878194116112601247932583041503477671603162038297075716697867080462384113417423574864097454645600820279362618576105226884419921054620499774180666618618409471843256156779535831132995328996085936810216748548938749450590464489681286815040269772535854597800248386743429833595190016628559284649741328763068759632375189516146611823870946582593465111596139845643057658482392494391571874859961080869383041333303249313725983269386052678361313129839559702352291812723136044149535107414857660292856092900951190743729944040939459353967806117649415104810453035574988629566906553085195756276882272375496414771147834524349677645271069699902489881988399029726847187329197517965157979712736520413695755688626131704645732746313324984663761391920179781433304472679108383472953263514627
+     [java]   public exponent: 65537
+     [java]   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java]                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java]   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java]   SerialNumber: 01:9e:90:92:fd:c8
+     [java] 
+     [java] ]
+     [java]   Algorithm: [SHA256withRSA]
+     [java]   Signature:
+     [java] 0000: 71 19 1A F2 14 45 4A 84   5F 5D EE AA 95 26 67 43  q....EJ._]...&gC
+     [java] 0010: 66 83 05 8E 9F 85 63 38   2F B3 5C 47 87 2F 6E 9B  f.....c8/.\G./n.
+     [java] 0020: 30 70 65 FC D3 A0 0C 78   9D A1 CB DD E7 F5 4A AC  0pe....x......J.
+     [java] 0030: 2A B8 6E 06 06 57 EE 47   2F E2 93 5C 6C 5E 23 1D  *.n..W.G/..\l^#.
+     [java] 0040: B7 A5 E6 61 C4 07 75 02   EE 93 98 DA C4 C1 56 10  ...a..u.......V.
+     [java] 0050: 71 6E CB 58 2A 39 A0 74   AB 76 B2 48 B3 B1 02 B4  qn.X*9.t.v.H....
+     [java] 0060: B2 46 4A AE 6A 88 DD 0F   E7 AC 2B 46 0C FE 35 15  .FJ.j.....+F..5.
+     [java] 0070: 75 84 C5 B8 48 A6 75 BF   3D 9A 23 7D 9D D0 DC 1A  u...H.u.=.#.....
+     [java] 0080: 4B 5A D4 59 04 3C 4A 80   8E 27 47 C4 80 42 4E DB  KZ.Y.<J..'G..BN.
+     [java] 0090: 71 66 60 33 86 4B C5 61   B0 75 EF 4F 9B 00 1D EE  qf`3.K.a.u.O....
+     [java] 00A0: 14 B5 56 9F DF 16 CA 70   F9 42 C3 D5 33 D7 76 51  ..V....p.B..3.vQ
+     [java] 00B0: F8 DC F1 02 76 E6 A4 A4   05 CA DF F4 75 EE 79 CC  ....v.......u.y.
+     [java] 00C0: 29 E8 BE BD 0F 23 06 83   4D B4 69 94 74 36 04 72  )....#..M.i.t6.r
+     [java] 00D0: 9E EC B9 AE 6F 15 A4 84   EB F9 90 8F EB 7E BB 1C  ....o...........
+     [java] 00E0: BC 78 AB 4E 8F FF 5D 4D   C0 A8 61 72 8E B5 36 84  .x.N..]M..ar..6.
+     [java] 00F0: BF 42 68 FF 81 03 97 52   E6 2B B4 15 80 5C 47 72  .Bh....R.+...\Gr
+     [java] 
+     [java] ], [
+     [java] [
+     [java]   Version: V1
+     [java]   Subject: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java]   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] 
+     [java]   Key:  Sun RSA public key, 2048 bits
+     [java]   params: null
+     [java]   modulus: 25101242164816488759835594331917444299267415582224801319664456210493524429824262378707313071294599641722341024064192954243665522685490616514904548547208390761107324472971403485031435396959637879989740100116494163515748653816506171196985189159735457900898422492213076228264717792951636187977788376334697899843414852207597778189276823514339846899490613041091499266810022178135504432086323937177035694120054590221707417729988896077240587946138314009584307317382842360594120003107591888374158390986646866395775540724116876868454045669699601216226655719638380185449543224714084472919379249793265216858226816344270029415393
+     [java]   public exponent: 65537
+     [java]   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java]                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java]   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java]   SerialNumber: 01:9e:90:92:fa:61
+     [java] 
+     [java] ]
+     [java]   Algorithm: [SHA256withRSA]
+     [java]   Signature:
+     [java] 0000: 53 C6 9C 6F 5A 7F 2F 3C   B4 FD 51 C9 D3 1A C6 8C  S..oZ./<..Q.....
+     [java] 0010: 60 16 D9 AF 0D EB 3C B9   A7 35 4A D8 1D 0E 91 81  `.....<..5J.....
+     [java] 0020: 9A F6 47 99 01 F7 34 F1   F5 90 56 B2 47 31 84 22  ..G...4...V.G1."
+     [java] 0030: 8E EC 79 90 31 C0 CB 78   32 04 C8 CF BE 27 A8 A8  ..y.1..x2....'..
+     [java] 0040: D4 B6 14 FC 43 A9 76 46   D7 0C 66 7F 1F 5B E2 3D  ....C.vF..f..[.=
+     [java] 0050: E3 AC 4C 6D 47 79 19 3F   EB 26 F5 6B 72 F1 75 68  ..LmGy.?.&.kr.uh
+     [java] 0060: EF 8D 16 65 86 20 92 BC   7F 6D AA 66 23 F7 2B F4  ...e. ...m.f#.+.
+     [java] 0070: 5E 4A F5 3E A0 3D 80 CD   F5 65 DC 28 D1 B4 99 1E  ^J.>.=...e.(....
+     [java] 0080: BA 61 EC 6B F6 5F AD 42   C1 F4 67 7B 8B 34 8E 5E  .a.k._.B..g..4.^
+     [java] 0090: 62 E2 3A A6 9E 0E F9 44   9F 05 36 F3 BA 13 F9 80  b.:....D..6.....
+     [java] 00A0: 40 06 90 8E 6E BA 64 2F   7F A4 1A 49 AF DC 1E 8D  @...n.d/...I....
+     [java] 00B0: 0E F8 4A E9 7F EC 6A 5B   E2 3E EE 22 F2 D8 6C D2  ..J...j[.>."..l.
+     [java] 00C0: 8D 24 66 08 4B 77 C4 E2   A1 82 1B 46 7C BD 47 24  .$f.Kw.....F..G$
+     [java] 00D0: CB 90 7D 10 08 36 2D 82   EF 5B 61 91 9E CC 24 4D  .....6-..[a...$M
+     [java] 00E0: 4A 54 44 EF 8A 4A 7B 06   60 3F 96 B3 CA C0 17 25  JTD..J..`?.....%
+     [java] 00F0: A4 2C 2B E1 91 27 10 07   69 86 DB FE 91 E1 BC 79  .,+..'..i......y
+     [java] 
+     [java] ]]
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ClientAuthManager chooseClientAlias
+     [java] FINE: choose client alias for key types [EC, EdDSA, RSA, RSASSA-PSS]
+     [java] and issuers [CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US, CN=Reggie, CN=Tester, CN=Fiddler]
+     [java] returns 19e9092fdc8@cn=test ca,ou=jini group,o=sun microsystems inc,l=burlington,st=ma,c=us
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.FilterX509TrustManager checkClientTrusted
+     [java] NonActGrp-out: FINE: check client trusted succeeds for auth type RSA
+     [java] NonActGrp-out: chain [[
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Tester
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 3072 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 3880148769331492653274265637940546031665121669602586618901847344224480679663120566313257027742076574828892701998020881108630968653266080479012212470885101038450878194116112601247932583041503477671603162038297075716697867080462384113417423574864097454645600820279362618576105226884419921054620499774180666618618409471843256156779535831132995328996085936810216748548938749450590464489681286815040269772535854597800248386743429833595190016628559284649741328763068759632375189516146611823870946582593465111596139845643057658482392494391571874859961080869383041333303249313725983269386052678361313129839559702352291812723136044149535107414857660292856092900951190743729944040939459353967806117649415104810453035574988629566906553085195756276882272375496414771147834524349677645271069699902489881988399029726847187329197517965157979712736520413695755688626131704645732746313324984663761391920179781433304472679108383472953263514627
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fd:c8
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 71 19 1A F2 14 45 4A 84   5F 5D EE AA 95 26 67 43  q....EJ._]...&gC
+     [java] NonActGrp-out: 0010: 66 83 05 8E 9F 85 63 38   2F B3 5C 47 87 2F 6E 9B  f.....c8/.\G./n.
+     [java] NonActGrp-out: 0020: 30 70 65 FC D3 A0 0C 78   9D A1 CB DD E7 F5 4A AC  0pe....x......J.
+     [java] NonActGrp-out: 0030: 2A B8 6E 06 06 57 EE 47   2F E2 93 5C 6C 5E 23 1D  *.n..W.G/..\l^#.
+     [java] NonActGrp-out: 0040: B7 A5 E6 61 C4 07 75 02   EE 93 98 DA C4 C1 56 10  ...a..u.......V.
+     [java] NonActGrp-out: 0050: 71 6E CB 58 2A 39 A0 74   AB 76 B2 48 B3 B1 02 B4  qn.X*9.t.v.H....
+     [java] NonActGrp-out: 0060: B2 46 4A AE 6A 88 DD 0F   E7 AC 2B 46 0C FE 35 15  .FJ.j.....+F..5.
+     [java] NonActGrp-out: 0070: 75 84 C5 B8 48 A6 75 BF   3D 9A 23 7D 9D D0 DC 1A  u...H.u.=.#.....
+     [java] NonActGrp-out: 0080: 4B 5A D4 59 04 3C 4A 80   8E 27 47 C4 80 42 4E DB  KZ.Y.<J..'G..BN.
+     [java] NonActGrp-out: 0090: 71 66 60 33 86 4B C5 61   B0 75 EF 4F 9B 00 1D EE  qf`3.K.a.u.O....
+     [java] NonActGrp-out: 00A0: 14 B5 56 9F DF 16 CA 70   F9 42 C3 D5 33 D7 76 51  ..V....p.B..3.vQ
+     [java] NonActGrp-out: 00B0: F8 DC F1 02 76 E6 A4 A4   05 CA DF F4 75 EE 79 CC  ....v.......u.y.
+     [java] NonActGrp-out: 00C0: 29 E8 BE BD 0F 23 06 83   4D B4 69 94 74 36 04 72  )....#..M.i.t6.r
+     [java] NonActGrp-out: 00D0: 9E EC B9 AE 6F 15 A4 84   EB F9 90 8F EB 7E BB 1C  ....o...........
+     [java] NonActGrp-out: 00E0: BC 78 AB 4E 8F FF 5D 4D   C0 A8 61 72 8E B5 36 84  .x.N..]M..ar..6.
+     [java] NonActGrp-out: 00F0: BF 42 68 FF 81 03 97 52   E6 2B B4 15 80 5C 47 72  .Bh....R.+...\Gr
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ], [
+     [java] NonActGrp-out: [
+     [java] NonActGrp-out:   Version: V1
+     [java] NonActGrp-out:   Subject: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out:   Key:  Sun RSA public key, 2048 bits
+     [java] NonActGrp-out:   params: null
+     [java] NonActGrp-out:   modulus: 25101242164816488759835594331917444299267415582224801319664456210493524429824262378707313071294599641722341024064192954243665522685490616514904548547208390761107324472971403485031435396959637879989740100116494163515748653816506171196985189159735457900898422492213076228264717792951636187977788376334697899843414852207597778189276823514339846899490613041091499266810022178135504432086323937177035694120054590221707417729988896077240587946138314009584307317382842360594120003107591888374158390986646866395775540724116876868454045669699601216226655719638380185449543224714084472919379249793265216858226816344270029415393
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslConnection establishCallContext
+     [java] FINE: new connection for CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=null
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] creates SslConnection[Session(1780566269400|TLS_AES_256_GCM_SHA384), 54183=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out:   public exponent: 65537
+     [java] NonActGrp-out:   Validity: [From: Thu Jun 04 12:59:22 AEST 2026,
+     [java] NonActGrp-out:                To: Tue Jun 09 13:00:12 AEST 2026]
+     [java] NonActGrp-out:   Issuer: CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
+     [java] NonActGrp-out:   SerialNumber: 01:9e:90:92:fa:61
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]
+     [java] NonActGrp-out:   Algorithm: [SHA256withRSA]
+     [java] NonActGrp-out:   Signature:
+     [java] NonActGrp-out: 0000: 53 C6 9C 6F 5A 7F 2F 3C   B4 FD 51 C9 D3 1A C6 8C  S..oZ./<..Q.....
+     [java] NonActGrp-out: 0010: 60 16 D9 AF 0D EB 3C B9   A7 35 4A D8 1D 0E 91 81  `.....<..5J.....
+     [java] NonActGrp-out: 0020: 9A F6 47 99 01 F7 34 F1   F5 90 56 B2 47 31 84 22  ..G...4...V.G1."
+     [java] NonActGrp-out: 0030: 8E EC 79 90 31 C0 CB 78   32 04 C8 CF BE 27 A8 A8  ..y.1..x2....'..
+     [java] NonActGrp-out: 0040: D4 B6 14 FC 43 A9 76 46   D7 0C 66 7F 1F 5B E2 3D  ....C.vF..f..[.=
+     [java] NonActGrp-out: 0050: E3 AC 4C 6D 47 79 19 3F   EB 26 F5 6B 72 F1 75 68  ..LmGy.?.&.kr.uh
+     [java] NonActGrp-out: 0060: EF 8D 16 65 86 20 92 BC   7F 6D AA 66 23 F7 2B F4  ...e. ...m.f#.+.
+     [java] NonActGrp-out: 0070: 5E 4A F5 3E A0 3D 80 CD   F5 65 DC 28 D1 B4 99 1E  ^J.>.=...e.(....
+     [java] NonActGrp-out: 0080: BA 61 EC 6B F6 5F AD 42   C1 F4 67 7B 8B 34 8E 5E  .a.k._.B..g..4.^
+     [java] NonActGrp-out: 0090: 62 E2 3A A6 9E 0E F9 44   9F 05 36 F3 BA 13 F9 80  b.:....D..6.....
+     [java] NonActGrp-out: 00A0: 40 06 90 8E 6E BA 64 2F   7F A4 1A 49 AF DC 1E 8D  @...n.d/...I....
+     [java] NonActGrp-out: 00B0: 0E F8 4A E9 7F EC 6A 5B   E2 3E EE 22 F2 D8 6C D2  ..J...j[.>."..l.
+     [java] NonActGrp-out: 00C0: 8D 24 66 08 4B 77 C4 E2   A1 82 1B 46 7C BD 47 24  .$f.Kw.....F..G$
+     [java] NonActGrp-out: 00D0: CB 90 7D 10 08 36 2D 82   EF 5B 61 91 9E CC 24 4D  .....6-..[a...$M
+     [java] NonActGrp-out: 00E0: 4A 54 44 EF 8A 4A 7B 06   60 3F 96 B3 CA C0 17 25  JTD..J..`?.....%
+     [java] NonActGrp-out: 00F0: A4 2C 2B E1 91 27 10 07   69 86 DB FE 91 E1 BC 79  .,+..'..i......y
+     [java] NonActGrp-out: 
+     [java] NonActGrp-out: ]]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection <init>
+     [java] NonActGrp-out: FINE: created SslServerConnection[Session(1780566269389|TLS_AES_256_GCM_SHA384), null:54177<=fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54183]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection checkConstraints
+     [java] NonActGrp-out: FINE: check constraints for SslServerConnection[Session(1780566269389|TLS_AES_256_GCM_SHA384), null:54177<=fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54183]
+     [java] NonActGrp-out: with InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] NonActGrp-out: returns InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl getCallContext
+     [java] FINE: new request for SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] with InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] and Subject@94f6bfb{
+     [java]   Principal: CN=Tester
+     [java]     Public key: RSAPublicKeyImpl@3bfc6a5e
+     [java]     Private key: RSAPrivateCrtKeyImpl@65753040}
+     [java] returns CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=null
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl connect
+     [java] FINE: choose connection for CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=null
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] with active []
+     [java] and idle [SslConnection[Session(1780566269400|TLS_AES_256_GCM_SHA384), 54183=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]
+     [java] returns SslConnection[Session(1780566269400|TLS_AES_256_GCM_SHA384), 54183=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection checkConstraints
+     [java] NonActGrp-out: FINE: check constraints for SslServerConnection[Session(1780566269389|TLS_AES_256_GCM_SHA384), null:54177<=fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54183]
+     [java] NonActGrp-out: with InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] NonActGrp-out: returns InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl getCallContext
+     [java] FINE: new request for SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] with InvocationConstraints[reqs: {}, prefs: {}]
+     [java] and Subject@94f6bfb{
+     [java]   Principal: CN=Tester
+     [java]     Public key: RSAPublicKeyImpl@3bfc6a5e
+     [java]     Private key: RSAPrivateCrtKeyImpl@65753040}
+     [java] returns CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=null
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java] ]
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl connect
+     [java] FINE: choose connection for CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=null
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java] ]
+     [java] with active []
+     [java] and idle [SslConnection[Session(1780566269400|TLS_AES_256_GCM_SHA384), 54183=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]
+     [java] returns SslConnection[Session(1780566269400|TLS_AES_256_GCM_SHA384), 54183=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection checkConstraints
+     [java] NonActGrp-out: FINE: check constraints for SslServerConnection[Session(1780566269389|TLS_AES_256_GCM_SHA384), null:54177<=fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54183]
+     [java] NonActGrp-out: with InvocationConstraints[reqs: {}, prefs: {}]
+     [java] NonActGrp-out: returns InvocationConstraints[reqs: {}, prefs: {}]
+     [java] 
+     [java] TIME: 7:44:29?pm
+     [java] 
+     [java] TxnMgrTestBase.getTransactionManager INFO: Got reference to TransactionManager: org.apache.river.mahalo.proxy.TxnMgrProxy$ConstrainableTxnMgrProxy@a666cdf
+     [java] TxnMgrTestBase.getTransactionManagerAdmin INFO: 	Calling getTransactionManagerAdmin()
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl getCallContext
+     [java] FINE: new request for SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] with InvocationConstraints[reqs: {ConstraintAlternatives{ServerMinPrincipal{CN=Mahalo}, ServerMinPrincipal{CN=Phoenix}}, Integrity.YES, ServerAuthentication.YES}, prefs: {}]
+     [java] and Subject@94f6bfb{
+     [java]   Principal: CN=Tester
+     [java]     Public key: RSAPublicKeyImpl@3bfc6a5e
+     [java]     Private key: RSAPrivateCrtKeyImpl@65753040}
+     [java] returns CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=[CN=Phoenix, CN=Mahalo]
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl connect
+     [java] FINE: choose connection for CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=[CN=Phoenix, CN=Mahalo]
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] with active []
+     [java] and idle [SslConnection[Session(1780566269400|TLS_AES_256_GCM_SHA384), 54183=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]
+     [java] returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type EC
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type EdDSA
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type RSA
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns 19e9092fdc8@cn=test ca,ou=jini group,o=sun microsystems inc,l=burlington,st=ma,c=us
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle acceptLoop
+     [java] NonActGrp-out: INFO: accepting connection on SslListenHandle[null:54177] throws
+     [java] NonActGrp-out: java.io.IOException: Unable to create session
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslConnection establishCallContext
+     [java] FAILED: new connection for CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=[CN=Phoenix, CN=Mahalo]
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] throws
+     [java] net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishCallContext(SslConnection.java:209)
+     [java] 	at net.jini.jeri.ssl.SslEndpointImpl.connect(SslEndpointImpl.java:970)
+     [java] 	at net.jini.jeri.connection.ConnectionManager.connect(ConnectionManager.java:241)
+     [java] 	at net.jini.jeri.connection.ConnectionManager$ReqIterator.next(ConnectionManager.java:726)
+     [java] 	at net.jini.jeri.BasicObjectEndpoint$1.next(BasicObjectEndpoint.java:484)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethodOnce(BasicInvocationHandler.java:868)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethod(BasicInvocationHandler.java:821)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invoke(BasicInvocationHandler.java:690)
+     [java] 	at net.jini.jeri.AtomicInvocationHandler.invoke(AtomicInvocationHandler.java:320)
+     [java] 	at jdk.proxy3/jdk.proxy3.$Proxy9.getAdmin(Unknown Source)
+     [java] 	at org.apache.river.mahalo.proxy.TxnMgrProxy.getAdmin(TxnMgrProxy.java:179)
+     [java] 	at org.apache.river.test.impl.mahalo.TxnMgrTestBase.getTransactionManagerAdmin(TxnMgrTestBase.java:89)
+     [java] 	at org.apache.river.test.impl.mahalo.AdminIFTest.run(AdminIFTest.java:55)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTest(MasterTest.java:278)
+     [java] 	at org.apache.river.qa.harness.MasterTest.access$000(MasterTest.java:51)
+     [java] 	at org.apache.river.qa.harness.MasterTest$1.run(MasterTest.java:188)
+     [java] 	at java.base/java.security.AccessController.doPrivileged(AccessController.java:397)
+     [java] 	at java.base/javax.security.auth.Subject.doAsPrivileged(Subject.java:882)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTestWithLogin(MasterTest.java:185)
+     [java] 	at org.apache.river.qa.harness.MasterTest.main(MasterTest.java:164)
+     [java] Caused by: javax.net.ssl.SSLHandshakeException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:130)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:382)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:325)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:320)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1310)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.onConsumeCertificate(CertificateMessage.java:1172)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.consume(CertificateMessage.java:1115)
+     [java] 	at java.base/sun.security.ssl.SSLHandshake.consume(SSLHandshake.java:421)
+     [java] 	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:477)
+     [java] 	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:448)
+     [java] 	at java.base/sun.security.ssl.TransportContext.dispatch(TransportContext.java:205)
+     [java] 	at java.base/sun.security.ssl.SSLTransport.decode(SSLTransport.java:172)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.decode(SSLSocketImpl.java:1506)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.readHandshakeRecord(SSLSocketImpl.java:1421)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:455)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:426)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishSuites(SslConnection.java:267)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishNewSocket(SslConnection.java:254)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishCallContext(SslConnection.java:169)
+     [java] 	... 19 more
+     [java] Caused by: java.security.cert.CertificateException: Remote principal is not trusted
+     [java] 	at net.jini.jeri.ssl.FilterX509TrustManager.check(FilterX509TrustManager.java:183)
+     [java] 	at net.jini.jeri.ssl.FilterX509TrustManager.checkServerTrusted(FilterX509TrustManager.java:137)
+     [java] 	at net.jini.jeri.ssl.ClientAuthManager.checkServerTrusted(ClientAuthManager.java:278)
+     [java] 	at java.base/sun.security.ssl.AbstractTrustManagerWrapper.checkServerTrusted(SSLContextImpl.java:1435)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1285)
+     [java] 	... 33 more
+     [java] 
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection.<init>(SslServerEndpointImpl.java:1440)
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle.serverConnection(SslServerEndpointImpl.java:1268)
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle.acceptLoop(SslServerEndpointImpl.java:1138)
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle$1.run(SslServerEndpointImpl.java:1108)
+     [java] NonActGrp-out: 	at org.apache.river.thread.ThreadPool$Task.run(ThreadPool.java:136)
+     [java] NonActGrp-out: 	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:586)
+     [java] NonActGrp-out: 	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330)
+     [java] NonActGrp-out: 	at java.base/java.util.concurrent.ThreadPerTaskExecutor$ThreadBoundFuture.run(ThreadPerTaskExecutor.java:340)
+     [java] NonActGrp-out: 	at java.base/java.lang.Thread.lambda$runWith$0(Thread.java:1716)
+     [java] NonActGrp-out: 	at java.base/jdk.internal.vm.ScopedValueContainer.callWithoutScope(ScopedValueContainer.java:162)
+     [java] NonActGrp-out: 	at java.base/jdk.internal.vm.ScopedValueContainer.call(ScopedValueContainer.java:147)
+     [java] NonActGrp-out: 	at java.base/java.lang.ScopedValue$Carrier.call(ScopedValue.java:425)
+     [java] NonActGrp-out: 	at java.base/javax.security.auth.Subject.callNoCheck(Subject.java:612)
+     [java] NonActGrp-out: 	at java.base/javax.security.auth.Subject$NoCheck.callAs(Subject.java:473)
+     [java] NonActGrp-out: 	at java.base/java.lang.Thread$SubjectAccess.callNoCheck(Thread.java:1739)
+     [java] NonActGrp-out: 	at java.base/java.lang.VirtualThread.run(VirtualThread.java:482)
+     [java] NonActGrp-out: Caused by: java.lang.SecurityException: Handshake failed: SSL_NULL_WITH_NULL_NULL
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection.<init>(SslServerEndpointImpl.java:1415)
+     [java] NonActGrp-out: 	... 15 more
+     [java] NonActGrp-out: 
+     [java] java.rmi.ConnectIOException: I/O exception connecting to BasicObjectEndpoint[DGC,39b0cb6f-f6d9-4c8f-9b1b-dfd8248b2a2c,SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]; nested exception is: 
+     [java] 	net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at net.jini.jeri.BasicInvocationHandler.wrapSafeIOException(BasicInvocationHandler.java:1105)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethodOnce(BasicInvocationHandler.java:871)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethod(BasicInvocationHandler.java:821)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invoke(BasicInvocationHandler.java:690)
+     [java] 	at net.jini.jeri.AtomicInvocationHandler.invoke(AtomicInvocationHandler.java:320)
+     [java] 	at jdk.proxy3/jdk.proxy3.$Proxy9.getAdmin(Unknown Source)
+     [java] 	at org.apache.river.mahalo.proxy.TxnMgrProxy.getAdmin(TxnMgrProxy.java:179)
+     [java] 	at org.apache.river.test.impl.mahalo.TxnMgrTestBase.getTransactionManagerAdmin(TxnMgrTestBase.java:89)
+     [java] 	at org.apache.river.test.impl.mahalo.AdminIFTest.run(AdminIFTest.java:55)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTest(MasterTest.java:278)
+     [java] 	at org.apache.river.qa.harness.MasterTest.access$000(MasterTest.java:51)
+     [java] 	at org.apache.river.qa.harness.MasterTest$1.run(MasterTest.java:188)
+     [java] 	at java.base/java.security.AccessController.doPrivileged(AccessController.java:397)
+     [java] 	at java.base/javax.security.auth.Subject.doAsPrivileged(Subject.java:882)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTestWithLogin(MasterTest.java:185)
+     [java] 	at org.apache.river.qa.harness.MasterTest.main(MasterTest.java:164)
+     [java] Caused by: net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishCallContext(SslConnection.java:209)
+     [java] 	at net.jini.jeri.ssl.SslEndpointImpl.connect(SslEndpointImpl.java:970)
+     [java] 	at net.jini.jeri.connection.ConnectionManager.connect(ConnectionManager.java:241)
+     [java] 	at net.jini.jeri.connection.ConnectionManager$ReqIterator.next(ConnectionManager.java:726)
+     [java] 	at net.jini.jeri.BasicObjectEndpoint$1.next(BasicObjectEndpoint.java:484)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethodOnce(BasicInvocationHandler.java:868)
+     [java] 	... 14 more
+     [java] Caused by: javax.net.ssl.SSLHandshakeException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:130)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:382)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:325)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:320)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1310)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.onConsumeCertificate(CertificateMessage.java:1172)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.consume(CertificateMessage.java:1115)
+     [java] 	at java.base/sun.security.ssl.SSLHandshake.consume(SSLHandshake.java:421)
+     [java] 	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:477)
+     [java] 	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:448)
+     [java] 	at java.base/sun.security.ssl.TransportContext.dispatch(TransportContext.java:205)
+     [java] 	at java.base/sun.security.ssl.SSLTransport.decode(SSLTransport.java:172)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.decode(SSLSocketImpl.java:1506)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.readHandshakeRecord(SSLSocketImpl.java:1421)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:455)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:426)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishSuites(SslConnection.java:267)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishNewSocket(SslConnection.java:254)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishCallContext(SslConnection.java:169)
+     [java] 	... 19 more
+     [java] Caused by: java.security.cert.CertificateException: Remote principal is not trusted
+     [java] 	at net.jini.jeri.ssl.FilterX509TrustManager.check(FilterX509TrustManager.java:183)
+     [java] 	at net.jini.jeri.ssl.FilterX509TrustManager.checkServerTrusted(FilterX509TrustManager.java:137)
+     [java] 	at net.jini.jeri.ssl.ClientAuthManager.checkServerTrusted(ClientAuthManager.java:278)
+     [java] 	at java.base/sun.security.ssl.AbstractTrustManagerWrapper.checkServerTrusted(SSLContextImpl.java:1435)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1285)
+     [java] 	... 33 more
+     [java] MasterTest.doTest INFO: 
+     [java] ============================ CALLING TEARDOWN() =============================
+     [java] 
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl getCallContext
+     [java] FINE: new request for SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] with InvocationConstraints[reqs: {ConstraintAlternatives{ServerMinPrincipal{CN=Mahalo}, ServerMinPrincipal{CN=Phoenix}}, Integrity.YES, ServerAuthentication.YES}, prefs: {}]
+     [java] and Subject@94f6bfb{
+     [java]   Principal: CN=Tester
+     [java]     Public key: RSAPublicKeyImpl@3bfc6a5e
+     [java]     Private key: RSAPrivateCrtKeyImpl@65753040}
+     [java] returns CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=[CN=Phoenix, CN=Mahalo]
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslEndpointImpl connect
+     [java] FINE: choose connection for CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=[CN=Phoenix, CN=Mahalo]
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] with active []
+     [java] and idle [SslConnection[Session(1780566269400|TLS_AES_256_GCM_SHA384), 54183=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]
+     [java] returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type EC
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type EdDSA
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslConnection establishCallContext
+     [java] FAILED: new connection for CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=[CN=Phoenix, CN=Mahalo]
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] throws
+     [java] net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishCallContext(SslConnection.java:209)
+     [java] 	at net.jini.jeri.ssl.SslEndpointImpl.connect(SslEndpointImpl.java:970)
+     [java] 	at net.jini.jeri.connection.ConnectionManager.connect(ConnectionManager.java:241)
+     [java] 	at net.jini.jeri.connection.ConnectionManager$ReqIterator.next(ConnectionManager.java:726)
+     [java] 	at net.jini.jeri.BasicObjectEndpoint$1.next(BasicObjectEndpoint.java:484)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethodOnce(BasicInvocationHandler.java:868)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethod(BasicInvocationHandler.java:821)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invoke(BasicInvocationHandler.java:690)
+     [java] 	at net.jini.jeri.AtomicInvocationHandler.invoke(AtomicInvocationHandler.java:320)
+     [java] 	at jdk.proxy3/jdk.proxy3.$Proxy9.getAdmin(Unknown Source)
+     [java] 	at org.apache.river.mahalo.proxy.TxnMgrProxy.getAdmin(TxnMgrProxy.java:179)
+     [java] 	at org.apache.river.test.share.TestBase.tearDown(TestBase.java:600)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTest(MasterTest.java:304)
+     [java] 	at org.apache.river.qa.harness.MasterTest.access$000(MasterTest.java:51)
+     [java] 	at org.apache.river.qa.harness.MasterTest$1.run(MasterTest.java:188)
+     [java] 	at java.base/java.security.AccessController.doPrivileged(AccessController.java:397)
+     [java] 	at java.base/javax.security.auth.Subject.doAsPrivileged(Subject.java:882)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTestWithLogin(MasterTest.java:185)
+     [java] 	at org.apache.river.qa.harness.MasterTest.main(MasterTest.java:164)
+     [java] Caused by: javax.net.ssl.SSLHandshakeException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:130)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:382)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:325)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:320)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1310)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.onConsumeCertificate(CertificateMessage.java:1172)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.consume(CertificateMessage.java:1115)
+     [java] 	at java.base/sun.security.ssl.SSLHandshake.consume(SSLHandshake.java:421)
+     [java] 	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:477)
+     [java] 	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:448)
+     [java] 	at java.base/sun.security.ssl.TransportContext.dispatch(TransportContext.java:205)
+     [java] 	at java.base/sun.security.ssl.SSLTransport.decode(SSLTransport.java:172)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.decode(SSLSocketImpl.java:1506)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.readHandshakeRecord(SSLSocketImpl.java:1421)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:455)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:426)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishSuites(SslConnection.java:267)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishNewSocket(SslConnection.java:254)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishCallContext(SslConnection.java:169)
+     [java] 	... 18 more
+     [java] Caused by: java.security.cert.CertificateException: Remote principal is not trusted
+     [java] 	at net.jini.jeri.ssl.FilterX509TrustManager.check(FilterX509TrustManager.java:183)
+     [java] 	at net.jini.jeri.ssl.FilterX509TrustManager.checkServerTrusted(FilterX509TrustManager.java:137)
+     [java] 	at net.jini.jeri.ssl.ClientAuthManager.checkServerTrusted(ClientAuthManager.java:278)
+     [java] 	at java.base/sun.security.ssl.AbstractTrustManagerWrapper.checkServerTrusted(SSLContextImpl.java:1435)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1285)
+     [java] 	... 32 more
+     [java] 
+     [java] NonActGrp-out: FINE: choose server alias for key type RSA
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns 19e9092fdc8@cn=test ca,ou=jini group,o=sun microsystems inc,l=burlington,st=ma,c=us
+     [java] NonActGrp-out: June 04, 2026 7:44:29 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle acceptLoop
+     [java] NonActGrp-out: INFO: accepting connection on SslListenHandle[null:54177] throws
+     [java] NonActGrp-out: java.io.IOException: Unable to create session
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection.<init>(SslServerEndpointImpl.java:1440)
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle.serverConnection(SslServerEndpointImpl.java:1268)
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle.acceptLoop(SslServerEndpointImpl.java:1138)
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle$1.run(SslServerEndpointImpl.java:1108)
+     [java] NonActGrp-out: 	at org.apache.river.thread.ThreadPool$Task.run(ThreadPool.java:136)
+     [java] NonActGrp-out: 	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:586)
+     [java] NonActGrp-out: 	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330)
+     [java] NonActGrp-out: 	at java.base/java.util.concurrent.ThreadPerTaskExecutor$ThreadBoundFuture.run(ThreadPerTaskExecutor.java:340)
+     [java] NonActGrp-out: 	at java.base/java.lang.Thread.lambda$runWith$0(Thread.java:1716)
+     [java] NonActGrp-out: 	at java.base/jdk.internal.vm.ScopedValueContainer.callWithoutScope(ScopedValueContainer.java:162)
+     [java] NonActGrp-out: 	at java.base/jdk.internal.vm.ScopedValueContainer.call(ScopedValueContainer.java:147)
+     [java] NonActGrp-out: 	at java.base/java.lang.ScopedValue$Carrier.call(ScopedValue.java:425)
+     [java] NonActGrp-out: 	at java.base/javax.security.auth.Subject.callNoCheck(Subject.java:612)
+     [java] NonActGrp-out: 	at java.base/javax.security.auth.Subject$NoCheck.callAs(Subject.java:473)
+     [java] NonActGrp-out: 	at java.base/java.lang.Thread$SubjectAccess.callNoCheck(Thread.java:1739)
+     [java] NonActGrp-out: 	at java.base/java.lang.VirtualThread.run(VirtualThread.java:482)
+     [java] NonActGrp-out: Caused by: java.lang.SecurityException: Handshake failed: SSL_NULL_WITH_NULL_NULL
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection.<init>(SslServerEndpointImpl.java:1415)
+     [java] NonActGrp-out: 	... 15 more
+     [java] NonActGrp-out: 
+     [java] TestBase.tearDown INFO: Warning: Test TestBase did not shutdown cleanly!
+     [java] Reason: Trouble destroying org.apache.river.mahalo.proxy.TxnMgrProxy$ConstrainableTxnMgrProxy@a666cdf I/O exception connecting to BasicObjectEndpoint[DGC,39b0cb6f-f6d9-4c8f-9b1b-dfd8248b2a2c,SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]; nested exception is: 
+     [java] 	net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] org.apache.river.qa.harness.TestException: Trouble destroying org.apache.river.mahalo.proxy.TxnMgrProxy$ConstrainableTxnMgrProxy@a666cdf I/O exception connecting to BasicObjectEndpoint[DGC,39b0cb6f-f6d9-4c8f-9b1b-dfd8248b2a2c,SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]; nested exception is: 
+     [java] 	net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at org.apache.river.test.share.TestBase.cleanupFailure(TestBase.java:536)
+     [java] 	at org.apache.river.test.share.TestBase.tearDown(TestBase.java:609)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTest(MasterTest.java:304)
+     [java] 	at org.apache.river.qa.harness.MasterTest.access$000(MasterTest.java:51)
+     [java] 	at org.apache.river.qa.harness.MasterTest$1.run(MasterTest.java:188)
+     [java] 	at java.base/java.security.AccessController.doPrivileged(AccessController.java:397)
+     [java] 	at java.base/javax.security.auth.Subject.doAsPrivileged(Subject.java:882)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTestWithLogin(MasterTest.java:185)
+     [java] 	at org.apache.river.qa.harness.MasterTest.main(MasterTest.java:164)
+     [java] QATestEnvironment.tearDown FINE: Destroying remaining managed services
+     [java] AdminManager.destroyService FINE: destroying service: class org.apache.river.mahalo.proxy.TxnMgrProxy$ConstrainableTxnMgrProxy
+     [java] June 04, 2026 7:44:30 PM net.jini.jeri.ssl.SslEndpointImpl getCallContext
+     [java] FINE: new request for SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] with InvocationConstraints[reqs: {ConstraintAlternatives{ServerMinPrincipal{CN=Mahalo}, ServerMinPrincipal{CN=Phoenix}}, Integrity.YES, ServerAuthentication.YES}, prefs: {}]
+     [java] and Subject@94f6bfb{
+     [java]   Principal: CN=Tester
+     [java]     Public key: RSAPublicKeyImpl@3bfc6a5e
+     [java]     Private key: RSAPrivateCrtKeyImpl@65753040}
+     [java] returns CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=[CN=Phoenix, CN=Mahalo]
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] June 04, 2026 7:44:30 PM net.jini.jeri.ssl.SslEndpointImpl connect
+     [java] FINE: choose connection for CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=[CN=Phoenix, CN=Mahalo]
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] with active []
+     [java] and idle [SslConnection[Session(1780566269400|TLS_AES_256_GCM_SHA384), 54183=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]
+     [java] returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:30 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type EC
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:30 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type EdDSA
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns null
+     [java] NonActGrp-out: June 04, 2026 7:44:30 PM net.jini.jeri.ssl.ServerAuthManager chooseServerAlias
+     [java] NonActGrp-out: FINE: choose server alias for key type RSA
+     [java] NonActGrp-out: issuers null
+     [java] NonActGrp-out: returns 19e9092fdc8@cn=test ca,ou=jini group,o=sun microsystems inc,l=burlington,st=ma,c=us
+     [java] NonActGrp-out: June 04, 2026 7:44:30 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle acceptLoop
+     [java] NonActGrp-out: INFO: accepting connection on SslListenHandle[null:54177] throws
+     [java] NonActGrp-out: java.io.IOException: Unable to create session
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection.<init>(SslServerEndpointImpl.java:1440)
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle.serverConnection(SslServerEndpointImpl.java:1268)
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle.acceptLoop(SslServerEndpointImpl.java:1138)
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle$1.run(SslServerEndpointImpl.java:1108)
+     [java] NonActGrp-out: 	at org.apache.river.thread.ThreadPool$Task.run(ThreadPool.java:136)
+     [java] NonActGrp-out: 	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:586)
+     [java] NonActGrp-out: 	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330)
+     [java] NonActGrp-out: 	at java.base/java.util.concurrent.ThreadPerTaskExecutor$ThreadBoundFuture.run(ThreadPerTaskExecutor.java:340)
+     [java] NonActGrp-out: 	at java.base/java.lang.Thread.lambda$runWith$0(Thread.java:1716)
+     [java] NonActGrp-out: 	at java.base/jdk.internal.vm.ScopedValueContainer.callWithoutScope(ScopedValueContainer.java:162)
+     [java] NonActGrp-out: 	at java.base/jdk.internal.vm.ScopedValueContainer.call(ScopedValueContainer.java:147)
+     [java] NonActGrp-out: 	at java.base/java.lang.ScopedValue$Carrier.call(ScopedValue.java:425)
+     [java] NonActGrp-out: 	at java.base/javax.security.auth.Subject.callNoCheck(Subject.java:612)
+     [java] NonActGrp-out: 	at java.base/javax.security.auth.Subject$NoCheck.callAs(Subject.java:473)
+     [java] NonActGrp-out: 	at java.base/java.lang.Thread$SubjectAccess.callNoCheck(Thread.java:1739)
+     [java] NonActGrp-out: 	at java.base/java.lang.VirtualThread.run(VirtualThread.java:482)
+     [java] NonActGrp-out: Caused by: java.lang.SecurityException: Handshake failed: SSL_NULL_WITH_NULL_NULL
+     [java] NonActGrp-out: 	at net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection.<init>(SslServerEndpointImpl.java:1415)
+     [java] NonActGrp-out: 	... 15 more
+     [java] NonActGrp-out: 
+     [java] June 04, 2026 7:44:30 PM net.jini.jeri.ssl.SslConnection establishCallContext
+     [java] FAILED: new connection for CallContext[
+     [java]   SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java]   clientSubject=Subject@94f6bfb
+     [java]   clientAuthRequired=true
+     [java]   clientPrincipals=[CN=Tester]
+     [java]   serverPrincipals=[CN=Phoenix, CN=Mahalo]
+     [java]   cipherSuites=[TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA]
+     [java]   integrity=required
+     [java] ]
+     [java] throws
+     [java] net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishCallContext(SslConnection.java:209)
+     [java] 	at net.jini.jeri.ssl.SslEndpointImpl.connect(SslEndpointImpl.java:970)
+     [java] 	at net.jini.jeri.connection.ConnectionManager.connect(ConnectionManager.java:241)
+     [java] 	at net.jini.jeri.connection.ConnectionManager$ReqIterator.next(ConnectionManager.java:726)
+     [java] 	at net.jini.jeri.BasicObjectEndpoint$1.next(BasicObjectEndpoint.java:484)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethodOnce(BasicInvocationHandler.java:868)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethod(BasicInvocationHandler.java:821)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invoke(BasicInvocationHandler.java:690)
+     [java] 	at net.jini.jeri.AtomicInvocationHandler.invoke(AtomicInvocationHandler.java:320)
+     [java] 	at jdk.proxy3/jdk.proxy3.$Proxy9.getAdmin(Unknown Source)
+     [java] 	at org.apache.river.mahalo.proxy.TxnMgrProxy.getAdmin(TxnMgrProxy.java:179)
+     [java] 	at org.apache.river.qa.harness.ServiceDestroyer.destroy(ServiceDestroyer.java:73)
+     [java] 	at org.apache.river.qa.harness.NonActivatableServiceStarterAdmin.stop(NonActivatableServiceStarterAdmin.java:186)
+     [java] 	at org.apache.river.qa.harness.AdminManager.destroyService(AdminManager.java:932)
+     [java] 	at org.apache.river.qa.harness.AdminManager.destroyAllServices(AdminManager.java:870)
+     [java] 	at org.apache.river.qa.harness.AdminManager.destroyAllServices(AdminManager.java:759)
+     [java] 	at org.apache.river.qa.harness.QATestEnvironment.tearDown(QATestEnvironment.java:184)
+     [java] 	at org.apache.river.test.share.TestBase.tearDown(TestBase.java:687)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTest(MasterTest.java:304)
+     [java] 	at org.apache.river.qa.harness.MasterTest.access$000(MasterTest.java:51)
+     [java] 	at org.apache.river.qa.harness.MasterTest$1.run(MasterTest.java:188)
+     [java] 	at java.base/java.security.AccessController.doPrivileged(AccessController.java:397)
+     [java] 	at java.base/javax.security.auth.Subject.doAsPrivileged(Subject.java:882)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTestWithLogin(MasterTest.java:185)
+     [java] 	at org.apache.river.qa.harness.MasterTest.main(MasterTest.java:164)
+     [java] Caused by: javax.net.ssl.SSLHandshakeException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:130)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:382)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:325)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:320)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1310)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.onConsumeCertificate(CertificateMessage.java:1172)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.consume(CertificateMessage.java:1115)
+     [java] 	at java.base/sun.security.ssl.SSLHandshake.consume(SSLHandshake.java:421)
+     [java] 	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:477)
+     [java] 	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:448)
+     [java] 	at java.base/sun.security.ssl.TransportContext.dispatch(TransportContext.java:205)
+     [java] 	at java.base/sun.security.ssl.SSLTransport.decode(SSLTransport.java:172)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.decode(SSLSocketImpl.java:1506)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.readHandshakeRecord(SSLSocketImpl.java:1421)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:455)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:426)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishSuites(SslConnection.java:267)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishNewSocket(SslConnection.java:254)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishCallContext(SslConnection.java:169)
+     [java] 	... 24 more
+     [java] Caused by: java.security.cert.CertificateException: Remote principal is not trusted
+     [java] 	at net.jini.jeri.ssl.FilterX509TrustManager.check(FilterX509TrustManager.java:183)
+     [java] 	at net.jini.jeri.ssl.FilterX509TrustManager.checkServerTrusted(FilterX509TrustManager.java:137)
+     [java] 	at net.jini.jeri.ssl.ClientAuthManager.checkServerTrusted(ClientAuthManager.java:278)
+     [java] 	at java.base/sun.security.ssl.AbstractTrustManagerWrapper.checkServerTrusted(SSLContextImpl.java:1435)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1285)
+     [java] 	... 38 more
+     [java] 
+     [java] AdminManager.destroyService FINE: RemoteException stopping service
+     [java] java.rmi.ConnectIOException: I/O exception connecting to BasicObjectEndpoint[DGC,39b0cb6f-f6d9-4c8f-9b1b-dfd8248b2a2c,SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]; nested exception is: 
+     [java] 	net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at net.jini.jeri.BasicInvocationHandler.wrapSafeIOException(BasicInvocationHandler.java:1105)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethodOnce(BasicInvocationHandler.java:871)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethod(BasicInvocationHandler.java:821)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invoke(BasicInvocationHandler.java:690)
+     [java] 	at net.jini.jeri.AtomicInvocationHandler.invoke(AtomicInvocationHandler.java:320)
+     [java] 	at jdk.proxy3/jdk.proxy3.$Proxy9.getAdmin(Unknown Source)
+     [java] 	at org.apache.river.mahalo.proxy.TxnMgrProxy.getAdmin(TxnMgrProxy.java:179)
+     [java] 	at org.apache.river.qa.harness.ServiceDestroyer.destroy(ServiceDestroyer.java:73)
+     [java] 	at org.apache.river.qa.harness.NonActivatableServiceStarterAdmin.stop(NonActivatableServiceStarterAdmin.java:186)
+     [java] 	at org.apache.river.qa.harness.AdminManager.destroyService(AdminManager.java:932)
+     [java] 	at org.apache.river.qa.harness.AdminManager.destroyAllServices(AdminManager.java:870)
+     [java] 	at org.apache.river.qa.harness.AdminManager.destroyAllServices(AdminManager.java:759)
+     [java] 	at org.apache.river.qa.harness.QATestEnvironment.tearDown(QATestEnvironment.java:184)
+     [java] 	at org.apache.river.test.share.TestBase.tearDown(TestBase.java:687)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTest(MasterTest.java:304)
+     [java] 	at org.apache.river.qa.harness.MasterTest.access$000(MasterTest.java:51)
+     [java] 	at org.apache.river.qa.harness.MasterTest$1.run(MasterTest.java:188)
+     [java] 	at java.base/java.security.AccessController.doPrivileged(AccessController.java:397)
+     [java] 	at java.base/javax.security.auth.Subject.doAsPrivileged(Subject.java:882)
+     [java] 	at org.apache.river.qa.harness.MasterTest.doTestWithLogin(MasterTest.java:185)
+     [java] 	at org.apache.river.qa.harness.MasterTest.main(MasterTest.java:164)
+     [java] Caused by: net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishCallContext(SslConnection.java:209)
+     [java] 	at net.jini.jeri.ssl.SslEndpointImpl.connect(SslEndpointImpl.java:970)
+     [java] 	at net.jini.jeri.connection.ConnectionManager.connect(ConnectionManager.java:241)
+     [java] 	at net.jini.jeri.connection.ConnectionManager$ReqIterator.next(ConnectionManager.java:726)
+     [java] 	at net.jini.jeri.BasicObjectEndpoint$1.next(BasicObjectEndpoint.java:484)
+     [java] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethodOnce(BasicInvocationHandler.java:868)
+     [java] 	... 19 more
+     [java] Caused by: javax.net.ssl.SSLHandshakeException: (certificate_unknown) Remote principal is not trusted
+     [java] 	at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:130)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:382)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:325)
+     [java] 	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:320)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1310)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.onConsumeCertificate(CertificateMessage.java:1172)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.consume(CertificateMessage.java:1115)
+     [java] 	at java.base/sun.security.ssl.SSLHandshake.consume(SSLHandshake.java:421)
+     [java] 	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:477)
+     [java] 	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:448)
+     [java] 	at java.base/sun.security.ssl.TransportContext.dispatch(TransportContext.java:205)
+     [java] 	at java.base/sun.security.ssl.SSLTransport.decode(SSLTransport.java:172)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.decode(SSLSocketImpl.java:1506)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.readHandshakeRecord(SSLSocketImpl.java:1421)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:455)
+     [java] 	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:426)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishSuites(SslConnection.java:267)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishNewSocket(SslConnection.java:254)
+     [java] 	at net.jini.jeri.ssl.SslConnection.establishCallContext(SslConnection.java:169)
+     [java] 	... 24 more
+     [java] Caused by: java.security.cert.CertificateException: Remote principal is not trusted
+     [java] 	at net.jini.jeri.ssl.FilterX509TrustManager.check(FilterX509TrustManager.java:183)
+     [java] 	at net.jini.jeri.ssl.FilterX509TrustManager.checkServerTrusted(FilterX509TrustManager.java:137)
+     [java] 	at net.jini.jeri.ssl.ClientAuthManager.checkServerTrusted(ClientAuthManager.java:278)
+     [java] 	at java.base/sun.security.ssl.AbstractTrustManagerWrapper.checkServerTrusted(SSLContextImpl.java:1435)
+     [java] 	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1285)
+     [java] 	... 38 more
+     [java] AdminManager.destroyService FINE: destroying service: class org.apache.river.qa.harness.$Proxy4
+     [java] June 04, 2026 7:44:36 PM net.jini.jeri.ssl.SslConnection close
+     [java] FINE: closing SslConnection[Session(1780566269400|TLS_AES_256_GCM_SHA384), 54183=>fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]
+     [java] AdminManager.destroyService FINE: destroying service: class org.apache.river.tool.ClassServer
+     [java] AdminManager.destroyService FINE: destroying service: class org.apache.river.tool.ClassServer
+     [java] AdminManager.destroyService FINE: destroying service: class org.apache.river.tool.ClassServer
+     [java] 
+     [java] TIME: 7:44:40?pm
+     [java] 
+     [java] Test process was destroyed and returned code 1
+     [java] org/apache/river/test/impl/mahalo/AdminIFTest.td
+     [java] Test Failed: Test Failed with an Unexpected Exception: java.rmi.ConnectIOException: I/O exception connecting to BasicObjectEndpoint[DGC,39b0cb6f-f6d9-4c8f-9b1b-dfd8248b2a2c,SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]; nested exception is: 
+     [java] 	net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] 
+     [java] 
+     [java] -----------------------------------------
+     [java] 
+     [java] SUMMARY =================================
+     [java] 
+     [java] org/apache/river/test/impl/mahalo/AdminIFTest.td
+     [java] Test Failed: Test Failed with an Unexpected Exception: java.rmi.ConnectIOException: I/O exception connecting to BasicObjectEndpoint[DGC,39b0cb6f-f6d9-4c8f-9b1b-dfd8248b2a2c,SslEndpoint[fe80:0:0:0:7ec6:c463:ac28:1fd0%8:54177]]; nested exception is: 
+     [java] 	net.jini.io.UnsupportedConstraintException: (certificate_unknown) Remote principal is not trusted
+     [java] 
+     [java] -----------------------------------------
+     [java] 
+     [java] # of tests started   = 1
+     [java] # of tests completed = 1
+     [java] # of tests passed    = 0
+     [java] # of tests failed    = 1
+     [java] 
+     [java] -----------------------------------------
+     [java] 
+     [java]    Date finished:
+     [java]       Thu Jun 04 19:44:45 AEST 2026
+     [java]    Time elapsed:
+     [java]       28 seconds
+     [java] 
+
+collect-result:
+
+BUILD SUCCESSFUL
+Total time: 30 seconds

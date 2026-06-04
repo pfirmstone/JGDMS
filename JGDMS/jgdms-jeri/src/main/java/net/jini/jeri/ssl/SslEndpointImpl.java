@@ -576,15 +576,6 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
     }
 
     /**
-     * Returns true if the Subject has principals that can be used for TLS
-     * client identity selection in this endpoint.
-     */
-    private static boolean hasTlsIdentity(Subject subject) {
-	return !subject.getPrincipals(X500Principal.class).isEmpty()
-	    || !subject.getPrincipals(SpiffePrincipal.class).isEmpty();
-    }
-
-    /**
      * Returns a list of the contexts which are supported by principals and
      * credentials in the Subject.  Throws an UnsupportedConstraintException if
      * none of the contexts are supported, otherwise returns a non-empty list.

@@ -315,26 +315,45 @@ public class SharedGroupImpl implements Remote,
             ourStub);
     }
 
-    // javadoc inherited from supertype
-    @Override
-    public void destroyVM() throws RemoteException, ActivationException {
+	// javadoc inherited from supertype
+	@Override
+	public void destroyVM() throws RemoteException, ActivationException {
 	logger.entering(SharedGroupImpl.class.getName(), "destroyVM"); 
 	/*
 	 * Would like to synch access to activationSystem, but need
 	 * to avoid holding locks across remote invocations.
 	 */
-        if (activationSystem != null) {
-	    activationSystem.unregisterGroup(
-		ActivationGroup.currentGroupID());
-                logger.finest("ActivationGroup unregistered.");
+		if (activationSystem != null) {
+			final ActivationSystem sys = activationSystem;
+			activationSystem = null;
+			try {
+				if (loginContext != null) {
+					Subject groupSubject = loginContext.getSubject();
+					if (groupSubject != null) {
+						Subject.callAs(groupSubject, () -> {
+							sys.unregisterGroup(ActivationGroup.currentGroupID());
+							return null;
+						});
+					} else {
+						sys.unregisterGroup(ActivationGroup.currentGroupID());
+					}
+				} else {
+					sys.unregisterGroup(ActivationGroup.currentGroupID());
+				}
+			} catch (java.util.concurrent.CompletionException e) {
+				Throwable cause = e.getCause();
+				if (cause instanceof RemoteException) throw (RemoteException) cause;
+				if (cause instanceof ActivationException) throw (ActivationException) cause;
+				throw e;
+			}
+			logger.finest("ActivationGroup unregistered.");
 		/* Unregistering the group implicitly unregisters
 		 * all the objects associated with that group as well.
 		 */
-	    activationSystem = null;     
 	}
-        (new SharedGroupImpl.DestroyThread()).start();
+		(new SharedGroupImpl.DestroyThread()).start();
 	logger.exiting(SharedGroupImpl.class.getName(), "destroyVM"); 
-    }
+	}
 
     /**
      * Private utility method which attempts to roll back from 

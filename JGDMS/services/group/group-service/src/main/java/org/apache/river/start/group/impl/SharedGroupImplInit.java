@@ -44,8 +44,9 @@ class SharedGroupImplInit {
     AccessControlContext context;
     LoginContext loginContext;
     
-    SharedGroupImplInit(Configuration config, ActivationID id, LoginContext LoginContext) throws Exception {
-        ProxyPreparer activationSystemPreparer =
+	SharedGroupImplInit(Configuration config, ActivationID id, LoginContext LoginContext) throws Exception {
+		this.loginContext = LoginContext;
+		ProxyPreparer activationSystemPreparer =
             (ProxyPreparer) config.getEntry(
                 SharedGroupImpl.START_PACKAGE, "activationSystemPreparer",
                 ProxyPreparer.class, new BasicProxyPreparer());

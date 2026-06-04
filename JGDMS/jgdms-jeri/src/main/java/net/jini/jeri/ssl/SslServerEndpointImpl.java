@@ -177,17 +177,9 @@ class SslServerEndpointImpl extends Utilities {
 	    result.add(p);
 	}
 	return result;
-	}
+    }
 
-	/**
-	 * Returns true if the Subject has principals that can be used for TLS
-	 * identity selection in this endpoint (X500Principal or SpiffePrincipal).
-	 */
-	private static boolean hasTlsIdentity(Subject subject) {
-	if (subject == null) return false;
-	return !subject.getPrincipals(X500Principal.class).isEmpty()
-		|| !subject.getPrincipals(SpiffePrincipal.class).isEmpty();
-	}
+    
 
 	/** Returns the SSLSocketFactory, calling sslInit if needed. */
     final SSLSocketFactory getSSLSocketFactory() {
