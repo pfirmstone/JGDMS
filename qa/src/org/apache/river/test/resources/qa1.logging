@@ -159,6 +159,7 @@ net.jini.jeri.ssl.level = FINE
 net.jini.jeri.ssl.client.level = FINE
 net.jini.jeri.ssl.server.level = FINE
 #net.jini.jeri.ssl.init.level = SEVERE
+javax.security.auth.login.level = FINEST
 
 # For Kerberos 
 #net.jini.jeri.kerberos.level = SEVERE

@@ -1,0 +1,17 @@
+Buildfile: C:\Users\peter\Documents\GitHub\JGDMS\qa\build.xml
+
+james-brown:
+   [delete] Deleting directory C:\Users\peter\Documents\GitHub\JGDMS\qa\soul
+    [mkdir] Created dir: C:\Users\peter\Documents\GitHub\JGDMS\qa\soul
+    [touch] Creating C:\Users\peter\Documents\GitHub\JGDMS\qa\soul\soul.202606052002024456
+
+policy-update-run-tests:
+     [java] Exception in thread "main" java.lang.IllegalAccessError: class org.apache.river.qa.harness.QAConfig (in unnamed module @0x4b85612c) cannot access class au.zeus.jdk.net.Uri (in module java.base) because module java.base does not export au.zeus.jdk.net to unnamed module @0x4b85612c
+     [java] 	at org.apache.river.qa.harness.QAConfig.<init>(QAConfig.java:591)
+     [java] 	at org.apache.river.qa.harness.MasterHarness.<init>(MasterHarness.java:214)
+     [java] 	at org.apache.river.qa.harness.QARunner.main(QARunner.java:67)
+
+collect-result:
+
+BUILD SUCCESSFUL
+Total time: 0 seconds

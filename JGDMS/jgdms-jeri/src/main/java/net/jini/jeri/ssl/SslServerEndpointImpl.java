@@ -540,15 +540,6 @@ class SslServerEndpointImpl extends Utilities {
 		private volatile Subject serverSubject;
 
 		/**
-		 * True once a non-null subject has been successfully resolved from the
-		 * ambient context (Subject.current() or ACC).  Prevents re-resolution
-		 * after the subject has been established, while still allowing retries
-		 * if the first call happened before doAsPrivileged established the
-		 * SubjectDomainCombiner (e.g. during config parsing).
-		 */
-		private boolean subjectResolved = false;
-
-		/**
 		 * The principals to use for authentication, or null if the server is
 		 * anonymous.  Lazily computed when useCurrentSubject is true.
 		 */
@@ -714,104 +705,54 @@ class SslServerEndpointImpl extends Utilities {
 		 *       by {@code Subject.callAs()} or {@code Subject.doAsPrivileged()}.
 		 *       Only consulted when SPIFFE returns {@code null} and no subject
 		 *       has been cached yet.</li>
-		 *   <li><b>ACC-derived</b> — {@code Subject.getSubject(acc)} using the
-		 *       current {@code AccessControlContext}.  Not wrapped in any
-		 *       {@code doPrivileged} call so the {@code SubjectDomainCombiner}
-		 *       installed by the outer {@code Subject.doAsPrivileged} is
-		 *       preserved.  Only consulted once; the result is cached.</li>
 		 * </ol>
 		 */
 		synchronized void resolveSubjectIfNeeded() {
-			if (!useCurrentSubject) {
-				return; // Subject was supplied explicitly — never re-resolve
-			}
+                    if (!useCurrentSubject) {
+                            return; // Subject was supplied explicitly — never re-resolve
+                    }
 
-			if (logger.isLoggable(Level.FINE)) {
-				logger.log(Level.FINE,
-					"resolveSubjectIfNeeded: serverSubject={0}, thread={1}",
-					new Object[]{ serverSubject, Thread.currentThread().getName() });
-			}
+                    if (logger.isLoggable(Level.FINE)) {
+                            logger.log(Level.FINE,
+                                    "resolveSubjectIfNeeded: serverSubject={0}, thread={1}",
+                                    new Object[]{ serverSubject, Thread.currentThread().getName() });
+                    }
 
-			// Priority 1: Process-wide SPIFFE Subject.
-			// Always re-fetch: the SPIFFE SVID rotates (typically hourly) and
-			// SpiffeSubjectHolder.get() returns the current live Subject.
-			Subject spiffe = SpiffeSubjectHolder.get();
-			if (spiffe != null) {
-				if (spiffe != serverSubject) {
-					// Subject has been refreshed — update subject state and
-					// schedule a background SSL context rebuild so the hot path
-					// (getSSLSocketFactory / getAuthManager) is never blocked.
-					// The old factories remain in service until the rebuild
-					// completes and the volatile write swaps them in.
-					serverSubject = spiffe;
-					serverPrincipals = computePrincipals(spiffe);
-					scheduleSSLContextRebuild();
-				}
-				return;
-			}
+                    // Priority 1: Process-wide SPIFFE Subject.
+                    // Always re-fetch: the SPIFFE SVID rotates (typically hourly) and
+                    // SpiffeSubjectHolder.get() returns the current live Subject.
+                    Subject spiffe = SpiffeSubjectHolder.get();
+                    if (spiffe != null) {
+                            if (spiffe != serverSubject) {
+                                    // Subject has been refreshed — update subject state and
+                                    // schedule a background SSL context rebuild so the hot path
+                                    // (getSSLSocketFactory / getAuthManager) is never blocked.
+                                    // The old factories remain in service until the rebuild
+                                    // completes and the volatile write swaps them in.
+                                    serverSubject = spiffe;
+                                    serverPrincipals = computePrincipals(spiffe);
+                                    scheduleSSLContextRebuild();
+                            }
+                            return;
+                    }
 
-			// SPIFFE not available.  For the remaining sources the Subject is
-			// constant for the duration of the call stack (it comes from a
-			// LoginContext or doAsPrivileged scope), so cache it once we find one.
-			// Do NOT use serverSubject != null as the guard — it may have resolved
-			// to null on a pre-login call (e.g. during config parsing before
-			// doAsPrivileged establishes the SubjectDomainCombiner).  Instead use
-			// the explicit subjectResolved flag which is only set on success.
-			if (subjectResolved) {
-				return;
-			}
-
-			Subject resolved = null;
-
-			// Priority 2: Thread-scoped Subject.current() (Subject.callAs /
-			// doAsPrivileged sets this on DirtyChai).
-			Subject current = Subject.current();
-			if (logger.isLoggable(Level.FINE)) {
-				logger.log(Level.FINE,
-					"resolveSubjectIfNeeded: Subject.current()={0}", current);
-			}
-			if (current != null && hasTlsIdentity(current)) {
-				resolved = current;
-			}
-
-			// Priority 3: Subject stored in the current AccessControlContext.
-			// Do NOT wrap in doPrivileged / doPrivilegedWithCombiner — that
-			// creates a fresh privileged context and severs the
-			// SubjectDomainCombiner installed by the outer doAsPrivileged.
-			if (resolved == null) {
-				try {
-					AccessControlContext acc = AccessController.getContext();
-					if (acc != null) {
-						Subject accSubject = Subject.getSubject(acc);
-						if (logger.isLoggable(Level.FINE)) {
-							logger.log(Level.FINE,
-								"resolveSubjectIfNeeded: Subject.getSubject(acc)={0}", accSubject);
-						}
-						if (accSubject != null && hasTlsIdentity(accSubject)) {
-							resolved = accSubject;
-						}
-					}
-				} catch (SecurityException | IllegalArgumentException e) {
-					// ignore
-				} catch (Exception e) {
-					// DirtyChai BUG-001: Subject.getSubject(acc) unconditionally calls
-					// ResourcesMgr.getString("invalid.null.AccessControlContext.provided")
-					// before the null-check, but that resource key is missing from the
-					// DirtyChai security bundle, so MissingResourceException is always
-					// thrown even for a non-null acc.  Treat as "no ACC subject".
-					// See docs/DirtyChai-known-bugs.md BUG-001.
-				}
-			}
-
-			if (resolved != null) {
-				serverSubject = resolved;
-				serverPrincipals = computePrincipals(resolved);
-				subjectResolved = true;
-			} else if (logger.isLoggable(Level.FINE)) {
-				logger.log(Level.FINE,
-					"resolveSubjectIfNeeded: no TLS-capable subject found on thread {0}",
-					Thread.currentThread().getName());
-			}
+                    // Priority 2: Thread-scoped Subject.current() (set by Subject.callAs).
+                    // Re-resolved on every call — the ScopedValue changes per scope so
+                    // caching is incorrect (e.g. harness group Tester scope vs service
+                    // Mahalo scope).
+                    Subject current = Subject.current();
+                    if (logger.isLoggable(Level.FINE)) {
+                        logger.log(Level.FINE,
+                            "resolveSubjectIfNeeded: Subject.current()={0}", current);
+                    }
+                    if (current != null && hasTlsIdentity(current)) {
+                        serverSubject = current;
+                        serverPrincipals = computePrincipals(current);
+                    } else if (logger.isLoggable(Level.FINE)) {
+                        logger.log(Level.FINE,
+                            "resolveSubjectIfNeeded: no TLS-capable subject found on thread {0}",
+                            Thread.currentThread().getName());
+                    }
 		}
 
 		/**

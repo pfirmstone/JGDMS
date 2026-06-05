@@ -583,10 +583,18 @@ public final class QAConfig implements Serializable {
 	harnessJar = getHarnessJar();
 	if (harnessJar != null) {
 	    resolver.setToken("harnessJar", harnessJar);
+	    // URL form: Uri.fixWindowsURI converts backslashes to forward slashes
+	    // and inserts a leading '/' before the drive letter on Windows
+	    // (e.g. "file:C:\..." -> "file:/C:/..."), producing a valid jar: URL
+	    // for use in jsselogins keyStoreURL and similar contexts.
+	    resolver.setToken("harnessJarUrl",
+		org.apache.river.api.net.Uri.fixWindowsURI("file:" + harnessJar));
 	}
 	testJar = getStringConfigVal("testJar", null);
 	if (testJar != null) {
 	    resolver.setToken("testJar", testJar);
+	    resolver.setToken("testJarUrl",
+		org.apache.river.api.net.Uri.fixWindowsURI("file:" + testJar));
 	}
 	buildSearchList(getStringConfigVal("searchPath", ""));
 	/*
@@ -895,14 +903,20 @@ public final class QAConfig implements Serializable {
 		String fqEntry = canonicalize(tdDir + "/" + entryName);
 		logger.log(Level.FINEST, "checking test jar file for " + fqEntry);
 		if (getJarEntry(testJar, fqEntry) != null) {
-		    return new URL("jar:file:" + testJar.replace('\\', '/') + "!/" + fqEntry);
+                    String jarPath = testJar.replace('\\', '/');
+                    if (!jarPath.startsWith("/")) jarPath = "/" + jarPath;
+                    return new URL("jar:file:" + jarPath + "!/" + fqEntry);
 		}
 	    }
 	    if (getJarEntry(testJar, entryName) != null) {
-		return new URL("jar:file:" + testJar.replace('\\', '/') + "!/" + entryName);
+                String jarPath = testJar.replace('\\', '/');
+                if (!jarPath.startsWith("/")) jarPath = "/" + jarPath;
+                return new URL("jar:file:" + jarPath + "!/" + entryName);
 	    }
 	    if (getJarEntry(harnessJar, entryName) != null) {
-		return new URL("jar:file:" + harnessJar.replace('\\', '/') + "!/" + entryName);
+		String jarPath = harnessJar.replace('\\', '/');
+                if (!jarPath.startsWith("/")) jarPath = "/" + jarPath;
+                return new URL("jar:file:" + jarPath + "!/" + entryName);
 	    }
 	} catch (MalformedURLException e) {
 	    throw new TestException("failed to construct entry URL", e);
@@ -1835,6 +1849,7 @@ public final class QAConfig implements Serializable {
      String[] getGlobalVMArgs() {
 	String vmArgs = 
 	    getStringConfigVal("org.apache.river.qa.harness.globalvmargs", null);
+        logger.log(Level.INFO, "globalvmargs resolved to: {0}", vmArgs);
 	String[] args = parseArgList(vmArgs);
 	String smOverride = System.getProperty("org.apache.river.qa.harness.securitymanager");
 	if (smOverride != null && args != null) {
@@ -2605,11 +2620,15 @@ public final class QAConfig implements Serializable {
 	//XXX the harnessJar/testJar special cases feels like a hack
 	if (key.equals("harnessJar")) {
 	    resolver.setToken(key, value);
+	    resolver.setToken("harnessJarUrl",
+		org.apache.river.api.net.Uri.fixWindowsURI("file:" + value));
 	    harnessJar = value;
 	}
 	if (key.equals("testJar")) {
 	    testJar = value;
 	    resolver.setToken(key, value);
+	    resolver.setToken("testJarUrl",
+		org.apache.river.api.net.Uri.fixWindowsURI("file:" + value));
 	}
 	if (isMaster()) {
 	    SlaveRequest request = new SetDynamicParameterRequest(key, value);

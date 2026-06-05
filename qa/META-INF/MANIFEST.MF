@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Ant-Version: Apache Ant 1.10.17
+Created-By: 27-internal-adhoc.peter.DirtyChai (Oracle Corporation)
+

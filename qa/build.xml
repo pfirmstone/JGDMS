@@ -406,7 +406,7 @@
                 the path to those property files in jar archives needs looking into
                 this is now solved by setting the -->
                 <jvmarg value="-Dorg.apache.river.test.home=${basedir}" />
-                <jvmarg value="-Dorg.apache.river.qa.harness.harnessJar=${basedir}/lib/jiniharness.jar"/>
+                <!--<jvmarg value="-Dorg.apache.river.qa.harness.harnessJar=${basedir}/lib/jiniharness.jar"/>-->
                 <jvmarg value="-Dorg.apache.river.qa.harness.configs=${harness.configs}" />
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml=${harness.generateHtml}" />
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml.title=${harness.generateHtml.title}" />

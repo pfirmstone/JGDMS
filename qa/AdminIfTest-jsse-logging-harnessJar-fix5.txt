@@ -1,0 +1,15 @@
+Buildfile: C:\Users\peter\Documents\GitHub\JGDMS\qa\build.xml
+
+james-brown:
+   [delete] Deleting directory C:\Users\peter\Documents\GitHub\JGDMS\qa\soul
+    [mkdir] Created dir: C:\Users\peter\Documents\GitHub\JGDMS\qa\soul
+    [touch] Creating C:\Users\peter\Documents\GitHub\JGDMS\qa\soul\soul.202606052004051109
+
+policy-update-run-tests:
+     [java] Error: Could not find or load main class org.apache.river.qa.harness.QARunner
+     [java] Caused by: java.lang.ClassNotFoundException: org.apache.river.qa.harness.QARunner
+
+collect-result:
+
+BUILD SUCCESSFUL
+Total time: 0 seconds
