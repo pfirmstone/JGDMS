@@ -1547,7 +1547,10 @@ public final class QAConfig implements Serializable {
 		}
 		break;
 	    }
-	    // ignore doubled or leading commas
+	    // ignore doubled, leading, or whitespace-only entries;
+	    // trim() removes leading/trailing whitespace including newlines
+	    // that result from Properties line-continuation in CRLF files.
+	    buffer = buffer.trim();
 	    if (buffer.length() > 0) {
 		list.add(buffer);
 	    }
@@ -1850,6 +1853,7 @@ public final class QAConfig implements Serializable {
 	String vmArgs = 
 	    getStringConfigVal("org.apache.river.qa.harness.globalvmargs", null);
         logger.log(Level.INFO, "globalvmargs resolved to: {0}", vmArgs);
+        System.out.println("DEBUG globalvmargs: " + vmArgs);
 	String[] args = parseArgList(vmArgs);
 	String smOverride = System.getProperty("org.apache.river.qa.harness.securitymanager");
 	if (smOverride != null && args != null) {

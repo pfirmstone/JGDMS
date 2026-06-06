@@ -301,6 +301,7 @@ class TxnManagerImpl /*extends RemoteServer*/
                     configArgs, getClass().getClassLoader());
             loginContext = (LoginContext) config.getEntry(
                 TxnManager.MAHALO, "loginContext", LoginContext.class, null);
+            System.err.println("DIAGNOSTIC: loginContext: " +loginContext);
             if (loginContext != null) {
                 // Setup with login context.
                 if (operationsLogger.isLoggable(Level.FINER)) {
@@ -309,6 +310,17 @@ class TxnManagerImpl /*extends RemoteServer*/
                         new Object[] { config, loginContext } );
                 }
                 loginContext.login();
+                // DIAGNOSTIC: dump subject state after login
+                javax.security.auth.Subject loginSubject = loginContext.getSubject();
+                System.err.println("DIAGNOSTIC: loginSubject=" + loginSubject);
+                if (loginSubject != null) {
+                    System.err.println("DIAGNOSTIC: principals=" + loginSubject.getPrincipals());
+                    System.err.println("DIAGNOSTIC: pubCreds=" + loginSubject.getPublicCredentials());
+                    System.err.println("DIAGNOSTIC: privCreds.size=" + loginSubject.getPrivateCredentials().size());
+                    for (Object c : loginSubject.getPrivateCredentials()) {
+                        System.err.println("DIAGNOSTIC: privCred type=" + c.getClass().getName());
+                    }
+                }
 
                 try {
                     init = Subject.callAs(
@@ -375,6 +387,7 @@ class TxnManagerImpl /*extends RemoteServer*/
             }
             
         } catch (Throwable e) {
+            e.printStackTrace(); // DIAGNOSTIC: always visible in NonActGrp-out
             thrown = e;
         } finally {
             if (init != null){
@@ -454,7 +467,36 @@ class TxnManagerImpl /*extends RemoteServer*/
         }
         try {
             if (thrown != null) throw thrown;
-            AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
+            // start() is called from the harness mux dispatch thread, which carries the
+            // harness (Tester) subject as Subject.current() via ScopedValue.  The SSL
+            // endpoint's resolveSubjectIfNeeded() reads Subject.current() to pick the
+            // server certificate — without this callAs, it would initialise the SSL
+            // context with the Tester certificate instead of the Mahalo certificate.
+            LoginContext lc = loginContext;
+            javax.security.auth.Subject svcSubject = (lc != null) ? lc.getSubject() : null;
+            if (svcSubject != null) {
+                try {
+                    Subject.callAs(svcSubject, () -> { doStart(); return null; });
+                } catch (java.util.concurrent.CompletionException ce) {
+                    Throwable cause = ce.getCause();
+                    if (cause instanceof Exception) throw (Exception) cause;
+                    throw new RuntimeException(cause);
+                }
+            } else {
+                doStart();
+            }
+        } catch (Throwable e) {
+            if (e instanceof PrivilegedActionException) e = e.getCause();
+            cleanup();
+            initFailed(e);
+        } finally {
+            config = null;
+            thrown = null;
+        }
+    }
+
+    private void doStart() throws Exception {
+        AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
 
                 @Override
                 public Object run() throws Exception {
@@ -542,20 +584,8 @@ class TxnManagerImpl /*extends RemoteServer*/
                 }
 
             }, context);
-        } catch (Throwable e) {
-            if (e instanceof PrivilegedActionException){
-                e = e.getCause();
-            }
-            cleanup();
-	    initFailed(e); 
-        } finally {
-            // Clear references.
-            config = null;
-            thrown = null;
-        }
-        
     }
-    
+
     //TransactionManager interface method
 
     public TransactionManager.Created create(long lease)

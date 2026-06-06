@@ -51,35 +51,8 @@ import java.security.PrivilegedAction;
  *
  *   <dt><b>User pool</b> ({@code user=true},
  *       permission {@code "getUserThreadPool"})</dt>
- *   <dd>For short-lived RPC dispatch tasks and other work where the submitting
- *       thread's {@link javax.security.auth.Subject} identity must be available
- *       on the worker thread.  Uses {@link SubjectPropagatingThreadPool}, which
- *       captures the subject stack at submission time (via
- *       {@code Subject.current()} or {@code Subject.currentAll()} on DirtyChai)
- *       and restores it on the virtual thread via {@code Subject.callAs()}.
- *       This ensures that JWT user subjects and other per-request identities
- *       established by {@code Subject.callAs()} on the submitting thread are
- *       visible to service method invocations on the worker thread.
- *       SPIFFE subjects are intentionally excluded from capture — they rotate
- *       hourly and are always re-fetched process-wide via
- *       {@code SpiffeSubjectHolder}.</dd>
+ *   <dd>For short-lived RPC dispatch tasks and other work .</dd>
  * </dl>
- *
- * <h2>Security context</h2>
- *
- * <p>If there is a security manager, the {@link #run} method checks the
- * {@link ThreadPoolPermission} for the requested pool.  When used with
- * {@code doPrivileged} (the typical case), only the protection domain of the
- * immediate caller of {@code doPrivileged} needs the permission.
- *
- * <p>The system pool executes tasks without the security context in which
- * {@code execute} was invoked, without any subject, and with the system class
- * loader as the context class loader.  The user pool executes tasks with the
- * submitting thread's subject stack restored, but otherwise similarly sheds
- * the caller's full privilege stack through the {@code doPrivileged} boundary
- * at the call site.  Actions are expected to complete with the same context
- * class loader and other thread-specific state (such as priority) that they
- * were started with.
  *
  * @author Sun Microsystems, Inc.
  * @see ThreadPool
@@ -91,11 +64,9 @@ public final class GetThreadPoolAction implements PrivilegedAction<Executor> {
     private static final ThreadPool systemThreadPool = new ThreadPool();
 
     /**
-     * Pool for short-lived RPC dispatch tasks — propagates the submitting
-     * thread's Subject stack to the worker virtual thread.
+     * Pool for short-lived RPC dispatch tasks — no subject propagation.
      */
-    private static final ThreadPool userThreadPool =
-            new SubjectPropagatingThreadPool();
+    private static final ThreadPool userThreadPool = new ThreadPool();
 
     private static final Permission getSystemThreadPoolPermission =
             new ThreadPoolPermission("getSystemThreadPool");
@@ -107,9 +78,10 @@ public final class GetThreadPoolAction implements PrivilegedAction<Executor> {
     /**
      * Creates an action that will obtain an internal thread pool.
      * When run, this action verifies that the current access control
-     * context has permission to access the indicated pool.
+     * context has permission to access the indicated pool.  Neither
+     * pool is suitable for Subject propagation.
      *
-     * @param user if {@code true}, obtains the user-code (subject-propagating)
+     * @param user if {@code true}, obtains the user-code
      *             thread pool; if {@code false}, obtains the system
      *             (infrastructure) thread pool
      */

@@ -67,7 +67,10 @@ class GroupImpl implements NonActivatableGroup {
      * at construction time using a <code>BasicJeriExporter</code>.
      */
     public GroupImpl() {
-        this(new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new AtomicILFactory(null, null, GroupImpl.class)));
+        this(new BasicJeriExporter(
+            TcpServerEndpoint.getInstance(
+                System.getProperty("java.rmi.server.hostname", "localhost"), 0),
+            new AtomicILFactory(null, null, GroupImpl.class)));
     }
 
     private GroupImpl(Exporter exporter) {

@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.ResourceBundle;
@@ -870,7 +871,15 @@ class MasterHarness {
 		"Starting test in separate process with command:");
 	    printStream.println(sb.toString());
 	    File workingDir = testRun.td.getWorkingDir();
-            proc = Runtime.getRuntime().exec(cmdArray, null, workingDir);
+		ProcessBuilder pb = new ProcessBuilder(cmdArray);
+		if (workingDir != null) {
+            pb.directory(workingDir);
+        }
+		Map<String, String> environment = pb.environment();
+		final PrintStream envOut = printStream;
+		printStream.println("Environment:");
+		environment.forEach((key, value) -> envOut.println(key + "=" + value));
+        proc = pb.start();
 	    printStream = outStream;
 	    if (discardOKOutput) {
 		stream = new ByteArrayOutputStream();
@@ -884,9 +893,9 @@ class MasterHarness {
 		new AtomicMarshalOutputStream(proc.getOutputStream(), null);
 	    os.writeObject(config);
 	    os.flush();
-//  	    bindInput(proc);
+  	    bindInput(proc);
 	    proc.waitFor();
-//  	    bindInput(null);
+  	    bindInput(null);
 	    outPipe.waitTillEmpty(5000);//XXX do I need to detect timeout?
 	    errPipe.waitTillEmpty(5000);
 	    testResult = filter.getTestResult(testRun);

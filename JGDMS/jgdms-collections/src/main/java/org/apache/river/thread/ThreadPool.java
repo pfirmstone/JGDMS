@@ -27,6 +27,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A thread pool for long-running infrastructure tasks, backed by a
@@ -64,8 +66,8 @@ import javax.security.auth.Subject;
  *       affect SPIFFE identity resolution.</li>
  * </ul>
  *
- * <p>For short-lived tasks that need the submitting thread's subject to be
- * propagated to the worker thread (e.g. RPC dispatch, JWT forwarding), use
+ * <p>For short-lived tasks that need subject propagation (RPC dispatch, JWT
+ * forwarding across thread boundaries) use
  * {@link SubjectPropagatingThreadPool} instead.
  *
  * <p>This implementation uses the {@link Logger} named
@@ -90,13 +92,27 @@ class ThreadPool implements Executor, java.util.concurrent.Executor {
     private final ExecutorService es;
 
     ThreadPool() {
-        this(Executors.newVirtualThreadPerTaskExecutor());
+        this(newVirtualThreadPerTaskExecutor());
         AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
                 Runtime.getRuntime().addShutdownHook(shutdownHook());
                 return null;
             }
+        });
+    }
+
+    private static ExecutorService newVirtualThreadPerTaskExecutor() {
+        // Explicitly clear any ambient subject. Subject.callAs(null,
+        // ...) binds null into the ScopedValue, making Subject.current()
+        // return null for the duration of the task. This neutralises
+        // any subject injected via DirtyChai's ACC snapshot mechanism
+        // or inherited from an enclosing Subject.callAs scope on the
+        // submitting thread.
+        return AccessController.doPrivileged((PrivilegedAction<ExecutorService>) () -> {
+            return Subject.callAs(null, (Callable<ExecutorService>) () -> {
+                return Executors.newVirtualThreadPerTaskExecutor();
+            });
         });
     }
 
@@ -181,36 +197,18 @@ class ThreadPool implements Executor, java.util.concurrent.Executor {
         @Override
         public void run() {
             final Thread thread = Thread.currentThread();
+            // DIAGNOSTIC: run directly WITHOUT Subject.callAs(null, ...) to
+            // confirm whether the callAs(null) wrapper is what breaks the
+            // mux handshake. If the test passes with this version, the
+            // null-subject scope is the culprit.
             try {
-                // Explicitly clear any ambient subject. Subject.callAs(null,
-                // ...) binds null into the ScopedValue, making Subject.current()
-                // return null for the duration of the task. This neutralises
-                // any subject injected via DirtyChai's ACC snapshot mechanism
-                // or inherited from an enclosing Subject.callAs scope on the
-                // submitting thread.
-                Subject.callAs(null, (Callable<Void>) () -> {
-                    try {
-                        thread.setName(NewThreadAction.NAME_PREFIX + name);
-                        runnable.run();
-                    } catch (RuntimeException t) { // Don't catch Error
-                        logger.log(Level.WARNING, "uncaught exception", t);
-                        if (t instanceof SecurityException) {
-                            // ignore — already logged
-                        } else {
-                            // Ignorance of RuntimeException is generally
-                            // bad, bail out.
-                            throw t;
-                        }
-                    } finally {
-                        thread.setName(NewThreadAction.NAME_PREFIX + "idle");
-                    }
-                    return null;
-                });
-            } catch (Exception e) {
-                // Subject.callAs declares Exception; unwrap RuntimeException,
-                // let Error propagate naturally.
-                if (e instanceof RuntimeException) throw (RuntimeException) e;
-                throw new RuntimeException(e);
+                thread.setName(NewThreadAction.NAME_PREFIX + name);
+                runnable.run();
+            } catch (RuntimeException t) { // Don't catch Error
+                logger.log(Level.WARNING, "uncaught exception", t);
+                throw t;
+            } finally {
+                thread.setName(NewThreadAction.NAME_PREFIX + "idle");
             }
         }
 

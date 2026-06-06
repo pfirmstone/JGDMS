@@ -61,22 +61,25 @@ class NonActivatableGroupImpl {
      * @param args the command line arguments, which are unused
      */
     public static void main(String[] args) {
-	origErr = System.err;
-	System.setErr(System.out);
-	GroupImpl group = new GroupImpl();
-	group.export();
-        nonActGroup = group;
-	try {
-	    DataOutputStream ds = new DataOutputStream(origErr);
-	    ds.writeShort(Short.MAX_VALUE - 5); // write token
-	    ObjectOutputStream os = new AtomicMarshalOutputStream(ds, null);
-	    os.writeObject(new AtomicMarshalledInstance(group.getProxy()));
-	    os.flush();
-	} catch (IOException e) {
-	    throw new RuntimeException("WriteObject failed", e);
-	} catch (Throwable e){
+	    origErr = System.err;
+	    System.setErr(System.out);
+	    GroupImpl group = new GroupImpl();
+	    group.export();
+            nonActGroup = group;
+	    try {
+	        DataOutputStream ds = new DataOutputStream(origErr);
+	        ds.writeShort(Short.MAX_VALUE - 5); // write token
+	        ObjectOutputStream os = new AtomicMarshalOutputStream(ds, null);
+	        os.writeObject(new AtomicMarshalledInstance(group.getProxy()));
+	        os.flush();
+	    } catch (IOException e) {
             e.printStackTrace();
+            logger.log(Level.SEVERE, "Unexpected exception", e);
             System.exit(1);
-        }
+	    } catch (Throwable e){
+            e.printStackTrace();
+            logger.log(Level.SEVERE, "Unexpected exception", e);
+            System.exit(1);
+        } 
     }
 }

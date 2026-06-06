@@ -164,11 +164,15 @@ final class StreamConnectionIO extends ConnectionIO {
 		    synchronized (mux.muxLock) {
 			while (!mux.muxDown && sendQueue.isEmpty()) {
 			    /*
-			     * REMIND: Should we use a timeout here, to send
-			     * occasional PING messages during periods of
-			     * inactivity, to make sure connection is alive?
+			     * Use a timeout to handle the race condition where
+			     * asyncSendServerConnectionHeader() calls notifyAll()
+			     * before this virtual thread has reached wait() —
+			     * a window that is negligible with platform threads
+			     * but common with virtual thread scheduling.
+			     * The timeout also serves as an occasional PING
+			     * opportunity during periods of inactivity.
 			     */
-			    mux.muxLock.wait();
+			    mux.muxLock.wait(1000);
 			    /*
 			     * Let an interrupt during the wait just kill this
 			     * thread, because an interrupt during an I/O write
