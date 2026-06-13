@@ -92,8 +92,8 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Fiddler",
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo",
 {
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
     permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
     permission java.lang.RuntimePermission "createPlatformThread";
     permission java.lang.RuntimePermission "createVirtualThread";
     permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
@@ -101,8 +101,8 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo",
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mercury",
 {
-    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
     permission net.jini.security.AccessPermission "*";
+    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
     permission java.lang.RuntimePermission "createPlatformThread";
     permission java.lang.RuntimePermission "createVirtualThread";
     permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
@@ -133,16 +133,16 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Reggie",
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
 {
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
     permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
     permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
 };
 
 grant {
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-    permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 

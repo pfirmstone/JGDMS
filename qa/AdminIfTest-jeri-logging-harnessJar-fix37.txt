@@ -1,0 +1,26 @@
+Buildfile: C:\Users\peter\Documents\GitHub\JGDMS\qa\build.xml
+
+james-brown:
+   [delete] Deleting directory C:\Users\peter\Documents\GitHub\JGDMS\qa\soul
+    [mkdir] Created dir: C:\Users\peter\Documents\GitHub\JGDMS\qa\soul
+    [touch] Creating C:\Users\peter\Documents\GitHub\JGDMS\qa\soul\soul.202606061349018634
+
+policy-update-run-tests:
+     [java] Error: Could not find or load main class org.apache.river.qa.harness.QARunner
+     [java] Caused by: java.lang.ClassNotFoundException: org.apache.river.qa.harness.QARunner
+     [java] June 06, 2026 1:49:18 PM java.lang.Shutdown logRuntimeExit
+     [java] FINE: Runtime.exit() called with status: 1
+     [java] java.lang.Throwable: Runtime.exit(1)
+     [java] 	at java.base/java.lang.Shutdown.logRuntimeExit(Shutdown.java:181)
+     [java] 	at java.base/java.lang.Shutdown.exit(Shutdown.java:162)
+     [java] 	at java.base/java.lang.Runtime.exit(Runtime.java:189)
+     [java] 	at java.base/java.lang.System.exit(System.java:2034)
+     [java] 	at java.base/sun.launcher.LauncherHelper.abort(LauncherHelper.java:729)
+     [java] 	at java.base/sun.launcher.LauncherHelper.loadMainClass(LauncherHelper.java:889)
+     [java] 	at java.base/sun.launcher.LauncherHelper.checkAndLoadMain(LauncherHelper.java:758)
+     [java] 
+
+collect-result:
+
+BUILD SUCCESSFUL
+Total time: 0 seconds

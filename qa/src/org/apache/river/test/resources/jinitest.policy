@@ -83,7 +83,7 @@ grant {
     permission java.util.PropertyPermission "java.system.class.loader", "read";
     permission java.util.PropertyPermission "org.apache.river.outrigger.maxServerQueryTimeout", "read";
     permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
-    permission javax.net.ssl.SSLPermission "getSSLSessionContext";
+    permission net.jini.security.GrantPermission "java.security.AllPermission \"\", \"\"";
     permission org.apache.river.phoenix.ExecOptionPermission "*";
     permission org.apache.river.phoenix.ExecPermission "/bin/javax";
     permission org.apache.river.start.SharedActivationPolicyPermission "/-";
@@ -102,8 +102,8 @@ grant {
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
     permission java.lang.RuntimePermission "accessDeclaredMembers";
     permission java.lang.RuntimePermission "getClassLoader";
-    permission net.jini.security.GrantPermission "java.security.AllPermission \"\", \"\"";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission javax.net.ssl.SSLPermission "getSSLSessionContext";
 };
 

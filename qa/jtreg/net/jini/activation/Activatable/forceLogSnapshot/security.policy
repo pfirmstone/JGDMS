@@ -13,8 +13,8 @@ grant {
     permission java.util.PropertyPermission "user.dir", "read";
     permission java.lang.RuntimePermission "createClassLoader";
     permission java.lang.RuntimePermission "getClassLoader";
-    permission java.security.AllPermission "<all permissions>", "<all actions>";
     permission net.jini.export.ExportPermission "exportRemoteInterface.ActivateMe";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
     permission java.net.SocketPermission "*:1024-", "connect,listen,accept,resolve";
 };
 

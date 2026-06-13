@@ -41,12 +41,8 @@ grant {
     permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
     permission java.util.PropertyPermission "org.apache.river.jeri.tcp.useNIO", "read";
     permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\", "read";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "delete";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
     permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
     permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
     permission javax.security.auth.AuthPermission "getSubject";
@@ -96,11 +92,13 @@ grant {
     permission java.lang.RuntimePermission "shutdownHooks";
     permission java.lang.RuntimePermission "sun.rmi.runtime.RuntimeUtil.getInstance";
     permission java.util.logging.LoggingPermission "control";
-    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.net.NetPermission "getCookieHandler";
     permission java.net.NetPermission "getNetworkInformation";
     permission java.net.NetPermission "getProxySelector";
@@ -113,5 +111,7 @@ grant {
     permission java.net.SocketPermission "[ff05:0:0:0:0:0:0:156]", "connect,accept,resolve";
     permission java.net.SocketPermission "localhost:0", "listen,resolve";
     permission java.net.SocketPermission "localhost:4160", "listen,resolve";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
 };
 

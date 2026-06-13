@@ -6,8 +6,8 @@ grant codebase "file:/C:/Program%20Files/DirtyChai/jdk/lib/ext/*",
 grant {
     permission java.util.PropertyPermission "test.classes", "read";
     permission java.util.PropertyPermission "user.dir", "read";
-    permission java.io.FilePermission ".", "read,write";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.io.FilePermission ".", "read,write";
     permission java.net.SocketPermission "*:1024-", "connect,listen,resolve";
 };
 

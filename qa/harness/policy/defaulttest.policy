@@ -1,7 +1,223 @@
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/classserver-3.1.1-SNAPSHOT.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-activation-3.1.1-SNAPSHOT.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-activation-parameters-3.1.1-SNAPSHOT.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-collections-3.1.1-SNAPSHOT.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission javax.security.auth.AuthPermission "callAs";
+    permission au.zeus.jdk.authorization.guards.DefineClassPermission "ALLOW";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-jeri-3.1.1-SNAPSHOT.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "jdk.proxy3.$Proxy8";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.constraint.BasicMethodConstraints";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.constraint.BasicMethodConstraints$MethodDesc";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.core.constraint.InvocationConstraints";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.discovery.ConstrainableLookupLocator";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.id.UuidFactory$Impl";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.BasicInvocationHandler";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.BasicObjectEndpoint";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.tcp.TcpEndpoint";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.lookup.entry.Name";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.lookup.entry.ServiceInfo";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.discovery.MulticastTimeToLive";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.lookup.entry.BasicServiceType";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.mahalo.proxy.TxnMgrAdminProxy$ConstrainableTxnMgrAdminProxy";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-lib-3.1.1-SNAPSHOT.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-platform-3.1.1-SNAPSHOT.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+    permission java.security.SecurityPermission "getProperty.net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.constraint.BasicMethodConstraints$MethodDesc";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.core.constraint.InvocationConstraints";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.discovery.MulticastTimeToLive";
+    permission org.apache.river.api.io.DeSerializationPermission "PROXY";
+    permission au.zeus.jdk.authorization.guards.DefineClassPermission "ALLOW";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission au.zeus.jdk.authorization.guards.DefineClassPermission "ALLOW";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/lib/jiniharness.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.security.SecurityPermission "getProperty.net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12070744371601211829dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12070744371601211829dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12070744371601211829dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12198981559462302674dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12198981559462302674dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12198981559462302674dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log13191865131360344443dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log13191865131360344443dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log13191865131360344443dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log14355290760163838719dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log14355290760163838719dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log14355290760163838719dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15595771479887951558dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15595771479887951558dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15595771479887951558dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15642472987222066965dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15642472987222066965dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15642472987222066965dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16009841841466654737dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16009841841466654737dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16009841841466654737dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16977307415761793942dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16977307415761793942dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16977307415761793942dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log3110361087788368064dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log3110361087788368064dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log3110361087788368064dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log4415184489482524232dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log4415184489482524232dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log4415184489482524232dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log5600693322109511978dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log5600693322109511978dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log5600693322109511978dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8238650965866919719dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8238650965866919719dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8238650965866919719dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8301282798239718838dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8301282798239718838dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8301282798239718838dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9087278790120429204dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9087278790120429204dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9087278790120429204dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9787232732444781551dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9787232732444781551dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9787232732444781551dir", "write";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.logging.Level";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "jdk.proxy3.$Proxy8";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.constraint.BasicMethodConstraints";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.constraint.BasicMethodConstraints$MethodDesc";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.core.constraint.InvocationConstraints";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.discovery.ConstrainableLookupLocator";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.id.UuidFactory$Impl";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.BasicInvocationHandler";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.BasicObjectEndpoint";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.tcp.TcpEndpoint";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.lookup.entry.Name";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.lookup.entry.ServiceInfo";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.discovery.MulticastTimeToLive";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.lookup.entry.BasicServiceType";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.mahalo.proxy.TxnMgrAdminProxy$ConstrainableTxnMgrAdminProxy";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/lib/jinitests.jar",
+{
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12070744371601211829dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12070744371601211829dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12070744371601211829dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12198981559462302674dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12198981559462302674dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log12198981559462302674dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log13191865131360344443dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log13191865131360344443dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log13191865131360344443dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log14355290760163838719dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log14355290760163838719dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log14355290760163838719dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15595771479887951558dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15595771479887951558dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15595771479887951558dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15642472987222066965dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15642472987222066965dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log15642472987222066965dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16009841841466654737dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16009841841466654737dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16009841841466654737dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16977307415761793942dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16977307415761793942dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log16977307415761793942dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log3110361087788368064dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log3110361087788368064dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log3110361087788368064dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log4415184489482524232dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log4415184489482524232dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log4415184489482524232dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log5600693322109511978dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log5600693322109511978dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log5600693322109511978dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8238650965866919719dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8238650965866919719dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8238650965866919719dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8301282798239718838dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8301282798239718838dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log8301282798239718838dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9087278790120429204dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9087278790120429204dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9087278790120429204dir", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9787232732444781551dir", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9787232732444781551dir", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\mahalo_log9787232732444781551dir", "write";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "jdk.proxy3.$Proxy8";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.constraint.BasicMethodConstraints";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.constraint.BasicMethodConstraints$MethodDesc";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.core.constraint.InvocationConstraints";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.discovery.ConstrainableLookupLocator";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.id.UuidFactory$Impl";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.BasicInvocationHandler";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.BasicObjectEndpoint";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.tcp.TcpEndpoint";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.lookup.entry.Name";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.lookup.entry.ServiceInfo";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.discovery.MulticastTimeToLive";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.lookup.entry.BasicServiceType";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.mahalo.proxy.TxnMgrAdminProxy$ConstrainableTxnMgrAdminProxy";
+};
+
+grant codebase "jrt:/java.base/java.lang.System$LoggerFinder",
+{
+    permission java.lang.RuntimePermission "readModuleTopology";
+};
+
 grant codebase "jrt:/jdk.localedata",
 {
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.resources";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission java.net.URLPermission "jrt:/jdk.localedata", "GET:";
 };
 
 grant {
@@ -378,14 +594,11 @@ grant {
     permission java.util.PropertyPermission "testConfiguration", "read";
     permission java.util.PropertyPermission "testFailureAnalyzers", "read";
     permission java.util.PropertyPermission "user.dir", "read";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\", "read";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "delete";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\JinitestDeletionList.txt", "read";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\JinitestDeletionList.txt", "write";
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+    permission javax.security.auth.AuthPermission "callAs";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.security.SecurityPermission "createAccessControlContext";
     permission java.security.SecurityPermission "createPolicy.JiniPolicy";
@@ -436,11 +649,29 @@ grant {
     permission java.lang.RuntimePermission "sun.rmi.runtime.RuntimeUtil.getInstance";
     permission java.lang.RuntimePermission "writeFileDescriptor";
     permission java.util.logging.LoggingPermission "control";
-    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\JinitestDeletionList.txt", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\JinitestDeletionList.txt", "write";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "jdk.proxy3.$Proxy8";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.constraint.BasicMethodConstraints";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.constraint.BasicMethodConstraints$MethodDesc";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.core.constraint.InvocationConstraints";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.discovery.ConstrainableLookupLocator";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.id.UuidFactory$Impl";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.BasicInvocationHandler";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.BasicObjectEndpoint";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.jeri.tcp.TcpEndpoint";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.lookup.entry.Name";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "net.jini.lookup.entry.ServiceInfo";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.discovery.MulticastTimeToLive";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.lookup.entry.BasicServiceType";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.apache.river.mahalo.proxy.TxnMgrAdminProxy$ConstrainableTxnMgrAdminProxy";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.net.NetPermission "getCookieHandler";
     permission java.net.NetPermission "getNetworkInformation";
     permission java.net.NetPermission "getProxySelector";
@@ -453,5 +684,7 @@ grant {
     permission java.net.SocketPermission "localhost:9080", "listen,resolve";
     permission java.net.SocketPermission "localhost:9081", "listen,resolve";
     permission java.net.SocketPermission "localhost:9082", "listen,resolve";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
 };
 

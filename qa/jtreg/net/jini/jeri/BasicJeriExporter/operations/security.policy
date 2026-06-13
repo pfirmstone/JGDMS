@@ -9,13 +9,13 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=bob",
 };
 
 grant {
-    permission java.io.FilePermission "<<ALL FILES>>", "read";
     permission javax.security.auth.AuthPermission "doAsPrivileged";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
     permission java.lang.RuntimePermission "createClassLoader";
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
     permission java.net.SocketPermission "*:1024-", "connect,listen,accept,resolve";
 };
 

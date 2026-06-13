@@ -160,12 +160,12 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=tester",
 };
 
 grant {
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.io.FilePermission "<<ALL FILES>>", "read";
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-    permission java.security.AllPermission "<all permissions>", "<all actions>";
     permission java.net.SocketPermission "medusa:9082", "connect,resolve";
 };
 

@@ -7,8 +7,8 @@ grant {
     permission java.util.PropertyPermission "test.root", "read";
     permission java.util.PropertyPermission "test.src", "read";
     permission java.util.PropertyPermission "user.dir", "read";
-    permission java.io.FilePermission ".", "read";
     permission java.lang.RuntimePermission "createClassLoader";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.io.FilePermission ".", "read";
 };
 

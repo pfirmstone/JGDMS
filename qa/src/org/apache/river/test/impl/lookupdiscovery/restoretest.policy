@@ -49,20 +49,20 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
 };
 
 grant {
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
     permission java.util.PropertyPermission "*", "read,write";
     permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
     permission net.jini.discovery.DiscoveryPermission "*";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.io.FilePermission "<<ALL FILES>>", "read,execute";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write,delete";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+    permission net.jini.security.GrantPermission "java.security.AllPermission \"\", \"\"";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www.protocol.c";
     permission java.lang.RuntimePermission "createClassLoader";
-    permission net.jini.security.GrantPermission "java.security.AllPermission \"\", \"\"";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.io.FilePermission "<<ALL FILES>>", "read,execute";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write,delete";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.net.SocketPermission "*", "connect,listen,accept,resolve";
     permission java.net.SocketPermission "*", "connect,resolve";
 };

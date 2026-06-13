@@ -73,20 +73,19 @@ grant codebase "jrt:/org.openjsse",
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo",
 {
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "listen";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxClientSessionDuration", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxServerSessionDuration", "read";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.abort";
     permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.commit";
     permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.prepare";
     permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.prepareAndCommit";
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxClientSessionDuration", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxServerSessionDuration", "read";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
     permission javax.security.auth.AuthPermission "getSubject";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.net.SocketPermission "*", "resolve";
     permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
     permission java.net.SocketPermission "*:1024-", "connect,resolve";
@@ -110,17 +109,14 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Outrigger"
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Reggie",
 {
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "accept";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "listen";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission net.jini.security.AccessPermission "net.jini.core.event.RemoteEventListener.notify";
     permission java.util.PropertyPermission "java.rmi.server.hostname", "read";
     permission java.util.PropertyPermission "net.jini.discovery.announce", "read";
     permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxClientSessionDuration", "read";
     permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxServerSessionDuration", "read";
-    permission net.jini.security.AccessPermission "net.jini.core.event.RemoteEventListener.notify";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
     permission net.jini.io.context.ContextPermission "net.jini.io.context.ClientSubject.getClientSubject";
     permission java.net.SocketPermission "*:1024-", "accept,resolve";
     permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
@@ -130,25 +126,13 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Reggie",
     permission java.net.SocketPermission "[ff05:0:0:0:0:0:0:156]", "connect,accept,resolve";
     permission java.net.SocketPermission "localhost:0", "listen,resolve";
     permission java.net.SocketPermission "localhost:4160", "listen,resolve";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
 };
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
 {
+    permission net.jini.security.AccessPermission "net.jini.lookup.ServiceProxyAccessor.getServiceProxy";
     permission java.io.SerializablePermission "enableSubclassImplementation";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "accept";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Mercury\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Norm\"", "accept";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Norm\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "accept";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
     permission java.util.PropertyPermission "*", "read,write";
     permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
     permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
@@ -165,18 +149,17 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
     permission java.util.PropertyPermission "qa.home", "read";
     permission java.util.PropertyPermission "user.dir", "read";
     permission net.jini.discovery.DiscoveryPermission "*";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission net.jini.security.AccessPermission "net.jini.lookup.ServiceProxyAccessor.getServiceProxy";
-    permission java.net.URLPermission "http://localhost/nonexist", "GET:";
-    permission java.net.URLPermission "http://localhost:8083/empty_file", "GET:";
-    permission java.net.URLPermission "http://localhost:8083/nonempty_file", "GET:";
-    permission java.net.URLPermission "http://localhost:8083/nonexist_file", "GET:";
-    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-another.jar", "GET:";
-    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-same.jar", "GET:";
-    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd.jar", "GET:";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "delete";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mercury\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.norm\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.outrigger.maxServerQueryTimeout\", \"read\"; java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.outrigger\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Phoenix\\\"\", \"connect\";";
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
     permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Mahalo";
     permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Outrigger";
     permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Reggie";
@@ -185,21 +168,19 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.lang.RuntimePermission "accessDeclaredMembers";
     permission java.lang.RuntimePermission "modifyThread";
-    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mahalo\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.mercury\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.norm\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.outrigger.maxServerQueryTimeout\", \"read\"; java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.outrigger\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
-    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Mahalo\\\"\", \"connect\";";
-    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Mercury\\\"\", \"connect\";";
-    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Norm\\\"\", \"connect\";";
-    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Outrigger\\\"\", \"connect\";";
-    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Phoenix\\\"\", \"connect\";";
-    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Tester\\\"\", \"connect\";";
-    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.net.URLPermission "http://localhost/nonexist", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/empty_file", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/nonempty_file", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/nonexist_file", "GET:";
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-another.jar", "GET:";
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-same.jar", "GET:";
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd.jar", "GET:";
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.jeri.internal.runtime";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.net.NetPermission "specifyStreamHandler";
     permission java.net.SocketPermission "*", "resolve";
     permission java.net.SocketPermission "*:1024-", "accept,resolve";
@@ -256,9 +237,6 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test
 grant {
     permission java.io.SerializablePermission "enableSubclassImplementation";
     permission java.io.SerializablePermission "enableSubstitution";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "listen";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "listen";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
     permission java.util.PropertyPermission "*", "read,write";
     permission java.util.PropertyPermission "java.rmi.server.codebase", "read";
     permission java.util.PropertyPermission "java.rmi.server.hostname", "read";
@@ -298,15 +276,12 @@ grant {
     permission java.util.PropertyPermission "testConfiguration", "read";
     permission java.util.PropertyPermission "testFailureAnalyzers", "read";
     permission java.util.PropertyPermission "user.dir", "read";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
     permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "read";
     permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Reggie\"", "read";
     permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Tester\"", "read";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\", "read";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "delete";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
     permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
     permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
     permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
@@ -414,17 +389,23 @@ grant {
     permission java.lang.RuntimePermission "shutdownHooks";
     permission java.lang.RuntimePermission "sun.rmi.runtime.RuntimeUtil.getInstance";
     permission java.lang.RuntimePermission "writeFileDescriptor";
+    permission net.jini.io.context.ContextPermission "net.jini.io.context.ClientSubject.getClientSubject";
     permission java.util.logging.LoggingPermission "control";
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.jeri.internal.runtime";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "delete";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
     permission java.net.NetPermission "getCookieHandler";
     permission java.net.NetPermission "getNetworkInformation";
     permission java.net.NetPermission "getProxySelector";
     permission java.net.NetPermission "getResponseCache";
-    permission net.jini.io.context.ContextPermission "net.jini.io.context.ClientSubject.getClientSubject";
     permission java.net.SocketPermission "*:1024-", "accept,resolve";
     permission java.net.SocketPermission "localhost", "resolve";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
 };
 

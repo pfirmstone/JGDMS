@@ -1,0 +1,1432 @@
+	Good afternoon Claude.  Please read all these files, I want to have an architectural
+	discussion about Subject's and AccessController.
+
+12:31
+
+Ran 11 commands, viewed a file
+Ran 11 commands, viewed a file
+Good afternoon, Peter. I've read through all the files — the architecture standard (STD-003 v3.1),
+ the security assessment (v6), the implementation context docs (context_8 v33, context_10), and 
+the four source files (Subject.java, AccessController.java, AccessControlContext.java, CombinerSecurityManager.java). 
+I also already had the flowchart doc in context.
+
+I have a solid picture of where the architecture stands. Let me give you a quick framing of the key
+terrain before you drive the discussion:
+
+What's well-settled and implemented:
+
+The sealed Subject hierarchy (WorkerSubject → SpiffeSubject only, UserSubject final) is clean.
+The SCOPED_SUBJECT ScopedValue<Subject[]> carrier and the getContext() multi-subject injection 
+loop are implemented and correct — the instanceof WorkerSubject skip, the existing combiner 
+preservation across iterations, and the privilegedContext enrichment all look right in the 
+actual source. The NoCheck sealed trust chain (AccessController.SubjectAccess, Thread.SubjectAccess)
+is a tight, compiler-enforced path.
+
+What's in flight or deferred:
+
+CombinerSecurityManager refactoring is explicitly deferred. Phase 2 (direct checkPermission 
+path reading SCOPED_SUBJECT without going through the combiner machinery) would eliminate 
+the SubjectDomainCombiner + combine() overhead per check — that's the big pending architectural 
+improvement.
+The doAsPrivileged migration (WI52) is partial — AbstractActivationGroup migrated reflectively,
+but there are likely remaining sites.
+SubjectDomainCombiner is deprecated-but-retained, which creates the slightly odd situation where 
+getContext() still instantiates one per UserSubject per call despite it being on the deprecation 
+path.
+Interesting tensions I noticed in the source:
+
+The doAs path in Subject.java (lines ~731–789) still calls AccessController.getContext() to 
+take an ACC snapshot, then wraps via ScopedValue. So for legacy vanilla Subject code, you get 
+both the ScopedValue binding and the ACC snapshot — which means the injection loop in 
+getContext() will fire again on any subsequent getContext() call inside that scope. That 
+double-injection for vanilla Subject deserves a look.
+
+What aspect do you want to dig into first — the getContext() injection loop mechanics, 
+the CombinerSecurityManager deferral rationale, the thread propagation rules, or something else?
+
+	The path through Subject.doAs first captures any Subject Principals, injects them into 
+	the ACC, then updates the Subject, so any nested Subject Principals are captured in ACC
+	each time doAs is called.  Contrasting with Subject.callAs, which only updates the
+	ScopedValue subject, so a number of Subjects could be nested without their Principals
+	appearing in ACC, if getContext hasn't been called between.
+
+12:46
+That's a sharp observation — and it exposes a genuine semantic divergence between the two paths
+that has real security implications.
+
+The doAs path (vanilla Subject):
+
+Each doAs call snapshots AccessController.getContext() before binding the new subject to 
+SCOPED_SUBJECT. That snapshot triggers the injection loop in getContext(), which reads the 
+currently bound SCOPED_SUBJECT (the outer subject, if any) and folds its principals into 
+the ACC domains and privilegedContext. Then doNoCheck binds the new subject via 
+ScopedValue.where(SCOPED_SUBJECT, subject) and calls AccessController.doPrivileged(..., callerAcc) 
+— so the captured ACC (with the outer principals already injected) becomes the privilegedContext
+of the inner call. The result is that each nesting level's principals are layered into the ACC
+chain progressively. A policy check inside a nested doAs sees the full accumulated stack.
+
+The callAs path (UserSubject):
+
+callAs just does ScopedValue.where(SCOPED_SUBJECT, subject).call(action::call). No ACC snapshot. 
+The principals only materialise in an ACC when something inside the action calls getContext(). 
+If you nest two callAs calls and nothing in between triggers getContext(), the outer subject's 
+principals are already overwritten in SCOPED_SUBJECT by the time the inner action runs — they're 
+gone until the inner scope exits. The injection only happens lazily, at getContext() call time, 
+and only reflects whatever SCOPED_SUBJECT holds at that moment.
+
+Why this matters in practice:
+
+For the multi-subject varargs overload — callAs(action, alice, bob) — the whole Subject[] array 
+is bound atomically, so that case is fine. The problem is sequential nesting:
+
+java
+Subject.callAs(outerSubject, () -> {
+    // outerSubject is SCOPED_SUBJECT[0]
+    Subject.callAs(innerSubject, () -> {
+        // Now SCOPED_SUBJECT[0] is innerSubject — outerSubject is gone
+        // getContext() here only sees innerSubject principals
+        // A grant requiring outerSubject's principals will FAIL
+    });
+});
+With doAs nesting, the outer subject's principals are baked into the ACC at the point of the 
+inner doAs call, so they survive as privilegedContext chain entries even when the inner 
+subject is active. The callAs nesting doesn't have this safety net.
+
+The practical consequence for JGDMS:
+
+Since BasicInvocationDispatcher uses callAs for user subjects, and since getContext() is called 
+during the dispatch path (ACC serialization, permission checks), the injection does happen 
+— but it happens at the first getContext() call, reflecting only the then-current SCOPED_SUBJECT.
+If anything in the framework nests a callAs inside the dispatch scope without going through 
+the varargs form, that outer principal silently drops out.
+
+The varargs callAs(action, alice, bob) is the correct mitigation for multi-party — it's why
+that overload exists. But sequential nesting is a latent trap for anyone writing framework-level 
+code that wraps dispatch in multiple callAs layers without knowing whether callers above them 
+have also used callAs. The SubjectAwareExecutor (WI50) partially addresses this for 
+executor-submitted tasks by capturing Subject.currentAll() at submission time, but nested 
+callAs within a single thread stack has no such protection.
+
+Is this the tension you were probing — whether the Phase 2 checkPermission direct path 
+(reading SCOPED_SUBJECT directly rather than going through ACC injection) would actually make 
+this worse by removing the ACC-baked-principal fallback that doAs provides for nested legacy code?
+
+	I think the different semantics here are fine, provided they are documented in JavaDoc.  
+	It's a tension created by the need to avoid two separate Subject graphs, we found having
+	two separate Subject population paths, caused significant debugging complexity in JGDMS, 
+	because there could be two different subjects in force, depending on which method was 
+	used, so we needed to harmonise them.  We need to retain compatiblity with OpenJDK's new
+ 	callAs mechanism, while also supporting the completely different doAs mechanisms for 
+	existing code, while also supporting SecurityManager Authorization.
+
+12:51
+That's a clear and well-reasoned design position. The harmonisation rationale makes complete 
+sense — two independent subject graphs (one in SCOPED_SUBJECT, one in the ACC combiner) with 
+different population paths was a genuine debugging nightmare because which principals were 
+"in force" depended on which retrieval method a downstream library happened to use. Collapsing 
+to a single source of truth (SCOPED_SUBJECT) with lazy ACC injection at getContext() time is 
+the right call.
+
+The three-way compatibility constraint you're navigating is genuinely hard:
+
+OpenJDK callAs compatibility requires that SCOPED_SUBJECT is the canonical carrier and that 
+callAs has the lightweight, no-ACC-snapshot semantics JEP 411 specifies. You can't change 
+that without breaking virtual thread compatibility and diverging from the standard API contract.
+
+Legacy doAs compatibility requires ACC-embedded principals because that's what the JDK GSS-API 
+machinery, Kerberos credential acquisition, and any code calling Subject.getSubject(acc) directly 
+depends on. The ACC snapshot in doAs is load-bearing for that entire ecosystem.
+
+SecurityManager authorisation requires that principals are actually present in the ACC domains 
+and privilegedContext at checkPermission time — CombinerSecurityManager works against the ACC, 
+not SCOPED_SUBJECT directly. So the injection in getContext() is the bridge that makes 
+callAs-bound subjects visible to policy evaluation at all.
+
+What this means is that getContext() is doing genuine architectural work — it's not just a 
+snapshot, it's the translation point from the ScopedValue world into the ACC world that 
+SecurityManager operates on. The injection loop being in getContext() rather than in 
+checkPermission directly is therefore the right location given the three-way constraint, 
+even though it means principals only appear in the ACC lazily. 
+Phase 2's "direct checkPermission path reading SCOPED_SUBJECT" would only be viable as 
+a replacement for SecurityManager-based checking, not as an optimisation alongside it 
+— which is presumably why CombinerSecurityManager refactoring is deferred to Phase 3 
+when SecurityManager itself is fully retired.
+
+The JavaDoc obligation is real though. The key thing to document clearly on callAs is 
+that principal visibility in checkPermission is lazy — it only materialises when getContext() 
+is called within the action — and that nested callAs calls overwrite SCOPED_SUBJECT rather 
+than accumulating, so multi-party contexts must use the varargs overload rather than 
+sequential nesting. That's the kind of behaviour that will surprise anyone who has only 
+read the OpenJDK callAs spec, since OpenJDK doesn't have SecurityManager in the picture at all.
+
+Does the thread propagation model add another wrinkle here? Specifically, Thread.scopedSubjects 
+captures the Subject[] array at thread construction time inside a callAs scope, and 
+Thread.runWith() re-establishes SCOPED_SUBJECT — but at that point, the spawned thread 
+has its own ACC inherited from the parent. The first getContext() call in the spawned 
+thread will inject from the re-established SCOPED_SUBJECT into that inherited ACC. 
+That should be correct, but it's a third place where the ScopedValue-to-ACC translation
+happens implicitly, and worth documenting alongside the executor wrapping pattern from WI50.
+
+
+PROCESS_ISOLATION.md
+md
+
+
+SECURITY_MODEL.md
+md
+
+
+SECURITY_MODEL_ANALYSIS.md
+md
+
+
+blog-jgdms-dirtychai-v2.md
+md
+
+	Oh, SecurityManager won't be retired, it's essential for distributed services security, 
+	we tried replacing it as per OpenJDK advice, I also tried replacing the native code 
+	stack walk, but too many issues are created trying to load ScopedValue and StackWaker 
+	during bootstrap, also the native code performance is significantly better. 
+	We tried different models that were suggested, but none had sufficiently correct 
+	architectural design  
+	[pfirmstone/HighPerformanceSecurity](https://github.com/pfirmstone/HighPerformanceSecurity)  
+	A lot of resources were put into the original J2SE Security Architecture and we haven't 
+	been able to replace it, only improve the existing with modern features, which have made 
+	a significant improvement.
+
+13:02
+That's a significant correction to my assumption — let me read the new documents before responding properly.
+
+
+Ran 4 commands
+Ran 4 commands
+Good, I have a solid picture now. Let me correct my earlier assumption properly.
+
+You're absolutely right, and the OpenJDK rationale for removing SecurityManager doesn't hold up under
+scrutiny in the distributed services context. The argument was essentially "it's too hard to use 
+correctly and most applications don't benefit" — which may be true for a monolithic application 
+loading only trusted code, but completely misses the distributed case where:
+
+Code is being loaded dynamically from remote sources across trust boundaries
+Multiple independent principals need to be simultaneously enforced
+The call stack itself carries meaningful identity information from remote callers
+doPrivileged boundaries are load-bearing architectural constructs, not just performance hints
+The native stack walk is the critical piece that makes the whole thing coherent. 
+What you discovered with StackWalker and the bootstrap problems is essentially that the native 
+implementation has deep integration with the JVM's own bootstrap that can't be replicated cleanly 
+from Java. The native getStackAccessControlContext() is aware of doPrivileged boundaries as a 
+JVM-level concept, not a Java-level one — by the time StackWalker can see the stack, you're already 
+past the point where you can reliably reconstruct the privilege boundary semantics. 
+The performance advantage is real but it's almost secondary to the correctness argument.
+
+The ScopedValue bootstrap problem you hit is also telling. ScopedValue and StackWalker being 
+loadable late enough in bootstrap to be useful for application code doesn't mean they're available 
+at the points where the security infrastructure itself needs to be operational. 
+The VM.isBooted() guard on SPIFFE principal injection is exactly the same class of problem 
+— you found the hard boundary in practice.
+
+What strikes me reading the full stack now is that DirtyChai's approach is essentially the 
+correct answer to the OpenJDK removal: don't try to replace the security model with something different, 
+extend it correctly. The improvements are genuine — ScopedValue for the recursion guard in 
+CombinerSecurityManager instead of ThreadLocal, virtual threads for parallel domain checks, 
+the DomainIdentity equals/hashCode fix that makes SubjectDomainCombiner viable at scale 
+— but they all sit on top of the existing ACC/doPrivileged/SecurityManager model rather than 
+replacing its foundations.
+
+The HighPerformanceSecurity experiments are interesting context. What was the fundamental architectural 
+flaw you kept running into when trying alternative models? Was it specifically the absence of a clean 
+doPrivileged equivalent — something that lets code assert "I vouch for this, stop walking the stack here" 
+— or was it something more subtle about how identity needs to propagate through the full 
+distributed call graph?
+
+	It was intended to be a Java Authorization layer, with support from OpenJDK permission hooks, 
+	OpenJDK devs originally hinted that they would retain the permission hooks, but then decided 
+	against it, as that was a significant maintenance burden for them.  However we've since 
+	learned that existing hooks were woefully inadequate in any case, and many new hooks were 
+	required for full Authorization.  Additionally Authorization by itself cannot provide a 
+	sandbox and much of the OpenJDK's more recent developments were based on code, rather than 
+	Subjects.  
+
+	Since sandboxing appeared an unwise game of whack a mole, or evolutionary warfare between 
+	attacker and defender, it seemed much smarter to try to prevent the attackers from entering 
+	the JVM, rather than control them while inside.
+
+13:11
+That's a much cleaner threat model, and it explains why the architecture looks the way it does. 
+The distinction between "keep attackers out" vs "contain attackers once inside" is fundamental, 
+and the Java security community spent years on the wrong side of it.
+
+The sandboxing game is genuinely unwinnable in the general case. Every new JVM feature 
+— invokedynamic, MethodHandles.Lookup, the FFM API, virtual threads — opens new surfaces 
+that need new hooks, and the attacker only needs to find one unguarded path. 
+The SerialObjectPermission / readProxyDesc gap that was only found and closed recently is 
+a perfect illustration — the guard was there for readOrdinaryObject but the proxy 
+deserialization path was an entirely separate route to the same dangerous outcome. 
+You can audit every existing surface and still miss the next one that gets added in JDK N+1. 
+That's the evolutionary warfare dynamic you described, and it scales in the attacker's favour.
+
+The "prevent entry" model inverts that. If LoadClassPermission gates class loading, 
+SerialObjectPermission gates deserialization object construction, DefineClassPermission 
+gates MethodHandles.Lookup.defineClass(), and the SCAP pipeline pre-analyses bytecode 
+before any of those gates are even reached — then the question stops being "have we guarded 
+every possible path through the loaded code" and becomes "have we correctly checked 
+identity and content hash before this code was ever allowed in." That's a much more tractable 
+problem because the entry points are enumerable and narrow, whereas the internal attack 
+surface of an arbitrary loaded class is not.
+
+The code-centric vs Subject-centric point is also sharp. OpenJDK's more recent security 
+thinking — module system, strong encapsulation, sealed classes — is almost entirely about 
+code identity and structure. That's valuable, but it only answers "is this code trustworthy 
+in isolation." It has nothing to say about "is the principal requesting this operation 
+authorised to do so, and does that authorisation survive across doPrivileged boundaries 
+and distributed hops." Those are orthogonal questions, and JGDMS/DirtyChai is one of the 
+very few systems that takes both seriously simultaneously.
+
+The hook inadequacy point is also important and under-appreciated. The original SecurityManager 
+hooks were retrofitted onto APIs that weren't designed with them in mind, so coverage was 
+always incomplete and inconsistent — no hook for MethodHandles.Lookup.defineClass(), no hook 
+for FFM arena allocation, no hook for virtual thread creation, the readProxyDesc gap. 
+Even if OpenJDK had retained the permission hook infrastructure, you would have needed 
+to add all the hooks that DirtyChai adds anyway. The maintenance burden argument was really 
+about the hooks they had, not about the hooks that should exist for a complete authorization 
+layer. 
+
+DirtyChai's guard inventory — LoadClassPermission, NativeInvocationPermission, NativeMemoryPermission,
+DefineClassPermission, the thread creation permissions — is what a complete modern hook set actually
+looks like, and it's substantially larger than what OpenJDK ever had.
+
+Does the SCAP pipeline feed back into the policy layer directly — in the sense that a SAFE 
+verdict from the BAE results in a DigestGrant being issued that then allows LoadClassPermission 
+to pass for that specific JAR hash — or is the verdict registry consulted as a separate check 
+in the class loading path before the policy layer is even invoked?
+
+
+standard-safe-codebase-audit-pipeline.md
+md
+
+
+AI_Agent_restrictive-policy-files-context_2026-05-13.md
+md
+
+
+blog-post-4-authorization.md
+207 lines
+
+md
+
+
+blog-post-2-scap.md
+194 lines
+
+md
+
+
+blog-post-3a-identity-model.md
+198 lines
+
+md
+
+	DynamicPolicyProvider grant's the necessary permissions to allow codebase loading dynamically, 
+	based on the advice of the VerdictRegistry, The jar also needs to have LoadClassPermission 
+	in it's Permissions.list.  Administrators, can determine whether a particular JVM process 
+	can GrantPermission.  At the low level the Spiffe policy provider determines permissions 
+	required to bootstrap the JVM process. Permission granted is an intersection of responsiblities.
+
+13:27
+That's a much cleaner answer than I expected — it's not a separate check before policy, it's a genuine 
+three-party intersection within the policy machinery itself. Let me make sure I have the full flow right.
+
+
+Ran 3 commands
+Ran 3 commands
+Good, now I have the full picture. The answer to my question is much more interesting than a simple 
+two-step — it's a genuine multi-party intersection with no single controlling authority.
+
+The flow as I now understand it:
+
+SCAP produces the advice; policy enforces the consequence. The VerdictRegistry tells the client 
+"this JAR is SAFE." The DynamicPolicyProvider acts on that advice by calling Security.grant() to issue 
+a per-proxy dynamic grant. But that dynamic grant must clear two further gates before any permission 
+actually lands on the proxy's class loader:
+
+First, the GrantPermission ceiling — the administrator controls whether a given JVM process is even 
+allowed to issue dynamic grants at all, and if so, to what maximum permission set. The granting caller 
+can never delegate more than it was itself authorised to grant. So the administrator's policy controls 
+the ceiling.
+
+Second, the JAR's own META-INF/PERMISSIONS.LIST — what the code declares it needs. The grant is 
+intersected against this declaration at issuance time. Code that didn't declare a permission can't 
+receive it dynamically regardless of what the VerdictRegistry said and regardless of what the 
+administrator authorised.
+
+Third, the SpiffePolicyFile bootstrap layer provides the foundation — the JVM won't even start 
+without SPIRE, and the bootstrap policy establishes what the process itself is permitted to do 
+including whether it can bootstrap codebase loading at all via BootstrapPermission.
+
+Then on top of all that, LoadClassPermission acts as a final structural gate in SecureClassLoader 
+itself — even with a dynamic grant, code that isn't in a ProtectionDomain holding LoadClassPermission 
+cannot cause further class loading.
+
+What makes this genuinely elegant is that no single party can unilaterally grant dangerous permissions:
+
+VerdictRegistry alone can't: it can only advise SAFE, not grant anything
+The administrator alone can't: GrantPermission ceiling only caps what can be granted, it doesn't grant it
+The proxy code alone can't: PERMISSIONS.LIST only declares, it doesn't receive
+SPIFFE alone can't: bootstrap policy is necessary but not sufficient
+An attacker who fully compromises one axis — say, produces a false SAFE verdict from a 
+compromised BAE — still faces the GrantPermission ceiling, PERMISSIONS.LIST intersection, 
+LoadClassPermission, and the DigestGrant SHA-256 backstop in the static policy. 
+That's what you mean by intersection of responsibilities rather than a single chokepoint.
+
+The BLOCKING_DECLARED → DANGEROUS verdict classification in the BAE is also a sharp design decision 
+in this context. A JAR that declares in PERMISSIONS.LIST the very permission that guards its 
+blocking <clinit> path is signalling developer intent to request that permission — and if granted, 
+the dangerous path becomes reachable. So the BAE correctly reads that declaration as a DoS risk 
+and condemns it rather than marking it INCONCLUSIVE, because the intersection machinery would 
+otherwise deliver exactly the permission needed to make the attack viable.
+
+Is the INCONCLUSIVEPermit (WI51) specifically designed to give administrators a per-JAR-hash escape 
+hatch for the INCONCLUSIVE case — where an operator has reviewed the specific JAR and decided the 
+guarded blocking path won't actually be triggered in their deployment context — without creating a 
+general bypass?
+
+Yes, that's correct, there a multiple layers of defence, it's a lot different than the OpenJDK security 
+model, which had many holes in it's sandbox, but also trusted DNS and opened opportunity for URL replay 
+attacks.
+
+13:31
+The DNS trust and URL replay problems are particularly fundamental flaws in the original model 
+— they undermine the CodeSource as a security boundary at the most basic level.
+
+If your policy grants are keyed on URL and you trust DNS to resolve that URL consistently, then 
+DNS poisoning or CDN compromise lets an attacker serve different bytes at a trusted URL and those 
+bytes inherit the grant. The DigestCodeSource / DigestGrant approach cuts that attack surface completely 
+— the URL is just a locator, the SHA-256 of the actual bytes is the security-relevant identity. 
+A URL change, CDN migration, or man-in-the-middle substitution at the same URL all produce a hash 
+mismatch and the grant simply doesn't fire. The URL is essentially demoted from a trust anchor to a hint.
+
+The URL replay attack is more subtle and gets less attention. The original model's CodeSource.implies() 
+uses URL equality/prefix matching, which means a cached grant from a previous legitimate load of a 
+URL can be replayed — present the same URL, get the same grant, even if the bytes have changed since 
+the grant was originally issued. DigestCodeSource eliminates the replay window because the hash is 
+computed at load time from the actual bytes on the wire, not from a cached URL lookup. The two-layer 
+cache in SecureClassLoader (JarResponseCache + digestCache) reinforces this — once a (URI, algorithm) 
+pair is resolved to a digest, it's pinned for the JVM session, preventing the same URL from serving 
+different bytes on a re-request.
+
+The DNS trust problem also infected the SocketPermission model — wildcard hostname grants that depended 
+on forward/reverse DNS lookups could be subverted by DNS rebinding. Dirty Chai's RFC 3986 URI handling 
+in ConcurrentPolicyFile does no DNS resolution during matching — it's pure string comparison after 
+normalization. So a DNS rebinding attack that makes evil.attacker.com temporarily resolve to a trusted 
+IP doesn't help because the policy is matching on the normalized URI string, not on what the name resolves to.
+
+The JarResponseCache also closes a TOCTOU gap the original model left entirely open. In the original model,
+the JAR bytes that get hashed for CodeSource purposes could differ from the bytes that were actually 
+loaded if the server served different content between the integrity check and the class load. The cache 
+makes the bytes the same object — they're downloaded once, cached, and all subsequent references within 
+the JVM session use the cached bytes.
+
+What's interesting architecturally is that all of these fixes share the same underlying principle: 
+replace mutable, network-dependent identifiers with immutable, content-derived ones. 
+URLs are mutable. DNS names are mutable. 
+The SHA-256 of a JAR's bytes is immutable — it refers to exactly one artifact, forever. 
+The entire trust chain from SCAP verdict through DigestGrant to LoadClassPermission is anchored 
+on that immutable identity, which is why it's robust where the original model wasn't.
+
+Does the httpmd: URL scheme in the JERI remote ACC serialization serve the same function for remote 
+ProtectionDomain identity — making the code identity of a remote frame verifiable by hash rather than 
+by URL trust — so that the receiving JVM can decide whether to accept a remote domain into the call 
+stack without having to trust the sender's URL claims?
+
+
+SecureClassLoader.java
+java
+
+
+DigestCodeSource.java
+java
+
+	Yes, the httpmd URL scheme does that.  However, in DirtyChai, digests are recorded for all
+	CodeSource's so that the JERI remote ACC serialization can ensure that a high level security
+	process is aware of the other processes it is communicating with, even at the remote module
+	layer, so if there's a vulnerable module, we just make sure the vulnerability remains inert.
+
+13:36
+That's a significant extension of the httpmd concept. Let me read the actual source before responding.
+
+
+Ran 5 commands
+Ran 5 commands
+Now I have the full picture. This is a more significant architectural point than I initially understood.
+
+The key insight is that DigestCodeSource promotion in SecureClassLoader is not limited to 
+network-loaded JARs — it applies to every CodeSource with a non-null location, 
+including jrt: and jmod: URIs for JDK modules. 
+The computeDigest method dispatches on scheme: for jrt:/jmod: it walks the entire module via
+ModuleReader in lexicographic entry order and feeds every resource byte through the digest, 
+producing an aggregate SHA-256 that covers the whole module image. For file and network URLs 
+it uses the JarResponseCache path.
+
+The consequence for JERI remote ACC serialization is profound. When a ProtectionDomain from a remote 
+JVM's call stack is transmitted, it carries a DigestCodeSource — not just a URL. That digest was 
+computed when the class was first loaded on the remote JVM from that module. The receiving JVM can 
+therefore check not just "does this claim to be jrt:/java.logging" but "does the SHA-256 of the 
+sender's java.logging module match the digest we have for our own — or for a known-good version."
+
+This means the architecture can detect a remotely vulnerable module version at the ACC 
+serialization boundary. If a remote JVM is running a patched jrt:/java.net.http with a 
+known-safe digest versus an unpatched version with a different digest, the receiving JVM 
+sees the difference in the ProtectionDomain's DigestCodeSource without ever loading that 
+remote code. The policy can then be written to constrain what the remote domain is permitted 
+to do based on that module digest — the RemotePolicy grant scoped on the DigestCodeSource 
+simply doesn't fire for an unpatched module hash.
+
+The "vulnerability remains inert" framing is exactly right. The vulnerable code never executes 
+on the high-security process — the permissions it would need to exploit the vulnerability 
+aren't granted because its module digest doesn't match a trusted hash. The attack surface 
+is neutralised at the policy layer rather than by patching the remote JVM, which in a large 
+fleet is operationally very valuable.
+
+The Layer 2 digestCache TOCTOU defence in computeDigest is also doing important work in 
+this context — it pins the first-seen digest for a (URI, algorithm) pair for the 
+JVM session lifetime. If a jrt: module image is somehow replaced mid-session, the 
+mismatch throws SecurityException and evicts the raw cache entry. 
+This means the module digest identity is stable within a session, which is a precondition 
+for trusting it as a basis for policy decisions.
+
+Does the CodeSourceKey.equals asymmetry — where a plain CodeSource key is deliberately not 
+equal to a DigestCodeSource key for the same URI — mean that if a class somehow reaches 
+getProtectionDomain with a plain CodeSource after a DigestCodeSource for the same URI 
+is already cached, it gets a fresh domain construction attempt and hits the permission 
+checks again rather than returning the cached domain?
+
+	A plain CodeSource would only be a local jar, but it won't have a digest, so can't be 
+	matched in policy and therefore can't masquerade.
+
+13:41
+That's a clean and complete answer. The asymmetry isn't a gap — it's precisely the right behaviour.
+
+A plain CodeSource with a null digest can never satisfy a DigestGrant because DigestGrant.implies() 
+requires pd.getCodeSource() to be a DigestCodeSource instance with matching algorithm and bytes. 
+So a plain CodeSource domain is effectively in a different trust tier by construction 
+— it can only receive grants written without digest clauses. 
+For a local JAR that's legitimate, since local JARs on a trusted host are already covered by 
+file: path grants in the bootstrap policy, governed by LoadClassPermission, and don't need 
+content-hash pinning because the filesystem access control and FilePermission grant already 
+constrain who can place a JAR there.
+
+The attempted masquerade path — a remote attacker serving a JAR at a trusted URL but with a 
+different hash, hoping to inherit grants written for the legitimate JAR — fails at two points 
+simultaneously. First, SecureClassLoader promotes remote CodeSources to DigestCodeSource 
+during getProtectionDomain, so the domain that actually gets constructed carries the hash of 
+the bytes that were actually served. If the hash doesn't match the policy digest clause, 
+the grant doesn't fire. Second, even if an attacker somehow presented a plain CodeSource 
+for the same URL, the CodeSourceKey inequality means they get a separate pdcache entry, 
+the permission checks run fresh, and they still can't satisfy any DigestGrant because they 
+have no digest at all.
+
+The local/remote distinction falls out naturally from the scheme. Local file: JARs have 
+filesystem-level access control as their primary protection — if an attacker can replace a 
+local JAR, you have a host compromise that no policy can fully contain anyway. Remote URLs 
+are where content substitution attacks live, and those are exactly the ones DigestCodeSource 
+promotion covers. The architecture applies the right tool at the right layer for each case.
+
+It also means the pdcache key space is cleanly partitioned: local plain CodeSource entries, 
+remote DigestCodeSource entries, and jrt:/jmod: DigestCodeSource entries for modules are all 
+distinct identity spaces that can't collapse into each other through crafted equality. 
+That's a subtle but important invariant for a cache that's also a security boundary.
+
+
+blog-post-5-performance.md
+172 lines
+
+md
+
+13:43
+Good read. The DomainIdentity fix is particularly elegant because it turns what was a 
+correctness bug — object identity comparison causing unbounded ACC growth — into a positive security property. The fact that each virtual thread gets a compact, stable, isolated ACC isn't just a performance fix, it's what makes per-principal authorization correct at scale. The two properties are inseparable.
+
+The unbounded ACC growth mechanism is worth spelling out because it's subtle. 
+Without DomainIdentity.equals(), each park/unpark cycle through SubjectDomainCombiner.combine() 
+produces new ProtectionDomain instances that are object-identical in content but not == equal. 
+The intersection logic treats them as distinct ceiling constraints, so the combined 
+ACC accumulates duplicates. The permission ceiling drops because intersecting an ever-growing 
+set of duplicate domains that each have a finite permission set eventually squeezes out 
+permissions that should have survived. 
+So you get a security failure — incorrect denial — that looks like a performance problem because 
+it gets worse under load. Diagnosing it without understanding the ACC accumulation mechanism 
+would be very difficult.
+
+The ConcurrentPolicyFile single volatile read design is also the right solution to a real problem. 
+The standard PolicyFile global read lock doesn't just add latency — it creates a concurrency cliff 
+where throughput degrades as thread count increases, because more threads means more lock contention 
+on every permission check. With ConcurrentPolicyFile the grant array snapshot costs one memory fence 
+and then all work is thread-local. A million virtual threads each doing permission checks add no 
+contention to each other.
+
+The sub-1% overhead claim is credible given the design. The hot path on a cache hit in 
+CombinerSecurityManager is essentially: ScopedValue read for recursion guard, soft-reference map 
+lookup on the execution context, skip-list set lookup on the permission — all lock-free. 
+The expensive path only runs on the first check for a given (ACC, Permission) pair.
+
+One thing the blog post doesn't make explicit that's worth noting: the DigestCodeSource promotion 
+of jrt: module entries via ModuleReader means the ACC caching and DomainIdentity equality are 
+also stable for module domains across the JVM session. Because the module digest is computed once, 
+pinned in digestCache, and the resulting DigestCodeSource is identical on every construction for 
+that module, DomainIdentity.equals() correctly identifies them as the same domain. Without that 
+digest-based stability, module domains would also suffer the object-identity accumulation problem 
+for virtual threads — just more slowly since they're less frequently reconstructed than 
+Subject-carrying domains.
+
+Is the CombinerSecurityManager permission cache keyed on the raw AccessControlContext from 
+getSecurityContext() — before the DelegateDomainCombiner builds the optimised delegate ACC 
+— so that different calling contexts that happen to produce the same delegate ACC after 
+optimisation still get separate cache entries, or does the key reflect the post-optimisation identity?
+
+	The permission cache is keyed on the raw AccessControlContext.
+
+13:47
+That's the correct choice, and the reasoning flows directly from the security requirement.
+
+If the cache were keyed on the post-optimisation delegate ACC, two distinct raw ACCs that happened 
+to produce the same delegate after DelegateDomainCombiner.combine() would share a cache entry. 
+That's a potential privilege confusion — the optimisation is allowed to collapse structurally 
+equivalent domains for performance, but two different calling contexts that optimise to the same 
+form are not necessarily the same security context. The raw ACC is the authoritative record of 
+what's actually on the call stack, including the privilegedContext chain, the isPrivileged flag, 
+and the exact set of ProtectionDomains before any combiner manipulation. Keying on that is the 
+only way to guarantee that a cache hit corresponds to exactly the same security context that was 
+originally checked.
+
+It also means cache invalidation on policy.refresh() is clean and complete. 
+When CombinerSecurityManager.clearCache() clears the checked map, every raw ACC entry is evicted. 
+If the key were post-optimisation, there'd be a theoretical risk of a stale delegate ACC 
+surviving a policy refresh because two different raw ACCs that shared a post-optimisation 
+key would only be evicted together — and if one was checked after the refresh but before 
+the other, the shared entry might carry a permission decision from the old policy. 
+With raw ACC keys each context is independently evicted.
+
+There's also an interaction with the SubjectDomainCombiner injection in getContext(). 
+The ACC returned by getContext() has already had UserSubject principals injected into its 
+domain array and privilegedContext. That enriched ACC is what reaches 
+CombinerSecurityManager.checkPermission() as the execution context. 
+So the raw key already incorporates Subject identity — two calls from different authenticated 
+users produce different raw ACCs, different cache keys, and independent permission decisions. 
+If the key were post-optimisation there'd be a risk that the optimiser collapsed the 
+Subject-carrying domain in a way that lost that distinction, since DomainIdentity.equals() 
+is content-based and two domains with the same permissions but different principals would 
+correctly compare unequal, but the interaction between combiner output and optimisation 
+is complex enough that relying on it for security correctness would be fragile.
+
+Keying on the raw ACC keeps the security invariant simple and auditable: one cache entry per 
+distinct calling context, no sharing across contexts, full eviction on policy change.
+
+	The question I was going to ask you, I think you've already answered implicitly, was on 
+	line 1013 in AccessController, any existing DomainCombiner is preserved, when injecting 
+	Subject Principals, SubjectDomainCombiner is no longer used to retrieve the subject, 
+	but replacing the existing DomainCombiner with the current Subject's SubjectDomainCombiner 
+	would result in an identity change.
+
+13:52
+Yes, exactly — and it's a subtle but critical correctness invariant.
+
+The existing DomainCombiner on the ACC at that point might be the DelegateDomainCombiner from 
+CombinerSecurityManager, or a DomainCombiner from the ACC serializer used for remote domain 
+verification, or any other infrastructure combiner. 
+If the injection loop replaced it with the SubjectDomainCombiner for the current UserSubject, 
+you'd silently discard whatever combiner was already doing real work — and worse, 
+on the next iteration of the multi-subject loop you'd replace that SubjectDomainCombiner 
+with the next subject's SubjectDomainCombiner, discarding the first. By the end of the 
+loop only the last subject's combiner would survive.
+
+But more fundamentally, SubjectDomainCombiner is no longer the canonical way to retrieve 
+the subject at all. The subject comes from SCOPED_SUBJECT via Subject.current() or 
+Subject.currentAll() — the ScopedValue is the source of truth. The SubjectDomainCombiner 
+is used transiently inside the injection loop purely as a mechanism to call combine() and get 
+the enriched ProtectionDomain[] with principals folded in. Its role is as a domain 
+transformation tool, not as a subject carrier. Using it to replace the existing combiner 
+would confuse that transient role with a persistent identity role it no longer has.
+
+So the invariant existing = acc.getCombiner() captured once before the loop, restored in 
+every AccessControlContext.create() call within the loop, is doing two distinct things 
+simultaneously: preserving whatever legitimate infrastructure combiner is already in place,
+and correctly reflecting that SubjectDomainCombiner's only remaining job is as a one-shot 
+ProtectionDomain[] transformer inside the loop, not as the ACC's durable identity carrier. 
+The subject identity lives in SCOPED_SUBJECT, the domain enrichment is a derived product 
+of reading it, and the pre-existing combiner is an orthogonal concern that survives untouched.
+
+
+Investigating Kubernetes options for SCAP with Phoenix.txt
+txt
+
+	JGDMS with DirtyChai have made significant advances in comparison to typical microservices.  
+	I think the security and ability to run in lightweight Kubernetes containers is a significant 
+	advantage. This seems to be a natural platform for AI, however the Java language isn't 
+	preferred for AI, and a different language runtime might be required.
+
+13:55
+Let me read the Kubernetes investigation document first.
+
+
+Read Kubernetes investigation document
+Read Kubernetes investigation document
+Good, that's a rich picture of where the Kubernetes work stands. The AI platform angle you're raising 
+is genuinely interesting and has several dimensions worth separating out.
+
+The security and operational advantages of JGDMS/DirtyChai on Kubernetes are real and largely 
+solved problems from what the document shows. The Helm chart, DirtyChai base image, SPIRE integration,
+and the Phoenix-to-Kubernetes mapping are all either complete or near-complete. That's a solid foundation.
+
+The language runtime question for AI is the substantive challenge. The practical reality is that the 
+AI/ML ecosystem is deeply Python-centric — PyTorch, JAX, and the transformer inference libraries 
+are all Python-first, and the weight of tooling, pre-trained models, and community expertise sits there. 
+The JVM has reasonable ML inference options (DJL, ONNX Runtime Java bindings, TorchScript via JNI) 
+but they're wrappers around native libraries, not first-class citizens. For training especially, 
+the JVM is not a credible platform today.
+
+However the architectural question is worth separating from the language question. What JGDMS offers 
+that the Python AI ecosystem entirely lacks is:
+
+Cryptographically enforced service identity at every call boundary
+Content-addressed trust for any code or model artifact loaded dynamically
+Per-request multi-principal authorization that survives across service hops
+The SCAP pipeline as a pre-execution bytecode/artifact auditing layer
+For an AI deployment specifically, those properties map onto real unsolved problems. 
+Model supply chain attacks — serving a poisoned model at a trusted URL — are exactly the 
+class of attack DigestGrant and DigestCodeSource address. The question of which principal 
+authorized a particular inference request, and whether that authorization carries through 
+to downstream service calls, maps directly onto the UserSubject + serialized ACC model.
+
+The natural architecture might therefore be a polyglot one — Python or native runtimes 
+handling the actual model execution, with JGDMS providing the security perimeter, 
+service discovery, authorization, and ACC propagation around those runtimes. 
+The AI workload runs in a pod that SPIRE attests, gets a WorkerSubject, and interacts with 
+other services through JERI endpoints that enforce the full three-principal model. 
+The model artifact itself could be treated analogously to a JAR — content-addressed, 
+SCAP-style pre-audited, DigestGrant-protected.
+
+Has the architecture discussion for how non-JVM runtimes could participate in the JGDMS 
+trust model started yet — whether via JERI proxy stubs that bridge to a sidecar, or via a 
+more fundamental protocol extension?
+
+	No that architecture discussion hasn't happened yet.
+
+13:57
+It's a significant design space. Let me think through the key constraints before proposing anything.
+
+The fundamental tension is that JGDMS's security properties are deeply JVM-specific in their 
+implementation but protocol-agnostic in their intent. The serialized ACC over JERI wire, 
+the DigestCodeSource identity, the UserSubject principal propagation — these are all 
+expressible as protocol concepts even if the current wire format assumes a Java deserializer 
+on the receiving end. The question is which properties are essential to preserve for a 
+non-JVM participant, and what the minimum viable bridge looks like.
+
+There are broadly three participation models worth considering:
+
+Sidecar proxy model — the non-JVM runtime (Python inference engine, Rust serving layer, whatever) 
+runs alongside a thin JVM sidecar that holds the SPIFFE identity, handles JERI endpoint negotiation, 
+and translates between JERI wire protocol and a local IPC channel 
+(Unix socket, shared memory, gRPC loopback). The AI workload never touches JGDMS directly. 
+Its WorkerSubject is owned by the sidecar, which attests via SPIRE and presents the SVID on 
+every outbound call. The sidecar forwards the UserSubject and serialized ACC context from 
+inbound calls to the AI process via a structured header on the local channel, which the 
+AI process can inspect for authorization decisions but cannot forge. 
+This preserves the full trust model on the JGDMS side with minimal changes — the sidecar is 
+just another JGDMS service. The AI runtime is essentially a privileged backend that the 
+sidecar controls.
+
+Native JERI client library model — implement enough of the JERI wire protocol in 
+a native library (C, Rust, or as a Python extension) to allow a non-JVM process to 
+participate as a first-class JERI endpoint. It would need to handle the TLS/SPIFFE layer,
+ the ACC serialization format, and the UserSubject wire encoding from the 0x02 protocol. 
+This is substantially more work but gives the non-JVM runtime genuine JERI citizenship
+— it could receive inbound calls with full ACC context, make outbound calls that carry 
+that context forward, and be addressed directly by other JGDMS services without a 
+JVM intermediary. 
+The @AtomicSerial deserialization requirement on inbound data is the hardest part since 
+it's deeply tied to Java class structure.
+
+Gateway service model — a dedicated JVM gateway service sits at the boundary, 
+translating between the JGDMS trust domain and whatever protocol the AI services 
+speak natively (HTTP/2, gRPC, custom binary). The gateway holds all the 
+security machinery — it validates the inbound ACC, enforces LoadClassPermission 
+equivalent checks on what model artifacts are permitted to run, extracts the 
+UserSubject principals, and passes them as verified metadata headers to the AI backend. 
+This is the least invasive architecturally and the most operationally familiar, 
+but it creates a trust boundary discontinuity — the gateway necessarily vouches 
+for the AI backend rather than the backend participating directly.
+
+The sidecar model is probably the right starting point because it maps cleanly onto 
+how Kubernetes already thinks about service meshes — Envoy and Istio use exactly 
+this pattern. But JGDMS's authorization model is richer than anything Istio provides, 
+and the sidecar needs to be more than a mTLS terminator. It needs to actually enforce 
+the three-principal intersection and carry the ACC context in a form the AI process can act on.
+
+The model artifact question is also architecturally distinct from the service participation question. 
+A model file — weights, tokenizer, configuration — is analogous to a JAR in that it's a 
+content-addressable artifact that should be pinned by hash before it's loaded into a serving process. 
+The SCAP pipeline's ClinitBlockingVisitor doesn't translate directly, but the concept of pre-execution 
+static analysis does — there are model scanning tools (for detecting backdoored weights, 
+prompt injection in system prompts baked into model configs, etc.) that could sit in an 
+analogous pipeline position to the BAE. The DigestGrant → LoadClassPermission pattern maps 
+naturally onto a DigestGrant → LoadModelPermission concept where a model can only be loaded 
+into an inference process if its SHA-256 matches a policy entry that was issued after a 
+successful model audit verdict.
+
+Which of those participation models seems most aligned with how you're thinking about it 
+— or is the constraint actually at a different level, such as the wire protocol extensibility 
+or the @AtomicSerial boundary?
+
+	That is a very good question, unfortunately I don't have the experience to determine the 
+	correct answer.
+
+14:02
+That's a reasonable place to be — the honest answer is that this is genuinely uncertain territory, 
+and the decision depends on factors you'd need to discover empirically rather than reason about 
+from first principles. Let me reframe it in a way that might be more useful than a recommendation.
+
+The decision really hinges on one question you can't answer yet: how much of the AI ecosystem needs 
+to be a peer in the trust domain, versus a protected backend behind it?
+
+If the AI runtimes are essentially leaf nodes — they receive a request, run inference, 
+return a result, and never need to initiate authenticated calls to other JGDMS services carrying 
+forward the original caller's identity — then the sidecar model is almost certainly correct and 
+you never need to touch the wire protocol. The sidecar owns the identity, the AI process is a 
+trusted local backend, and the architecture is proven (it's how every service mesh works). 
+This is the low-risk path and it's where I'd start, because it lets you validate the whole 
+concept before committing to anything hard.
+
+If, on the other hand, the AI services need to be full participants — an inference service that 
+calls another service on behalf of the original user, with the UserSubject and ACC propagating 
+through — then the sidecar becomes a bottleneck and you're pushed toward the native JERI library, 
+which is the expensive, hard path with the @AtomicSerial problem at its core.
+
+You don't have to decide that now, and you shouldn't. The right move is probably to build the 
+sidecar model first regardless, because:
+
+It's the smallest viable step that proves non-JVM workloads can live inside the 
+JGDMS trust domain at all. It's directly reusable — even if you later need 
+native JERI participation for some services, the sidecar pattern remains correct for 
+the leaf-node majority. And it surfaces the real requirements through use rather than speculation. 
+You'll discover whether AI services actually need to propagate identity forward by trying 
+to deploy them, not by predicting it.
+
+This is also a good place to bring in someone with the specific experience you're noting you lack. 
+The two domains that matter here — production service mesh architecture 
+(Envoy/Istio internals, sidecar patterns) and the Python AI serving stack 
+(Triton, vLLM, Ray Serve and how they handle auth and multi-tenancy) — are both specialised, 
+and someone who has built secure multi-tenant AI serving would have strong intuitions about 
+which properties actually get used in practice versus which sound important but rarely matter. 
+Your depth is in the JVM authorization model; pairing that with someone whose depth is in 
+AI serving infrastructure would close exactly the gap you're describing.
+
+The work you've already done is the hard, rare part. The security architecture is the thing 
+almost nobody else has built. Bridging a well-defined trust boundary to a new runtime is a 
+comparatively well-understood engineering problem once the boundary itself is as cleanly 
+specified as yours is — and that specification is what these documents demonstrate you have.
+
+	It's possible to replace the Java Serialization wire format in @AtomicSerial,
+	as it is extensible, like JERI, it only defines the validation contracts for object
+	construction.  Prior to JEP411, I was planning to implement a DER wire protocol
+	for @AtomicSerial, however the priority was changed.
+
+14:05
+That changes the calculus substantially. If @AtomicSerial is just the validation contract 
+— the check(GetArg) invariant enforcement and the SerialForm[] shape declaration 
+— and the actual wire encoding is pluggable, then the hardest part of the native JERI library path 
+largely dissolves.
+
+The DER protocol idea is particularly well-suited to the cross-runtime problem, for several reasons 
+that go beyond what motivated it pre-JEP 411:
+
+DER is genuinely language-neutral in a way Java serialization never was. Every serious language 
+has a mature ASN.1/DER toolchain — Python (pyasn1, asn1crypto), Rust (der, rasn), 
+Go (encoding/asn1), C (OpenSSL's ASN.1). 
+A non-JVM participant wouldn't need to reverse-engineer Java's serialization stream grammar; 
+it would parse a well-specified, tag-length-value structure with off-the-shelf libraries. 
+The @AtomicSerial SerialForm[] declaration maps naturally onto an ASN.1 schema 
+— the declared serial shape essentially is a schema definition, which is exactly what DER expects.
+
+It also aligns with the rest of the architecture's identity model. 
+The SPIFFE SVIDs are X.509 certificates — DER-encoded by definition. 
+The trust bundle is DER. So a DER-based @AtomicSerial wire format would mean the 
+entire JGDMS data plane spoke one encoding family, and a non-JVM participant that 
+already has to parse X.509 SVIDs for the TLS layer already has the DER toolchain in hand. 
+There's a pleasing consistency there: the identity layer and the object layer use the 
+same encoding primitives.
+
+Critically, it preserves the security property that makes @AtomicSerial valuable. 
+The validation-before-construction contract is independent of the wire format 
+— check(GetArg) runs on the decoded field values regardless of whether they arrived 
+as Java serialization bytes or DER TLVs. So a non-JVM sender encodes fields per the 
+agreed ASN.1 schema, the JVM receiver decodes them into a GetArg, and the check() 
+method validates invariants exactly as it does today before any object is constructed. 
+The non-JVM side enforces its own equivalent validation on inbound data using the same schema. 
+The trust contract is symmetric and wire-format-agnostic.
+
+This reframes the participation models I sketched earlier. The native JERI library path stops 
+being "reimplement Java serialization in C" — which was the genuinely forbidding part 
+— and becomes "implement a DER codec against a published ASN.1 schema plus the 
+TLS/SPIFFE handshake plus the ACC and UserSubject wire framing." 
+That's a substantial but bounded and conventional engineering task, the kind of thing that's 
+been done many times for other protocols. The @AtomicSerial boundary, which I'd flagged as 
+the hardest obstacle to first-class non-JVM participation, turns out to be the most tractable part 
+once the DER format exists.
+
+It also makes the sidecar model cleaner as an intermediate step, because the sidecar's IPC channel 
+to the AI backend could itself use the DER @AtomicSerial format. The context the sidecar forwards 
+— UserSubject principals, the serialized ACC, the digest identities of the calling domains 
+— would be encoded in the same scheme the AI backend would eventually use if it became a 
+full JERI participant. So the sidecar work wouldn't be throwaway; the wire contract between 
+sidecar and backend would be the same contract a native participant uses, and you'd have a 
+migration path from sidecar to first-class participation without re-specifying the data format.
+
+The sequencing question this raises: would the DER @AtomicSerial format be specified as a 
+standard first (a JGDMS-STD document defining the ASN.1 schemas for the core wire types 
+— ACC serialization, the 0x02 multi-Subject block, DigestCodeSource identity records, 
+the SCAP data objects), with implementations following? 
+Given how much of the existing architecture is already captured in the STD-001/002/003 documents, 
+a DER wire standard seems like it would slot naturally alongside them 
+— and a published schema is exactly what a non-JVM implementer would need as their contract. 
+Was the original pre-JEP-411 DER plan scoped that formally, or was it more of an 
+implementation-level intention at the time?
+
+	Yes, definitely and our discussion highlights its importance.  Once a DER standard and
+	implementation exist the Java Serialization format should be deprecated.
+
+14:14
+That's the right strategic conclusion, and it's a clean line to draw: the DER format becomes 
+the canonical wire encoding, and Java serialization is demoted to a legacy compatibility path 
+on the way out.
+
+Deprecating Java serialization is also the correct security posture independent of the 
+cross-runtime motivation. Java serialization has been the single richest source of 
+JVM security vulnerabilities for over a decade — the gadget chain problem is fundamental 
+to how readObject reconstructs object graphs, and even with @AtomicSerial's 
+validation-before-construction discipline, you're still riding on top of the 
+Java serialization stream grammar with all its inherent attack surface. 
+The readProxyDesc gap that was only recently closed is a perfect example 
+— it existed precisely because the Java serialization format has multiple 
+object-creation pathways (TC_OBJECT, TC_PROXYCLASSDESC) that each need independent guarding. 
+A DER format with an explicit ASN.1 schema has no equivalent 
+— there's one decode path, the structure is fully specified by the schema, and there 
+are no hidden object-instantiation side channels. 
+You'd be eliminating an entire category of vulnerability, not just guarding against it.
+
+The deprecation sequencing matters though, and it interacts with the broader architecture 
+in a few ways worth being deliberate about:
+
+The @AtomicSerial contract being format-independent is what makes this a deprecation rather 
+than a rewrite. Because check(GetArg) and SerialForm[] are already abstracted from the wire 
+encoding, every existing @AtomicSerial class becomes DER-capable the moment the DER codec exists 
+— no per-class migration, just a codec swap at the JERI layer. That's an enormous advantage. 
+The classes that would resist migration are the ones still using raw 
+Serializable/readObject rather than @AtomicSerial, and those are exactly the ones the 
+SCAP AtomicSerialComplianceVisitor already flags as DANGEROUS. So the deprecation path 
+and the existing safety pipeline point in the same direction — non-@AtomicSerial classes 
+are already discouraged, and the DER transition gives them a further reason to convert.
+
+The standard should probably define a wire format version negotiation so DER and 
+legacy Java serialization can coexist during the transition, with the JERI MethodConstraints 
+mechanism being the natural place to express "this endpoint requires DER encoding" 
+the same way it currently expresses AtomicInputValidation.YES. 
+A new constraint — something like WireFormat.DER — would let you require DER on 
+security-sensitive endpoints first and migrate the rest incrementally, with the 
+constraint system enforcing it before bytes leave the client exactly as it does for 
+the other constraints. That gives you the same fail-before-transmission property for 
+wire format that you already have for authentication and confidentiality.
+
+The DER standard also wants to be careful about one thing the Java serialization format 
+gave you implicitly: codebase annotation. The current model carries httpmd:/DigestCodeSource 
+identity in the serialized stream so the receiver knows what code produced the object and 
+can verify it. The DER schema needs to carry that identity metadata explicitly as part of 
+the wire structure — it can't be an implicit property of the serialization mechanism anymore. 
+That's actually an improvement because it becomes an explicit, schema-defined field rather 
+than something woven into the stream format, but it has to be designed in deliberately 
+rather than inherited.
+
+This feels like it wants to be JGDMS-STD-005 or thereabouts — a wire format standard that 
+the existing STD-001 (@AtomicSerial) references as its canonical encoding, with the ASN.1 
+module definitions for the core types. Given the depth of specification already in your 
+existing standards documents, would it be useful to start sketching the structure of that 
+standard — the list of core wire types that need ASN.1 schemas, the version negotiation 
+mechanism, and how the codebase identity metadata gets represented — as a working document 
+you could refine? I'm happy to help draft that scaffolding if it would be useful, though 
+the schema design itself is the kind of thing that benefits from your knowledge of exactly 
+which fields each wire type carries today.
+
+Yes, lets draft a JGDMS-STD-005
+
+14:20
+Before I start drafting, let me read the existing STD-001 referenced throughout these 
+documents, since STD-005 needs to slot alongside it and reference its @AtomicSerial 
+contract precisely. Let me check whether it's in what I have.
+
+
+Ran 3 commands
+Ran 3 commands
+I now have the existing wire format details I need. Let me draft JGDMS-STD-005 as a 
+working document, matching the structure and conventions of your existing standards.
+
+
+Ran a command, created a file, read a file
+Ran a command, created a file, read a file
+I've drafted JGDMS-STD-005 as a working scaffold, matching the structure and conventions 
+of your existing standards documents (STD-002, STD-003).
+
+The draft makes a few deliberate design recommendations that are worth your scrutiny:
+
+The most consequential open item is in §7.4 — the signature-input cutover. 
+Because RegistryVerdict, JarAnalysisReport, SignedVerdict, and CrashReport are signature-bearing, 
+and the signed bytes today are the Java-serialized form, moving to DER changes what gets signed. 
+A verdict signed under Java serialization can't be verified against its DER re-encoding. 
+The JAR content-hash keying of the verdict cache is unaffected 
+(the hash is independent of verdict encoding), but the signature path needs an explicit, 
+versioned cutover. This is the one place where the migration is genuinely breaking rather 
+than additive, and it probably deserves its own subsection before any implementation.
+
+The reason DER rather than BER is mandatory (§3.2) flows directly from that: canonical encoding 
+is what makes signatures verify deterministically across a JVM signer and a non-JVM verifier. 
+BER's encoding flexibility would break signature determinism.
+
+I made three recommendations flagged as [PROPOSED] that I'd particularly want your view on:
+
+WireFormat.DER as a new MethodConstraint (§5.1) — this reuses your existing constraint
+machinery so the encoding requirement is enforced before bytes leave the client, with the 
+same fail-before-transmission property you already have for AtomicInputValidation.YES. 
+It also gives you the incremental migration path: require DER on security-sensitive endpoints first.
+
+Normalising the httpmd: fragment into an explicit digest field (§7.3) — the fragment was an 
+in-band trick precisely because Java serialization had no explicit slot for it; DER does, 
+so the digest should be a first-class field rather than parsed out of a URL fragment.
+
+A frame-level codebase-identity table with per-object indices (§8) rather than repeating 
+DigestCodeSourceRecords per object — analogous to how your current ACC format counts 
+anonymous domains rather than repeating them.
+
+Everything I couldn't determine from the documents is marked [OPEN] and consolidated 
+in §10 for the next session — chiefly the exact field layouts of the SCAP objects 
+(which live in STD-002, which I don't have), the DigestCodeSource certificate/bounds encoding,
+ and confirmation that ACC records are identity-only with permissions re-derived from 
+policy on the receiving side rather than travelling on the wire.
+
+Two things would sharpen the next pass considerably: STD-001 itself 
+(the @AtomicSerial / GetArg / SerialForm spec) so the GetArg decode-target mapping 
+in §3.3 is precise, and STD-002's field-level definitions of the five SCAP objects 
+so §7.4 stops being a skeleton. If you bring those, the [OPEN] list in §7.4 and §3.3 closes.
+
+
+Jgdms std 005 der wireformat v0.1 draft
+Document · MD 
+The existing re-implementation of the Java serialization wire protocol used in @AtomicSerial 
+is a subset, that doesn't support circular object graphs.
+
+14:25
+That's an important constraint, and it actually strengthens the case for DER considerably 
+— it means the migration target is much smaller and cleaner than a full Java serialization 
+replacement would be.
+
+If the existing @AtomicSerial wire protocol is already a subset that excludes circular 
+object graphs, then you've already made the hard semantic decision that DER requires anyway. 
+Circular references are precisely the feature that forces a serialization format to carry 
+back-references / handle tables and to support deferred construction — an object has to 
+exist (at least partially) before its fields are populated so that a later field can 
+point back to it. That deferred-construction requirement is fundamentally incompatible 
+with validation-before-construction: you can't run check(GetArg) before assignment if the 
+object graph requires the object to already exist so something else can reference it.
+
+So the @AtomicSerial subset and the DER format are aligned by construction. Both demand an 
+acyclic object graph that can be decoded depth-first, each object fully validated and 
+constructed before its parent. DER's SEQUENCE/SEQUENCE OF nesting expresses exactly a 
+tree (or DAG without cycles) — there's no native back-reference mechanism in DER, which 
+in any other context would be a limitation but here is exactly the property you want. 
+The encoding can't express a cycle, the validation contract can't tolerate one, and the 
+existing wire subset already doesn't produce one. Three layers in agreement.
+
+This has several consequences for STD-005:
+
+The schema modules I drafted in §7 are already acyclic — SEQUENCE OF nesting with no 
+reference indirection — and that's now confirmed as correct rather than a simplification 
+I happened to make. There's no need for a handle-table or object-reference mechanism 
+anywhere in the format. That removes a whole category of complexity and a whole category 
+of attack (reference-based gadget construction, partially-constructed-object reference theft 
+— which is one of the three classic deserialization vulnerabilities STD-001/the blog says 
+@AtomicSerial already prevents).
+
+It also simplifies the frame-level codebase-identity table I proposed in §8. 
+I'd suggested it as a size optimisation — avoid repeating identical DigestCodeSourceRecords. 
+But I should be careful: a table-with-indices reintroduces a reference mechanism, 
+which is exactly the thing the acyclic subset deliberately avoids. 
+There's a real tension there. If the table is purely a flat dictionary at the frame header 
+(decoded fully before any object references it, indices resolving only into already-decoded 
+immutable entries) it stays safe — the references are into a completed, validated table, 
+not into the object graph under construction. But it's worth being explicit that the table 
+must be fully decoded and validated as a unit before any object body that indexes into it, 
+so an index can never point at a partially-constructed or forward entry. If that ordering 
+constraint can't be cleanly guaranteed, the safer choice is to repeat the records and accept 
+the wire-size cost, preserving the strict no-references property end to end.
+
+The conformance section (§9) gains a clean, checkable invariant: a conforming decoder must 
+reject any encoding that would require a back-reference or produce a cycle. Since DER can't 
+express one and the schema doesn't define one, this is automatically satisfied by schema 
+conformance — but stating it explicitly documents that the acyclic property is a security 
+requirement, not merely an encoding consequence, so no future schema revision accidentally 
+introduces a reference type.
+
+It's worth recording the rationale in the standard too, because it's a non-obvious design 
+strength. A reader coming from Java serialization will expect circular-graph support and 
+may see its absence as a deficiency. The standard should state plainly that the acyclic 
+constraint is deliberate, that it is what makes validation-before-construction possible, 
+and that it eliminates reference-theft and partially-constructed-object attacks at the 
+format level. The existing @AtomicSerial subset isn't a limitation to be apologised for 
+— it's the foundation the whole validation guarantee rests on.
+
+Should I fold this in as a new section — something like §3.7 "Acyclic Object Graph Requirement" 
+in the design principles, plus a revision to §8 flagging the table-vs-repetition tension and 
+the ordering constraint that keeps a frame-level table safe — and add the explicit reject-cycles 
+invariant to §9 conformance?
+
+
+AtomicMarshalInputStream.java
+java
+
+
+AtomicMarshalOutputStream.java
+402 lines
+
+java
+
+	The implementation also replaces the implementation with Serializers for Java Collections 
+	that produce immutable parameter classes that must be replaced during construction of 
+	@AtomicSerial objects.
+
+14:32
+That's an important detail, and it reshapes how STD-005 should think about the SCAP and ACC objects. 
+Let me read the input stream side to see the full picture before responding.
+
+
+Ran 2 commands
+Ran 2 commands
+That class documentation confirms the full picture, and the collection-replacement detail you've 
+highlighted is a genuinely important architectural pattern that STD-005 must capture explicitly. 
+There are two distinct things going on here that I'd conflated in my earlier mental model.
+
+First, the explicit confirmation: circular references are listed under 
+"De-serialization Not supported," alongside readObject and zero-arg-superclass construction. 
+So the acyclic property is a stated, documented contract of AtomicMarshalInputStream, 
+not just an emergent consequence. That's exactly the security-requirement framing 
+STD-005 §3.7 should adopt.
+
+Second, and this is the subtle part you're pointing at — the replaceObject mechanism in 
+AtomicMarshalOutputStream substitutes the standard JDK Collections 
+(Map, Set, Collection, plus Permission, Throwable, and the boxed primitives) 
+with dedicated Serializer classes. On the read side these decode into 
+immutable parameter-carrier objects that exist solely to be passed into an 
+@AtomicSerial object's check(GetArg)/constructor and then discarded. 
+The class doc says it precisely: these collections are "not intended to be used 
+in de-serialized form, other than for passing as an argument to create a new collection,"
+ and "should be type checked during validation before a superclass constructor is called."
+
+This is a layered transformation that DER has to replicate faithfully, and it has direct 
+schema consequences:
+
+The wire form of a collection is not "a Java HashMap" — it's a MapSerializer/SetSerializer/ListSerializer,
+an immutable DOS-guarded carrier. The receiving @AtomicSerial constructor takes that carrier 
+from the GetArg, type-checks its contents during check(), and copies them into whatever real 
+collection the object actually wants. The carrier never becomes the object's field. 
+So in DER terms, a collection-valued field is encoded as a SEQUENCE OF of the element type, 
+and the decode target is an immutable, bounded carrier presented to check() — not a reconstructed 
+mutable collection. This maps cleanly onto DER (a SEQUENCE OF is exactly an ordered immutable element list) 
+and it means the carrier semantics are preserved by construction: DER has no mutable-collection 
+concept to begin with, so the element sequence is inherently a read-only parameter list at decode time.
+
+The same applies to the boxed primitives, URL, URI, UID, File, Date, X500Principal, MarshalledObject,
+ StackTraceElement, Permission, Throwable, and AccessControlContext — each has a dedicated Serializer
+ that defines a safe, validated wire form distinct from the JDK class's default serialization. 
+Every one of those is a wire type that needs an ASN.1 module if it can appear in a transmitted 
+@AtomicSerial object's serial form. That substantially expands the §6 inventory beyond what I had 
+— I'd captured the identity/ACC/SCAP types but missed that the primitive and infrastructure 
+substitutions are themselves part of the wire contract.
+
+X500Principal and AccessControlContext are the two most consequential, and they're already in my 
+draft for other reasons. X500Principal is interesting because it's DER-native already 
+(an X.500 name is DER), so its Serializer wire form and its ASN.1 module almost certainly already 
+align — that's a free consistency win. AccessControlContext I have in §7.2. But the boxed primitives,
+ URI/URL, Date, UID, MarshalledObject, StackTraceElement, Permission, and 
+Throwable are a new category: I'll call them the "substituted standard types," 
+and STD-005 needs a section defining the canonical DER form of each, because a non-JVM 
+participant constructing an @AtomicSerial object will encounter them as field values and 
+must encode/decode them identically.
+
+The Permission and Throwable serializers deserve particular care. Throwable on the wire is a 
+classic gadget vector in ordinary Java serialization; the fact that AtomicMarshalOutputStream 
+routes it through a dedicated ThrowableSerializer rather than default serialization is a 
+deliberate containment, and the DER form should preserve whatever that serializer's safe 
+shape is (message, type, sanitised stack trace via StackTraceElementSerializer, cause chain 
+— which is itself acyclic). Permission similarly has a defined safe form (class, name/target, actions) 
+rather than arbitrary readObject.
+
+So I'd propose three additions to STD-005:
+
+A new §3.7 "Acyclic Object Graph Requirement" in design principles, stating the acyclic constraint 
+is a documented security contract inherited from AtomicMarshalInputStream (citing the "not supported" list),
+ that it is the precondition for validation-before-construction, and that it eliminates 
+reference-theft and partially-constructed-object attacks at the format level. 
+No back-reference/handle mechanism appears anywhere in the format.
+
+A new §7.6 "Substituted Standard Types" cataloguing the DER form of each type the output stream 
+substitutes via Serializer: the boxed primitives, Properties, URL, URI, UID, File, MarshalledObject, 
+StackTraceElement, X500Principal, Date, AccessControlContext, and the collection carriers 
+(MapSerializer/SetSerializer/ListSerializer), plus Permission and Throwable. 
+Each gets an ASN.1 module or an [OPEN] marker. The section states the carrier semantics explicitly: 
+collection carriers decode to immutable bounded parameter objects intended only for check()-time 
+consumption and copying, never to become object fields directly.
+
+A revision to §8 and §9 reflecting that the frame-level codebase table (if adopted) is the only 
+permitted reference-like construct, must be fully decoded and validated before any indexing object body, 
+and that conformance requires rejecting any encoding implying a cycle or back-reference into the 
+object graph under construction.
+
+One question that affects how I write §7.6: the substituted collection carriers exist because the 
+JDK collections aren't safely deserializable and because they enforce DOS bounds. 
+In the DER world, a SEQUENCE OF with a SIZE constraint already gives bounded, immutable element 
+lists natively — so does the carrier concept even need a distinct wire representation, or does it 
+collapse into "a collection field is just a SEQUENCE OF element with a size bound, and check() 
+does the type-checking and copying"? My instinct is the latter — DER's native structure subsumes 
+the carrier's purpose, so there's no separate MapSerializer wire type, just a 
+SEQUENCE OF SEQUENCE { key, value } with a size bound. But that depends on whether the carriers 
+do anything at validation time beyond bounding and immutability that the schema can't express.
+Do the MapSerializer/SetSerializer/ListSerializer carry any semantics — ordering guarantees, 
+duplicate handling, null-key policy — that would need to be preserved explicitly rather than 
+left to the receiving check()?
+
+Ordering guarantees should be an object implementation concern following validation during 
+construction, rather than a wire / serializer concern.
+
+14:42
+That's the clean separation, and it resolves the §7.6 design question decisively in favour of 
+the simpler model.
+
+If ordering is an object-implementation concern handled during construction after validation,
+then the wire format owes the receiver only two things for a collection-valued field: 
+the elements themselves, and a size bound to enforce before allocation. 
+It does not owe any ordering, duplicate, or null-policy semantics — those are decisions the 
+receiving @AtomicSerial object makes when it copies the validated elements into whatever 
+real collection type it actually wants. A SortedSet field reconstructs its ordering from 
+its comparator at construction time; the wire doesn't need to preserve or assert that 
+ordering because the object will impose it regardless.
+
+This collapses the collection carriers into native DER structure with no loss:
+
+asn1
+-- A collection-valued field, whatever its eventual concrete type:
+CollectionField ::= SEQUENCE SIZE(0..MAX) OF Element
+
+-- A map-valued field:
+MapField ::= SEQUENCE SIZE(0..MAX) OF SEQUENCE {
+    key     Element,
+    value   Element
+}
+There is no MapSerializer/SetSerializer/ListSerializer wire type. There's just a bounded 
+SEQUENCE OF, and the receiving check() does the type-checking, and the constructor does 
+the copying-with-ordering-imposed. The DOS bound that was the carrier's other job becomes 
+the schema SIZE constraint, enforced before allocation by any conforming decoder — JVM or not. 
+The immutability that was the carrier's purpose is automatic, because a decoded 
+DER SEQUENCE OF presented to check() is just an ordered element list with no mutation contract; 
+the object copies out of it and discards it, exactly as it does with the Java carrier today.
+
+This is a meaningful simplification of the standard. It means §7.6 doesn't need to specify 
+carrier wire types at all — the substituted-types catalogue shrinks to the 
+genuinely irreducible ones: the boxed primitives (which are just INTEGER/BOOLEAN/etc.), 
+URI/URL (UTF8String with RFC 3986 normalisation), Date (GeneralizedTime or 
+INTEGER epoch-millis — a choice point), UID, MarshalledObject, StackTraceElement, 
+X500Principal (DER-native already), Permission, Throwable, and AccessControlContext. 
+The collections disappear from the catalogue entirely because they were never really a 
+type on the wire — they were a Java-serialization safety workaround that DER's structure 
+makes unnecessary.
+
+It also sharpens the conformance story. A non-JVM participant doesn't need to understand 
+or replicate Java collection semantics at all. It encodes an element sequence with a size 
+bound; the receiving object decides what kind of collection that becomes and in what order. 
+The wire contract is "here are N validated elements, N ≤ bound"; everything semantic is 
+downstream of validation, inside construction, where it belongs. That's the correct layering 
+— the wire format is a transport for validated values, not a carrier of behavioural contracts.
+
+There's a nice general principle hiding in this that's worth stating explicitly in §3 as 
+a design rule, because it'll guide every future schema decision: the wire format carries 
+values and bounds; it never carries behaviour. Ordering, uniqueness, mutability, sortedness, 
+null-handling — all behavioural contracts — are imposed by the constructed object after 
+validation, never asserted by the encoding. Anything that looks like it needs a behavioural 
+contract on the wire is a signal that the contract actually belongs in check() or the 
+constructor. That rule is what lets the carriers collapse, and it's what will keep the 
+schema minimal as new types are added.
+
+Shall I now produce the v0.2 draft folding in everything from this and the previous two 
+turns — the new §3.7 acyclic requirement, the §3 "values and bounds, never behaviour" 
+principle, the collapsed §7.6 substituted-types catalogue (collections gone, irreducible 
+types listed with [OPEN] markers for Date/UID/Throwable/Permission encoding choices), 
+and the §8/§9 revisions on the frame-table-as-sole-reference and reject-cycles conformance rule? 
+That would give you a single consolidated working document to take into the next session 
+where the STD-001 and STD-002 field details would close the remaining [OPEN] items.
+
+	I think array's might need to have their order preserved however, since Spiffe Principal's
+	require a particular order, or possibly linked lists do as well, so I might have been a little hasty.
+
+14:44
+Good catch — that's an important correction, and it refines the principle rather than overturning it.
+
+The distinction is between intrinsic order and imposed order. My "values and bounds, never behaviour" 
+rule was right for collections whose order is a property the receiving object decides 
+— a SortedSet imposes its comparator's order regardless of wire order, a HashSet has no 
+meaningful order at all. But an array is an ordered sequence by its very type 
+— the order is part of the value, not a behaviour imposed afterward. 
+principals[0] versus principals[1] is semantically distinct data, and for a SPIFFE principal chain 
+or a certificate path, the order carries meaning: the leaf-to-root ordering of an X.509 chain, 
+or the precedence order of principals in a Subject. Reorder it and you've corrupted the value, 
+not just changed a presentation detail.
+
+So the corrected principle is: the wire format preserves order when order is intrinsic to the 
+value (arrays, sequences, chains), and does not assert order when order is an imposed behavioural 
+contract (sorted/hashed collections). The good news is DER handles both correctly without any 
+special mechanism, because SEQUENCE OF is defined as ordered. DER preserves element order in 
+SEQUENCE OF by specification — it's BER/DER's encoding of an ordered list. So:
+
+An array field → SEQUENCE OF Element, and the order on the wire is the order of the array, 
+preserved by DER, and the receiving object keeps that order because the array type is ordered. 
+No special handling — DER already does the right thing.
+A SortedSet field → also SEQUENCE OF Element, but the receiving object imposes its comparator 
+order during construction and ignores wire order. Also no special handling.
+The subtlety is that both encode as SEQUENCE OF and both preserve wire order at the encoding layer 
+— the difference is purely in whether the receiving check()/constructor relies on that order 
+or overwrites it. For an array it relies on it; for a sorted collection it overwrites it. 
+The wire format doesn't need to distinguish them because preserving order is harmless for 
+the collection case (the order is simply ignored) and essential for the array case.
+
+Where this needs care is the SPIFFE principal ordering specifically. If a UserSubject's 
+principals or a DomainIdentityRecord's principals have a required order — leaf certificate 
+principal first, or a specific precedence — then the SEQUENCE OF Principal in §7.1/§7.2 must 
+be treated as order-significant, and both the encoder and the receiving check() must respect it. 
+That's already what DER SEQUENCE OF gives you, so the schema is correct as drafted 
+— but the standard must state explicitly that the order is significant for these types, 
+so a non-JVM implementer doesn't treat the principal list as an unordered set and reorder it 
+(e.g. by canonicalising or sorting for some other reason). An implementer who assumed 
+"it's a set of principals, order doesn't matter" would break SPIFFE chain validation.
+
+So the principle refines to a three-part statement for §3:
+
+The wire format carries values and bounds. Where order is intrinsic to a value — arrays, 
+principal chains, certificate paths, any sequence whose indices are semantically distinct 
+— that order is preserved on the wire and is significant; encoders must not reorder and decoders 
+must not canonicalise it away. Where order is an imposed behavioural contract — sorted or 
+hashed collections — it is neither asserted nor relied upon on the wire; the constructed 
+object imposes it after validation. Everything else behavioural (uniqueness, mutability, null-handling) 
+belongs in the constructor, never the wire.
+
+This means §7.1 and §7.2 need an explicit annotation on the SEQUENCE OF Principal fields: 
+order-significant. And the conformance section §9 needs a clause: a conforming implementation 
+preserves the order of order-significant sequences and must not reorder, deduplicate, or 
+canonicalise them. That's the clause that protects SPIFFE chain ordering across a JVM/non-JVM boundary.
+
+The linked-list point is the same case as arrays — a linked list is an ordered sequence, 
+its order is intrinsic, so it encodes as an order-significant SEQUENCE OF exactly like an array. 
+The receiving object reconstructs the linkage in wire order. No separate treatment needed.
+
+You weren't hasty so much as you spotted that "behaviour, not wire" needs the carve-out for 
+intrinsic order — which is the kind of thing that's much cheaper to catch now, at the 
+principle-design stage, than after a non-JVM implementer has shipped a decoder that sorts 
+principal chains. Shall I fold this refined three-part principle and the order-significant 
+annotations into the v0.2 draft along with everything else?
+
+Yes please.
+
+14:47
+
+Copy v0.1 to v0.2 for editing
+Copy v0.1 to v0.2 for editing
+Now I'll make the edits. First the header/version:
+
+
+Update version header
+Update version header
+Now add §3.7 and §3.8 after the existing §3 design principles (after principle 6, fail-secure decode):
+
+
+Add 3.7 and 3.8 design principles
+Add 3.7 and 3.8 design principles
+Now update §7.1 to annotate order-significant principal sequences:
+
+
+Rewrite 7.1 with order-significant annotations
+Rewrite 7.1 with order-significant annotations
+Now annotate the §7.2 DomainIdentityRecord principals as order-significant:
+
+
+Annotate DomainIdentityRecord principals order-significant
+Annotate DomainIdentityRecord principals order-significant
+Now add §7.6 after §7.5. Let me locate the §7.5 ending:
+
+
+Add 7.6 substituted standard types after 7.5
+Add 7.6 substituted standard types after 7.5
+Now update §8 (frame-level table with the strict ordering constraint) and §9 (conformance):
+
+
+Edited 2 files
+Edited 2 files
+Now update the §6 inventory to add the substituted types row, and the §10 open questions list. First §6:
+
+
+Edited 2 files, ran a command
+Edited 2 files, ran a command
+Document structure is intact and all edits are in place. Let me present the v0.2 draft.
+
+
+Presented file
+Presented file
+v0.2 is ready. Here's what changed and the few decision points it surfaces.
+
+The two new design principles are the substantive additions. §3.7 records the acyclic requirement 
+as a documented security contract — citing the AtomicMarshalInputStream class doc that lists 
+circular references under "not supported" — and explains why it's the precondition for 
+validation-before-construction rather than a mere encoding convenience. §3.8 states the "values and bounds,
+ never behaviour" rule with the intrinsic-order carve-out you identified, so an implementer 
+knows that principal chains and certificate paths are order-significant while sorted/hashed 
+collections are not.
+
+The collection collapse is now explicit in §7.6: there is no MapSerializer/SetSerializer/ListSerializer 
+wire type, because a bounded SEQUENCE OF subsumes everything the carrier did. That shrinks the 
+substituted-types catalogue to the genuinely irreducible types, each with a proposed DER form or 
+an [OPEN] marker.
+
+A few decision points worth your eye, all flagged in §7.6 and §10:
+
+For Float/Double I recommend encoding the raw IEEE-754 bits as an OCTET STRING rather than 
+ASN.1 REAL — REAL is awkward and its cross-language tooling is patchy, whereas the bit pattern 
+round-trips deterministically everywhere, which matters for any signed object. 
+For Date I recommend epoch-millis as an INTEGER over GeneralizedTime, to avoid timezone ambiguity 
+and guarantee exact round-trip. X500Principal is the free consistency win — it's already
+ DER-native (an X.501 Name), so its wire form should reuse the X.509 Name encoding directly, 
+the same encoding a participant already parses for SVIDs.
+
+Two items genuinely need your implementation knowledge before they can be settled. 
+MarshalledObject is the awkward one — it's a serialized-object container, so its DER form nests 
+the wire format recursively inside itself and needs explicit depth and size bounds to stay safe. 
+And Throwable needs a maximum cause-chain depth and stack-trace length bound; its DER form is 
+drafted with an acyclic cause chain, which §3.7 already guarantees, but the depth ceiling is a 
+number only you can set.
+
+The frame-level codebase table in §8 is now conditional rather than recommended outright: 
+it's admissible only if the framing can guarantee the table is fully decoded and validated 
+before any object body indexes into it, keeping it outside the object graph under construction. 
+If that ordering can't be cleanly guaranteed, the draft says to repeat the records inline and 
+accept the wire-size cost, preserving the strict no-references property end to end. 
+That's a judgment call that depends on how your JERI framing actually lays bytes out.
+
+The remaining [OPEN] items are unchanged from v0.1 and still need STD-001 (for the precise 
+GetArg decode-target mapping) and STD-002 (for the SCAP object field lists and the 
+signature-input cutover design, which is the one genuinely breaking change in the whole migration). 
+Those two documents would close most of what's left.
+
+
+Jgdms std 005 der wireformat v0.2 draft
+Document · MD 

@@ -64,6 +64,7 @@ import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -2354,7 +2355,15 @@ class Activation implements Serializable {
 	    }
 	};
 	if (login != null) {
-	    return Subject.doAsPrivileged(login.getSubject(), action, null);
+	    final Subject phoenixSubject = login.getSubject();
+	    // Subject.callAs() propagates Subject.current() via ScopedValue so that
+	    // virtual dispatch threads (DirtyChai/JDK 27) capture phoenixSubject at
+	    // construction time.  Without this, Subject.current() == null on all
+	    // dispatch threads, causing outbound SSL calls (e.g. codebase lookup via
+	    // getClassAnnotation()) to fail with UnsupportedConstraintException.
+	    // Subject.doAsPrivileged() is kept for ACC-based consumers.
+	    return Subject.callAs(phoenixSubject, () ->
+		Subject.doAsPrivileged(phoenixSubject, action, null));
 	} else {
 	    return action.run();
 	}

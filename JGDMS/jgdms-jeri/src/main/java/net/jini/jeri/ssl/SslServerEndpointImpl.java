@@ -50,6 +50,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ServerSocketFactory;
@@ -635,6 +636,15 @@ class SslServerEndpointImpl extends Utilities {
 		/* inherit javadoc */
 			@Override
 		public void checkPermissions() {
+			// When the subject is resolved lazily (useCurrentSubject=true) we
+			// must resolve it HERE — while the service Subject is still active
+			// on the calling thread via Subject.callAs — so that hashCode() and
+			// equals() already see the resolved Subject when BasicExportTable
+			// does the listenPool lookup in getBinding().  Without this, every
+			// port-0 endpoint with useCurrentSubject=true hashes and compares
+			// identically, causing different services (e.g. SharedGroup and
+			// Mahalo) in the same group JVM to share the same SslListenHandle.
+			if (useCurrentSubject) resolveSubjectIfNeeded();
 			checkListenPermissions(true, listenPermissions, port);
 		}
         
@@ -951,9 +961,15 @@ class SslServerEndpointImpl extends Utilities {
 		/** Returns a hash code value for this object. */
 		public int hashCode() {
 			if (useCurrentSubject) {
-				// serverSubject is resolved lazily; omit it so that two endpoints
-				// for the same port created before and after resolution hash equally.
+				// If the subject has been resolved (by checkPermissions() or
+				// listen()), fold its identity into the hash so that two
+				// endpoints resolved to DIFFERENT subjects produce different
+				// hash codes and therefore land in different listenPool buckets.
+				// If the subject is still null (not yet resolved) fall back to
+				// port-only hashing — identical to the pre-resolution bucket.
+				Subject sub = serverSubject; // volatile read
 				return getClass().hashCode()
+					^ (sub != null ? System.identityHashCode(sub) : 0)
 					^ port
 					^ (serverSocketFactory != null
 					   ? serverSocketFactory.hashCode() : 0);
@@ -991,8 +1007,27 @@ class SslServerEndpointImpl extends Utilities {
 			}
 			SslListenEndpoint other = (SslListenEndpoint) object;
 			if (useCurrentSubject || other.useCurrentSubject) {
-				// Both endpoints will resolve their subject from the same ambient
-				// context, so treat them as equal if port and socket factory match.
+				// When either endpoint uses lazy subject resolution, compare
+				// by resolved subjects (if available) rather than ignoring them.
+				// checkPermissions() resolves the subject before BasicExportTable
+				// calls getBinding(), so both subjects are typically non-null here.
+				// If one is still unresolved (null) fall back to port-only comparison
+				// to preserve the pre-existing same-service-reuse behaviour.
+				Subject thisSub  = serverSubject;        // volatile reads
+				Subject otherSub = other.serverSubject;
+				if (thisSub != null && otherSub != null) {
+					// Both resolved: require same subject identity, same port,
+					// same socket factory.  This prevents two services running in
+					// the same group JVM (e.g. SharedGroup CN=Phoenix and Mahalo
+					// CN=Mahalo) from sharing the same SslListenHandle.
+					return thisSub == otherSub
+						&& port == other.port
+						&& Util.sameClassAndEquals(serverSocketFactory,
+									   other.serverSocketFactory);
+				}
+				// At least one unresolved — fall back to port + factory only
+				// (legacy behaviour, avoids double-binding port 0 for the same
+				// service exported twice before subjects are resolved).
 				return port == other.port
 					&& Util.sameClassAndEquals(serverSocketFactory,
 								   other.serverSocketFactory);
@@ -1243,12 +1278,31 @@ class SslServerEndpointImpl extends Utilities {
 			return new SslServerConnection(this, socket);
 		}
 
-		/** Handles a newly accepted server connection. */
+		/** Handles a newly accepted server connection.
+		 *
+		 * <p>Wraps the connection-manager call in
+		 * {@code Subject.callAs(listenEndpoint.serverSubject, ...)} so that
+		 * {@code Subject.current()} equals the service subject at MuxServer
+		 * construction time.  This allows dispatch threads to restore the
+		 * service subject via {@code Subject.callAs(serverSubject, ...)} and
+		 * make authenticated outbound calls (e.g. codebase lookup) during
+		 * argument unmarshal.
+		 */
 		void handleConnection(SslServerConnection connection,
 							  RequestDispatcher requestDispatcher)
 		{
-			listenEndpoint.getServerConnectionManager().handleConnection(
-				connection, requestDispatcher);
+			final Subject svcSubject = listenEndpoint.serverSubject;
+			try {
+				Subject.callAs(svcSubject, (Callable<Void>) () -> {
+					listenEndpoint.getServerConnectionManager().handleConnection(
+						connection, requestDispatcher);
+					return null;
+				});
+			} catch (RuntimeException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
 		}
 
 		/** Returns the port on which this handle is listening. */

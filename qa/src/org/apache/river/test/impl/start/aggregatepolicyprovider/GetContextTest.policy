@@ -45,7 +45,6 @@ grant codebase "jrt:/jdk.security.jgss",
 
 grant {
     permission java.util.PropertyPermission "*", "read,write";
-    permission java.io.FilePermission "-", "read";
     permission java.security.SecurityPermission "createPolicy.JiniPolicy";
     permission java.security.SecurityPermission "getPolicy";
     permission java.security.SecurityPermission "getProperty.*";
@@ -61,6 +60,7 @@ grant {
     permission java.lang.RuntimePermission "modifyThreadGroup";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.io.FilePermission "-", "read";
     permission java.net.SocketPermission "*", "listen,resolve";
 };
 

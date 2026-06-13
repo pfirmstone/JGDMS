@@ -1,0 +1,182 @@
+Buildfile: C:\Users\peter\Documents\GitHub\JGDMS\qa\build.xml
+
+james-brown:
+   [delete] Deleting directory C:\Users\peter\Documents\GitHub\JGDMS\qa\soul
+    [mkdir] Created dir: C:\Users\peter\Documents\GitHub\JGDMS\qa\soul
+    [touch] Creating C:\Users\peter\Documents\GitHub\JGDMS\qa\soul\soul.202606071646029452
+
+policy-update-run-tests:
+     [java] Problem with KEEPALIVE_PORT:10004
+     [java] Unexpected exception:June 07, 2026 4:46:30 PM java.lang.Shutdown logRuntimeExit
+     [java] 
+     [java] FINE: Runtime.exit() called with status: 1java.net.BindException: Address already in use: bind
+     [java] 
+     [java] java.lang.Throwable: Runtime.exit(1)
+     [java] 	at java.base/java.lang.Shutdown.logRuntimeExit(Shutdown.java:181)	at java.base/sun.nio.ch.Net.bind0(Native Method)
+     [java] 
+     [java] 	at java.base/sun.nio.ch.Net.bind(Net.java:566)	at java.base/java.lang.Shutdown.exit(Shutdown.java:162)
+     [java] 
+     [java] 	at java.base/java.lang.Runtime.exit(Runtime.java:189)	at java.base/sun.nio.ch.Net.bind(Net.java:555)
+     [java] 	at java.base/java.lang.System.exit(System.java:2034)
+     [java] 	at java.base/sun.nio.ch.NioSocketImpl.bind(NioSocketImpl.java:644)
+     [java] 
+     [java] 	at org.apache.river.qa.harness.MasterHarness$KeepAlivePort.run(MasterHarness.java:275)
+     [java] 	at java.base/java.net.ServerSocket.bind(ServerSocket.java:385)	at java.base/java.lang.Thread.lambda$runWith$0(Thread.java:1716)
+     [java] 
+     [java] 	at java.base/java.net.ServerSocket.bind(ServerSocket.java:336)
+     [java] 	at org.apache.river.qa.harness.MasterHarness$KeepAlivePort.run(MasterHarness.java:263)
+     [java] 	at java.base/java.lang.Thread.lambda$runWith$0(Thread.java:1716)	at java.base/jdk.internal.vm.ScopedValueContainer.callWithoutScope(ScopedValueContainer.java:162)
+     [java] 
+     [java] 	at java.base/jdk.internal.vm.ScopedValueContainer.callWithoutScope(ScopedValueContainer.java:162)
+     [java] 	at java.base/jdk.internal.vm.ScopedValueContainer.call(ScopedValueContainer.java:147)
+     [java] 	at java.base/jdk.internal.vm.ScopedValueContainer.call(ScopedValueContainer.java:147)
+     [java] 	at java.base/java.lang.ScopedValue$Carrier.call(ScopedValue.java:425)	at java.base/java.lang.ScopedValue$Carrier.call(ScopedValue.java:425)
+     [java] 	at java.base/javax.security.auth.Subject.callNoCheck(Subject.java:632)
+     [java] 
+     [java] 	at java.base/javax.security.auth.Subject.callNoCheck(Subject.java:632)	at java.base/javax.security.auth.Subject$NoCheck.callAs(Subject.java:477)
+     [java] 	at java.base/java.lang.Thread$SubjectAccess.callNoCheck(Thread.java:1739)
+     [java] 	at java.base/java.lang.Thread.run(Thread.java:1701)
+     [java] 
+     [java] 
+     [java] 	at java.base/javax.security.auth.Subject$NoCheck.callAs(Subject.java:477)
+     [java] 	at java.base/java.lang.Thread$SubjectAccess.callNoCheck(Thread.java:1739)
+     [java] 	at java.base/java.lang.Thread.run(Thread.java:1701)
+     [java] Java Result: 1
+
+collect-result:
+
+policy-update-tests:
+     [java] June 07, 2026 4:46:31 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] INFO: Excluded policy file basenames: [loaderNoConnectToCodebase.policy, loaderNoDlPerm.policy, loaderNoGetClassLoader.policy, policyProviderNoAccessClass.policy, policyProviderNoGetProperty.policy]
+     [java] June 07, 2026 4:46:32 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] INFO: Found 242 .policy files under C:\Users\peter\Documents\GitHub\JGDMS\qa
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\loaderNoConnectToCodebase.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\loaderNoConnectToCodebase.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\loaderNoConnectToCodebase.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\loaderNoDlPerm.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\loaderNoDlPerm.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\loaderNoDlPerm.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\loaderNoGetClassLoader.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\loaderNoGetClassLoader.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\loaderNoGetClassLoader.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassLoader\loaderNoConnectToCodebase.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassLoader\loaderNoConnectToCodebase.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassLoader\loaderNoConnectToCodebase.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassLoader\loaderNoDlPerm.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassLoader\loaderNoDlPerm.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassLoader\loaderNoDlPerm.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassLoader\loaderNoGetClassLoader.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassLoader\loaderNoGetClassLoader.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassLoader\loaderNoGetClassLoader.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassProvider\loaderNoConnectToCodebase.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassProvider\loaderNoConnectToCodebase.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassProvider\loaderNoConnectToCodebase.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassProvider\loaderNoDlPerm.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassProvider\loaderNoDlPerm.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassProvider\loaderNoDlPerm.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassProvider\loaderNoGetClassLoader.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassProvider\loaderNoGetClassLoader.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\preferredClassProvider\loaderNoGetClassLoader.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\requireDlPermProvider\loaderNoConnectToCodebase.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\requireDlPermProvider\loaderNoConnectToCodebase.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\requireDlPermProvider\loaderNoConnectToCodebase.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\requireDlPermProvider\loaderNoDlPerm.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\requireDlPermProvider\loaderNoDlPerm.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\requireDlPermProvider\loaderNoDlPerm.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\requireDlPermProvider\loaderNoGetClassLoader.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\requireDlPermProvider\loaderNoGetClassLoader.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\loader\pref\requireDlPermProvider\loaderNoGetClassLoader.policy
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\dynamicPolicyProvider\policyProviderNoAccessClass.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\dynamicPolicyProvider\policyProviderNoAccessClass.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:35 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\dynamicPolicyProvider\policyProviderNoAccessClass.policy
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\dynamicPolicyProvider\policyProviderNoGetProperty.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\dynamicPolicyProvider\policyProviderNoGetProperty.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\dynamicPolicyProvider\policyProviderNoGetProperty.policy
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\grantPermission\policyProviderNoAccessClass.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\grantPermission\policyProviderNoAccessClass.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\grantPermission\policyProviderNoAccessClass.policy
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\grantPermission\policyProviderNoGetProperty.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\grantPermission\policyProviderNoGetProperty.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\grantPermission\policyProviderNoGetProperty.policy
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyFileProvider\policyProviderNoAccessClass.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyFileProvider\policyProviderNoAccessClass.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyFileProvider\policyProviderNoAccessClass.policy
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyFileProvider\policyProviderNoGetProperty.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyFileProvider\policyProviderNoGetProperty.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyFileProvider\policyProviderNoGetProperty.policy
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyProviderNoAccessClass.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyProviderNoAccessClass.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyProviderNoAccessClass.policy
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor gitRestore
+     [java] WARNING: git checkout returned 1 for C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyProviderNoGetProperty.policy: error: pathspec 'C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyProviderNoGetProperty.policy' did not match any file(s) known to git
+     [java] 
+     [java] June 07, 2026 4:46:36 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] WARNING: Could not restore excluded policy file via git: C:\Users\peter\Documents\GitHub\JGDMS\qa\build\classes\org\apache\river\test\spec\policyprovider\policyProviderNoGetProperty.policy
+     [java] June 07, 2026 4:46:43 PM org.apache.river.tool.PolicyUpdatePostProcessor condenseInPlace
+     [java] WARNING: PolicyCondenser failed for C:\Users\peter\Documents\GitHub\JGDMS\qa\harness\policy\defaultsecurephoenix.policy
+     [java] org.apache.river.api.security.DefaultPolicyScanner$InvalidFormatException: Unexpected token encountered: Token['{'], line 982
+     [java] 	at org.apache.river.api.security.DefaultPolicyScanner.handleUnexpectedToken(DefaultPolicyScanner.java:411)
+     [java] 	at org.apache.river.api.security.DefaultPolicyScanner.scanStream(DefaultPolicyScanner.java:148)
+     [java] 	at org.apache.river.api.security.DefaultPolicyParser.parse(DefaultPolicyParser.java:145)
+     [java] 	at org.apache.river.tool.PolicyCondenser.condense(PolicyCondenser.java:130)
+     [java] 	at org.apache.river.tool.PolicyCondenser.main(PolicyCondenser.java:94)
+     [java] 	at org.apache.river.tool.PolicyUpdatePostProcessor.condenseInPlace(PolicyUpdatePostProcessor.java:263)
+     [java] 	at org.apache.river.tool.PolicyUpdatePostProcessor.run(PolicyUpdatePostProcessor.java:134)
+     [java] 	at org.apache.river.tool.PolicyUpdatePostProcessor.main(PolicyUpdatePostProcessor.java:102)
+     [java] 
+     [java] June 07, 2026 4:47:13 PM org.apache.river.tool.PolicyUpdatePostProcessor condenseInPlace
+     [java] WARNING: PolicyCondenser failed for C:\Users\peter\Documents\GitHub\JGDMS\qa\harness\policy\defaultsecuretest.policy
+     [java] org.apache.river.api.security.DefaultPolicyScanner$InvalidFormatException: Unexpected token encountered: Token['{'], line 2245
+     [java] 	at org.apache.river.api.security.DefaultPolicyScanner.handleUnexpectedToken(DefaultPolicyScanner.java:411)
+     [java] 	at org.apache.river.api.security.DefaultPolicyScanner.scanStream(DefaultPolicyScanner.java:148)
+     [java] 	at org.apache.river.api.security.DefaultPolicyParser.parse(DefaultPolicyParser.java:145)
+     [java] 	at org.apache.river.tool.PolicyCondenser.condense(PolicyCondenser.java:130)
+     [java] 	at org.apache.river.tool.PolicyCondenser.main(PolicyCondenser.java:94)
+     [java] 	at org.apache.river.tool.PolicyUpdatePostProcessor.condenseInPlace(PolicyUpdatePostProcessor.java:263)
+     [java] 	at org.apache.river.tool.PolicyUpdatePostProcessor.run(PolicyUpdatePostProcessor.java:134)
+     [java] 	at org.apache.river.tool.PolicyUpdatePostProcessor.main(PolicyUpdatePostProcessor.java:102)
+     [java] 
+     [java] Policy update complete: 20 restored, 200 condensed, 2 skipped/unchanged.
+     [java] June 07, 2026 4:47:51 PM org.apache.river.tool.PolicyUpdatePostProcessor run
+     [java] INFO: Policy update complete: 20 restored, 200 condensed, 2 skipped/unchanged.
+
+BUILD SUCCESSFUL
+Total time: 1 minute 22 seconds

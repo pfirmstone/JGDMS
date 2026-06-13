@@ -11,10 +11,10 @@ grant {
     permission java.util.PropertyPermission "test.rmi.exportType", "read";
     permission java.util.PropertyPermission "test.src", "read";
     permission java.util.PropertyPermission "user.dir", "read";
-    permission java.io.FilePermission "<<ALL FILES>>", "read";
     permission java.lang.RuntimePermission "createClassLoader";
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
     permission java.net.SocketPermission "*:1024-", "connect,resolve";
 };
 

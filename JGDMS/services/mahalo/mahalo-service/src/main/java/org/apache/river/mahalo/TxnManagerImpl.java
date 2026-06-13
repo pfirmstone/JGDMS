@@ -301,26 +301,14 @@ class TxnManagerImpl /*extends RemoteServer*/
                     configArgs, getClass().getClassLoader());
             loginContext = (LoginContext) config.getEntry(
                 TxnManager.MAHALO, "loginContext", LoginContext.class, null);
-            System.err.println("DIAGNOSTIC: loginContext: " +loginContext);
             if (loginContext != null) {
                 // Setup with login context.
                 if (operationsLogger.isLoggable(Level.FINER)) {
-                    operationsLogger.entering(TxnManagerImpl.class.getName(), 
+                    operationsLogger.entering(TxnManagerImpl.class.getName(),
                         "doInitWithLogin",
                         new Object[] { config, loginContext } );
                 }
                 loginContext.login();
-                // DIAGNOSTIC: dump subject state after login
-                javax.security.auth.Subject loginSubject = loginContext.getSubject();
-                System.err.println("DIAGNOSTIC: loginSubject=" + loginSubject);
-                if (loginSubject != null) {
-                    System.err.println("DIAGNOSTIC: principals=" + loginSubject.getPrincipals());
-                    System.err.println("DIAGNOSTIC: pubCreds=" + loginSubject.getPublicCredentials());
-                    System.err.println("DIAGNOSTIC: privCreds.size=" + loginSubject.getPrivateCredentials().size());
-                    for (Object c : loginSubject.getPrivateCredentials()) {
-                        System.err.println("DIAGNOSTIC: privCred type=" + c.getClass().getName());
-                    }
-                }
 
                 try {
                     init = Subject.callAs(
@@ -387,7 +375,6 @@ class TxnManagerImpl /*extends RemoteServer*/
             }
             
         } catch (Throwable e) {
-            e.printStackTrace(); // DIAGNOSTIC: always visible in NonActGrp-out
             thrown = e;
         } finally {
             if (init != null){

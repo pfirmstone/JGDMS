@@ -39,7 +39,7 @@ handlers = java.util.logging.ConsoleHandler
 # level setting (set below) to limit messages printed to
 # the console.
 
-.level = CONFIG
+.level = FINEST
 
 ############################################################
 # Handler specific properties: formatters and logger levels
@@ -115,7 +115,7 @@ java.io.serialization = SEVERE
 org.apache.river.logging.LogManager.level = SEVERE
 
 # For Configuration
-net.jini.config.level = SEVERE
+net.jini.config.level = CONFIG
 
 # For activation
 net.jini.activation.ActivatableInvocationHandler.level = SEVERE
@@ -230,11 +230,11 @@ org.apache.river.reggie.snapshot.level = SEVERE
 
 # For Mahalo
 org.apache.river.mahalo.destroy.level = SEVERE
-org.apache.river.mahalo.init.level = SEVERE
+org.apache.river.mahalo.init.level = FINEST
 org.apache.river.mahalo.operations.level = SEVERE
 org.apache.river.mahalo.participant.level = SEVERE
 org.apache.river.mahalo.persistence.level = SEVERE
-org.apache.river.mahalo.startup.level = SEVERE
+org.apache.river.mahalo.startup.level = FINEST
 org.apache.river.mahalo.transactions.level = SEVERE
 
 # For Fiddler
@@ -283,4 +283,4 @@ org.apache.river.qa.harness.level = FINE
 org.apache.river.qa.harness.test.level = FINE
 org.apache.river.qa.harness.service.level = FINE
 org.apache.river.qa.harness.config.level = FINE
-org.apache.river.test.spec.jeri.mux.level = SEVERE
+org.apache.river.test.spec.jeri.mux.level = FINE

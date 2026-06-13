@@ -100,8 +100,8 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Group",
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo",
 {
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
     permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.lang.RuntimePermission "createPlatformThread";
     permission java.lang.RuntimePermission "createVirtualThread";
@@ -141,12 +141,12 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
 
 grant {
     permission java.util.PropertyPermission "*", "read";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.io.FilePermission "<<ALL FILES>>", "read";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
 };
 

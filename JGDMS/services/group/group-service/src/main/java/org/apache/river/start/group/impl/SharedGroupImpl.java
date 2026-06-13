@@ -295,24 +295,44 @@ public class SharedGroupImpl implements Remote,
     
     public final synchronized void start() throws ExportException {
         try {
-            // Export service
-            
-            ourStub = AccessController.doPrivileged(new PrivilegedExceptionAction<Remote>(){
-
-                @Override
-                public Remote run() throws ExportException {
-                    return exporter.export(SharedGroupImpl.this);	
-                }
-                
-            }, context);
+            // Export service.  In DirtyChai (JDK 27+), AccessController.doPrivileged(action, acc)
+            // does NOT restore Subject.current() from the captured ACC — ScopedValues are unaffected.
+            // We must therefore use Subject.callAs so that SslServerEndpoint.resolveSubjectIfNeeded()
+            // finds the correct TLS identity via Subject.current() during listen/export.
+            final PrivilegedExceptionAction<Remote> exportAction =
+                new PrivilegedExceptionAction<Remote>() {
+                    @Override
+                    public Remote run() throws ExportException {
+                        return exporter.export(SharedGroupImpl.this);
+                    }
+                };
+            if (loginContext != null && loginContext.getSubject() != null) {
+                final Subject subject = loginContext.getSubject();
+                ourStub = Subject.callAs(subject, () ->
+                    AccessController.doPrivileged(exportAction, context));
+            } else {
+                ourStub = AccessController.doPrivileged(exportAction, context);
+            }
         } catch (PrivilegedActionException ex) {
             ExportException e = (ExportException) ex.getException();
             cleanup();
             throw e;
+        } catch (Exception ex) {
+            // Subject.callAs rethrows checked exceptions; unwrap PrivilegedActionException
+            // or ExportException from within the callAs scope.
+            if (ex instanceof PrivilegedActionException pae) {
+                ExportException e = (ExportException) pae.getException();
+                cleanup();
+                throw e;
+            }
+            Throwable cause = ex.getCause();
+            if (cause instanceof ExportException exportEx) {
+                cleanup();
+                throw exportEx;
+            }
+            throw new ExportException("export failed", ex);
         }
-                	
-        logger.log(Level.FINEST, "Exported service proxy: {0}",
-            ourStub);
+        logger.log(Level.FINEST, "Exported service proxy: {0}", ourStub);
     }
 
 	// javadoc inherited from supertype

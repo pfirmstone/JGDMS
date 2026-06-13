@@ -28,8 +28,10 @@ import java.nio.channels.SocketChannel;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Collection;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.security.auth.Subject;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.InboundRequest;
@@ -69,6 +71,27 @@ public class MuxServer extends Mux {
     private final SecurityContext securityContext;
 
     /**
+     * The server-side subject captured at construction time via
+     * {@link Subject#current()}.
+     *
+     * <p>In DirtyChai (JDK 27) deployments,
+     * {@code AccessController.doPrivileged(action, acc)} restores the
+     * {@code Subject} embedded in {@code acc} into the ScopedValue for the
+     * duration of {@code action}.  This means that at MuxServer construction
+     * time (which is called from within the accept loop's
+     * {@code doPrivileged(action, listenHandleAcc)}, where
+     * {@code listenHandleAcc} was captured under the service subject)
+     * {@code Subject.current()} already equals the service subject.
+     *
+     * <p>We capture it here so that {@link #dispatchNewRequest} can restore
+     * it on the dispatch virtual thread via {@code Subject.callAs(serverSubject,
+     * ...)}, ensuring that outbound SSL calls made during argument unmarshal
+     * (e.g. {@code ProxySerializer.readResolve()} → {@code getClassAnnotation()})
+     * find a usable TLS identity via {@code Subject.current()}.
+     */
+    private final Subject serverSubject;
+
+    /**
      * Initiates the server side of a multiplexed connection over the
      * given input/output stream pair.
      *
@@ -87,6 +110,7 @@ public class MuxServer extends Mux {
 
 	this.requestDispatcher = requestDispatcher;
 	this.securityContext = Security.getContext();
+	this.serverSubject = Subject.current();
     }
 
     public MuxServer(SocketChannel channel,
@@ -97,6 +121,7 @@ public class MuxServer extends Mux {
 
 	this.requestDispatcher = requestDispatcher;
 	this.securityContext = Security.getContext();
+	this.serverSubject = Subject.current();
     }
 
     /**
@@ -234,20 +259,34 @@ public class MuxServer extends Mux {
 	 */
 	final Session session = new Session(this, sessionID, Session.SERVER);
 	addSession(sessionID, session);
+	// serverSubject was captured at MuxServer construction time via
+	// Subject.current(), at which point DirtyChai had already restored the
+	// service subject from the listen-handle security context ACC.  Using
+	// it here (rather than re-extracting from the ACC) avoids the issue
+	// where DirtyChai's AccessController.getContext() in the reading thread
+	// (Subject.current()==null) would embed null into the returned ACC and
+	// override the SubjectDomainCombiner.
 	try {
 	    userThreadPool.execute(new Runnable() {
                 @Override
 		public void run() {
 		    final InboundRequest request = session.getInboundRequest();
 		    try {
-			AccessController.doPrivileged(securityContext.wrap(
-			    new PrivilegedAction() {
-                                @Override
-				public Object run() {
-				    requestDispatcher.dispatch(request);
-				    return null;
-				}
-			    }), securityContext.getAccessControlContext());
+			Subject.callAs(serverSubject, (Callable<Void>) () -> {
+			    AccessController.doPrivileged(securityContext.wrap(
+				new PrivilegedAction() {
+                                    @Override
+				    public Object run() {
+					requestDispatcher.dispatch(request);
+					return null;
+				    }
+				}), securityContext.getAccessControlContext());
+			    return null;
+			});
+		    } catch (RuntimeException e) {
+			throw e;
+		    } catch (Exception e) {
+			throw new RuntimeException(e);
 		    } finally {
 			request.abort();
 		    }

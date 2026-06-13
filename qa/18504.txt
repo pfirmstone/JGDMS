@@ -1,0 +1,236 @@
+2026-06-06 11:28:26
+Full thread dump OpenJDK 64-Bit Server VM (27-internal-adhoc.peter.DirtyChai mixed mode, sharing)
+                 JDK version: OpenJDK Runtime Environment (27.0) (build 27-internal-adhoc.peter.DirtyChai)
+
+Threads class SMR info:
+_java_thread_list=0x00000219dfb1b480, length=18, elements={
+0x00000219d7ce9450, 0x00000219d7ce9d80, 0x00000219d7cead50, 0x00000219d7ceb680,
+0x00000219d7cf43c0, 0x00000219d7cf6d00, 0x00000219d7d074f0, 0x00000219d7d08d00,
+0x00000219da8ea360, 0x00000219df37e240, 0x00000219df5c7450, 0x00000219dfb23e60,
+0x00000219dfb93370, 0x00000219dfe7d9b0, 0x00000219dfe7a300, 0x00000219dfe80890,
+0x00000219dfe79360, 0x00000219dfe7aad0
+}
+
+"Reference Handler" #15 [5852] daemon prio=10 os_prio=2 cpu=0.00ms elapsed=106.00s tid=0x00000219d7ce9450 nid=5852 waiting on condition  [0x000000f1318ff000]
+   java.lang.Thread.State: RUNNABLE
+	at java.lang.ref.Reference.waitForReferencePendingList(java.base@27-internal/Native Method)
+	at java.lang.ref.Reference.processPendingReferences(java.base@27-internal/Reference.java:240)
+	at java.lang.ref.Reference$ReferenceHandler.run(java.base@27-internal/Reference.java:202)
+
+"Finalizer" #16 [7420] daemon prio=8 os_prio=1 cpu=0.00ms elapsed=106.00s tid=0x00000219d7ce9d80 nid=7420 in Object.wait()  [0x000000f1319ff000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@27-internal/Native Method)
+	- waiting on <0x000000040383c0c0> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@27-internal/Object.java:391)
+	at java.lang.Object.wait(java.base@27-internal/Object.java:353)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@27-internal/ReferenceQueue.java:137)
+	at java.lang.ref.ReferenceQueue.remove(java.base@27-internal/ReferenceQueue.java:215)
+	- locked <0x000000040383c0c0> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.Finalizer$FinalizerThread.run(java.base@27-internal/Finalizer.java:174)
+
+"Signal Dispatcher" #17 [6048] daemon prio=9 os_prio=2 cpu=0.00ms elapsed=106.00s tid=0x00000219d7cead50 nid=6048 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Attach Listener" #18 [18680] daemon prio=5 os_prio=2 cpu=0.00ms elapsed=106.00s tid=0x00000219d7ceb680 nid=18680 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Service Thread" #19 [18948] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=106.00s tid=0x00000219d7cf43c0 nid=18948 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Monitor Deflation Thread" #20 [5248] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=106.00s tid=0x00000219d7cf6d00 nid=5248 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"C2 CompilerThread0" #21 [20188] daemon prio=9 os_prio=2 cpu=843.75ms elapsed=106.00s tid=0x00000219d7d074f0 nid=20188 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"C1 CompilerThread0" #24 [19608] daemon prio=9 os_prio=2 cpu=656.25ms elapsed=106.00s tid=0x00000219d7d08d00 nid=19608 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"Common-Cleaner" #25 [19708] daemon prio=8 os_prio=1 cpu=0.00ms elapsed=105.94s tid=0x00000219da8ea360 nid=19708 in Object.wait()  [0x000000f1320ff000]
+   java.lang.Thread.State: TIMED_WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@27-internal/Native Method)
+	- waiting on <0x0000000403878100> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@27-internal/Object.java:391)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@27-internal/ReferenceQueue.java:123)
+	at java.lang.ref.ReferenceQueue.remove(java.base@27-internal/ReferenceQueue.java:201)
+	- locked <0x0000000403878100> (a java.lang.ref.ReferenceQueue$Lock)
+	at jdk.internal.ref.CleanerImpl.run(java.base@27-internal/CleanerImpl.java:146)
+	at java.lang.Thread.runWith(java.base@27-internal/Thread.java:1721)
+	at java.lang.Thread.run(java.base@27-internal/Thread.java:1701)
+	at jdk.internal.misc.InnocuousThread.run(java.base@27-internal/InnocuousThread.java:186)
+
+"Reference collection cleaner" #26 [19940] prio=10 os_prio=2 cpu=0.00ms elapsed=102.16s tid=0x00000219df37e240 nid=19940 waiting on condition  [0x000000f1321fe000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at jdk.internal.misc.Unsafe.park(java.base@27-internal/Native Method)
+	- parking to wait for  <0x000000040381e110> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.parkNanos(java.base@27-internal/LockSupport.java:271)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(java.base@27-internal/AbstractQueuedSynchronizer.java:1803)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(java.base@27-internal/ScheduledThreadPoolExecutor.java:1169)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(java.base@27-internal/ScheduledThreadPoolExecutor.java:886)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(java.base@27-internal/ThreadPoolExecutor.java:1070)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(java.base@27-internal/ThreadPoolExecutor.java:1130)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(java.base@27-internal/ThreadPoolExecutor.java:642)
+	at java.lang.Thread.runWith(java.base@27-internal/Thread.java:1721)
+	at java.lang.Thread.run(java.base@27-internal/Thread.java:1701)
+
+"Notification Thread" #31 [19384] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=98.49s tid=0x00000219df5c7450 nid=19384 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"(JSK) Reference collection cleaner" #38 [20356] prio=10 os_prio=2 cpu=0.00ms elapsed=98.16s tid=0x00000219dfb23e60 nid=20356 waiting on condition  [0x000000f132afe000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at jdk.internal.misc.Unsafe.park(java.base@27-internal/Native Method)
+	- parking to wait for  <0x000000040383c168> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.parkNanos(java.base@27-internal/LockSupport.java:271)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(java.base@27-internal/AbstractQueuedSynchronizer.java:1803)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(java.base@27-internal/ScheduledThreadPoolExecutor.java:1169)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(java.base@27-internal/ScheduledThreadPoolExecutor.java:886)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(java.base@27-internal/ThreadPoolExecutor.java:1070)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(java.base@27-internal/ThreadPoolExecutor.java:1130)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(java.base@27-internal/ThreadPoolExecutor.java:642)
+	at java.lang.Thread.lambda$runWith$0(java.base@27-internal/Thread.java:1716)
+	at java.lang.Thread$$Lambda/0x00000000900637c0.call(java.base@27-internal/Unknown Source)
+	at javax.security.auth.Subject$$Lambda/0x0000000090064060.call(java.base@27-internal/Unknown Source)
+	at jdk.internal.vm.ScopedValueContainer.callWithoutScope(java.base@27-internal/ScopedValueContainer.java:162)
+	at jdk.internal.vm.ScopedValueContainer.call(java.base@27-internal/ScopedValueContainer.java:147)
+	at java.lang.ScopedValue$Carrier.runWith(java.base@27-internal/ScopedValue.java:441)
+	at java.lang.ScopedValue$Carrier.call(java.base@27-internal/ScopedValue.java:425)
+	at javax.security.auth.Subject.callNoCheck(java.base@27-internal/Subject.java:590)
+	at javax.security.auth.Subject$NoCheck.callAs(java.base@27-internal/Subject.java:451)
+	at java.lang.Thread$SubjectAccess.callNoCheck(java.base@27-internal/Thread.java:1739)
+	at java.lang.Thread.runWith(java.base@27-internal/Thread.java:1715)
+	at java.lang.Thread.run(java.base@27-internal/Thread.java:1701)
+
+"VirtualThread-unblocker" #41 [15812] daemon prio=5 os_prio=0 cpu=0.00ms elapsed=98.09s tid=0x00000219dfb93370 nid=15812 runnable  [0x000000f132dfe000]
+   java.lang.Thread.State: RUNNABLE
+	at java.lang.VirtualThread.takeVirtualThreadListToUnblock(java.base@27-internal/Native Method)
+	at java.lang.VirtualThread.unblockVirtualThreads(java.base@27-internal/VirtualThread.java:1562)
+	at java.lang.VirtualThread$$Lambda/0x00000000900c08c8.run(java.base@27-internal/Unknown Source)
+	at java.lang.Thread.lambda$runWith$0(java.base@27-internal/Thread.java:1716)
+	at java.lang.Thread$$Lambda/0x00000000900637c0.call(java.base@27-internal/Unknown Source)
+	at javax.security.auth.Subject$$Lambda/0x0000000090064060.call(java.base@27-internal/Unknown Source)
+	at jdk.internal.vm.ScopedValueContainer.callWithoutScope(java.base@27-internal/ScopedValueContainer.java:162)
+	at jdk.internal.vm.ScopedValueContainer.call(java.base@27-internal/ScopedValueContainer.java:147)
+	at java.lang.ScopedValue$Carrier.runWith(java.base@27-internal/ScopedValue.java:441)
+	at java.lang.ScopedValue$Carrier.call(java.base@27-internal/ScopedValue.java:425)
+	at javax.security.auth.Subject.callNoCheck(java.base@27-internal/Subject.java:590)
+	at javax.security.auth.Subject$NoCheck.callAs(java.base@27-internal/Subject.java:451)
+	at java.lang.Thread$SubjectAccess.callNoCheck(java.base@27-internal/Thread.java:1739)
+	at java.lang.Thread.runWith(java.base@27-internal/Thread.java:1715)
+	at java.lang.Thread.run(java.base@27-internal/Thread.java:1701)
+	at jdk.internal.misc.InnocuousThread.run(java.base@27-internal/InnocuousThread.java:186)
+
+"Read-Poller" #44 [5284] daemon prio=5 os_prio=0 cpu=0.00ms elapsed=98.08s tid=0x00000219dfe7d9b0 nid=5284 runnable  [0x000000f132ffe000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.WEPoll.wait(java.base@27-internal/Native Method)
+	at sun.nio.ch.WEPollPoller.poll(java.base@27-internal/WEPollPoller.java:61)
+	at sun.nio.ch.Poller.pollerLoop(java.base@27-internal/Poller.java:249)
+	at sun.nio.ch.Poller$Pollers$$Lambda/0x00000000900c4b68.run(java.base@27-internal/Unknown Source)
+	at java.lang.Thread.lambda$runWith$0(java.base@27-internal/Thread.java:1716)
+	at java.lang.Thread$$Lambda/0x00000000900637c0.call(java.base@27-internal/Unknown Source)
+	at javax.security.auth.Subject$$Lambda/0x0000000090064060.call(java.base@27-internal/Unknown Source)
+	at jdk.internal.vm.ScopedValueContainer.callWithoutScope(java.base@27-internal/ScopedValueContainer.java:162)
+	at jdk.internal.vm.ScopedValueContainer.call(java.base@27-internal/ScopedValueContainer.java:147)
+	at java.lang.ScopedValue$Carrier.runWith(java.base@27-internal/ScopedValue.java:441)
+	at java.lang.ScopedValue$Carrier.call(java.base@27-internal/ScopedValue.java:425)
+	at javax.security.auth.Subject.callNoCheck(java.base@27-internal/Subject.java:590)
+	at javax.security.auth.Subject$NoCheck.callAs(java.base@27-internal/Subject.java:451)
+	at java.lang.Thread$SubjectAccess.callNoCheck(java.base@27-internal/Thread.java:1739)
+	at java.lang.Thread.runWith(java.base@27-internal/Thread.java:1715)
+	at java.lang.Thread.run(java.base@27-internal/Thread.java:1701)
+	at jdk.internal.misc.InnocuousThread.run(java.base@27-internal/InnocuousThread.java:186)
+
+"Write-Poller" #45 [20340] daemon prio=5 os_prio=0 cpu=0.00ms elapsed=98.08s tid=0x00000219dfe7a300 nid=20340 runnable  [0x000000f1330fe000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.WEPoll.wait(java.base@27-internal/Native Method)
+	at sun.nio.ch.WEPollPoller.poll(java.base@27-internal/WEPollPoller.java:61)
+	at sun.nio.ch.Poller.pollerLoop(java.base@27-internal/Poller.java:249)
+	at sun.nio.ch.Poller$Pollers$$Lambda/0x00000000900c5440.run(java.base@27-internal/Unknown Source)
+	at java.lang.Thread.lambda$runWith$0(java.base@27-internal/Thread.java:1716)
+	at java.lang.Thread$$Lambda/0x00000000900637c0.call(java.base@27-internal/Unknown Source)
+	at javax.security.auth.Subject$$Lambda/0x0000000090064060.call(java.base@27-internal/Unknown Source)
+	at jdk.internal.vm.ScopedValueContainer.callWithoutScope(java.base@27-internal/ScopedValueContainer.java:162)
+	at jdk.internal.vm.ScopedValueContainer.call(java.base@27-internal/ScopedValueContainer.java:147)
+	at java.lang.ScopedValue$Carrier.runWith(java.base@27-internal/ScopedValue.java:441)
+	at java.lang.ScopedValue$Carrier.call(java.base@27-internal/ScopedValue.java:425)
+	at javax.security.auth.Subject.callNoCheck(java.base@27-internal/Subject.java:590)
+	at javax.security.auth.Subject$NoCheck.callAs(java.base@27-internal/Subject.java:451)
+	at java.lang.Thread$SubjectAccess.callNoCheck(java.base@27-internal/Thread.java:1739)
+	at java.lang.Thread.runWith(java.base@27-internal/Thread.java:1715)
+	at java.lang.Thread.run(java.base@27-internal/Thread.java:1701)
+	at jdk.internal.misc.InnocuousThread.run(java.base@27-internal/InnocuousThread.java:186)
+
+"(JSK) Reaper" #46 [19600] daemon prio=5 os_prio=0 cpu=0.00ms elapsed=98.08s tid=0x00000219dfe80890 nid=19600 in Object.wait()  [0x000000f1331fe000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@27-internal/Native Method)
+	- waiting on <0x000000040397fca0> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@27-internal/Object.java:391)
+	at java.lang.Object.wait(java.base@27-internal/Object.java:353)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@27-internal/ReferenceQueue.java:137)
+	at java.lang.ref.ReferenceQueue.remove(java.base@27-internal/ReferenceQueue.java:215)
+	- locked <0x000000040397fca0> (a java.lang.ref.ReferenceQueue$Lock)
+	at org.apache.river.jeri.internal.runtime.ImplRefManager$Reaper.run(ImplRefManager.java:425)
+	at java.lang.Thread.lambda$runWith$0(java.base@27-internal/Thread.java:1716)
+	at java.lang.Thread$$Lambda/0x00000000900637c0.call(java.base@27-internal/Unknown Source)
+	at javax.security.auth.Subject$$Lambda/0x0000000090064060.call(java.base@27-internal/Unknown Source)
+	at jdk.internal.vm.ScopedValueContainer.callWithoutScope(java.base@27-internal/ScopedValueContainer.java:162)
+	at jdk.internal.vm.ScopedValueContainer.call(java.base@27-internal/ScopedValueContainer.java:147)
+	at java.lang.ScopedValue$Carrier.runWith(java.base@27-internal/ScopedValue.java:441)
+	at java.lang.ScopedValue$Carrier.call(java.base@27-internal/ScopedValue.java:425)
+	at javax.security.auth.Subject.callNoCheck(java.base@27-internal/Subject.java:590)
+	at javax.security.auth.Subject$NoCheck.callAs(java.base@27-internal/Subject.java:451)
+	at java.lang.Thread$SubjectAccess.callNoCheck(java.base@27-internal/Thread.java:1739)
+	at java.lang.Thread.runWith(java.base@27-internal/Thread.java:1715)
+	at java.lang.Thread.run(java.base@27-internal/Thread.java:1701)
+
+"(JSK) KeepAlive" #47 [17600] prio=5 os_prio=0 cpu=0.00ms elapsed=98.08s tid=0x00000219dfe79360 nid=17600 waiting on condition  [0x000000f1332ff000]
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleepNanos0(java.base@27-internal/Native Method)
+	at java.lang.Thread.sleepNanos(java.base@27-internal/Thread.java:589)
+	at java.lang.Thread.sleep(java.base@27-internal/Thread.java:620)
+	at org.apache.river.jeri.internal.runtime.JvmLifeSupport$2.run(JvmLifeSupport.java:133)
+	at java.lang.Thread.lambda$runWith$0(java.base@27-internal/Thread.java:1716)
+	at java.lang.Thread$$Lambda/0x00000000900637c0.call(java.base@27-internal/Unknown Source)
+	at javax.security.auth.Subject$$Lambda/0x0000000090064060.call(java.base@27-internal/Unknown Source)
+	at jdk.internal.vm.ScopedValueContainer.callWithoutScope(java.base@27-internal/ScopedValueContainer.java:162)
+	at jdk.internal.vm.ScopedValueContainer.call(java.base@27-internal/ScopedValueContainer.java:147)
+	at java.lang.ScopedValue$Carrier.runWith(java.base@27-internal/ScopedValue.java:441)
+	at java.lang.ScopedValue$Carrier.call(java.base@27-internal/ScopedValue.java:425)
+	at javax.security.auth.Subject.callNoCheck(java.base@27-internal/Subject.java:590)
+	at javax.security.auth.Subject$NoCheck.callAs(java.base@27-internal/Subject.java:451)
+	at java.lang.Thread$SubjectAccess.callNoCheck(java.base@27-internal/Thread.java:1739)
+	at java.lang.Thread.runWith(java.base@27-internal/Thread.java:1715)
+	at java.lang.Thread.run(java.base@27-internal/Thread.java:1701)
+
+"DestroyJavaVM" #49 [4668] prio=5 os_prio=0 cpu=1203.12ms elapsed=98.01s tid=0x00000219dfe7aad0 nid=4668 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"GC Thread#5" os_prio=2 cpu=15.62ms elapsed=98.15s tid=0x00000219d7b8f7e0 nid=20372 runnable  
+
+"GC Thread#4" os_prio=2 cpu=15.62ms elapsed=98.15s tid=0x00000219d7b8e250 nid=20348 runnable  
+
+"GC Thread#2" os_prio=2 cpu=15.62ms elapsed=102.11s tid=0x00000219d7b90d70 nid=17516 runnable  
+
+"GC Thread#3" os_prio=2 cpu=15.62ms elapsed=102.11s tid=0x00000219d7b8f390 nid=20256 runnable  
+
+"GC Thread#1" os_prio=2 cpu=15.62ms elapsed=102.11s tid=0x00000219d7b8eaf0 nid=18664 runnable  
+
+"VM Thread" os_prio=2 cpu=0.00ms elapsed=106.01s tid=0x00000219d7b8ef40 nid=18444 runnable  
+
+"VM Periodic Task Thread" os_prio=2 cpu=15.62ms elapsed=106.01s tid=0x00000219d7b93260 nid=19652 waiting on condition  
+
+"G1 Service" os_prio=2 cpu=0.00ms elapsed=106.03s tid=0x00000219d7b92990 nid=4684 runnable  
+
+"G1 Refinement Workers#0" os_prio=2 cpu=0.00ms elapsed=106.03s tid=0x00000219d7b90920 nid=18128 runnable  
+
+"G1 Refine Control" os_prio=2 cpu=0.00ms elapsed=106.03s tid=0x00000219d7b8d790 nid=14956 runnable  
+
+"G1 Main Marker" os_prio=2 cpu=0.00ms elapsed=106.03s tid=0x00000219d7b43f90 nid=16956 runnable  
+
+"G1 Conc#0" os_prio=2 cpu=0.00ms elapsed=106.03s tid=0x00000219d7b449c0 nid=2400 runnable  
+
+"GC Thread#0" os_prio=2 cpu=15.62ms elapsed=106.03s tid=0x00000219a96377e0 nid=18396 runnable  
+
+JNI global refs: 18, weak refs: 0
+

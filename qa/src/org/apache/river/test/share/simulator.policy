@@ -114,7 +114,7 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=tester",
 };
 
 grant {
-    permission javax.net.ssl.SSLPermission "getSSLSessionContext";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission javax.net.ssl.SSLPermission "getSSLSessionContext";
 };
 

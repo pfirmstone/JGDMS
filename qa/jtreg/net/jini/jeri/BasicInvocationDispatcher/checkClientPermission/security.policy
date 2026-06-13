@@ -3,15 +3,15 @@ grant codebase "file:/C:/Program%20Files/DirtyChai/jdk/lib/ext/*",
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=bob"
+principal org.apache.river.api.security.UnresolvedPrincipal "CN=joe",
+{
+    permission java.security.SecurityPermission "bar";
+};
+
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=bob",
 {
     permission java.security.SecurityPermission "foo";
-};
-
-grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=joe"
-principal org.apache.river.api.security.UnresolvedPrincipal "CN=bob",
-{
-    permission java.security.SecurityPermission "bar";
 };
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=joe",

@@ -4,8 +4,8 @@ grant codebase "jrt:/jdk.localedata",
 };
 
 grant {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
 };
 

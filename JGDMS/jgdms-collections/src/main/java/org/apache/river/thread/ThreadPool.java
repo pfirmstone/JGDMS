@@ -197,10 +197,6 @@ class ThreadPool implements Executor, java.util.concurrent.Executor {
         @Override
         public void run() {
             final Thread thread = Thread.currentThread();
-            // DIAGNOSTIC: run directly WITHOUT Subject.callAs(null, ...) to
-            // confirm whether the callAs(null) wrapper is what breaks the
-            // mux handshake. If the test passes with this version, the
-            // null-subject scope is the culprit.
             try {
                 thread.setName(NewThreadAction.NAME_PREFIX + name);
                 runnable.run();
