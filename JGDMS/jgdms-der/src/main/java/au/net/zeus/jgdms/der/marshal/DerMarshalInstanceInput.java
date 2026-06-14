@@ -25,55 +25,72 @@ import java.io.InputStream;
 import java.io.InvalidObjectException;
 import java.io.NotActiveException;
 import java.io.ObjectInputValidation;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * DER implementation of {@link MarshalInstanceInput} and
- * {@link AtomicObjectInput}.
+ * {@link AtomicObjectInput} (JGDMS-STD-008 sec.13.3, B+C hybrid).
  *
  * <p>On construction all bytes from {@code objIn} are read eagerly into a
- * {@code byte[]}. This is safe because the stream wraps a
- * {@code ByteArrayInputStream} (the parent's {@code objBytes} field) and is
- * bounded; no blocking I/O occurs.
+ * {@code byte[]} ({@code payloadBytes}). The {@code schemaBytes} parameter carries
+ * the embedded schema that {@link net.jini.io.MarshalledInstance} holds as a first-class
+ * field (promoted there by {@link DerMarshalInstanceOutput#getSchemaBytes()} at marshal
+ * time). These two byte arrays together reconstruct the full
+ * {@link MarshalledInstanceRecord} for decoding -- no full-record DER wrapper is needed.
  *
- * <h2>decode path</h2>
+ * <h2>Decode path (STD-008 sec.13.5)</h2>
  * <p>
  * {@link #readObject(Class)} is the primary method called by
  * {@link net.jini.io.MarshalledInstance#get(ClassLoader, boolean, ClassLoader, Collection, Class)}
- * when it detects that this input stream implements {@link AtomicObjectInput}.
- * It delegates to {@link MarshalledInstanceCodec#decodeMarshalledInstance}.
+ * when it detects that this input stream implements {@link AtomicObjectInput}. It:
+ * <ol>
+ *   <li>Reconstructs a {@link MarshalledInstanceRecord} from
+ *       ({@code payloadBytes}, {@code schemaBytes}). The digest is taken from the leaf
+ *       record in the parsed schema chain (the {@code schemaDigest} field of
+ *       {@code MarshalledInstance} is passed for construction but the decode logic
+ *       re-derives it from parsing the chain in
+ *       {@link MarshalledInstanceCodec#decodeMarshalledInstance}).</li>
+ *   <li>Delegates to {@link MarshalledInstanceCodec#decodeMarshalledInstance(MarshalledInstanceRecord, Class)},
+ *       which uses the {@code schemaBytes}-derived chain (embedded schema) to drive
+ *       decoding -- per STD-006 sec.7.8 / STD-008 sec.13.5 normative rule.</li>
+ * </ol>
  *
  * <h2>Unsupported primitives</h2>
  * <p>
  * Like the output side, DER operates at object granularity. All primitive
  * {@code ObjectInput} methods ({@code readInt}, {@code readUTF}, etc.) throw
  * {@link UnsupportedOperationException}.
- *
- * <h2>STD-008 S13.6 "Option A" -- non-invasive spike</h2>
- * <p>
- * No platform files are modified. This class plugs into the existing
- * {@link net.jini.io.MarshalledInstance} factory seam via
- * {@link DerMarshalFactory} and {@link DerMarshalledInstance}.
  */
 public final class DerMarshalInstanceInput implements MarshalInstanceInput, AtomicObjectInput {
 
-    private final byte[]     allBytes;
+    private final byte[]     payloadBytes;
+    private final byte[]     schemaBytes;
     private final Collection context;
     private final InputStream objIn;  // kept for close()
 
     /**
-     * Constructs a new input by eagerly reading all bytes from {@code objIn}.
+     * Constructs a new input from an already-separated payload stream and schema bytes.
      *
-     * @param objIn   the stream to drain (wraps a {@code ByteArrayInputStream}; must
-     *                not be null)
-     * @param context the serialization context collection; may be empty, must not be null
+     * <p>All bytes from {@code objIn} are read eagerly -- this is safe because the
+     * stream wraps a {@code ByteArrayInputStream} (the parent's {@code payloadBytes} field)
+     * and is bounded; no blocking I/O occurs.
+     *
+     * @param objIn       the stream carrying the payload bytes (must not be null)
+     * @param schemaBytes the embedded schema bytes from the first-class
+     *                    {@code MarshalledInstance.schemaBytes} field (must not be null;
+     *                    must be the output of {@link DerMarshalInstanceOutput#getSchemaBytes()})
+     * @param context     the serialization context collection; may be empty, must not be null
      * @throws IOException if reading from {@code objIn} fails
      */
-    public DerMarshalInstanceInput(InputStream objIn, Collection context) throws IOException {
-        this.objIn   = Objects.requireNonNull(objIn,   "objIn");
-        this.context = Objects.requireNonNull(context, "context");
-        this.allBytes = objIn.readAllBytes();
+    public DerMarshalInstanceInput(InputStream objIn, byte[] schemaBytes, Collection context)
+            throws IOException {
+        this.objIn       = Objects.requireNonNull(objIn,       "objIn");
+        this.schemaBytes = Objects.requireNonNull(schemaBytes, "schemaBytes");
+        this.context     = Objects.requireNonNull(context,     "context");
+        this.payloadBytes = objIn.readAllBytes();
     }
 
     // -------------------------------------------------------------------------
@@ -81,8 +98,15 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
     // -------------------------------------------------------------------------
 
     /**
-     * Decodes the DER-encoded {@link MarshalledInstanceRecord} held in
-     * {@code allBytes} and returns the reconstructed object of type {@code type}.
+     * Decodes the DER-encoded object from {@code payloadBytes} using the embedded
+     * {@code schemaBytes} (STD-006 sec.7.8 / STD-008 sec.13.5 normative rule: the
+     * embedded schema is authoritative).
+     *
+     * <p>Reconstruction: a {@link MarshalledInstanceRecord} is built from
+     * {@code payloadBytes} and {@code schemaBytes} by parsing the schema chain to
+     * recover the leaf digest, then assembling the record via the canonical constructor.
+     * {@link MarshalledInstanceCodec#decodeMarshalledInstance} then uses the
+     * embedded chain from that record to drive {@link au.net.zeus.jgdms.der.object.ObjectCodec}.
      *
      * @param <T>  the expected type
      * @param type the expected class
@@ -93,7 +117,25 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
     @Override
     public <T> T readObject(Class<T> type) throws IOException, ClassNotFoundException {
         try {
-            MarshalledInstanceRecord rec = MarshalledInstanceRecord.decode(allBytes);
+            // Reconstruct MarshalledInstanceRecord from the two separate first-class fields.
+            // Parse the schema chain to derive the leaf digest (needed by the canonical
+            // constructor), then assemble the record.
+            //
+            // Use a temporary record to decode the schema chain and get the leaf digest.
+            // We need a 32-byte digest for the constructor -- parse schemaBytes to get it.
+            au.net.zeus.jgdms.der.DerReader chainReader =
+                    new au.net.zeus.jgdms.der.DerReader(schemaBytes);
+            au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord leafRecord =
+                    au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord.decode(chainReader);
+            byte[] leafDigest = leafRecord.schemaDigest();
+
+            MarshalledInstanceRecord rec = new MarshalledInstanceRecord(
+                    payloadBytes,
+                    schemaBytes,
+                    leafDigest,
+                    Optional.empty(),
+                    MarshalledInstanceRecord.PAYLOAD_FORMAT);
+
             return MarshalledInstanceCodec.decodeMarshalledInstance(rec, type).object();
         } catch (au.net.zeus.jgdms.der.DerException e) {
             throw new IOException("DER decoding failed: " + e.getMessage(), e);
@@ -101,7 +143,7 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
     }
 
     /**
-     * No-op: DER does not use validation callbacks. {@link MarshalledInstance}'s
+     * No-op: DER does not use validation callbacks. {@link net.jini.io.MarshalledInstance}'s
      * get() path does not call this; provided for interface completeness.
      *
      * @throws NotActiveException never thrown
@@ -110,8 +152,7 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
     @Override
     public void registerValidation(ObjectInputValidation object, int priority)
             throws NotActiveException, InvalidObjectException {
-        // DER MarshalledInstance does not support post-deserialization validation
-        // callbacks. This method is a no-op for the spike.
+        // DER MarshalledInstance does not support post-deserialization validation callbacks.
     }
 
     // -------------------------------------------------------------------------
@@ -120,9 +161,9 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
 
     /**
      * Delegates to {@link #readObject(Class) readObject(Object.class)}.
-     * {@link net.jini.io.MarshalledInstance#get} uses the
-     * {@link AtomicObjectInput} cast path ({@code readObject(type)}) in
-     * preference to this method when {@code in instanceof AtomicObjectInput}.
+     * {@link net.jini.io.MarshalledInstance#get} uses the {@link AtomicObjectInput} cast
+     * path ({@code readObject(type)}) in preference to this method when
+     * {@code in instanceof AtomicObjectInput}.
      */
     @Override
     public Object readObject() throws ClassNotFoundException, IOException {

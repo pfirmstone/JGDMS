@@ -650,9 +650,51 @@ Platform defines the contract; der provides the DER implementation; no cycle.
   fields + `serialForm()`; widen the `MarshalFactory`/`MarshalInstanceOutput`/
   `MarshalInstanceInput` contracts to be schema-aware; `ServiceLoader` registration;
   `locBytes` → OPTIONAL `codebaseAnnotation`.
-- **[OPEN]** the exact widened `MarshalInstanceOutput`/`Input` method shape (how
-  `schemaBytes`/`schemaDigest` flow through the factory); whether `payloadFormat` is an
-  enum, OID, or string; and the `ServiceLoader` lookup/caching policy.
-- **Implementation note:** spike the schema-aware `MarshalFactory` contract + a DER
-  factory in `jgdms-der` (wrapping the Phase-5 `MarshalledInstanceRecord`/
-  `MarshalledInstanceCodec`) before promoting the platform field changes.
+- **[RESOLVED in §13.7]** the exact widened `MarshalInstanceOutput`/`Input` method shape;
+  whether `payloadFormat` is an enum, OID, or string; and the `ServiceLoader`
+  lookup/caching policy.
+
+### 13.7 Implementation (4.0.0) — RESOLVED & BUILT 2026-06-14
+
+Implemented on branch `der-wireformat-std006` (platform + `jgdms-der`). The [OPEN]
+items are resolved as:
+
+- **`payloadFormat` = `String`** (e.g. `"JOSS"`, `"JGDMS-STD-006/DER"`). A human-readable
+  string is extensible without a platform enum and avoids OID-registry overhead; an
+  OID/enum mapping can be layered later. `MarshalledInstance.FORMAT_JOSS` is the reserved
+  built-in default.
+- **Widened seam via DEFAULT methods (non-breaking).** `MarshalInstanceOutput` gains
+  `default byte[] getSchemaBytes()` / `getSchemaDigest()` / `String getPayloadFormat()`
+  (JOSS defaults: empty / empty / `FORMAT_JOSS`), reported AFTER `writeObject`/`flush`
+  and captured by `MarshalledInstance.marshal(...)`. `MarshalFactory` gains a `default`
+  9-arg `createMarshalInput(objIn, locIn, schemaBytes, schemaDigest, payloadFormat, …)`
+  delegating to the legacy 6-arg form; schema-bearing codecs override it. All three
+  existing implementors (JOSS, Atomic, DER) compile via the defaults; only DER overrides.
+- **`MarshalledInstance` serial form** is now `payloadBytes, codebaseAnnotation,
+  schemaBytes, schemaDigest, payloadFormat, hash` (6 fields). `schemaBytes`/`schemaDigest`
+  are never null (empty for JOSS); `equals`/`hashCode` remain over `payloadBytes`+`hash`.
+  `java.rmi.MarshalledObject` conversion is guarded to JOSS (throws otherwise).
+  Finalizer-attack safety preserved: all encoding happens in the static `marshal(...)`
+  returning a `Marshalled` holder, assigned by one private constructor.
+- **`ServiceLoader` policy.** `getMarshalFactory()` defaults to
+  `factoryForFormat(payloadFormat)`: JOSS → built-in factory; otherwise a
+  `MarshalFactoryProvider` discovered by `ServiceLoader` keyed by `payloadFormat`, cached
+  once in a lazy static map. Subclasses overriding `getMarshalFactory()` (e.g.
+  `AtomicMarshalledInstance`) bypass the lookup. `jgdms-der` registers
+  `DerMarshalFactoryProvider` via `META-INF/services/net.jini.io.MarshalFactoryProvider`.
+  Deferred: per-classloader provider caching for multi-app containers; whether the SPI
+  lookup should be gated by a `DeSerializationPermission`.
+- **Schema is first-class as a SEPARATE field** (not buried in `payloadBytes`): the DER
+  output writes only the object payload to `objOut` and reports `schemaBytes` separately;
+  the DER input decodes `payloadBytes` against `schemaBytes` and RE-DERIVES the leaf
+  digest from the embedded chain (the top-level `schemaDigest` is an unverified fast-path
+  hint, never trusted for decoding — the embedded schema is authoritative, §7.8).
+- **`DerMarshalledInstance` no longer overrides `getMarshalFactory()`** — it is a thin
+  public bridge to the protected schema-aware constructor; decode is by `payloadFormat`
+  via ServiceLoader, so a base `MarshalledInstance` carrying DER state decodes with NO
+  subclass.
+
+Verified: `mvn -o -pl jgdms-platform,jgdms-der test` → platform 244 + der 279 green.
+Dependent modules (reggie/outrigger/mercury/etc., 43 callers) use the public API only and
+still compile; full runtime verification of those is via the qa suite (not run here — this
+branch is isolated and does not touch dist artifacts).

@@ -28,42 +28,50 @@ import java.util.Collection;
 import java.util.Objects;
 
 /**
- * DER implementation of {@link MarshalInstanceOutput}.
+ * DER implementation of {@link MarshalInstanceOutput} (JGDMS-STD-008 sec.13.3).
  *
- * <p>Writes an {@code @AtomicSerial} object as a {@link MarshalledInstanceRecord}
- * (JGDMS-STD-006 S7.8) to the wrapped {@link OutputStream}. The DER format carries
- * the full schema chain embedded in the record; no codebase annotations are emitted
- * (S8 -- the schema itself is the data-independence mechanism).
+ * <p>Writes only the DER payload bytes to the wrapped {@link OutputStream}. The schema
+ * chain and digest are captured as first-class state and reported via
+ * {@link #getSchemaBytes()}, {@link #getSchemaDigest()}, and {@link #getPayloadFormat()}.
+ * {@link net.jini.io.MarshalledInstance} uses these to populate its own first-class
+ * {@code schemaBytes}, {@code schemaDigest}, and {@code payloadFormat} fields (STD-008
+ * sec.13.1), so the schema travels separately from the payload.
+ *
+ * <h2>Split payload / schema (B+C hybrid)</h2>
+ * <p>
+ * {@link #writeObject} encodes the object, writes <em>only</em>
+ * {@link MarshalledInstanceRecord#payloadBytes()} to {@code objOut} (NOT the full
+ * {@code MarshalledInstanceRecord#encode()} output), and stashes the schema for
+ * the getter methods. The full {@code MarshalledInstanceRecord} is reconstructed on
+ * the decode side from the two separate first-class fields carried by
+ * {@code MarshalledInstance}.
  *
  * <h2>Whole-object granularity</h2>
  * <p>
  * DER {@code MarshalledInstance} operates at object granularity: {@link #writeObject}
  * encodes a complete {@code @AtomicSerial} object hierarchy into a single
- * {@link MarshalledInstanceRecord} blob. The primitive write methods
- * ({@code writeInt}, {@code writeUTF}, etc.) are not used by this transport and throw
- * {@link UnsupportedOperationException} if called.
+ * payload blob. The primitive write methods ({@code writeInt}, {@code writeUTF}, etc.)
+ * are not used by this transport and throw {@link UnsupportedOperationException} if called.
  *
  * <h2>Null objects</h2>
  * <p>
  * {@code MarshalledInstance}'s protected 3-arg constructor only calls
  * {@link #writeObject} with a non-null object (null objects are handled by the parent
- * via null {@code objBytes}). This implementation therefore assumes obj is non-null.
- *
- * <h2>STD-008 S13.6 "Option A" -- non-invasive spike</h2>
- * <p>
- * No platform files are modified. This class plugs into the existing
- * {@link net.jini.io.MarshalledInstance} factory seam via
- * {@link DerMarshalledInstance} subclassing the 3-arg protected constructor.
+ * via null {@code payloadBytes}). This implementation therefore assumes obj is non-null.
  */
 public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
 
     private final OutputStream objOut;
     private final Collection   context;
 
+    // Stashed after writeObject -- reported via the widened MarshalInstanceOutput methods.
+    private byte[] schemaBytes;
+    private byte[] schemaDigest;
+
     /**
      * Constructs a new output wrapping {@code objOut}.
      *
-     * @param objOut  the stream to write the encoded record to (must not be null)
+     * @param objOut  the stream to write the payload bytes to (must not be null)
      * @param context the serialization context collection (may be empty, must not be null)
      */
     public DerMarshalInstanceOutput(OutputStream objOut, Collection context) {
@@ -76,8 +84,9 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
     // -------------------------------------------------------------------------
 
     /**
-     * Encodes {@code obj} as a {@link MarshalledInstanceRecord} and writes its DER
-     * bytes to the wrapped output stream.
+     * Encodes {@code obj} as a {@link MarshalledInstanceRecord}, writes only the
+     * payload bytes to the wrapped output stream, and stashes the schema for retrieval
+     * via {@link #getSchemaBytes()} and {@link #getSchemaDigest()}.
      *
      * <p>Steps:
      * <ol>
@@ -85,7 +94,11 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
      *       {@link SchemaGenerator#generateChain}.</li>
      *   <li>Encode the object hierarchy via {@link ObjectCodec#encodeHierarchy}.</li>
      *   <li>Build a {@link MarshalledInstanceRecord} from the chain and payload.</li>
-     *   <li>Write {@link MarshalledInstanceRecord#encode()} bytes to {@code objOut}.</li>
+     *   <li>Write <em>only</em> {@link MarshalledInstanceRecord#payloadBytes()} to
+     *       {@code objOut} (NOT the full {@link MarshalledInstanceRecord#encode()} result).
+     *       The schema travels separately via the widened first-class fields.</li>
+     *   <li>Stash {@link MarshalledInstanceRecord#schemaBytes()} and
+     *       {@link MarshalledInstanceRecord#schemaDigest()} for the getter methods.</li>
      * </ol>
      *
      * @param obj the object to encode; must not be null (null is handled by the parent)
@@ -102,8 +115,14 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
             SchemaChain.Result chain   = SchemaGenerator.generateChain(obj.getClass());
             byte[]             payload = ObjectCodec.encodeHierarchy(obj, chain);
             MarshalledInstanceRecord rec = MarshalledInstanceRecord.fromChain(chain, payload);
-            byte[] encoded = rec.encode();
-            objOut.write(encoded);
+
+            // Write ONLY the payload bytes (not the full record).
+            // The schema travels as first-class MarshalledInstance fields.
+            objOut.write(rec.payloadBytes());
+
+            // Stash schema for the widened getter methods.
+            this.schemaBytes  = rec.schemaBytes();
+            this.schemaDigest = rec.schemaDigest();
         } catch (au.net.zeus.jgdms.der.DerException e) {
             throw new IOException("DER encoding failed: " + e.getMessage(), e);
         }
@@ -116,6 +135,44 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
     @Override
     public boolean hadAnnotations() {
         return false;
+    }
+
+    /**
+     * The embedded schema chain bytes stashed by {@link #writeObject}, as reported
+     * to {@link net.jini.io.MarshalledInstance} for promotion to its first-class
+     * {@code schemaBytes} field (STD-008 sec.13.1).
+     *
+     * @return the schema chain bytes; empty array if {@link #writeObject} has not
+     *         been called yet
+     */
+    @Override
+    public byte[] getSchemaBytes() {
+        return schemaBytes != null ? schemaBytes : new byte[0];
+    }
+
+    /**
+     * The 32-byte SHA-256 digest of the leaf schema record stashed by
+     * {@link #writeObject}, for fast-path schema comparison (STD-006 sec.12.4).
+     *
+     * @return the schema digest; empty array if {@link #writeObject} has not
+     *         been called yet
+     */
+    @Override
+    public byte[] getSchemaDigest() {
+        return schemaDigest != null ? schemaDigest : new byte[0];
+    }
+
+    /**
+     * The self-describing payload-format identifier for this codec:
+     * {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/DER"}).
+     * This value is captured by {@link net.jini.io.MarshalledInstance} into its
+     * {@code payloadFormat} field, enabling ServiceLoader dispatch on the decode side.
+     *
+     * @return {@link MarshalledInstanceRecord#PAYLOAD_FORMAT}
+     */
+    @Override
+    public String getPayloadFormat() {
+        return MarshalledInstanceRecord.PAYLOAD_FORMAT;
     }
 
     @Override
