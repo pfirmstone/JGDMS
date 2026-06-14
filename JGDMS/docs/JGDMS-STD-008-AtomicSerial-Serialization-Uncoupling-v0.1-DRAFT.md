@@ -1,17 +1,26 @@
 # JGDMS-STD-008: @AtomicSerial Serialization Uncoupling (JGDMS 4.0.0)
 
 **Status:** Draft (for discussion)
-**Version:** 0.1-DRAFT
+**Version:** 0.2-DRAFT
 **Applies to:** JGDMS 4.0.0, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Depends on:** JGDMS-STD-001 (@AtomicSerial), JGDMS-STD-006 (DER Wire Format)
+**References:** Birrell, Evers, Nelson, Owicki, Wobber, *Distributed Garbage
+Collection for Network Objects*, DEC SRC Research Report 116 (1993) — the
+normative DGC algorithm (§6).
 **Supersedes (on completion):** the Java-Object-Serialization coupling of the
 `@AtomicSerial` API as defined in STD-001
 
-> **Editorial note (v0.1-DRAFT):** This standard captures the 4.0.0 decision to
+> **Editorial note (v0.2-DRAFT):** This standard captures the 4.0.0 decision to
 > remove all Java Object Serialization coupling from the `@AtomicSerial` API. It
 > records the design agreed in design discussion; field-level details marked
 > **[OPEN]** await confirmation. Class/line references are against `trunk`
 > (worktree `der-wireformat-std006`).
+>
+> **Changes in v0.2:** §6 (client-side DGC) rewritten against the source
+> algorithm (SRC-RR-116): the dirty/clean/lease/sequence-number protocol is
+> preserved verbatim and rides DER as ordinary JERI calls; only the *local*
+> `ObjectInputStream`/`registerValidation` batching coupling is replaced; the
+> transmit-race acknowledgement ordering (RR-116 Invariant 3) is made explicit.
 
 ---
 
@@ -204,20 +213,71 @@ genuine stream need (DGC) is served by §6.
 
 ## 6. Client-side DGC — DER-native batch callback
 
-Client-side distributed garbage collection is **retained**. `BasicObjectEndpoint`
-today keys a `Map<ObjectInputStream, DgcBatchContext>` and calls
-`ObjectInputStream.registerValidation(...)` to coalesce DGC dirty-calls per
-deserialization stream — both JOSS-specific.
+Client-side distributed garbage collection is **retained**. Its algorithm is the
+Network Objects reference-listing collector (SRC-RR-116), which JERI implements.
+The 4.0.0 change is narrow: replace the *one* JOSS-specific local coupling, leaving
+the distributed protocol intact.
+
+### 6.1 What is unchanged (the SRC-RR-116 protocol rides DER as ordinary calls)
+
+The following are **unchanged** and require no new mechanism — the `dirty`/`clean`
+calls are themselves remote calls that travel over JERI and are therefore
+DER-encoded in 4.0.0 like any other call:
+
+- **Set-based reference listing.** The owner of object `O` keeps `O.dirtySet`, the
+  *set of client identities* holding a surrogate (not a count) — enabling idempotent
+  `dirty`/`clean` and crash recovery (RR-116 §2). Identity is the `wireRep`
+  (owner id + per-owner object index); JGDMS uses `Uuid`s, which are never reused
+  (RR-116 §2.4 requires non-reuse so premature collection surfaces as a clean call
+  failure, never as object confusion).
+- **`dirty` on first receipt.** When a process first receives a reference it makes a
+  `dirty` call to the owner before creating the surrogate (RR-116 §2.1). Cost: one
+  RPC per first-receipt — batched, see §6.2.
+- **`clean` on local collection, delayed + batched.** The local collector reclaiming
+  a surrogate triggers a `clean` (RR-116 §2.2). `clean` calls are already delayed and
+  batched by a cleaning demon in the original design.
+- **Sequence numbers** per `(O,P)` order out-of-order `dirty`/`clean`; the
+  *strong-clean* rule retains a seqno only after a failed `dirty` (RR-116 §2.3, §2.5).
+- **Liveness.** Client termination is detected and the client removed from all dirty
+  sets (RR-116 §2.4); JERI uses leased dirty references renewed before expiry (the
+  RMI refinement of §2.4). This is unchanged.
+
+### 6.2 What changes (the local batching hook)
+
+Today `BasicObjectEndpoint` keys a `Map<ObjectInputStream, DgcBatchContext>` and
+calls `ObjectInputStream.registerValidation(...)` so that all references decoded in
+one stream are coalesced into a single batched `dirty` call fired when the stream's
+object graph is fully read. Both `Map` key and `registerValidation` are JOSS-only.
 
 4.0.0 MUST provide a **DER-native** equivalent with no `java.io` dependency:
 
-- a per-decode **stream-identity token** (an opaque handle identifying the current
-  decode unit / connection), obtainable from the decode context; and
-- a **post-decode completion callback** registered against that token, invoked once
-  the decode unit completes (the neutral analogue of `registerValidation`).
+- a per-**decode-unit** identity token (an opaque handle for the current
+  request/reply decode, obtainable from the decode context) that keys the
+  `DgcBatchContext`; and
+- an **end-of-decode-unit completion callback** — the neutral analogue of
+  `registerValidation` — invoked exactly once when the decode unit's object graph is
+  fully decoded, which flushes the batched `dirty` call.
 
-The DGC batch context is keyed by the token. **[OPEN]** exact placement of the token
-on `GetArg`/the decode context and the callback registration API.
+This preserves the existing batching semantics (one `dirty` RPC per decode unit
+rather than per reference) without any Java-serialization type.
+
+### 6.3 Ordering constraint that MUST be preserved (RR-116 Invariant 3)
+
+Batching the `dirty` to end-of-decode is only safe because of the transmit-race
+prevention in RR-116 §2.1 / Invariant 3: **the sender keeps `O` in a dirty set
+until the receiver acknowledges receipt**, so `O` cannot be collected in the window
+before the receiver's batched `dirty` reaches the owner. The acknowledgement is
+implicit for an **argument** (the method return is the ack) and explicit for a
+**result** (an ack sent when unmarshalling completes). A conformant DER
+implementation MUST preserve this ordering: the receiver's batched `dirty` for a
+decode unit MUST be issued before that decode unit is acknowledged (i.e. before the
+method return for arguments; before the explicit ack for results), and the sender
+MUST keep the transmitted object reachable / dirty-set-listed until the
+acknowledgement is received.
+
+**[OPEN]** exact placement of the decode-unit token on `GetArg`/the decode context,
+the callback-registration API, and where the argument/result acknowledgement is
+emitted in the DER request/reply framing.
 
 ---
 
@@ -344,7 +404,9 @@ A 4.0.0-conformant implementation:
 1. §4.3 — confirm `PutArg.output()` has no callers other than the `@ReadInput`-paired
    raw writes before deletion.
 2. §4.4 — exact name/shape of the replacement framework permission.
-3. §6 — DGC token placement on the decode context and the callback registration API.
+3. §6 — DGC decode-unit token placement on the decode context, the
+   callback-registration API, and where the argument/result acknowledgement
+   (RR-116 Invariant 3) is emitted in the DER request/reply framing.
 4. §7 — `WireFormat` per-connection vs per-method; `MarshalledInstance`/
    `MarshalFactory` selection wiring.
 5. §8.5 — convert `LogRecord` classes to DER, or retain as local-only JOSS.
