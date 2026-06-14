@@ -1,7 +1,7 @@
 # JGDMS-STD-008: @AtomicSerial Serialization Uncoupling (JGDMS 4.0.0)
 
 **Status:** Draft (for discussion)
-**Version:** 0.2-DRAFT
+**Version:** 0.3-DRAFT
 **Applies to:** JGDMS 4.0.0, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Depends on:** JGDMS-STD-001 (@AtomicSerial), JGDMS-STD-006 (DER Wire Format)
 **References:** Birrell, Evers, Nelson, Owicki, Wobber, *Distributed Garbage
@@ -10,7 +10,7 @@ normative DGC algorithm (§6).
 **Supersedes (on completion):** the Java-Object-Serialization coupling of the
 `@AtomicSerial` API as defined in STD-001
 
-> **Editorial note (v0.2-DRAFT):** This standard captures the 4.0.0 decision to
+> **Editorial note (v0.3-DRAFT):** This standard captures the 4.0.0 decision to
 > remove all Java Object Serialization coupling from the `@AtomicSerial` API. It
 > records the design agreed in design discussion; field-level details marked
 > **[OPEN]** await confirmation. Class/line references are against `trunk`
@@ -21,6 +21,11 @@ normative DGC algorithm (§6).
 > preserved verbatim and rides DER as ordinary JERI calls; only the *local*
 > `ObjectInputStream`/`registerValidation` batching coupling is replaced; the
 > transmit-race acknowledgement ordering (RR-116 Invariant 3) is made explicit.
+>
+> **Changes in v0.3:** §6.4 added — DGC authenticates as the node SPIFFE workload
+> identity, removing the legacy reliance on a captured/last-authenticated user
+> `Subject`. Faithful to RR-116's process-identity dirtySet; aligned with STD-003
+> / STD-006 §7.1; a least-privilege win (§2.1).
 
 ---
 
@@ -279,6 +284,38 @@ acknowledgement is received.
 the callback-registration API, and where the argument/result acknowledgement is
 emitted in the DER request/reply framing.
 
+### 6.4 DGC authenticates as the node SPIFFE workload identity (not a captured Subject)
+
+DGC `dirty`/`clean`/lease calls are infrastructure **between nodes**, not user
+operations: they originate on background threads (the cleaning demon, lease
+renewal) with no user invocation on the stack. Historically this forced the DGC
+layer to authenticate using an ambient or last-authenticated `Subject` — a coupling
+that is both a security smell (a DGC call for one user's reference could travel
+under another user's, or a stale, captured credential) and unnecessary state to
+carry across the asynchronous boundary.
+
+In 4.0.0 this dependency is removed. Each node has its own **SPIFFE workload
+identity (SVID)**, which already authenticates the node-to-node mTLS connection. DGC
+calls authenticate as **that node workload identity**, never a captured user
+`Subject`. This is:
+
+- **Faithful to the algorithm.** RR-116's `O.dirtySet` is a set of *process*
+  identities (§6.1), so the natural credential for a `dirty`/`clean` call is the
+  calling *node's* identity — which SPIFFE supplies directly. The dirtySet client
+  identity SHOULD be the holding node's SPIFFE workload identity.
+- **Aligned with the multi-Subject model (STD-003; STD-006 §7.1).** Multiple
+  `UserSubject`s multiplex over a single node-authenticated connection; user
+  principals travel in the `UserSubjectBlock`, while the workload identity is
+  ambient via the connection / `ProtectionDomain` and is never carried per call. DGC
+  belongs to that node layer, not the user layer.
+- **A least-privilege win (§2.1).** DGC no longer captures, carries, or acts under
+  any user `Subject`, so it requires none of the user's permissions; the only
+  authority needed is the node's own workload identity.
+
+A conformant 4.0.0 implementation MUST NOT make DGC calls under a captured user
+`Subject`; it MUST authenticate DGC calls with the node SPIFFE workload identity.
+The captured-Subject plumbing for DGC is removed.
+
 ---
 
 ## 7. Encoding selection (DER vs other) via the neutral boundary
@@ -390,7 +427,10 @@ A 4.0.0-conformant implementation:
 3. Provides no `@ReadInput`/`ReadObject` and no `PutArg.output()` (§4.3, §5).
 4. Sources all decode-channel context from `net.jini.io.ObjectStreamContext`
    (§4.5).
-5. Retains client-side DGC via the DER-native callback (§6).
+5. Retains client-side DGC via the DER-native callback (§6), preserving the
+   RR-116 protocol and the transmit-race acknowledgement ordering (§6.3), and
+   authenticates DGC calls with the node SPIFFE workload identity — never a
+   captured user `Subject` (§6.4).
 6. Selects encoding via the neutral `ObjectInput`/`ObjectOutput` boundary +
    `WireFormat` (§7).
 7. Upgrades existing reliable-log persistence via the bounded read-only conversion
