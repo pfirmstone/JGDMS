@@ -24,11 +24,11 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 6 / §11.6 fixture — leaf class for the THREE-level hierarchy
+ * Phase 6 / S11.6 fixture -- leaf class for the THREE-level hierarchy
  * ({@code Ev6_Beta extends Ev67_Mid extends Ev67_Alpha}), representing the
  * NEW state after {@code Ev67_Mid} was INSERTED.
  *
- * <h2>§11.6 — Insert a new {@code @AtomicSerial} class</h2>
+ * <h2>S11.6 -- Insert a new {@code @AtomicSerial} class</h2>
  * <p>The NEW chain is {@code [Ev6_Beta, Ev67_Mid, Ev67_Alpha]}.  New data carries
  * three SEQUENCEs.
  *
@@ -36,10 +36,10 @@ import java.util.Objects;
  * old Beta-that-extended-Alpha's.  Decoding OLD data against the NEW chain using
  * the embedded old schema (without Mid) would require that Mid receive defaults
  * for all its fields.  The current {@code DerGetArg} implementation throws in
- * this case (no store for Mid) — this is reported as a gap in the Phase 6 report.
+ * this case (no store for Mid) -- this is reported as a gap in the Phase 6 report.
  *
- * <p>The §11.6 test therefore validates only the NEW data path: encode a
- * {@code Ev6_Beta} instance with the NEW chain → decode → correct field values.
+ * <p>The S11.6 test therefore validates only the NEW data path: encode a
+ * {@code Ev6_Beta} instance with the NEW chain -> decode -> correct field values.
  * This proves that the new SEQUENCE structure works end-to-end.
  */
 @AtomicSerial

@@ -28,23 +28,23 @@ import java.util.Collections;
 
 /**
  * Generates an {@link AtomicSerialSchemaRecord} from a single Object-rooted
- * {@code @AtomicSerial} class (Phase 4.2 — no hierarchy, no parent hash) or a
+ * {@code @AtomicSerial} class (Phase 4.2 -- no hierarchy, no parent hash) or a
  * complete linked chain from a leaf class through all {@code @AtomicSerial}
- * ancestors (Phase 4.3 — see {@link #generateChain(Class)}).
+ * ancestors (Phase 4.3 -- see {@link #generateChain(Class)}).
  *
- * <h2>Usage — single class</h2>
+ * <h2>Usage -- single class</h2>
  * <pre>{@code
  * AtomicSerialSchemaRecord record = SchemaGenerator.generate(MyClass.class);
  * }</pre>
  *
- * <h2>Usage — hierarchy chain (Phase 4.3)</h2>
+ * <h2>Usage -- hierarchy chain (Phase 4.3)</h2>
  * <pre>{@code
  * SchemaChain.Result result = SchemaGenerator.generateChain(LeafClass.class);
  * // result.chain() is leaf-first, root-last; each record's parentSchemaHash
  * // points to its parent's digest.
  * }</pre>
  *
- * <h2>Type mapping (Java type → wireType string)</h2>
+ * <h2>Type mapping (Java type -> wireType string)</h2>
  * <table border="1">
  *   <caption>Supported type mappings</caption>
  *   <tr><th>Java type</th><th>wireType string</th><th>DER encoding</th></tr>
@@ -62,7 +62,7 @@ import java.util.Collections;
  * {@code double}, and any Object type other than {@link String} and {@code byte[]})
  * causes {@link DerException} to be thrown naming the unsupported type.
  * {@code char}, {@code float}, and {@code double} are explicitly deferred per
- * STD-006 §7.6 and are identified as such in the error message.
+ * STD-006 S7.6 and are identified as such in the error message.
  *
  * <h2>Determinism</h2>
  * <p>
@@ -161,7 +161,7 @@ public final class SchemaGenerator {
         Class<?> current = leafClass;
         while (current != null && current != Object.class) {
             if (current.isAnnotationPresent(AtomicSerial.class)) {
-                // Generate this class's schema record (no parentSchemaHash yet —
+                // Generate this class's schema record (no parentSchemaHash yet --
                 // SchemaChain.linkAndGetLeafDigest will set them)
                 rawRecords.add(generate(current));
             }
@@ -238,17 +238,17 @@ public final class SchemaGenerator {
         if (javaType == String.class)                               return "java.lang.String";
         if (javaType == byte[].class)                               return "byte[]";
 
-        // Explicitly deferred types — give a specific message
+        // Explicitly deferred types -- give a specific message
         if (javaType == char.class    || javaType == Character.class
                 || javaType == float.class  || javaType == Float.class
                 || javaType == double.class || javaType == Double.class) {
             throw new DerException(
                     "SchemaGenerator: type " + javaType.getName()
-                    + " is deferred per STD-006 §7.6 (char/float/double not yet supported)"
+                    + " is deferred per STD-006 S7.6 (char/float/double not yet supported)"
                     + " in class " + declaring.getName());
         }
 
-        // Any other type — not guessed, clear error
+        // Any other type -- not guessed, clear error
         throw new DerException(
                 "SchemaGenerator: unsupported serial field type " + javaType.getName()
                 + " in class " + declaring.getName()

@@ -26,7 +26,7 @@ import java.math.BigInteger;
 import java.util.List;
 
 /**
- * Task 1.5 — Conformance vectors.
+ * Task 1.5 -- Conformance vectors.
  *
  * Contains at least 10 hand-computed known-answer DER vectors (computed
  * independently according to X.690 rules), each asserted byte-for-byte in
@@ -247,7 +247,7 @@ class ConformanceVectorsTest {
     /* ------------------------------------------------------------------ */
     /* Vector 14: Large positive INTEGER (> 8 bytes) known vector          */
     /* 2^64 = 10000000000000000000 decimal                                 */
-    /* = 0x010000000000000000 (9 bytes, needs leading 0x00 → 10 bytes)    */
+    /* = 0x010000000000000000 (9 bytes, needs leading 0x00 -> 10 bytes)    */
     /* Expected: 02 09 00 01 00 00 00 00 00 00 00 00                       */
     /* Wait: 2^64 = 1 followed by 16 zeros hex = 0x10000000000000000      */
     /* That is 9 bytes. BigInteger.toByteArray() would give 0x00 + 8 bytes  */

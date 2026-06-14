@@ -24,24 +24,24 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 4.4 fixture — the {@code @AtomicSerial} superclass in the
+ * Phase 4.4 fixture -- the {@code @AtomicSerial} superclass in the
  * non-{@code @AtomicSerial} subclass case.
  *
  * <p>{@code Bar extends Foo}, but only {@code Foo} carries {@code @AtomicSerial}.
  * The wire carries only {@code Foo}'s SEQUENCE; a decoded result is always a
- * {@code Foo}, never a {@code Bar} (§3.10, first rule).
+ * {@code Foo}, never a {@code Bar} (S3.10, first rule).
  *
  * <p>Serial fields:
  * <ul>
- *   <li>{@code fooId}    (int)    — an integer identifier.</li>
- *   <li>{@code fooLabel} (String) — a required non-null label.</li>
+ *   <li>{@code fooId}    (int)    -- an integer identifier.</li>
+ *   <li>{@code fooLabel} (String) -- a required non-null label.</li>
  * </ul>
  */
 @AtomicSerial
 public class Foo {
 
     // -------------------------------------------------------------------------
-    // Serial form — Foo's own fields
+    // Serial form -- Foo's own fields
     // -------------------------------------------------------------------------
 
     public static AtomicSerial.SerialForm[] serialForm() {

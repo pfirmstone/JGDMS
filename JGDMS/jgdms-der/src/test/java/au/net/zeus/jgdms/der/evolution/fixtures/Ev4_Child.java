@@ -24,9 +24,9 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 6 / §11.4 fixture — the child class whose superclass GAINED
+ * Phase 6 / S11.4 fixture -- the child class whose superclass GAINED
  * {@code @AtomicSerial}.  This child is the "UNMODIFIED" variant described in
- * §11.4: it still calls a REGULAR {@code super(parentValue)} rather than
+ * S11.4: it still calls a REGULAR {@code super(parentValue)} rather than
  * {@code super(check(arg))}.
  *
  * <p>The child carries {@code parentValue} in its OWN namespace (as it did
@@ -39,7 +39,7 @@ import java.util.Objects;
  * parent's new SEQUENCE on the wire is present but never consumed.  The parent
  * is still constructed correctly via {@code super(childParentValue)}.
  *
- * <h2>§11.4 observable consequences tested</h2>
+ * <h2>S11.4 observable consequences tested</h2>
  * <ol>
  *   <li>New data (both parent and child SEQUENCEs): child's SEQUENCE is
  *       unchanged; parent's SEQUENCE is present on wire but ignored by this
@@ -54,7 +54,7 @@ import java.util.Objects;
 public final class Ev4_Child extends Ev4_Parent {
 
     // -------------------------------------------------------------------------
-    // Serial form — Child's OWN namespace
+    // Serial form -- Child's OWN namespace
     // -------------------------------------------------------------------------
 
     public static AtomicSerial.SerialForm[] serialForm() {
@@ -83,20 +83,20 @@ public final class Ev4_Child extends Ev4_Parent {
     }
 
     // -------------------------------------------------------------------------
-    // @AtomicSerial constructor — UNMODIFIED child (calls regular super)
+    // @AtomicSerial constructor -- UNMODIFIED child (calls regular super)
     // -------------------------------------------------------------------------
 
     /**
-     * Deserialization constructor — "Beta unchanged" (§11.4).
+     * Deserialization constructor -- "Beta unchanged" (S11.4).
      *
-     * <p>This child calls {@code super(childParentValue)} — a REGULAR constructor,
+     * <p>This child calls {@code super(childParentValue)} -- a REGULAR constructor,
      * NOT {@code super(check(arg))}.  Therefore {@code Ev4_Parent(GetArg)} is
      * never invoked.  Whether old data (no parent SEQUENCE) or new data (parent
      * SEQUENCE present but unconsumed) is being decoded, this constructor
      * succeeds without touching the parent's {@code GetArg} store.
      */
     public Ev4_Child(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-        // checkAndGetParentValue(arg) runs from Child's frame → resolves to Child's store.
+        // checkAndGetParentValue(arg) runs from Child's frame -> resolves to Child's store.
         // Returns the "parentValue" from Child's own namespace, passes it to the REGULAR
         // Ev4_Parent(int) constructor (NOT Ev4_Parent(GetArg)).
         super(checkAndGetParentValue(arg));

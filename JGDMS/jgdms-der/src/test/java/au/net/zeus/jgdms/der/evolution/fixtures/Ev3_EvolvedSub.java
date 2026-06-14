@@ -24,14 +24,14 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 6 / §11.3 fixture — "Add a non-{@code @AtomicSerial} superclass".
+ * Phase 6 / S11.3 fixture -- "Add a non-{@code @AtomicSerial} superclass".
  *
  * <p>Scenario: {@code Ev3_EvolvedSub} was originally a standalone class with
  * two fields ({@code legacyName}, {@code subValue}).  A non-{@code @AtomicSerial}
  * superclass {@code NewBase} was later inserted above it.  {@code NewBase}
  * introduced a field ({@code newBaseTag}) that must survive serialisation, so
  * {@code Ev3_EvolvedSub} added {@code newBaseTag} at the END of its own
- * {@code serialForm()} — exactly as §11.3 prescribes.
+ * {@code serialForm()} -- exactly as S11.3 prescribes.
  *
  * <p>The NEW (current) {@code serialForm()} has three fields:
  * {@code legacyName}, {@code subValue}, {@code newBaseTag}.
@@ -63,7 +63,7 @@ public final class Ev3_EvolvedSub {
     private final int    subValue;
     /**
      * Added when a non-{@code @AtomicSerial} superclass was introduced.
-     * Absent in old data → defaults to {@code "DEFAULT_BASE_TAG"}.
+     * Absent in old data -> defaults to {@code "DEFAULT_BASE_TAG"}.
      */
     private final String newBaseTag;
 
@@ -85,7 +85,7 @@ public final class Ev3_EvolvedSub {
         check(arg);
         this.legacyName = (String) arg.get("legacyName", null);
         this.subValue   = arg.get("subValue", 0);
-        // newBaseTag absent in old data → returns "DEFAULT_BASE_TAG"
+        // newBaseTag absent in old data -> returns "DEFAULT_BASE_TAG"
         this.newBaseTag = (String) arg.get("newBaseTag", "DEFAULT_BASE_TAG");
     }
 

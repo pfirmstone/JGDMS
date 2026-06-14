@@ -31,20 +31,20 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Phase 7.2 — SchemaRegistry interface + InMemorySchemaRegistry acceptance tests.
+ * Phase 7.2 -- SchemaRegistry interface + InMemorySchemaRegistry acceptance tests.
  *
  * <ul>
- *   <li>7.2.1 — Register is idempotent: same bytes → same digest, no duplicate entry.</li>
- *   <li>7.2.2 — Append-only: DIFFERENT bytes for the same logical class create
- *               INDEPENDENT entries — both digests retrievable; neither overwrites the
+ *   <li>7.2.1 -- Register is idempotent: same bytes -> same digest, no duplicate entry.</li>
+ *   <li>7.2.2 -- Append-only: DIFFERENT bytes for the same logical class create
+ *               INDEPENDENT entries -- both digests retrievable; neither overwrites the
  *               other.</li>
- *   <li>7.2.3 — getSchemaChain returns leaf-first order (register a linked chain,
+ *   <li>7.2.3 -- getSchemaChain returns leaf-first order (register a linked chain,
  *               retrieve it by leaf digest).</li>
- *   <li>7.2.4 — isCompatible(A, B) is true IFF B's fields start with exactly A's
+ *   <li>7.2.4 -- isCompatible(A, B) is true IFF B's fields start with exactly A's
  *               fields in the same order and types.</li>
- *   <li>7.2.5 — getSchema returns null for an unknown digest.</li>
- *   <li>7.2.6 — getSchemaChain returns null for an unknown leaf digest.</li>
- *   <li>7.2.7 — isCompatible returns false if either digest is unknown.</li>
+ *   <li>7.2.5 -- getSchema returns null for an unknown digest.</li>
+ *   <li>7.2.6 -- getSchemaChain returns null for an unknown leaf digest.</li>
+ *   <li>7.2.7 -- isCompatible returns false if either digest is unknown.</li>
  * </ul>
  */
 class SchemaRegistryTest {
@@ -57,11 +57,11 @@ class SchemaRegistryTest {
     }
 
     // =========================================================================
-    // 7.2.1 — register is idempotent
+    // 7.2.1 -- register is idempotent
     // =========================================================================
 
     /**
-     * 7.2.1 — Registering the same bytes twice returns the same digest both times
+     * 7.2.1 -- Registering the same bytes twice returns the same digest both times
      * and results in exactly one stored entry (no duplicate).
      */
     @Test
@@ -81,17 +81,17 @@ class SchemaRegistryTest {
         assertNotNull(retrieved, "Registered schema must be retrievable by digest");
         assertArrayEquals(schemaBytes, retrieved, "Retrieved bytes must equal registered bytes");
 
-        // Register again — still the same digest, still retrievable
+        // Register again -- still the same digest, still retrievable
         byte[] digest3 = registry.register(schemaBytes);
         assertArrayEquals(digest1, digest3, "Third registration of same bytes must still return same digest");
     }
 
     // =========================================================================
-    // 7.2.2 — append-only: different bytes → different independent entries
+    // 7.2.2 -- append-only: different bytes -> different independent entries
     // =========================================================================
 
     /**
-     * 7.2.2 — Registering DIFFERENT bytes for the same logical class creates two
+     * 7.2.2 -- Registering DIFFERENT bytes for the same logical class creates two
      * independent entries. Neither digest overwrites the other. Both are independently
      * retrievable.
      *
@@ -129,7 +129,7 @@ class SchemaRegistryTest {
         byte[] digestV1 = registry.register(bytesV1);
         byte[] digestV2 = registry.register(bytesV2);
 
-        // Different bytes → different digests
+        // Different bytes -> different digests
         assertFalse(Arrays.equals(digestV1, digestV2),
                 "Different schema bytes must produce different digests");
 
@@ -144,11 +144,11 @@ class SchemaRegistryTest {
     }
 
     // =========================================================================
-    // 7.2.3 — getSchemaChain returns leaf-first order
+    // 7.2.3 -- getSchemaChain returns leaf-first order
     // =========================================================================
 
     /**
-     * 7.2.3 — Register a two-record linked chain (leaf + root), then retrieve the
+     * 7.2.3 -- Register a two-record linked chain (leaf + root), then retrieve the
      * full chain by the leaf digest. The returned array must be leaf-first, matching
      * the registration order.
      */
@@ -192,11 +192,11 @@ class SchemaRegistryTest {
     }
 
     // =========================================================================
-    // 7.2.4 — isCompatible: prefix rule
+    // 7.2.4 -- isCompatible: prefix rule
     // =========================================================================
 
     /**
-     * 7.2.4.a — isCompatible(A, B) is TRUE when B's fields start with exactly A's
+     * 7.2.4.a -- isCompatible(A, B) is TRUE when B's fields start with exactly A's
      * fields (B is a superset / forward-compatible extension of A).
      */
     @Test
@@ -224,7 +224,7 @@ class SchemaRegistryTest {
     }
 
     /**
-     * 7.2.4.b — isCompatible(A, B) is FALSE when B's fields do NOT start with A's.
+     * 7.2.4.b -- isCompatible(A, B) is FALSE when B's fields do NOT start with A's.
      * (B's first field differs from A's.)
      */
     @Test
@@ -253,8 +253,8 @@ class SchemaRegistryTest {
     }
 
     /**
-     * 7.2.4.c — isCompatible(A, B) is FALSE when B has FEWER fields than A (B is a
-     * strict prefix of A — the reverse direction). A cannot be decoded with B as the
+     * 7.2.4.c -- isCompatible(A, B) is FALSE when B has FEWER fields than A (B is a
+     * strict prefix of A -- the reverse direction). A cannot be decoded with B as the
      * schema because some of A's fields are missing in B.
      */
     @Test
@@ -268,7 +268,7 @@ class SchemaRegistryTest {
                     new AtomicSerialFieldDef("extra","java.lang.String")
                 ));
 
-        // B has only 2 fields (subset of A) — not forward-compatible
+        // B has only 2 fields (subset of A) -- not forward-compatible
         AtomicSerialSchemaRecord sB = new AtomicSerialSchemaRecord(cls, (byte[]) null,
                 List.of(
                     new AtomicSerialFieldDef("id",   "int"),
@@ -283,7 +283,7 @@ class SchemaRegistryTest {
     }
 
     /**
-     * 7.2.4.d — isCompatible(A, A) is TRUE (a schema is trivially a superset of itself).
+     * 7.2.4.d -- isCompatible(A, A) is TRUE (a schema is trivially a superset of itself).
      */
     @Test
     void test_7_2_4d_IsCompatible_TrueForIdenticalSchemas() throws Exception {
@@ -299,7 +299,7 @@ class SchemaRegistryTest {
     }
 
     /**
-     * 7.2.4.e — isCompatible(A, B) is FALSE when types differ at the same position.
+     * 7.2.4.e -- isCompatible(A, B) is FALSE when types differ at the same position.
      */
     @Test
     void test_7_2_4e_IsCompatible_FalseWhenFieldTypesDiffer() throws Exception {
@@ -320,7 +320,7 @@ class SchemaRegistryTest {
     }
 
     // =========================================================================
-    // 7.2.5 — getSchema returns null for unknown digest
+    // 7.2.5 -- getSchema returns null for unknown digest
     // =========================================================================
 
     @Test
@@ -332,7 +332,7 @@ class SchemaRegistryTest {
     }
 
     // =========================================================================
-    // 7.2.6 — getSchemaChain returns null for unknown leaf digest
+    // 7.2.6 -- getSchemaChain returns null for unknown leaf digest
     // =========================================================================
 
     @Test
@@ -344,7 +344,7 @@ class SchemaRegistryTest {
     }
 
     // =========================================================================
-    // 7.2.7 — isCompatible returns false if either digest is unknown
+    // 7.2.7 -- isCompatible returns false if either digest is unknown
     // =========================================================================
 
     @Test

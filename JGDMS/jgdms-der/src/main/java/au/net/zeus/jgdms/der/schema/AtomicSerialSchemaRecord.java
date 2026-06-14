@@ -34,7 +34,7 @@ import java.util.Optional;
 
 /**
  * Immutable representation of a schema record for one {@code @AtomicSerial} class,
- * per JGDMS-STD-006 §7.8.
+ * per JGDMS-STD-006 S7.8.
  *
  * <pre>
  * AtomicSerialSchemaRecord ::= SEQUENCE {
@@ -45,26 +45,26 @@ import java.util.Optional;
  * -- Schema version = SHA-256(DER(AtomicSerialSchemaRecord))
  * </pre>
  *
- * <h3>OPTIONAL parentSchemaHash — tag-based resolution</h3>
+ * <h3>OPTIONAL parentSchemaHash -- tag-based resolution</h3>
  * The {@code parentSchemaHash} field is resolved <em>by tag inspection</em>, not by
  * position or a default value:
  * <ul>
  *   <li>After decoding {@code className} (tag {@code 0x0C} UTF8String), call
  *       {@link DerReader#peekTag()}.</li>
  *   <li>If the next tag is {@code 0x04} (OCTET STRING): {@code parentSchemaHash} is
- *       <b>present</b> — read it and then read the {@code fields} SEQUENCE
+ *       <b>present</b> -- read it and then read the {@code fields} SEQUENCE
  *       ({@code 0x30}).</li>
  *   <li>If the next tag is {@code 0x30} (SEQUENCE): {@code parentSchemaHash} is
- *       <b>absent</b> (parent is {@code Object}) — read {@code fields} directly.</li>
+ *       <b>absent</b> (parent is {@code Object}) -- read {@code fields} directly.</li>
  *   <li>Any other tag is a decode error ({@link DerException}).</li>
  * </ul>
  *
  * <h3>Determinism</h3>
  * {@link #encode()} iterates {@link #fields()} (an ordered {@link List}) in
  * declaration order. There is no {@code HashMap} or {@code HashSet} in the encode
- * path. Re-encoding the same logical record — or two independently constructed equal
- * records — always produces byte-identical DER. This is required for digest stability
- * across JVM runs (JGDMS-STD-006 §7.8, Merkle chain guarantee).
+ * path. Re-encoding the same logical record -- or two independently constructed equal
+ * records -- always produces byte-identical DER. This is required for digest stability
+ * across JVM runs (JGDMS-STD-006 S7.8, Merkle chain guarantee).
  *
  * <h3>Merkle chain</h3>
  * {@code SHA-256(DER(AtomicSerialSchemaRecord))} is the "schema version" of a class.
@@ -78,7 +78,7 @@ import java.util.Optional;
  * Bounds are enforced on the UTF-8 byte length before constructing Java Strings, and
  * on DER-declared content lengths before allocating arrays:
  * <ul>
- *   <li>{@code className}: 1–1024 UTF-8 bytes</li>
+ *   <li>{@code className}: 1-1024 UTF-8 bytes</li>
  *   <li>{@code parentSchemaHash}: exactly 32 bytes when present</li>
  * </ul>
  */
@@ -99,7 +99,7 @@ public final class AtomicSerialSchemaRecord {
     // -----------------------------------------------------------------------
 
     /**
-     * Creates a root record (no parent — parent is {@code Object}).
+     * Creates a root record (no parent -- parent is {@code Object}).
      *
      * @param className the fully-qualified class name (1..1024 UTF-8 bytes)
      * @param fields    ordered list of field definitions (may be empty; ORDER-SIGNIFICANT)
@@ -179,7 +179,7 @@ public final class AtomicSerialSchemaRecord {
 
     /**
      * Returns an immutable, order-significant list of field definitions.
-     * The order is the wire order and corresponds directly to payload positions (§3.9).
+     * The order is the wire order and corresponds directly to payload positions (S3.9).
      */
     public List<AtomicSerialFieldDef> fields() { return fields; }
 
@@ -251,13 +251,13 @@ public final class AtomicSerialSchemaRecord {
      * Decodes one {@code AtomicSerialSchemaRecord} SEQUENCE from a {@link DerReader}.
      * The reader must be positioned at the start of the SEQUENCE TLV.
      *
-     * <h3>OPTIONAL parentSchemaHash — tag-based resolution</h3>
+     * <h3>OPTIONAL parentSchemaHash -- tag-based resolution</h3>
      * After reading {@code className}, {@link DerReader#peekTag()} determines whether
      * {@code parentSchemaHash} is present:
      * <ul>
-     *   <li>Tag {@code 0x04} (OCTET STRING) → present; read it, then read fields SEQUENCE.</li>
-     *   <li>Tag {@code 0x30} (SEQUENCE) → absent; read fields SEQUENCE directly.</li>
-     *   <li>Any other tag → {@link DerException}.</li>
+     *   <li>Tag {@code 0x04} (OCTET STRING) -> present; read it, then read fields SEQUENCE.</li>
+     *   <li>Tag {@code 0x30} (SEQUENCE) -> absent; read fields SEQUENCE directly.</li>
+     *   <li>Any other tag -> {@link DerException}.</li>
      * </ul>
      *
      * @param reader a DER reader positioned at the SEQUENCE TLV
@@ -267,7 +267,7 @@ public final class AtomicSerialSchemaRecord {
     public static AtomicSerialSchemaRecord decode(DerReader reader) throws DerException {
         DerReader seq = reader.readSequence();
 
-        // 1. className — read header manually to check byte-length before String allocation
+        // 1. className -- read header manually to check byte-length before String allocation
         DerReader.TlvHeader classHdr = seq.readTlvHeader();
         if (!Tag.UTF8STRING.equals(classHdr.tag())) {
             throw new DerException("AtomicSerialSchemaRecord: expected UTF8String for className, got "
@@ -278,7 +278,7 @@ public final class AtomicSerialSchemaRecord {
         byte[] classBytes = seq.readRawContent(classHdr.contentLength());
         String className = new String(classBytes, StandardCharsets.UTF_8);
 
-        // 2. OPTIONAL parentSchemaHash — resolved by tag, not by default
+        // 2. OPTIONAL parentSchemaHash -- resolved by tag, not by default
         byte[] parentSchemaHash = null;
         Tag nextTag = seq.peekTag();
         if (Tag.OCTET_STRING.equals(nextTag)) {
@@ -297,7 +297,7 @@ public final class AtomicSerialSchemaRecord {
         }
         // If nextTag == SEQUENCE, parentSchemaHash remains null (absent)
 
-        // 3. fields SEQUENCE OF AtomicSerialFieldDef — ORDER-SIGNIFICANT
+        // 3. fields SEQUENCE OF AtomicSerialFieldDef -- ORDER-SIGNIFICANT
         DerReader fieldsSeq = seq.readSequence();
         List<AtomicSerialFieldDef> fields = new ArrayList<>();
         while (fieldsSeq.hasMore()) {
@@ -318,7 +318,7 @@ public final class AtomicSerialSchemaRecord {
     /**
      * Computes the schema version digest: {@code SHA-256(DER(this))}.
      *
-     * <p>This is the canonical schema version identifier (JGDMS-STD-006 §7.8).
+     * <p>This is the canonical schema version identifier (JGDMS-STD-006 S7.8).
      * Two independently constructed equal records produce identical digests because
      * {@link #encode()} is deterministic.
      *

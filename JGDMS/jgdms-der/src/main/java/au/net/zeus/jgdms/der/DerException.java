@@ -21,7 +21,7 @@ import java.io.IOException;
 
 /**
  * Thrown by the DER codec on any decode failure or constraint violation
- * (JGDMS-STD-006 §3 principle 6: fail-secure decode).
+ * (JGDMS-STD-006 S3 principle 6: fail-secure decode).
  * <p>
  * A {@code DerException} is raised, and no object is constructed, whenever a
  * decoder detects:

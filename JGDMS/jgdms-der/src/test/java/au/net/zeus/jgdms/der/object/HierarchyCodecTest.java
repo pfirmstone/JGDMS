@@ -30,42 +30,42 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Phase 4.3 acceptance tests: {@code @AtomicSerial} hierarchy encode/decode
- * with per-class namespace isolation (JGDMS-STD-006 §3.9 / §3.10).
+ * with per-class namespace isolation (JGDMS-STD-006 S3.9 / S3.10).
  *
  * <h2>What each test proves</h2>
  * <ul>
- *   <li><b>4.3.1</b> — Two-level ({@code Beta extends Alpha}) round-trips with
+ *   <li><b>4.3.1</b> -- Two-level ({@code Beta extends Alpha}) round-trips with
  *       full field equality at both levels.</li>
- *   <li><b>4.3.2</b> — Three-level ({@code Gamma extends Beta extends Alpha})
+ *   <li><b>4.3.2</b> -- Three-level ({@code Gamma extends Beta extends Alpha})
  *       round-trips with full field equality at all three levels.</li>
- *   <li><b>4.3.3</b> — Namespace collision: {@code Alpha.x} and {@code Beta.x}
+ *   <li><b>4.3.3</b> -- Namespace collision: {@code Alpha.x} and {@code Beta.x}
  *       carry different values and BOTH survive the round-trip unchanged
  *       (no collision / no overwrite). Proves that field name "x" is
  *       independent in the two SEQUENCEs.</li>
- *   <li><b>4.3.4</b> — Visibility isolation: Alpha's constructor observes
+ *   <li><b>4.3.4</b> -- Visibility isolation: Alpha's constructor observes
  *       "ALPHA_DEFAULT" when it reads "betaOnly" via GetArg, proving that
- *       Alpha's stack frame can only see Alpha's DerFieldStore — Beta's
+ *       Alpha's stack frame can only see Alpha's DerFieldStore -- Beta's
  *       "betaOnly" field is completely invisible from Alpha's frame.</li>
- *   <li><b>4.3.5</b> — Schema chain: {@link SchemaGenerator#generateChain} produces
+ *   <li><b>4.3.5</b> -- Schema chain: {@link SchemaGenerator#generateChain} produces
  *       a correctly-linked Merkle chain with parentSchemaHash set for child
  *       records and absent for the root.</li>
- *   <li><b>4.3.6</b> — Alpha-only round-trip (single @AtomicSerial class in
+ *   <li><b>4.3.6</b> -- Alpha-only round-trip (single @AtomicSerial class in
  *       hierarchy, no parent) via generateChain + encodeHierarchy/decodeHierarchy.</li>
  * </ul>
  */
 class HierarchyCodecTest {
 
     // =========================================================================
-    // 4.3.1 — Two-level round-trip
+    // 4.3.1 -- Two-level round-trip
     // =========================================================================
 
     /**
-     * 4.3.1 — {@code Beta extends Alpha}, both {@code @AtomicSerial}.
+     * 4.3.1 -- {@code Beta extends Alpha}, both {@code @AtomicSerial}.
      * Full round-trip with field equality at both levels.
      */
     @Test
     void test_4_3_1_TwoLevel_Beta_RoundTrip() throws Exception {
-        // Alpha.x = 10, Beta.x = 20 — explicitly different values for the same field name
+        // Alpha.x = 10, Beta.x = 20 -- explicitly different values for the same field name
         Beta original = new Beta(10, "alpha-label", 20, "beta-secret");
 
         SchemaChain.Result chain = SchemaGenerator.generateChain(Beta.class);
@@ -82,11 +82,11 @@ class HierarchyCodecTest {
     }
 
     // =========================================================================
-    // 4.3.2 — Three-level round-trip
+    // 4.3.2 -- Three-level round-trip
     // =========================================================================
 
     /**
-     * 4.3.2 — {@code Gamma extends Beta extends Alpha}, all {@code @AtomicSerial}.
+     * 4.3.2 -- {@code Gamma extends Beta extends Alpha}, all {@code @AtomicSerial}.
      * Full round-trip with field equality at all three levels.
      */
     @Test
@@ -113,11 +113,11 @@ class HierarchyCodecTest {
     }
 
     // =========================================================================
-    // 4.3.3 — Namespace collision: Alpha.x and Beta.x are independent
+    // 4.3.3 -- Namespace collision: Alpha.x and Beta.x are independent
     // =========================================================================
 
     /**
-     * 4.3.3 — Namespace collision test: {@code Alpha.x} and {@code Beta.x} share
+     * 4.3.3 -- Namespace collision test: {@code Alpha.x} and {@code Beta.x} share
      * the same field name "x" but live in separate SEQUENCEs and carry independent
      * values.
      *
@@ -156,11 +156,11 @@ class HierarchyCodecTest {
     }
 
     // =========================================================================
-    // 4.3.4 — Visibility isolation: Alpha cannot see Beta's namespace
+    // 4.3.4 -- Visibility isolation: Alpha cannot see Beta's namespace
     // =========================================================================
 
     /**
-     * 4.3.4 — Visibility isolation: proves that from Alpha's constructor frame,
+     * 4.3.4 -- Visibility isolation: proves that from Alpha's constructor frame,
      * Beta's "betaOnly" field is invisible.
      *
      * <p><b>How this proves per-class isolation:</b>
@@ -192,7 +192,7 @@ class HierarchyCodecTest {
         // Alpha's attempt to read "betaOnly" from its own GetArg frame must return the default,
         // NOT the value from Beta's namespace.
         assertEquals("ALPHA_DEFAULT", decoded.getBetaOnlySeenByAlpha(),
-                "Alpha.betaOnlySeenByAlpha must be 'ALPHA_DEFAULT' — "
+                "Alpha.betaOnlySeenByAlpha must be 'ALPHA_DEFAULT' -- "
                 + "Alpha must NOT see Beta's 'betaOnly' field through GetArg dispatch. "
                 + "If this fails, StackWalker dispatch is routing Alpha's get() calls "
                 + "to Beta's DerFieldStore instead of Alpha's.");
@@ -203,11 +203,11 @@ class HierarchyCodecTest {
     }
 
     // =========================================================================
-    // 4.3.5 — Schema chain structure
+    // 4.3.5 -- Schema chain structure
     // =========================================================================
 
     /**
-     * 4.3.5 — {@link SchemaGenerator#generateChain} produces the correct Merkle chain:
+     * 4.3.5 -- {@link SchemaGenerator#generateChain} produces the correct Merkle chain:
      * root has no parentSchemaHash; child records have parentSchemaHash set.
      */
     @Test
@@ -243,7 +243,7 @@ class HierarchyCodecTest {
     }
 
     /**
-     * 4.3.5b — Three-level chain structure.
+     * 4.3.5b -- Three-level chain structure.
      */
     @Test
     void test_4_3_5b_SchemaChain_ThreeLevel() throws Exception {
@@ -269,11 +269,11 @@ class HierarchyCodecTest {
     }
 
     // =========================================================================
-    // 4.3.6 — Single @AtomicSerial root via generateChain + hierarchy codec
+    // 4.3.6 -- Single @AtomicSerial root via generateChain + hierarchy codec
     // =========================================================================
 
     /**
-     * 4.3.6 — Alpha alone (no superclass @AtomicSerial) round-trips through
+     * 4.3.6 -- Alpha alone (no superclass @AtomicSerial) round-trips through
      * encodeHierarchy / decodeHierarchy (chain has exactly one record).
      */
     @Test
@@ -294,11 +294,11 @@ class HierarchyCodecTest {
     }
 
     // =========================================================================
-    // 4.3.7 — Chain field schema content verification
+    // 4.3.7 -- Chain field schema content verification
     // =========================================================================
 
     /**
-     * 4.3.7 — Verifies that each schema record in the chain contains only the
+     * 4.3.7 -- Verifies that each schema record in the chain contains only the
      * fields declared by the respective class, not inherited fields.
      */
     @Test
@@ -315,7 +315,7 @@ class HierarchyCodecTest {
         assertEquals("x",          alphaRec.fields().get(0).wireName());
         assertEquals("alphaLabel", alphaRec.fields().get(1).wireName());
 
-        // Beta's schema: x (int), betaOnly (String) — its OWN x, not Alpha's
+        // Beta's schema: x (int), betaOnly (String) -- its OWN x, not Alpha's
         assertEquals(2, betaRec.fields().size(), "Beta schema must have 2 fields");
         assertEquals("x",        betaRec.fields().get(0).wireName());
         assertEquals("betaOnly", betaRec.fields().get(1).wireName());

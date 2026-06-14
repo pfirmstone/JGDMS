@@ -19,16 +19,16 @@ package au.net.zeus.jgdms.der;
 
 /**
  * Immutable representation of an ASN.1 / DER tag (identifier octets), per
- * X.690 §8.1.2.
+ * X.690 S8.1.2.
  * <p>
  * A tag consists of three orthogonal attributes:
  * <ul>
- *   <li><b>class</b> — UNIVERSAL (0), APPLICATION (1), CONTEXT (2),
+ *   <li><b>class</b> -- UNIVERSAL (0), APPLICATION (1), CONTEXT (2),
  *       PRIVATE (3);</li>
- *   <li><b>constructed flag</b> — {@code true} for structured types
+ *   <li><b>constructed flag</b> -- {@code true} for structured types
  *       (SEQUENCE, SET, and any type with constructed encoding);</li>
- *   <li><b>tag number</b> — non-negative integer; values 0–30 fit in the
- *       low-tag-number (single-octet) form; ≥ 31 use the high-tag-number
+ *   <li><b>tag number</b> -- non-negative integer; values 0-30 fit in the
+ *       low-tag-number (single-octet) form; >= 31 use the high-tag-number
  *       multi-octet form.</li>
  * </ul>
  *
@@ -41,7 +41,7 @@ package au.net.zeus.jgdms.der;
  * <h3>Encoding and decoding</h3>
  * <p>
  * {@link #encode()} writes the minimal canonical identifier-octets per X.690
- * §8.1.2. {@link #decode(byte[], int)} reads those octets and returns the
+ * S8.1.2. {@link #decode(byte[], int)} reads those octets and returns the
  * resulting {@code Tag}; the caller can inspect {@link DecodeResult#bytesRead}
  * to advance its cursor.
  */
@@ -51,29 +51,29 @@ public final class Tag {
     /* Tag class constants                                                  */
     /* ------------------------------------------------------------------ */
 
-    /** Tag class UNIVERSAL (bits 8–7 = 00). */
+    /** Tag class UNIVERSAL (bits 8-7 = 00). */
     public static final int CLASS_UNIVERSAL   = 0;
-    /** Tag class APPLICATION (bits 8–7 = 01). */
+    /** Tag class APPLICATION (bits 8-7 = 01). */
     public static final int CLASS_APPLICATION = 1;
-    /** Tag class CONTEXT-SPECIFIC (bits 8–7 = 10). */
+    /** Tag class CONTEXT-SPECIFIC (bits 8-7 = 10). */
     public static final int CLASS_CONTEXT     = 2;
-    /** Tag class PRIVATE (bits 8–7 = 11). */
+    /** Tag class PRIVATE (bits 8-7 = 11). */
     public static final int CLASS_PRIVATE     = 3;
 
     /* ------------------------------------------------------------------ */
     /* Universal-tag number constants                                       */
     /* ------------------------------------------------------------------ */
 
-    /** UNIVERSAL BOOLEAN — primitive, tag 1 ({@code 0x01}). */
+    /** UNIVERSAL BOOLEAN -- primitive, tag 1 ({@code 0x01}). */
     public static final Tag BOOLEAN     = new Tag(CLASS_UNIVERSAL, false, 1);
-    /** UNIVERSAL INTEGER — primitive, tag 2 ({@code 0x02}). */
+    /** UNIVERSAL INTEGER -- primitive, tag 2 ({@code 0x02}). */
     public static final Tag INTEGER     = new Tag(CLASS_UNIVERSAL, false, 2);
-    /** UNIVERSAL OCTET STRING — primitive, tag 4 ({@code 0x04}). */
+    /** UNIVERSAL OCTET STRING -- primitive, tag 4 ({@code 0x04}). */
     public static final Tag OCTET_STRING = new Tag(CLASS_UNIVERSAL, false, 4);
-    /** UNIVERSAL UTF8String — primitive, tag 12 ({@code 0x0C}). */
+    /** UNIVERSAL UTF8String -- primitive, tag 12 ({@code 0x0C}). */
     public static final Tag UTF8STRING  = new Tag(CLASS_UNIVERSAL, false, 12);
     /**
-     * UNIVERSAL SEQUENCE — constructed, tag 16 ({@code 0x30}).
+     * UNIVERSAL SEQUENCE -- constructed, tag 16 ({@code 0x30}).
      * Note: the encoding of the first octet is 0x30 = 0b00_1_10000 (universal,
      * constructed, number 16).
      */
@@ -90,7 +90,7 @@ public final class Tag {
     /**
      * Creates a tag with the given attributes.
      *
-     * @param tagClass    one of {@link #CLASS_UNIVERSAL} … {@link #CLASS_PRIVATE}
+     * @param tagClass    one of {@link #CLASS_UNIVERSAL} ... {@link #CLASS_PRIVATE}
      * @param constructed {@code true} for a constructed (composite) type
      * @param tagNumber   non-negative tag number
      * @throws IllegalArgumentException if {@code tagClass} is out of range or
@@ -98,7 +98,7 @@ public final class Tag {
      */
     public Tag(int tagClass, boolean constructed, int tagNumber) {
         if (tagClass < 0 || tagClass > 3) {
-            throw new IllegalArgumentException("tagClass must be 0–3, got " + tagClass);
+            throw new IllegalArgumentException("tagClass must be 0-3, got " + tagClass);
         }
         if (tagNumber < 0) {
             throw new IllegalArgumentException("tagNumber must be >= 0, got " + tagNumber);
@@ -112,7 +112,7 @@ public final class Tag {
     /* Accessors                                                            */
     /* ------------------------------------------------------------------ */
 
-    /** Returns the tag class (0–3). */
+    /** Returns the tag class (0-3). */
     public int tagClass() { return tagClass; }
 
     /** Returns {@code true} if this is a constructed (composite) type. */
@@ -126,13 +126,13 @@ public final class Tag {
     /* ------------------------------------------------------------------ */
 
     /**
-     * Encodes this tag as its DER identifier octets (X.690 §8.1.2).
+     * Encodes this tag as its DER identifier octets (X.690 S8.1.2).
      * <ul>
-     *   <li>Tag numbers 0–30 use the <em>low-tag-number form</em>: a single
-     *       octet with bits 8–7 = class, bit 6 = constructed, bits 5–1 =
+     *   <li>Tag numbers 0-30 use the <em>low-tag-number form</em>: a single
+     *       octet with bits 8-7 = class, bit 6 = constructed, bits 5-1 =
      *       tag number.</li>
-     *   <li>Tag numbers ≥ 31 use the <em>high-tag-number form</em>: a first
-     *       octet with bits 5–1 set to {@code 11111}, followed by one or more
+     *   <li>Tag numbers >= 31 use the <em>high-tag-number form</em>: a first
+     *       octet with bits 5-1 set to {@code 11111}, followed by one or more
      *       base-128 octets encoding the tag number with the MSB of each
      *       intermediate octet set to 1, and the MSB of the last octet set
      *       to 0.</li>
@@ -211,7 +211,7 @@ public final class Tag {
             int b = buf[pos] & 0xFF;
             pos++;
             octetsRead++;
-            // §9.3 / X.690 §8.1.2.4.2(c): the first continuation octet must not be 0x80
+            // S9.3 / X.690 S8.1.2.4.2(c): the first continuation octet must not be 0x80
             // (that would be a non-minimal leading-zero byte in the base-128 encoding).
             if (firstContinuation && b == 0x80) {
                 throw new DerException(

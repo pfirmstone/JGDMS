@@ -25,9 +25,9 @@ import java.nio.charset.StandardCharsets;
  * <p>
  * A {@code DerReader} wraps a byte array together with a mutable cursor and a
  * hard end-bound. All reads are bounds-checked; all length fields are
- * validated before allocation (§3 principle 5). Any malformed or
+ * validated before allocation (S3 principle 5). Any malformed or
  * non-canonical encoding raises {@link DerException} immediately with no
- * permissive fallback (§3 principle 6).
+ * permissive fallback (S3 principle 6).
  *
  * <h3>Usage pattern</h3>
  * <pre>{@code
@@ -37,7 +37,7 @@ import java.nio.charset.StandardCharsets;
  *   if (Tag.SEQUENCE.equals(t)) {
  *       DerReader seq = r.readSequence();
  *       while (seq.hasMore()) {
- *           // read children …
+ *           // read children ...
  *       }
  *   }
  * }</pre>
@@ -150,7 +150,7 @@ public final class DerReader {
      * Result of reading a TLV header (tag + length) from the stream.
      *
      * @param tag           the decoded tag
-     * @param contentLength the declared content length (≥ 0)
+     * @param contentLength the declared content length (>= 0)
      */
     public record TlvHeader(Tag tag, int contentLength) {}
 
@@ -214,7 +214,7 @@ public final class DerReader {
      * <p>
      * Validation enforces DER canonical INTEGER form:
      * <ul>
-     *   <li>Content length ≥ 1 (zero-length INTEGER is invalid).</li>
+     *   <li>Content length >= 1 (zero-length INTEGER is invalid).</li>
      *   <li>No non-minimal leading {@code 0x00} (i.e. first two octets
      *       {@code 0x00 ??} where {@code ?? bit-7 == 0} is rejected).</li>
      *   <li>No non-minimal leading {@code 0xFF} (i.e. first two octets
@@ -355,9 +355,9 @@ public final class DerReader {
      *
      * <p>Rejects:
      * <ul>
-     *   <li>Indefinite form ({@code 0x80}) — BER-only, forbidden in DER.</li>
-     *   <li>Reserved form ({@code 0xFF}) — forbidden by X.690.</li>
-     *   <li>Non-minimal long form (a value ≤ 127 encoded in long form, or a
+     *   <li>Indefinite form ({@code 0x80}) -- BER-only, forbidden in DER.</li>
+     *   <li>Reserved form ({@code 0xFF}) -- forbidden by X.690.</li>
+     *   <li>Non-minimal long form (a value <= 127 encoded in long form, or a
      *       long-form encoding with a leading zero length-octet).</li>
      *   <li>Length overflow (result exceeds {@code Integer.MAX_VALUE}).</li>
      * </ul>
@@ -370,7 +370,7 @@ public final class DerReader {
         int first = buf[pos++] & 0xFF;
 
         if (first <= 0x7F) {
-            // Short form: single-octet, value 0–127
+            // Short form: single-octet, value 0-127
             return first;
         }
         if (first == 0x80) {
@@ -388,10 +388,10 @@ public final class DerReader {
             throw new DerException(
                     "Non-canonical length: long-form length has leading zero octet");
         }
-        // n == 1 with value ≤ 127 is non-minimal (should have used short form)
+        // n == 1 with value <= 127 is non-minimal (should have used short form)
         if (n == 1 && (buf[pos] & 0xFF) <= 127) {
             throw new DerException(
-                    "Non-canonical length: long form used for value ≤ 127 ("
+                    "Non-canonical length: long form used for value <= 127 ("
                     + (buf[pos] & 0xFF) + ")");
         }
 

@@ -24,17 +24,17 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 6 / §11.7 fixture — leaf class for the TWO-level hierarchy AFTER
+ * Phase 6 / S11.7 fixture -- leaf class for the TWO-level hierarchy AFTER
  * {@code Ev67_Mid} has been REMOVED ({@code Ev7_Beta extends Ev67_Alpha}).
  *
- * <h2>§11.7 — Remove {@code Ev67_Mid} from the hierarchy</h2>
+ * <h2>S11.7 -- Remove {@code Ev67_Mid} from the hierarchy</h2>
  * <p>The NEW chain (after removal) is {@code [Ev7_Beta, Ev67_Alpha]}.
  *
  * <p>OLD data was encoded with OLD chain {@code [OldBeta, Ev67_Mid, Ev67_Alpha]}
  * where {@code OldBeta} was {@code Beta extends Mid}.  The old payload carries
  * THREE inner SEQUENCEs.
  *
- * <p>The §11.7 test uses a {@code MarshalledInstanceRecord} built with the OLD
+ * <p>The S11.7 test uses a {@code MarshalledInstanceRecord} built with the OLD
  * embedded schema chain that INCLUDES {@code Ev67_Mid}.  Decoding via
  * {@link au.net.zeus.jgdms.der.marshal.MarshalledInstanceCodec} uses the embedded
  * (old) chain: the decoder reads THREE SEQUENCEs and builds THREE DerFieldStores
@@ -42,11 +42,11 @@ import java.util.Objects;
  * to {@code Ev67_Alpha(GetArg)} via {@code super(check(arg))}.
  *
  * <p>{@code Ev67_Mid}'s store is built and populated from the wire, but no
- * constructor (neither {@code Ev7_Beta} nor {@code Ev67_Alpha}) consumes it —
+ * constructor (neither {@code Ev7_Beta} nor {@code Ev67_Alpha}) consumes it --
  * Mid is gone from the local hierarchy.  Those field values sit unrequested in
  * the DerGetArg map and become GC-eligible after construction.  No error occurs.
  *
- * <p>Observable assertions (§11.7):
+ * <p>Observable assertions (S11.7):
  * <ul>
  *   <li>Decode completes without exception (Mid's bytes are harmlessly present).</li>
  *   <li>{@code Ev67_Alpha}'s field ({@code alphaVal}) is decoded correctly.</li>

@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Implements the §12.4 schema resolution decision tree.
+ * Implements the S12.4 schema resolution decision tree.
  *
  * <p>When a receiver needs to decode a {@link MarshalledInstanceRecord} payload,
  * the resolution steps (in priority order) are:
@@ -41,7 +41,7 @@ import java.util.Objects;
  *       record and use that chain.</li>
  *   <li><b>Registry lookup (synthetic edge case).</b>
  *       If the embedded schema is absent or corrupt (should not occur for conforming
- *       data per §7.8), query {@code registry.getSchema(digest)}. If a schema is
+ *       data per S7.8), query {@code registry.getSchema(digest)}. If a schema is
  *       found, use it (as a single-record chain).</li>
  *   <li><b>Default fallback.</b>
  *       If the registry also misses, use the local schema chain. Absent fields will
@@ -65,19 +65,19 @@ public final class SchemaResolver {
      *
      * @param chain  the resolved schema chain (leaf-first), suitable for passing to
      *               {@link au.net.zeus.jgdms.der.object.ObjectCodec#decodeHierarchy}
-     * @param branch the §12.4 branch that was selected
+     * @param branch the S12.4 branch that was selected
      */
     public record Result(SchemaChain.Result chain, Branch branch) {}
 
     /**
-     * The four §12.4 resolution branches, in priority order.
+     * The four S12.4 resolution branches, in priority order.
      */
     public enum Branch {
         /** Step 1: local serialForm() digest matches the record's digest. */
         LOCAL_MATCH,
-        /** Step 2: embedded schema bytes used (primary fallback, §12.4 step 4a). */
+        /** Step 2: embedded schema bytes used (primary fallback, S12.4 step 4a). */
         EMBEDDED,
-        /** Step 3: registry lookup returned a schema (§12.4 step 4b, first sub-case). */
+        /** Step 3: registry lookup returned a schema (S12.4 step 4b, first sub-case). */
         REGISTRY,
         /** Step 4: registry miss; fell back to local schema + GetArg defaults. */
         DEFAULT_LOCAL
@@ -86,7 +86,7 @@ public final class SchemaResolver {
     /**
      * Resolves the schema chain for decoding the given {@link MarshalledInstanceRecord}.
      *
-     * <p>Follows the §12.4 decision tree (see class-level Javadoc). The registry is
+     * <p>Follows the S12.4 decision tree (see class-level Javadoc). The registry is
      * only consulted if both the local digest and the embedded schema are unavailable
      * (step 3); on a local digest match (step 1) the registry is NOT invoked.
      *
@@ -109,7 +109,7 @@ public final class SchemaResolver {
         byte[] recordDigest = rec.schemaDigest();
 
         // ----------------------------------------------------------------
-        // Step 1: local digest match — fast path, no registry call
+        // Step 1: local digest match -- fast path, no registry call
         // ----------------------------------------------------------------
         SchemaChain.Result localChain = tryGenerateLocalChain(receiverClass);
         if (localChain != null) {
@@ -119,7 +119,7 @@ public final class SchemaResolver {
         }
 
         // ----------------------------------------------------------------
-        // Step 2: embedded schema present — primary fallback
+        // Step 2: embedded schema present -- primary fallback
         // ----------------------------------------------------------------
         SchemaChain.Result embeddedChain = tryDecodeEmbeddedChain(rec);
         if (embeddedChain != null) {
@@ -127,7 +127,7 @@ public final class SchemaResolver {
         }
 
         // ----------------------------------------------------------------
-        // Step 3: embedded absent/corrupt — query registry (synthetic path)
+        // Step 3: embedded absent/corrupt -- query registry (synthetic path)
         // ----------------------------------------------------------------
         byte[] registryBytes = registry.getSchema(recordDigest);
         if (registryBytes != null) {
@@ -138,7 +138,7 @@ public final class SchemaResolver {
         }
 
         // ----------------------------------------------------------------
-        // Step 4: registry miss — fall back to local schema + GetArg defaults
+        // Step 4: registry miss -- fall back to local schema + GetArg defaults
         // (no exception; absent fields receive defaults via DerGetArg)
         // ----------------------------------------------------------------
         if (localChain != null) {

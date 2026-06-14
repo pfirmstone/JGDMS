@@ -18,14 +18,14 @@
 package au.net.zeus.jgdms.der.registry;
 
 /**
- * Schema Registry Service interface per JGDMS-STD-006 §12.2.
+ * Schema Registry Service interface per JGDMS-STD-006 S12.2.
  *
  * <p>Stores and distributes {@link au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord}
  * instances indexed by their SHA-256 digest. All parameters and return values are
- * {@code byte[]}, {@link String}, or primitive types — no service-specific objects
- * (§12.1 "Bytes and primitives only" constraint).
+ * {@code byte[]}, {@link String}, or primitive types -- no service-specific objects
+ * (S12.1 "Bytes and primitives only" constraint).
  *
- * <h2>Design constraints (§12.1)</h2>
+ * <h2>Design constraints (S12.1)</h2>
  * <ul>
  *   <li><b>Append-only.</b> Schemas are never deleted. A schema registered with a given
  *       digest is immutable and permanent.</li>
@@ -44,7 +44,7 @@ public interface SchemaRegistry {
      * without creating a duplicate entry.
      *
      * <p>Append-only: registering bytes that are different from any previously
-     * registered bytes creates a new, independent entry — both the new digest and
+     * registered bytes creates a new, independent entry -- both the new digest and
      * any previous digests remain independently retrievable.
      *
      * @param schemaRecordBytes DER-encoded {@code AtomicSerialSchemaRecord}; must not be null
@@ -85,7 +85,7 @@ public interface SchemaRegistry {
      * Tests forward compatibility: is schema B a superset of schema A?
      *
      * <p>Returns {@code true} if B's fields START WITH exactly A's fields in the same
-     * order and types — i.e., data encoded with schema A can be decoded with schema B
+     * order and types -- i.e., data encoded with schema A can be decoded with schema B
      * (B may add trailing fields which, if requested by the receiver, receive
      * {@code GetArg} defaults).
      *

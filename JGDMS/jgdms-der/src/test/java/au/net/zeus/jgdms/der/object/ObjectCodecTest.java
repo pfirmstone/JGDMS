@@ -39,27 +39,27 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Acceptance tests for Phase 4.1 and 4.2:
  * <ul>
- *   <li>4.1.1 — {@code SimpleRecord} encode → decode round-trip.</li>
- *   <li>4.1.2 — {@code MultiTypeRecord} encode → decode round-trip (all wire types).</li>
- *   <li>4.1.3 — {@code CounterRecord} encode → decode round-trip (happy path).</li>
- *   <li>4.1.4 — Encoded form decodes correctly via {@link DerFieldStore} + schema.</li>
- *   <li>4.1.5 — check-before-construction: {@code CounterRecord} with negative value
+ *   <li>4.1.1 -- {@code SimpleRecord} encode -> decode round-trip.</li>
+ *   <li>4.1.2 -- {@code MultiTypeRecord} encode -> decode round-trip (all wire types).</li>
+ *   <li>4.1.3 -- {@code CounterRecord} encode -> decode round-trip (happy path).</li>
+ *   <li>4.1.4 -- Encoded form decodes correctly via {@link DerFieldStore} + schema.</li>
+ *   <li>4.1.5 -- check-before-construction: {@code CounterRecord} with negative value
  *               throws {@link InvalidObjectException} from {@code check(GetArg)}.</li>
- *   <li>4.2.1 — Schema field names and order match {@code serialForm()}.</li>
- *   <li>4.2.2 — Re-generating schema produces byte-identical record + identical digest.</li>
- *   <li>4.2.3 — Type mapping: all supported primitives + String + byte[].</li>
- *   <li>4.2.4 — Unsupported field type ({@code double}) raises {@link DerException}.</li>
- *   <li>4.2.5 — Unsupported field type ({@code java.util.Date}) raises {@link DerException}.</li>
+ *   <li>4.2.1 -- Schema field names and order match {@code serialForm()}.</li>
+ *   <li>4.2.2 -- Re-generating schema produces byte-identical record + identical digest.</li>
+ *   <li>4.2.3 -- Type mapping: all supported primitives + String + byte[].</li>
+ *   <li>4.2.4 -- Unsupported field type ({@code double}) raises {@link DerException}.</li>
+ *   <li>4.2.5 -- Unsupported field type ({@code java.util.Date}) raises {@link DerException}.</li>
  * </ul>
  */
 class ObjectCodecTest {
 
     // =========================================================================
-    // Phase 4.1 — encode / decode round-trip
+    // Phase 4.1 -- encode / decode round-trip
     // =========================================================================
 
     /**
-     * 4.1.1 — {@code SimpleRecord} with typical values round-trips with field equality.
+     * 4.1.1 -- {@code SimpleRecord} with typical values round-trips with field equality.
      */
     @Test
     void test_4_1_1_SimpleRecord_RoundTrip() throws Exception {
@@ -75,7 +75,7 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.1.1b — {@code SimpleRecord} with null payload and false flag.
+     * 4.1.1b -- {@code SimpleRecord} with null payload and false flag.
      */
     @Test
     void test_4_1_1b_SimpleRecord_NullPayload_RoundTrip() throws Exception {
@@ -89,7 +89,7 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.1.2 — {@code MultiTypeRecord} exercises all wire types in one encode/decode cycle.
+     * 4.1.2 -- {@code MultiTypeRecord} exercises all wire types in one encode/decode cycle.
      */
     @Test
     void test_4_1_2_MultiTypeRecord_RoundTrip_AllWireTypes() throws Exception {
@@ -111,7 +111,7 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.1.3 — {@code CounterRecord} (has value >= 0 invariant) happy-path round-trip.
+     * 4.1.3 -- {@code CounterRecord} (has value >= 0 invariant) happy-path round-trip.
      */
     @Test
     void test_4_1_3_CounterRecord_RoundTrip() throws Exception {
@@ -125,7 +125,7 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.1.4 — Encoded SEQUENCE can be decoded by {@link DerFieldStore} + schema,
+     * 4.1.4 -- Encoded SEQUENCE can be decoded by {@link DerFieldStore} + schema,
      * confirming that field order and types match the schema.
      */
     @Test
@@ -135,7 +135,7 @@ class ObjectCodecTest {
         AtomicSerialSchemaRecord schema = SchemaGenerator.generate(SimpleRecord.class);
         byte[] der = ObjectCodec.encode(original, SimpleRecord.class, schema);
 
-        // Decode the raw SEQUENCE with DerFieldStore — confirms field structure
+        // Decode the raw SEQUENCE with DerFieldStore -- confirms field structure
         DerFieldStore store = new DerFieldStore(schema, der);
 
         // Check all fields are present and have correct values
@@ -156,7 +156,7 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.1.5 — check-before-construction: a negative {@code value} in {@code CounterRecord}
+     * 4.1.5 -- check-before-construction: a negative {@code value} in {@code CounterRecord}
      * must cause {@link InvalidObjectException} from {@code check(GetArg)}, and
      * NO partially-constructed object is returned.
      *
@@ -174,7 +174,7 @@ class ObjectCodecTest {
         AtomicSerialSchemaRecord schema = SchemaGenerator.generate(CounterRecord.class);
 
         // The decode must throw InvalidObjectException from check(GetArg), not
-        // from the CounterRecord constructor body — no CounterRecord is created.
+        // from the CounterRecord constructor body -- no CounterRecord is created.
         InvalidObjectException ex = assertThrows(
                 InvalidObjectException.class,
                 () -> ObjectCodec.decode(CounterRecord.class, schema, sequenceDer),
@@ -186,20 +186,20 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.1.5b — check-before-construction with null name in {@code SimpleRecord}.
+     * 4.1.5b -- check-before-construction with null name in {@code SimpleRecord}.
      */
     @Test
     void test_4_1_5b_CheckBeforeConstruction_NullName_ThrowsBeforeObject()
             throws Exception {
         // Build DER SEQUENCE for SimpleRecord with name=null (absent from payload)
         // To produce a null name, we encode the payload without the name field,
-        // but SimpleRecord.check reads name via arg.get("name", null) — absent means null.
+        // but SimpleRecord.check reads name via arg.get("name", null) -- absent means null.
         // Easier: write an OCTET STRING null is not representable, so write a short payload.
-        // Simplest: encode only active, count, and payload — omit name (payload shorter than schema)
+        // Simplest: encode only active, count, and payload -- omit name (payload shorter than schema)
         byte[] activeTlv  = DerWriter.writeBoolean(false);
         byte[] countTlv   = DerWriter.writeInteger(0);
-        // Omit name (absent → null when GetArg returns default null)
-        // That means sequence has only 2 TLVs; DerFieldStore will set name=ABSENT → returns null
+        // Omit name (absent -> null when GetArg returns default null)
+        // That means sequence has only 2 TLVs; DerFieldStore will set name=ABSENT -> returns null
         byte[] sequenceDer = DerWriter.writeSequence(List.of(activeTlv, countTlv));
 
         AtomicSerialSchemaRecord schema = SchemaGenerator.generate(SimpleRecord.class);
@@ -214,11 +214,11 @@ class ObjectCodecTest {
     }
 
     // =========================================================================
-    // Phase 4.2 — schema generation
+    // Phase 4.2 -- schema generation
     // =========================================================================
 
     /**
-     * 4.2.1 — Generated schema field names and order match {@code serialForm()} exactly.
+     * 4.2.1 -- Generated schema field names and order match {@code serialForm()} exactly.
      */
     @Test
     void test_4_2_1_SchemaFieldNamesAndOrderMatchSerialForm() throws Exception {
@@ -240,7 +240,7 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.2.1b — Same check for {@code MultiTypeRecord} (all 7 wire types).
+     * 4.2.1b -- Same check for {@code MultiTypeRecord} (all 7 wire types).
      */
     @Test
     void test_4_2_1b_MultiTypeRecord_SchemaFieldOrder() throws Exception {
@@ -258,7 +258,7 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.2.2 — Re-generating from the same class produces a byte-identical schema record
+     * 4.2.2 -- Re-generating from the same class produces a byte-identical schema record
      * and an identical {@code schemaDigest()}.
      */
     @Test
@@ -277,7 +277,7 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.2.3 — Type mapping covers all supported wire types.
+     * 4.2.3 -- Type mapping covers all supported wire types.
      * (Verified transitively by 4.2.1b, but this test directly tests
      * {@link SchemaGenerator#toWireType} for each entry in the table.)
      */
@@ -299,21 +299,21 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.2.4 — An unsupported field type ({@code double}) raises {@link DerException}
-     * (explicitly deferred per §7.6), not a silent fallback.
+     * 4.2.4 -- An unsupported field type ({@code double}) raises {@link DerException}
+     * (explicitly deferred per S7.6), not a silent fallback.
      */
     @Test
     void test_4_2_4_UnsupportedType_Double_RaisesClearError() {
         DerException ex = assertThrows(
                 DerException.class,
                 () -> SchemaGenerator.toWireType(double.class, Object.class),
-                "double should throw DerException (deferred per §7.6)");
+                "double should throw DerException (deferred per S7.6)");
         assertTrue(ex.getMessage().contains("double") || ex.getMessage().contains("deferred"),
                 "Error message should mention 'double' or 'deferred': " + ex.getMessage());
     }
 
     /**
-     * 4.2.5 — An unsupported Object type ({@code java.util.Date}) raises {@link DerException}.
+     * 4.2.5 -- An unsupported Object type ({@code java.util.Date}) raises {@link DerException}.
      */
     @Test
     void test_4_2_5_UnsupportedType_Date_RaisesClearError() {
@@ -326,7 +326,7 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.2.5b — A class annotated with a {@code double} field raises {@link DerException}
+     * 4.2.5b -- A class annotated with a {@code double} field raises {@link DerException}
      * from {@link SchemaGenerator#generate(Class)}.
      */
     @Test
@@ -340,7 +340,7 @@ class ObjectCodecTest {
     // Inner fixture for 4.2.5b (not @AtomicSerial, only needs serialForm)
     // =========================================================================
 
-    /** Synthetic fixture: has a {@code double} field (unsupported per §7.6). */
+    /** Synthetic fixture: has a {@code double} field (unsupported per S7.6). */
     @AtomicSerial
     static final class BadDoubleFixture {
         public static AtomicSerial.SerialForm[] serialForm() {
@@ -348,7 +348,7 @@ class ObjectCodecTest {
                 new AtomicSerial.SerialForm("x", double.class),
             };
         }
-        // No constructor needed — the test only calls SchemaGenerator.generate()
+        // No constructor needed -- the test only calls SchemaGenerator.generate()
         public BadDoubleFixture(AtomicSerial.GetArg arg) throws java.io.IOException {
             throw new java.io.IOException("not implemented");
         }

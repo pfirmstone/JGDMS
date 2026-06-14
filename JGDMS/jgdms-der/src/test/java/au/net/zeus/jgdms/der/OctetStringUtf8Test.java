@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Task 1.3 — OCTET STRING and UTF8String encoding and decoding.
+ * Task 1.3 -- OCTET STRING and UTF8String encoding and decoding.
  *
  * Covers:
  * <ul>
@@ -147,7 +147,7 @@ class OctetStringUtf8Test {
 
     @Test
     void utf8String_longAscii() throws DerException {
-        // Create a 200-char string → content length > 127 → long-form length
+        // Create a 200-char string -> content length > 127 -> long-form length
         StringBuilder sb = new StringBuilder(200);
         for (int i = 0; i < 200; i++) sb.append((char)('A' + (i % 26)));
         String s = sb.toString();

@@ -24,11 +24,11 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 4.3 fixture — root class in a three-level {@code @AtomicSerial} hierarchy.
+ * Phase 4.3 fixture -- root class in a three-level {@code @AtomicSerial} hierarchy.
  *
  * <p>Alpha owns a private SEQUENCE containing:
  * <ul>
- *   <li>{@code x} (int) — shares its name with {@link Beta#x} to prove per-class
+ *   <li>{@code x} (int) -- shares its name with {@link Beta#x} to prove per-class
  *       namespace isolation: "x" in Alpha and "x" in Beta live in separate SEQUENCEs
  *       and carry independent values.</li>
  *   <li>{@code alphaLabel} (String).</li>
@@ -38,7 +38,7 @@ import java.util.Objects;
  * <p>Alpha's constructor also reads {@code arg.get("betaOnly", "ALPHA_DEFAULT")}.
  * With correct StackWalker dispatch this resolves to Alpha's own {@link
  * au.net.zeus.jgdms.der.getarg.DerFieldStore}. Field "betaOnly" does not exist in
- * Alpha's schema, so the default {@code "ALPHA_DEFAULT"} is returned — proving that
+ * Alpha's schema, so the default {@code "ALPHA_DEFAULT"} is returned -- proving that
  * Alpha cannot see Beta's namespace. The result is stored in the transient (non-serial)
  * field {@link #betaOnlySeenByAlpha}, exposed by {@link #getBetaOnlySeenByAlpha()}.
  */
@@ -46,7 +46,7 @@ import java.util.Objects;
 public class Alpha {
 
     // -------------------------------------------------------------------------
-    // Serial form — Alpha's OWN fields only
+    // Serial form -- Alpha's OWN fields only
     // -------------------------------------------------------------------------
 
     public static AtomicSerial.SerialForm[] serialForm() {
@@ -60,14 +60,14 @@ public class Alpha {
     // Fields
     // -------------------------------------------------------------------------
 
-    /** Alpha's own {@code x}. Same name as {@link Beta#x} — different SEQUENCE. */
+    /** Alpha's own {@code x}. Same name as {@link Beta#x} -- different SEQUENCE. */
     final int    x;
     final String alphaLabel;
 
     /**
      * Transient observation: what "betaOnly" looked like from Alpha's GetArg frame.
      * Must always be "ALPHA_DEFAULT" if StackWalker dispatch is correct.
-     * NOT in serialForm — never encoded.
+     * NOT in serialForm -- never encoded.
      */
     final String betaOnlySeenByAlpha;
 
@@ -82,11 +82,11 @@ public class Alpha {
     }
 
     // -------------------------------------------------------------------------
-    // @AtomicSerial constructor — check FIRST, then assign fields
+    // @AtomicSerial constructor -- check FIRST, then assign fields
     // -------------------------------------------------------------------------
 
     /**
-     * Deserialization constructor — called directly when Alpha is the leaf, or via
+     * Deserialization constructor -- called directly when Alpha is the leaf, or via
      * {@code super(check(arg))} when Beta/Gamma is the leaf.
      *
      * <p>The {@code arg.get("betaOnly", "ALPHA_DEFAULT")} call below is the
@@ -96,9 +96,9 @@ public class Alpha {
      * so the default {@code "ALPHA_DEFAULT"} is returned.
      */
     public Alpha(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-        // check runs first — validates Alpha's own fields; stack frame is Alpha.check
+        // check runs first -- validates Alpha's own fields; stack frame is Alpha.check
         check(arg);
-        // Assign Alpha's own fields — stack frame is Alpha.<init>
+        // Assign Alpha's own fields -- stack frame is Alpha.<init>
         this.x          = arg.get("x", 0);
         this.alphaLabel = (String) arg.get("alphaLabel", null);
         // Namespace-isolation probe: attempt to read a Beta-only field from Alpha's frame.
@@ -133,7 +133,7 @@ public class Alpha {
     public String getBetaOnlySeenByAlpha() { return betaOnlySeenByAlpha; }
 
     // -------------------------------------------------------------------------
-    // equals / hashCode — serial fields only (not transient betaOnlySeenByAlpha)
+    // equals / hashCode -- serial fields only (not transient betaOnlySeenByAlpha)
     // -------------------------------------------------------------------------
 
     @Override

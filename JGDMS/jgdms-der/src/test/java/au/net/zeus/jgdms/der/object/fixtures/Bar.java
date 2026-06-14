@@ -18,14 +18,14 @@
 package au.net.zeus.jgdms.der.object.fixtures;
 
 /**
- * Phase 4.4 fixture — a plain (non-{@code @AtomicSerial}) subclass of {@link Foo}.
+ * Phase 4.4 fixture -- a plain (non-{@code @AtomicSerial}) subclass of {@link Foo}.
  *
- * <p>Per §3.10 (first rule): {@code Bar}'s state is dropped on serialisation.
+ * <p>Per S3.10 (first rule): {@code Bar}'s state is dropped on serialisation.
  * The wire carries only {@link Foo}'s SEQUENCE; deserialisation produces a {@code Foo},
  * not a {@code Bar}. {@code Bar} does not exist in the deserialised form.
  *
  * <p>The extra field {@code barOnly} is intentionally NOT preserved across a
- * round-trip — it exists solely to prove that it is indeed dropped.
+ * round-trip -- it exists solely to prove that it is indeed dropped.
  */
 public class Bar extends Foo {
 

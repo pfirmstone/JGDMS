@@ -31,7 +31,7 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for {@link AtomicSerialFieldDef} — Phase 2 Task 2.1.
+ * Tests for {@link AtomicSerialFieldDef} -- Phase 2 Task 2.1.
  *
  * Covers:
  * <ul>
@@ -104,7 +104,7 @@ class AtomicSerialFieldDefTest {
 
     @Test
     void construction_wireNameTooLong_throws() {
-        // 256 ASCII bytes → over SIZE(255) limit
+        // 256 ASCII bytes -> over SIZE(255) limit
         String tooLong = "a".repeat(256);
         assertThrows(IllegalArgumentException.class,
                 () -> new AtomicSerialFieldDef(tooLong, "int"));
@@ -112,7 +112,7 @@ class AtomicSerialFieldDefTest {
 
     @Test
     void construction_wireTypeTooLong_throws() {
-        // 1025 ASCII bytes → over SIZE(1024) limit
+        // 1025 ASCII bytes -> over SIZE(1024) limit
         String tooLong = "a".repeat(1025);
         assertThrows(IllegalArgumentException.class,
                 () -> new AtomicSerialFieldDef("field", tooLong));

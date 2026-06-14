@@ -32,16 +32,16 @@ import java.util.List;
  *
  * <h3>Canonical (DER) guarantees provided</h3>
  * <ul>
- *   <li><b>INTEGER</b> — {@link BigInteger#toByteArray()} produces the
+ *   <li><b>INTEGER</b> -- {@link BigInteger#toByteArray()} produces the
  *       minimal two's-complement big-endian encoding; no further compression
  *       is needed.</li>
- *   <li><b>BOOLEAN</b> — {@code false} encodes as {@code 0x00},
+ *   <li><b>BOOLEAN</b> -- {@code false} encodes as {@code 0x00},
  *       {@code true} as {@code 0xFF} (DER requires exactly these two values,
  *       not arbitrary non-zero).</li>
- *   <li><b>Length</b> — short form for 0–127; long form with the minimal
- *       number of length octets for ≥ 128.</li>
- *   <li><b>SEQUENCE</b> — the constructed, ordered concatenation of child
- *       TLVs; order is the caller's responsibility (§3.8).</li>
+ *   <li><b>Length</b> -- short form for 0-127; long form with the minimal
+ *       number of length octets for >= 128.</li>
+ *   <li><b>SEQUENCE</b> -- the constructed, ordered concatenation of child
+ *       TLVs; order is the caller's responsibility (S3.8).</li>
  * </ul>
  *
  * <p>All methods are thread-safe (no mutable state).
@@ -59,7 +59,7 @@ public final class DerWriter {
     /**
      * Encodes a {@code boolean} as UNIVERSAL PRIMITIVE BOOLEAN (tag {@code 0x01}).
      * <p>
-     * DER encoding: content is exactly one octet — {@code 0x00} for
+     * DER encoding: content is exactly one octet -- {@code 0x00} for
      * {@code false}, {@code 0xFF} for {@code true}.
      *
      * @param value the value to encode
@@ -138,7 +138,7 @@ public final class DerWriter {
      * <p>
      * The children must already be fully encoded (each a complete TLV); they
      * are concatenated in the supplied order, preserving the caller's ordering
-     * (§3.8).
+     * (S3.8).
      *
      * @param encodedChildren concatenation of pre-encoded child TLVs
      *                        (may be empty for a zero-length SEQUENCE)
@@ -214,15 +214,15 @@ public final class DerWriter {
 
     /**
      * Encodes a non-negative length value as DER definite-form length octets
-     * (X.690 §8.1.3).
+     * (X.690 S8.1.3).
      * <ul>
-     *   <li>0–127: short form — a single octet with bit 8 cleared.</li>
-     *   <li>128–{@code Integer.MAX_VALUE}: long form — first octet is
+     *   <li>0-127: short form -- a single octet with bit 8 cleared.</li>
+     *   <li>128-{@code Integer.MAX_VALUE}: long form -- first octet is
      *       {@code 0x80 | n} where {@code n} is the number of following
      *       big-endian length octets; uses the minimal {@code n}.</li>
      * </ul>
      *
-     * @param length the length to encode (must be ≥ 0)
+     * @param length the length to encode (must be >= 0)
      * @return the encoded length octets
      * @throws IllegalArgumentException if {@code length} is negative
      */

@@ -20,16 +20,16 @@ package au.net.zeus.jgdms.der.object.fixtures;
 import java.util.Objects;
 
 /**
- * Phase 4.4 fixture — a plain (non-{@code @AtomicSerial}) superclass.
+ * Phase 4.4 fixture -- a plain (non-{@code @AtomicSerial}) superclass.
  *
- * <p>Per §3.10 (second rule): {@code PlainSuper} has no {@code serialForm()},
+ * <p>Per S3.10 (second rule): {@code PlainSuper} has no {@code serialForm()},
  * no {@code (GetArg)} constructor, and no wire presence of its own. Its
  * subclass {@link Sub} (which IS {@code @AtomicSerial}) is responsible for
  * preserving any state from {@code PlainSuper} it wishes to survive a
  * round-trip, in {@code Sub}'s own namespace.
  *
  * <p>{@code PlainSuper} has a single field {@code legacyName} passed via a
- * normal constructor — representing state that predates the {@code @AtomicSerial}
+ * normal constructor -- representing state that predates the {@code @AtomicSerial}
  * protocol.
  */
 public class PlainSuper {
@@ -38,7 +38,7 @@ public class PlainSuper {
     final String legacyName;
 
     // -------------------------------------------------------------------------
-    // Normal constructor — no GetArg, no serialForm
+    // Normal constructor -- no GetArg, no serialForm
     // -------------------------------------------------------------------------
 
     public PlainSuper(String legacyName) {

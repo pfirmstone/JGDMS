@@ -24,24 +24,24 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 4.3 fixture — leaf class in the three-level hierarchy
+ * Phase 4.3 fixture -- leaf class in the three-level hierarchy
  * ({@code Gamma extends Beta extends Alpha}, all {@code @AtomicSerial}).
  *
  * <p>Gamma owns a private SEQUENCE containing:
  * <ul>
- *   <li>{@code gammaValue} (long) — Gamma-exclusive numeric field.</li>
- *   <li>{@code gammaTag}   (String) — Gamma-exclusive tag string.</li>
+ *   <li>{@code gammaValue} (long) -- Gamma-exclusive numeric field.</li>
+ *   <li>{@code gammaTag}   (String) -- Gamma-exclusive tag string.</li>
  * </ul>
  *
  * <h2>Constructor chain</h2>
  * <pre>
  *   Gamma(GetArg arg)
- *     → super(check(arg))              (Beta.check from Beta's frame)
- *       → Beta(GetArg)
- *         → super(check(arg))          (Alpha.check from Alpha.check's frame)
- *           → Alpha(GetArg) reads Alpha's fields
- *         → Beta reads Beta's fields
- *     → Gamma reads Gamma's fields
+ *     -> super(check(arg))              (Beta.check from Beta's frame)
+ *       -> Beta(GetArg)
+ *         -> super(check(arg))          (Alpha.check from Alpha.check's frame)
+ *           -> Alpha(GetArg) reads Alpha's fields
+ *         -> Beta reads Beta's fields
+ *     -> Gamma reads Gamma's fields
  * </pre>
  *
  * <p>The same {@code arg} reference travels the entire chain. StackWalker
@@ -52,7 +52,7 @@ import java.util.Objects;
 public final class Gamma extends Beta {
 
     // -------------------------------------------------------------------------
-    // Serial form — Gamma's OWN fields only
+    // Serial form -- Gamma's OWN fields only
     // -------------------------------------------------------------------------
 
     public static AtomicSerial.SerialForm[] serialForm() {
@@ -106,7 +106,7 @@ public final class Gamma extends Beta {
 
     public static AtomicSerial.GetArg check(AtomicSerial.GetArg arg)
             throws IOException, ClassNotFoundException {
-        // gammaTag must not be null — validates from Gamma's frame → Gamma's store.
+        // gammaTag must not be null -- validates from Gamma's frame -> Gamma's store.
         String tag = (String) arg.get("gammaTag", null);
         if (tag == null) {
             throw new InvalidObjectException("Gamma: gammaTag must not be null");

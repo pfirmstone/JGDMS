@@ -34,7 +34,7 @@ import java.util.Optional;
 
 /**
  * Immutable container for a serialised {@code @AtomicSerial} object, per
- * JGDMS-STD-006 §7.8.
+ * JGDMS-STD-006 S7.8.
  *
  * <pre>
  * MarshalledInstanceRecord ::= SEQUENCE {
@@ -46,18 +46,18 @@ import java.util.Optional;
  * }
  * </pre>
  *
- * <h2>codebaseAnnotation OPTIONAL — positional disambiguation</h2>
+ * <h2>codebaseAnnotation OPTIONAL -- positional disambiguation</h2>
  * <p>
  * Both {@code codebaseAnnotation} and {@code payloadFormat} are UTF8String, so they
  * cannot be told apart by tag alone. The decoder uses a <b>field-count rule</b>:
  * after reading {@code schemaDigest}, count the remaining UTF8String TLVs:
  * <ul>
- *   <li>Two UTF8Strings remain → the first is {@code codebaseAnnotation},
+ *   <li>Two UTF8Strings remain -> the first is {@code codebaseAnnotation},
  *       the second is {@code payloadFormat}.</li>
- *   <li>One UTF8String remains → {@code codebaseAnnotation} is absent; that
+ *   <li>One UTF8String remains -> {@code codebaseAnnotation} is absent; that
  *       single value is {@code payloadFormat}.</li>
  * </ul>
- * This rule is safe because §7.8 requires {@code payloadFormat} to always be present
+ * This rule is safe because S7.8 requires {@code payloadFormat} to always be present
  * and {@code codebaseAnnotation} to always precede it when present. No other
  * UTF8Strings appear in the outer SEQUENCE.
  *
@@ -131,7 +131,7 @@ public final class MarshalledInstanceRecord {
      *
      * <p>
      * {@code schemaBytes} is set to the concatenation of each chain record's
-     * {@code encode()} in leaf-first order (matching §7.8 "Schema chain encoding").
+     * {@code encode()} in leaf-first order (matching S7.8 "Schema chain encoding").
      * {@code schemaDigest} is taken directly from {@link SchemaChain.Result#leafDigest()}.
      * {@code payloadFormat} is set to {@value #PAYLOAD_FORMAT}.
      * {@code codebaseAnnotation} is absent.
@@ -187,7 +187,7 @@ public final class MarshalledInstanceRecord {
     }
 
     // =========================================================================
-    // Accessors — all return defensive copies of mutable state
+    // Accessors -- all return defensive copies of mutable state
     // =========================================================================
 
     /** Returns a defensive copy of the DER-encoded object payload. */
@@ -260,18 +260,18 @@ public final class MarshalledInstanceRecord {
     /**
      * Decodes a {@code MarshalledInstanceRecord} from a raw DER byte array.
      *
-     * <h2>codebaseAnnotation OPTIONAL — positional rule</h2>
+     * <h2>codebaseAnnotation OPTIONAL -- positional rule</h2>
      * <p>
      * After reading {@code schemaDigest}, the decoder counts the number of
      * UTF8String TLVs remaining in the outer SEQUENCE:
      * <ul>
-     *   <li><b>Two UTF8Strings</b> → first is {@code codebaseAnnotation},
+     *   <li><b>Two UTF8Strings</b> -> first is {@code codebaseAnnotation},
      *       second is {@code payloadFormat}.</li>
-     *   <li><b>One UTF8String</b> → {@code codebaseAnnotation} is absent, the
+     *   <li><b>One UTF8String</b> -> {@code codebaseAnnotation} is absent, the
      *       single value is {@code payloadFormat}.</li>
      * </ul>
-     * This is unambiguous because §7.8 requires exactly these two optional/required
-     * UTF8String fields at the end of the SEQUENCE, and both are UTF8String — so
+     * This is unambiguous because S7.8 requires exactly these two optional/required
+     * UTF8String fields at the end of the SEQUENCE, and both are UTF8String -- so
      * tag-based disambiguation is impossible and positional counting is used instead.
      *
      * @param der the DER encoding (a complete SEQUENCE TLV)
@@ -299,13 +299,13 @@ public final class MarshalledInstanceRecord {
     public static MarshalledInstanceRecord decode(DerReader reader) throws DerException {
         DerReader seq = reader.readSequence();
 
-        // 1. payloadBytes — OCTET STRING
+        // 1. payloadBytes -- OCTET STRING
         byte[] payloadBytes = seq.readOctetString();
 
-        // 2. schemaBytes — OCTET STRING
+        // 2. schemaBytes -- OCTET STRING
         byte[] schemaBytes = seq.readOctetString();
 
-        // 3. schemaDigest — OCTET STRING (SIZE(32))
+        // 3. schemaDigest -- OCTET STRING (SIZE(32))
         byte[] schemaDigest = seq.readOctetString();
         if (schemaDigest.length != DIGEST_LENGTH) {
             throw new DerException(
@@ -315,11 +315,11 @@ public final class MarshalledInstanceRecord {
 
         // 4/5. codebaseAnnotation (OPTIONAL UTF8String) and payloadFormat (UTF8String).
         //
-        // Positional disambiguation rule (§7.8 implementation note):
-        // Both fields are UTF8String — their tags are identical. We cannot use tag-peeking
+        // Positional disambiguation rule (S7.8 implementation note):
+        // Both fields are UTF8String -- their tags are identical. We cannot use tag-peeking
         // alone. Instead, we check how many UTF8Strings remain in the bounded sub-reader:
-        //   - Two remaining → first is codebaseAnnotation, second is payloadFormat.
-        //   - One remaining → codebaseAnnotation is absent, that one is payloadFormat.
+        //   - Two remaining -> first is codebaseAnnotation, second is payloadFormat.
+        //   - One remaining -> codebaseAnnotation is absent, that one is payloadFormat.
         //
         // We peek at the end position of each TLV (without consuming) to count them.
         Optional<String> codebaseAnnotation;
@@ -401,14 +401,14 @@ public final class MarshalledInstanceRecord {
             if (childParentHash == null) {
                 throw new DerException(
                         "MarshalledInstanceRecord: schema chain broken at index " + i
-                        + " — record for '" + child.className()
+                        + " -- record for '" + child.className()
                         + "' has no parentSchemaHash but is not the last record in the chain");
             }
             byte[] parentDigest = parent.schemaDigest();
             if (!Arrays.equals(childParentHash, parentDigest)) {
                 throw new DerException(
                         "MarshalledInstanceRecord: schema chain cross-check failed at index " + i
-                        + " — record[" + i + "].parentSchemaHash does not match "
+                        + " -- record[" + i + "].parentSchemaHash does not match "
                         + "record[" + (i + 1) + "].schemaDigest() for class '"
                         + parent.className() + "'");
             }
@@ -424,9 +424,9 @@ public final class MarshalledInstanceRecord {
      *
      * <p>The returned result has:
      * <ul>
-     *   <li>{@link SchemaChain.Result#chain()} — the leaf-first list from
+     *   <li>{@link SchemaChain.Result#chain()} -- the leaf-first list from
      *       {@link #decodeSchemaChain()}</li>
-     *   <li>{@link SchemaChain.Result#leafDigest()} — the first record's
+     *   <li>{@link SchemaChain.Result#leafDigest()} -- the first record's
      *       {@code schemaDigest()}, which must equal this record's
      *       {@link #schemaDigest()} field</li>
      * </ul>

@@ -33,29 +33,29 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for {@link AtomicSerialSchemaRecord} and {@link SchemaChain} — Phase 2 Tasks 2.1 and 2.2.
+ * Tests for {@link AtomicSerialSchemaRecord} and {@link SchemaChain} -- Phase 2 Tasks 2.1 and 2.2.
  *
  * <h3>Task 2.1 coverage</h3>
  * <ul>
  *   <li>2.1-a  Round-trip without parentSchemaHash (root / Object parent).</li>
  *   <li>2.1-b  Round-trip with parentSchemaHash PRESENT (32-byte hash).</li>
  *   <li>2.1-c  Structural difference: present vs absent encodings differ; both decode back equal.</li>
- *   <li>2.1-d  Field order preserved exactly — §3.9 positional significance.</li>
+ *   <li>2.1-d  Field order preserved exactly -- S3.9 positional significance.</li>
  *   <li>2.1-e  jqwik property: random valid records round-trip.</li>
- *   <li>2.1-f  Fail-secure: 31-byte parentSchemaHash → DerException on decode.</li>
- *   <li>2.1-g  Fail-secure: 33-byte parentSchemaHash → DerException on decode.</li>
- *   <li>2.1-h  Fail-secure: empty className → DerException on decode.</li>
+ *   <li>2.1-f  Fail-secure: 31-byte parentSchemaHash -> DerException on decode.</li>
+ *   <li>2.1-g  Fail-secure: 33-byte parentSchemaHash -> DerException on decode.</li>
+ *   <li>2.1-h  Fail-secure: empty className -> DerException on decode.</li>
  * </ul>
  *
  * <h3>Task 2.2 coverage</h3>
  * <ul>
- *   <li>2.2-a  Identical records → identical digests AND byte-identical DER.</li>
+ *   <li>2.2-a  Identical records -> identical digests AND byte-identical DER.</li>
  *   <li>2.2-b  Changing field name changes digest.</li>
  *   <li>2.2-c  Changing field type changes digest.</li>
- *   <li>2.2-d  Changing field ORDER changes digest (positional, §3.9).</li>
+ *   <li>2.2-d  Changing field ORDER changes digest (positional, S3.9).</li>
  *   <li>2.2-e  Changing className changes digest.</li>
  *   <li>2.2-f  Changing parentSchemaHash changes digest.</li>
- *   <li>2.2-g  Merkle chain: 3-level chain leaf→mid→root; leaf digest changes when root changes.</li>
+ *   <li>2.2-g  Merkle chain: 3-level chain leaf->mid->root; leaf digest changes when root changes.</li>
  *   <li>2.2-h  Root (no parent) digest is stable.</li>
  *   <li>2.2-i  Digest stability: re-encoding many times yields identical bytes; two equal records
  *              yield identical digests (no HashMap iteration).</li>
@@ -64,7 +64,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class AtomicSerialSchemaRecordTest {
 
     // ====================================================================
-    // Task 2.1 — Round-trip tests
+    // Task 2.1 -- Round-trip tests
     // ====================================================================
 
     // ----------------------------------------------------------------
@@ -146,7 +146,7 @@ class AtomicSerialSchemaRecordTest {
     }
 
     // ----------------------------------------------------------------
-    // 2.1-d  Field ORDER preserved exactly (§3.9 positional significance)
+    // 2.1-d  Field ORDER preserved exactly (S3.9 positional significance)
     //
     // Build a record whose fields would reorder under alphabetical sorting;
     // round-trip; assert identical order.
@@ -221,7 +221,7 @@ class AtomicSerialSchemaRecordTest {
     }
 
     // ----------------------------------------------------------------
-    // 2.1-h  Fail-secure: empty className → DerException on decode
+    // 2.1-h  Fail-secure: empty className -> DerException on decode
     // ----------------------------------------------------------------
 
     @Test
@@ -234,11 +234,11 @@ class AtomicSerialSchemaRecordTest {
     }
 
     // ====================================================================
-    // Task 2.2 — Digest / determinism / Merkle chain tests
+    // Task 2.2 -- Digest / determinism / Merkle chain tests
     // ====================================================================
 
     // ----------------------------------------------------------------
-    // 2.2-a  Identical records → identical digests AND byte-identical DER
+    // 2.2-a  Identical records -> identical digests AND byte-identical DER
     // ----------------------------------------------------------------
 
     @Test
@@ -287,7 +287,7 @@ class AtomicSerialSchemaRecordTest {
     }
 
     // ----------------------------------------------------------------
-    // 2.2-d  Changing field ORDER changes digest (§3.9 positional significance)
+    // 2.2-d  Changing field ORDER changes digest (S3.9 positional significance)
     // ----------------------------------------------------------------
 
     @Test
@@ -354,7 +354,7 @@ class AtomicSerialSchemaRecordTest {
                 "com.example.Leaf",
                 List.of(new AtomicSerialFieldDef("leafField", "java.lang.String")));
 
-        // Link chain 1: leaf → mid → root
+        // Link chain 1: leaf -> mid -> root
         SchemaChain.Result chain1 = SchemaChain.linkAndGetLeafDigest(List.of(leaf, mid, root));
         byte[] leafDigest1 = chain1.leafDigest();
 
@@ -388,7 +388,7 @@ class AtomicSerialSchemaRecordTest {
     }
 
     // ----------------------------------------------------------------
-    // 2.2-i  Digest stability: re-encoding / two equal records → identical
+    // 2.2-i  Digest stability: re-encoding / two equal records -> identical
     //         32-byte digest (no HashMap iteration in the path)
     // ----------------------------------------------------------------
 

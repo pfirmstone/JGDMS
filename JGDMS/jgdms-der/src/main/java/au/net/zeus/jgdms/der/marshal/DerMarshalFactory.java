@@ -35,15 +35,15 @@ import java.util.Collection;
  *
  * <h2>Unused parameters</h2>
  * <ul>
- *   <li>{@code locOut} / {@code locIn} — ignored: DER has no codebase annotations
- *       (STD-006 §8). The embedded schema provides data-independence.</li>
- *   <li>{@code defaultLoader}, {@code verifyCodebaseIntegrity}, {@code verifierLoader} —
+ *   <li>{@code locOut} / {@code locIn} -- ignored: DER has no codebase annotations
+ *       (STD-006 S8). The embedded schema provides data-independence.</li>
+ *   <li>{@code defaultLoader}, {@code verifyCodebaseIntegrity}, {@code verifierLoader} --
  *       ignored: DER carries the schema, not codebase URLs; class loading is implicit
  *       (the receiver's own classloader resolves classes by name from the embedded
  *       schema chain).</li>
  * </ul>
  *
- * <h2>STD-008 §13.6 "Option A" — non-invasive spike</h2>
+ * <h2>STD-008 S13.6 "Option A" -- non-invasive spike</h2>
  * <p>
  * No platform files are modified. {@link DerMarshalledInstance} passes
  * {@code new DerMarshalFactory()} to the protected 3-arg

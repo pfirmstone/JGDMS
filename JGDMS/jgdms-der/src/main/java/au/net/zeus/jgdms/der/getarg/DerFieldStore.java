@@ -31,26 +31,26 @@ import java.util.Set;
 
 /**
  * Complete field store for one {@code @AtomicSerial} class's private SEQUENCE,
- * per JGDMS-STD-006 §3.9 and §11.8 (Phase 3).
+ * per JGDMS-STD-006 S3.9 and S11.8 (Phase 3).
  *
  * <h2>Design contract</h2>
  *
  * <p>A {@code DerFieldStore} is constructed from:
  * <ol>
  *   <li>An explicit {@link AtomicSerialSchemaRecord} describing one class's
- *       namespace (the at-marshal-time schema; always the schema passed in — never
+ *       namespace (the at-marshal-time schema; always the schema passed in -- never
  *       any ambient or global schema).</li>
  *   <li>The DER bytes (or a {@link DerReader} positioned at) the outer SEQUENCE
  *       TLV for that class's private namespace.</li>
  * </ol>
  *
  * <p>On construction the store decodes <em>every</em> field into an ordered
- * {@code name → value} map before any {@code get()} is called. {@code get()} is
+ * {@code name -> value} map before any {@code get()} is called. {@code get()} is
  * therefore a pure <em>selection</em> operation over an already-populated map;
  * it never triggers decoding. This is the complete-field-store / get-is-selection
- * semantics required by §3.9.
+ * semantics required by S3.9.
  *
- * <h2>Three decoding cases (§3.9)</h2>
+ * <h2>Three decoding cases (S3.9)</h2>
  *
  * <p>Field-to-TLV matching is positional: {@code schema.fields().get(i)} maps to
  * the i-th child TLV in the payload SEQUENCE. Three runtime outcomes are possible:
@@ -61,14 +61,14 @@ import java.util.Set;
  *   fields. Every schema field is decoded and stored. No bytes are discarded.
  *   {@link #trailingFieldsDiscarded()} returns 0; all fields are present.</dd>
  *
- *   <dt><b>(b) Payload shorter than schema (forward compatibility — old data, new schema)</b></dt>
+ *   <dt><b>(b) Payload shorter than schema (forward compatibility -- old data, new schema)</b></dt>
  *   <dd>The payload SEQUENCE boundary is reached before the schema field list is
  *   exhausted. Fields already decoded are stored; remaining schema fields are
  *   <em>absent</em> from the store. {@code get(name, default)} returns
  *   {@code default} for absent fields; {@link #defaulted(String)} returns
  *   {@code true}.</dd>
  *
- *   <dt><b>(c) Payload longer than schema (backward compatibility — new data, old schema)</b></dt>
+ *   <dt><b>(c) Payload longer than schema (backward compatibility -- new data, old schema)</b></dt>
  *   <dd>The schema field list is exhausted before the payload SEQUENCE boundary.
  *   The known fields are decoded positionally. The trailing extra TLVs are
  *   read-and-discarded using {@link DerReader#readTlvHeader()} +
@@ -77,9 +77,9 @@ import java.util.Set;
  * </dl>
  *
  * <p>Cases (b) and (c) are expected operational modes, not errors. The model is
- * <em>symmetric</em> (§11.8): absent → default; extra → read-and-discarded.
+ * <em>symmetric</em> (S11.8): absent -> default; extra -> read-and-discarded.
  *
- * <h2>Namespace invariant (§3.9, §3.10)</h2>
+ * <h2>Namespace invariant (S3.9, S3.10)</h2>
  *
  * <p>Each {@code @AtomicSerial} class owns one private SEQUENCE. A single
  * {@code DerFieldStore} instance covers exactly one class's namespace (one
@@ -87,13 +87,13 @@ import java.util.Set;
  * a field {@code "x"} in one class is entirely independent of a field {@code "x"}
  * in another class.
  *
- * <h2>Lifetime and GC semantics (§3.9, §11.8)</h2>
+ * <h2>Lifetime and GC semantics (S3.9, S11.8)</h2>
  *
  * <p>Every decoded value lives in the store's map until the store is
  * dereferenced. A field decoded but never requested via {@code get()} stays in
- * the map — it is NOT removed on access — and becomes GC-eligible only when the
+ * the map -- it is NOT removed on access -- and becomes GC-eligible only when the
  * entire store goes out of scope. This matches the GetArg lifetime boundary
- * described in §3.9: "the construction chain is the lifetime boundary for all
+ * described in S3.9: "the construction chain is the lifetime boundary for all
  * decoded field values."
  *
  * <h2>Delegation target for real GetArg</h2>
@@ -116,7 +116,7 @@ public final class DerFieldStore {
     private final AtomicSerialSchemaRecord schema;
 
     /**
-     * Ordered map from field name → decoded value (or {@link #ABSENT}).
+     * Ordered map from field name -> decoded value (or {@link #ABSENT}).
      * <p>
      * The insertion order matches the schema field list. All schema field names
      * are present as keys; the value is either the decoded Java object or
@@ -209,12 +209,12 @@ public final class DerFieldStore {
     /**
      * Decodes all fields from the SEQUENCE content reader into an ordered map.
      *
-     * <p>Implements the three-case logic from §3.9:
+     * <p>Implements the three-case logic from S3.9:
      * <ul>
-     *   <li>(a) Exact match — all schema fields present in payload.</li>
-     *   <li>(b) Payload shorter — schema fields exhausted before payload;
+     *   <li>(a) Exact match -- all schema fields present in payload.</li>
+     *   <li>(b) Payload shorter -- schema fields exhausted before payload;
      *       remaining schema fields stored as {@link #ABSENT}.</li>
-     *   <li>(c) Payload longer — payload TLVs remaining after schema exhausted;
+     *   <li>(c) Payload longer -- payload TLVs remaining after schema exhausted;
      *       read-and-discard each extra TLV.</li>
      * </ul>
      *
@@ -238,14 +238,14 @@ public final class DerFieldStore {
             schemaIdx++;
         }
 
-        // Phase 2: case (b) — schema has more fields than payload
+        // Phase 2: case (b) -- schema has more fields than payload
         // Mark remaining schema fields as absent (no TLV in payload).
         while (schemaIdx < fieldDefs.size()) {
             map.put(fieldDefs.get(schemaIdx).wireName(), ABSENT);
             schemaIdx++;
         }
 
-        // Phase 3: case (c) — payload has more TLVs than schema
+        // Phase 3: case (c) -- payload has more TLVs than schema
         // Read-and-discard each extra TLV up to the SEQUENCE boundary.
         int discarded = 0;
         while (seq.hasMore()) {
@@ -258,7 +258,7 @@ public final class DerFieldStore {
     }
 
     // =========================================================================
-    // Object get — primary API (designed for delegation from real GetArg)
+    // Object get -- primary API (designed for delegation from real GetArg)
     // =========================================================================
 
     /**
@@ -280,7 +280,7 @@ public final class DerFieldStore {
         Objects.requireNonNull(name, "name");
         Object v = fields.get(name);
         if (v == null) {
-            // Name not in schema at all — treat as absent (defensive)
+            // Name not in schema at all -- treat as absent (defensive)
             return defaultValue;
         }
         return v == ABSENT ? defaultValue : v;
@@ -365,7 +365,7 @@ public final class DerFieldStore {
     // =========================================================================
 
     /**
-     * Returns {@code true} if the named field is absent from the store — i.e.
+     * Returns {@code true} if the named field is absent from the store -- i.e.
      * the payload did not supply a TLV for this field (case (b)) or the field is
      * not defined in the schema at all. Mirrors {@code ObjectInputStream.GetField.defaulted()}.
      *
@@ -426,7 +426,7 @@ public final class DerFieldStore {
      * were read-and-discarded because the schema had no corresponding field
      * (case (c)). Zero for cases (a) and (b).
      *
-     * @return count of discarded trailing TLVs (≥ 0)
+     * @return count of discarded trailing TLVs (>= 0)
      */
     public int trailingFieldsDiscarded() {
         return trailingDiscarded;

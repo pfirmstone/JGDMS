@@ -24,36 +24,36 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 4.3 fixture — middle class in the three-level hierarchy
+ * Phase 4.3 fixture -- middle class in the three-level hierarchy
  * ({@code Beta extends Alpha}, both {@code @AtomicSerial}).
  *
  * <p>Beta owns its private SEQUENCE containing:
  * <ul>
- *   <li>{@code x} (int) — deliberately shares the name with {@link Alpha#x} to
+ *   <li>{@code x} (int) -- deliberately shares the name with {@link Alpha#x} to
  *       exercise namespace isolation: the two {@code "x"} fields are in entirely
  *       separate SEQUENCEs with independent values.</li>
- *   <li>{@code betaOnly} (String) — a Beta-exclusive field that Alpha must never
+ *   <li>{@code betaOnly} (String) -- a Beta-exclusive field that Alpha must never
  *       see through its own {@link au.net.zeus.jgdms.der.getarg.DerFieldStore}.</li>
  * </ul>
  *
  * <h2>Constructor chain</h2>
  * <pre>
- *   Beta(GetArg arg) → super(check(arg))      (passes same arg to Alpha)
- *                    → Alpha(arg) reads Alpha's fields from Alpha's store
+ *   Beta(GetArg arg) -> super(check(arg))      (passes same arg to Alpha)
+ *                    -> Alpha(arg) reads Alpha's fields from Alpha's store
  *   Beta(arg) then reads Beta's fields from Beta's store
  * </pre>
  *
  * <p>The same {@code arg} object is shared up the constructor chain. StackWalker
  * dispatch ensures that {@code arg.get(...)} inside Alpha's constructor resolves
  * to Alpha's DerFieldStore, and {@code arg.get(...)} inside Beta's constructor
- * resolves to Beta's DerFieldStore — even though both use the same {@code arg}
+ * resolves to Beta's DerFieldStore -- even though both use the same {@code arg}
  * reference.
  */
 @AtomicSerial
 public class Beta extends Alpha {
 
     // -------------------------------------------------------------------------
-    // Serial form — Beta's OWN fields only
+    // Serial form -- Beta's OWN fields only
     // -------------------------------------------------------------------------
 
     public static AtomicSerial.SerialForm[] serialForm() {
@@ -89,16 +89,16 @@ public class Beta extends Alpha {
      * Deserialization constructor.
      *
      * <p>{@code super(check(arg))} evaluates {@code Beta.check(arg)} first (from
-     * Beta's stack frame → Beta's DerFieldStore), then calls
+     * Beta's stack frame -> Beta's DerFieldStore), then calls
      * {@code Alpha(AtomicSerial.GetArg)} with the SAME {@code arg}. Inside
-     * {@code Alpha.<init>}, StackWalker finds Alpha on the stack → Alpha's store.
+     * {@code Alpha.<init>}, StackWalker finds Alpha on the stack -> Alpha's store.
      *
      * <p>After super() returns, Beta assigns its own fields. {@code arg.get("x", 0)}
      * here resolves to Beta's store (Beta is the first registered class on the
      * current stack), returning Beta's {@code x}, not Alpha's.
      */
     public Beta(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-        // Beta.check(arg) runs from Beta's frame → validates Beta's fields.
+        // Beta.check(arg) runs from Beta's frame -> validates Beta's fields.
         // Then Alpha(arg) is invoked with the same arg; Alpha reads its own store.
         super(check(arg));
         // Now assign Beta's own fields. StackWalker resolves to Beta's DerFieldStore.

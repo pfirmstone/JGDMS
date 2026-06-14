@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * Phase 5.2 test fixture — an {@code @AtomicSerial} class whose current
+ * Phase 5.2 test fixture -- an {@code @AtomicSerial} class whose current
  * {@code serialForm()} declares THREE fields ({@code id}, {@code label},
  * {@code extra}).
  *
@@ -32,13 +32,13 @@ import java.util.Objects;
  * This class always has three fields in its current {@code serialForm()}.
  * To simulate receiver/sender divergence the tests hand-build:
  * <ul>
- *   <li><b>Case (c) "receiver newer"</b> — an embedded schema with FEWER fields
+ *   <li><b>Case (c) "receiver newer"</b> -- an embedded schema with FEWER fields
  *       ({@code id} and {@code label} only, no {@code extra}). The payload matches
  *       the two-field schema. When decoded against this class, {@code extra} is absent
  *       from the store, so {@code arg.get("extra", "DEFAULT_EXTRA")} returns the
  *       default. The round-trip succeeds; the default value proves the code took the
  *       forward-compatibility path.</li>
- *   <li><b>Case (b) "sender newer"</b> — an embedded schema with MORE fields
+ *   <li><b>Case (b) "sender newer"</b> -- an embedded schema with MORE fields
  *       ({@code id}, {@code label}, {@code extra}, and a fourth {@code bonus} field).
  *       The payload encodes all four fields. When decoded against this class, the
  *       constructor only requests three fields; {@code bonus} sits in the store
@@ -75,7 +75,7 @@ public final class VersionedRecord {
 
     private final int    id;
     private final String label;
-    private final String extra;   // absent in "old schema" → defaults to "DEFAULT_EXTRA"
+    private final String extra;   // absent in "old schema" -> defaults to "DEFAULT_EXTRA"
 
     // -------------------------------------------------------------------------
     // Value constructor
@@ -88,7 +88,7 @@ public final class VersionedRecord {
     }
 
     // -------------------------------------------------------------------------
-    // @AtomicSerial constructor — check FIRST, then assign
+    // @AtomicSerial constructor -- check FIRST, then assign
     // -------------------------------------------------------------------------
 
     /**
@@ -99,7 +99,7 @@ public final class VersionedRecord {
      *   <li>{@code label} is validated non-null by {@code check}.</li>
      *   <li>{@code extra} defaults to {@code "DEFAULT_EXTRA"} when absent from
      *       the store (i.e. when the embedded schema is older and did not include
-     *       this field — case (c)).</li>
+     *       this field -- case (c)).</li>
      * </ul>
      */
     public VersionedRecord(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {

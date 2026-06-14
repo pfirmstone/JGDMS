@@ -25,7 +25,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Advertises a service's current schema via the DER codec (JGDMS-STD-006 §12.3).
+ * Advertises a service's current schema via the DER codec (JGDMS-STD-006 S12.3).
  *
  * <p>In the full Jini integration (JGDMS-STD-005) this class would be a
  * {@code @SerialEntry} (an {@code Entry} in the service's attribute set). Here
@@ -34,7 +34,7 @@ import java.util.Objects;
  * without any Java-serialization dependency. The STD-005 {@code @SerialEntry} /
  * {@code Entry} integration is a follow-up task.
  *
- * <h2>Field type constraint (§12.1)</h2>
+ * <h2>Field type constraint (S12.1)</h2>
  * All fields are {@code primitive}, {@link String}, or {@code byte[]}. No
  * service-specific objects may appear. This constraint is enforced structurally
  * by the field declarations below and is verified in the unit tests (Task 7.1a).
@@ -60,7 +60,7 @@ public final class ServiceSchemaEntry {
     public static final String FORMAT_JGDMS_STD006_DER = "JGDMS-STD-006/DER";
 
     // -------------------------------------------------------------------------
-    // Serial form — ALL fields are primitive, String, or byte[] (§12.1)
+    // Serial form -- ALL fields are primitive, String, or byte[] (S12.1)
     // -------------------------------------------------------------------------
 
     /** Wire-ordered serial form. */
@@ -128,13 +128,13 @@ public final class ServiceSchemaEntry {
         }
         this.schemaDigest     = schemaDigest.clone();
         this.serviceInterface = serviceInterface;
-        // Normalize null to "" — DER codec cannot encode null String values.
+        // Normalize null to "" -- DER codec cannot encode null String values.
         this.schemaVersion    = (schemaVersion == null) ? "" : schemaVersion;
         this.schemaFormat     = schemaFormat;
     }
 
     // -------------------------------------------------------------------------
-    // @AtomicSerial constructor — check FIRST, then assign
+    // @AtomicSerial constructor -- check FIRST, then assign
     // -------------------------------------------------------------------------
 
     /**

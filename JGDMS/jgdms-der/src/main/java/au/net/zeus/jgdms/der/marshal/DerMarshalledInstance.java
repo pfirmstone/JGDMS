@@ -26,15 +26,15 @@ import java.util.Collections;
 
 /**
  * A {@link MarshalledInstance} subclass that uses the DER wire format
- * (JGDMS-STD-006 §7.8) to encode and decode its contained object.
+ * (JGDMS-STD-006 S7.8) to encode and decode its contained object.
  *
  * <h2>Encoding</h2>
  * <p>
  * Construction calls the protected 3-arg {@code MarshalledInstance(Object, Collection,
  * MarshalFactory)} constructor with a {@link DerMarshalFactory}. The factory writes
- * the full {@link MarshalledInstanceRecord} — payload + embedded schema chain —
+ * the full {@link MarshalledInstanceRecord} -- payload + embedded schema chain --
  * into the parent's {@code objBytes} field. {@code locBytes} is {@code null} because
- * DER has no codebase annotations (§8).
+ * DER has no codebase annotations (S8).
  *
  * <h2>Decoding</h2>
  * <p>
@@ -45,7 +45,7 @@ import java.util.Collections;
  *   <li>It calls {@link DerMarshalFactory#createMarshalInput}, which produces a
  *       {@link DerMarshalInstanceInput} that eagerly reads all bytes.</li>
  *   <li>The parent detects {@code in instanceof AtomicObjectInput} and calls
- *       {@code readObject(type)} → {@link MarshalledInstanceCodec#decodeMarshalledInstance}.</li>
+ *       {@code readObject(type)} -> {@link MarshalledInstanceCodec#decodeMarshalledInstance}.</li>
  * </ol>
  *
  * <h2>Serialization of this subclass</h2>
@@ -55,10 +55,10 @@ import java.util.Collections;
  * When this object is serialized and deserialized as the base {@code MarshalledInstance}
  * class (e.g. across a version boundary), the {@code get()} call on the reconstructed
  * base instance would use the default JOSS factory, which cannot decode the DER bytes.
- * Format-detection and ServiceLoader dispatch (the STD-008 §13 hybrid follow-on) would
+ * Format-detection and ServiceLoader dispatch (the STD-008 S13 hybrid follow-on) would
  * address this; it is out of scope for this non-invasive spike.
  *
- * <h2>STD-008 §13.6 "Option A" — non-invasive spike</h2>
+ * <h2>STD-008 S13.6 "Option A" -- non-invasive spike</h2>
  * <p>
  * Zero platform files are modified. This class, together with {@link DerMarshalFactory},
  * {@link DerMarshalInstanceOutput}, and {@link DerMarshalInstanceInput}, proves the
@@ -101,7 +101,7 @@ public final class DerMarshalledInstance extends MarshalledInstance {
     }
 
     // -------------------------------------------------------------------------
-    // getMarshalFactory — routes get() through the DER decode path
+    // getMarshalFactory -- routes get() through the DER decode path
     // -------------------------------------------------------------------------
 
     /**

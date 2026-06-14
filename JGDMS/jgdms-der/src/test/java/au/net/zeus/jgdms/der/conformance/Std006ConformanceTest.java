@@ -50,53 +50,53 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * JGDMS-STD-006 §9 Conformance Suite (Phase 8).
+ * JGDMS-STD-006 S9 Conformance Suite (Phase 8).
  *
  * <p>This test class is designed to be runnable by a third-party implementation
  * of the STD-006 DER wire-format codec. Each test method is named and documented
- * to map directly to a §9 conformance point. The suite asserts the two named
- * properties (§B canonical encoding; §A data independence) and the §9 numbered
+ * to map directly to a S9 conformance point. The suite asserts the two named
+ * properties (SB canonical encoding; SA data independence) and the S9 numbered
  * points achievable with the built types.
  *
- * <h2>§9 point → assertion mapping</h2>
+ * <h2>S9 point -> assertion mapping</h2>
  * <ol>
- *   <li>{@link #s9p1_builtWireTypes_roundTrip()} — encode/decode built wire types.</li>
+ *   <li>{@link #s9p1_builtWireTypes_roundTrip()} -- encode/decode built wire types.</li>
  *   <li>{@link #s9p2_sizeBoundsEnforcedBeforeAllocation_wireName()},
  *       {@link #s9p2_sizeBoundsEnforcedBeforeAllocation_wireType()},
- *       {@link #s9p2_sizeBoundsEnforcedBeforeAllocation_className()} — SIZE bounds
+ *       {@link #s9p2_sizeBoundsEnforcedBeforeAllocation_className()} -- SIZE bounds
  *       enforced before allocation.</li>
  *   <li>{@link #s9p3_failSecure_decodeFailure_trailingBytes()},
  *       {@link #s9p3_failSecure_constraintBreach_invalidObject()},
  *       {@link #s9p3_failSecure_nonCanonical_highTagNumber_lowValue()},
- *       {@link #s9p3_failSecure_nonCanonical_highTagNumber_leadingZero()} — fail-secure
+ *       {@link #s9p3_failSecure_nonCanonical_highTagNumber_leadingZero()} -- fail-secure
  *       on decode failure / constraint breach / non-canonical form.</li>
- *   <li>{@link #s9p4_noBackReference_noCycle_structural()} — acyclic: DER cannot
+ *   <li>{@link #s9p4_noBackReference_noCycle_structural()} -- acyclic: DER cannot
  *       represent back-references or cycles.</li>
  *   <li>{@link #s9p5_orderSignificantSequences_fieldOrder()},
- *       {@link #s9p5_orderSignificantSequences_hierarchyOrder()} — order-significant
+ *       {@link #s9p5_orderSignificantSequences_hierarchyOrder()} -- order-significant
  *       SEQUENCEs preserved.</li>
- *   <li>{@link #s9p6_sequenceOfOrdering_preserved()} — SEQUENCE OF ordering preserved.</li>
- *   <li>§9p7 — BLOCKED (B.2): SCAP tbs signatures not implemented.
+ *   <li>{@link #s9p6_sequenceOfOrdering_preserved()} -- SEQUENCE OF ordering preserved.</li>
+ *   <li>S9p7 -- BLOCKED (B.2): SCAP tbs signatures not implemented.
  *       See {@link #s9p7_BLOCKED_scapSignatures_noteOnly()}.</li>
- *   <li>{@link #s9p8_checkRunsBeforeConstruction()} — check() runs before object
+ *   <li>{@link #s9p8_checkRunsBeforeConstruction()} -- check() runs before object
  *       is treated as constructed.</li>
- *   <li>§9p9 — BLOCKED (B.1/B.4): jrt:/java.base anonCount encoder obligations not
+ *   <li>S9p9 -- BLOCKED (B.1/B.4): jrt:/java.base anonCount encoder obligations not
  *       implemented. See {@link #s9p9_BLOCKED_encoderObligations_noteOnly()}.</li>
  * </ol>
  *
- * <h2>§A Data Independence (§3.11) — centerpiece</h2>
+ * <h2>SA Data Independence (S3.11) -- centerpiece</h2>
  * {@link #sA_dataIndependence_isolatedClassLoader()} proves that a DER hierarchy
  * payload can be decoded to a named field map given ONLY the schema chain and DER
  * bytes, without loading the originating class. The fixture class is confirmed
  * genuinely absent in the isolated loader before the decode is attempted.
  *
- * <h2>§B Canonical Encoding (§9, §3.2)</h2>
+ * <h2>SB Canonical Encoding (S9, S3.2)</h2>
  * {@link #sB_canonicalEncoding_twoEncoderInstances_objectLevel()},
  * {@link #sB_canonicalEncoding_schemaDigest()}, and
  * {@link #sB_canonicalEncoding_primitiveLevel()} assert byte-identity of two
  * independently produced encodings of the same logical value.
  *
- * <h2>§C jqwik Round-trip Properties</h2>
+ * <h2>SC jqwik Round-trip Properties</h2>
  * {@link #sC_roundTrip_primitive_integer(int)},
  * {@link #sC_roundTrip_primitive_boolean(boolean)},
  * {@link #sC_roundTrip_primitive_utf8String(String)},
@@ -104,30 +104,30 @@ import static org.junit.jupiter.api.Assertions.*;
  * {@link #sC_roundTrip_object_simpleRecord(boolean, int, String)},
  * {@link #sC_roundTrip_object_hierarchyGamma(int, int, long)}.
  *
- * <h2>§E High-tag-number minimal-form hardening</h2>
+ * <h2>SE High-tag-number minimal-form hardening</h2>
  * {@link #sE_highTagNumber_nonMinimal_lowValue_rejected()} and
  * {@link #sE_highTagNumber_nonMinimal_leadingZero_rejected()} verify that
  * {@link Tag#decode(byte[], int)} rejects non-canonical high-tag-number encodings.
  * The hardening was applied to {@code Tag.decode}: the first continuation octet
  * {@code 0x80} (non-minimal leading zero) is now rejected.
- * All STD-006 tags fit in tag-number ≤ 30, so these paths are unreachable in
- * practice, but the §9.3 fail-secure completeness requirement demands rejection.
+ * All STD-006 tags fit in tag-number <= 30, so these paths are unreachable in
+ * practice, but the S9.3 fail-secure completeness requirement demands rejection.
  */
 class Std006ConformanceTest {
 
     // =========================================================================
-    // §9.1 — Encode/decode built wire types per their DER structure
+    // S9.1 -- Encode/decode built wire types per their DER structure
     // =========================================================================
 
     /**
-     * §9.1 — Encode and decode each built {@code @AtomicSerial} / schema wire type
+     * S9.1 -- Encode and decode each built {@code @AtomicSerial} / schema wire type
      * per its DER structure (SEQUENCE). Covers all supported field types via
      * {@link MultiTypeRecord}; round-trips both single-class (via schema) and a
-     * hierarchy (via chain). §7.1–§7.7 Jini/SCAP types are BLOCKED (B.1–B.5) and
+     * hierarchy (via chain). S7.1-S7.7 Jini/SCAP types are BLOCKED (B.1-B.5) and
      * noted out-of-scope below.
      *
-     * <p>OUT-OF-SCOPE: §6.1–§6.5 (UserSubjectBlock, Principal, ACC, DigestCodeSource)
-     * are BLOCKED (B.3–B.5); §6.6–§6.11 SCAP/grants (B.2, B.3) and §6.13–§6.20
+     * <p>OUT-OF-SCOPE: S6.1-S6.5 (UserSubjectBlock, Principal, ACC, DigestCodeSource)
+     * are BLOCKED (B.3-B.5); S6.6-S6.11 SCAP/grants (B.2, B.3) and S6.13-S6.20
      * Jini types (B.4, B.5) are not implemented.
      */
     @Test
@@ -168,17 +168,17 @@ class Std006ConformanceTest {
     }
 
     // =========================================================================
-    // §9.2 — SIZE/value constraints enforced as hard fail-secure bounds
+    // S9.2 -- SIZE/value constraints enforced as hard fail-secure bounds
     //        BEFORE allocation
     // =========================================================================
 
     /**
-     * §9.2 — {@code AtomicSerialFieldDef} wireName SIZE(1..255): over-length
+     * S9.2 -- {@code AtomicSerialFieldDef} wireName SIZE(1..255): over-length
      * wireName must be rejected before the String is constructed.
      */
     @Test
     void s9p2_sizeBoundsEnforcedBeforeAllocation_wireName() {
-        // wireName SIZE(1..255) — 256 bytes must be rejected
+        // wireName SIZE(1..255) -- 256 bytes must be rejected
         String longName = "x".repeat(256);
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
@@ -189,7 +189,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §9.2 — {@code AtomicSerialFieldDef} wireType SIZE(1..1024): over-length
+     * S9.2 -- {@code AtomicSerialFieldDef} wireType SIZE(1..1024): over-length
      * wireType must be rejected before the String is constructed.
      */
     @Test
@@ -204,7 +204,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §9.2 — {@code AtomicSerialSchemaRecord} className SIZE(1..1024): over-length
+     * S9.2 -- {@code AtomicSerialSchemaRecord} className SIZE(1..1024): over-length
      * className must be rejected before the String is constructed.
      */
     @Test
@@ -219,14 +219,14 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §9.2 — On DER decode, wireName byte-length bound is enforced BEFORE the
+     * S9.2 -- On DER decode, wireName byte-length bound is enforced BEFORE the
      * String is constructed. Manually craft an over-length wireName TLV and verify
      * {@link DerException} is thrown.
      */
     @Test
     void s9p2_sizeBoundsEnforcedBeforeAllocation_derDecodeWireName() throws DerException {
         // Build a valid-looking AtomicSerialFieldDef DER with a 256-byte wireName.
-        // wireName SIZE(1..255) in DER bytes — encode manually.
+        // wireName SIZE(1..255) in DER bytes -- encode manually.
         byte[] longNameBytes = new byte[256];
         Arrays.fill(longNameBytes, (byte) 'x');
         // UTF8String TLV for wireName (256 bytes): 0C 82 01 00 [256 bytes]
@@ -244,12 +244,12 @@ class Std006ConformanceTest {
     }
 
     // =========================================================================
-    // §9.3 — Fail-secure rejection (no object constructed) on decode failure,
+    // S9.3 -- Fail-secure rejection (no object constructed) on decode failure,
     //        constraint breach, or non-canonical form
     // =========================================================================
 
     /**
-     * §9.3 — Trailing bytes after outer SEQUENCE: must throw, no object is
+     * S9.3 -- Trailing bytes after outer SEQUENCE: must throw, no object is
      * returned.
      */
     @Test
@@ -268,7 +268,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §9.3 — Constraint breach: check(GetArg) rejects a null name → no
+     * S9.3 -- Constraint breach: check(GetArg) rejects a null name -> no
      * SimpleRecord is constructed. No partially-constructed object is returned
      * (the check throws before any field assignment).
      */
@@ -280,7 +280,7 @@ class Std006ConformanceTest {
         // only 2 TLVs (active + count), stopping before position 2. Both "name" and
         // "payload" are then ABSENT in the store, so arg.get("name", null) returns null.
         AtomicSerialSchemaRecord schema = SchemaGenerator.generate(SimpleRecord.class);
-        // Build a 2-field payload: active=false, count=0 (name and payload absent → case b).
+        // Build a 2-field payload: active=false, count=0 (name and payload absent -> case b).
         byte[] payload = DerWriter.writeSequence(List.of(
                 DerWriter.writeBoolean(false),
                 DerWriter.writeInteger(BigInteger.ZERO)
@@ -293,7 +293,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §9.3 — Non-canonical high-tag-number form: tag number ≤ 30 encoded in
+     * S9.3 -- Non-canonical high-tag-number form: tag number <= 30 encoded in
      * high-tag-number form must be rejected.
      */
     @Test
@@ -301,15 +301,15 @@ class Std006ConformanceTest {
         // Encode INTEGER(0) but with tag 0x02 (UNIVERSAL PRIMITIVE 2) written in
         // high-tag-number form: 0x1F 0x02 instead of 0x02.
         // 0x1F = class=UNIVERSAL, primitive, low bits = 11111 (high-tag form)
-        // 0x02 = continuation byte with MSB=0, value=2 (< 31 → non-minimal)
+        // 0x02 = continuation byte with MSB=0, value=2 (< 31 -> non-minimal)
         byte[] nonMinimal = {0x1F, 0x02, 0x01, 0x00}; // tag, tag-num, length=1, value=0
         assertThrows(DerException.class,
                 () -> Tag.decode(nonMinimal, 0),
-                "High-tag-number form for tag ≤ 30 must be rejected as non-minimal");
+                "High-tag-number form for tag <= 30 must be rejected as non-minimal");
     }
 
     /**
-     * §9.3 (§E) — Non-minimal leading-zero in high-tag-number form: first
+     * S9.3 (SE) -- Non-minimal leading-zero in high-tag-number form: first
      * continuation byte 0x80 carries no bits and must be rejected.
      */
     @Test
@@ -324,11 +324,11 @@ class Std006ConformanceTest {
     }
 
     // =========================================================================
-    // §9.4 — No back-reference / no cycle representable (structural note)
+    // S9.4 -- No back-reference / no cycle representable (structural note)
     // =========================================================================
 
     /**
-     * §9.4 — The DER format carries no handle table and no object-reference
+     * S9.4 -- The DER format carries no handle table and no object-reference
      * mechanism. The schema defines no reference type. No encoding produced by
      * {@link ObjectCodec#encodeHierarchy} contains a cycle; the format cannot
      * express one. This test asserts the structural impossibility by verifying
@@ -336,7 +336,7 @@ class Std006ConformanceTest {
      * independent (non-circular) object graph.
      *
      * <p>Concretely: encode a Gamma instance, decode it, then verify that the
-     * decoded Gamma's fields are independent Java values — no inter-object
+     * decoded Gamma's fields are independent Java values -- no inter-object
      * reference loops exist. This cannot be a cycle because every field in every
      * DER SEQUENCE is a primitive value (integer, boolean, string, bytes); the
      * grammar has no reference nodes.
@@ -346,11 +346,11 @@ class Std006ConformanceTest {
         Gamma g1 = new Gamma(10, "alpha", 20, "beta", 999L, "gamma");
         SchemaChain.Result chain = SchemaGenerator.generateChain(Gamma.class);
 
-        // Encode and decode — structural assertion: no exception from reference resolution
+        // Encode and decode -- structural assertion: no exception from reference resolution
         byte[] der = ObjectCodec.encodeHierarchy(g1, chain);
         Gamma g2 = ObjectCodec.decodeHierarchy(Gamma.class, chain, der);
 
-        // The decoded object is a fresh, independent value — NOT the same reference.
+        // The decoded object is a fresh, independent value -- NOT the same reference.
         // A cycle would require the same object to appear at two distinct positions,
         // which DER's tree grammar makes structurally impossible.
         assertNotSame(g1, g2, "Decoded object must be a fresh instance (no object identity sharing)");
@@ -365,11 +365,11 @@ class Std006ConformanceTest {
     }
 
     // =========================================================================
-    // §9.5 — Order-significant SEQUENCEs preserved
+    // S9.5 -- Order-significant SEQUENCEs preserved
     // =========================================================================
 
     /**
-     * §9.5 — Field order within a class's private SEQUENCE is preserved exactly.
+     * S9.5 -- Field order within a class's private SEQUENCE is preserved exactly.
      * Encoding {@link MultiTypeRecord} and decoding must restore fields in the
      * same schema-declared order, not sorted or reordered.
      */
@@ -382,7 +382,7 @@ class Std006ConformanceTest {
                 .map(AtomicSerialFieldDef::wireName)
                 .toList();
         assertEquals(expectedOrder, actualOrder,
-                "Schema field order must be preserved exactly (ORDER-SIGNIFICANT per §3.8)");
+                "Schema field order must be preserved exactly (ORDER-SIGNIFICANT per S3.8)");
 
         // Decode and verify field retrieval order from DerFieldStore
         MultiTypeRecord mtr = new MultiTypeRecord(true, (byte) 7, (short) 8, 9, 10L, "text", new byte[]{11});
@@ -394,7 +394,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §9.5 — Hierarchy order (superclass-first on wire) is preserved. The outer
+     * S9.5 -- Hierarchy order (superclass-first on wire) is preserved. The outer
      * SEQUENCE contains Alpha's SEQUENCE first, then Beta's, then Gamma's.
      * Decoding must reconstruct all three levels correctly.
      */
@@ -430,17 +430,17 @@ class Std006ConformanceTest {
     }
 
     // =========================================================================
-    // §9.6 — SEQUENCE OF ordering where semantically required
+    // S9.6 -- SEQUENCE OF ordering where semantically required
     // =========================================================================
 
     /**
-     * §9.6 — DER SEQUENCE-level ordering: a SEQUENCE encodes fields in schema
+     * S9.6 -- DER SEQUENCE-level ordering: a SEQUENCE encodes fields in schema
      * declaration order and the decoder must restore them in that same order.
-     * This is the instance-level complement of §9.5's schema-level check.
+     * This is the instance-level complement of S9.5's schema-level check.
      *
      * <p>We verify by encoding a hierarchy and checking that the DER outer SEQUENCE
      * contains exactly the expected per-class SEQUENCEs in superclass-first order
-     * — any reordering by an encoder would produce different bytes and cause decode
+     * -- any reordering by an encoder would produce different bytes and cause decode
      * failures at the wrong class level.
      */
     @Test
@@ -460,31 +460,31 @@ class Std006ConformanceTest {
     }
 
     // =========================================================================
-    // §9.7 — BLOCKED: signatures over canonical DER of tbs (§7.4 SCAP)
+    // S9.7 -- BLOCKED: signatures over canonical DER of tbs (S7.4 SCAP)
     // =========================================================================
 
     /**
-     * §9.7 — OUT OF SCOPE (B.2): SCAP objects ({@code SignedVerdict},
+     * S9.7 -- OUT OF SCOPE (B.2): SCAP objects ({@code SignedVerdict},
      * {@code RegistryVerdict}, {@code JarAnalysisReport}, {@code AnalysisRequest})
      * are not implemented. The tbs (to-be-signed) DER canonical encoding for
      * signature computation therefore cannot be tested. This point is blocked
-     * pending §7.4 field-level input from STD-002.
+     * pending S7.4 field-level input from STD-002.
      *
      * <p>This method is intentionally empty; its existence documents the gap.
      */
     @Test
     void s9p7_BLOCKED_scapSignatures_noteOnly() {
-        // BLOCKED B.2: §7.4 SCAP types (SignedVerdict, RegistryVerdict, etc.)
+        // BLOCKED B.2: S7.4 SCAP types (SignedVerdict, RegistryVerdict, etc.)
         // are not implemented. Signature-over-canonical-DER testing deferred
-        // until §7.4 field layout is confirmed (§10, Open Question 6).
+        // until S7.4 field layout is confirmed (S10, Open Question 6).
     }
 
     // =========================================================================
-    // §9.8 — check() runs before object is treated as constructed
+    // S9.8 -- check() runs before object is treated as constructed
     // =========================================================================
 
     /**
-     * §9.8 — The STD-001 {@code check(GetArg)} validation contract is invoked
+     * S9.8 -- The STD-001 {@code check(GetArg)} validation contract is invoked
      * during decode before any field is assigned. An invariant-violating payload
      * must throw (no object returned). Tests three levels: SimpleRecord (single),
      * Beta (hierarchy, Alpha.check), Gamma (hierarchy, chain check).
@@ -494,7 +494,7 @@ class Std006ConformanceTest {
         // --- Single-class: name=null violates SimpleRecord.check ---
         // Schema field order: active(0), count(1), name(2), payload(3).
         // Encode only 2 TLVs (active + count). DerFieldStore case (b): name is ABSENT,
-        // so arg.get("name", null) returns null → SimpleRecord.check throws.
+        // so arg.get("name", null) returns null -> SimpleRecord.check throws.
         AtomicSerialSchemaRecord srSchema = SchemaGenerator.generate(SimpleRecord.class);
         byte[] noName = DerWriter.writeSequence(List.of(
                 DerWriter.writeBoolean(true),
@@ -515,7 +515,7 @@ class Std006ConformanceTest {
         byte[] alphaSeq = DerWriter.writeSequence(List.of(
                 DerWriter.writeInteger(BigInteger.TEN),
                 DerWriter.writeUtf8String("label")));
-        // Beta: only "x", omit "betaOnly" → null → Beta.check throws
+        // Beta: only "x", omit "betaOnly" -> null -> Beta.check throws
         byte[] betaSeq = DerWriter.writeSequence(List.of(
                 DerWriter.writeInteger(BigInteger.ONE)));
         byte[] hierarchyPayload = DerWriter.writeSequence(List.of(alphaSeq, betaSeq));
@@ -526,30 +526,30 @@ class Std006ConformanceTest {
     }
 
     // =========================================================================
-    // §9.9 — BLOCKED: encoder obligations (§7.2 ACC jrt:/java.base, anonCount)
+    // S9.9 -- BLOCKED: encoder obligations (S7.2 ACC jrt:/java.base, anonCount)
     // =========================================================================
 
     /**
-     * §9.9 — OUT OF SCOPE (B.1/B.4): the ACC encoding ({@code AccessControlContextRecord},
+     * S9.9 -- OUT OF SCOPE (B.1/B.4): the ACC encoding ({@code AccessControlContextRecord},
      * {@code jrt:/java.base} anonCount exclusion) and the JVM-identity-provider
-     * encoder obligations are not implemented. §7.2 and §7.7 are blocked on
-     * field-level input (B.1 = §7.3 DigestCodeSource, B.4 = §7.7 Jini discovery).
+     * encoder obligations are not implemented. S7.2 and S7.7 are blocked on
+     * field-level input (B.1 = S7.3 DigestCodeSource, B.4 = S7.7 Jini discovery).
      *
      * <p>This method is intentionally empty; its existence documents the gap.
      */
     @Test
     void s9p9_BLOCKED_encoderObligations_noteOnly() {
-        // BLOCKED B.1/B.4: §7.2 AccessControlContextRecord and §7.7 Jini wire types
+        // BLOCKED B.1/B.4: S7.2 AccessControlContextRecord and S7.7 Jini wire types
         // are not implemented. anonCount exclusion rule, multi-Subject block ordering,
         // and jrt:/java.base handling deferred to those implementation tasks.
     }
 
     // =========================================================================
-    // §A — Data Independence (§3.11): decode WITHOUT loading the originating class
+    // SA -- Data Independence (S3.11): decode WITHOUT loading the originating class
     // =========================================================================
 
     /**
-     * §A — Data independence via isolated ClassLoader (§3.11 normative).
+     * SA -- Data independence via isolated ClassLoader (S3.11 normative).
      *
      * <p>This is the centerpiece test. It:
      * <ol>
@@ -560,15 +560,15 @@ class Std006ConformanceTest {
      *       for the fixture class name, demonstrating the class is genuinely unavailable.</li>
      *   <li>Verifies that {@code Class.forName(fixtureName, false, isolatedLoader)} throws
      *       {@link ClassNotFoundException} in that loader.</li>
-     *   <li>Calls {@link ObjectCodec#decodeToFieldMap(SchemaChain.Result, byte[])} —
-     *       which NEVER loads any class — and asserts all field names and values are
+     *   <li>Calls {@link ObjectCodec#decodeToFieldMap(SchemaChain.Result, byte[])} --
+     *       which NEVER loads any class -- and asserts all field names and values are
      *       present and correct.</li>
      * </ol>
      *
      * <p>The decode succeeds despite the class being absent because
      * {@code decodeToFieldMap} uses only the schema and DER bytes. No class is
      * loaded; no JVM class-resolution occurs; no constructor is invoked. This
-     * demonstrates the §3.11 property: <em>the schema is the key, not the class</em>.
+     * demonstrates the S3.11 property: <em>the schema is the key, not the class</em>.
      */
     @Test
     void sA_dataIndependence_isolatedClassLoader() throws Exception {
@@ -596,7 +596,7 @@ class Std006ConformanceTest {
                     throw new ClassNotFoundException(
                             "IsolatedLoader: intentionally denying access to " + name);
                 }
-                // Bootstrap only — no parent delegation for the fixture
+                // Bootstrap only -- no parent delegation for the fixture
                 return super.loadClass(name);
             }
         };
@@ -634,7 +634,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §A (extended) — Data independence for a multi-level hierarchy: encode Gamma
+     * SA (extended) -- Data independence for a multi-level hierarchy: encode Gamma
      * (3 levels), prove the field map contains all three class namespaces with
      * correct values, decoded from schema + bytes alone (no class loading).
      */
@@ -644,7 +644,7 @@ class Std006ConformanceTest {
         SchemaChain.Result chain = SchemaGenerator.generateChain(Gamma.class);
         byte[] payload = ObjectCodec.encodeHierarchy(g, chain);
 
-        // decodeToFieldMap: schema + DER → named field map; no class loading
+        // decodeToFieldMap: schema + DER -> named field map; no class loading
         LinkedHashMap<String, Map<String, Object>> fieldMap =
                 ObjectCodec.decodeToFieldMap(chain, payload);
 
@@ -670,12 +670,12 @@ class Std006ConformanceTest {
     }
 
     // =========================================================================
-    // §B — Canonical Encoding (§9, §3.2): two independent encoders produce
+    // SB -- Canonical Encoding (S9, S3.2): two independent encoders produce
     //      BYTE-IDENTICAL output for the same logical value
     // =========================================================================
 
     /**
-     * §B — Canonical encoding at the object level: two independent
+     * SB -- Canonical encoding at the object level: two independent
      * {@link ObjectCodec#encodeHierarchy} calls on two EQUAL (but separately
      * constructed) fixture instances produce byte-identical DER.
      */
@@ -696,7 +696,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §B — Canonical encoding at the schema level: two equal
+     * SB -- Canonical encoding at the schema level: two equal
      * {@link AtomicSerialSchemaRecord}s encode to identical DER, and their
      * {@link AtomicSerialSchemaRecord#schemaDigest()}s are identical.
      */
@@ -725,7 +725,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §B — Canonical encoding at the primitive level: two independent encodings
+     * SB -- Canonical encoding at the primitive level: two independent encodings
      * of the same integer, string, boolean, and byte[] values are byte-identical.
      * Reaffirms the per-primitive canonicity established in Phase 1.
      */
@@ -764,11 +764,11 @@ class Std006ConformanceTest {
     }
 
     // =========================================================================
-    // §C — jqwik Round-trip Properties
+    // SC -- jqwik Round-trip Properties
     // =========================================================================
 
     /**
-     * §C — Round-trip property: any {@code int} value encoded and decoded
+     * SC -- Round-trip property: any {@code int} value encoded and decoded
      * as DER INTEGER must round-trip exactly.
      */
     @Property
@@ -780,7 +780,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §C — Round-trip property: boolean values encode and decode faithfully.
+     * SC -- Round-trip property: boolean values encode and decode faithfully.
      */
     @Property
     void sC_roundTrip_primitive_boolean(@ForAll boolean value) throws DerException {
@@ -790,7 +790,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §C — Round-trip property: arbitrary strings encode and decode faithfully
+     * SC -- Round-trip property: arbitrary strings encode and decode faithfully
      * as DER UTF8String (within the 1..1024 byte-length bound for schema use;
      * raw DER UTF8String has no inherent length limit here, but we bound at 200
      * chars for test speed).
@@ -804,7 +804,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §C — Round-trip property: arbitrary byte arrays encode and decode faithfully
+     * SC -- Round-trip property: arbitrary byte arrays encode and decode faithfully
      * as DER OCTET STRING.
      */
     @Property
@@ -815,7 +815,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §C — Round-trip property: random {@link SimpleRecord} instances encode and
+     * SC -- Round-trip property: random {@link SimpleRecord} instances encode and
      * decode faithfully through the full object codec path.
      */
     @Property
@@ -833,7 +833,7 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §C — Round-trip property: random Gamma (3-level hierarchy) instances encode
+     * SC -- Round-trip property: random Gamma (3-level hierarchy) instances encode
      * and decode faithfully through the hierarchy codec.
      */
     @Property
@@ -850,19 +850,19 @@ class Std006ConformanceTest {
     }
 
     // =========================================================================
-    // §E — High-tag-number minimal-form hardening (decision: HARDENED)
+    // SE -- High-tag-number minimal-form hardening (decision: HARDENED)
     // =========================================================================
 
     /**
-     * §E (decision: HARDENED) — Tag.decode rejects non-minimal high-tag-number form
-     * where tag number ≤ 30 is encoded in high-tag-number form.
+     * SE (decision: HARDENED) -- Tag.decode rejects non-minimal high-tag-number form
+     * where tag number <= 30 is encoded in high-tag-number form.
      *
      * <p>Decision: {@link Tag#decode(byte[], int)} has been hardened to reject:
-     * (a) high-tag-number form for tag numbers ≤ 30 (pre-existing check), and
-     * (b) leading 0x80 continuation byte (non-minimal leading zero — new check).
+     * (a) high-tag-number form for tag numbers <= 30 (pre-existing check), and
+     * (b) leading 0x80 continuation byte (non-minimal leading zero -- new check).
      *
-     * <p>All STD-006 tags are ≤ 30, making these paths unreachable in normal
-     * operation. The §9.3 fail-secure completeness requirement nevertheless demands
+     * <p>All STD-006 tags are <= 30, making these paths unreachable in normal
+     * operation. The S9.3 fail-secure completeness requirement nevertheless demands
      * that non-canonical forms be rejected. Both failure cases are tested by
      * {@link #s9p3_failSecure_nonCanonical_highTagNumber_lowValue()} and
      * {@link #s9p3_failSecure_nonCanonical_highTagNumber_leadingZero()}.
@@ -887,20 +887,20 @@ class Std006ConformanceTest {
     }
 
     /**
-     * §E — Leading-zero continuation byte in high-tag-number form is rejected.
+     * SE -- Leading-zero continuation byte in high-tag-number form is rejected.
      * {@code 0x1F 0x80 0x1F} would encode tag number 31 with a non-minimal leading
      * zero byte. The hardened {@link Tag#decode(byte[], int)} rejects this.
      */
     @Test
     void sE_highTagNumber_nonMinimal_leadingZero_rejected() {
-        // 0x80 as first continuation byte: contributes no value bits → non-minimal
+        // 0x80 as first continuation byte: contributes no value bits -> non-minimal
         byte[] leadingZero = {0x1F, (byte) 0x80, 0x1F};
         assertThrows(DerException.class,
                 () -> Tag.decode(leadingZero, 0),
                 "Leading 0x80 in high-tag-number continuation must be rejected (non-minimal)");
 
         // Confirm legitimate multi-byte high-tag-number (e.g. tag 128 = 0x1F 0x81 0x00):
-        // base-128: 128 = 1*128 + 0 → [0x81, 0x00]
+        // base-128: 128 = 1*128 + 0 -> [0x81, 0x00]
         byte[] tag128 = {0x1F, (byte) 0x81, 0x00};
         assertDoesNotThrow(
                 () -> Tag.decode(tag128, 0),

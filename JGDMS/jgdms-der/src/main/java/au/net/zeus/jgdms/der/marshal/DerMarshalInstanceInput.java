@@ -50,7 +50,7 @@ import java.util.Objects;
  * {@code ObjectInput} methods ({@code readInt}, {@code readUTF}, etc.) throw
  * {@link UnsupportedOperationException}.
  *
- * <h2>STD-008 §13.6 "Option A" — non-invasive spike</h2>
+ * <h2>STD-008 S13.6 "Option A" -- non-invasive spike</h2>
  * <p>
  * No platform files are modified. This class plugs into the existing
  * {@link net.jini.io.MarshalledInstance} factory seam via
@@ -77,7 +77,7 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
     }
 
     // -------------------------------------------------------------------------
-    // AtomicObjectInput — primary decode path
+    // AtomicObjectInput -- primary decode path
     // -------------------------------------------------------------------------
 
     /**
@@ -115,7 +115,7 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
     }
 
     // -------------------------------------------------------------------------
-    // ObjectInput — readObject() delegates to readObject(Object.class)
+    // ObjectInput -- readObject() delegates to readObject(Object.class)
     // -------------------------------------------------------------------------
 
     /**
@@ -139,8 +139,8 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
      */
     @Override
     public void useCodebaseAnnotations() {
-        // DER has no codebase annotations — the embedded schema provides
-        // data-independence (STD-006 §8).
+        // DER has no codebase annotations -- the embedded schema provides
+        // data-independence (STD-006 S8).
     }
 
     // -------------------------------------------------------------------------
@@ -162,7 +162,7 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
     }
 
     // -------------------------------------------------------------------------
-    // Unsupported ObjectInput primitives — DER is object-granularity only
+    // Unsupported ObjectInput primitives -- DER is object-granularity only
     // -------------------------------------------------------------------------
 
     @Override public int read() throws IOException {

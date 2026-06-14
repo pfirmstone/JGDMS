@@ -30,24 +30,24 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * §3.9 namespace-isolation regression for the §11.6 "inserted @AtomicSerial class"
+ * S3.9 namespace-isolation regression for the S11.6 "inserted @AtomicSerial class"
  * evolution path.
  *
  * <p>Scenario: the current code's hierarchy is {@code LeakLeaf -> LeakMid -> LeakRoot}
  * (all @AtomicSerial). The OLD wire data predates {@code LeakMid}, so its embedded
  * schema chain is {@code [LeakLeaf, LeakRoot]} with NO {@code LeakMid} SEQUENCE.
  * {@code LeakLeaf} and {@code LeakMid} both declare a field named {@code "shared"} in
- * their (independent, §3.9) namespaces.
+ * their (independent, S3.9) namespaces.
  *
  * <p>When such old data is decoded against the new hierarchy, {@code LeakMid}'s
  * constructor calls {@code arg.get("shared", "MID_DEFAULT")}. Because {@code LeakMid}'s
- * SEQUENCE is absent, the correct result is the DEFAULT — {@code LeakMid}'s namespace
+ * SEQUENCE is absent, the correct result is the DEFAULT -- {@code LeakMid}'s namespace
  * is simply absent. It must NOT resolve to {@code LeakLeaf}'s store (which DOES have a
  * "shared" value), which would be a namespace leak.
  *
  * <p>Before the fix, {@code DerGetArg.callerClass()} returned the first stack frame
  * whose class was a key in the store map; since {@code LeakMid} was absent from the map,
- * its frame was skipped and {@code LeakLeaf}'s store was used — leaking
+ * its frame was skipped and {@code LeakLeaf}'s store was used -- leaking
  * {@code LeakLeaf.shared} into {@code LeakMid.shared}. This test asserts the default,
  * so it FAILS on the buggy code and PASSES once every class in the receiver hierarchy
  * has a (possibly empty) store entry.
@@ -59,7 +59,7 @@ class NamespaceLeakRegressionTest {
         String leafName = LeakLeaf.class.getName();
         String rootName = au.net.zeus.jgdms.der.evolution.fixtures.LeakRoot.class.getName();
 
-        // OLD embedded chain: [LeakLeaf, LeakRoot] — LeakMid did not exist yet.
+        // OLD embedded chain: [LeakLeaf, LeakRoot] -- LeakMid did not exist yet.
         AtomicSerialSchemaRecord leafRec = new AtomicSerialSchemaRecord(
                 leafName, (byte[]) null,
                 List.of(new AtomicSerialFieldDef("shared", "java.lang.String")));
@@ -82,10 +82,10 @@ class NamespaceLeakRegressionTest {
         // LeakRoot reads its own field:
         assertEquals("the-root", decoded.getRootName(),
                 "LeakRoot.rootName must come from LeakRoot's own SEQUENCE");
-        // CRUX: LeakMid was absent from old data → its "shared" must DEFAULT, not leak
+        // CRUX: LeakMid was absent from old data -> its "shared" must DEFAULT, not leak
         // LeakLeaf's "shared".
         assertEquals("MID_DEFAULT", decoded.getMidShared(),
-                "LeakMid.shared must be its DEFAULT — old data had no LeakMid SEQUENCE; "
-                + "resolving to LeakLeaf's store would be a §3.9 namespace leak");
+                "LeakMid.shared must be its DEFAULT -- old data had no LeakMid SEQUENCE; "
+                + "resolving to LeakLeaf's store would be a S3.9 namespace leak");
     }
 }

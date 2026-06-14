@@ -24,10 +24,10 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 4.4 fixture — the {@code @AtomicSerial} subclass of the plain
+ * Phase 4.4 fixture -- the {@code @AtomicSerial} subclass of the plain
  * (non-{@code @AtomicSerial}) superclass {@link PlainSuper}.
  *
- * <p>Per §3.10 (second rule): {@code PlainSuper} is invisible to the wire.
+ * <p>Per S3.10 (second rule): {@code PlainSuper} is invisible to the wire.
  * {@code Sub} carries {@code PlainSuper}'s {@code legacyName} field in its
  * OWN serial namespace. {@code Sub}'s {@code (GetArg)} constructor reads
  * {@code legacyName} from its own store and passes it as an ordinary argument
@@ -39,15 +39,15 @@ import java.util.Objects;
  *
  * <p>Serial fields (all in {@code Sub}'s own namespace):
  * <ul>
- *   <li>{@code legacyName} (String) — carried on behalf of {@link PlainSuper}.</li>
- *   <li>{@code subValue}   (int)    — {@code Sub}'s own field.</li>
+ *   <li>{@code legacyName} (String) -- carried on behalf of {@link PlainSuper}.</li>
+ *   <li>{@code subValue}   (int)    -- {@code Sub}'s own field.</li>
  * </ul>
  */
 @AtomicSerial
 public final class Sub extends PlainSuper {
 
     // -------------------------------------------------------------------------
-    // Serial form — Sub's OWN namespace (includes legacyName for PlainSuper)
+    // Serial form -- Sub's OWN namespace (includes legacyName for PlainSuper)
     // -------------------------------------------------------------------------
 
     public static AtomicSerial.SerialForm[] serialForm() {
@@ -88,7 +88,7 @@ public final class Sub extends PlainSuper {
      * what {@code Sub} chose to preserve in its own namespace.
      */
     public Sub(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-        // check runs first, from Sub's frame → Sub's DerFieldStore
+        // check runs first, from Sub's frame -> Sub's DerFieldStore
         super(check(arg));
         // Sub assigns its own field after super() returns
         this.subValue = arg.get("subValue", 0);

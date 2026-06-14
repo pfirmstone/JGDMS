@@ -22,11 +22,11 @@ import org.apache.river.api.io.AtomicSerial;
 import java.io.IOException;
 
 /**
- * The "inserted" middle class. Its field is deliberately named {@code "shared"} —
- * the SAME name as {@link LeakLeaf}'s field — to exercise §3.9 namespace isolation.
+ * The "inserted" middle class. Its field is deliberately named {@code "shared"} --
+ * the SAME name as {@link LeakLeaf}'s field -- to exercise S3.9 namespace isolation.
  * It is TOLERANT of absence (default, no non-null check), so when old data lacks
  * LeakMid's SEQUENCE its {@code shared} field MUST come back as the default
- * {@code "MID_DEFAULT"} — never leaked from LeakLeaf's namespace.
+ * {@code "MID_DEFAULT"} -- never leaked from LeakLeaf's namespace.
  */
 @AtomicSerial
 public class LeakMid extends LeakRoot {
@@ -47,7 +47,7 @@ public class LeakMid extends LeakRoot {
     public LeakMid(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
         super(arg);
         // Reads "shared" from LeakMid's OWN namespace. If LeakMid's SEQUENCE is absent
-        // (old data), this MUST default — it must NOT leak LeakLeaf's "shared".
+        // (old data), this MUST default -- it must NOT leak LeakLeaf's "shared".
         this.midShared = (String) arg.get("shared", "MID_DEFAULT");
     }
 

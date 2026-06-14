@@ -32,12 +32,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Thread-safe, append-only in-memory implementation of {@link SchemaRegistry}
- * (JGDMS-STD-006 §12.1).
+ * (JGDMS-STD-006 S12.1).
  *
  * <h2>Append-only guarantee</h2>
  * <p>
  * A schema is stored permanently once registered. Re-registering an identical
- * byte sequence (same bytes → same digest) is idempotent: the existing entry is
+ * byte sequence (same bytes -> same digest) is idempotent: the existing entry is
  * returned and no second copy is created. Re-registering different bytes yields a
  * different digest and creates an independent entry; neither digest overwrites the
  * other.
@@ -132,7 +132,7 @@ public final class InMemorySchemaRegistry implements SchemaRegistry {
             // Decode the record to find the parent hash
             byte[] parentHash = decodeParentHashOrNull(schemaBytes);
             if (parentHash == null) {
-                // Root record (no parent) — chain is complete
+                // Root record (no parent) -- chain is complete
                 break;
             }
             currentDigest = parentHash;
@@ -200,7 +200,7 @@ public final class InMemorySchemaRegistry implements SchemaRegistry {
 
     /**
      * Encodes a digest as a lowercase hex string for use as a {@code Map} key.
-     * All 32 bytes → 64 hex characters.
+     * All 32 bytes -> 64 hex characters.
      */
     private static String hexKey(byte[] digest) {
         StringBuilder sb = new StringBuilder(digest.length * 2);

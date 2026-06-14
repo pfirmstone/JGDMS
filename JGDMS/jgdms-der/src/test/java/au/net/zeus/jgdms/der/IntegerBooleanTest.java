@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigInteger;
 
 /**
- * Task 1.2 — INTEGER and BOOLEAN encoding and decoding.
+ * Task 1.2 -- INTEGER and BOOLEAN encoding and decoding.
  *
  * Covers:
  * <ul>
@@ -86,7 +86,7 @@ class IntegerBooleanTest {
 
     @Test
     void integer_minus128_vector() {
-        // -128 = 0x80 (1 byte, bit 7 set → negative)
+        // -128 = 0x80 (1 byte, bit 7 set -> negative)
         byte[] encoded = DerWriter.writeInteger(BigInteger.valueOf(-128));
         // Expected: 02 01 80
         assertEquals("020180", Hex.toHex(encoded),
@@ -104,7 +104,7 @@ class IntegerBooleanTest {
 
     @Test
     void integer_256_vector() {
-        // 256 = 0x0100 → two's complement minimal = 01 00
+        // 256 = 0x0100 -> two's complement minimal = 01 00
         byte[] encoded = DerWriter.writeInteger(BigInteger.valueOf(256));
         assertEquals("02020100", Hex.toHex(encoded),
                 "INTEGER(256) should encode as 02 02 01 00");
@@ -166,7 +166,7 @@ class IntegerBooleanTest {
 
     @Test
     void integerDecoder_rejectsZeroLength() {
-        // 02 00 — INTEGER with zero-length content
+        // 02 00 -- INTEGER with zero-length content
         byte[] buf = Hex.fromHex("0200");
         DerReader reader = new DerReader(buf);
         assertThrows(DerException.class, reader::readInteger,
@@ -175,7 +175,7 @@ class IntegerBooleanTest {
 
     @Test
     void integerDecoder_rejectsNonMinimal_leading00() {
-        // 02 02 00 01 — INTEGER(1) with unnecessary leading 0x00 byte (non-minimal)
+        // 02 02 00 01 -- INTEGER(1) with unnecessary leading 0x00 byte (non-minimal)
         byte[] buf = Hex.fromHex("02020001");
         DerReader reader = new DerReader(buf);
         DerException ex = assertThrows(DerException.class, reader::readInteger,
@@ -186,7 +186,7 @@ class IntegerBooleanTest {
 
     @Test
     void integerDecoder_rejectsNonMinimal_leadingFF() {
-        // 02 02 FF FF — would be -1 but non-minimal (FF alone suffices)
+        // 02 02 FF FF -- would be -1 but non-minimal (FF alone suffices)
         // Actually -1 = FF, and -256 = FF 00, so FF FF = -257? No:
         // FF in 1 byte = -1; FF FF in 2 bytes: that's -1 too, non-minimal!
         // Actually 0xFF 0xFF signed: the first 0xFF with bit-7 set means negative.
@@ -230,7 +230,7 @@ class IntegerBooleanTest {
 
     @Test
     void booleanDecoder_rejectsNonCanonical_0x01() {
-        // 01 01 01 — BOOLEAN with content 0x01 (not 0x00 or 0xFF — BER-permitted, DER-illegal)
+        // 01 01 01 -- BOOLEAN with content 0x01 (not 0x00 or 0xFF -- BER-permitted, DER-illegal)
         byte[] buf = Hex.fromHex("010101");
         DerReader reader = new DerReader(buf);
         assertThrows(DerException.class, reader::readBoolean,
@@ -239,7 +239,7 @@ class IntegerBooleanTest {
 
     @Test
     void booleanDecoder_rejectsNonCanonical_0x80() {
-        // 01 01 80 — BER "true" but not canonical
+        // 01 01 80 -- BER "true" but not canonical
         byte[] buf = Hex.fromHex("010180");
         DerReader reader = new DerReader(buf);
         assertThrows(DerException.class, reader::readBoolean,
@@ -248,7 +248,7 @@ class IntegerBooleanTest {
 
     @Test
     void booleanDecoder_rejectsLengthNot1() {
-        // 01 02 00 00 — BOOLEAN with length 2 (wrong)
+        // 01 02 00 00 -- BOOLEAN with length 2 (wrong)
         byte[] buf = Hex.fromHex("01020000");
         DerReader reader = new DerReader(buf);
         assertThrows(DerException.class, reader::readBoolean,

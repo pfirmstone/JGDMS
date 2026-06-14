@@ -42,12 +42,12 @@ import java.util.Objects;
 
 /**
  * DER object encoder and decoder for single {@code @AtomicSerial} classes
- * (Phase 4.1 / 4.2 — single class, one private SEQUENCE), for
- * {@code @AtomicSerial} class hierarchies (Phase 4.3 — one private SEQUENCE
+ * (Phase 4.1 / 4.2 -- single class, one private SEQUENCE), for
+ * {@code @AtomicSerial} class hierarchies (Phase 4.3 -- one private SEQUENCE
  * per class, superclass-first on wire), and for hierarchies containing
- * non-{@code @AtomicSerial} classes (Phase 4.4 — §3.10 wire-visibility rules).
+ * non-{@code @AtomicSerial} classes (Phase 4.4 -- S3.10 wire-visibility rules).
  *
- * <h2>Single-class encoding (object → DER)</h2>
+ * <h2>Single-class encoding (object -> DER)</h2>
  * <p>
  * {@link #encode(Object, Class, AtomicSerialSchemaRecord)} encodes an object's
  * state to the DER bytes of the class's private SEQUENCE. The field values are
@@ -56,7 +56,7 @@ import java.util.Objects;
  * field definitions; the assumption (safe for standard {@code @AtomicSerial}
  * classes) is that the wire name equals the Java field name.
  *
- * <h2>Single-class decoding (DER → object)</h2>
+ * <h2>Single-class decoding (DER -> object)</h2>
  * <p>
  * {@link #decode(Class, AtomicSerialSchemaRecord, byte[])} decodes the DER bytes
  * of one class's private SEQUENCE, builds a {@link DerFieldStore}, assembles a
@@ -96,16 +96,16 @@ import java.util.Objects;
  * {@link InvocationTargetException} wrapper is unwrapped and the exception
  * propagated. No partially-constructed object is returned.
  *
- * <h2>Type mapping for encoding (Class → wireType)</h2>
+ * <h2>Type mapping for encoding (Class -> wireType)</h2>
  * <ul>
- *   <li>{@code boolean} / {@link Boolean} → DER BOOLEAN</li>
- *   <li>{@code byte} / {@link Byte} → DER INTEGER (1-byte range)</li>
- *   <li>{@code short} / {@link Short} → DER INTEGER (2-byte range)</li>
- *   <li>{@code int} / {@link Integer} → DER INTEGER (4-byte range)</li>
- *   <li>{@code long} / {@link Long} → DER INTEGER (8-byte range)</li>
- *   <li>{@link String} → DER UTF8String</li>
- *   <li>{@code byte[]} → DER OCTET STRING</li>
- *   <li>Any other type → {@link DerException} naming the unsupported type</li>
+ *   <li>{@code boolean} / {@link Boolean} -> DER BOOLEAN</li>
+ *   <li>{@code byte} / {@link Byte} -> DER INTEGER (1-byte range)</li>
+ *   <li>{@code short} / {@link Short} -> DER INTEGER (2-byte range)</li>
+ *   <li>{@code int} / {@link Integer} -> DER INTEGER (4-byte range)</li>
+ *   <li>{@code long} / {@link Long} -> DER INTEGER (8-byte range)</li>
+ *   <li>{@link String} -> DER UTF8String</li>
+ *   <li>{@code byte[]} -> DER OCTET STRING</li>
+ *   <li>Any other type -> {@link DerException} naming the unsupported type</li>
  * </ul>
  */
 public final class ObjectCodec {
@@ -115,7 +115,7 @@ public final class ObjectCodec {
     }
 
     // =========================================================================
-    // Decode (DER bytes → object)
+    // Decode (DER bytes -> object)
     // =========================================================================
 
     /**
@@ -243,13 +243,13 @@ public final class ObjectCodec {
      * instance of the lowest {@code @AtomicSerial} class in the chain, which is
      * assignability-checked against {@code expectedSupertype}.
      *
-     * <h2>Phase 4.4 — non-{@code @AtomicSerial} class handling (§3.10)</h2>
+     * <h2>Phase 4.4 -- non-{@code @AtomicSerial} class handling (S3.10)</h2>
      *
      * <p>The {@code chain} is produced by
      * {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain}, which
      * walks the hierarchy skipping any class not annotated {@code @AtomicSerial}.
      * Consequently the chain's first record ({@code chain.chain().get(0)}) names
-     * the <em>lowest {@code @AtomicSerial} class</em> — which may differ from the
+     * the <em>lowest {@code @AtomicSerial} class</em> -- which may differ from the
      * {@code expectedSupertype} argument when a non-{@code @AtomicSerial} subclass
      * is passed in.
      *
@@ -258,7 +258,7 @@ public final class ObjectCodec {
      *       (e.g. {@code Bar extends Foo}, only {@code Foo} is {@code @AtomicSerial}):
      *       {@code generateChain(Bar.class)} yields a chain whose leaf record is {@code Foo}.
      *       This method constructs a {@code Foo}, not a {@code Bar}. The caller passes
-     *       {@code expectedSupertype = Bar.class} (or any supertype of {@code Foo}) — it
+     *       {@code expectedSupertype = Bar.class} (or any supertype of {@code Foo}) -- it
      *       merely constrains what the caller may assign the result to. The decoded
      *       object's runtime class is exactly {@code Foo}.</li>
      *   <li><b>All-{@code @AtomicSerial} hierarchy (Phase 4.3)</b>:
@@ -268,7 +268,7 @@ public final class ObjectCodec {
      * <p>The method reads each per-class SEQUENCE from the outer wrapper in
      * <b>superclass-first</b> order, builds a {@link DerFieldStore} per class, and
      * populates a {@link DerGetArg} with all stores (insertion order: superclass-first,
-     * leaf-last — matching {@code DerGetArg}'s documented contract and
+     * leaf-last -- matching {@code DerGetArg}'s documented contract and
      * {@code serialClasses()} order).
      *
      * <p>The <em>construct class</em>'s {@code (GetArg)} constructor is then invoked
@@ -280,7 +280,7 @@ public final class ObjectCodec {
      *                         actual construct class; the construct class must be
      *                         assignable to this type)
      * @param expectedSupertype the expected supertype of the decoded result; used for
-     *                         the assignability check only — the actual class constructed
+     *                         the assignability check only -- the actual class constructed
      *                         is the chain's leaf {@code @AtomicSerial} record
      * @param chain            the linked schema chain (leaf-first from
      *                         {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain})
@@ -304,14 +304,14 @@ public final class ObjectCodec {
 
         // chain.chain() is leaf-first; the first entry is the lowest @AtomicSerial class.
         // This may differ from expectedSupertype when a non-@AtomicSerial subclass was
-        // passed to generateChain (§3.10, first rule: non-@AtomicSerial subclass is dropped).
+        // passed to generateChain (S3.10, first rule: non-@AtomicSerial subclass is dropped).
         List<AtomicSerialSchemaRecord> leafFirst = chain.chain();
         String constructClassName = leafFirst.get(0).className();
         Class<?> constructClass = loadClass(constructClassName);
 
         // Assignability check: the constructed type must be a subtype of expectedSupertype.
         // When Bar extends Foo (Bar plain, Foo @AtomicSerial), constructClass = Foo,
-        // expectedSupertype = Bar.class → Foo IS a supertype of Bar, but Bar is NOT a
+        // expectedSupertype = Bar.class -> Foo IS a supertype of Bar, but Bar is NOT a
         // supertype of Foo. The correct check is: constructClass is assignable TO
         // expectedSupertype, meaning expectedSupertype.isAssignableFrom(constructClass).
         if (!expectedSupertype.isAssignableFrom(constructClass)) {
@@ -346,14 +346,14 @@ public final class ObjectCodec {
                     + "(more SEQUENCEs than schema records)");
         }
 
-        // §3.9 / §11.6 namespace-isolation fix: every @AtomicSerial class in the
+        // S3.9 / S11.6 namespace-isolation fix: every @AtomicSerial class in the
         // construct class's hierarchy whose (GetArg) constructor will run MUST have a
         // store entry, so DerGetArg.callerClass() resolves EACH level to its OWN
         // namespace. A class present in the receiver's hierarchy but ABSENT from the
         // embedded data (e.g. an @AtomicSerial class inserted AFTER the data was
-        // written — §11.6) gets an EMPTY store, so its arg.get(name, default) calls
+        // written -- S11.6) gets an EMPTY store, so its arg.get(name, default) calls
         // return defaults. Without this, callerClass() would skip the absent class's
-        // frame and resolve to the nearest neighbouring class's store — leaking that
+        // frame and resolve to the nearest neighbouring class's store -- leaking that
         // neighbour's namespace (proved by NamespaceLeakRegressionTest).
         for (Class<?> c = constructClass; c != null && c != Object.class; c = c.getSuperclass()) {
             if (c.isAnnotationPresent(AtomicSerial.class) && !storeMap.containsKey(c)) {
@@ -364,7 +364,7 @@ public final class ObjectCodec {
         // Assemble the multi-entry DerGetArg (superclass-first insertion order)
         DerGetArg arg = new DerGetArg(storeMap);
 
-        // Invoke the CONSTRUCT CLASS's (GetArg) constructor — it chains up via super(check(arg)).
+        // Invoke the CONSTRUCT CLASS's (GetArg) constructor -- it chains up via super(check(arg)).
         // For all-@AtomicSerial hierarchies (Phase 4.3) this is the same as the old leafClass.
         // For non-@AtomicSerial subclass dropped to its @AtomicSerial superclass, this is the
         // @AtomicSerial superclass (e.g. Foo, not Bar).
@@ -390,7 +390,7 @@ public final class ObjectCodec {
     }
 
     // =========================================================================
-    // Encode (object → DER bytes)
+    // Encode (object -> DER bytes)
     // =========================================================================
 
     /**
@@ -439,13 +439,13 @@ public final class ObjectCodec {
     }
 
     // =========================================================================
-    // §3.11 Data Independence: decode to named field map WITHOUT loading classes
+    // S3.11 Data Independence: decode to named field map WITHOUT loading classes
     // =========================================================================
 
     /**
      * Decodes a DER hierarchy payload into a named field map given ONLY the DER
-     * bytes and the {@link SchemaChain.Result} — <b>without loading any class from
-     * the originating codebase</b>. This satisfies the §3.11 normative requirement
+     * bytes and the {@link SchemaChain.Result} -- <b>without loading any class from
+     * the originating codebase</b>. This satisfies the S3.11 normative requirement
      * for data independence.
      *
      * <p>The returned map is keyed by class name (as declared in each
@@ -457,8 +457,8 @@ public final class ObjectCodec {
      * {@link DerFieldStore#presentFields()} and are not included in the inner map.
      *
      * <p>No class is loaded; no constructor is invoked; no {@code check(GetArg)} is
-     * run. The decode is purely structural: schema → DER → named values. This is
-     * the §3.11 claim in executable form.
+     * run. The decode is purely structural: schema -> DER -> named values. This is
+     * the S3.11 claim in executable form.
      *
      * <pre>
      * SEQUENCE {          -- outer hierarchy SEQUENCE (produced by encodeHierarchy)
@@ -472,7 +472,7 @@ public final class ObjectCodec {
      *                         {@link SchemaGenerator#generateChain}); class names
      *                         must match the names used at encode time
      * @param hierarchyPayload the DER bytes produced by {@link #encodeHierarchy}
-     * @return an ordered map: className → (fieldName → decoded value), in
+     * @return an ordered map: className -> (fieldName -> decoded value), in
      *         superclass-first hierarchy order; each inner map preserves schema
      *         field order
      * @throws DerException         if the DER encoding is malformed or a wire type
@@ -497,7 +497,7 @@ public final class ObjectCodec {
             throw new DerException("decodeToFieldMap: trailing bytes after outer SEQUENCE");
         }
 
-        // Result map: class name → field name → value, in superclass-first order.
+        // Result map: class name -> field name -> value, in superclass-first order.
         java.util.LinkedHashMap<String, java.util.Map<String, Object>> result =
                 new java.util.LinkedHashMap<>(rootFirst.size() * 2);
 
@@ -544,7 +544,7 @@ public final class ObjectCodec {
      *
      * <p>The search starts at {@code declaringClass} and walks up the superclass chain
      * to {@code Object} until the field is found. This is required for the Phase 4.4
-     * non-{@code @AtomicSerial} superclass case (§3.10, second rule): when an
+     * non-{@code @AtomicSerial} superclass case (S3.10, second rule): when an
      * {@code @AtomicSerial} class's {@code serialForm()} includes a field that is
      * physically declared in a non-{@code @AtomicSerial} superclass, the field will
      * not be found in {@code declaringClass}'s own declared fields but IS accessible
@@ -564,7 +564,7 @@ public final class ObjectCodec {
                 f.setAccessible(true);
                 return f.get(instance);
             } catch (NoSuchFieldException ex) {
-                // Not in this class — continue to superclass
+                // Not in this class -- continue to superclass
                 cls = cls.getSuperclass();
             } catch (IllegalAccessException ex) {
                 throw new DerException(
@@ -583,13 +583,13 @@ public final class ObjectCodec {
      *
      * <p>Type mapping (as per STD-006 and {@code SchemaGenerator.toWireType}):
      * <ul>
-     *   <li>{@code "boolean"} / {@code "java.lang.Boolean"} → BOOLEAN</li>
-     *   <li>{@code "byte"} / {@code "java.lang.Byte"} → INTEGER</li>
-     *   <li>{@code "short"} / {@code "java.lang.Short"} → INTEGER</li>
-     *   <li>{@code "int"} / {@code "java.lang.Integer"} → INTEGER</li>
-     *   <li>{@code "long"} / {@code "java.lang.Long"} → INTEGER</li>
-     *   <li>{@code "java.lang.String"} → UTF8String</li>
-     *   <li>{@code "byte[]"} / {@code "[B"} → OCTET STRING</li>
+     *   <li>{@code "boolean"} / {@code "java.lang.Boolean"} -> BOOLEAN</li>
+     *   <li>{@code "byte"} / {@code "java.lang.Byte"} -> INTEGER</li>
+     *   <li>{@code "short"} / {@code "java.lang.Short"} -> INTEGER</li>
+     *   <li>{@code "int"} / {@code "java.lang.Integer"} -> INTEGER</li>
+     *   <li>{@code "long"} / {@code "java.lang.Long"} -> INTEGER</li>
+     *   <li>{@code "java.lang.String"} -> UTF8String</li>
+     *   <li>{@code "byte[]"} / {@code "[B"} -> OCTET STRING</li>
      * </ul>
      */
     private static byte[] encodeValue(Object value, String wireType,
@@ -654,7 +654,7 @@ public final class ObjectCodec {
             default -> throw new DerException(
                     "ObjectCodec: unsupported wire type '" + wireType
                     + "' for field '" + fieldName + "'"
-                    + " (char/float/double deferred per §7.6)");
+                    + " (char/float/double deferred per S7.6)");
         };
     }
 
@@ -679,14 +679,14 @@ public final class ObjectCodec {
     }
 
     /**
-     * Builds an EMPTY {@link DerFieldStore} for {@code cls} — a store over a schema
+     * Builds an EMPTY {@link DerFieldStore} for {@code cls} -- a store over a schema
      * with no fields and an empty SEQUENCE payload. All {@code get(name, default)}
      * calls against it return the default; {@code defaulted(name)} is always true.
      *
      * <p>Used by {@link #decodeHierarchy} to register an absent class's namespace
-     * (e.g. an @AtomicSerial class inserted after the data was written, §11.6) so
+     * (e.g. an @AtomicSerial class inserted after the data was written, S11.6) so
      * that {@code DerGetArg} dispatch resolves that class to its own (empty) store
-     * rather than leaking a neighbour's namespace (§3.9).
+     * rather than leaking a neighbour's namespace (S3.9).
      */
     private static DerFieldStore emptyFieldStore(Class<?> cls) throws DerException {
         AtomicSerialSchemaRecord emptySchema =

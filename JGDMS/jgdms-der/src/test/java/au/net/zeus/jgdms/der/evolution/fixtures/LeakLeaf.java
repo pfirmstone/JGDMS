@@ -23,8 +23,8 @@ import java.io.IOException;
 
 /**
  * Leaf of {@code LeakLeaf -> LeakMid -> LeakRoot}. Its field is named {@code "shared"},
- * colliding with {@link LeakMid#midShared}'s wire name — the two are independent
- * namespaces (§3.9). In the regression test, old data carries LeakLeaf's "shared"
+ * colliding with {@link LeakMid#midShared}'s wire name -- the two are independent
+ * namespaces (S3.9). In the regression test, old data carries LeakLeaf's "shared"
  * but NOT LeakMid's (LeakMid was inserted later); a correct decoder must give LeakMid
  * its default, not LeakLeaf's value.
  */

@@ -32,7 +32,7 @@ import java.util.Objects;
 
 /**
  * A real {@link AtomicSerial.GetArg} implementation backed by a
- * {@code Map<Class<?>, DerFieldStore>} — one {@link DerFieldStore} per
+ * {@code Map<Class<?>, DerFieldStore>} -- one {@link DerFieldStore} per
  * {@code @AtomicSerial} class in the hierarchy (exactly one entry for Phase 4.1;
  * the map structure is ready for Phase 4.3 hierarchy support).
  *
@@ -53,7 +53,7 @@ import java.util.Objects;
  * That mechanism remains valid on DirtyChai (the JGDMS target JDK), which
  * <em>retains and advances</em> the Authorization / {@code SecurityManager}
  * framework ({@code au.zeus.jdk.authorization.*}) rather than removing it.
- * {@code DerGetArg} instead uses {@code StackWalker} — the same caller-stack
+ * {@code DerGetArg} instead uses {@code StackWalker} -- the same caller-stack
  * introspection API the DirtyChai JDK itself uses for caller validation: it
  * resolves the caller class directly, without instantiating a
  * {@code SecurityManager} subclass, and is lazy-streaming and {@code null}-safe.
@@ -75,18 +75,18 @@ import java.util.Objects;
  *
  * <h2>getObjectStreamClass</h2>
  * <p>
- * Returns {@code null} in the DER path — there is no {@link ObjectStreamClass} in
+ * Returns {@code null} in the DER path -- there is no {@link ObjectStreamClass} in
  * a DER-decoded object. Fixture constructors (and production code in the DER path)
  * MUST NOT call this method. It is present only to satisfy the abstract contract.
  *
  * <h2>getReader</h2>
  * <p>
- * Returns {@code null} — there is no {@link AtomicSerial.ReadObject} in the DER
+ * Returns {@code null} -- there is no {@link AtomicSerial.ReadObject} in the DER
  * path; DER classes do not use {@code @ReadInput}.
  *
  * <h2>getObjectStreamContext</h2>
  * <p>
- * Returns {@link Collections#emptyList()} — no ObjectStreamContext in the DER path.
+ * Returns {@link Collections#emptyList()} -- no ObjectStreamContext in the DER path.
  */
 public final class DerGetArg extends AtomicSerial.GetArg {
 
@@ -103,7 +103,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     /**
      * Constructs a {@code DerGetArg} from a single-entry map (Phase 4.1 path).
      *
-     * @param storeMap ordered map of class → DerFieldStore (must not be {@code null};
+     * @param storeMap ordered map of class -> DerFieldStore (must not be {@code null};
      *                 must not be empty; for Phase 4.1 has exactly one entry)
      * @throws NullPointerException if {@code storeMap} is {@code null} or empty
      */
@@ -183,7 +183,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     // =========================================================================
 
     /**
-     * Returns {@code null} — no {@link ObjectStreamClass} exists in the DER path.
+     * Returns {@code null} -- no {@link ObjectStreamClass} exists in the DER path.
      * DER-path constructors and {@code check} methods MUST NOT call this method.
      */
     @Override
@@ -210,13 +210,13 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     }
 
     /**
-     * {@code char} fields are deferred per STD-006 §7.6.
+     * {@code char} fields are deferred per STD-006 S7.6.
      * Always throws {@link InvalidObjectException}.
      */
     @Override
     public char get(String name, char val) throws IOException {
         throw new InvalidObjectException(
-                "DerGetArg: char fields are deferred per §7.6; field: " + name);
+                "DerGetArg: char fields are deferred per S7.6; field: " + name);
     }
 
     @Override
@@ -238,23 +238,23 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     }
 
     /**
-     * {@code float} fields are deferred per STD-006 §7.6.
+     * {@code float} fields are deferred per STD-006 S7.6.
      * Always throws {@link InvalidObjectException}.
      */
     @Override
     public float get(String name, float val) throws IOException {
         throw new InvalidObjectException(
-                "DerGetArg: float fields are deferred per §7.6; field: " + name);
+                "DerGetArg: float fields are deferred per S7.6; field: " + name);
     }
 
     /**
-     * {@code double} fields are deferred per STD-006 §7.6.
+     * {@code double} fields are deferred per STD-006 S7.6.
      * Always throws {@link InvalidObjectException}.
      */
     @Override
     public double get(String name, double val) throws IOException {
         throw new InvalidObjectException(
-                "DerGetArg: double fields are deferred per §7.6; field: " + name);
+                "DerGetArg: double fields are deferred per S7.6; field: " + name);
     }
 
     @Override
@@ -284,7 +284,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         Objects.requireNonNull(type, "type");
         Object stored = callerStore().get(name, null);
         if (stored == null) {
-            // Field is absent — return default
+            // Field is absent -- return default
             return val;
         }
         if (type.isInstance(stored)) {
@@ -316,7 +316,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     }
 
     /**
-     * Returns {@code null} — there is no {@link AtomicSerial.ReadObject} in the DER
+     * Returns {@code null} -- there is no {@link AtomicSerial.ReadObject} in the DER
      * path. DER-path classes do not use {@code @ReadInput}.
      */
     @Override
@@ -325,7 +325,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     }
 
     /**
-     * Returns an empty, immutable list — there is no ObjectStreamContext in the
+     * Returns an empty, immutable list -- there is no ObjectStreamContext in the
      * DER path.
      */
     @Override
@@ -381,7 +381,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                 else if (t == short.class) store.get(fieldName, (short) 0);
                 else if (t == int.class)   store.get(fieldName, 0);
                 else if (t == long.class)  store.get(fieldName, 0L);
-                // char/float/double are deferred — skip silently (§7.6)
+                // char/float/double are deferred -- skip silently (S7.6)
             } else {
                 Object v = store.get(fieldName, null);
                 if (nonNull[i] && v == null) {

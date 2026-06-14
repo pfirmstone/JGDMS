@@ -25,7 +25,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Fixture 3 — {@code @AtomicSerial} class exercising all supported wire types:
+ * Fixture 3 -- {@code @AtomicSerial} class exercising all supported wire types:
  * {@code boolean}, {@code byte}, {@code short}, {@code int}, {@code long},
  * {@link String}, and {@code byte[]}.
  *
@@ -35,7 +35,7 @@ import java.util.Objects;
 public final class MultiTypeRecord {
 
     // -------------------------------------------------------------------------
-    // Serial form — one field per supported wire type
+    // Serial form -- one field per supported wire type
     // -------------------------------------------------------------------------
 
     public static AtomicSerial.SerialForm[] serialForm() {

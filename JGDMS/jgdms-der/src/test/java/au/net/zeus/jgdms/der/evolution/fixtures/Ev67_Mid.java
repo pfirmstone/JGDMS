@@ -24,22 +24,22 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 6 / §11.6 and §11.7 fixture — the INSERTED (§11.6) / REMOVED (§11.7)
+ * Phase 6 / S11.6 and S11.7 fixture -- the INSERTED (S11.6) / REMOVED (S11.7)
  * middle class between {@link Ev67_Alpha} and {@link Ev67_Beta}.
  *
- * <h2>§11.6 — Insert Mid</h2>
- * <p>This class is NEW: it didn't exist when old data was encoded.  The §11.6 test
+ * <h2>S11.6 -- Insert Mid</h2>
+ * <p>This class is NEW: it didn't exist when old data was encoded.  The S11.6 test
  * proves that NEW data (with Mid's SEQUENCE) decodes correctly.
  *
  * <p>Attempting to decode OLD data (lacking Mid's SEQUENCE) against the NEW chain
  * would require that {@code Ev67_Mid(GetArg)} return defaults when Mid has no store
  * in the embedded chain.  This exposes a gap in the current {@code DerGetArg}
  * implementation (which throws {@code InvalidObjectException} instead of
- * returning defaults) — reported separately.
+ * returning defaults) -- reported separately.
  *
- * <h2>§11.7 — Remove Mid</h2>
+ * <h2>S11.7 -- Remove Mid</h2>
  * <p>This class is REMOVED: it existed when old data was encoded.  Old data carries
- * Mid's SEQUENCE.  The §11.7 test decodes old data (with Mid's SEQUENCE) using
+ * Mid's SEQUENCE.  The S11.7 test decodes old data (with Mid's SEQUENCE) using
  * the OLD embedded schema chain (which includes Mid).  The decoder builds a
  * {@code DerFieldStore} for Mid and ALL field values are present, but since
  * {@code Ev67_Beta} chains directly to {@code Ev67_Alpha} in the new code (Mid

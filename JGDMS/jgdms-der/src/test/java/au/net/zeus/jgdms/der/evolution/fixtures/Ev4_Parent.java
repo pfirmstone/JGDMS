@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * Phase 6 / §11.4 fixture — the superclass that GAINED {@code @AtomicSerial}.
+ * Phase 6 / S11.4 fixture -- the superclass that GAINED {@code @AtomicSerial}.
  *
  * <p>Scenario: {@code Ev4_Parent} was previously a plain (non-{@code @AtomicSerial})
  * class.  Its child {@link Ev4_Child} carried the parent's state ({@code parentValue})
@@ -34,7 +34,7 @@ import java.util.Objects;
  * For old data (no parent SEQUENCE), an "unmodified Child" (one that still calls
  * a regular {@code super(parentValue)} rather than {@code super(check(arg))})
  * does NOT invoke {@code Ev4_Parent(GetArg)}, so no store lookup occurs for the
- * parent — decode succeeds and the parent's fields come from what Child passes to
+ * parent -- decode succeeds and the parent's fields come from what Child passes to
  * the regular constructor.
  */
 @AtomicSerial

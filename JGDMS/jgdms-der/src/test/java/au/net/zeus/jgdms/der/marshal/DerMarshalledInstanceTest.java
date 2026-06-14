@@ -29,7 +29,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * STD-008 §13.6 "Option A" integration tests — non-invasive DER MarshalledInstance spike.
+ * STD-008 S13.6 "Option A" integration tests -- non-invasive DER MarshalledInstance spike.
  *
  * <p>Proves that a DER codec plugs into the existing {@link MarshalledInstance} factory
  * seam end-to-end with ZERO platform changes. All four classes
@@ -39,30 +39,30 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <h2>Test catalogue</h2>
  * <ul>
- *   <li>{@link #test_13_1_RoundTrip_SimpleRecord_getWithType} — flat @AtomicSerial class;
+ *   <li>{@link #test_13_1_RoundTrip_SimpleRecord_getWithType} -- flat @AtomicSerial class;
  *       round-trip via {@code get(false, Class)}.</li>
- *   <li>{@link #test_13_2_RoundTrip_Gamma_getWithType} — three-level @AtomicSerial hierarchy
+ *   <li>{@link #test_13_2_RoundTrip_Gamma_getWithType} -- three-level @AtomicSerial hierarchy
  *       (Gamma extends Beta extends Alpha); round-trip via {@code get(false, Class)}.</li>
- *   <li>{@link #test_13_3_RoundTrip_FullGetSignature} — round-trip via the 5-arg
+ *   <li>{@link #test_13_3_RoundTrip_FullGetSignature} -- round-trip via the 5-arg
  *       {@code get(ClassLoader, boolean, ClassLoader, Collection, Class)} path.</li>
- *   <li>{@link #test_13_4_ObjBytesCarriesEmbeddedSchema} — confirms that the DER
+ *   <li>{@link #test_13_4_ObjBytesCarriesEmbeddedSchema} -- confirms that the DER
  *       {@link MarshalledInstanceRecord} stored in {@code objBytes} has non-empty
  *       schemaBytes and the canonical payloadFormat string.</li>
- *   <li>{@link #test_13_5_NullObject} — null object produces a null from get().</li>
+ *   <li>{@link #test_13_5_NullObject} -- null object produces a null from get().</li>
  * </ul>
  *
- * <h2>Scope note — serialization of DerMarshalledInstance itself</h2>
+ * <h2>Scope note -- serialization of DerMarshalledInstance itself</h2>
  * <p>
  * Round-tripping a {@code DerMarshalledInstance} instance through Java serialization
  * reconstructs a base {@link MarshalledInstance}. The base get() would then use the
  * default JOSS factory, which cannot decode the DER bytes in {@code objBytes}.
- * Format-detection / ServiceLoader dispatch (the STD-008 §13 hybrid B+C follow-on) is
+ * Format-detection / ServiceLoader dispatch (the STD-008 S13 hybrid B+C follow-on) is
  * out of scope for this spike and is not tested here.
  */
 class DerMarshalledInstanceTest {
 
     // =========================================================================
-    // 13.1 — flat @AtomicSerial class round-trip via get(boolean, Class)
+    // 13.1 -- flat @AtomicSerial class round-trip via get(boolean, Class)
     // =========================================================================
 
     /**
@@ -71,14 +71,14 @@ class DerMarshalledInstanceTest {
      *
      * <p>Flow:
      * {@code new DerMarshalledInstance(fixture)}
-     *  → {@link DerMarshalFactory#createMarshalOutput}
-     *  → {@link DerMarshalInstanceOutput#writeObject}
-     *  → {@link MarshalledInstanceRecord#encode()} stored as {@code objBytes}
-     *  → {@code get(false, SimpleRecord.class)}
-     *  → {@link DerMarshalFactory#createMarshalInput}
-     *  → {@link DerMarshalInstanceInput#readObject(Class)}
-     *  → {@link MarshalledInstanceCodec#decodeMarshalledInstance}
-     *  → reconstructed object equals fixture.
+     *  -> {@link DerMarshalFactory#createMarshalOutput}
+     *  -> {@link DerMarshalInstanceOutput#writeObject}
+     *  -> {@link MarshalledInstanceRecord#encode()} stored as {@code objBytes}
+     *  -> {@code get(false, SimpleRecord.class)}
+     *  -> {@link DerMarshalFactory#createMarshalInput}
+     *  -> {@link DerMarshalInstanceInput#readObject(Class)}
+     *  -> {@link MarshalledInstanceCodec#decodeMarshalledInstance}
+     *  -> reconstructed object equals fixture.
      */
     @Test
     void test_13_1_RoundTrip_SimpleRecord_getWithType() throws Exception {
@@ -92,7 +92,7 @@ class DerMarshalledInstanceTest {
     }
 
     // =========================================================================
-    // 13.2 — three-level @AtomicSerial hierarchy round-trip via get(boolean, Class)
+    // 13.2 -- three-level @AtomicSerial hierarchy round-trip via get(boolean, Class)
     // =========================================================================
 
     /**
@@ -103,7 +103,7 @@ class DerMarshalledInstanceTest {
      *
      * <p>This proves the hierarchy encoding (one private SEQUENCE per class, root-first
      * on wire, StackWalker-dispatched deserialization) works through the MarshalledInstance
-     * seam — not just the direct ObjectCodec path.
+     * seam -- not just the direct ObjectCodec path.
      */
     @Test
     void test_13_2_RoundTrip_Gamma_getWithType() throws Exception {
@@ -120,7 +120,7 @@ class DerMarshalledInstanceTest {
     }
 
     // =========================================================================
-    // 13.3 — round-trip via the full 5-arg get() path
+    // 13.3 -- round-trip via the full 5-arg get() path
     // =========================================================================
 
     /**
@@ -148,7 +148,7 @@ class DerMarshalledInstanceTest {
     }
 
     // =========================================================================
-    // 13.4 — objBytes carries the embedded schema (payloadFormat + non-empty schemaBytes)
+    // 13.4 -- objBytes carries the embedded schema (payloadFormat + non-empty schemaBytes)
     // =========================================================================
 
     /**
@@ -184,7 +184,7 @@ class DerMarshalledInstanceTest {
 
         // Assert: embedded schema is non-empty
         assertTrue(rec.schemaBytes().length > 0,
-                "schemaBytes in the MarshalledInstanceRecord must be non-empty — " +
+                "schemaBytes in the MarshalledInstanceRecord must be non-empty -- " +
                 "the schema travels embedded in objBytes");
 
         // Assert: payloadFormat is the canonical DER format string
@@ -199,7 +199,7 @@ class DerMarshalledInstanceTest {
     }
 
     // =========================================================================
-    // 13.5 — null object round-trip
+    // 13.5 -- null object round-trip
     // =========================================================================
 
     /**

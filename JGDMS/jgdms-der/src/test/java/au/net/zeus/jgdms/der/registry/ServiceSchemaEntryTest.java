@@ -29,28 +29,28 @@ import java.util.Arrays;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Phase 7.1 — ServiceSchemaEntry acceptance tests.
+ * Phase 7.1 -- ServiceSchemaEntry acceptance tests.
  *
  * <ul>
- *   <li>7.1.a — Reflective field-type assertion: every declared instance field is
+ *   <li>7.1.a -- Reflective field-type assertion: every declared instance field is
  *               a primitive, {@link String}, or {@code byte[]}. No service objects.</li>
- *   <li>7.1.b — Round-trip through {@link ObjectCodec} with field equality.</li>
- *   <li>7.1.c — {@code schemaDigest} field holds and equals a digest produced by
+ *   <li>7.1.b -- Round-trip through {@link ObjectCodec} with field equality.</li>
+ *   <li>7.1.c -- {@code schemaDigest} field holds and equals a digest produced by
  *               {@link SchemaGenerator#generateChain(Class)}.leafDigest().</li>
  * </ul>
  */
 class ServiceSchemaEntryTest {
 
     // =========================================================================
-    // 7.1.a — ALL declared instance fields are primitive, String, or byte[]
+    // 7.1.a -- ALL declared instance fields are primitive, String, or byte[]
     // =========================================================================
 
     /**
-     * 7.1.a — Reflective assertion that every declared instance field in
+     * 7.1.a -- Reflective assertion that every declared instance field in
      * {@link ServiceSchemaEntry} is a primitive type, {@link String}, or
      * {@code byte[]}. No service-specific objects.
      *
-     * <p>This is the §12.1 "Bytes and primitives only" constraint, enforced at
+     * <p>This is the S12.1 "Bytes and primitives only" constraint, enforced at
      * the structural level so no code review or runtime check is needed.
      */
     @Test
@@ -69,12 +69,12 @@ class ServiceSchemaEntryTest {
     }
 
     // =========================================================================
-    // 7.1.b — Round-trip through ObjectCodec with field equality
+    // 7.1.b -- Round-trip through ObjectCodec with field equality
     // =========================================================================
 
     /**
-     * 7.1.b — Round-trip a {@link ServiceSchemaEntry} through the DER
-     * {@link ObjectCodec}: encode → DER bytes → decode → equal.
+     * 7.1.b -- Round-trip a {@link ServiceSchemaEntry} through the DER
+     * {@link ObjectCodec}: encode -> DER bytes -> decode -> equal.
      *
      * <p>Verifies that {@code serialForm()}, the {@code (GetArg)} constructor, and
      * the value constructor all cooperate with the codec correctly.
@@ -113,9 +113,9 @@ class ServiceSchemaEntryTest {
     }
 
     /**
-     * 7.1.b variant — round-trip with an empty-string {@code schemaVersion}.
+     * 7.1.b variant -- round-trip with an empty-string {@code schemaVersion}.
      *
-     * <p>The {@code schemaVersion} field is informational only (§12.3). The DER
+     * <p>The {@code schemaVersion} field is informational only (S12.3). The DER
      * codec encodes Strings on the wire; a null String cannot be encoded (no null
      * marker in DER). Callers that want to omit a version label should use the
      * empty string {@code ""}. This test verifies that an empty schemaVersion
@@ -146,11 +146,11 @@ class ServiceSchemaEntryTest {
     }
 
     // =========================================================================
-    // 7.1.c — schemaDigest holds and equals a real SchemaGenerator leaf digest
+    // 7.1.c -- schemaDigest holds and equals a real SchemaGenerator leaf digest
     // =========================================================================
 
     /**
-     * 7.1.c — Verifies that the {@code schemaDigest} field can hold and equals a
+     * 7.1.c -- Verifies that the {@code schemaDigest} field can hold and equals a
      * digest produced by {@link SchemaGenerator#generateChain(Class)}.leafDigest().
      *
      * <p>Uses {@link SimpleRecord} as the fixture class whose chain is generated, then

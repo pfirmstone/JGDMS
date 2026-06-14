@@ -24,7 +24,7 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Fixture 2 — {@code @AtomicSerial} class with a {@code long} and a
+ * Fixture 2 -- {@code @AtomicSerial} class with a {@code long} and a
  * {@link String} label, and a HARD INVARIANT: {@code value} must be &ge; 0.
  *
  * <p>This is the primary fixture for testing check-before-construction:
@@ -70,14 +70,14 @@ public final class CounterRecord {
     // -------------------------------------------------------------------------
 
     public CounterRecord(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-        // check FIRST — enforces value >= 0 before any field is assigned
+        // check FIRST -- enforces value >= 0 before any field is assigned
         check(arg);
         this.value = arg.get("value", 0L);
         this.label = (String) arg.get("label", null);
     }
 
     // -------------------------------------------------------------------------
-    // check-before-construction — HARD INVARIANT: value >= 0
+    // check-before-construction -- HARD INVARIANT: value >= 0
     // -------------------------------------------------------------------------
 
     /**

@@ -24,18 +24,18 @@ import net.jqwik.api.*;
 import org.junit.jupiter.api.Test;
 
 /**
- * Task 1.1 — Tag encoding/decoding and length encoding/decoding.
+ * Task 1.1 -- Tag encoding/decoding and length encoding/decoding.
  *
  * Covers:
  * <ul>
- *   <li>Short-form lengths (0–127) round-trip.</li>
- *   <li>Long-form lengths (128–Integer.MAX_VALUE representative) round-trip.</li>
- *   <li>jqwik property: random non-negative int length → encode → decode → equals.</li>
+ *   <li>Short-form lengths (0-127) round-trip.</li>
+ *   <li>Long-form lengths (128-Integer.MAX_VALUE representative) round-trip.</li>
+ *   <li>jqwik property: random non-negative int length -> encode -> decode -> equals.</li>
  *   <li>Decoder rejects indefinite-length (0x80).</li>
- *   <li>Decoder rejects non-minimal long form (value ≤ 127 in long form; leading zero).</li>
+ *   <li>Decoder rejects non-minimal long form (value <= 127 in long form; leading zero).</li>
  *   <li>Universal tag constants encode to expected octets.</li>
  *   <li>Tag encode/decode round-trip for all classes, both primitive and constructed,
- *       including high-tag-number form (≥ 31).</li>
+ *       including high-tag-number form (>= 31).</li>
  * </ul>
  */
 class TagLengthTest {
@@ -125,9 +125,9 @@ class TagLengthTest {
 
     @Test
     void highTagNumberNonMinimalIsRejected() {
-        // Manually craft a high-tag-number encoding with value < 31 — invalid
+        // Manually craft a high-tag-number encoding with value < 31 -- invalid
         // e.g. context primitive, high-tag-number form, tag number 5
-        // = 0x9F 0x05 — the 0x05 has no continuation bit
+        // = 0x9F 0x05 -- the 0x05 has no continuation bit
         byte[] nonMinimal = new byte[]{(byte) 0x9F, 0x05};
         assertThrows(DerException.class, () -> Tag.decode(nonMinimal, 0),
                 "Should reject high-tag-number form for tag < 31");
@@ -186,14 +186,14 @@ class TagLengthTest {
     void longFormLength_65535() {
         byte[] enc = DerWriter.encodeLength(65535);
         assertArrayEquals(new byte[]{(byte)0x82, (byte)0xFF, (byte)0xFF}, enc,
-                "65535 → 0x82 0xFF 0xFF");
+                "65535 -> 0x82 0xFF 0xFF");
     }
 
     @Test
     void longFormLength_65536() {
         byte[] enc = DerWriter.encodeLength(65536);
         assertArrayEquals(new byte[]{(byte)0x83, 0x01, 0x00, 0x00}, enc,
-                "65536 → 0x83 0x01 0x00 0x00");
+                "65536 -> 0x83 0x01 0x00 0x00");
     }
 
     /* ------------------------------------------------------------------ */
@@ -256,7 +256,7 @@ class TagLengthTest {
 
     @Test
     void indefiniteLengthIsRejected() {
-        // 0x04 0x80 — OCTET STRING with indefinite-form length
+        // 0x04 0x80 -- OCTET STRING with indefinite-form length
         byte[] buf = new byte[]{0x04, (byte)0x80};
         DerReader reader = new DerReader(buf);
         DerException ex = assertThrows(DerException.class, reader::readTlvHeader,
@@ -270,18 +270,18 @@ class TagLengthTest {
 
     @Test
     void nonMinimalLongForm_valueUnder128_isRejected() {
-        // 0x04 0x81 0x01 — OCTET STRING, long form (n=1), value=1; non-minimal (should be 0x01)
+        // 0x04 0x81 0x01 -- OCTET STRING, long form (n=1), value=1; non-minimal (should be 0x01)
         byte[] buf = new byte[]{0x04, (byte)0x81, 0x01, 0x00};
         DerReader reader = new DerReader(buf);
         DerException ex = assertThrows(DerException.class, reader::readTlvHeader,
-                "Long form for length ≤ 127 must be rejected as non-canonical");
+                "Long form for length <= 127 must be rejected as non-canonical");
         assertTrue(ex.getMessage().contains("non-canonical") || ex.getMessage().contains("Non-canonical"),
                 ex.getMessage());
     }
 
     @Test
     void nonMinimalLongForm_leadingZero_isRejected() {
-        // 0x04 0x82 0x00 0x80 — long form with 2 length bytes, leading zero — non-minimal
+        // 0x04 0x82 0x00 0x80 -- long form with 2 length bytes, leading zero -- non-minimal
         byte[] buf = new byte[]{0x04, (byte)0x82, 0x00, (byte)0x80};
         // Content would be 128 bytes but we add a few
         // The leading zero means we could represent 128 in just 1 long-form byte (0x81 0x80)

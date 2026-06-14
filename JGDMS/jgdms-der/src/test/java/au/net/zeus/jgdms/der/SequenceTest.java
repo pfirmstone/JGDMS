@@ -30,14 +30,14 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Task 1.4 — SEQUENCE encoding and decoding.
+ * Task 1.4 -- SEQUENCE encoding and decoding.
  *
  * Covers:
  * <ul>
  *   <li>Nested SEQUENCE-of-SEQUENCE round-trips.</li>
- *   <li>Child order preserved exactly (§3.8).</li>
+ *   <li>Child order preserved exactly (S3.8).</li>
  *   <li>Reader stops at the SEQUENCE boundary even with trailing bytes after it.</li>
- *   <li>jqwik property: list of random primitives → SEQUENCE → decode → same list, same order.</li>
+ *   <li>jqwik property: list of random primitives -> SEQUENCE -> decode -> same list, same order.</li>
  *   <li>Empty SEQUENCE round-trips.</li>
  * </ul>
  */
@@ -99,7 +99,7 @@ class SequenceTest {
     }
 
     /* ------------------------------------------------------------------ */
-    /* SEQUENCE boundary stop — trailing bytes in outer buffer             */
+    /* SEQUENCE boundary stop -- trailing bytes in outer buffer             */
     /* ------------------------------------------------------------------ */
 
     @Test
@@ -208,7 +208,7 @@ class SequenceTest {
     }
 
     /* ------------------------------------------------------------------ */
-    /* jqwik property: list of integers → SEQUENCE → decode → same list    */
+    /* jqwik property: list of integers -> SEQUENCE -> decode -> same list    */
     /* ------------------------------------------------------------------ */
 
     @Property(tries = 200)

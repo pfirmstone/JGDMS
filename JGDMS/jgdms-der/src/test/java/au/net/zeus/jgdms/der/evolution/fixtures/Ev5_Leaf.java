@@ -24,10 +24,10 @@ import java.io.InvalidObjectException;
 import java.util.Objects;
 
 /**
- * Phase 6 / §11.5 and §11.6 / §11.7 fixture — leaf class in the two-level
+ * Phase 6 / S11.5 and S11.6 / S11.7 fixture -- leaf class in the two-level
  * ({@code Ev5_Leaf extends Ev5_Root}) hierarchy.
  *
- * <h2>§11.5 — Removing {@code @AtomicSerial} from {@code Ev5_Root}</h2>
+ * <h2>S11.5 -- Removing {@code @AtomicSerial} from {@code Ev5_Root}</h2>
  * <p>The test uses a {@code MarshalledInstanceRecord} built with the OLD embedded
  * schema chain (both {@code Ev5_Root} and {@code Ev5_Leaf} records).  The OLD
  * payload contains TWO inner SEQUENCEs: Root's (position 0) and Leaf's (position 1).
@@ -35,28 +35,28 @@ import java.util.Objects;
  * <p>The test then calls
  * {@link au.net.zeus.jgdms.der.marshal.MarshalledInstanceCodec#decodeMarshalledInstance}
  * with this record and {@code Ev5_Leaf.class}.  Because the EMBEDDED chain is used
- * for decoding, the decoder builds TWO {@code DerFieldStore}s — one for Root and one
+ * for decoding, the decoder builds TWO {@code DerFieldStore}s -- one for Root and one
  * for Leaf.  {@code Ev5_Leaf(GetArg)} chains to {@code Ev5_Root(GetArg)}, so BOTH
  * stores are consumed.  The observable: decode succeeds; field values are correct.
  *
  * <p>To simulate "Root loses {@code @AtomicSerial}" in the SENDER direction, the
  * test builds a SINGLE-record chain (Leaf only) and encodes new data with a
  * single SEQUENCE.  When MIC decodes this with the embedded single-record chain,
- * Root's bytes are simply absent — Root's store is missing. Root(GetArg) is still
+ * Root's bytes are simply absent -- Root's store is missing. Root(GetArg) is still
  * called (super chain), and returns defaults for all fields.
  *
- * <p>Wait — this triggers the same gap as §11.4/§11.6: calling Root(GetArg) when
+ * <p>Wait -- this triggers the same gap as S11.4/S11.6: calling Root(GetArg) when
  * Root is absent from the embedded chain's DerGetArg map throws.  The test therefore
  * validates the "OLD data path" only: old data (with Root SEQUENCE) decoded with
  * old embedded chain (has Root) succeeds, proving the BYTES ARE NOT CONSUMED if Root
  * is removed from the LOCAL hierarchy while the data was marshalled under the old
  * schema.  Root's DerFieldStore is built and filled but Leaf's chain call to
- * {@code super(check(arg))} into Root(GetArg) CONSUMES it — so in this symmetric
+ * {@code super(check(arg))} into Root(GetArg) CONSUMES it -- so in this symmetric
  * direction, BOTH stores are consumed and decode is fully correct.
  *
- * <p>The key §11.5 observable is proved differently (§11.5 direction 2):
+ * <p>The key S11.5 observable is proved differently (S11.5 direction 2):
  * NEW data (single SEQUENCE, Root gone) decoded by an UPDATED leaf that calls
- * {@code super(rootVal)} directly — which is what {@code Ev4_Child} does for §11.4.
+ * {@code super(rootVal)} directly -- which is what {@code Ev4_Child} does for S11.4.
  * See the test class for the exact assertions.
  */
 @AtomicSerial

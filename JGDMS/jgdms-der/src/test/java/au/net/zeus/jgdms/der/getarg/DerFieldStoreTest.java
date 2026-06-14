@@ -35,14 +35,14 @@ import static org.junit.jupiter.api.Assertions.*;
  * Acceptance tests for Phase 3: {@link DerFieldStore} and {@link WireTypes}.
  *
  * <p>All tests use hand-built schemas ({@link AtomicSerialSchemaRecord}) and
- * hand-built DER payloads (encoded via {@link DerWriter}) — no real {@code @AtomicSerial}
+ * hand-built DER payloads (encoded via {@link DerWriter}) -- no real {@code @AtomicSerial}
  * class is involved. This verifies the field store in isolation.
  *
  * <h2>Test grouping</h2>
  * <ul>
- *   <li><b>3.1.x</b> — Complete field store semantics</li>
- *   <li><b>3.2.x</b> — Three decoding cases (a)(b)(c) + schema-is-the-passed-in-schema</li>
- *   <li><b>3.3.x</b> — Wire type decode (each supported wireType, overflow, unsupported)</li>
+ *   <li><b>3.1.x</b> -- Complete field store semantics</li>
+ *   <li><b>3.2.x</b> -- Three decoding cases (a)(b)(c) + schema-is-the-passed-in-schema</li>
+ *   <li><b>3.3.x</b> -- Wire type decode (each supported wireType, overflow, unsupported)</li>
  * </ul>
  */
 class DerFieldStoreTest {
@@ -64,7 +64,7 @@ class DerFieldStoreTest {
 
     /**
      * Wrap a list of pre-encoded child TLVs in a SEQUENCE and return the full
-     * DER bytes (tag + length + content) — this is the "payload SEQUENCE" that
+     * DER bytes (tag + length + content) -- this is the "payload SEQUENCE" that
      * DerFieldStore accepts.
      */
     private static byte[] payloadSeq(List<byte[]> children) {
@@ -80,11 +80,11 @@ class DerFieldStoreTest {
     }
 
     // =========================================================================
-    // 3.1 — Complete field store semantics
+    // 3.1 -- Complete field store semantics
     // =========================================================================
 
     /**
-     * 3.1a — All fields decoded and present in the store BEFORE any get() call.
+     * 3.1a -- All fields decoded and present in the store BEFORE any get() call.
      * Assert via presentFieldNames() immediately after construction.
      */
     @Test
@@ -115,7 +115,7 @@ class DerFieldStoreTest {
     }
 
     /**
-     * 3.1b — get(name, default) returns the decoded value when present.
+     * 3.1b -- get(name, default) returns the decoded value when present.
      */
     @Test
     void task3_1b_getReturnsDecodedValueWhenPresent() throws DerException {
@@ -140,7 +140,7 @@ class DerFieldStoreTest {
     }
 
     /**
-     * 3.1c — get(name, default) returns the default when field is not in schema.
+     * 3.1c -- get(name, default) returns the default when field is not in schema.
      * (Different from case (b) which is about payload missing TLVs; here the
      * field name simply isn't in the schema at all.)
      */
@@ -163,7 +163,7 @@ class DerFieldStoreTest {
     }
 
     /**
-     * 3.1d — Unrequested fields remain in the store.
+     * 3.1d -- Unrequested fields remain in the store.
      * Decode 3 fields, call get() on only 1, assert the other 2 are still present.
      */
     @Test
@@ -198,7 +198,7 @@ class DerFieldStoreTest {
     }
 
     /**
-     * 3.1e — A field decoded but never requested is released when the store goes
+     * 3.1e -- A field decoded but never requested is released when the store goes
      * out of scope. Tests using a WeakReference to a stored-but-unrequested byte[].
      *
      * <p>This test is best-effort: it calls System.gc() in a loop and waits up
@@ -233,7 +233,7 @@ class DerFieldStoreTest {
         // Release our strong reference to the value itself
         storedBytes = null;
 
-        // Now release the store — no more strong references to it
+        // Now release the store -- no more strong references to it
         store = null;
 
         // GC loop: wait for the weak reference to be cleared (up to 5 seconds)
@@ -250,11 +250,11 @@ class DerFieldStoreTest {
     }
 
     // =========================================================================
-    // 3.2 — Three decoding cases (hand-built schema + DER payloads)
+    // 3.2 -- Three decoding cases (hand-built schema + DER payloads)
     // =========================================================================
 
     /**
-     * 3.2a — Case (a): schema matches payload exactly.
+     * 3.2a -- Case (a): schema matches payload exactly.
      * Assert every byte consumed (trailingFieldsDiscarded==0) and all fields present.
      */
     @Test
@@ -282,7 +282,7 @@ class DerFieldStoreTest {
     }
 
     /**
-     * 3.2b — Case (b): schema has MORE fields than the payload provides.
+     * 3.2b -- Case (b): schema has MORE fields than the payload provides.
      * Build a payload SEQUENCE with FEWER TLVs than the schema lists.
      * Assert missing fields return defaults and are reported as defaulted.
      */
@@ -305,7 +305,7 @@ class DerFieldStoreTest {
         assertFalse(store.defaulted("a"), "Case (b): 'a' must be present");
         assertEquals(55, store.get("a", 0));
 
-        // "b" and "c" are absent — get() must return defaults
+        // "b" and "c" are absent -- get() must return defaults
         assertTrue(store.defaulted("b"), "Case (b): 'b' must be absent/defaulted");
         assertTrue(store.defaulted("c"), "Case (b): 'c' must be absent/defaulted");
         assertEquals("myDefault", store.get("b", "myDefault"),
@@ -322,7 +322,7 @@ class DerFieldStoreTest {
     }
 
     /**
-     * 3.2c — Case (c): payload has MORE TLVs than the schema has fields.
+     * 3.2c -- Case (c): payload has MORE TLVs than the schema has fields.
      * Build a payload SEQUENCE with MORE TLVs than the schema lists.
      * Assert extra trailing TLVs are discarded and known fields decoded correctly.
      */
@@ -333,7 +333,7 @@ class DerFieldStoreTest {
                 new String[]{"x", "y"},
                 new String[]{"int", "boolean"});
 
-        // Payload: 4 TLVs — first 2 match schema, trailing 2 are unknown extras
+        // Payload: 4 TLVs -- first 2 match schema, trailing 2 are unknown extras
         byte[] payload = seqOf(
                 DerWriter.writeInteger(77L),           // x
                 DerWriter.writeBoolean(false),          // y
@@ -358,13 +358,13 @@ class DerFieldStoreTest {
     }
 
     /**
-     * 3.2d — Schema-is-the-passed-in-schema test.
+     * 3.2d -- Schema-is-the-passed-in-schema test.
      * Build two DIFFERENT schemas over the SAME payload bytes and show that
      * decoding follows the schema passed in, not any ambient schema.
      */
     @Test
     void task3_2d_schemaIsAlwaysThePassedInSchema() throws DerException {
-        // One payload: 3 TLVs — int, boolean, String
+        // One payload: 3 TLVs -- int, boolean, String
         byte[] sharedPayload = seqOf(
                 DerWriter.writeInteger(42L),
                 DerWriter.writeBoolean(true),
@@ -397,7 +397,7 @@ class DerFieldStoreTest {
         assertEquals(2, storeB.trailingFieldsDiscarded(),
                 "storeB must discard the 2 TLVs not covered by its schema");
 
-        // The two stores used different schemas — confirm schema identity
+        // The two stores used different schemas -- confirm schema identity
         assertSame(schemaA, storeA.schema(), "storeA schema must be the passed-in schemaA");
         assertSame(schemaB, storeB.schema(), "storeB schema must be the passed-in schemaB");
 
@@ -407,7 +407,7 @@ class DerFieldStoreTest {
     }
 
     // =========================================================================
-    // 3.3 — Wire type decode (each supported wireType, overflow, unsupported)
+    // 3.3 -- Wire type decode (each supported wireType, overflow, unsupported)
     // =========================================================================
 
     /** boolean / java.lang.Boolean */
@@ -440,7 +440,7 @@ class DerFieldStoreTest {
         assertEquals((byte) -128, (Byte) store.get("b", null));
     }
 
-    /** byte overflow → DerException */
+    /** byte overflow -> DerException */
     @Test
     void task3_3_wireType_byte_overflow() {
         AtomicSerialSchemaRecord sch = schema("T",
@@ -462,7 +462,7 @@ class DerFieldStoreTest {
         assertEquals((short) 32767, (Short) store.get("s", null));
     }
 
-    /** short overflow → DerException */
+    /** short overflow -> DerException */
     @Test
     void task3_3_wireType_short_overflow() {
         AtomicSerialSchemaRecord sch = schema("T",
@@ -488,7 +488,7 @@ class DerFieldStoreTest {
         assertEquals(Integer.MIN_VALUE, (int) store.get("m", 0));
     }
 
-    /** int overflow → DerException */
+    /** int overflow -> DerException */
     @Test
     void task3_3_wireType_int_overflow() {
         AtomicSerialSchemaRecord sch = schema("T",
@@ -514,7 +514,7 @@ class DerFieldStoreTest {
         assertEquals(Long.MIN_VALUE, (long) store.get("u", 0L));
     }
 
-    /** long overflow → DerException */
+    /** long overflow -> DerException */
     @Test
     void task3_3_wireType_long_overflow() {
         AtomicSerialSchemaRecord sch = schema("T",
@@ -555,18 +555,18 @@ class DerFieldStoreTest {
         assertArrayEquals(content2, (byte[]) store.get("blob2", null));
     }
 
-    /** Unsupported wire type → DerException at construction time */
+    /** Unsupported wire type -> DerException at construction time */
     @Test
     void task3_3_wireType_unsupported_throwsAtConstruction() {
         AtomicSerialSchemaRecord sch = schema("T",
                 new String[]{"x"},
-                new String[]{"double"}); // deferred per §7.6
+                new String[]{"double"}); // deferred per S7.6
         byte[] payload = seqOf(DerWriter.writeBoolean(false)); // content doesn't matter
         assertThrows(DerException.class, () -> new DerFieldStore(sch, payload),
                 "Unsupported wire type must throw DerException at construction");
     }
 
-    /** float is also deferred → DerException */
+    /** float is also deferred -> DerException */
     @Test
     void task3_3_wireType_float_deferred() {
         AtomicSerialSchemaRecord sch = schema("T",
@@ -574,10 +574,10 @@ class DerFieldStoreTest {
                 new String[]{"float"});
         byte[] payload = seqOf(DerWriter.writeBoolean(false));
         assertThrows(DerException.class, () -> new DerFieldStore(sch, payload),
-                "float wireType must throw DerException (deferred per §7.6)");
+                "float wireType must throw DerException (deferred per S7.6)");
     }
 
-    /** char is also deferred → DerException */
+    /** char is also deferred -> DerException */
     @Test
     void task3_3_wireType_char_deferred() {
         AtomicSerialSchemaRecord sch = schema("T",
@@ -585,14 +585,14 @@ class DerFieldStoreTest {
                 new String[]{"char"});
         byte[] payload = seqOf(DerWriter.writeBoolean(false));
         assertThrows(DerException.class, () -> new DerFieldStore(sch, payload),
-                "char wireType must throw DerException (deferred per §7.6)");
+                "char wireType must throw DerException (deferred per S7.6)");
     }
 
     // =========================================================================
-    // 3.4 — Additional edge cases
+    // 3.4 -- Additional edge cases
     // =========================================================================
 
-    /** Empty schema + empty payload → zero fields, no error */
+    /** Empty schema + empty payload -> zero fields, no error */
     @Test
     void task3_4_emptySchemaAndPayload() throws DerException {
         AtomicSerialSchemaRecord sch = new AtomicSerialSchemaRecord("com.example.Empty",
@@ -623,7 +623,7 @@ class DerFieldStoreTest {
         AtomicSerialSchemaRecord sch = schema("com.example.Defaults",
                 new String[]{"a", "b", "c", "d", "e"},
                 new String[]{"boolean", "byte", "short", "int", "long"});
-        // Payload is empty — all fields absent
+        // Payload is empty -- all fields absent
         byte[] payload = seqOf();
         DerFieldStore store = new DerFieldStore(sch, payload);
 
@@ -634,7 +634,7 @@ class DerFieldStoreTest {
         assertEquals(-999L, store.get("e", -999L));
     }
 
-    /** Trailing bytes in the outer SEQUENCE wrapper → DerException */
+    /** Trailing bytes in the outer SEQUENCE wrapper -> DerException */
     @Test
     void task3_4_trailingBytesAfterPayload_throwsDerException() {
         AtomicSerialSchemaRecord sch = schema("com.example.T",
@@ -666,7 +666,7 @@ class DerFieldStoreTest {
                 "presentFieldNames() must preserve schema field order");
     }
 
-    /** Case (b): mixing present and absent fields — first N present, rest absent */
+    /** Case (b): mixing present and absent fields -- first N present, rest absent */
     @Test
     void task3_2b_partialPayload_firstTwoPresent_lastAbsent() throws DerException {
         AtomicSerialSchemaRecord sch = schema("com.example.Partial",

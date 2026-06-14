@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Helper for building and computing digests over a leaf→root Merkle chain of
- * {@link AtomicSerialSchemaRecord}s (JGDMS-STD-006 §7.8).
+ * Helper for building and computing digests over a leaf->root Merkle chain of
+ * {@link AtomicSerialSchemaRecord}s (JGDMS-STD-006 S7.8).
  *
  * <h3>Merkle chain semantics</h3>
  * Given a class hierarchy {@code Leaf extends Mid extends Root}:
@@ -49,7 +49,7 @@ import java.util.Objects;
  * List<AtomicSerialSchemaRecord> linked = result.chain();
  * }</pre>
  *
- * The input list is <b>leaf-first, root-last</b> (matching §7.8 "leaf → root" order).
+ * The input list is <b>leaf-first, root-last</b> (matching S7.8 "leaf -> root" order).
  */
 public final class SchemaChain {
 

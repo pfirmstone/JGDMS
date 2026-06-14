@@ -28,21 +28,21 @@ import java.math.BigInteger;
  *
  * <h3>Supported wire types</h3>
  * <ul>
- *   <li>{@code "boolean"}, {@code "java.lang.Boolean"} — DER BOOLEAN → {@link Boolean}</li>
- *   <li>{@code "byte"}, {@code "java.lang.Byte"} — DER INTEGER → {@link Byte}
+ *   <li>{@code "boolean"}, {@code "java.lang.Boolean"} -- DER BOOLEAN -> {@link Boolean}</li>
+ *   <li>{@code "byte"}, {@code "java.lang.Byte"} -- DER INTEGER -> {@link Byte}
  *       (overflow rejected)</li>
- *   <li>{@code "short"}, {@code "java.lang.Short"} — DER INTEGER → {@link Short}
+ *   <li>{@code "short"}, {@code "java.lang.Short"} -- DER INTEGER -> {@link Short}
  *       (overflow rejected)</li>
- *   <li>{@code "int"}, {@code "java.lang.Integer"} — DER INTEGER → {@link Integer}
+ *   <li>{@code "int"}, {@code "java.lang.Integer"} -- DER INTEGER -> {@link Integer}
  *       (overflow rejected)</li>
- *   <li>{@code "long"}, {@code "java.lang.Long"} — DER INTEGER → {@link Long}
+ *   <li>{@code "long"}, {@code "java.lang.Long"} -- DER INTEGER -> {@link Long}
  *       (overflow rejected)</li>
- *   <li>{@code "java.lang.String"} — DER UTF8String → {@link String}</li>
- *   <li>{@code "byte[]"}, {@code "[B"} — DER OCTET STRING → {@code byte[]}</li>
+ *   <li>{@code "java.lang.String"} -- DER UTF8String -> {@link String}</li>
+ *   <li>{@code "byte[]"}, {@code "[B"} -- DER OCTET STRING -> {@code byte[]}</li>
  * </ul>
  *
- * <p>Any other wire type throws {@link DerException} (fail-secure, §3 principle 6).
- * The types {@code float}, {@code double}, and {@code char} are DEFERRED per spec §7.6;
+ * <p>Any other wire type throws {@link DerException} (fail-secure, S3 principle 6).
+ * The types {@code float}, {@code double}, and {@code char} are DEFERRED per spec S7.6;
  * they throw {@code DerException} with a "unsupported wire type" message until implemented.
  *
  * <p>This class is stateless and thread-safe. All methods are package-accessible
@@ -130,11 +130,11 @@ final class WireTypes {
 
             case "byte[]", "[B" -> reader.readOctetString();
 
-            // Explicitly deferred per §7.6 — fail-secure, not silently ignored
+            // Explicitly deferred per S7.6 -- fail-secure, not silently ignored
             case "char", "java.lang.Character",
                     "float", "java.lang.Float",
                     "double", "java.lang.Double" ->
-                    throw new DerException("unsupported wire type (deferred per §7.6): " + wireType);
+                    throw new DerException("unsupported wire type (deferred per S7.6): " + wireType);
 
             default ->
                     throw new DerException("unsupported wire type: " + wireType);

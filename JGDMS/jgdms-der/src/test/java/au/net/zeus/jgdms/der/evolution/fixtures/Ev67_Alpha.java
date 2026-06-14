@@ -23,14 +23,14 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * Phase 6 / §11.6 and §11.7 fixture — root class in the three-level
- * {@code Alpha ← Mid ← Beta} hierarchy.
+ * Phase 6 / S11.6 and S11.7 fixture -- root class in the three-level
+ * {@code Alpha <- Mid <- Beta} hierarchy.
  *
  * <h2>Shared use</h2>
  * <ul>
- *   <li>§11.6 (insert Mid): old data has [Alpha+Beta] SEQUENCEs; new data has
+ *   <li>S11.6 (insert Mid): old data has [Alpha+Beta] SEQUENCEs; new data has
  *       [Alpha+Mid+Beta].  This class is present in both schemas.</li>
- *   <li>§11.7 (remove Mid): old data has [Alpha+Mid+Beta]; new data has
+ *   <li>S11.7 (remove Mid): old data has [Alpha+Mid+Beta]; new data has
  *       [Alpha+Beta].  This class is present in both schemas.</li>
  * </ul>
  */

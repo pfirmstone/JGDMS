@@ -23,14 +23,14 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * Phase 6 / §11.5 fixture — the class that formerly HAD {@code @AtomicSerial}
+ * Phase 6 / S11.5 fixture -- the class that formerly HAD {@code @AtomicSerial}
  * (now still has it, but the TEST simulates it having been removed by using
  * a hand-built OLD embedded schema that INCLUDES this class's SEQUENCE, and
- * decoding against a chain that also includes it — the "present but unrequested
+ * decoding against a chain that also includes it -- the "present but unrequested
  * SEQUENCE" outcome is demonstrated at the level of the store being built but
  * not consumed).
  *
- * <p>In the §11.5 scenario:
+ * <p>In the S11.5 scenario:
  * <ul>
  *   <li>OLD data was encoded with chain {@code [Ev5_Leaf, Ev5_Root]} (both
  *       {@code @AtomicSerial}).</li>

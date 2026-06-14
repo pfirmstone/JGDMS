@@ -29,7 +29,7 @@ import java.util.Objects;
 
 /**
  * Immutable representation of one field entry in an {@code AtomicSerialSchemaRecord},
- * per JGDMS-STD-006 §7.8.
+ * per JGDMS-STD-006 S7.8.
  *
  * <pre>
  * AtomicSerialFieldDef ::= SEQUENCE {
@@ -42,10 +42,10 @@ import java.util.Objects;
  * Bounds are enforced on the <em>UTF-8 byte length</em> of the content, before
  * constructing a Java {@code String}:
  * <ul>
- *   <li>{@code wireName}: 1–255 bytes (UTF-8)</li>
- *   <li>{@code wireType}: 1–1024 bytes (UTF-8)</li>
+ *   <li>{@code wireName}: 1-255 bytes (UTF-8)</li>
+ *   <li>{@code wireType}: 1-1024 bytes (UTF-8)</li>
  * </ul>
- * Violations are rejected with {@link DerException} (fail-secure, §3 principle 5).
+ * Violations are rejected with {@link DerException} (fail-secure, S3 principle 5).
  *
  * <h3>Determinism</h3>
  * {@link #encode()} is purely a function of {@link #wireName()} and {@link #wireType()};
@@ -102,7 +102,7 @@ public final class AtomicSerialFieldDef {
      * The reader must be positioned at the start of the SEQUENCE TLV.
      *
      * <p>Validates SIZE bounds on the UTF-8 <em>byte length</em> of each field
-     * before constructing the Java String, per §3 principle 5.
+     * before constructing the Java String, per S3 principle 5.
      *
      * @param reader a DER reader positioned at the start of the SEQUENCE
      * @return the decoded field definition
@@ -163,7 +163,7 @@ public final class AtomicSerialFieldDef {
 
     /**
      * Checks that the UTF-8 byte length of {@code value} is within [min, max].
-     * Used at construction time (Java String → UTF-8 bytes).
+     * Used at construction time (Java String -> UTF-8 bytes).
      *
      * @throws IllegalArgumentException if out of range
      */

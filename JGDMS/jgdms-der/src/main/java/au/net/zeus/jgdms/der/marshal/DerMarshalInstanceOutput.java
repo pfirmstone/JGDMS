@@ -31,9 +31,9 @@ import java.util.Objects;
  * DER implementation of {@link MarshalInstanceOutput}.
  *
  * <p>Writes an {@code @AtomicSerial} object as a {@link MarshalledInstanceRecord}
- * (JGDMS-STD-006 §7.8) to the wrapped {@link OutputStream}. The DER format carries
+ * (JGDMS-STD-006 S7.8) to the wrapped {@link OutputStream}. The DER format carries
  * the full schema chain embedded in the record; no codebase annotations are emitted
- * (§8 — the schema itself is the data-independence mechanism).
+ * (S8 -- the schema itself is the data-independence mechanism).
  *
  * <h2>Whole-object granularity</h2>
  * <p>
@@ -49,7 +49,7 @@ import java.util.Objects;
  * {@link #writeObject} with a non-null object (null objects are handled by the parent
  * via null {@code objBytes}). This implementation therefore assumes obj is non-null.
  *
- * <h2>STD-008 §13.6 "Option A" — non-invasive spike</h2>
+ * <h2>STD-008 S13.6 "Option A" -- non-invasive spike</h2>
  * <p>
  * No platform files are modified. This class plugs into the existing
  * {@link net.jini.io.MarshalledInstance} factory seam via
@@ -94,7 +94,7 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
     @Override
     public void writeObject(Object obj) throws IOException {
         if (obj == null) {
-            // MarshalledInstance's protected ctor skips writeObject for null —
+            // MarshalledInstance's protected ctor skips writeObject for null --
             // this case should not arise in normal use.
             return;
         }
@@ -111,7 +111,7 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
 
     /**
      * Returns {@code false}: DER carries the embedded schema as data-independence
-     * mechanism; no codebase URL annotations are written (STD-006 §8).
+     * mechanism; no codebase URL annotations are written (STD-006 S8).
      */
     @Override
     public boolean hadAnnotations() {
@@ -138,7 +138,7 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
     }
 
     // -------------------------------------------------------------------------
-    // Unsupported ObjectOutput primitives — DER is object-granularity only
+    // Unsupported ObjectOutput primitives -- DER is object-granularity only
     // -------------------------------------------------------------------------
 
     @Override public void write(int b) throws IOException {

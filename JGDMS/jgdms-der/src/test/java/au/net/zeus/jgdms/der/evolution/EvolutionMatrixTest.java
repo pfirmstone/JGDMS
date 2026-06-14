@@ -48,33 +48,33 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Phase 6 — Evolution test matrix for JGDMS-STD-006 §11.
+ * Phase 6 -- Evolution test matrix for JGDMS-STD-006 S11.
  *
- * <h2>Task 6.1 — Class-hierarchy evolution (§11.1–§11.7)</h2>
+ * <h2>Task 6.1 -- Class-hierarchy evolution (S11.1-S11.7)</h2>
  *
- * <p>Each test proves one row of the §11.9 summary table by asserting the stated
+ * <p>Each test proves one row of the S11.9 summary table by asserting the stated
  * wire impact.  Evolution is simulated per the Phase 3.2/5.2 pattern: hand-build
  * the "at-marshal-time" schema and a matching DER payload, then decode against the
  * fixture class whose CURRENT {@code serialForm()} differs.
  *
- * <h2>Task 6.2 — Field-level evolution (§11.8)</h2>
+ * <h2>Task 6.2 -- Field-level evolution (S11.8)</h2>
  *
  * <p>Three field-level cases proved directly against {@link DerFieldStore}:
  * <ul>
- *   <li>Add field at end — old data → default; new data → value.</li>
- *   <li>Stop requesting a field — field sits in store, unrequested.</li>
- *   <li>Field present on wire, absent from schema — trailing discard, no error.</li>
+ *   <li>Add field at end -- old data -> default; new data -> value.</li>
+ *   <li>Stop requesting a field -- field sits in store, unrequested.</li>
+ *   <li>Field present on wire, absent from schema -- trailing discard, no error.</li>
  * </ul>
  *
- * <h2>Absent-class namespace isolation (§11.4 / §11.6) — RESOLVED</h2>
+ * <h2>Absent-class namespace isolation (S11.4 / S11.6) -- RESOLVED</h2>
  *
- * <p>When old data lacks an @AtomicSerial class's SEQUENCE (e.g. §11.4 "Beta updated
- * to call super(arg)" with no Alpha SEQUENCE, or §11.6 a Mid class inserted after the
+ * <p>When old data lacks an @AtomicSerial class's SEQUENCE (e.g. S11.4 "Beta updated
+ * to call super(arg)" with no Alpha SEQUENCE, or S11.6 a Mid class inserted after the
  * data was written), that class's constructor runs against an EMPTY store and its
- * {@code arg.get(name, default)} calls return defaults — its namespace is simply
+ * {@code arg.get(name, default)} calls return defaults -- its namespace is simply
  * absent. The constructor then applies invariant checking on those defaults: it may
  * proceed (if the defaults are acceptable) or throw {@code InvalidObjectException}
- * (§11.8 — "throwing if [the defaults do not satisfy invariants]"). The
+ * (S11.8 -- "throwing if [the defaults do not satisfy invariants]"). The
  * {@code _Gap_}-named methods below assert that SPEC-CORRECT THROW for fixtures with a
  * non-null invariant; they do NOT indicate a defect.
  *
@@ -82,24 +82,24 @@ import static org.junit.jupiter.api.Assertions.*;
  * registers an EMPTY {@code DerFieldStore} for every @AtomicSerial class in the
  * construct class's hierarchy that is absent from the embedded data, so each level's
  * {@code get()} resolves to its OWN (empty) namespace. An earlier implementation
- * skipped the absent class's stack frame and resolved to a NEIGHBOUR's store — a §3.9
+ * skipped the absent class's stack frame and resolved to a NEIGHBOUR's store -- a S3.9
  * namespace leak (only observable with a colliding field name). That bug is fixed and
  * proved by {@code NamespaceLeakRegressionTest}.
  */
 class EvolutionMatrixTest {
 
     // =========================================================================
-    // §11.1 — Add non-@AtomicSerial subclass → no wire impact
+    // S11.1 -- Add non-@AtomicSerial subclass -> no wire impact
     // =========================================================================
 
     /**
-     * §11.1 — Serialising a plain (non-{@code @AtomicSerial}) subclass ({@link Bar})
+     * S11.1 -- Serialising a plain (non-{@code @AtomicSerial}) subclass ({@link Bar})
      * of an {@code @AtomicSerial} class ({@link Foo}) produces a wire form that
      * contains ONLY the {@code Foo} SEQUENCE.  Decoding produces a {@code Foo}.
      *
      * <p>Simulation: {@code Bar} represents the "added non-{@code @AtomicSerial}
      * subclass".  The generated chain from {@code Bar.class} contains only {@code Foo}'s
-     * record — {@code Bar} is wire-invisible.
+     * record -- {@code Bar} is wire-invisible.
      *
      * <p>Observable: chain size == 1; chain record names {@code Foo}; decoded object
      * is exactly a {@code Foo} (not a {@code Bar}); {@code Foo}'s fields survive.
@@ -116,29 +116,29 @@ class EvolutionMatrixTest {
 
         // Assert: chain contains only Foo's record (Bar has no wire presence)
         assertEquals(1, chain.chain().size(),
-                "§11.1: chain must have exactly 1 record (Bar is invisible to wire)");
+                "S11.1: chain must have exactly 1 record (Bar is invisible to wire)");
         assertEquals(Foo.class.getName(), chain.chain().get(0).className(),
-                "§11.1: sole record must be Foo, not Bar");
+                "S11.1: sole record must be Foo, not Bar");
 
         // Assert: decoded object is a Foo (not a Bar)
         assertEquals(Foo.class, decoded.getClass(),
-                "§11.1: decoded type must be exactly Foo.class — Bar drops out");
+                "S11.1: decoded type must be exactly Foo.class -- Bar drops out");
         assertFalse(decoded instanceof Bar,
-                "§11.1: decoded Foo must NOT be an instance of Bar");
+                "S11.1: decoded Foo must NOT be an instance of Bar");
 
         // Assert: Foo's fields survive
         assertEquals(7, decoded.getFooId(),
-                "§11.1: fooId must survive round-trip");
+                "S11.1: fooId must survive round-trip");
         assertEquals("foo-label", decoded.getFooLabel(),
-                "§11.1: fooLabel must survive round-trip");
+                "S11.1: fooLabel must survive round-trip");
     }
 
     // =========================================================================
-    // §11.2 — Remove non-@AtomicSerial subclass → no wire impact
+    // S11.2 -- Remove non-@AtomicSerial subclass -> no wire impact
     // =========================================================================
 
     /**
-     * §11.2 — Removing a non-{@code @AtomicSerial} subclass leaves the
+     * S11.2 -- Removing a non-{@code @AtomicSerial} subclass leaves the
      * superclass's wire form completely unchanged.
      *
      * <p>Simulation: encode a {@code Foo} instance directly (simulating the state
@@ -168,11 +168,11 @@ class EvolutionMatrixTest {
 
         // Assert: the two chains produce the same chain schema (both resolve to Foo)
         assertArrayEquals(chainFoo.leafDigest(), chainBar.leafDigest(),
-                "§11.2: chain digest must be identical whether Bar exists or not");
+                "S11.2: chain digest must be identical whether Bar exists or not");
 
         // Assert: the DER bytes are identical (wire is Foo-only in both cases)
         assertArrayEquals(derFoo, derBar,
-                "§11.2: DER bytes must be identical — Bar's presence/absence has no wire impact");
+                "S11.2: DER bytes must be identical -- Bar's presence/absence has no wire impact");
 
         // Assert: decode of "Bar-encoded" bytes produces correct Foo
         Foo decoded = ObjectCodec.decodeHierarchy(Foo.class, chainFoo, derBar);
@@ -181,14 +181,14 @@ class EvolutionMatrixTest {
     }
 
     // =========================================================================
-    // §11.3 — Add non-@AtomicSerial superclass → child adds fields; old data → defaults
+    // S11.3 -- Add non-@AtomicSerial superclass -> child adds fields; old data -> defaults
     // =========================================================================
 
     /**
-     * §11.3 — A non-{@code @AtomicSerial} superclass is inserted above an
+     * S11.3 -- A non-{@code @AtomicSerial} superclass is inserted above an
      * {@code @AtomicSerial} child.  The child adds the superclass's fields at the
      * END of its own {@code serialForm()}.  Old data (encoded before the insertion)
-     * lacks the new fields → they return defaults.
+     * lacks the new fields -> they return defaults.
      *
      * <p>Simulation: {@link Ev3_EvolvedSub} is the "AFTER" state with 3 fields.
      * We hand-build an old (2-field) schema and matching payload to represent the
@@ -230,15 +230,15 @@ class EvolutionMatrixTest {
 
         // Old data: embedded schema mismatch detected
         assertEquals(MarshalledInstanceCodec.SchemaCase.B_OR_C_MISMATCH, oldResult.schemaCase(),
-                "§11.3: old-data schema mismatch must be detected");
+                "S11.3: old-data schema mismatch must be detected");
 
         Ev3_EvolvedSub fromOld = oldResult.object();
         assertEquals("old-legacy", fromOld.getLegacyName(),
-                "§11.3: legacyName must decode from old data");
+                "S11.3: legacyName must decode from old data");
         assertEquals(77, fromOld.getSubValue(),
-                "§11.3: subValue must decode from old data");
+                "S11.3: subValue must decode from old data");
         assertEquals("DEFAULT_BASE_TAG", fromOld.getNewBaseTag(),
-                "§11.3: newBaseTag absent in old data — must return DEFAULT_BASE_TAG");
+                "S11.3: newBaseTag absent in old data -- must return DEFAULT_BASE_TAG");
 
         // === NEW data path: current 3-field round-trip ===
         SchemaChain.Result newChain = SchemaGenerator.generateChain(Ev3_EvolvedSub.class);
@@ -250,34 +250,34 @@ class EvolutionMatrixTest {
                 MarshalledInstanceCodec.decodeMarshalledInstance(newRec, Ev3_EvolvedSub.class);
 
         assertEquals(MarshalledInstanceCodec.SchemaCase.A_MATCH, newResult.schemaCase(),
-                "§11.3: new-data schema must match");
+                "S11.3: new-data schema must match");
         assertEquals(original, newResult.object(),
-                "§11.3: new-data round-trip must be equal");
+                "S11.3: new-data round-trip must be equal");
         assertEquals("base-tag-value", newResult.object().getNewBaseTag(),
-                "§11.3: newBaseTag must be present in new data");
+                "S11.3: newBaseTag must be present in new data");
     }
 
     // =========================================================================
-    // §11.4 — Add @AtomicSerial to superclass → existing child SEQUENCE unchanged;
+    // S11.4 -- Add @AtomicSerial to superclass -> existing child SEQUENCE unchanged;
     //          new parent SEQUENCE present but not consumed by unmodified child
     // =========================================================================
 
     /**
-     * §11.4 — {@code Ev4_Parent} gains {@code @AtomicSerial}.  {@code Ev4_Child}
+     * S11.4 -- {@code Ev4_Parent} gains {@code @AtomicSerial}.  {@code Ev4_Child}
      * is the "UNMODIFIED child" that still calls a regular {@code super(int)} rather
      * than {@code super(check(arg))}.
      *
-     * <p><b>Direction 1 — New data (both parent and child SEQUENCEs):</b>
+     * <p><b>Direction 1 -- New data (both parent and child SEQUENCEs):</b>
      * Encode with the full NEW chain [Parent + Child].  Wire has two SEQUENCEs.
      * The child's {@code (GetArg)} constructor calls {@code super(childParentValue)}
-     * — a REGULAR constructor.  Parent's new SEQUENCE is built into DerGetArg but
+     * -- a REGULAR constructor.  Parent's new SEQUENCE is built into DerGetArg but
      * is NEVER consumed by any {@code (GetArg)} call.  Decode succeeds; field values
      * are correct.
      *
-     * <p><b>Direction 2 — Old data (child SEQUENCE only):</b>
+     * <p><b>Direction 2 -- Old data (child SEQUENCE only):</b>
      * Hand-build a MarshalledInstanceRecord with old embedded schema (child only).
      * MIC decodes using old embedded chain (1 record).  Child(GetArg) is invoked;
-     * it calls {@code super(childParentValue)} — the regular constructor — so
+     * it calls {@code super(childParentValue)} -- the regular constructor -- so
      * Parent(GetArg) is never called.  No store-lookup for Parent occurs.  Decode
      * succeeds.
      *
@@ -297,20 +297,20 @@ class EvolutionMatrixTest {
 
         // Chain must include BOTH Parent and Child
         assertEquals(2, newChain.chain().size(),
-                "§11.4: new chain must have 2 records (Parent + Child)");
+                "S11.4: new chain must have 2 records (Parent + Child)");
         assertEquals(Ev4_Child.class.getName(),  newChain.chain().get(0).className(),
-                "§11.4: leaf record must be Ev4_Child");
+                "S11.4: leaf record must be Ev4_Child");
         assertEquals(Ev4_Parent.class.getName(), newChain.chain().get(1).className(),
-                "§11.4: root record must be Ev4_Parent");
+                "S11.4: root record must be Ev4_Parent");
 
         byte[] newPayload = ObjectCodec.encodeHierarchy(child, newChain);
         Ev4_Child fromNew = ObjectCodec.decodeHierarchy(Ev4_Child.class, newChain, newPayload);
 
         // Child's fields survive; parent value comes from child's childParentValue
         assertEquals(100, fromNew.getParentValue(),
-                "§11.4: parentValue must be 100 (from child's childParentValue field)");
+                "S11.4: parentValue must be 100 (from child's childParentValue field)");
         assertEquals(200, fromNew.getChildValue(),
-                "§11.4: childValue must be 200");
+                "S11.4: childValue must be 200");
         // Child's own SEQUENCE carries childParentValue=100 and childValue=200
         // Parent's SEQUENCE also carries parentValue=100 (encoded from Ev4_Parent.parentValue)
         // Parent's SEQUENCE is present but unmodified child calls super(int) not super(check(arg))
@@ -340,15 +340,15 @@ class EvolutionMatrixTest {
                 MarshalledInstanceCodec.decodeMarshalledInstance(oldRec, Ev4_Child.class);
 
         assertEquals(MarshalledInstanceCodec.SchemaCase.B_OR_C_MISMATCH, oldResult.schemaCase(),
-                "§11.4: old-data schema mismatch must be detected");
+                "S11.4: old-data schema mismatch must be detected");
         assertEquals(50, oldResult.object().getParentValue(),
-                "§11.4: parentValue=50 from child's childParentValue (regular super call)");
+                "S11.4: parentValue=50 from child's childParentValue (regular super call)");
         assertEquals(75, oldResult.object().getChildValue(),
-                "§11.4: childValue=75 from old data");
+                "S11.4: childValue=75 from old data");
     }
 
     /**
-     * §11.4 implementation note — "Beta updated to call super(arg)" when old data lacks
+     * S11.4 implementation note -- "Beta updated to call super(arg)" when old data lacks
      * the parent SEQUENCE.
      *
      * <p>Tested behavior: when the embedded schema has only 1 record (Ev5_Leaf) and the
@@ -358,7 +358,7 @@ class EvolutionMatrixTest {
      * is absent from Leaf's store, so arg.get("rootVal", 0) returns default 0.
      *
      * <p>Observable: decode succeeds; Root's fields default; Leaf's fields are correct.
-     * This matches §11.4 spec ("all fields return defaults") via StackWalker fallback.
+     * This matches S11.4 spec ("all fields return defaults") via StackWalker fallback.
      */
     @Test
     void test_11_4_Note_UpdatedChildCallingSuper_AbsentParentStoreReturnsDefaults()
@@ -385,7 +385,7 @@ class EvolutionMatrixTest {
                 Optional.empty(), MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         // StackWalker fallback: Root reads from Leaf's store; "rootVal" absent -> default 0.
-        // Behavior matches §11.4 requirement (absent class fields return defaults).
+        // Behavior matches S11.4 requirement (absent class fields return defaults).
         MarshalledInstanceCodec.Result<Ev5_Leaf> result =
                 MarshalledInstanceCodec.decodeMarshalledInstance(rec, Ev5_Leaf.class);
 
@@ -398,11 +398,11 @@ class EvolutionMatrixTest {
     }
 
     // =========================================================================
-    // §11.5 — Remove @AtomicSerial from a class → SEQUENCE disappears; child unaffected
+    // S11.5 -- Remove @AtomicSerial from a class -> SEQUENCE disappears; child unaffected
     // =========================================================================
 
     /**
-     * §11.5 — {@code Ev5_Root} formerly had {@code @AtomicSerial} and had its own
+     * S11.5 -- {@code Ev5_Root} formerly had {@code @AtomicSerial} and had its own
      * SEQUENCE.  The test proves TWO observable consequences:
      *
      * <p><b>Consequence A (old data decoded by old embedded schema):</b>
@@ -412,11 +412,11 @@ class EvolutionMatrixTest {
      * Root's own {@code (GetArg)} constructor (called via Leaf's super chain).
      * This proves that old data is fully backward-compatible.
      *
-     * <p><b>Consequence B (new data without Root SEQUENCE — GAP exposed):</b>
+     * <p><b>Consequence B (new data without Root SEQUENCE -- GAP exposed):</b>
      * When Root loses {@code @AtomicSerial}, new data encoded by an updated Leaf
      * would have only one SEQUENCE.  Leaf's {@code (GetArg)} still chains to
-     * Root's {@code (GetArg)} → Root looks up its store → NOT FOUND → THROWS.
-     * This is the same gap as §11.4 — see {@code test_11_4_Gap_*}.
+     * Root's {@code (GetArg)} -> Root looks up its store -> NOT FOUND -> THROWS.
+     * This is the same gap as S11.4 -- see {@code test_11_4_Gap_*}.
      *
      * <p>Observable (consequence A, what DOES work):
      * <ul>
@@ -432,7 +432,7 @@ class EvolutionMatrixTest {
         SchemaChain.Result oldChain = SchemaGenerator.generateChain(Ev5_Leaf.class);
 
         assertEquals(2, oldChain.chain().size(),
-                "§11.5: current chain must have 2 records (Root + Leaf)");
+                "S11.5: current chain must have 2 records (Root + Leaf)");
 
         byte[] payload = ObjectCodec.encodeHierarchy(original, oldChain);
         MarshalledInstanceRecord rec = MarshalledInstanceRecord.fromChain(oldChain, payload);
@@ -441,30 +441,30 @@ class EvolutionMatrixTest {
                 MarshalledInstanceCodec.decodeMarshalledInstance(rec, Ev5_Leaf.class);
 
         assertEquals(MarshalledInstanceCodec.SchemaCase.A_MATCH, result.schemaCase(),
-                "§11.5: schema match (consequence A: old data with old embedded schema)");
+                "S11.5: schema match (consequence A: old data with old embedded schema)");
         assertEquals(33, result.object().getRootVal(),
-                "§11.5: rootVal must decode correctly");
+                "S11.5: rootVal must decode correctly");
         assertEquals(77, result.object().getLeafVal(),
-                "§11.5: leafVal must decode correctly");
+                "S11.5: leafVal must decode correctly");
         assertEquals("leaf", result.object().getLeafTag(),
-                "§11.5: leafTag must decode correctly");
+                "S11.5: leafTag must decode correctly");
         assertEquals(original, result.object(),
-                "§11.5: full round-trip equality (consequence A)");
+                "S11.5: full round-trip equality (consequence A)");
 
         // Assert: Leaf's SEQUENCE is unaffected by what happens to Root's @AtomicSerial status.
         // The Leaf's own schema record is present in the chain with exactly its declared fields.
         assertEquals(Ev5_Leaf.class.getName(), oldChain.chain().get(0).className(),
-                "§11.5: leaf record is first (leaf-first)");
+                "S11.5: leaf record is first (leaf-first)");
         assertEquals(2, oldChain.chain().get(0).fields().size(),
-                "§11.5: Leaf's schema has exactly its own 2 fields (leafVal, leafTag)");
+                "S11.5: Leaf's schema has exactly its own 2 fields (leafVal, leafTag)");
     }
 
     // =========================================================================
-    // §11.6 — Insert a new @AtomicSerial class → new SEQUENCE; new data round-trips
+    // S11.6 -- Insert a new @AtomicSerial class -> new SEQUENCE; new data round-trips
     // =========================================================================
 
     /**
-     * §11.6 — {@code Ev67_Mid} is inserted between {@code Ev67_Alpha} and
+     * S11.6 -- {@code Ev67_Mid} is inserted between {@code Ev67_Alpha} and
      * {@code Ev6_Beta}.  The NEW chain has three records.
      *
      * <p><b>New data path (what CAN be tested):</b>
@@ -475,7 +475,7 @@ class EvolutionMatrixTest {
      * Old data encoded before Mid was inserted has only TWO SEQUENCEs (Alpha + old Beta).
      * Decoding old data against new chain: Mid's {@code (GetArg)} is invoked by
      * {@code Ev6_Beta}'s super-chain, but Mid has no store in the embedded (old)
-     * schema → {@code DerGetArg.callerStore()} throws.  Per §11.6, Mid should receive
+     * schema -> {@code DerGetArg.callerStore()} throws.  Per S11.6, Mid should receive
      * defaults.  See {@code test_11_6_Gap_*}.
      *
      * <p>Observable (new data):
@@ -491,7 +491,7 @@ class EvolutionMatrixTest {
         SchemaChain.Result newChain = SchemaGenerator.generateChain(Ev6_Beta.class);
 
         assertEquals(3, newChain.chain().size(),
-                "§11.6: new chain must have 3 records");
+                "S11.6: new chain must have 3 records");
         assertEquals(Ev6_Beta.class.getName(),   newChain.chain().get(0).className());
         assertEquals(Ev67_Mid.class.getName(),   newChain.chain().get(1).className());
         assertEquals(Ev67_Alpha.class.getName(), newChain.chain().get(2).className());
@@ -499,19 +499,19 @@ class EvolutionMatrixTest {
         byte[] payload = ObjectCodec.encodeHierarchy(original, newChain);
         Ev6_Beta decoded = ObjectCodec.decodeHierarchy(Ev6_Beta.class, newChain, payload);
 
-        assertEquals(10, decoded.getAlphaVal(),  "§11.6: alphaVal must be 10");
-        assertEquals(20, decoded.getMidVal(),    "§11.6: midVal must be 20");
-        assertEquals("mid-tag",  decoded.getMidTag(),  "§11.6: midTag must be 'mid-tag'");
-        assertEquals(30, decoded.getBetaVal(),   "§11.6: betaVal must be 30");
-        assertEquals("beta-tag", decoded.getBetaTag(), "§11.6: betaTag must be 'beta-tag'");
-        assertEquals(original, decoded, "§11.6: new data round-trip equality");
+        assertEquals(10, decoded.getAlphaVal(),  "S11.6: alphaVal must be 10");
+        assertEquals(20, decoded.getMidVal(),    "S11.6: midVal must be 20");
+        assertEquals("mid-tag",  decoded.getMidTag(),  "S11.6: midTag must be 'mid-tag'");
+        assertEquals(30, decoded.getBetaVal(),   "S11.6: betaVal must be 30");
+        assertEquals("beta-tag", decoded.getBetaTag(), "S11.6: betaTag must be 'beta-tag'");
+        assertEquals(original, decoded, "S11.6: new data round-trip equality");
     }
 
     /**
-     * §11.6 gap report — old data lacks Mid's SEQUENCE; Mid(GetArg) throws instead
+     * S11.6 gap report -- old data lacks Mid's SEQUENCE; Mid(GetArg) throws instead
      * of returning defaults.
      *
-     * <p>GAP: per §11.6, "existing wire data has no Mid SEQUENCE — Mid's fields are
+     * <p>GAP: per S11.6, "existing wire data has no Mid SEQUENCE -- Mid's fields are
      * absent and return defaults."  The current {@code DerGetArg} throws when Mid's
      * {@code (GetArg)} constructor is invoked but Mid has no store.
      */
@@ -526,7 +526,7 @@ class EvolutionMatrixTest {
                 alphaClassName, (byte[]) null,
                 List.of(new AtomicSerialFieldDef("alphaVal", "int")));
         AtomicSerialSchemaRecord oldBetaSchema = new AtomicSerialSchemaRecord(
-                betaClassName, (byte[]) null,   // no parent hash yet — linked below
+                betaClassName, (byte[]) null,   // no parent hash yet -- linked below
                 List.of(
                     new AtomicSerialFieldDef("betaVal", "int"),
                     new AtomicSerialFieldDef("betaTag", "java.lang.String")
@@ -536,7 +536,7 @@ class EvolutionMatrixTest {
         SchemaChain.Result oldChain = SchemaChain.linkAndGetLeafDigest(
                 List.of(oldBetaSchema, oldAlphaSchema));
 
-        // Old payload: 2 inner SEQUENCEs (alpha first, beta second — root-first)
+        // Old payload: 2 inner SEQUENCEs (alpha first, beta second -- root-first)
         byte[] alphaSeq = DerWriter.writeSequence(List.of(
                 DerWriter.writeInteger(BigInteger.valueOf(1))));
         byte[] betaSeq  = DerWriter.writeSequence(List.of(
@@ -552,20 +552,20 @@ class EvolutionMatrixTest {
 
         // Now try to decode old data against Ev6_Beta.class (which extends Mid)
         // MIC uses embedded chain (only Alpha + old Beta), so Mid has no store.
-        // Ev6_Beta(GetArg) → super(check(arg)) → Ev67_Mid(GetArg) → no store → THROWS.
-        // GAP: should return defaults for Mid's fields per §11.6.
+        // Ev6_Beta(GetArg) -> super(check(arg)) -> Ev67_Mid(GetArg) -> no store -> THROWS.
+        // GAP: should return defaults for Mid's fields per S11.6.
         assertThrows(Exception.class,
                 () -> MarshalledInstanceCodec.decodeMarshalledInstance(rec, Ev6_Beta.class),
-                "§11.6 GAP: Mid(GetArg) throws when Mid has no store in embedded (old) chain "
-                + "— should return defaults per §11.6 but currently throws");
+                "S11.6 GAP: Mid(GetArg) throws when Mid has no store in embedded (old) chain "
+                + "-- should return defaults per S11.6 but currently throws");
     }
 
     // =========================================================================
-    // §11.7 — Remove @AtomicSerial class → SEQUENCE disappears; neighbours unaffected
+    // S11.7 -- Remove @AtomicSerial class -> SEQUENCE disappears; neighbours unaffected
     // =========================================================================
 
     /**
-     * §11.7 — {@code Ev67_Mid} is REMOVED.  The hierarchy becomes
+     * S11.7 -- {@code Ev67_Mid} is REMOVED.  The hierarchy becomes
      * {@code Ev7_Beta extends Ev67_Alpha} (direct, no Mid).
      *
      * <p>OLD data was encoded with the three-class chain
@@ -575,10 +575,10 @@ class EvolutionMatrixTest {
      *
      * <p>The decoder builds THREE {@code DerFieldStore}s:
      * <ul>
-     *   <li>Alpha's store — consumed by {@code Ev67_Alpha(GetArg)}.</li>
-     *   <li>Mid's store — built and populated but NEVER consumed (no constructor
+     *   <li>Alpha's store -- consumed by {@code Ev67_Alpha(GetArg)}.</li>
+     *   <li>Mid's store -- built and populated but NEVER consumed (no constructor
      *       frame for {@code Ev67_Mid} appears in the super-chain of {@code Ev7_Beta}).</li>
-     *   <li>Beta's store — consumed by {@code Ev7_Beta(GetArg)}.</li>
+     *   <li>Beta's store -- consumed by {@code Ev7_Beta(GetArg)}.</li>
      * </ul>
      *
      * <p>Observable:
@@ -636,46 +636,46 @@ class EvolutionMatrixTest {
                 Optional.empty(), MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         // Decode using MIC (embedded chain drives decode, NOT receiver's current serialForm)
-        // Receiver class is Ev7_Beta (extends Alpha directly — Mid removed)
+        // Receiver class is Ev7_Beta (extends Alpha directly -- Mid removed)
         MarshalledInstanceCodec.Result<Ev7_Beta> result =
                 MarshalledInstanceCodec.decodeMarshalledInstance(rec, Ev7_Beta.class);
 
         // Schema mismatch detected (embedded chain has Mid; receiver's current chain doesn't)
         assertEquals(MarshalledInstanceCodec.SchemaCase.B_OR_C_MISMATCH, result.schemaCase(),
-                "§11.7: schema mismatch detected (embedded has Mid; receiver's current chain does not)");
+                "S11.7: schema mismatch detected (embedded has Mid; receiver's current chain does not)");
 
         // Alpha's neighbour field unaffected
         assertEquals(100, result.object().getAlphaVal(),
-                "§11.7: alphaVal must decode correctly (neighbour Alpha unaffected by Mid removal)");
+                "S11.7: alphaVal must decode correctly (neighbour Alpha unaffected by Mid removal)");
 
         // Beta's own fields unaffected
         assertEquals(200, result.object().getBetaVal(),
-                "§11.7: betaVal must decode correctly (neighbour Beta unaffected)");
+                "S11.7: betaVal must decode correctly (neighbour Beta unaffected)");
         assertEquals("beta-tag", result.object().getBetaTag(),
-                "§11.7: betaTag must decode correctly");
+                "S11.7: betaTag must decode correctly");
 
         // Mid's values do NOT appear anywhere in the result (store unrequested)
         // We can only prove this by the fact that the constructor returned without consuming them.
         // The runtime type is exactly Ev7_Beta (extends Alpha, not Mid).
         assertEquals(Ev7_Beta.class, result.object().getClass(),
-                "§11.7: decoded class must be Ev7_Beta (no Mid in hierarchy any more)");
-        // Ev7_Beta extends Ev67_Alpha (not Ev67_Mid), so Mid is structurally absent —
+                "S11.7: decoded class must be Ev7_Beta (no Mid in hierarchy any more)");
+        // Ev7_Beta extends Ev67_Alpha (not Ev67_Mid), so Mid is structurally absent --
         // confirmed by the class hierarchy check above.
     }
 
     // =========================================================================
-    // §11.8 / Task 6.2 — Field-level evolution (symmetric graceful degradation)
+    // S11.8 / Task 6.2 -- Field-level evolution (symmetric graceful degradation)
     // =========================================================================
 
     /**
-     * §11.8 / 6.2a — Add a field at end of {@code serialForm()}.
+     * S11.8 / 6.2a -- Add a field at end of {@code serialForm()}.
      *
-     * <p>Old data (embedded schema lacks the new field) → {@code get(name, default)}
+     * <p>Old data (embedded schema lacks the new field) -> {@code get(name, default)}
      * returns the default.
      *
-     * <p>New data (field present in payload) → the encoded value is returned.
+     * <p>New data (field present in payload) -> the encoded value is returned.
      *
-     * <p>Simulation: 2-field old schema → decode against 3-field schema (DerFieldStore
+     * <p>Simulation: 2-field old schema -> decode against 3-field schema (DerFieldStore
      * directly).
      */
     @Test
@@ -700,9 +700,9 @@ class EvolutionMatrixTest {
         assertEquals(7,           oldStore.get("id",     0),   "6.2a: id correct in old data");
         assertEquals("old-label", oldStore.get("label", "?"),  "6.2a: label correct in old data");
 
-        // 'extra' field not in old schema → get returns default
+        // 'extra' field not in old schema -> get returns default
         assertEquals("DEFAULT_EXTRA", oldStore.get("extra", "DEFAULT_EXTRA"),
-                "6.2a: extra absent in old data → get returns default 'DEFAULT_EXTRA'");
+                "6.2a: extra absent in old data -> get returns default 'DEFAULT_EXTRA'");
         assertTrue(oldStore.defaulted("extra"),
                 "6.2a: defaulted(extra) must be true for old data");
 
@@ -725,17 +725,17 @@ class EvolutionMatrixTest {
         assertEquals(8,             newStore.get("id",     0),   "6.2a: id correct in new data");
         assertEquals("new-label",   newStore.get("label", "?"),  "6.2a: label correct in new data");
         assertEquals("extra-value", newStore.get("extra", "DEFAULT_EXTRA"),
-                "6.2a: extra present in new data → returns 'extra-value'");
+                "6.2a: extra present in new data -> returns 'extra-value'");
         assertFalse(newStore.defaulted("extra"),
                 "6.2a: defaulted(extra) must be false when field is present");
     }
 
     /**
-     * §11.8 / 6.2b — Stop requesting a field.
+     * S11.8 / 6.2b -- Stop requesting a field.
      *
      * <p>The field is still encoded in the payload and decoded into the
      * {@code DerFieldStore} (assert via {@link DerFieldStore#presentFieldNames()}
-     * containing it), but the "constructor" never calls {@code get()} for it —
+     * containing it), but the "constructor" never calls {@code get()} for it --
      * show it sits in the store, unrequested.
      *
      * <p>Simulation: build a 3-field schema and payload; observe that all 3 are
@@ -770,25 +770,25 @@ class EvolutionMatrixTest {
         assertEquals(0, store.trailingFieldsDiscarded(),
                 "6.2b: no trailing discard (exact match; deprecated is in schema)");
 
-        // Simulate "constructor requests only keep1 and keep2 — not deprecated"
+        // Simulate "constructor requests only keep1 and keep2 -- not deprecated"
         int    keep1 = store.get("keep1", 0);
         String keep2 = (String) store.get("keep2", null);
 
         assertEquals(11,        keep1, "6.2b: keep1 decoded correctly");
         assertEquals("keep-me", keep2, "6.2b: keep2 decoded correctly");
 
-        // 'deprecated' is still in the store (unrequested — this is the assertion)
+        // 'deprecated' is still in the store (unrequested -- this is the assertion)
         assertFalse(store.defaulted("deprecated"),
                 "6.2b: deprecated must remain in store (not absent) even though constructor never requested it");
         assertEquals("old-data-for-deprecated-field",
                 store.get("deprecated", "NO"),
-                "6.2b: deprecated value still retrievable from store — it was decoded and stored, never removed");
+                "6.2b: deprecated value still retrievable from store -- it was decoded and stored, never removed");
     }
 
     /**
-     * §11.8 / 6.2c — Field present on wire, absent from the (decoder's) schema.
+     * S11.8 / 6.2c -- Field present on wire, absent from the (decoder's) schema.
      *
-     * <p>This is the §3.9 case (c) at the field-store level: the payload contains MORE
+     * <p>This is the S3.9 case (c) at the field-store level: the payload contains MORE
      * TLVs than the schema has fields.  The known fields are decoded; trailing extra
      * TLVs are read-and-discarded to the SEQUENCE boundary.
      * {@link DerFieldStore#trailingFieldsDiscarded()} must be {@code > 0}.
@@ -820,7 +820,7 @@ class EvolutionMatrixTest {
         assertEquals(9,             store.get("id",    0),   "6.2c: id correct");
         assertEquals("known-label", store.get("label", "?"), "6.2c: label correct");
 
-        // Assert: trailing fields discarded (§3.9 case (c) at field-store level)
+        // Assert: trailing fields discarded (S3.9 case (c) at field-store level)
         assertEquals(2, store.trailingFieldsDiscarded(),
                 "6.2c: exactly 2 trailing TLVs must be discarded (present on wire, absent from schema)");
 

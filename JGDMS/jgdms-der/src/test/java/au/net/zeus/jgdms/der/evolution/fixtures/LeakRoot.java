@@ -22,10 +22,10 @@ import org.apache.river.api.io.AtomicSerial;
 import java.io.IOException;
 
 /**
- * Namespace-leak regression fixture — root of {@code LeakLeaf -> LeakMid -> LeakRoot}.
+ * Namespace-leak regression fixture -- root of {@code LeakLeaf -> LeakMid -> LeakRoot}.
  * Used to prove that an inserted @AtomicSerial class (LeakMid) absent from old wire
  * data does NOT have its {@code get()} calls leak into a neighbouring class's store
- * (§3.9).
+ * (S3.9).
  */
 @AtomicSerial
 public class LeakRoot {

@@ -25,7 +25,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Fixture 1 — simple Object-rooted {@code @AtomicSerial} class with a
+ * Fixture 1 -- simple Object-rooted {@code @AtomicSerial} class with a
  * {@code boolean}, an {@code int}, a {@link String}, and a {@code byte[]}.
  *
  * <p>Demonstrates the basic encode / decode round-trip for Phase 4.1.
@@ -70,7 +70,7 @@ public final class SimpleRecord {
     }
 
     // -------------------------------------------------------------------------
-    // @AtomicSerial constructor — check FIRST, then assign
+    // @AtomicSerial constructor -- check FIRST, then assign
     // -------------------------------------------------------------------------
 
     /**
@@ -79,7 +79,7 @@ public final class SimpleRecord {
      * enforcing the check-before-construction invariant.
      */
     public SimpleRecord(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-        // check runs first — throws before any field assignment on violation
+        // check runs first -- throws before any field assignment on violation
         check(arg);
         this.active  = arg.get("active",  false);
         this.count   = arg.get("count",   0);

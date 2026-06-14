@@ -36,36 +36,36 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Phase 5.1 and 5.2 acceptance tests.
  *
- * <h2>Phase 5.1 — MarshalledInstanceRecord</h2>
+ * <h2>Phase 5.1 -- MarshalledInstanceRecord</h2>
  * <ul>
- *   <li>5.1.1 — Round-trip WITHOUT codebaseAnnotation: encode → decode → equal.</li>
- *   <li>5.1.2 — Round-trip WITH codebaseAnnotation: encode → decode → equal;
+ *   <li>5.1.1 -- Round-trip WITHOUT codebaseAnnotation: encode -> decode -> equal.</li>
+ *   <li>5.1.2 -- Round-trip WITH codebaseAnnotation: encode -> decode -> equal;
  *               positional disambiguation correctly identifies the two UTF8Strings.</li>
- *   <li>5.1.3 — {@code schemaDigest} in the record equals SHA-256 of the leaf record
+ *   <li>5.1.3 -- {@code schemaDigest} in the record equals SHA-256 of the leaf record
  *               in {@code schemaBytes}.</li>
- *   <li>5.1.4 — The embedded schema chain decodes back to records in leaf-first order
+ *   <li>5.1.4 -- The embedded schema chain decodes back to records in leaf-first order
  *               with the correct class names.</li>
- *   <li>5.1.5 — {@code fromChain} helper builds the record; round-trips correctly.</li>
- *   <li>5.1.6 — Illegal schemaDigest length throws {@link IllegalArgumentException}.</li>
+ *   <li>5.1.5 -- {@code fromChain} helper builds the record; round-trips correctly.</li>
+ *   <li>5.1.6 -- Illegal schemaDigest length throws {@link IllegalArgumentException}.</li>
  * </ul>
  *
- * <h2>Phase 5.2 — decode using the embedded schema</h2>
+ * <h2>Phase 5.2 -- decode using the embedded schema</h2>
  * <ul>
- *   <li>5.2.1 — Case (a): normal round-trip; schema match detected.</li>
- *   <li>5.2.2 — Case (c) "receiver newer": embedded schema has FEWER fields than the
+ *   <li>5.2.1 -- Case (a): normal round-trip; schema match detected.</li>
+ *   <li>5.2.2 -- Case (c) "receiver newer": embedded schema has FEWER fields than the
  *               receiver. The added field gets its DEFAULT from {@code get(name, default)}.
  *               Case mismatch detected. Proves the embedded schema drove decoding.</li>
- *   <li>5.2.3 — Case (b) "sender newer": embedded schema has MORE fields than the
+ *   <li>5.2.3 -- Case (b) "sender newer": embedded schema has MORE fields than the
  *               receiver requests. Extra field is stored but not requested. No error.
  *               Case mismatch detected. Proves the embedded schema drove decoding.</li>
- *   <li>5.2.4 — Proof test: the receiver's serialForm() would produce a different
+ *   <li>5.2.4 -- Proof test: the receiver's serialForm() would produce a different
  *               DerFieldStore than the embedded schema; the embedded schema is used.</li>
  * </ul>
  */
 class MarshalledInstanceRecordTest {
 
     // =========================================================================
-    // 5.1.1 — round-trip without codebaseAnnotation
+    // 5.1.1 -- round-trip without codebaseAnnotation
     // =========================================================================
 
     @Test
@@ -88,7 +88,7 @@ class MarshalledInstanceRecordTest {
     }
 
     // =========================================================================
-    // 5.1.2 — round-trip WITH codebaseAnnotation (positional disambiguation)
+    // 5.1.2 -- round-trip WITH codebaseAnnotation (positional disambiguation)
     // =========================================================================
 
     @Test
@@ -113,7 +113,7 @@ class MarshalledInstanceRecordTest {
     }
 
     // =========================================================================
-    // 5.1.3 — schemaDigest equals SHA-256 of the leaf record in schemaBytes
+    // 5.1.3 -- schemaDigest equals SHA-256 of the leaf record in schemaBytes
     // =========================================================================
 
     @Test
@@ -142,7 +142,7 @@ class MarshalledInstanceRecordTest {
     }
 
     // =========================================================================
-    // 5.1.4 — schema chain decodes back to leaf-first records with correct names
+    // 5.1.4 -- schema chain decodes back to leaf-first records with correct names
     // =========================================================================
 
     @Test
@@ -168,7 +168,7 @@ class MarshalledInstanceRecordTest {
     }
 
     // =========================================================================
-    // 5.1.5 — fromChain helper builds record; round-trips correctly
+    // 5.1.5 -- fromChain helper builds record; round-trips correctly
     // =========================================================================
 
     @Test
@@ -194,7 +194,7 @@ class MarshalledInstanceRecordTest {
     }
 
     // =========================================================================
-    // 5.1.6 — illegal schemaDigest length throws
+    // 5.1.6 -- illegal schemaDigest length throws
     // =========================================================================
 
     @Test
@@ -207,11 +207,11 @@ class MarshalledInstanceRecordTest {
     }
 
     // =========================================================================
-    // 5.2.1 — case (a): normal round-trip; schema match detected
+    // 5.2.1 -- case (a): normal round-trip; schema match detected
     // =========================================================================
 
     /**
-     * 5.2.1 — Case (a): the embedded schema digest matches the receiver's digest.
+     * 5.2.1 -- Case (a): the embedded schema digest matches the receiver's digest.
      * Decoding succeeds; case (a) is detected.
      */
     @Test
@@ -234,11 +234,11 @@ class MarshalledInstanceRecordTest {
     }
 
     // =========================================================================
-    // 5.2.2 — case (c) "receiver newer": embedded schema has FEWER fields
+    // 5.2.2 -- case (c) "receiver newer": embedded schema has FEWER fields
     // =========================================================================
 
     /**
-     * 5.2.2 — Case (c): receiver is newer than the sender.
+     * 5.2.2 -- Case (c): receiver is newer than the sender.
      *
      * <p>The embedded schema (the "old sender") only has two fields: {@code id} and
      * {@code label}. The receiver's current serialForm has three fields (adds
@@ -261,7 +261,7 @@ class MarshalledInstanceRecordTest {
      *
      * <p>This proves the EMBEDDED schema drove decoding: the embedded schema has only
      * two fields, so {@code extra} is absent from the store, and the receiver's
-     * constructor falls back to the default — exactly as §3.9 case (c) requires.
+     * constructor falls back to the default -- exactly as S3.9 case (c) requires.
      * If the receiver's serialForm() had been used instead, the decoder would expect
      * three fields in the payload, find only two, and either fail or behave differently.
      */
@@ -272,7 +272,7 @@ class MarshalledInstanceRecordTest {
         // Hand-build the OLD (two-field) embedded schema for VersionedRecord
         AtomicSerialSchemaRecord oldSchema = new AtomicSerialSchemaRecord(
                 className,
-                (byte[]) null,   // no parent — VersionedRecord extends Object
+                (byte[]) null,   // no parent -- VersionedRecord extends Object
                 List.of(
                     new AtomicSerialFieldDef("id",    "int"),
                     new AtomicSerialFieldDef("label", "java.lang.String")
@@ -315,29 +315,29 @@ class MarshalledInstanceRecordTest {
         assertEquals(7,                decoded.getId(),    "id must decode from embedded schema");
         assertEquals("receiver-newer", decoded.getLabel(), "label must decode from embedded schema");
 
-        // 'extra' was NOT in the embedded schema → DerFieldStore has no entry for it
-        // → arg.get("extra", "DEFAULT_EXTRA") returns the default
+        // 'extra' was NOT in the embedded schema -> DerFieldStore has no entry for it
+        // -> arg.get("extra", "DEFAULT_EXTRA") returns the default
         assertEquals("DEFAULT_EXTRA",  decoded.getExtra(),
-                "extra absent from embedded schema → must return DEFAULT_EXTRA");
+                "extra absent from embedded schema -> must return DEFAULT_EXTRA");
 
         // Proof: the embedded schema drove decoding, not the receiver's serialForm.
         // If the receiver's serialForm() had been used, the decoder would try to read
-        // 3 TLVs from a 2-TLV payload (id + label) and leave 'extra' absent too —
+        // 3 TLVs from a 2-TLV payload (id + label) and leave 'extra' absent too --
         // BUT the key proof is that no exception was thrown, the correct values are
         // present for id and label, and 'extra' correctly defaults. The embedded schema
         // is what defines "2 fields expected"; using serialForm would define
         // "3 fields expected" (also returning default for extra, but the schema would
-        // be different — the schemaDigest cross-check verifies the embedded one was used).
+        // be different -- the schemaDigest cross-check verifies the embedded one was used).
         assertArrayEquals(schemaDigest, rec.schemaDigest(),
                 "schemaDigest must match the embedded (old) schema's digest, not the receiver's");
     }
 
     // =========================================================================
-    // 5.2.3 — case (b) "sender newer": embedded schema has MORE fields
+    // 5.2.3 -- case (b) "sender newer": embedded schema has MORE fields
     // =========================================================================
 
     /**
-     * 5.2.3 — Case (b): sender is newer than the receiver.
+     * 5.2.3 -- Case (b): sender is newer than the receiver.
      *
      * <p>The embedded schema (the "new sender") has FOUR fields: {@code id},
      * {@code label}, {@code extra}, and a fourth {@code bonus} field. The receiver's
@@ -354,7 +354,7 @@ class MarshalledInstanceRecordTest {
      * <p>Decoding against the current three-field {@code VersionedRecord} class must:
      * <ul>
      *   <li>Decode {@code id}, {@code label}, {@code extra} correctly.</li>
-     *   <li>Not fail — {@code bonus} is in the store but the receiver never calls
+     *   <li>Not fail -- {@code bonus} is in the store but the receiver never calls
      *       {@code arg.get("bonus", ...)} (it doesn't know about it).</li>
      *   <li>Detect case (b)/(c) mismatch.</li>
      * </ul>
@@ -411,16 +411,16 @@ class MarshalledInstanceRecordTest {
         assertEquals("extra-value",  decoded.getExtra(), "extra must decode correctly");
 
         // 'bonus' was in the embedded schema and in the store, but the receiver never
-        // requested it — this is proved by the fact that no exception was thrown and
+        // requested it -- this is proved by the fact that no exception was thrown and
         // the three known fields are correct.
     }
 
     // =========================================================================
-    // 5.2.4 — proof: embedded schema is used, not the receiver's serialForm()
+    // 5.2.4 -- proof: embedded schema is used, not the receiver's serialForm()
     // =========================================================================
 
     /**
-     * 5.2.4 — Proof that decoding is driven by the EMBEDDED schema, not serialForm().
+     * 5.2.4 -- Proof that decoding is driven by the EMBEDDED schema, not serialForm().
      *
      * <p>We create a payload encoded with the OLD two-field schema (as in test 5.2.2)
      * but verify the assertion more directly:
@@ -428,9 +428,9 @@ class MarshalledInstanceRecordTest {
      *   <li>We compute the receiver's current (three-field) schema digest and confirm
      *       it differs from the embedded (two-field) schema digest.</li>
      *   <li>We assert that the embedded digest stored in the record matches only the
-     *       two-field schema — NOT the current three-field schema.</li>
+     *       two-field schema -- NOT the current three-field schema.</li>
      *   <li>We confirm the decode succeeds (i.e., the embedded schema was used, not
-     *       the current three-field schema — if the three-field schema had been used
+     *       the current three-field schema -- if the three-field schema had been used
      *       and the payload was two fields, both id+label would be decoded and extra
      *       would be absent; but critically, the embedded schema's definition of field
      *       positions still governs what the store contains).</li>
@@ -490,35 +490,35 @@ class MarshalledInstanceRecordTest {
         VersionedRecord decoded = result.object();
         assertEquals(3,             decoded.getId());
         assertEquals("proof-label", decoded.getLabel());
-        // 'extra' absent from embedded schema → default
+        // 'extra' absent from embedded schema -> default
         assertEquals("DEFAULT_EXTRA", decoded.getExtra(),
                 "extra must default because the EMBEDDED schema did not include it");
     }
 
     /**
-     * 5.2.5 — DISCRIMINATING proof that decoding follows the EMBEDDED schema, not the
+     * 5.2.5 -- DISCRIMINATING proof that decoding follows the EMBEDDED schema, not the
      * receiver's {@code serialForm()} (added during orchestrator review of Phase 5.2).
      *
      * <p>The earlier 5.2 tests (add/remove a trailing field) decode to the SAME object
      * whether the embedded schema or {@code serialForm()} drives the positional decode,
      * so they do not actually discriminate the two. This test does: the embedded schema
-     * SWAPS the order of {@code VersionedRecord}'s first two fields —
+     * SWAPS the order of {@code VersionedRecord}'s first two fields --
      * {@code [label:String, id:int, extra:String]} vs the receiver's
-     * {@code serialForm()} order {@code [id:int, label:String, extra:String]} — and the
+     * {@code serialForm()} order {@code [id:int, label:String, extra:String]} -- and the
      * payload is built in the EMBEDDED order ({@code String, int, String}).
      *
      * <ul>
-     *   <li>If the EMBEDDED schema drives decode (correct, §7.8): position 0 (UTF8String)
-     *       → {@code label}, position 1 (INTEGER) → {@code id}. Decode SUCCEEDS with the
+     *   <li>If the EMBEDDED schema drives decode (correct, S7.8): position 0 (UTF8String)
+     *       -> {@code label}, position 1 (INTEGER) -> {@code id}. Decode SUCCEEDS with the
      *       right name&harr;value mapping.</li>
      *   <li>If the receiver's {@code serialForm()} order had driven decode (the bug this
-     *       guards against): position 0 would be read as {@code id} (int) — but it is a
+     *       guards against): position 0 would be read as {@code id} (int) -- but it is a
      *       UTF8String, so the INTEGER read throws {@code DerException}. Decode would
      *       FAIL.</li>
      * </ul>
      *
      * A successful decode with correct values is therefore only possible if the embedded
-     * schema drove the positional decode — locking in the §7.8 rule against regression.
+     * schema drove the positional decode -- locking in the S7.8 rule against regression.
      */
     @Test
     void test_5_2_5_EmbeddedSchemaDrivesPositionalDecode_NotSerialForm() throws Exception {
@@ -557,16 +557,16 @@ class MarshalledInstanceRecordTest {
                 "Pre-condition: swapped embedded schema must differ from receiver serialForm()");
 
         // If serialForm() order had driven decode, position 0 (a UTF8String) would be read
-        // as int 'id' and throw — so a successful decode proves the embedded schema drove it.
+        // as int 'id' and throw -- so a successful decode proves the embedded schema drove it.
         MarshalledInstanceCodec.Result<VersionedRecord> result =
                 MarshalledInstanceCodec.decodeMarshalledInstance(rec, VersionedRecord.class);
 
         VersionedRecord decoded = result.object();
 
         assertEquals(77, decoded.getId(),
-                "id must come from the INTEGER at embedded position 1 — proves the embedded order drove decode");
+                "id must come from the INTEGER at embedded position 1 -- proves the embedded order drove decode");
         assertEquals("the-label", decoded.getLabel(),
-                "label must come from the UTF8String at embedded position 0 — proves the embedded order drove decode");
+                "label must come from the UTF8String at embedded position 0 -- proves the embedded order drove decode");
         assertEquals("the-extra", decoded.getExtra());
         assertEquals(MarshalledInstanceCodec.SchemaCase.B_OR_C_MISMATCH, result.schemaCase());
     }
