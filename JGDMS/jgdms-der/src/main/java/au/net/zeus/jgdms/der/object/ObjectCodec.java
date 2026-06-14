@@ -18,10 +18,12 @@
 package au.net.zeus.jgdms.der.object;
 
 import au.net.zeus.jgdms.der.DerException;
+import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
+import au.net.zeus.jgdms.der.schema.SchemaChain;
 import org.apache.river.api.io.AtomicSerial;
 
 import java.io.IOException;
@@ -32,6 +34,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,9 +42,11 @@ import java.util.Objects;
 
 /**
  * DER object encoder and decoder for single {@code @AtomicSerial} classes
- * (JGDMS-STD-006 Phase 4.1 — no hierarchy; one private SEQUENCE per class).
+ * (Phase 4.1 / 4.2 — single class, one private SEQUENCE) and for
+ * {@code @AtomicSerial} class hierarchies (Phase 4.3 — one private SEQUENCE
+ * per class, superclass-first on wire).
  *
- * <h2>Encoding (object → DER)</h2>
+ * <h2>Single-class encoding (object → DER)</h2>
  * <p>
  * {@link #encode(Object, Class, AtomicSerialSchemaRecord)} encodes an object's
  * state to the DER bytes of the class's private SEQUENCE. The field values are
@@ -50,12 +55,37 @@ import java.util.Objects;
  * field definitions; the assumption (safe for standard {@code @AtomicSerial}
  * classes) is that the wire name equals the Java field name.
  *
- * <h2>Decoding (DER → object)</h2>
+ * <h2>Single-class decoding (DER → object)</h2>
  * <p>
  * {@link #decode(Class, AtomicSerialSchemaRecord, byte[])} decodes the DER bytes
  * of one class's private SEQUENCE, builds a {@link DerFieldStore}, assembles a
  * single-entry {@link DerGetArg}, and drives construction by reflectively invoking
  * the {@code public C(AtomicSerial.GetArg)} constructor.
+ *
+ * <h2>Hierarchy encoding (Phase 4.3)</h2>
+ * <p>
+ * {@link #encodeHierarchy(Object, SchemaChain.Result)} emits one private SEQUENCE
+ * per {@code @AtomicSerial} class, assembled in a top-level wrapper SEQUENCE in
+ * <b>superclass-first (root-first, leaf-last)</b> order. Each class's SEQUENCE
+ * contains only the fields declared by that class (via its own {@code serialForm()});
+ * no class can write another class's fields. Wire structure:
+ * <pre>
+ * SEQUENCE {          -- outer hierarchy SEQUENCE
+ *   SEQUENCE { ... }  -- root-class private SEQUENCE (first on wire)
+ *   SEQUENCE { ... }  -- mid-class private SEQUENCE
+ *   SEQUENCE { ... }  -- leaf-class private SEQUENCE (last on wire)
+ * }
+ * </pre>
+ *
+ * <h2>Hierarchy decoding (Phase 4.3)</h2>
+ * <p>
+ * {@link #decodeHierarchy(Class, SchemaChain.Result, byte[])} reads each per-class
+ * SEQUENCE from the outer wrapper in superclass-first order, builds one
+ * {@link DerFieldStore} per class, populates a multi-entry {@link DerGetArg}
+ * (insertion order: superclass-first), then reflectively invokes the LEAF class's
+ * {@code (GetArg)} constructor. The leaf constructor chains up via
+ * {@code super(check(arg))}, and StackWalker dispatch in {@link DerGetArg} ensures
+ * each level reads exclusively from its own {@link DerFieldStore}.
  *
  * <h2>check-before-construction contract</h2>
  * <p>
@@ -150,6 +180,145 @@ public final class ObjectCodec {
         } catch (IllegalAccessException | InstantiationException ex) {
             // setAccessible(true) should prevent IllegalAccessException;
             // abstract classes should not reach here
+            throw new AssertionError("Unexpected reflective access failure", ex);
+        }
+    }
+
+    // =========================================================================
+    // Hierarchy encode (Phase 4.3)
+    // =========================================================================
+
+    /**
+     * Encodes an object from a {@code @AtomicSerial} hierarchy to DER bytes.
+     *
+     * <p>The returned bytes are a complete SEQUENCE TLV wrapping one private SEQUENCE
+     * per {@code @AtomicSerial} class in the hierarchy, in <b>superclass-first
+     * (root-first, leaf-last)</b> order. Each per-class SEQUENCE contains only the
+     * fields declared by that class via its own {@code serialForm()}.
+     *
+     * <p>The {@code chain} must have been produced by
+     * {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain(Class)} for the
+     * leaf class. The chain order from {@link SchemaChain.Result#chain()} is
+     * <em>leaf-first</em>; this method reverses it to <em>superclass-first</em> before
+     * encoding so that the wire order matches the DerGetArg insertion order expected by
+     * {@link #decodeHierarchy}.
+     *
+     * @param instance the object to encode; must be an instance of the leaf class
+     * @param chain    the linked schema chain for the hierarchy (leaf-first from
+     *                 {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain})
+     * @return the complete DER encoding: outer SEQUENCE { per-class SEQUENCE ... }
+     * @throws DerException         if a field type is unsupported or reflection fails
+     * @throws NullPointerException if any argument is {@code null}
+     */
+    public static byte[] encodeHierarchy(Object instance,
+                                          SchemaChain.Result chain)
+            throws DerException {
+        Objects.requireNonNull(instance, "instance");
+        Objects.requireNonNull(chain, "chain");
+
+        // chain.chain() is leaf-first; we need superclass-first (root-first) for wire order.
+        List<AtomicSerialSchemaRecord> leafFirst = chain.chain();
+        List<AtomicSerialSchemaRecord> rootFirst = new ArrayList<>(leafFirst);
+        Collections.reverse(rootFirst);
+
+        // For each class in root-first order, load the class and encode its SEQUENCE.
+        List<byte[]> perClassSequences = new ArrayList<>(rootFirst.size());
+        for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
+            Class<?> cls = loadClass(schemaRecord.className());
+            byte[] classSeq = encode(instance, cls, schemaRecord);
+            perClassSequences.add(classSeq);
+        }
+
+        // Wrap all per-class SEQUENCEs in an outer SEQUENCE
+        return DerWriter.writeSequence(perClassSequences);
+    }
+
+    // =========================================================================
+    // Hierarchy decode (Phase 4.3)
+    // =========================================================================
+
+    /**
+     * Decodes DER bytes produced by {@link #encodeHierarchy} and constructs an
+     * instance of {@code leafClass} by invoking its {@code (AtomicSerial.GetArg)}
+     * constructor.
+     *
+     * <p>The method reads each per-class SEQUENCE from the outer wrapper in
+     * <b>superclass-first</b> order, builds a {@link DerFieldStore} per class, and
+     * populates a {@link DerGetArg} with all stores (insertion order: superclass-first,
+     * leaf-last — matching {@code DerGetArg}'s documented contract and
+     * {@code serialClasses()} order).
+     *
+     * <p>The LEAF class's {@code (GetArg)} constructor is then invoked with the
+     * populated {@link DerGetArg}. It chains up via {@code super(check(arg))}, and
+     * each level in the chain reads only its own private namespace through
+     * StackWalker dispatch.
+     *
+     * <p>The {@code chain} must have been produced by
+     * {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain} for
+     * {@code leafClass}.
+     *
+     * @param <T>       the leaf class type
+     * @param leafClass the leaf {@code @AtomicSerial} class to construct
+     * @param chain     the linked schema chain (leaf-first from
+     *                  {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain})
+     * @param hierarchyPayload the DER bytes produced by {@link #encodeHierarchy}
+     * @return the constructed leaf instance
+     * @throws DerException           if the DER encoding is malformed
+     * @throws InvalidObjectException if any class's {@code check(GetArg)} fails
+     * @throws IOException            if construction fails with IOException
+     * @throws NullPointerException   if any argument is {@code null}
+     */
+    public static <T> T decodeHierarchy(Class<T> leafClass,
+                                         SchemaChain.Result chain,
+                                         byte[] hierarchyPayload)
+            throws DerException, IOException, ClassNotFoundException {
+        Objects.requireNonNull(leafClass, "leafClass");
+        Objects.requireNonNull(chain, "chain");
+        Objects.requireNonNull(hierarchyPayload, "hierarchyPayload");
+
+        // chain.chain() is leaf-first; reverse to get superclass-first for wire order
+        List<AtomicSerialSchemaRecord> leafFirst = chain.chain();
+        List<AtomicSerialSchemaRecord> rootFirst = new ArrayList<>(leafFirst);
+        Collections.reverse(rootFirst);
+
+        // Read the outer SEQUENCE; it contains one child SEQUENCE per class (root-first)
+        DerReader outer = new DerReader(hierarchyPayload);
+        DerReader outerSeq = outer.readSequence();
+        if (outer.hasMore()) {
+            throw new DerException("ObjectCodec.decodeHierarchy: trailing bytes after outer SEQUENCE");
+        }
+
+        // Build a DerFieldStore for each class, inserting superclass-first into the map
+        Map<Class<?>, DerFieldStore> storeMap = new LinkedHashMap<>();
+        for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
+            Class<?> cls = loadClass(schemaRecord.className());
+            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq);
+            storeMap.put(cls, store);
+        }
+        if (outerSeq.hasMore()) {
+            throw new DerException("ObjectCodec.decodeHierarchy: trailing bytes in outer SEQUENCE "
+                    + "(more SEQUENCEs than schema records)");
+        }
+
+        // Assemble the multi-entry DerGetArg (superclass-first insertion order)
+        DerGetArg arg = new DerGetArg(storeMap);
+
+        // Invoke the LEAF class's (GetArg) constructor — it chains up via super(check(arg))
+        Constructor<T> ctor = findGetArgConstructor(leafClass);
+        try {
+            return ctor.newInstance(arg);
+        } catch (InvocationTargetException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof InvalidObjectException ioe) throw ioe;
+            if (cause instanceof IOException ioe) throw ioe;
+            if (cause instanceof ClassNotFoundException cnfe) throw cnfe;
+            if (cause instanceof RuntimeException re) throw re;
+            if (cause instanceof Error err) throw err;
+            DerException de = new DerException(
+                    "Construction of " + leafClass.getName() + " failed: " + cause);
+            de.initCause(cause);
+            throw de;
+        } catch (IllegalAccessException | InstantiationException ex) {
             throw new AssertionError("Unexpected reflective access failure", ex);
         }
     }
@@ -324,5 +493,25 @@ public final class ObjectCodec {
                     + "' for field '" + fieldName + "'"
                     + " (char/float/double deferred per §7.6)");
         };
+    }
+
+    /**
+     * Loads a class by name using the thread context class loader (falling back to
+     * the system class loader). Used by hierarchy encode/decode to resolve class
+     * names from schema records.
+     *
+     * @param className the fully-qualified class name
+     * @return the loaded class
+     * @throws DerException if the class cannot be found
+     */
+    private static Class<?> loadClass(String className) throws DerException {
+        try {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            if (cl == null) cl = ClassLoader.getSystemClassLoader();
+            return Class.forName(className, false, cl);
+        } catch (ClassNotFoundException ex) {
+            throw new DerException(
+                    "ObjectCodec: cannot load class '" + className + "'", ex);
+        }
     }
 }
