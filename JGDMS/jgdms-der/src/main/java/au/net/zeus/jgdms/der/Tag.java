@@ -203,6 +203,7 @@ public final class Tag {
         int pos = offset + 1;
         int number = 0;
         int octetsRead = 1;
+        boolean firstContinuation = true;
         while (true) {
             if (pos >= buf.length) {
                 throw new DerException("Tag decode: truncated high-tag-number form");
@@ -210,6 +211,14 @@ public final class Tag {
             int b = buf[pos] & 0xFF;
             pos++;
             octetsRead++;
+            // §9.3 / X.690 §8.1.2.4.2(c): the first continuation octet must not be 0x80
+            // (that would be a non-minimal leading-zero byte in the base-128 encoding).
+            if (firstContinuation && b == 0x80) {
+                throw new DerException(
+                        "Tag decode: non-minimal high-tag-number encoding "
+                        + "(leading 0x80 continuation byte carries no bits)");
+            }
+            firstContinuation = false;
             // Overflow guard: tag numbers > Integer.MAX_VALUE are unsupported
             if (number > (Integer.MAX_VALUE >> 7)) {
                 throw new DerException("Tag decode: tag number overflow");

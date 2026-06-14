@@ -439,6 +439,85 @@ public final class ObjectCodec {
     }
 
     // =========================================================================
+    // §3.11 Data Independence: decode to named field map WITHOUT loading classes
+    // =========================================================================
+
+    /**
+     * Decodes a DER hierarchy payload into a named field map given ONLY the DER
+     * bytes and the {@link SchemaChain.Result} — <b>without loading any class from
+     * the originating codebase</b>. This satisfies the §3.11 normative requirement
+     * for data independence.
+     *
+     * <p>The returned map is keyed by class name (as declared in each
+     * {@link AtomicSerialSchemaRecord}). Each value is an ordered map from field
+     * name to decoded Java value, corresponding exactly to the state that
+     * {@link DerGetArg} would hold during construction: all fields present in the
+     * schema, each bound to its decoded value. Fields absent from the payload (case
+     * (b): schema newer than data) appear as absent in
+     * {@link DerFieldStore#presentFields()} and are not included in the inner map.
+     *
+     * <p>No class is loaded; no constructor is invoked; no {@code check(GetArg)} is
+     * run. The decode is purely structural: schema → DER → named values. This is
+     * the §3.11 claim in executable form.
+     *
+     * <pre>
+     * SEQUENCE {          -- outer hierarchy SEQUENCE (produced by encodeHierarchy)
+     *   SEQUENCE { ... }  -- root-class private SEQUENCE (first on wire)
+     *   ...
+     *   SEQUENCE { ... }  -- leaf-class private SEQUENCE (last on wire)
+     * }
+     * </pre>
+     *
+     * @param chain            the schema chain for the hierarchy (leaf-first from
+     *                         {@link SchemaGenerator#generateChain}); class names
+     *                         must match the names used at encode time
+     * @param hierarchyPayload the DER bytes produced by {@link #encodeHierarchy}
+     * @return an ordered map: className → (fieldName → decoded value), in
+     *         superclass-first hierarchy order; each inner map preserves schema
+     *         field order
+     * @throws DerException         if the DER encoding is malformed or a wire type
+     *                              is unsupported
+     * @throws NullPointerException if any argument is {@code null}
+     */
+    public static java.util.LinkedHashMap<String, java.util.Map<String, Object>>
+            decodeToFieldMap(SchemaChain.Result chain,
+                             byte[] hierarchyPayload) throws DerException {
+        Objects.requireNonNull(chain, "chain");
+        Objects.requireNonNull(hierarchyPayload, "hierarchyPayload");
+
+        // chain.chain() is leaf-first; the wire is superclass-first (root-first).
+        List<AtomicSerialSchemaRecord> leafFirst = chain.chain();
+        List<AtomicSerialSchemaRecord> rootFirst = new ArrayList<>(leafFirst);
+        Collections.reverse(rootFirst);
+
+        // Read the outer SEQUENCE; it contains one child SEQUENCE per class (root-first).
+        DerReader outer = new DerReader(hierarchyPayload);
+        DerReader outerSeq = outer.readSequence();
+        if (outer.hasMore()) {
+            throw new DerException("decodeToFieldMap: trailing bytes after outer SEQUENCE");
+        }
+
+        // Result map: class name → field name → value, in superclass-first order.
+        java.util.LinkedHashMap<String, java.util.Map<String, Object>> result =
+                new java.util.LinkedHashMap<>(rootFirst.size() * 2);
+
+        for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
+            // Build a DerFieldStore for this class's SEQUENCE from the outer reader.
+            // This advances outerSeq past the per-class SEQUENCE TLV.
+            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq);
+            // Extract the present fields as an ordered map.
+            result.put(schemaRecord.className(), store.presentFields());
+        }
+
+        if (outerSeq.hasMore()) {
+            throw new DerException("decodeToFieldMap: trailing bytes in outer SEQUENCE "
+                    + "(more SEQUENCEs than schema records)");
+        }
+
+        return result;
+    }
+
+    // =========================================================================
     // Private helpers
     // =========================================================================
 
