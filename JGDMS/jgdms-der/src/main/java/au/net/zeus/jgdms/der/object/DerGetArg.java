@@ -46,15 +46,20 @@ import java.util.Objects;
  * {@code StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE)} to walk frames
  * and return the FIRST frame whose declaring class is a key in the map.
  *
- * <h2>Why StackWalker instead of the SecurityManager trick</h2>
+ * <h2>Why StackWalker for caller resolution</h2>
  * <p>
- * {@code GetArgImpl} (the reference implementation) uses a nested
- * {@code SecurityManager} subclass to call {@code getClassContext()}, which
- * returns the full call-stack class array. That mechanism is unreliable on JDK 17+
- * (the SecurityManager is deprecated for removal) and is completely removed in
- * JDK 24. {@code StackWalker} is the JDK-21 standard API for reflective stack
- * introspection; it is efficient (lazy-streaming), {@code null}-safe, and
- * future-proof.
+ * The reference implementation {@code GetArgImpl} resolves the calling class via a
+ * nested {@code SecurityManager} subclass that calls {@code getClassContext()}.
+ * That mechanism remains valid on DirtyChai (the JGDMS target JDK), which
+ * <em>retains and advances</em> the Authorization / {@code SecurityManager}
+ * framework ({@code au.zeus.jdk.authorization.*}) rather than removing it.
+ * {@code DerGetArg} instead uses {@code StackWalker} — the same caller-stack
+ * introspection API the DirtyChai JDK itself uses for caller validation: it
+ * resolves the caller class directly, without instantiating a
+ * {@code SecurityManager} subclass, and is lazy-streaming and {@code null}-safe.
+ * Both approaches are valid on DirtyChai; StackWalker is chosen here as the
+ * cleaner, dependency-free option (and it is also the only one of the two that
+ * survives on a stock OpenJDK that has dropped the Authorization framework).
  *
  * <h2>check-before-construction contract</h2>
  * <p>
@@ -103,9 +108,14 @@ public final class DerGetArg extends AtomicSerial.GetArg {
      * @throws NullPointerException if {@code storeMap} is {@code null} or empty
      */
     public DerGetArg(Map<Class<?>, DerFieldStore> storeMap) {
-        super(); // uses protected GetArg() which checks SerializablePermission;
-                 // on JDK 17+ the SecurityManager is disabled by default so this
-                 // succeeds without any special configuration.
+        super(); // protected GetArg() performs a SerializablePermission
+                 // "enableSubclassImplementation" check (AtomicSerial.Check.check()).
+                 // GetArgImpl avoids it via the package-private GetArg(boolean)
+                 // constructor (it shares AtomicSerial's package); DerGetArg lives in
+                 // a separate module/package and intentionally goes through the
+                 // checked constructor, so under an active DirtyChai SecurityManager
+                 // the DER deserializer's codebase must be granted that
+                 // SerializablePermission by policy.
         Objects.requireNonNull(storeMap, "storeMap");
         if (storeMap.isEmpty()) {
             throw new IllegalArgumentException("storeMap must not be empty");
