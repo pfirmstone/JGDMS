@@ -804,10 +804,20 @@ class TxnManagerImpl /*extends RemoteServer*/
      *         incoming remote method
      */
     private void checkAllParticipantsPermission(long txId, Permission perm) {
-	// Check the current caller's transport Subject.
-	// checkClientPermission throws IllegalStateException if not in a remote
-	// call and returns early if no SecurityManager is installed.
-	BasicInvocationDispatcher.checkClientPermission(perm);
+	// This check enforces that the remote caller (and the participant subjects
+	// captured at join) hold the given permission; it applies only to incoming
+	// remote calls.  Internal settlement (SettlerTask) and recovery invoke
+	// commit()/abort() on the manager's own threads, acting on the manager's
+	// own authority with no remote caller.  In that case checkClientPermission()
+	// signals "not in a remote call" by throwing IllegalStateException
+	// ("server not active"); skip the check there, mirroring the pre-refactor
+	// behaviour where this client permission check lived in the JERI layer and
+	// never applied to internal settlement.
+	try {
+	    BasicInvocationDispatcher.checkClientPermission(perm);
+	} catch (IllegalStateException notInRemoteCall) {
+	    return; // internal settlement/recovery path - no remote caller to check
+	}
 	// Also check any user Subjects of the current caller (multi-Subject wire protocol).
 	Subject[] callerSubjects = captureCurrentSubjects();
 	// captureCurrentSubjects() starts with the transport subject at index 0

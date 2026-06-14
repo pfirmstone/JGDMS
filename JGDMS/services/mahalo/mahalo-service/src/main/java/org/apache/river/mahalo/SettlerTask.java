@@ -157,6 +157,22 @@ class SettlerTask extends RetryTask implements TransactionConstants {
 	    }
 //            re.printStackTrace(System.err);
 	    return false;
+	} catch (RuntimeException rte) {
+	    // Defence in depth: an unexpected runtime exception during settlement
+	    // (e.g. an internal IllegalStateException) must not escape tryOnce and
+	    // kill the settler thread, which would leave the transaction
+	    // permanently unsettled and hang callers awaiting its final state.
+	    // Log it and retry, the same as a RemoteException.
+	    if (transactionsLogger.isLoggable(Level.WARNING)) {
+		transactionsLogger.log(Level.WARNING,
+		"Unexpected exception while settling transaction id " + tid
+		+ "; retrying", rte);
+	    }
+	    if (operationsLogger.isLoggable(Level.FINER)) {
+		operationsLogger.exiting(SettlerTask.class.getName(),
+		    "tryOnce", Boolean.valueOf(false));
+	    }
+	    return false;
 	}
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
