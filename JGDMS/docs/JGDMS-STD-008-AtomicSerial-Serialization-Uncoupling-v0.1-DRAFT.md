@@ -1,7 +1,7 @@
 # JGDMS-STD-008: @AtomicSerial Serialization Uncoupling (JGDMS 4.0.0)
 
 **Status:** Draft (for discussion)
-**Version:** 0.3-DRAFT
+**Version:** 0.4-DRAFT
 **Applies to:** JGDMS 4.0.0, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Depends on:** JGDMS-STD-001 (@AtomicSerial), JGDMS-STD-006 (DER Wire Format)
 **References:** Birrell, Evers, Nelson, Owicki, Wobber, *Distributed Garbage
@@ -10,7 +10,7 @@ normative DGC algorithm (§6).
 **Supersedes (on completion):** the Java-Object-Serialization coupling of the
 `@AtomicSerial` API as defined in STD-001
 
-> **Editorial note (v0.3-DRAFT):** This standard captures the 4.0.0 decision to
+> **Editorial note (v0.4-DRAFT):** This standard captures the 4.0.0 decision to
 > remove all Java Object Serialization coupling from the `@AtomicSerial` API. It
 > records the design agreed in design discussion; field-level details marked
 > **[OPEN]** await confirmation. Class/line references are against `trunk`
@@ -26,6 +26,14 @@ normative DGC algorithm (§6).
 > identity, removing the legacy reliance on a captured/last-authenticated user
 > `Subject`. Faithful to RR-116's process-identity dirtySet; aligned with STD-003
 > / STD-006 §7.1; a least-privilege win (§2.1).
+>
+> **Changes in v0.4:** §4.4 rewritten — NO new `AtomicSerialPermission`. The
+> `GetArg`/`PutArg` construction guard (`Check`/`SerializablePermission`) is
+> *removed*, not replaced (a replacement would just relocate a grant, against §2.1).
+> Deserialization is gated solely by `DeSerializationPermission("ATOMIC")` checked
+> against each `@AtomicSerial` class's `ProtectionDomain` prior to construction
+> (existing JOSS control) plus `check(GetArg)`. Normative: every decode path
+> including DER MUST enforce that gate — flagged as a current gap in `ObjectCodec`.
 
 ---
 
@@ -175,14 +183,51 @@ The following MUST remain source-identical so the ~86 implementors need no chang
   deletion.)*
 - `ReadObject` / `@ReadInput` — REMOVED (see §5).
 
-### 4.4 Permission model (normative)
+### 4.4 Permission model (normative): no new permission — rely on `DeSerializationPermission`
 
-The `SerializablePermission("enableSubclassImplementation")` guard on the protected
-`GetArg()`/`PutArg()` constructors MUST be replaced by a purpose-built permission
-(e.g. `AtomicSerialPermission("enableFrameworkImplementation")`) whose semantics
-describe the actual concern (only trusted code may produce `GetArg`/`PutArg`
-instances), not Java serialization. A 4.0.0 deployment MUST NOT require any
-`java.io.SerializablePermission` for `@AtomicSerial` operation (§2.1).
+No new permission (no `AtomicSerialPermission`) is introduced. The
+`SerializablePermission("enableSubclassImplementation")` guard in `Check.check()`,
+invoked by the protected `GetArg()`/`PutArg()` constructors, is a vestige of the
+Java-serialization subclassing model and is **removed**, not replaced. Introducing
+a replacement permission would merely *relocate* a required grant, contradicting
+§2.1 (every grant is attack surface).
+
+The construction-time guard adds no security over the two controls that already
+carry it, so its removal is safe:
+
+- **`DeSerializationPermission("ATOMIC")` — the deserialization gate.** This is
+  checked against the `ProtectionDomain` of *each* `@AtomicSerial` class in the
+  object's hierarchy, **prior to construction** (today via
+  `ObjectStreamClassContainer.deSerializationPermitted(ATOMIC)` in
+  `AtomicMarshalInputStream`). Per its own contract it is "checked only against the
+  domains representing the class hierarchy of an object about to be de-serialized…
+  trusting the classes of the object to check all invariants while reading a stream
+  from an untrusted source." Only classes whose PD holds this permission may be
+  atomically deserialized; everything else is rejected. A forged or untrusted
+  `GetArg` cannot widen this — it can only supply field values for classes that are
+  already permitted, and those values are validated by `check(GetArg)`.
+- **`check(GetArg)` — invariant validation.** Runs before any field assignment on
+  whatever values the `GetArg` supplies, regardless of who produced it.
+
+Because a `GetArg` is only a field-value supplier, guarding *who may construct one*
+protects nothing that the target-class gate + `check()` do not already protect.
+
+**Normative for 4.0.0:**
+
+- The `GetArg`/`PutArg` construction permission guard (`Check`) is removed; a
+  conforming deployment requires **no** serialization-subclassing permission grant
+  to perform `@AtomicSerial` deserialization (§2.1). In particular the DER
+  deserializer's codebase needs no such grant.
+- **Every decode path (DER included) MUST enforce `DeSerializationPermission("ATOMIC")`
+  against the `ProtectionDomain` of each `@AtomicSerial` class in the hierarchy,
+  before constructing it** — mirroring the JOSS path. *This is currently a gap in
+  the DER engine:* `ObjectCodec.decode()` constructs without the gate and MUST add
+  it (cross-ref STD-006). The check is on the class hierarchy's domains only, not on
+  the caller stack, so untrusted code may drive the decoder without widening what
+  can be instantiated.
+- The write side (`PutArg`) is not a deserialization gate; its construction guard is
+  also removed. Whether the write path needs any analogous control is **[OPEN]**
+  (see §11) — serialization does not instantiate from untrusted input, so likely not.
 
 ### 4.5 Decode context (normative)
 
@@ -422,8 +467,12 @@ A 4.0.0-conformant implementation:
 
 1. Exposes `GetArg`, `PutArg`, `SerialForm` with **no `java.io` serialization
    supertype**; preserves the §4.2 signatures.
-2. Requires **no serialization-related permission grant** for normal operation
-   (§2.1, §4.4).
+2. Requires **no serialization-subclassing permission grant** (no
+   `SerializablePermission`, no new `AtomicSerialPermission`) to deserialize; gates
+   deserialization solely via `DeSerializationPermission("ATOMIC")` checked against
+   each `@AtomicSerial` class's `ProtectionDomain` prior to construction, plus
+   `check(GetArg)` (§2.1, §4.4). The DER decode path enforces this same
+   `DeSerializationPermission("ATOMIC")` gate.
 3. Provides no `@ReadInput`/`ReadObject` and no `PutArg.output()` (§4.3, §5).
 4. Sources all decode-channel context from `net.jini.io.ObjectStreamContext`
    (§4.5).
@@ -443,7 +492,10 @@ A 4.0.0-conformant implementation:
 
 1. §4.3 — confirm `PutArg.output()` has no callers other than the `@ReadInput`-paired
    raw writes before deletion.
-2. §4.4 — exact name/shape of the replacement framework permission.
+2. §4.4 — confirm the `PutArg` (write/serialize) side needs no access control once
+   its construction guard is removed (serialization does not instantiate from
+   untrusted input, so likely none); and confirm there is no non-deserialization
+   caller that legitimately depended on the old `enableSubclassImplementation` guard.
 3. §6 — DGC decode-unit token placement on the decode context, the
    callback-registration API, and where the argument/result acknowledgement
    (RR-116 Invariant 3) is emitted in the DER request/reply framing.
