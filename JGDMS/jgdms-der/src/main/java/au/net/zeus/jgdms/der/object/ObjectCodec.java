@@ -346,6 +346,21 @@ public final class ObjectCodec {
                     + "(more SEQUENCEs than schema records)");
         }
 
+        // §3.9 / §11.6 namespace-isolation fix: every @AtomicSerial class in the
+        // construct class's hierarchy whose (GetArg) constructor will run MUST have a
+        // store entry, so DerGetArg.callerClass() resolves EACH level to its OWN
+        // namespace. A class present in the receiver's hierarchy but ABSENT from the
+        // embedded data (e.g. an @AtomicSerial class inserted AFTER the data was
+        // written — §11.6) gets an EMPTY store, so its arg.get(name, default) calls
+        // return defaults. Without this, callerClass() would skip the absent class's
+        // frame and resolve to the nearest neighbouring class's store — leaking that
+        // neighbour's namespace (proved by NamespaceLeakRegressionTest).
+        for (Class<?> c = constructClass; c != null && c != Object.class; c = c.getSuperclass()) {
+            if (c.isAnnotationPresent(AtomicSerial.class) && !storeMap.containsKey(c)) {
+                storeMap.put(c, emptyFieldStore(c));
+            }
+        }
+
         // Assemble the multi-entry DerGetArg (superclass-first insertion order)
         DerGetArg arg = new DerGetArg(storeMap);
 
@@ -582,5 +597,21 @@ public final class ObjectCodec {
             throw new DerException(
                     "ObjectCodec: cannot load class '" + className + "'", ex);
         }
+    }
+
+    /**
+     * Builds an EMPTY {@link DerFieldStore} for {@code cls} — a store over a schema
+     * with no fields and an empty SEQUENCE payload. All {@code get(name, default)}
+     * calls against it return the default; {@code defaulted(name)} is always true.
+     *
+     * <p>Used by {@link #decodeHierarchy} to register an absent class's namespace
+     * (e.g. an @AtomicSerial class inserted after the data was written, §11.6) so
+     * that {@code DerGetArg} dispatch resolves that class to its own (empty) store
+     * rather than leaking a neighbour's namespace (§3.9).
+     */
+    private static DerFieldStore emptyFieldStore(Class<?> cls) throws DerException {
+        AtomicSerialSchemaRecord emptySchema =
+                new AtomicSerialSchemaRecord(cls.getName(), (byte[]) null, List.of());
+        return new DerFieldStore(emptySchema, DerWriter.writeSequence(List.<byte[]>of()));
     }
 }
