@@ -55,379 +55,136 @@ locally on the proxy without the server receiving a call?**
 
 ---
 
-## Optimisation 3 — Timestamp-Ordered Single-Round Commit
-### (Default method on `TransactionParticipant`)
+## Optimisation 3 - Timestamp-Ordered Single-Round Commit (WITHDRAWN)
 
-### Problem
+> **Status: withdrawn / removed 2026-06-14.** This was implemented
+> (`prepareWithTimestamp()` default on `TransactionParticipant`,
+> `TimestampedVote`, `LamportClock`, `AbstractTimestampParticipant`, a
+> per-transaction coordinator clock in `TxnManagerTransaction`, and
+> `ParticipantHandle.commitTimestamp`) and then deleted from `jgdms-platform`
+> and `mahalo-service` as **not viable**. See the project review note
+> `jgdms-mahalo-granola-review` for the full analysis.
 
-Standard 2PC costs two network round-trips (prepare + commit) per transaction.
-The Granola *independent* protocol reduces this to **one round** for read-heavy
-or read-only workloads by having each participant timestamp its local decision.
-The coordinator only needs to collect timestamps; it never needs to issue an
-explicit commit message.
+### Why it was withdrawn
 
-### Proposed API Change
+1. **Atomicity hazard.** `AbstractTimestampParticipant.prepareWithTimestamp()`
+   self-committed during prepare (`prepare()` then `commit()`), and `PrepareJob`
+   drove it for *every* participant of a multi-participant transaction. If one
+   participant self-committed and another then voted `ABORTED` (or failed), the
+   transaction tore - the committed participant could not roll back. In Granola,
+   self-commit is safe **only** for the *independent* class (every participant
+   reaches the same uniform outcome; the only negative vote is `CONFLICT`).
+   Mahalo keyed the fast path off "participant extends
+   `AbstractTimestampParticipant`", not off "transaction is independent", so a
+   participant that could legitimately abort on local state was unsafe here with
+   nothing to prevent it.
 
-Add `prepareWithTimestamp()` as a **default method directly on
-`TransactionParticipant`** (rather than requiring a new sub-interface):
+2. **The timestamps ordered nothing.** The coordinator clock was a *field of
+   `TxnManagerTransaction`* - i.e. per transaction, starting at 1 - so it gave
+   no cross-transaction ordering. And the protocol never agreed a single `max`
+   timestamp across participants nor executed in timestamp order, so it did not
+   provide Granola serializability regardless.
 
-```java
-package net.jini.core.transaction.server;
+3. **Marginal benefit.** For a single participant, `prepareAndCommit()` is
+   already a one-round commit (and single-participant uses it again now). The
+   only path Opt-3 actually changed was the multi-participant one - exactly the
+   unsafe case.
 
-public interface TransactionParticipant extends Remote {
+The serializable-ordering goal is better pursued by **Opt-5** below, which keeps
+the manager as set-assembler and recovery authority, moves the commit round to
+the participants, and gates self-commit on an explicit *independent* declaration.
 
-    // --- existing methods unchanged ---
+---
 
-    /**
-     * Value object returned by {@link #prepareWithTimestamp}.
-     *
-     * <p>Uses {@code @AtomicSerial} (JGDMS convention for all wire-serialisable
-     * types) so that field invariants are validated atomically before the
-     * object instance is created during deserialisation.
-     */
-    @AtomicSerial
-    final class TimestampedVote implements java.io.Serializable {
-        private static final long serialVersionUID = 1L;
-        /** One of {@code TransactionConstants.PREPARED}, {@code NOTCHANGED},
-         *  or {@code ABORTED}. */
-        public final int vote;
-        /**
-         * Lamport timestamp proposed by this participant, or
-         * {@link LamportClock#NO_TIMESTAMP} ({@code 0L}) if this participant
-         * does not support timestamp-ordered commit (i.e. the default fallback
-         * was used or the transaction was aborted).
-         */
-        public final long timestamp;
+## Optimisation 5 - Peer-to-Peer Independent Commit (proposal)
 
-        /** Normal constructor. */
-        public TimestampedVote(int vote, long timestamp) {
-            this.vote = vote;
-            this.timestamp = timestamp;
-        }
+### Goal
 
-        /** {@code @AtomicSerial} deserialisation constructor. */
-        public TimestampedVote(GetArg args) throws IOException, ClassNotFoundException {
-            this(args.get("vote", 0),
-                 args.get("timestamp", 0L));
-        }
-    }
+Get Granola's independent-transaction win (one round, lock-free, non-blocking)
+*correctly*: participants exchange timestamp votes directly, agree on a single
+`max` timestamp, and commit at it - no central commit round. This is valid
+**only for genuinely independent transactions** (uniform commit/abort outcome).
 
-    /**
-     * Prepare and, if local decision is PREPARED or NOTCHANGED, tentatively
-     * commit with a Lamport timestamp.  The transaction manager collects the
-     * maximum timestamp across all participants; if every participant returns
-     * a non-zero timestamp and voted {@code PREPARED} or {@code NOTCHANGED},
-     * the second commit round is skipped entirely.
-     *
-     * <p><b>Default behaviour (compatibility fallback):</b> calls
-     * {@link #prepare(TransactionManager, long)} and returns a
-     * {@link TimestampedVote} with {@code timestamp == LamportClock.NO_TIMESTAMP},
-     * signalling to the coordinator that this participant does not support the
-     * optimised path and that standard 2PC must be used.  The default method
-     * body executes <em>locally on the proxy</em> — no additional remote call
-     * beyond the {@code prepare()} dispatch is made.
-     *
-     * @param mgr          the transaction manager
-     * @param id           the transaction id
-     * @param txnTimestamp the coordinator's current logical clock value
-     * @return a {@link TimestampedVote} carrying the vote and a proposed
-     *         commit timestamp ({@code LamportClock.NO_TIMESTAMP} if not supported)
-     * @throws UnknownTransactionException if the transaction is unknown
-     * @throws RemoteException if a communication error occurs
-     * @since JGDMS 3.1 (proposed)
-     */
-    default TimestampedVote prepareWithTimestamp(
-            TransactionManager mgr, long id, long txnTimestamp)
-            throws UnknownTransactionException, RemoteException {
-        return new TimestampedVote(prepare(mgr, id), LamportClock.NO_TIMESTAMP);
-    }
-}
-```
+### Shape (manager assembles, peers vote)
 
-The `timestamp == 0` sentinel tells Mahalo that this participant ran the
-compatibility path.  Because `prepare()` is itself a Remote method, it is
-still dispatched remotely; the default method only avoids a *second* RPC for
-the commit round.
+Jini join is *lazy* (services join the manager as they are touched), unlike
+Granola's up-front set. So the manager stays assembler and recovery authority;
+only the commit round goes peer-to-peer:
 
-### Utility Classes to Reduce Participant Complexity
+1. Client declares the transaction independent (new
+   `TransactionConfig.independent`, alongside the existing `readOnly`). The peer
+   path runs **only** when independence is declared *and* every participant is a
+   `PeerTransactionParticipant`; otherwise standard 2PC.
+2. At commit the manager writes the `CommitRecord` (it remains the durable
+   recovery authority), builds a `PeerSet`, and calls `beginIndependent(PeerSet)`
+   on each participant.
+3. Each participant prepares, proposes a Lamport timestamp, and sends its vote
+   directly to every peer via `deliverVote(...)`. When all COMMIT votes are in,
+   it commits locally at `max(timestamps)`. Any ABORT/CONFLICT vote -> cease
+   (and for CONFLICT the client retries with a new id).
+4. The manager awaits completion (or hands off to the settler) and replies.
 
-The primary complexity burden for a participant opting in to Opt-3 is correct
-Lamport clock maintenance: thread-safe atomic updates, the
-`max(local, received) + 1` rule, and persistence across crashes.  Two utility
-classes eliminate this burden entirely.
-
-#### `LamportClock` — thread-safe, `@AtomicSerial`, embeddable
+### Sketch (JGDMS types)
 
 ```java
-package net.jini.core.transaction.server;
-
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicLong;
-import org.apache.river.api.io.AtomicSerial;
-import org.apache.river.api.io.AtomicSerial.GetArg;
-
-/**
- * A thread-safe Lamport logical clock.
- *
- * <p>All public methods are lock-free (based on {@link AtomicLong}).
- * Being {@code @AtomicSerial}, an instance can be embedded in a service
- * snapshot and round-tripped through JGDMS serialisation to survive crashes
- * and restarts with a monotonically correct value.
- *
- * @since JGDMS 3.1 (proposed)
- */
+// Prepared peer-list payload handed to each participant by the manager.
 @AtomicSerial
-public final class LamportClock implements java.io.Serializable {
+public final class PeerSet implements Serializable {
+    long id;
+    Uuid self;                                 // recipient's id in the set
+    Map<Uuid,TransactionParticipant> peers;    // all participants, incl. self
+    long seedTimestamp;                        // coordinator clock seed
+    TransactionManager recoveryMgr;            // durable fallback authority
+    MethodConstraints peerConstraints;         // how each peer must be called
+}
 
-    private static final long serialVersionUID = 1L;
+@AtomicSerial
+public final class PeerVote implements Serializable {
+    enum Kind { COMMIT, ABORT, CONFLICT }      // COMMIT covers PREPARED/NOTCHANGED
+    Kind kind;
+    long proposedTimestamp;                    // 0 unless COMMIT
+}
 
-    /**
-     * Sentinel constant — a {@link TimestampedVote} carrying this value
-     * signals that the participant did not advance a clock (compatibility
-     * fallback or abort path).
-     */
-    public static final long NO_TIMESTAMP = 0L;
+public interface PeerTransactionParticipant extends TransactionParticipant {
+    // Manager kicks off: prepare, propose a timestamp, START peer voting.
+    // Returns the proposed vote so the manager can log it for recovery.
+    PeerVote beginIndependent(PeerSet peers)
+        throws UnknownTransactionException, RemoteException;
 
-    /** @serial current logical time */
-    private final long value;               // used only during (de)serialisation
-    private final transient AtomicLong clock;
+    // Peer -> peer: another participant delivers its vote. Idempotent in 'from'.
+    // When all COMMIT votes are in, commit locally at max(timestamp).
+    void deliverVote(long id, Uuid from, PeerVote vote)
+        throws UnknownTransactionException, RemoteException;
 
-    /** Create a new clock starting at logical time 0. */
-    public LamportClock() {
-        this(0L);
-    }
-
-    /**
-     * Create a clock with a given initial value.
-     * Use when restoring a previously persisted clock after a crash.
-     *
-     * @param initialValue the last persisted clock value
-     */
-    public LamportClock(long initialValue) {
-        this.value = initialValue;
-        this.clock = new AtomicLong(initialValue);
-    }
-
-    /** {@code @AtomicSerial} deserialisation constructor. */
-    public LamportClock(GetArg args) throws IOException, ClassNotFoundException {
-        this(args.get("value", 0L));
-    }
-
-    /**
-     * Observes a remote timestamp, advances the local clock to
-     * {@code max(local, remote) + 1}, and returns the new local time.
-     * This is the standard Lamport receive-event rule.
-     *
-     * @param remoteTimestamp timestamp received from the coordinator
-     * @return the new local clock value (always {@code > remoteTimestamp})
-     */
-    public long observe(long remoteTimestamp) {
-        return clock.updateAndGet(local -> Math.max(local, remoteTimestamp) + 1);
-    }
-
-    /**
-     * Increments the clock by 1 and returns the new value.
-     * Use for local send events when no remote timestamp is available.
-     */
-    public long tick() {
-        return clock.incrementAndGet();
-    }
-
-    /** Returns the current clock value without advancing it. */
-    public long get() {
-        return clock.get();
-    }
+    // Recovery: resolve an in-doubt transaction without the original driver.
+    PeerVote queryVote(long id)
+        throws UnknownTransactionException, RemoteException;
 }
 ```
 
-#### `AbstractTimestampParticipant` — zero-effort clock integration
+Coordination logic ships in the downloaded transaction proxy / an
+`AbstractPeerParticipant` base, so participant services change minimally (as
+`AbstractTimestampParticipant` intended, but without the self-commit hazard).
 
-```java
-package net.jini.core.transaction.server;
+### Hard parts (must be designed, not assumed)
 
-import java.rmi.RemoteException;
-import net.jini.core.transaction.UnknownTransactionException;
+- **Trust mesh.** Today's star (participant <-> manager) becomes a mesh
+  (participant <-> participant). Each peer must authenticate/authorise the peers
+  it votes with - `ProxyPreparer`/trust verification + `MethodConstraints`
+  between services that may never have met. The manager (assembler) vouches via
+  `PeerSet.peerConstraints`. This is the load-bearing wall under DirtyChai/POLP
+  and should be prototyped first.
+- **Recovery ownership.** Keep it with the manager (`recoveryMgr` + the
+  `CommitRecord` + `queryVote`); do not push durability into the (possibly
+  unreplicated) participants.
+- **Scale.** `deliverVote` fan-out is O(n^2) and trust is N x N; build the
+  2-participant slice first and measure before generalising.
 
-/**
- * Convenience base class for {@link TransactionParticipant} implementations
- * that want to support Granola-style single-round commit (Opt-3) without
- * writing any clock-management code.
- *
- * <p>Subclasses continue to implement {@link #prepare}, {@link #commit},
- * {@link #abort}, and {@link #prepareAndCommit} as normal.  This class
- * provides a concrete {@link #prepareWithTimestamp} that:
- * <ol>
- *   <li>Calls the subclass {@code prepare()} (which is the usual Remote
- *       call path).</li>
- *   <li>If the vote is {@code PREPARED} or {@code NOTCHANGED}, advances the
- *       internal {@link LamportClock} via {@code clock.observe(txnTimestamp)}
- *       and returns a {@link TimestampedVote} with the updated timestamp
- *       (non-zero, signalling to Mahalo that the single-round path is
- *       available).</li>
- *   <li>If the vote is {@code ABORTED}, returns
- *       {@code new TimestampedVote(ABORTED, LamportClock.NO_TIMESTAMP)} — the
- *       abort path does not require a commit timestamp and Mahalo will
- *       not attempt the single-round optimisation.</li>
- * </ol>
- *
- * <h2>Crash recovery</h2>
- * <p>Services that persist their state (e.g. via a snapshot log) should
- * include the {@link LamportClock} returned by {@link #getLamportClock()} in
- * their snapshot and restore it via the
- * {@link #AbstractTimestampParticipant(LamportClock)} constructor.  This
- * guarantees that timestamps remain monotonically increasing across restarts.
- *
- * <p>For <em>transient</em> services (no persistence), construct with
- * {@code new LamportClock(System.currentTimeMillis())} to seed the clock from
- * wall time.  As long as wall time advances between restarts this avoids
- * re-issuing previously seen timestamps.
- *
- * @since JGDMS 3.1 (proposed)
- */
-public abstract class AbstractTimestampParticipant
-        implements TransactionParticipant {
+### Status
 
-    private final LamportClock clock;
-
-    /** Create with a fresh clock starting at 0. */
-    protected AbstractTimestampParticipant() {
-        this(new LamportClock());
-    }
-
-    /**
-     * Create with a previously persisted clock.
-     *
-     * @param clock the clock restored from a snapshot
-     */
-    protected AbstractTimestampParticipant(LamportClock clock) {
-        if (clock == null) throw new NullPointerException("clock");
-        this.clock = clock;
-    }
-
-    /**
-     * Returns the Lamport clock managed by this participant.
-     * Persist this value in the service snapshot and pass it back
-     * to the {@link #AbstractTimestampParticipant(LamportClock)}
-     * constructor on recovery.
-     */
-    protected final LamportClock getLamportClock() {
-        return clock;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * <p>This implementation calls {@link #prepare(TransactionManager, long)},
-     * advances the Lamport clock, and wraps the result.  Subclasses must
-     * NOT override this method; override {@code prepare()} instead.
-     */
-    @Override
-    public final TransactionParticipant.TimestampedVote prepareWithTimestamp(
-            TransactionManager mgr, long id, long txnTimestamp)
-            throws UnknownTransactionException, RemoteException {
-        int vote = prepare(mgr, id);
-        if (vote == ABORTED) {
-            return new TransactionParticipant.TimestampedVote(
-                    ABORTED, LamportClock.NO_TIMESTAMP);
-        }
-        long ts = clock.observe(txnTimestamp);
-        return new TransactionParticipant.TimestampedVote(vote, ts);
-    }
-}
-```
-
-**Participant adoption recipe** — existing services need only three steps:
-
-1. Change `implements TransactionParticipant` →
-   `extends AbstractTimestampParticipant`.
-2. If the service has a persistence snapshot, add one line:
-   `snapshot.set("lamportClock", getLamportClock());`
-   and restore with
-   `super(snapshot.get("lamportClock", LamportClock.class));`.
-3. No changes to `prepare()`, `commit()`, `abort()`, or `prepareAndCommit()`.
-
-### Integration with Mahalo
-
-1. **`PrepareJob.doWork()`** — always call `prepareWithTimestamp()` instead of
-   `prepare()`.  No `instanceof` check needed.  Record the returned timestamp
-   in `ParticipantHandle` (new `commitTimestamp` field).
-
-2. **`TxnManagerTransaction.commit()`** — after collecting prepare votes, if
-   **every** participant returned `timestamp > 0` and voted `PREPARED`/
-   `NOTCHANGED`, skip the second round: mark the transaction `COMMITTED` at
-   `max(all timestamps) + 1`.  If any participant returned `timestamp == 0`
-   (`LamportClock.NO_TIMESTAMP`), fall back to standard `CommitJob`.
-
-3. **`CommitRecord`** — add an optional `commitTimestamp` field so that
-   recovery can reconstruct the timestamp-ordered decision.
-
-### Pros
-
-- **One fewer network round-trip** for the common case where all participants
-  support the optimised path and vote `PREPARED`/`NOTCHANGED`.
-- **No `instanceof` check required** — Mahalo always calls
-  `prepareWithTimestamp()`; participants that don't override it signal
-  fallback via `timestamp == 0` (`NO_TIMESTAMP`).
-- **No mixed-cohort penalty beyond the fallback itself** — Mahalo detects at
-  the earliest possible moment (during prepare) that 2PC is needed; no wasted
-  second-round RPCs to timestamp-aware participants.
-- **Binary-compatible with existing proxy/stub classes** — proxies compiled
-  against the old interface run the default locally, emitting a regular
-  `prepare()` call with no behaviour change for the remote server.
-- Existing `TransactionParticipant` implementations need no changes to
-  continue working correctly.
-- **`AbstractTimestampParticipant` + `LamportClock` reduce opt-in to
-  three lines of change in an existing service**: subclass swap, one
-  snapshot save, one snapshot restore.  All clock logic is encapsulated.
-
-### Cons
-
-- **Mixed cohort** still requires two rounds; no optimization is gained when
-  even one participant returns `timestamp == 0`.
-- `TimestampedVote` and `LamportClock` are new `@AtomicSerial` wire types;
-  upgrading the participant interface requires coordinating class availability
-  on both sides of the wire.
-
-### Deeper Investigation — `ParticipantHandle` Serialisation and Recovery
-
-#### `ParticipantHandle` serialisation
-
-`ParticipantHandle` is `@AtomicSerial` with serialised fields `storedpart`,
-`crashcount`, and `prepstate`.  Adding a `commitTimestamp` field requires:
-
-1. Declare `/** @serial */ private long commitTimestamp;` (mutable, like
-   `prepstate`, because it is set during the prepare phase).
-2. Add `args.get("commitTimestamp", LamportClock.NO_TIMESTAMP)` to the
-   `GetArg` deserialisation constructor.
-
-Because `@AtomicSerial` uses `GetArg.get(name, defaultValue)`, records
-persisted by an older Mahalo (which have no `commitTimestamp` in the stream)
-will deserialise with `commitTimestamp = 0L` (`NO_TIMESTAMP`).  This is
-exactly the correct value — it signals "no timestamp-ordered commit was
-attempted" — so **no `serialVersionUID` bump is needed** and old log files
-remain readable.
-
-`CommitRecord` stores a `ParticipantHandle[]` snapshot.  Because the whole
-`ParticipantHandle` object is written, a `CommitRecord` written by an
-upgraded Mahalo will include the `commitTimestamp` values automatically.
-
-#### Recovery semantics
-
-Two crash windows matter:
-
-| Crash window | Log state on restart | Recovery action | Correct? |
-|---|---|---|---|
-| After prepare but **before** `CommitRecord` written | No `CommitRecord` present | `TxnManagerTransaction` remains in VOTING state; Mahalo re-runs `CommitJob` (standard 2PC). All `commitTimestamp` fields deserialise as `0L` (NO_TIMESTAMP), so the single-round path is never attempted. Participants must handle idempotent `commit()` calls, which they already must under standard 2PC recovery. | ✅ |
-| After `CommitRecord` written, **before** all `commit()` RPCs sent | `CommitRecord` present | `CommitRecord.recover()` re-adds all handles and re-sets state to VOTING; Mahalo re-runs `CommitJob`. Timestamps from the pre-crash prepare are re-used only if they were persisted in the handle (which they are). If the manager chooses to simplify, it can ignore persisted timestamps on recovery and unconditionally use standard 2PC — always correct. | ✅ |
-
-**Conclusion**: No recovery-code changes are required.  The conservative
-fallback to 2PC on recovery is already correct and safe.  The
-`commitTimestamp` field is an ephemeral optimisation hint; even if it
-survives into a recovered `CommitRecord`, re-running `CommitJob` is safe
-because commit is idempotent.  Persisting the field allows an upgraded
-Mahalo to optionally attempt the single-round path on roll-forward, but
-this is not required for correctness.
-
+Proposal only - not implemented. A real Lamport clock (manager-wide, persisted)
+would be (re)introduced as part of this work; the previous per-transaction clock
+was one of the reasons Opt-3 was withdrawn.
 ---
 
 ## Optimisation 4 — Read-Only Transaction Hint at `create()`
@@ -695,5 +452,6 @@ transaction.  This check is unaffected by the `readOnly` hint.
 |---|--------|-------------|------|---------|
 | 1 | Filter NOTCHANGED in createTasks() | None | Low | Removes wasted thread slots |
 | 2 | Pipeline log write with prepare | None | Low | Overlaps disk + network I/O |
-| 3 | `prepareWithTimestamp()` default on `TransactionParticipant` + `LamportClock` + `AbstractTimestampParticipant` utilities | Default method + new VO + 2 utility classes | Low–Medium | Eliminates 2nd round; binary-compatible via fallback; participants opt in with 3-line change |
+| 3 | ~~`prepareWithTimestamp()` single-round commit~~ | — | — | **WITHDRAWN** (not viable): multi-participant atomicity hazard + per-transaction clock ordered nothing. Implementation removed. |
 | 4 | Read-only hint at `create()` as default method | Default method on `TransactionManager` | Low–Medium | Zero disk I/O + zero 2PC for read-only; binary-compatible via fallback to `create(lease)` |
+| 5 | Peer-to-peer independent commit (proposal) | New `PeerTransactionParticipant` + `PeerSet`/`PeerVote` + `TransactionConfig.independent` | High | Correct one-round independent commit; manager keeps assembly + recovery; trust-mesh is the hard part. Not implemented. |

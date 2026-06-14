@@ -27,9 +27,7 @@ import net.jini.core.transaction.CannotAbortException;
 import net.jini.core.transaction.CannotCommitException;
 import net.jini.core.transaction.TimeoutExpiredException;
 import net.jini.core.transaction.UnknownTransactionException;
-import net.jini.core.transaction.server.AbstractTimestampParticipant;
 import net.jini.core.transaction.server.CrashCountException;
-import net.jini.core.transaction.server.LamportClock;
 import net.jini.core.transaction.server.ServerTransaction;
 import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.core.transaction.server.TransactionManager;
@@ -61,12 +59,6 @@ import static org.junit.Assert.fail;
  *       {@code CommitRecord} / {@code AbortRecord}) is submitted to the
  *       thread pool concurrently with the participant-task phase so that
  *       disk I/O and network I/O can overlap.</li>
- *   <li><b>Optimisation 3</b> – Granola single-round commit: when every
- *       {@code PREPARED} participant returns a non-zero Lamport timestamp
- *       (meaning it already self-committed via
- *       {@link AbstractTimestampParticipant#prepareWithTimestamp}), the
- *       coordinator skips the {@code CommitJob} round entirely and marks the
- *       transaction {@code COMMITTED} directly.</li>
  *   <li><b>Optimisation 4C</b> – Read-only hint: when a transaction is
  *       created with {@code TransactionConfig.readOnly = true} and every
  *       participant votes {@code NOTCHANGED}, neither a {@code CommitRecord}
@@ -485,162 +477,7 @@ public class GranolaOptimizationsTest implements TransactionConstants {
     }
 
     // -----------------------------------------------------------------------
-    // Optimisation 3 — LamportClock unit tests
-    // -----------------------------------------------------------------------
-
-    /** {@code NO_TIMESTAMP} sentinel must equal zero. */
-    @Test
-    public void lamportClockNoTimestampIsZero() {
-        assertEquals("NO_TIMESTAMP must be 0", 0L, LamportClock.NO_TIMESTAMP);
-    }
-
-    /** {@code tick()} must return a value strictly greater than zero. */
-    @Test
-    public void lamportClockTickReturnsPositive() {
-        LamportClock clock = new LamportClock();
-        assertTrue("tick() > 0", clock.tick() > 0L);
-    }
-
-    /** Successive {@code tick()} calls must be strictly monotonically increasing. */
-    @Test
-    public void lamportClockTickIsMonotonic() {
-        LamportClock clock = new LamportClock();
-        long t1 = clock.tick();
-        long t2 = clock.tick();
-        assertTrue("second tick > first tick", t2 > t1);
-    }
-
-    /** {@code observe(remote)} advances the clock past {@code remote}. */
-    @Test
-    public void lamportClockObserveAdvancesPastRemote() {
-        LamportClock clock = new LamportClock();
-        long result = clock.observe(1000L);
-        assertTrue("observe must exceed remote timestamp", result > 1000L);
-    }
-
-    /**
-     * {@code observe(0)} is equivalent to {@code tick()}: must return a
-     * positive value even when the remote timestamp is {@code NO_TIMESTAMP}.
-     */
-    @Test
-    public void lamportClockObserveWithNoTimestampBehavesLikeTick() {
-        LamportClock clock = new LamportClock();
-        long result = clock.observe(LamportClock.NO_TIMESTAMP);
-        assertTrue("observe(NO_TIMESTAMP) must return > 0", result > 0L);
-    }
-
-    // -----------------------------------------------------------------------
-    // Optimisation 3 — TimestampedVote unit tests
-    // -----------------------------------------------------------------------
-
-    /** A {@code TimestampedVote} must preserve the vote and timestamp values. */
-    @Test
-    public void timestampedVotePreservesFields() {
-        TransactionParticipant.TimestampedVote tv =
-                new TransactionParticipant.TimestampedVote(PREPARED, 42L);
-        assertEquals("vote field", PREPARED, tv.vote);
-        assertEquals("timestamp field", 42L, tv.timestamp);
-    }
-
-    // -----------------------------------------------------------------------
-    // Optimisation 3 — AbstractTimestampParticipant
-    // -----------------------------------------------------------------------
-
-    /**
-     * Minimal concrete participant that delegates {@code prepare()} to a fixed
-     * vote, suitable for testing {@link AbstractTimestampParticipant}.
-     */
-    private static final class FixedVoteParticipant
-            extends AbstractTimestampParticipant {
-        private final int prepVote;
-
-        FixedVoteParticipant(int prepVote) {
-            this.prepVote = prepVote;
-        }
-
-        @Override
-        public int prepare(TransactionManager mgr, long id)
-                throws RemoteException {
-            return prepVote;
-        }
-
-        @Override
-        public void commit(TransactionManager mgr, long id)
-                throws RemoteException { }
-
-        @Override
-        public void abort(TransactionManager mgr, long id)
-                throws RemoteException { }
-
-        @Override
-        public int prepareAndCommit(TransactionManager mgr, long id)
-                throws RemoteException {
-            return prepVote;
-        }
-    }
-
-    /**
-     * When {@code prepare()} votes {@code PREPARED}, {@code prepareWithTimestamp()}
-     * must return the same vote with a positive timestamp.
-     */
-    @Test
-    public void abstractParticipantReturnsPositiveTimestampForPrepared()
-            throws Exception {
-        FixedVoteParticipant p = new FixedVoteParticipant(PREPARED);
-        TransactionParticipant.TimestampedVote tv =
-                p.prepareWithTimestamp(MOCK_MGR, 1L, LamportClock.NO_TIMESTAMP);
-        assertEquals("vote must be PREPARED", PREPARED, tv.vote);
-        assertTrue("timestamp must be > 0 for PREPARED vote", tv.timestamp > 0L);
-    }
-
-    /**
-     * When {@code prepare()} votes {@code ABORTED}, {@code prepareWithTimestamp()}
-     * must return {@code NO_TIMESTAMP} — the participant will not commit.
-     */
-    @Test
-    public void abstractParticipantReturnsNoTimestampForAborted()
-            throws Exception {
-        FixedVoteParticipant p = new FixedVoteParticipant(ABORTED);
-        TransactionParticipant.TimestampedVote tv =
-                p.prepareWithTimestamp(MOCK_MGR, 1L, LamportClock.NO_TIMESTAMP);
-        assertEquals("vote must be ABORTED", ABORTED, tv.vote);
-        assertEquals("timestamp must be NO_TIMESTAMP for ABORTED",
-                LamportClock.NO_TIMESTAMP, tv.timestamp);
-    }
-
-    /**
-     * When {@code prepare()} votes {@code NOTCHANGED}, {@code prepareWithTimestamp()}
-     * must return {@code NO_TIMESTAMP} — the participant made no changes.
-     */
-    @Test
-    public void abstractParticipantReturnsNoTimestampForNotChanged()
-            throws Exception {
-        FixedVoteParticipant p = new FixedVoteParticipant(NOTCHANGED);
-        TransactionParticipant.TimestampedVote tv =
-                p.prepareWithTimestamp(MOCK_MGR, 1L, LamportClock.NO_TIMESTAMP);
-        assertEquals("vote must be NOTCHANGED", NOTCHANGED, tv.vote);
-        assertEquals("timestamp must be NO_TIMESTAMP for NOTCHANGED",
-                LamportClock.NO_TIMESTAMP, tv.timestamp);
-    }
-
-    /**
-     * Successive calls to {@code prepareWithTimestamp()} must advance the
-     * embedded Lamport clock monotonically (simulates two sequential
-     * transactions using the same participant object).
-     */
-    @Test
-    public void abstractParticipantLamportClockAdvances() throws Exception {
-        FixedVoteParticipant p = new FixedVoteParticipant(PREPARED);
-        TransactionParticipant.TimestampedVote tv1 =
-                p.prepareWithTimestamp(MOCK_MGR, 1L, LamportClock.NO_TIMESTAMP);
-        TransactionParticipant.TimestampedVote tv2 =
-                p.prepareWithTimestamp(MOCK_MGR, 2L, LamportClock.NO_TIMESTAMP);
-        assertTrue("second timestamp must exceed first",
-                tv2.timestamp > tv1.timestamp);
-    }
-
-    // -----------------------------------------------------------------------
-    // Optimisation 3 — TransactionConfig unit tests
+    // Optimisation 4C — TransactionConfig unit tests
     // -----------------------------------------------------------------------
 
     /** Default {@code TransactionConfig} must be non-readOnly, SERIALIZABLE. */
@@ -662,74 +499,6 @@ public class GranolaOptimizationsTest implements TransactionConstants {
                         true,
                         TransactionManager.TransactionConfig.SERIALIZABLE);
         assertTrue("readOnly must be true", cfg.readOnly);
-    }
-
-    // -----------------------------------------------------------------------
-    // Optimisation 3 — single-round commit (Opt-3)
-    // -----------------------------------------------------------------------
-
-    /**
-     * When every PREPARED handle carries a non-zero Lamport commit timestamp,
-     * each participant has already self-committed during
-     * {@code prepareWithTimestamp()}.  The coordinator must skip
-     * {@link CommitJob} entirely and mark the transaction {@code COMMITTED}
-     * directly.  {@code commit(Long.MAX_VALUE)} must return without throwing
-     * {@link TimeoutExpiredException}.
-     */
-    @Test
-    public void allTimestampedHandlesSkipCommitJob()
-            throws Exception {
-        MockLogManager logMgr = new MockLogManager();
-
-        ParticipantHandle h1 = makeHandle(PREPARED);
-        h1.setCommitTimestamp(10L);
-        ParticipantHandle h2 = makeHandle(PREPARED);
-        h2.setCommitTimestamp(20L);
-
-        TxnManagerTransaction txnT = buildTxn(logMgr);
-        txnT.add(h1);
-        txnT.add(h2);
-
-        // Single-round path: CommitJob must NOT be dispatched.
-        // commit() must return without a TimeoutExpiredException.
-        txnT.commit(Long.MAX_VALUE);
-
-        // The pipelined CommitRecord write ran concurrently with PrepareJob;
-        // after it was written, the Opt-3 path called log.invalidate() to
-        // signal completion without a separate commit round.
-        assertEquals("CommitRecord written by pipelined write", 1, logMgr.log.writeCount.get());
-        assertEquals("Log invalidated after single-round commit", 1, logMgr.log.invalidateCount.get());
-    }
-
-    /**
-     * When some PREPARED handles lack a timestamp (timestamp==0), the
-     * coordinator must fall back to the standard two-phase CommitJob.
-     * With {@code waitFor=0} the CommitJob times out, confirming it was
-     * scheduled.
-     */
-    @Test
-    public void singleRoundCommitFallsBackWhenSomeTimestampsMissing()
-            throws Exception {
-        MockLogManager logMgr = new MockLogManager();
-
-        ParticipantHandle h1 = makeHandle(PREPARED);
-        h1.setCommitTimestamp(10L);           // has timestamp
-        ParticipantHandle h2 = makeHandle(PREPARED);
-        // h2 commitTimestamp stays 0 — not all participants support Opt-3
-
-        TxnManagerTransaction txnT = buildTxn(logMgr);
-        txnT.add(h1);
-        txnT.add(h2);
-
-        try {
-            txnT.commit(0L);
-            fail("Expected TimeoutExpiredException when CommitJob is scheduled");
-        } catch (TimeoutExpiredException e) {
-            // expected: CommitJob was scheduled but timed out with waitFor=0
-        }
-
-        // CommitRecord must still have been written before CommitJob attempt
-        assertEquals("CommitRecord written once", 1, logMgr.log.writeCount.get());
     }
 
     // -----------------------------------------------------------------------
@@ -783,8 +552,6 @@ public class GranolaOptimizationsTest implements TransactionConstants {
 
         try {
             txnT.commit(0L);
-            // If single-round path is taken (because commitTimestamp was somehow set),
-            // the test still validates CommitRecord presence below.
         } catch (TimeoutExpiredException e) {
             // expected: CommitJob was scheduled; timed out with waitFor=0
         }
@@ -816,46 +583,6 @@ public class GranolaOptimizationsTest implements TransactionConstants {
         assertEquals("CommitRecord must be written for non-readOnly transaction",
                 1, logMgr.log.writeCount.get());
         assertEquals("Log must be invalidated", 1, logMgr.log.invalidateCount.get());
-    }
-
-    // -----------------------------------------------------------------------
-    // Input validation — TimestampedVote
-    // -----------------------------------------------------------------------
-
-    /** A negative timestamp must be rejected. */
-    @Test(expected = IllegalArgumentException.class)
-    public void timestampedVoteRejectsNegativeTimestamp() {
-        new TransactionParticipant.TimestampedVote(PREPARED, -1L);
-    }
-
-    /** An unknown vote value (not PREPARED/NOTCHANGED/ABORTED) must be rejected. */
-    @Test(expected = IllegalArgumentException.class)
-    public void timestampedVoteRejectsInvalidVote() {
-        new TransactionParticipant.TimestampedVote(99, 0L);
-    }
-
-    /** COMMITTED is not a valid vote from {@code prepareWithTimestamp} and must be rejected. */
-    @Test(expected = IllegalArgumentException.class)
-    public void timestampedVoteRejectsCommittedVote() {
-        new TransactionParticipant.TimestampedVote(COMMITTED, 0L);
-    }
-
-    // -----------------------------------------------------------------------
-    // Input validation — LamportClock overflow
-    // -----------------------------------------------------------------------
-
-    /** {@code observe(Long.MAX_VALUE)} must throw {@code ArithmeticException}. */
-    @Test(expected = ArithmeticException.class)
-    public void lamportClockObserveThrowsOnOverflow() {
-        LamportClock clock = new LamportClock();
-        clock.observe(Long.MAX_VALUE);
-    }
-
-    /** {@code tick()} on a clock at {@code Long.MAX_VALUE} must throw {@code ArithmeticException}. */
-    @Test(expected = ArithmeticException.class)
-    public void lamportClockTickThrowsOnOverflow() {
-        LamportClock clock = new LamportClock(Long.MAX_VALUE);
-        clock.tick();
     }
 
     // -----------------------------------------------------------------------

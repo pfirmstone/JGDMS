@@ -60,18 +60,6 @@ class ParticipantHandle implements Serializable, TransactionConstants {
      */
     private int prepstate;
 
-    /**
-     * Lamport timestamp recorded by {@code PrepareJob.doWork()} when the
-     * participant returns a non-zero value from
-     * {@link net.jini.core.transaction.server.TransactionParticipant#prepareWithTimestamp}.
-     * A value of {@code 0} ({@link net.jini.core.transaction.server.LamportClock#NO_TIMESTAMP})
-     * means the participant does not support the Granola single-round
-     * optimisation (Opt-3).
-     *
-     * @serial
-     */
-    private long commitTimestamp;
-
     /** Logger for persistence related messages */
     private static final Logger persistenceLogger = 
         TxnManagerImpl.persistenceLogger;
@@ -84,15 +72,14 @@ class ParticipantHandle implements Serializable, TransactionConstants {
         long crashcount) 
 	throws RemoteException 
     {
-        this(check(preparedPart), preparedPart, crashcount, ACTIVE, 0L);
+        this(check(preparedPart), preparedPart, crashcount, ACTIVE);
     }
     
     ParticipantHandle(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg), 
 		arg.get("preparedPart", null, TransactionParticipant.class),
 		arg.get("crashcount", 0),
-		arg.get("prepstate", 0),
-		arg.get("commitTimestamp", 0L));
+		arg.get("prepstate", 0));
     }
     
     /**
@@ -110,11 +97,10 @@ class ParticipantHandle implements Serializable, TransactionConstants {
         this.storedpart      = null;
         this.crashcount      = 0;
         this.prepstate       = prepstate;
-        this.commitTimestamp = 0L;
     }
 
-    private ParticipantHandle(boolean check, TransactionParticipant preparedPart, 
-        long crashcount, int prepstate, long commitTimestamp) throws RemoteException {
+    private ParticipantHandle(boolean check, TransactionParticipant preparedPart,
+        long crashcount, int prepstate) throws RemoteException {
         StorableObject storedpart = null;
 	try {
 	    storedpart = new StorableObject(preparedPart);
@@ -130,7 +116,6 @@ class ParticipantHandle implements Serializable, TransactionConstants {
 	this.crashcount = crashcount;
         this.storedpart = storedpart;
 	this.prepstate = prepstate;
-	this.commitTimestamp = commitTimestamp;
     }
 
     private static boolean check(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
@@ -198,27 +183,6 @@ class ParticipantHandle implements Serializable, TransactionConstants {
 	return prepstate;
     }
 
-    /**
-     * Returns the Lamport timestamp recorded during the prepare phase
-     * (Opt-3).  A value of {@code 0} means the participant did not supply
-     * a timestamp.
-     */
-    synchronized long getCommitTimestamp() {
-        return commitTimestamp;
-    }
-
-    /**
-     * Records the Lamport timestamp returned by
-     * {@link net.jini.core.transaction.server.TransactionParticipant#prepareWithTimestamp}
-     * during the prepare phase.  A value of {@code 0} disables the
-     * Granola single-round optimisation for this handle.
-     *
-     * @param ts the timestamp ({@code 0} = no timestamp)
-     */
-    synchronized void setCommitTimestamp(long ts) {
-        this.commitTimestamp = ts;
-    }
-    
     private synchronized void writeObject(ObjectOutputStream out) throws IOException {
 	out.defaultWriteObject();
     }

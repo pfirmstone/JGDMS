@@ -41,7 +41,6 @@ import net.jini.core.transaction.TimeoutExpiredException;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import net.jini.core.transaction.server.CrashCountException;
-import net.jini.core.transaction.server.LamportClock;
 import net.jini.core.transaction.server.ServerTransaction;
 import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.core.transaction.server.TransactionManager;
@@ -217,7 +216,6 @@ class TxnManagerTransaction
      * commit timestamp, so that subsequent transactions receive a strictly
      * greater coordinator timestamp.
      */
-    private final LamportClock coordinatorClock = new LamportClock();
 
     /**
      * @serial
@@ -747,13 +745,12 @@ class TxnManagerTransaction
 
 	        synchronized (jobLock) {
 		    if (job == null) {
-			long coordTs = coordinatorClock.tick();
 	                if (phs.length == 1)
 		            job = new
 			      PrepareAndCommitJob(
-				  str, threadpool, wm, log, phs[0], context, coordTs);
+				  str, threadpool, wm, log, phs[0], context);
 	                else
-	                    job = new PrepareJob(str, threadpool, wm, log, phs, context, coordTs);
+	                    job = new PrepareJob(str, threadpool, wm, log, phs, context);
 
 	                job.scheduleTasks();
 		    }
@@ -786,13 +783,6 @@ class TxnManagerTransaction
                     try {
                         if (currentPrepJob.isCompleted(Long.MAX_VALUE)) {
                             result = (Integer) currentPrepJob.computeResult();
-                            // Advance coordinator clock with participant timestamps (Lamport rule).
-                            for (ParticipantHandle ph : phs) {
-                                long ts = ph.getCommitTimestamp();
-                                if (ts != LamportClock.NO_TIMESTAMP) {
-                                    coordinatorClock.observe(ts);
-                                }
-                            }
                             if (result.intValue() == ABORTED &&
                                 currentPrepJob instanceof PrepareAndCommitJob) {
                                     PrepareAndCommitJob pj = 
@@ -886,17 +876,6 @@ class TxnManagerTransaction
 		//tallied the votes with an outcome of
 		//PREPARED.  In order to inform participants,
 		//a CommitJob must be scheduled.
-
-		// Opt-3 (single-round commit): if every PREPARED participant
-		// returned a non-zero Lamport timestamp it has already
-		// committed its changes locally during prepareWithTimestamp().
-		// Skip the CommitJob round entirely.
-		if (allPreparedHandlesHaveTimestamps(phs)) {
-		    if (!modifyTxnState(COMMITTED))
-			throw new CannotCommitException("attempt to commit ABORTED transaction");
-		    log.invalidate();
-		    return;
-		}
 
 		// Opt-4C false-hint: client declared readOnly but at least one
 		// participant voted PREPARED.  Write the CommitRecord now
@@ -1392,24 +1371,7 @@ private List<ParticipantHandle> parthandles() {
 	return sb.toString();
     }
     
-    /**
-     * Returns {@code true} if every {@code PREPARED} handle in the supplied
-     * array carries a non-zero Lamport commit timestamp, indicating that each
-     * participant already applied its prepared changes during the
-     * {@code prepareWithTimestamp()} call (Granola Opt-3 single-round commit).
-     * {@code NOTCHANGED} handles pass trivially — they hold no locks and
-     * require no commit contact.
-     */
-    private static boolean allPreparedHandlesHaveTimestamps(ParticipantHandle[] phs) {
-        for (ParticipantHandle ph : phs) {
-            if (ph.getPrepState() == PREPARED && ph.getCommitTimestamp() == 0L) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    void restoreTransientState(ProxyPreparer preparer) 
+    void restoreTransientState(ProxyPreparer preparer)
         throws RemoteException
     {
         if (operationsLogger.isLoggable(Level.FINER)) {

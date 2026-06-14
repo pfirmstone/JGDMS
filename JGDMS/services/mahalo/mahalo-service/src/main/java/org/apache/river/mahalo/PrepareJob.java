@@ -50,8 +50,6 @@ class PrepareJob extends Job implements TransactionConstants {
     final ClientLog log;
     final ParticipantHandle[] handles;
     final int maxtries = 5;
-    /** Coordinator's Lamport timestamp forwarded to each participant. */
-    private final long coordinatorTs;
     /** Logger for operations related messages */
     private static final Logger operationsLogger =
        TxnManagerImpl.operationsLogger;
@@ -80,7 +78,7 @@ class PrepareJob extends Job implements TransactionConstants {
      * @see org.apache.river.mahalo.log.ClientLog
      * @see net.jini.core.transaction.server.TransactionParticipant
      */
-    public PrepareJob(Transaction tr, ExecutorService pool, WakeupManager wm, ClientLog log, ParticipantHandle[] handles, AccessControlContext context, long coordinatorTs) {
+    public PrepareJob(Transaction tr, ExecutorService pool, WakeupManager wm, ClientLog log, ParticipantHandle[] handles, AccessControlContext context) {
 	super(pool, wm, context);
 
 	if (log == null)
@@ -104,7 +102,6 @@ class PrepareJob extends Job implements TransactionConstants {
 					"must have participants");
 
 	this.handles = handles;
-	this.coordinatorTs = coordinatorTs;
     }
 
 
@@ -197,14 +194,11 @@ class PrepareJob extends Job implements TransactionConstants {
         Object response = null;
  
         try {
-            // Opt-3: call prepareWithTimestamp() instead of prepare().
-            // For participants that do not override prepareWithTimestamp(), the
-            // default method runs locally, calls prepare() remotely, and returns
-            // TimestampedVote(vote, NO_TIMESTAMP=0) so the normal 2PC path is taken.
-            TransactionParticipant.TimestampedVote tv =
-                par.prepareWithTimestamp(tr.mgr, tr.id, coordinatorTs);
-            vote = tv.vote;
-            handle.setCommitTimestamp(tv.timestamp);
+            // Standard 2PC prepare.  (The withdrawn Granola Opt-3 path used
+            // prepareWithTimestamp() here, which let participants self-commit
+            // during prepare -- unsafe for multi-participant transactions; see
+            // GranolaAPIProposals.md "Opt-3 (withdrawn)" and the Opt-5 proposal.)
+            vote = par.prepare(tr.mgr, tr.id);
             response = Integer.valueOf(vote);
         } catch (TransactionException bte) {
             vote = ABORTED;
