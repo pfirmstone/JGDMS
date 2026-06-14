@@ -1,7 +1,7 @@
 # JGDMS-STD-008: @AtomicSerial Serialization Uncoupling (JGDMS 4.0.0)
 
 **Status:** Draft (for discussion)
-**Version:** 0.4-DRAFT
+**Version:** 0.5-DRAFT
 **Applies to:** JGDMS 4.0.0, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Depends on:** JGDMS-STD-001 (@AtomicSerial), JGDMS-STD-006 (DER Wire Format)
 **References:** Birrell, Evers, Nelson, Owicki, Wobber, *Distributed Garbage
@@ -10,7 +10,7 @@ normative DGC algorithm (§6).
 **Supersedes (on completion):** the Java-Object-Serialization coupling of the
 `@AtomicSerial` API as defined in STD-001
 
-> **Editorial note (v0.4-DRAFT):** This standard captures the 4.0.0 decision to
+> **Editorial note (v0.5-DRAFT):** This standard captures the 4.0.0 decision to
 > remove all Java Object Serialization coupling from the `@AtomicSerial` API. It
 > records the design agreed in design discussion; field-level details marked
 > **[OPEN]** await confirmation. Class/line references are against `trunk`
@@ -26,6 +26,14 @@ normative DGC algorithm (§6).
 > identity, removing the legacy reliance on a captured/last-authenticated user
 > `Subject`. Faithful to RR-116's process-identity dirtySet; aligned with STD-003
 > / STD-006 §7.1; a least-privilege win (§2.1).
+>
+> **Changes in v0.5:** §9.1 added — transition strategy. The JOSS path
+> (`writeObject`/`readObject`/`serialPersistentFields`) is RETAINED alongside the
+> neutral `@AtomicSerial` path during migration to enable comparative (JOSS-vs-DER)
+> testing, and removed only in the end state. `GetArg`/`PutArg`/`SerialForm` still
+> go neutral now; `serialPersistentFields` is rebuilt as an *independent*
+> `ObjectStreamField[]` (deliberate duplication so the comparison isn't masked).
+> Supersedes the spike's destructive deletion of `writeObject`/`serialPersistentFields`.
 >
 > **Changes in v0.4:** §4.4 rewritten — NO new `AtomicSerialPermission`. The
 > `GetArg`/`PutArg` construction guard (`Check`/`SerializablePermission`) is
@@ -448,16 +456,52 @@ records vs. retaining them as local JOSS.
 
 ## 9. Backward Compatibility and Blast Radius
 
-- **No Java Object Serialization compatibility is retained.** This is a breaking
-  change; the release is **JGDMS 4.0.0** (major version bump).
+- **End state: no Java Object Serialization compatibility is retained.** This is a
+  breaking change; the release is **JGDMS 4.0.0** (major version bump). But the JOSS
+  path is removed at the *end* of the migration, not during it — see §9.1.
 - **Source compatibility:** the ~86 `@AtomicSerial` implementors need no source
-  change (§4.2) — they use only neutral `arg.get`/`put`/`serialForm` calls.
-- **Intentional breaks:** the 19 dual-mode `serialPersistentFields = serialForm()`
-  classes break (they relied on `SerialForm extends ObjectStreamField`); this is
-  by design, as `Serializable` interop is being removed.
+  change to their `@AtomicSerial` members (§4.2) — they use only neutral
+  `arg.get`/`put`/`serialForm` calls. (The spike found one mechanical exception: a
+  JOSS-write helper param `PutField → PutArg`; under §9.1 that helper is instead
+  kept on the JOSS side, so the atomic side is genuinely untouched.)
 - **Binary compatibility:** any external code that subclasses `GetArg`/`PutArg` or
   uses the removed methods must recompile. **[OPEN]** confirm JGDMS is the sole
   consumer of these types (it is believed to be).
+
+### 9.1 Transition: keep the JOSS path for comparative testing (then remove)
+
+The uncoupling does **not** delete the Java-serialization path up front. During the
+migration, dual-mode classes retain their JOSS members **alongside** the neutral
+`@AtomicSerial` path so the *same* objects can be round-tripped through both encoders
+and the results compared (JOSS vs DER) — the primary validation that the DER path is
+behaviourally equivalent before the legacy reference implementation is deleted. This
+supersedes the spike's destructive deletion of `writeObject`/`serialPersistentFields`.
+
+Rules during transition (normative for the migration phase):
+
+- `GetArg`, `PutArg`, `SerialForm` **become neutral now** (the uncouple proper) — this
+  is unconditional and not deferred.
+- A dual-mode class **keeps** its JOSS members: `private void writeObject(ObjectOutputStream)`,
+  `private void readObject(ObjectInputStream)`, and `serialPersistentFields`.
+  `@AtomicSerial` does not use any of these, so retaining them does not affect the
+  `@AtomicSerial`/DER path or its security model.
+- `serialPersistentFields` is rebuilt as an **independent** `ObjectStreamField[]`
+  (duplicated from the field definitions, NOT `= serialForm()`, since `SerialForm` no
+  longer extends `ObjectStreamField`). The duplication is deliberate: independent
+  definitions are what make the comparison meaningful — shared code could mask a
+  divergence between the two encodings.
+- The two encodings therefore use **two parallel field-handlers**: the atomic path
+  via `serialize(PutArg)` / `(GetArg)` (neutral `PutArg`/`GetArg`), and the JOSS path
+  via `writeObject`/`readObject` (real `ObjectOutputStream.PutField` /
+  `ObjectInputStream.GetField`). They can no longer share a helper.
+- The retained JOSS path stays gated by `DeSerializationPermission` and is **removed
+  in the 4.0.0 end state**, once comparative testing confirms DER↔JOSS equivalence.
+- `@AtomicSerial`-only classes (no pre-existing `writeObject`/`serialPersistentFields`)
+  gain nothing here — they are already pure `@AtomicSerial`.
+
+**[OPEN]** scope of "dual-mode" for comparative testing: which classes are worth the
+parallel handler (likely the wire-critical `-dl`/proxy types and a representative
+sample), versus pure-`@AtomicSerial` classes that need no JOSS path at all.
 
 ---
 
