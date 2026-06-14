@@ -42,9 +42,10 @@ import java.util.Objects;
 
 /**
  * DER object encoder and decoder for single {@code @AtomicSerial} classes
- * (Phase 4.1 / 4.2 — single class, one private SEQUENCE) and for
+ * (Phase 4.1 / 4.2 — single class, one private SEQUENCE), for
  * {@code @AtomicSerial} class hierarchies (Phase 4.3 — one private SEQUENCE
- * per class, superclass-first on wire).
+ * per class, superclass-first on wire), and for hierarchies containing
+ * non-{@code @AtomicSerial} classes (Phase 4.4 — §3.10 wire-visibility rules).
  *
  * <h2>Single-class encoding (object → DER)</h2>
  * <p>
@@ -239,8 +240,30 @@ public final class ObjectCodec {
 
     /**
      * Decodes DER bytes produced by {@link #encodeHierarchy} and constructs an
-     * instance of {@code leafClass} by invoking its {@code (AtomicSerial.GetArg)}
-     * constructor.
+     * instance of the lowest {@code @AtomicSerial} class in the chain, which is
+     * assignability-checked against {@code expectedSupertype}.
+     *
+     * <h2>Phase 4.4 — non-{@code @AtomicSerial} class handling (§3.10)</h2>
+     *
+     * <p>The {@code chain} is produced by
+     * {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain}, which
+     * walks the hierarchy skipping any class not annotated {@code @AtomicSerial}.
+     * Consequently the chain's first record ({@code chain.chain().get(0)}) names
+     * the <em>lowest {@code @AtomicSerial} class</em> — which may differ from the
+     * {@code expectedSupertype} argument when a non-{@code @AtomicSerial} subclass
+     * is passed in.
+     *
+     * <ul>
+     *   <li><b>Non-{@code @AtomicSerial} subclass dropped to its superclass</b>
+     *       (e.g. {@code Bar extends Foo}, only {@code Foo} is {@code @AtomicSerial}):
+     *       {@code generateChain(Bar.class)} yields a chain whose leaf record is {@code Foo}.
+     *       This method constructs a {@code Foo}, not a {@code Bar}. The caller passes
+     *       {@code expectedSupertype = Bar.class} (or any supertype of {@code Foo}) — it
+     *       merely constrains what the caller may assign the result to. The decoded
+     *       object's runtime class is exactly {@code Foo}.</li>
+     *   <li><b>All-{@code @AtomicSerial} hierarchy (Phase 4.3)</b>:
+     *       the chain leaf IS the passed class, so behaviour is unchanged.</li>
+     * </ul>
      *
      * <p>The method reads each per-class SEQUENCE from the outer wrapper in
      * <b>superclass-first</b> order, builds a {@link DerFieldStore} per class, and
@@ -248,36 +271,59 @@ public final class ObjectCodec {
      * leaf-last — matching {@code DerGetArg}'s documented contract and
      * {@code serialClasses()} order).
      *
-     * <p>The LEAF class's {@code (GetArg)} constructor is then invoked with the
-     * populated {@link DerGetArg}. It chains up via {@code super(check(arg))}, and
-     * each level in the chain reads only its own private namespace through
+     * <p>The <em>construct class</em>'s {@code (GetArg)} constructor is then invoked
+     * with the populated {@link DerGetArg}. It chains up via {@code super(check(arg))},
+     * and each level in the chain reads only its own private namespace through
      * StackWalker dispatch.
      *
-     * <p>The {@code chain} must have been produced by
-     * {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain} for
-     * {@code leafClass}.
-     *
-     * @param <T>       the leaf class type
-     * @param leafClass the leaf {@code @AtomicSerial} class to construct
-     * @param chain     the linked schema chain (leaf-first from
-     *                  {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain})
+     * @param <T>              the expected return supertype (may be broader than the
+     *                         actual construct class; the construct class must be
+     *                         assignable to this type)
+     * @param expectedSupertype the expected supertype of the decoded result; used for
+     *                         the assignability check only — the actual class constructed
+     *                         is the chain's leaf {@code @AtomicSerial} record
+     * @param chain            the linked schema chain (leaf-first from
+     *                         {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain})
      * @param hierarchyPayload the DER bytes produced by {@link #encodeHierarchy}
-     * @return the constructed leaf instance
-     * @throws DerException           if the DER encoding is malformed
+     * @return the constructed instance; its runtime class equals the chain's leaf
+     *         {@code @AtomicSerial} class, which is assignable to {@code expectedSupertype}
+     * @throws DerException           if the DER encoding is malformed, or if the
+     *                                chain's construct class is not assignable to
+     *                                {@code expectedSupertype}
      * @throws InvalidObjectException if any class's {@code check(GetArg)} fails
      * @throws IOException            if construction fails with IOException
      * @throws NullPointerException   if any argument is {@code null}
      */
-    public static <T> T decodeHierarchy(Class<T> leafClass,
+    public static <T> T decodeHierarchy(Class<T> expectedSupertype,
                                          SchemaChain.Result chain,
                                          byte[] hierarchyPayload)
             throws DerException, IOException, ClassNotFoundException {
-        Objects.requireNonNull(leafClass, "leafClass");
+        Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         Objects.requireNonNull(chain, "chain");
         Objects.requireNonNull(hierarchyPayload, "hierarchyPayload");
 
-        // chain.chain() is leaf-first; reverse to get superclass-first for wire order
+        // chain.chain() is leaf-first; the first entry is the lowest @AtomicSerial class.
+        // This may differ from expectedSupertype when a non-@AtomicSerial subclass was
+        // passed to generateChain (§3.10, first rule: non-@AtomicSerial subclass is dropped).
         List<AtomicSerialSchemaRecord> leafFirst = chain.chain();
+        String constructClassName = leafFirst.get(0).className();
+        Class<?> constructClass = loadClass(constructClassName);
+
+        // Assignability check: the constructed type must be a subtype of expectedSupertype.
+        // When Bar extends Foo (Bar plain, Foo @AtomicSerial), constructClass = Foo,
+        // expectedSupertype = Bar.class → Foo IS a supertype of Bar, but Bar is NOT a
+        // supertype of Foo. The correct check is: constructClass is assignable TO
+        // expectedSupertype, meaning expectedSupertype.isAssignableFrom(constructClass).
+        if (!expectedSupertype.isAssignableFrom(constructClass)) {
+            throw new DerException(
+                    "ObjectCodec.decodeHierarchy: the chain's construct class '"
+                    + constructClassName + "' is not assignable to the expected supertype '"
+                    + expectedSupertype.getName() + "'. "
+                    + "This chain was not generated for a class related to "
+                    + expectedSupertype.getName() + ".");
+        }
+
+        // Reverse for superclass-first wire order
         List<AtomicSerialSchemaRecord> rootFirst = new ArrayList<>(leafFirst);
         Collections.reverse(rootFirst);
 
@@ -303,8 +349,13 @@ public final class ObjectCodec {
         // Assemble the multi-entry DerGetArg (superclass-first insertion order)
         DerGetArg arg = new DerGetArg(storeMap);
 
-        // Invoke the LEAF class's (GetArg) constructor — it chains up via super(check(arg))
-        Constructor<T> ctor = findGetArgConstructor(leafClass);
+        // Invoke the CONSTRUCT CLASS's (GetArg) constructor — it chains up via super(check(arg)).
+        // For all-@AtomicSerial hierarchies (Phase 4.3) this is the same as the old leafClass.
+        // For non-@AtomicSerial subclass dropped to its @AtomicSerial superclass, this is the
+        // @AtomicSerial superclass (e.g. Foo, not Bar).
+        @SuppressWarnings("unchecked")
+        Constructor<? extends T> ctor = (Constructor<? extends T>)
+                findGetArgConstructor(constructClass);
         try {
             return ctor.newInstance(arg);
         } catch (InvocationTargetException ex) {
@@ -315,7 +366,7 @@ public final class ObjectCodec {
             if (cause instanceof RuntimeException re) throw re;
             if (cause instanceof Error err) throw err;
             DerException de = new DerException(
-                    "Construction of " + leafClass.getName() + " failed: " + cause);
+                    "Construction of " + constructClass.getName() + " failed: " + cause);
             de.initCause(cause);
             throw de;
         } catch (IllegalAccessException | InstantiationException ex) {
@@ -395,24 +446,42 @@ public final class ObjectCodec {
     }
 
     /**
-     * Reads the value of the named field from the object instance, searching
-     * {@code declaringClass}'s declared fields. Uses {@code setAccessible(true)}.
+     * Reads the value of the named field from the object instance.
+     *
+     * <p>The search starts at {@code declaringClass} and walks up the superclass chain
+     * to {@code Object} until the field is found. This is required for the Phase 4.4
+     * non-{@code @AtomicSerial} superclass case (§3.10, second rule): when an
+     * {@code @AtomicSerial} class's {@code serialForm()} includes a field that is
+     * physically declared in a non-{@code @AtomicSerial} superclass, the field will
+     * not be found in {@code declaringClass}'s own declared fields but IS accessible
+     * on the instance (because the instance is a subtype of that superclass).
+     *
+     * <p>Example: {@code Sub extends PlainSuper}, {@code Sub.serialForm()} declares
+     * {@code "legacyName"}, but {@code legacyName} is a field of {@code PlainSuper}.
+     * The walk finds it in {@code PlainSuper}.
      */
     private static Object readFieldValue(Object instance, Class<?> declaringClass,
                                           String fieldName) throws DerException {
-        try {
-            Field f = declaringClass.getDeclaredField(fieldName);
-            f.setAccessible(true);
-            return f.get(instance);
-        } catch (NoSuchFieldException ex) {
-            throw new DerException(
-                    "Class " + declaringClass.getName()
-                    + " has no declared field named '" + fieldName + "'");
-        } catch (IllegalAccessException ex) {
-            throw new DerException(
-                    "Cannot access field '" + fieldName + "' on "
-                    + declaringClass.getName(), ex);
+        // Walk from declaringClass up to (but not including) Object looking for the field.
+        Class<?> cls = declaringClass;
+        while (cls != null && cls != Object.class) {
+            try {
+                Field f = cls.getDeclaredField(fieldName);
+                f.setAccessible(true);
+                return f.get(instance);
+            } catch (NoSuchFieldException ex) {
+                // Not in this class — continue to superclass
+                cls = cls.getSuperclass();
+            } catch (IllegalAccessException ex) {
+                throw new DerException(
+                        "Cannot access field '" + fieldName + "' on "
+                        + cls.getName(), ex);
+            }
         }
+        throw new DerException(
+                "Class " + declaringClass.getName()
+                + " (or any of its superclasses) has no declared field named '"
+                + fieldName + "'");
     }
 
     /**
