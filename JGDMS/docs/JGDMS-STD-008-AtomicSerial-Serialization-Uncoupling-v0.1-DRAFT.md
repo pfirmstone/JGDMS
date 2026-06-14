@@ -1,7 +1,7 @@
 # JGDMS-STD-008: @AtomicSerial Serialization Uncoupling (JGDMS 4.0.0)
 
 **Status:** Draft (for discussion)
-**Version:** 0.5-DRAFT
+**Version:** 0.6-DRAFT
 **Applies to:** JGDMS 4.0.0, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Depends on:** JGDMS-STD-001 (@AtomicSerial), JGDMS-STD-006 (DER Wire Format)
 **References:** Birrell, Evers, Nelson, Owicki, Wobber, *Distributed Garbage
@@ -10,7 +10,7 @@ normative DGC algorithm (§6).
 **Supersedes (on completion):** the Java-Object-Serialization coupling of the
 `@AtomicSerial` API as defined in STD-001
 
-> **Editorial note (v0.5-DRAFT):** This standard captures the 4.0.0 decision to
+> **Editorial note (v0.6-DRAFT):** This standard captures the 4.0.0 decision to
 > remove all Java Object Serialization coupling from the `@AtomicSerial` API. It
 > records the design agreed in design discussion; field-level details marked
 > **[OPEN]** await confirmation. Class/line references are against `trunk`
@@ -26,6 +26,13 @@ normative DGC algorithm (§6).
 > identity, removing the legacy reliance on a captured/last-authenticated user
 > `Subject`. Faithful to RR-116's process-identity dirtySet; aligned with STD-003
 > / STD-006 §7.1; a least-privilege win (§2.1).
+>
+> **Changes in v0.6:** §13 added — `MarshalledInstance` integration as a hybrid of
+> "B" (pluggable codec via a `ServiceLoader` `MarshalFactory` keyed by `payloadFormat`)
+> and "C" (the §7.8 `MarshalledInstanceRecord` becomes `MarshalledInstance`'s serial
+> form, with `schemaBytes`/`schemaDigest`/`payloadFormat` first-class). Includes a
+> ready-to-apply STD-006 §7.8 amendment (STD-006 lives on another branch). The Phase-5
+> der `MarshalledInstanceRecord` folds into the base class + the DER factory.
 >
 > **Changes in v0.5:** §9.1 added — transition strategy. The JOSS path
 > (`writeObject`/`readObject`/`serialPersistentFields`) is RETAINED alongside the
@@ -559,3 +566,93 @@ A 4.0.0-conformant implementation:
 | JGDMS-STD-001 (@AtomicSerial) | This standard removes STD-001's Java-serialization coupling; the validation semantics (`check(GetArg)`, `serialForm()`) are unchanged. STD-001 should be updated to define `GetArg`/`PutArg`/`SerialForm` as neutral types. |
 | JGDMS-STD-006 (DER Wire Format) | STD-006 is the encoding; this standard removes the API coupling that forced the DER `GetArg` to impersonate a `GetField` and to hold a `SerializablePermission`. STD-006 §5 `WireFormat` is the selection mechanism (§7). |
 | DirtyChai | The motivation (§2.1) is DirtyChai's least-privilege mission: fewer required permission grants = smaller attack surface. DirtyChai retains the Authorization framework that makes those grants meaningful and enforceable. |
+
+---
+
+## 13. `MarshalledInstance` integration (hybrid: record-as-serial-form + pluggable codec)
+
+`net.jini.io.MarshalledInstance` is the standard container for an object that travels
+across JERI or is stored independently of its class. STD-006 §7.8 defines a parallel
+`MarshalledInstanceRecord`. Rather than maintain two container types, 4.0.0
+**converges them**: `MarshalledInstance`'s serial form *becomes* the §7.8 record, and
+the codec is plugged in behind the existing `MarshalFactory` seam.
+
+### 13.1 `MarshalledInstance` carries the §7.8 record as first-class state (from "C")
+
+The base `net.jini.io.MarshalledInstance` (jgdms-platform) gains first-class fields:
+`payloadBytes`, `schemaBytes`, `schemaDigest` (32), `payloadFormat`, and an OPTIONAL
+`codebaseAnnotation` (the §8 backup URL); it retains `hash` for `equals`/
+`java.rmi.MarshalledObject` compatibility. Its `serialForm()` becomes exactly this
+shape. **Consequently STD-006's `MarshalledInstanceRecord` ASN.1 module IS the serial
+form of `MarshalledInstance`** — the two are one type. The `jgdms-der`
+`MarshalledInstanceRecord`/`MarshalledInstanceCodec` (Phase 5) fold into the base
+class's fields plus the DER `MarshalFactory` (below).
+
+Making the schema first-class (not buried inside `payloadBytes`) realises §7.8's
+"embed the schema unconditionally" as a *structural* property and exposes
+`schemaDigest` for the §12.4 fast-path comparison without parsing the payload.
+
+### 13.2 Pluggable codec via a schema-aware `MarshalFactory` + `ServiceLoader` SPI (from "B")
+
+Encode/decode is delegated to a `MarshalFactory` discovered via
+`java.util.ServiceLoader`, keyed by `payloadFormat`. `jgdms-der` registers a DER
+factory (`META-INF/services`); the built-in JOSS factory remains for the §9.1
+transition. `MarshalledInstance.get(...)` reads its OWN `payloadFormat` field, looks up
+the matching factory, and decodes using `payloadBytes` + `schemaBytes`. The codec is
+never compiled into platform; additional formats (CBOR, …) plug in without changing
+`MarshalledInstance`. (This realises the existing `// TODO: ServiceProvider for
+MarshalFactory` in `MarshalledInstance`.)
+
+### 13.3 Dependency direction (the constraint that shapes the design)
+
+`jgdms-der` depends on `jgdms-platform`, so `MarshalledInstance` MUST NOT reference
+the DER codec. The **neutral** seam interfaces (`MarshalFactory`,
+`MarshalInstanceOutput`, `MarshalInstanceInput`) live in `jgdms-platform` and are
+**widened to be schema-aware**: the output yields `(payloadBytes, schemaBytes,
+schemaDigest, payloadFormat)`; the input consumes them. `jgdms-der` *implements* these.
+Platform defines the contract; der provides the DER implementation; no cycle.
+
+### 13.4 Correctness, transition, equality
+
+- **No recursion / no chicken-and-egg.** `MarshalledInstance`'s own `@AtomicSerial`
+  fields are plain `byte[]`/`String`, so *its* serialization uses the core codec
+  directly. The contained object is already encoded into `payloadBytes` by the factory
+  at construction — the outer instance just carries bytes (tidies the §7.6
+  "MarshalledObject nests the wire format" note).
+- **Transition (§9.1).** `payloadFormat` also discriminates the legacy path: a JOSS
+  factory is registered too (format = JOSS/JAVA, `schemaBytes` empty); only the DER
+  format populates `schemaBytes`/`schemaDigest`. Comparative testing = build a JOSS and
+  a DER `MarshalledInstance` of the same object and diff `get()`.
+- **Equality.** `equals`/`hashCode` remain over `payloadBytes` + `hash` (schema, format
+  and `codebaseAnnotation` excluded — exactly as `locBytes` is excluded today).
+- **Bootstrap (§7.8).** The embedded schema travels with the instance, so a
+  `ServiceRegistrar` proxy arriving in a `MarshalledInstance` is self-decodable before
+  the schema registry / `SchemaAccessor` are available.
+
+### 13.5 Proposed STD-006 §7.8 amendment (ready to apply where STD-006 lives)
+
+> *(STD-006 currently lives on a different branch; apply this to its §7.8.)*
+>
+> Add to §7.8: "`MarshalledInstanceRecord` is the serial form of
+> `net.jini.io.MarshalledInstance`; the two are the same wire type. `payloadBytes`,
+> `schemaBytes`, `schemaDigest` and `payloadFormat` are first-class fields of
+> `MarshalledInstance`. The codec that produces/consumes `payloadBytes`+`schemaBytes`
+> is selected at runtime by `payloadFormat` via a `MarshalFactory` obtained from
+> `java.util.ServiceLoader` (the JGDMS-STD-006/DER factory is provided by the DER
+> module). The decoder MUST use the embedded `schemaBytes` to populate `GetArg`
+> (§7.8 normative), comparing `schemaDigest` to the receiver's current
+> `serialForm()` digest only for the §12.4 fast-path. No codebase annotation appears
+> except the OPTIONAL `codebaseAnnotation` backup URL (§8)."
+
+### 13.6 Cost and open items
+
+- **Platform change (4.0.0-breaking, already planned):** new `MarshalledInstance`
+  fields + `serialForm()`; widen the `MarshalFactory`/`MarshalInstanceOutput`/
+  `MarshalInstanceInput` contracts to be schema-aware; `ServiceLoader` registration;
+  `locBytes` → OPTIONAL `codebaseAnnotation`.
+- **[OPEN]** the exact widened `MarshalInstanceOutput`/`Input` method shape (how
+  `schemaBytes`/`schemaDigest` flow through the factory); whether `payloadFormat` is an
+  enum, OID, or string; and the `ServiceLoader` lookup/caching policy.
+- **Implementation note:** spike the schema-aware `MarshalFactory` contract + a DER
+  factory in `jgdms-der` (wrapping the Phase-5 `MarshalledInstanceRecord`/
+  `MarshalledInstanceCodec`) before promoting the platform field changes.
