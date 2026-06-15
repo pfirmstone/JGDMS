@@ -842,13 +842,26 @@ That maps A0+B1 onto the handler/dispatcher/ILFactory pattern WITHOUT editing th
 `Basic*` constraint loops (A1 stays deferred): selecting the `Der` ILFactory IS the choice
 of format.
 
-### 15.1 Integration model (mirror `AtomicMarshalOutputStream`)
+### 15.1 Integration model — implement the `ObjectOutput`/`ObjectInput` INTERFACES
 
-`DerMarshalOutputStream`/`DerMarshalInputStream` are `ObjectOutputStream`/`ObjectInputStream`
-subclasses in **override mode** (the `AtomicMarshalOutputStream` pattern: `super(context)` /
-the protected no-arg superctor enables override; delegate to an internal engine via
-`writeObjectOverride`/`readObjectOverride` + the typed primitive methods). They live in
-`jgdms-der` (package `au.net.zeus.jgdms.der.stream`).
+The base JERI contract is expressed entirely in terms of the interfaces, so the DER streams
+implement `java.io.ObjectOutput` / `java.io.ObjectInput` **directly — NOT** subclasses of
+`ObjectOutputStream`/`ObjectInputStream`:
+- `BasicInvocationHandler.createMarshalOutputStream` returns `ObjectOutput` (:1213),
+  `createMarshalInputStream` returns `ObjectInput` (:1287);
+- `BasicInvocationDispatcher.createMarshalOutputStream` returns `ObjectOutput` (:1138),
+  `createMarshalInputStream` returns `ObjectInput` (:1054);
+- the marshal/unmarshal helpers consume the interfaces (`marshalMethod(..., ObjectOutput, ...)`
+  :1379; `unmarshalArguments(..., ObjectInput, ...)` :1416).
+
+`AtomicInvocationHandler` only narrows its overrides to `ObjectOutputStream`/`ObjectInputStream`
+(covariant return) because it reuses the `ObjectOutputStream`-based atomic streams; the DER
+codec has no such reason. Implementing the interfaces avoids all `ObjectOutputStream`
+override-mode machinery (no protected no-arg superctor, no `writeObjectOverride`/
+`readObjectOverride`, no inherited Java-Serialization stream state, no accidental stream
+header) and is cleaner-aligned with the 4.0.0 "no Java Serialization" thesis.
+`Der{InvocationHandler,InvocationDispatcher}` (extending the Basic classes) override
+`createMarshal*Stream` to return these. Package `au.net.zeus.jgdms.der.stream`.
 
 ### 15.2 What rides which channel (ObjectOutput contract)
 
@@ -891,9 +904,10 @@ supports both. Confirmed during B2 (loopback), not inc-1 (isolated).
 ### 15.5 Components and increments
 
 Package `au.net.zeus.jgdms.der.stream`:
-- `DerMarshalOutputStream` / `DerMarshalInputStream` (override-mode framework integration).
+- `DerMarshalOutputStream implements java.io.ObjectOutput` /
+  `DerMarshalInputStream implements java.io.ObjectInput` (plain interface implementations).
 - `DerObjectStreamCodec` (engine: item tags, primitive read/write, handle table; reuses
-  `DerWriter`/`DerReader`, `WireTypes`, `MarshalledInstanceRecord`/`ObjectCodec`).
+  `DerWriter`/`DerReader`, `MarshalledInstanceRecord`/`ObjectCodec`).
 
 **Increment 1 (this step, isolated):** primitives (boolean/byte/short/int/long/String/
 byte[]; float/double/char throw), `writeObject`/`readObject` for null + value objects +
