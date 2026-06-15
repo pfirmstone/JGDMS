@@ -705,13 +705,95 @@ public final class ObjectCodec {
                 }
                 yield DerWriter.writeOctetString(b);
             }
+
+            // STD-008 sec.17.3 -- float/double/char with STRICT canonicalization
+            case "float" -> encodeFloat(value, fieldName);
+            case "double" -> encodeDouble(value, fieldName);
+            case "char" -> encodeChar(value, fieldName);
+
             // Nested @AtomicSerial object field (STD-008 sec.16)
             case "@AtomicSerial" -> encodeNested(value, fieldName, depth);
             default -> throw new DerException(
                     "ObjectCodec: unsupported wire type '" + wireType
-                    + "' for field '" + fieldName + "'"
-                    + " (char/float/double deferred per S7.6)");
+                    + "' for field '" + fieldName + "'");
         };
+    }
+
+    /**
+     * IEEE-754 canonical NaN bit patterns (STD-008 sec.17.3.1). Every encoder MUST emit
+     * these for NaN; every decoder MUST reject any other NaN bit pattern. This is the
+     * quiet-NaN bit pattern every mainstream language produces by default (Java
+     * {@code Float.NaN}, Rust {@code f32::NAN.to_bits()}, C {@code NAN}).
+     */
+    static final int  CANONICAL_FLOAT_NAN_BITS  = 0x7FC00000;
+    static final long CANONICAL_DOUBLE_NAN_BITS = 0x7FF8000000000000L;
+
+    /** {@code +0.0} bit pattern -- the canonical zero. {@code -0.0} is rejected on the wire. */
+    static final int  POSITIVE_ZERO_FLOAT_BITS  = 0x00000000;
+    static final long POSITIVE_ZERO_DOUBLE_BITS = 0x0000000000000000L;
+    /** {@code -0.0} bit pattern -- rejected on decode; canonicalized to {@code +0.0} on encode. */
+    static final int  NEGATIVE_ZERO_FLOAT_BITS  = 0x80000000;
+    static final long NEGATIVE_ZERO_DOUBLE_BITS = 0x8000000000000000L;
+
+    private static byte[] encodeFloat(Object value, String fieldName) throws DerException {
+        if (!(value instanceof Float f)) {
+            throw new DerException("Expected Float for field '" + fieldName
+                    + "' (wireType float) but got "
+                    + (value == null ? "null" : value.getClass().getName()));
+        }
+        int bits;
+        if (Float.isNaN(f)) {
+            bits = CANONICAL_FLOAT_NAN_BITS;            // canonicalize ANY NaN to canonical
+        } else if (Float.floatToRawIntBits(f) == NEGATIVE_ZERO_FLOAT_BITS) {
+            bits = POSITIVE_ZERO_FLOAT_BITS;            // canonicalize -0.0 to +0.0
+        } else {
+            bits = Float.floatToRawIntBits(f);          // raw bits preserve all finite values
+        }
+        byte[] content = new byte[] {
+                (byte)(bits >>> 24), (byte)(bits >>> 16),
+                (byte)(bits >>>  8), (byte) bits
+        };
+        return DerWriter.writeOctetString(content);
+    }
+
+    private static byte[] encodeDouble(Object value, String fieldName) throws DerException {
+        if (!(value instanceof Double d)) {
+            throw new DerException("Expected Double for field '" + fieldName
+                    + "' (wireType double) but got "
+                    + (value == null ? "null" : value.getClass().getName()));
+        }
+        long bits;
+        if (Double.isNaN(d)) {
+            bits = CANONICAL_DOUBLE_NAN_BITS;
+        } else if (Double.doubleToRawLongBits(d) == NEGATIVE_ZERO_DOUBLE_BITS) {
+            bits = POSITIVE_ZERO_DOUBLE_BITS;
+        } else {
+            bits = Double.doubleToRawLongBits(d);
+        }
+        byte[] content = new byte[8];
+        for (int i = 7; i >= 0; i--) {
+            content[i] = (byte)(bits & 0xFF);
+            bits >>>= 8;
+        }
+        return DerWriter.writeOctetString(content);
+    }
+
+    private static byte[] encodeChar(Object value, String fieldName) throws DerException {
+        if (!(value instanceof Character c)) {
+            throw new DerException("Expected Character for field '" + fieldName
+                    + "' (wireType char) but got "
+                    + (value == null ? "null" : value.getClass().getName()));
+        }
+        int cp = c.charValue();
+        // Surrogate code units are legal Java char values but NOT valid Unicode codepoints.
+        // The wire is clean -- leaky abstraction stays on the Java side. STD-008 sec.17.3.2.
+        if (cp >= 0xD800 && cp <= 0xDFFF) {
+            throw new DerException("Field '" + fieldName
+                    + "' (wireType char): unpaired surrogate code unit 0x"
+                    + Integer.toHexString(cp).toUpperCase()
+                    + " is not a valid Unicode codepoint");
+        }
+        return DerWriter.writeInteger(BigInteger.valueOf(cp));
     }
 
     /**

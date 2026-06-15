@@ -235,13 +235,13 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     }
 
     /**
-     * {@code char} fields are deferred per STD-006 S7.6.
-     * Always throws {@link InvalidObjectException}.
+     * Reads a {@code char} field (STD-008 sec.17.3.2): DER INTEGER carrying a Unicode
+     * codepoint in BMP non-surrogate range. Surrogate / out-of-range values are rejected.
      */
     @Override
     public char get(String name, char val) throws IOException {
-        throw new InvalidObjectException(
-                "DerGetArg: char fields are deferred per S7.6; field: " + name);
+        Objects.requireNonNull(name, "name");
+        return callerStore().get(name, val);
     }
 
     @Override
@@ -263,23 +263,24 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     }
 
     /**
-     * {@code float} fields are deferred per STD-006 S7.6.
-     * Always throws {@link InvalidObjectException}.
+     * Reads a {@code float} field (STD-008 sec.17.3.1): IEEE-754 BE in 4-byte OCTET STRING
+     * with strict canonical NaN and canonical {@code +0.0} (non-canonical patterns rejected
+     * fail-secure for Entry-matching determinism).
      */
     @Override
     public float get(String name, float val) throws IOException {
-        throw new InvalidObjectException(
-                "DerGetArg: float fields are deferred per S7.6; field: " + name);
+        Objects.requireNonNull(name, "name");
+        return callerStore().get(name, val);
     }
 
     /**
-     * {@code double} fields are deferred per STD-006 S7.6.
-     * Always throws {@link InvalidObjectException}.
+     * Reads a {@code double} field (STD-008 sec.17.3.1): IEEE-754 BE in 8-byte OCTET STRING
+     * with strict canonical NaN and canonical {@code +0.0} (non-canonical patterns rejected).
      */
     @Override
     public double get(String name, double val) throws IOException {
-        throw new InvalidObjectException(
-                "DerGetArg: double fields are deferred per S7.6; field: " + name);
+        Objects.requireNonNull(name, "name");
+        return callerStore().get(name, val);
     }
 
     @Override
@@ -518,7 +519,10 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                 else if (t == short.class) store.get(fieldName, (short) 0);
                 else if (t == int.class)   store.get(fieldName, 0);
                 else if (t == long.class)  store.get(fieldName, 0L);
-                // char/float/double are deferred -- skip silently (S7.6)
+                // STD-008 sec.17.3 (S7.6 lifted): validate float/double/char too.
+                else if (t == float.class) store.get(fieldName, 0.0f);
+                else if (t == double.class) store.get(fieldName, 0.0);
+                else if (t == char.class)  store.get(fieldName, (char) 0);
             } else {
                 // For nested @AtomicSerial or @AtomicSerial[] fields, decode via
                 // get(name, null) so the NestedRaw / NestedArrayRaw wrapper is resolved

@@ -61,8 +61,9 @@ import java.util.Collections;
  * <p>Any type not in the table above (including {@code char}, {@code float},
  * {@code double}, and any Object type other than {@link String} and {@code byte[]})
  * causes {@link DerException} to be thrown naming the unsupported type.
- * {@code char}, {@code float}, and {@code double} are explicitly deferred per
- * STD-006 S7.6 and are identified as such in the error message.
+ * {@code float}, {@code double}, {@code char} are supported as of STD-008 sec.17.3
+ * (S7.6 deferral lifted) with strict canonical encodings -- see
+ * {@code ObjectCodec.encodeValue} and {@code WireTypes.decode}.
  *
  * <h2>Determinism</h2>
  * <p>
@@ -299,15 +300,12 @@ public final class SchemaGenerator {
             return "array:" + componentWireType;
         }
 
-        // Explicitly deferred types -- give a specific message
-        if (javaType == char.class    || javaType == Character.class
-                || javaType == float.class  || javaType == Float.class
-                || javaType == double.class || javaType == Double.class) {
-            throw new DerException(
-                    "SchemaGenerator: type " + javaType.getName()
-                    + " is deferred per STD-006 S7.6 (char/float/double not yet supported)"
-                    + " in class " + declaring.getName());
-        }
+        // STD-008 sec.17.3 lifted the S7.6 deferral with strict canonicalization
+        // (Entry-matching determinism: the wire MUST be byte-identical for the same value
+        // across all senders -- encoder canonicalizes; decoder rejects non-canonical).
+        if (javaType == float.class  || javaType == Float.class)     return "float";
+        if (javaType == double.class || javaType == Double.class)    return "double";
+        if (javaType == char.class   || javaType == Character.class) return "char";
 
         // Any other type -- not guessed, clear error
         throw new DerException(

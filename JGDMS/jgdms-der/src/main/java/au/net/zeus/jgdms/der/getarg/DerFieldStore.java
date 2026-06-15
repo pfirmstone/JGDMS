@@ -414,6 +414,36 @@ public final class DerFieldStore {
         return v == null ? defaultValue : (Long) v;
     }
 
+    /**
+     * Returns the char value for the named field, or {@code defaultValue} if absent.
+     * STD-008 sec.17.3.2 (S7.6 lift): the wire is a Unicode codepoint INTEGER, range-checked
+     * by {@code WireTypes.decodeChar}.
+     */
+    public char get(String name, char defaultValue) {
+        Object v = get(name, (Object) null);
+        return v == null ? defaultValue : (Character) v;
+    }
+
+    /**
+     * Returns the float value for the named field, or {@code defaultValue} if absent.
+     * STD-008 sec.17.3.1 (S7.6 lift): IEEE-754 with strict canonical NaN / {@code +0.0}
+     * enforced by {@code WireTypes.decodeFloat}.
+     */
+    public float get(String name, float defaultValue) {
+        Object v = get(name, (Object) null);
+        return v == null ? defaultValue : (Float) v;
+    }
+
+    /**
+     * Returns the double value for the named field, or {@code defaultValue} if absent.
+     * STD-008 sec.17.3.1 (S7.6 lift): IEEE-754 with strict canonical NaN / {@code +0.0}
+     * enforced by {@code WireTypes.decodeDouble}.
+     */
+    public double get(String name, double defaultValue) {
+        Object v = get(name, (Object) null);
+        return v == null ? defaultValue : (Double) v;
+    }
+
     // =========================================================================
     // Presence / absence query
     // =========================================================================

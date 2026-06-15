@@ -52,8 +52,11 @@ import java.util.List;
  * </ul>
  *
  * <p>Any other wire type throws {@link DerException} (fail-secure, S3 principle 6).
- * The types {@code float}, {@code double}, and {@code char} are DEFERRED per spec S7.6;
- * they throw {@code DerException} with a "unsupported wire type" message until implemented.
+ * {@code float}, {@code double}, {@code char} are supported with STRICT canonical
+ * encodings per STD-008 sec.17.3 (S7.6 deferral lifted): float/double as IEEE-754 in
+ * OCTET STRING with canonical NaN and {@code +0.0} only ({@code -0.0} bits rejected),
+ * char as Unicode codepoint INTEGER (BMP non-surrogate only). Non-canonical patterns are
+ * rejected fail-secure to preserve Entry-matching determinism.
  *
  * <p>This class is stateless and thread-safe. All methods are package-accessible
  * so that {@link DerFieldStore} (and future DER codec components) can call them,
@@ -161,15 +164,103 @@ final class WireTypes {
 
             case "byte[]", "[B" -> reader.readOctetString();
 
-            // Explicitly deferred per S7.6 -- fail-secure, not silently ignored
-            case "char", "java.lang.Character",
-                    "float", "java.lang.Float",
-                    "double", "java.lang.Double" ->
-                    throw new DerException("unsupported wire type (deferred per S7.6): " + wireType);
+            // STD-008 sec.17.3 -- float/double/char with STRICT rejection of non-canonical
+            // patterns. The wire invariant ("one byte sequence per value") is enforced
+            // symmetrically: encoder produces canonical form, decoder rejects everything else.
+            // Lenient normalize-on-decode would defeat Entry-matching determinism (matching
+            // is on transmitted bytes, not decode/re-encode).
+            case "float", "java.lang.Float" -> decodeFloat(reader);
+            case "double", "java.lang.Double" -> decodeDouble(reader);
+            case "char", "java.lang.Character" -> decodeChar(reader);
 
             default ->
                     throw new DerException("unsupported wire type: " + wireType);
         };
+    }
+
+    /** Canonical IEEE-754 NaN bit patterns (STD-008 sec.17.3.1); MUST match
+     *  {@code ObjectCodec.CANONICAL_*_NAN_BITS}. */
+    private static final int  CANONICAL_FLOAT_NAN_BITS  = 0x7FC00000;
+    private static final long CANONICAL_DOUBLE_NAN_BITS = 0x7FF8000000000000L;
+    private static final int  NEGATIVE_ZERO_FLOAT_BITS  = 0x80000000;
+    private static final long NEGATIVE_ZERO_DOUBLE_BITS = 0x8000000000000000L;
+    private static final int  FLOAT_EXP_MASK            = 0x7F800000;
+    private static final int  FLOAT_MANT_MASK           = 0x007FFFFF;
+    private static final long DOUBLE_EXP_MASK           = 0x7FF0000000000000L;
+    private static final long DOUBLE_MANT_MASK          = 0x000FFFFFFFFFFFFFL;
+
+    static Float decodeFloat(DerReader reader) throws DerException {
+        byte[] content = reader.readOctetString();
+        if (content.length != 4) {
+            throw new DerException("DER float OCTET STRING must be exactly 4 bytes, got "
+                    + content.length + " (STD-008 sec.17.3.1)");
+        }
+        int bits =  ((content[0] & 0xFF) << 24)
+                  | ((content[1] & 0xFF) << 16)
+                  | ((content[2] & 0xFF) <<  8)
+                  |  (content[3] & 0xFF);
+        // Reject -0.0 bits (canonical form is +0.0; STD-008 sec.17.3.1).
+        if (bits == NEGATIVE_ZERO_FLOAT_BITS) {
+            throw new DerException("DER float: -0.0 bit pattern (0x80000000) is not canonical;"
+                    + " encoders MUST canonicalize -0.0 to +0.0");
+        }
+        // Any NaN bit pattern MUST equal the canonical quiet-NaN bit pattern.
+        // NaN := exp all-ones AND mantissa nonzero.
+        boolean isNaN = (bits & FLOAT_EXP_MASK) == FLOAT_EXP_MASK
+                     && (bits & FLOAT_MANT_MASK) != 0;
+        if (isNaN && bits != CANONICAL_FLOAT_NAN_BITS) {
+            throw new DerException(
+                    "DER float: non-canonical NaN bit pattern 0x"
+                    + String.format("%08X", bits)
+                    + "; canonical NaN is 0x7FC00000 (STD-008 sec.17.3.1)");
+        }
+        return Float.intBitsToFloat(bits);
+    }
+
+    static Double decodeDouble(DerReader reader) throws DerException {
+        byte[] content = reader.readOctetString();
+        if (content.length != 8) {
+            throw new DerException("DER double OCTET STRING must be exactly 8 bytes, got "
+                    + content.length + " (STD-008 sec.17.3.1)");
+        }
+        long bits = 0L;
+        for (int i = 0; i < 8; i++) {
+            bits = (bits << 8) | (content[i] & 0xFF);
+        }
+        if (bits == NEGATIVE_ZERO_DOUBLE_BITS) {
+            throw new DerException("DER double: -0.0 bit pattern is not canonical;"
+                    + " encoders MUST canonicalize -0.0 to +0.0");
+        }
+        boolean isNaN = (bits & DOUBLE_EXP_MASK) == DOUBLE_EXP_MASK
+                     && (bits & DOUBLE_MANT_MASK) != 0L;
+        if (isNaN && bits != CANONICAL_DOUBLE_NAN_BITS) {
+            throw new DerException(
+                    "DER double: non-canonical NaN bit pattern 0x"
+                    + String.format("%016X", bits)
+                    + "; canonical NaN is 0x7FF8000000000000 (STD-008 sec.17.3.1)");
+        }
+        return Double.longBitsToDouble(bits);
+    }
+
+    static Character decodeChar(DerReader reader) throws DerException {
+        java.math.BigInteger v = reader.readInteger();
+        int cp;
+        try {
+            cp = v.intValueExact();
+        } catch (ArithmeticException e) {
+            throw new DerException("DER char codepoint out of range: " + v, e);
+        }
+        if (cp < 0 || cp > 0xFFFF) {
+            throw new DerException("DER char codepoint " + cp
+                    + " out of range [0, 0xFFFF] (BMP only; STD-008 sec.17.3.2 --"
+                    + " supplementary-plane codepoints must use String)");
+        }
+        if (cp >= 0xD800 && cp <= 0xDFFF) {
+            throw new DerException("DER char: surrogate codepoint 0x"
+                    + Integer.toHexString(cp).toUpperCase()
+                    + " is not a valid Unicode codepoint (STD-008 sec.17.3.2)");
+        }
+        return (char) cp;
     }
 
     /**
@@ -416,8 +507,11 @@ final class WireTypes {
             case "byte", "java.lang.Byte",
                     "short", "java.lang.Short",
                     "int", "java.lang.Integer",
-                    "long", "java.lang.Long" -> "INTEGER (0x02)";
-            case "byte[]", "[B" -> "OCTET STRING (0x04)";
+                    "long", "java.lang.Long",
+                    "char", "java.lang.Character" -> "INTEGER (0x02)";
+            case "byte[]", "[B",
+                    "float", "java.lang.Float",
+                    "double", "java.lang.Double" -> "OCTET STRING (0x04)";
             case "java.lang.String" -> "UTF8String (0x0C)";
             default -> "unknown";
         };

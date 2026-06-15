@@ -1043,27 +1043,66 @@ discipline at the underlying DER reader (no separate cap needed at this layer).
 - **null array** vs **empty array.** Distinct: null encodes as DER NULL; empty encodes as
   a SEQUENCE of length 0. Decoders return `null` vs `new T[0]` accordingly.
 
-### 17.3 Float / double / char — DECISION REQUIRED (S7.6 deferral)
+### 17.3 Float / double / char — S7.6 deferral LIFTED (strict canonicalization)
 
-STD-006 §7.6 deferred these types. inc-3 surfaces the decision rather than choosing
-silently; **do NOT lift the deferral without explicit go-ahead.** Options for the wire:
+STD-006 §7.6 deferred these types. **Lifted 2026-06-14** (Peter, after the
+Entry-matching-determinism discussion: a `MarshalledInstance`'s wire bytes serve as the
+Entry-matching key, so any non-canonical encoding lets a hostile sender or a benign
+platform variation defeat template matching — *even within Java*).
 
-- **`float`/`double` as OCTET STRING of IEEE-754 raw bytes** (4 / 8 bytes, big-endian).
-  Pros: deterministic (one byte sequence per value), simple, security-clean. Cons: not
-  DER-canonical for reals (ASN.1 has a `REAL` type with multiple encodings — binary /
-  decimal / special-value — which complicates determinism and review).
-- **`float`/`double` as ASN.1 REAL**. Standards-pure but multi-form (non-canonical without
-  extra rules) and a fresh attack surface; not recommended.
-- **`char` as INTEGER (16-bit)**. Simple and range-checked. Caveat: Java `char` is a UTF-16
-  *code unit*, not a code point — a single `char` field is just the 16-bit value;
-  surrogate pairs would only matter for `char[]`/`String[]`.
-- **Keep deferred**. Most RPC argument signatures don't use `float`/`double`/`char` —
-  reject at encode (current behaviour), state the deferral in the spec, lift when a
-  concrete service needs it.
+The wire **must be byte-identical for the same value across all languages and senders**.
+That demands **strict canonicalization on the encoder AND strict rejection of non-canonical
+patterns on the decoder** (a lenient decoder doesn't help cross-sender matching since
+Entry matching is on transmitted bytes, not on decode/re-encode).
 
-**Recommendation: keep deferred for inc-3** (the safest call — no fresh wire decision /
-attack surface absorbed before a real need), with the OCTET-STRING-IEEE-754 option as the
-default if/when lifted later.
+#### 17.3.1 `float` / `double` — IEEE-754 in OCTET STRING
+
+- **Wire:** OCTET STRING of exactly 4 bytes (`float`) or 8 bytes (`double`), big-endian,
+  IEEE-754. A different length is rejected fail-secure (`DerException`).
+- **Schema wireType:** `"float"` / `"double"` (matching the existing short-name convention).
+- **Canonical NaN** (MUST be emitted; non-canonical NaN bit patterns MUST be rejected):
+  - `float`: `0x7FC00000` (sign=0, exp=`0xFF`, mantissa MSB=1, rest=0).
+  - `double`: `0x7FF8000000000000` (same shape, 64-bit).
+  - This is the quiet-NaN bit pattern every mainstream language produces by default
+    (Java `Float.NaN` / Rust `f32::NAN.to_bits()` / C `NAN` macro all match), so no peer
+    pays a conversion cost in the common case.
+- **Canonical zero:** `+0.0` (`0x00000000` / `0x0000000000000000`) is the wire form;
+  `-0.0` bits (`0x80000000` / `0x8000000000000000`) MUST be rejected on decode. Encoders
+  MAP `-0.0` to `+0.0` on encode (consistent with Java's `==` semantics for zero).
+- **Infinity** (`0x7F800000` / `0xFF800000`; resp. 64-bit) is unique by construction — no
+  canonicalization needed; both `±∞` are accepted.
+- **Subnormals** are each unique values — no canonicalization needed.
+
+#### 17.3.2 `char` — Unicode codepoint as INTEGER
+
+- **Wire:** DER INTEGER carrying the Unicode codepoint.
+- **Schema wireType:** `"char"`.
+- **Range:** `[0, 0xFFFF]` with surrogate range `[0xD800, 0xDFFF]` excluded. A `char` is a
+  BMP non-surrogate codepoint. Supplementary-plane characters (`> 0xFFFF`) don't fit in a
+  Java `char` and MUST be carried in a `String` field. Surrogate code units (which Java
+  *permits* in `char` but which are *not* valid Unicode codepoints) are rejected at the
+  encoder (the wire is clean — the leaky abstraction stays on Java's side).
+- DER INTEGER is already canonical (minimum-length two's complement, no leading zero
+  bytes), so no extra canonicalization is needed beyond the range check.
+
+#### 17.3.3 Security review items (MUST be tested as discriminating wire invariants)
+
+For each lifted type, the wire invariant is enforced *symmetrically* — encoder produces
+the canonical form, decoder rejects everything else. The test suite MUST cover, per type:
+
+1. Canonical pattern accepted (positive control).
+2. **Non-canonical NaN bit pattern rejected** on decode (the headline guarantee).
+3. `-0.0` bits rejected on decode; `-0.0` Java value canonicalized to `+0.0` on encode
+   (so a `-0.0` field and a `+0.0` field produce byte-identical wire forms).
+4. Wrong OCTET STRING length rejected on decode (3 bytes for `float`, 7 bytes for
+   `double`, etc.).
+5. Surrogate codepoint rejected on encode and on decode.
+6. Determinism: encoding the same value twice yields byte-identical bytes; encoding
+   distinct-but-equal values (e.g. two `Float.NaN`s; `+0.0` and `-0.0`) also yields
+   byte-identical bytes.
+
+These are discriminating tests — they fail if a future implementer silently relaxes
+canonicalization on either side.
 
 ### 17.4 Touch list
 

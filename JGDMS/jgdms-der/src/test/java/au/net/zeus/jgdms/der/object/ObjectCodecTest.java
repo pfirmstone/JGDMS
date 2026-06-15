@@ -299,17 +299,17 @@ class ObjectCodecTest {
     }
 
     /**
-     * 4.2.4 -- An unsupported field type ({@code double}) raises {@link DerException}
-     * (explicitly deferred per S7.6), not a silent fallback.
+     * 4.2.4 -- {@code float}/{@code double}/{@code char} now map to their canonical
+     * wireType strings (STD-008 sec.17.3, S7.6 deferral lifted).
      */
     @Test
-    void test_4_2_4_UnsupportedType_Double_RaisesClearError() {
-        DerException ex = assertThrows(
-                DerException.class,
-                () -> SchemaGenerator.toWireType(double.class, Object.class),
-                "double should throw DerException (deferred per S7.6)");
-        assertTrue(ex.getMessage().contains("double") || ex.getMessage().contains("deferred"),
-                "Error message should mention 'double' or 'deferred': " + ex.getMessage());
+    void test_4_2_4_FloatDoubleChar_MapToWireTypes() throws DerException {
+        assertEquals("float",  SchemaGenerator.toWireType(float.class,    Object.class));
+        assertEquals("float",  SchemaGenerator.toWireType(Float.class,    Object.class));
+        assertEquals("double", SchemaGenerator.toWireType(double.class,   Object.class));
+        assertEquals("double", SchemaGenerator.toWireType(Double.class,   Object.class));
+        assertEquals("char",   SchemaGenerator.toWireType(char.class,     Object.class));
+        assertEquals("char",   SchemaGenerator.toWireType(Character.class,Object.class));
     }
 
     /**
@@ -325,32 +325,4 @@ class ObjectCodecTest {
                 "Error message should mention 'java.util.Date': " + ex.getMessage());
     }
 
-    /**
-     * 4.2.5b -- A class annotated with a {@code double} field raises {@link DerException}
-     * from {@link SchemaGenerator#generate(Class)}.
-     */
-    @Test
-    void test_4_2_5b_GenerateWithDoubleField_ThrowsDerException() {
-        assertThrows(DerException.class,
-                () -> SchemaGenerator.generate(BadDoubleFixture.class),
-                "Generating schema for a class with a double field must throw DerException");
-    }
-
-    // =========================================================================
-    // Inner fixture for 4.2.5b (not @AtomicSerial, only needs serialForm)
-    // =========================================================================
-
-    /** Synthetic fixture: has a {@code double} field (unsupported per S7.6). */
-    @AtomicSerial
-    static final class BadDoubleFixture {
-        public static AtomicSerial.SerialForm[] serialForm() {
-            return new AtomicSerial.SerialForm[] {
-                new AtomicSerial.SerialForm("x", double.class),
-            };
-        }
-        // No constructor needed -- the test only calls SchemaGenerator.generate()
-        public BadDoubleFixture(AtomicSerial.GetArg arg) throws java.io.IOException {
-            throw new java.io.IOException("not implemented");
-        }
-    }
 }

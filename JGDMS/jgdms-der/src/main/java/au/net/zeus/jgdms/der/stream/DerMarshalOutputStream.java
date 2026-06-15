@@ -178,37 +178,22 @@ public final class DerMarshalOutputStream implements ObjectOutput {
     }
 
     // =========================================================================
-    // Deferred / unsupported types
+    // Strict canonical float/double/char (STD-008 sec.17.3, S7.6 lifted)
     // =========================================================================
 
-    /**
-     * Throws {@link UnsupportedOperationException}: float/double are deferred in
-     * STD-006 sec.7.6.
-     */
     @Override
     public void writeFloat(float val) {
-        throw new UnsupportedOperationException(
-                "DER stream: float/double/char deferred (STD-006 S7.6)");
+        codec.writeFloat(val);
     }
 
-    /**
-     * Throws {@link UnsupportedOperationException}: float/double are deferred in
-     * STD-006 sec.7.6.
-     */
     @Override
     public void writeDouble(double val) {
-        throw new UnsupportedOperationException(
-                "DER stream: float/double/char deferred (STD-006 S7.6)");
+        codec.writeDouble(val);
     }
 
-    /**
-     * Throws {@link UnsupportedOperationException}: char is deferred in
-     * STD-006 sec.7.6.
-     */
     @Override
     public void writeChar(int val) {
-        throw new UnsupportedOperationException(
-                "DER stream: float/double/char deferred (STD-006 S7.6)");
+        codec.writeChar(val);
     }
 
     /**

@@ -131,6 +131,52 @@ final class DerObjectStreamCodec {
         writeBuffer.add(DerWriter.writeInteger(BigInteger.valueOf(v)));
     }
 
+    /**
+     * STD-008 sec.17.3.1: IEEE-754 in 4-byte OCTET STRING with canonical NaN and
+     * canonical {@code +0.0}. {@code -0.0} is mapped to {@code +0.0} on encode.
+     */
+    void writeFloat(float v) {
+        int bits;
+        if (Float.isNaN(v))                                          bits = 0x7FC00000;
+        else if (Float.floatToRawIntBits(v) == 0x80000000)           bits = 0x00000000;
+        else                                                         bits = Float.floatToRawIntBits(v);
+        byte[] content = new byte[] {
+                (byte)(bits >>> 24), (byte)(bits >>> 16),
+                (byte)(bits >>>  8), (byte) bits
+        };
+        writeBuffer.add(DerWriter.writeOctetString(content));
+    }
+
+    /**
+     * STD-008 sec.17.3.1: IEEE-754 in 8-byte OCTET STRING with canonical NaN and
+     * canonical {@code +0.0}. {@code -0.0} is mapped to {@code +0.0} on encode.
+     */
+    void writeDouble(double v) {
+        long bits;
+        if (Double.isNaN(v))                                                  bits = 0x7FF8000000000000L;
+        else if (Double.doubleToRawLongBits(v) == 0x8000000000000000L)        bits = 0x0000000000000000L;
+        else                                                                  bits = Double.doubleToRawLongBits(v);
+        byte[] content = new byte[8];
+        for (int i = 7; i >= 0; i--) { content[i] = (byte)(bits & 0xFF); bits >>>= 8; }
+        writeBuffer.add(DerWriter.writeOctetString(content));
+    }
+
+    /**
+     * STD-008 sec.17.3.2: Unicode codepoint INTEGER. Surrogate code units rejected.
+     * (Note: {@link java.io.ObjectOutput#writeChar(int)} takes an {@code int}; we treat
+     * the low 16 bits as the char value, matching {@link DataOutput#writeChar}.)
+     */
+    void writeChar(int v) {
+        int cp = v & 0xFFFF;
+        if (cp >= 0xD800 && cp <= 0xDFFF) {
+            throw new IllegalArgumentException(
+                    "DER stream: unpaired surrogate code unit 0x"
+                    + Integer.toHexString(cp).toUpperCase()
+                    + " is not a valid Unicode codepoint (STD-008 sec.17.3.2)");
+        }
+        writeBuffer.add(DerWriter.writeInteger(BigInteger.valueOf(cp)));
+    }
+
     void writeUTF(String s) {
         Objects.requireNonNull(s, "s");
         writeBuffer.add(DerWriter.writeUtf8String(s));
@@ -265,6 +311,80 @@ final class DerObjectStreamCodec {
             throw new IOException("readLong: INTEGER overflow", e);
         } catch (DerException e) {
             throw new IOException("readLong: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * STD-008 sec.17.3.1: strict canonical IEEE-754 decode. 4-byte OCTET STRING required;
+     * non-canonical NaN bit patterns and {@code -0.0} bits rejected fail-secure.
+     */
+    float readFloat() throws IOException {
+        try {
+            byte[] content = reader.readOctetString();
+            if (content.length != 4) {
+                throw new IOException("readFloat: OCTET STRING must be 4 bytes, got " + content.length);
+            }
+            int bits =  ((content[0] & 0xFF) << 24)
+                      | ((content[1] & 0xFF) << 16)
+                      | ((content[2] & 0xFF) <<  8)
+                      |  (content[3] & 0xFF);
+            if (bits == 0x80000000) {
+                throw new IOException("readFloat: -0.0 bits are not canonical (STD-008 sec.17.3.1)");
+            }
+            boolean isNaN = (bits & 0x7F800000) == 0x7F800000 && (bits & 0x007FFFFF) != 0;
+            if (isNaN && bits != 0x7FC00000) {
+                throw new IOException("readFloat: non-canonical NaN 0x"
+                        + String.format("%08X", bits) + " (canonical is 0x7FC00000)");
+            }
+            return Float.intBitsToFloat(bits);
+        } catch (DerException e) {
+            throw new IOException("readFloat: " + e.getMessage(), e);
+        }
+    }
+
+    /** STD-008 sec.17.3.1: strict canonical IEEE-754 decode (8 bytes; rejects non-canonical NaN / {@code -0.0}). */
+    double readDouble() throws IOException {
+        try {
+            byte[] content = reader.readOctetString();
+            if (content.length != 8) {
+                throw new IOException("readDouble: OCTET STRING must be 8 bytes, got " + content.length);
+            }
+            long bits = 0L;
+            for (int i = 0; i < 8; i++) bits = (bits << 8) | (content[i] & 0xFF);
+            if (bits == 0x8000000000000000L) {
+                throw new IOException("readDouble: -0.0 bits are not canonical (STD-008 sec.17.3.1)");
+            }
+            boolean isNaN = (bits & 0x7FF0000000000000L) == 0x7FF0000000000000L
+                         && (bits & 0x000FFFFFFFFFFFFFL) != 0L;
+            if (isNaN && bits != 0x7FF8000000000000L) {
+                throw new IOException("readDouble: non-canonical NaN 0x"
+                        + String.format("%016X", bits) + " (canonical is 0x7FF8000000000000)");
+            }
+            return Double.longBitsToDouble(bits);
+        } catch (DerException e) {
+            throw new IOException("readDouble: " + e.getMessage(), e);
+        }
+    }
+
+    /** STD-008 sec.17.3.2: Unicode codepoint INTEGER, BMP non-surrogate. */
+    char readChar() throws IOException {
+        try {
+            BigInteger v = reader.readInteger();
+            int cp = v.intValueExact();
+            if (cp < 0 || cp > 0xFFFF) {
+                throw new IOException("readChar: codepoint " + cp
+                        + " out of BMP range [0, 0xFFFF] (STD-008 sec.17.3.2)");
+            }
+            if (cp >= 0xD800 && cp <= 0xDFFF) {
+                throw new IOException("readChar: surrogate codepoint 0x"
+                        + Integer.toHexString(cp).toUpperCase()
+                        + " is not a valid Unicode codepoint");
+            }
+            return (char) cp;
+        } catch (ArithmeticException e) {
+            throw new IOException("readChar: codepoint INTEGER overflow", e);
+        } catch (DerException e) {
+            throw new IOException("readChar: " + e.getMessage(), e);
         }
     }
 

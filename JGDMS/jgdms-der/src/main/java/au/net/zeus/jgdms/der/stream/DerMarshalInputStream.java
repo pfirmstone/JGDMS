@@ -163,34 +163,22 @@ public final class DerMarshalInputStream implements ObjectInput {
         return codec.readLong();
     }
 
-    /**
-     * Throws {@link UnsupportedOperationException}: float is deferred in
-     * STD-006 sec.7.6.
-     */
+    /** Strict canonical IEEE-754 decode (STD-008 sec.17.3.1; S7.6 lifted). */
     @Override
     public float readFloat() throws IOException {
-        throw new UnsupportedOperationException(
-                "DER stream: float/double/char deferred (STD-006 S7.6)");
+        return codec.readFloat();
     }
 
-    /**
-     * Throws {@link UnsupportedOperationException}: double is deferred in
-     * STD-006 sec.7.6.
-     */
+    /** Strict canonical IEEE-754 decode (STD-008 sec.17.3.1; S7.6 lifted). */
     @Override
     public double readDouble() throws IOException {
-        throw new UnsupportedOperationException(
-                "DER stream: float/double/char deferred (STD-006 S7.6)");
+        return codec.readDouble();
     }
 
-    /**
-     * Throws {@link UnsupportedOperationException}: char is deferred in
-     * STD-006 sec.7.6.
-     */
+    /** Unicode codepoint INTEGER decode (STD-008 sec.17.3.2; S7.6 lifted). */
     @Override
     public char readChar() throws IOException {
-        throw new UnsupportedOperationException(
-                "DER stream: float/double/char deferred (STD-006 S7.6)");
+        return codec.readChar();
     }
 
     /**

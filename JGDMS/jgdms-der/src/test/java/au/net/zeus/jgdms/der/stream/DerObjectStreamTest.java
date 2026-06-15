@@ -313,49 +313,30 @@ class DerObjectStreamTest {
     // 8. Deferred-type guards
     // =========================================================================
 
-    @Test
-    void deferred_writeFloat() throws Exception {
-        try (DerMarshalOutputStream out = new DerMarshalOutputStream(new ByteArrayOutputStream())) {
-            assertThrows(UnsupportedOperationException.class, () -> out.writeFloat(1.0f));
-        }
-    }
+    // STD-008 sec.17.3 (S7.6 lift): float/double/char round-trips are covered in
+    // FloatDoubleCharCanonicalTest (object-codec level) and inline below for the streams.
 
     @Test
-    void deferred_writeDouble() throws Exception {
-        try (DerMarshalOutputStream out = new DerMarshalOutputStream(new ByteArrayOutputStream())) {
-            assertThrows(UnsupportedOperationException.class, () -> out.writeDouble(1.0));
-        }
-    }
-
-    @Test
-    void deferred_writeChar() throws Exception {
-        try (DerMarshalOutputStream out = new DerMarshalOutputStream(new ByteArrayOutputStream())) {
-            assertThrows(UnsupportedOperationException.class, () -> out.writeChar('A'));
-        }
-    }
-
-    @Test
-    void deferred_readFloat() throws Exception {
-        // Need a non-empty stream to avoid premature exhaustion
-        byte[] bytes = encode(out -> out.writeBoolean(true));
+    void roundTrip_writeFloat_readFloat() throws Exception {
+        byte[] bytes = encode(out -> out.writeFloat(3.14159f));
         try (DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(bytes))) {
-            assertThrows(UnsupportedOperationException.class, in::readFloat);
+            assertEquals(3.14159f, in.readFloat(), 0.0f);
         }
     }
 
     @Test
-    void deferred_readDouble() throws Exception {
-        byte[] bytes = encode(out -> out.writeBoolean(true));
+    void roundTrip_writeDouble_readDouble() throws Exception {
+        byte[] bytes = encode(out -> out.writeDouble(Math.PI));
         try (DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(bytes))) {
-            assertThrows(UnsupportedOperationException.class, in::readDouble);
+            assertEquals(Math.PI, in.readDouble(), 0.0);
         }
     }
 
     @Test
-    void deferred_readChar() throws Exception {
-        byte[] bytes = encode(out -> out.writeBoolean(true));
+    void roundTrip_writeChar_readChar() throws Exception {
+        byte[] bytes = encode(out -> out.writeChar('A'));
         try (DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(bytes))) {
-            assertThrows(UnsupportedOperationException.class, in::readChar);
+            assertEquals('A', in.readChar());
         }
     }
 
