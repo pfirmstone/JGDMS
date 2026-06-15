@@ -880,19 +880,28 @@ header) and is cleaner-aligned with the 4.0.0 "no Java Serialization" thesis.
     `@AtomicSerial` (reuse `SchemaGenerator`/`ObjectCodec`); a non-`@AtomicSerial`,
     non-value object is **rejected** (`UnsupportedOperationException` / fail-secure — the
     restricted model).
-  - `[2]` a back-reference: INTEGER handle into the per-stream handle table (shared/cyclic
-    graphs).
+  - `[2]` a back-reference: INTEGER handle into the per-stream handle table (shared
+    ACYCLIC references only — see sec.15.3).
   - `[3]` String (UTF8String), `[4]` a boxed primitive, `[5]` `byte[]` (OCTET STRING).
   - (later) `[6]` array, `[7]` enum.
 
-### 15.3 References / identity
+### 15.3 References / identity — NO CYCLES (security)
 
-A per-stream **handle table** (write side: identity map object→handle; read side:
-handle→object) gives each shared object one encoding and back-references repeats — required
-for cyclic/shared graphs and to match `ObjectOutputStream` identity semantics. Handles are
-assigned in write order; the reader registers each decoded object under the next handle
-BEFORE decoding its contents would be needed for cycles (forward-reference handling is an
-inc-2 concern; inc-1 supports shared acyclic refs).
+**Cycles are out of scope by security design (Peter, 2026-06-14): they are a security risk
+and are not necessary.** Supporting a reference cycle would require registering an object in
+the handle table BEFORE its contents are decoded, i.e. exposing a partially-constructed,
+not-yet-validated object to references elsewhere in the graph — exactly the
+construction-before-validation attack surface that `@AtomicSerial` exists to eliminate.
+
+The codec is therefore **strictly post-order on the read side**: a decoded object is
+registered in the handle table only AFTER it is fully constructed. A back-reference `[2]`
+can thus only resolve to an already-completed object; a forward or out-of-range handle is
+**rejected** (`IOException`, fail-secure). This makes a cyclic (or forward-referencing)
+stream unrepresentable/undecodable by construction — the desired property.
+
+The handle table is retained only to dedup repeated **acyclic** references to the same
+already-written object (compactness + identity for DAG-shaped argument graphs); it is never
+required and could be dropped for a pure-tree model if even acyclic sharing is unwanted.
 
 ### 15.4 Method identifier
 
@@ -909,10 +918,13 @@ Package `au.net.zeus.jgdms.der.stream`:
 - `DerObjectStreamCodec` (engine: item tags, primitive read/write, handle table; reuses
   `DerWriter`/`DerReader`, `MarshalledInstanceRecord`/`ObjectCodec`).
 
-**Increment 1 (this step, isolated):** primitives (boolean/byte/short/int/long/String/
+**Increment 1 (DONE, isolated):** primitives (boolean/byte/short/int/long/String/
 byte[]; float/double/char throw), `writeObject`/`readObject` for null + value objects +
-flat `@AtomicSerial` objects + shared (acyclic) references; round-trip tests against a
-`ByteArrayOutputStream` (no JERI, no network). **Increment 2:** nested `@AtomicSerial`
-object graphs + cycles. **Increment 3:** arrays/enums; revisit float/double/char.
-**Then A0/B2:** `Der{InvocationHandler,InvocationDispatcher}` + `DerILFactory` wiring +
-loopback `ObjectEndpoint` round-trip.
+flat `@AtomicSerial` objects + shared (acyclic) references + **cycle/forward-reference
+rejection** (sec.15.3); round-trip tests against a `ByteArrayOutputStream` (no JERI, no
+network). **Increment 2:** nested `@AtomicSerial` object **trees** (NO cycles — sec.15.3);
+requires extending the STD-006 per-object codec (`ObjectCodec`/`SchemaGenerator`/wire-type
+mapping) to encode object-typed fields, which today handle value types only. **Increment 3:**
+arrays/enums; revisit float/double/char. **Then A0/B2:**
+`Der{InvocationHandler,InvocationDispatcher}` + `DerILFactory` wiring + loopback
+`ObjectEndpoint` round-trip (works on the flat model already built).

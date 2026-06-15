@@ -17,12 +17,15 @@
 
 package au.net.zeus.jgdms.der.stream;
 
+import au.net.zeus.jgdms.der.DerWriter;
+import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.marshal.fixtures.VersionedRecord;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -363,6 +366,50 @@ class DerObjectStreamTest {
         try (DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(bytes))) {
             assertThrows(UnsupportedOperationException.class, in::readChar);
         }
+    }
+
+    // =========================================================================
+    // 9. Cycle / forward-reference rejection (security -- NO cycles by design, sec.15.3)
+    // =========================================================================
+
+    /**
+     * A back-reference to a not-yet-registered handle -- a FORWARD reference, the shape a
+     * cycle necessarily requires -- MUST be rejected. The read side registers an object in
+     * the handle table only AFTER it is fully constructed, so a cyclic/forward-referencing
+     * stream is undecodable by construction (STD-008 sec.15.3). This proves the security
+     * property (no partially-constructed object is ever exposed via a handle), not merely
+     * the happy path.
+     */
+    @Test
+    void forwardReference_isRejected() {
+        byte[] malicious = derBackRef(0); // handle 0, but nothing has been registered yet
+        IOException ex = assertThrows(IOException.class, () ->
+                decode(malicious, DerMarshalInputStream::readObject));
+        assertTrue(ex.getMessage().contains("back-reference"),
+                "forward/cyclic back-reference must be rejected fail-secure: " + ex.getMessage());
+    }
+
+    /** An in-range object followed by an out-of-range back-reference is rejected. */
+    @Test
+    void outOfRangeBackReference_isRejected() throws Exception {
+        byte[] valid = encode(out -> out.writeObject(new VersionedRecord(1, "a", "b")));
+        byte[] malicious = concat(valid, derBackRef(5)); // only handle 0 exists
+        assertThrows(IOException.class, () ->
+                decode(malicious, in -> { in.readObject(); return in.readObject(); }));
+    }
+
+    /** Builds a raw [2] context-tagged back-reference TLV with the given handle. */
+    private static byte[] derBackRef(int handle) {
+        return DerWriter.writeTlv(
+                new Tag(Tag.CLASS_CONTEXT, false, 2),
+                DerWriter.writeInteger(BigInteger.valueOf(handle)));
+    }
+
+    private static byte[] concat(byte[] a, byte[] b) {
+        byte[] r = new byte[a.length + b.length];
+        System.arraycopy(a, 0, r, 0, a.length);
+        System.arraycopy(b, 0, r, a.length, b.length);
+        return r;
     }
 
     // =========================================================================
