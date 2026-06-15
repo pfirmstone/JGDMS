@@ -1123,5 +1123,114 @@ Per element type: round-trip; null array; empty array; per-element nullability (
 arrays); unknown-enum-name rejection; determinism (same value → byte-identical bytes);
 polymorphism for `@AtomicSerial[]` (declared supertype, runtime subtype per element); the
 cumulative depth guard still trips on a deep `@AtomicSerial[]` chain (each element counted).
-Multi-dim and `array:byte` rejected fail-secure. Float/double/char still throw with the S7.6
-deferred message.
+Multi-dim and `array:byte` rejected fail-secure. (Float/double/char are now SUPPORTED with
+strict canonicalization -- see sec.17.3, S7.6 lifted; the float/double/char array element
+types `array:float` etc. follow the same per-element rules.)
+
+## 18. A1 — in-band JERI enforcement scope (DECISION-READY, not yet built)
+
+A1 is the only remaining surface-2 piece. It is the JERI-network-layer work held for Peter's
+go-ahead + a qa cycle. This section pins it down precisely after reading the constraint
+machinery; it splits into a small, clean, recommended part (**A1a**) and a larger optional
+part (**A1b**).
+
+### 18.1 How atomic/format enforcement actually works (as found)
+
+In-band JERI calls do NOT enforce atomicity through the per-transport constraint maps. The
+mechanism is:
+1. **Wire byte.** The client `BasicInvocationHandler` writes a marshalling-protocol-version
+   byte (`0x00`/`0x01`/`0x02`) and, for `0x01`/`0x02`, an `atomicValidation` byte
+   (`BasicInvocationHandler.java:962-974`), derived from whether `AtomicInputValidation` was
+   required/preferred in the unfulfilled constraints (`:894-926`).
+2. **Context flag.** The server `BasicInvocationDispatcher.dispatch` reads that byte and calls
+   `Util.populateContext(context, integrity, atomicValidation)`, which puts an
+   `AtomicValidationEnforcement` into the server context.
+3. **Base-throws / subclass-overrides.** The BASE `createMarshalInputStream`/
+   `createMarshalOutputStream` THROW `unsupportedConstraint(AtomicInputValidation.YES)` if the
+   context says atomic is enforced but they would build a plain (non-atomic) `MarshalInputStream`
+   (`BasicInvocationDispatcher.java:1069-1080`, `BasicInvocationHandler.java:1230-1237`). The
+   `AtomicInvocationHandler`/`Dispatcher` (and now `AtomicDer*`) OVERRIDE those to build an
+   atomic stream, so they don't throw.
+4. **The marker.** `org.apache.river.api.io.AtomicObjectInput` (platform) is the interface that
+   denotes "performs per-object type-checked atomic validation; no partially-constructed object
+   escapes." `AtomicMarshalInputStream implements AtomicObjectInput`. The in-band reader
+   `Util.unmarshalValue` (`Util.java:227`) and `MarshalledInstance.get` (`:827`) both dispatch
+   object reads through `instanceof AtomicObjectInput`. Primitives (incl. the sec.17.3
+   `readChar`/`readFloat`/`readDouble`) are read positionally by declared type.
+
+Peter's steer: *"currently only `AtomicMarshalInputStream` is type checked; we'd need to add a
+type check for `DerMarshalInputStream` as well."* The clean realisation is the marker:
+generalise "is this atomic?" to `instanceof AtomicObjectInput` and have the DER in-band stream
+implement it -- no concrete-class checks, no module cycle (`AtomicObjectInput` is in platform).
+
+### 18.2 A1a -- DER satisfies `AtomicInputValidation` (RECOMMENDED; small; isolatable)
+
+Goal: a service requiring `AtomicInputValidation.YES` can be served by the DER codec
+(`AtomicDerILFactory`), and in-band DER object arguments route through `readObject(type)`.
+
+- **`DerMarshalInputStream implements org.apache.river.api.io.AtomicObjectInput`**: add
+  `<T> T readObject(Class<T> type)` (decode next item, then verify the result is assignable to
+  `type` -- the stream already decodes via the codec; add the type gate) and a no-op
+  `registerValidation` (DER does atomic construction inline; no post-callbacks -- mirror
+  `DerMarshalInstanceInput`). This makes `Util.unmarshalValue` route DER object args through the
+  typed path and makes DER recognised wherever atomicity is gated by the marker.
+- **Audit the atomicity confirmations** (`grep instanceof AtomicMarshalInputStream`): the only
+  hits are `ObjectStreamClassInformation` (JOSS stream-internal: `nextTC`/`readCyclicReference`
+  -- NOT an atomicity gate; leave alone). The actual gate is the base-throw (step 3), which
+  `AtomicDerInvocationDispatcher`/`Handler` already override (done in A0). So A1a is mostly the
+  marker-implementation above + confirming the override path satisfies the dispatch() loop
+  (`BasicInvocationDispatcher.java:885-905`) when the `atomicValidation` wire byte is set.
+- **Layering:** clean -- only `jgdms-der` changes (DerMarshalInputStream) + possibly nothing in
+  platform/jeri (they already use the marker). No transport edits.
+- **Effort:** ~0.5 day + unit tests. Isolatable; verifiable in the 3-module reactor (no qa
+  needed for the codec/stream part; a loopback test like `AtomicDerInvocationLayerTest` covers
+  the dispatcher path).
+- **Tests:** `DerMarshalInputStream instanceof AtomicObjectInput`; `readObject(type)` returns
+  the typed object and rejects a type mismatch; extend `AtomicDerInvocationLayerTest` to assert
+  the AtomicDer dispatcher's input stream is an `AtomicObjectInput` and an `AtomicInputValidation.YES`
+  method constraint is satisfied (does not throw) on the DER path.
+
+### 18.3 A1b -- `MarshallingFormat.DER` as a distinct in-band requirement (LARGER; optional)
+
+Goal: a `MethodConstraints` of `MarshallingFormat.DER` flowing through JERI is recognised and
+either satisfied (DER configured) or fails-secure (non-DER configured) -- declarative format
+enforcement, beyond "use the DER ILFactory."
+
+- **Invocation-layer recognition.** Add `MarshallingFormat` handling to the two Basic loops
+  (`BasicInvocationHandler.java:894-926` client; `BasicInvocationDispatcher.java:885-905`
+  server), alongside `Integrity`/`AtomicInputValidation`: a required `MarshallingFormat` that
+  matches the configured codec is satisfied; a mismatch throws `UnsupportedConstraintException`.
+  Add an overridable `protected String marshallingFormat()` to the Basic handler/dispatcher
+  (default `MarshalledInstance.FORMAT_JOSS`), overridden in `AtomicDer*` to return
+  `"JGDMS-STD-006/DER"`, so the base loop can compare without knowing subclasses.
+- **The transport question (REQUIRES A SPIKE FIRST).** The per-transport `Constraints` helpers
+  (`tcp/Constraints.java`, `http/Constraints.java`, and the ssl/kerberos equivalents) classify
+  constraints via a hardcoded support map and THROW on an unknown *requirement*
+  (`NO_SUPPORT`). `MarshallingFormat` is unknown to them. BUT `AtomicInputValidation` is ALSO
+  not in those maps and still works -- because it is enforced at the invocation layer (the wire
+  byte + `AtomicValidationEnforcement`), and is NOT passed to the transport as a server
+  constraint requirement. **Open question to resolve by a ~1-2h spike before any code:** does a
+  `MarshallingFormat.DER` *server* constraint reach `tcp.Constraints` (and get rejected), or can
+  it follow the same invocation-layer-only path as `AtomicInputValidation`? If the latter (most
+  likely), A1b needs NO transport edits -- it is invocation-layer only, and is much smaller. If
+  the former, each transport's `Constraints` map needs `MarshallingFormat` added as a
+  higher-layer (`PARTIAL_SUPPORT`) constraint (tcp/http/ssl/kerberos -- 4 files, qa-sensitive).
+- **Wire.** If both peers are configured as a matched `AtomicDer*` pair (the expected
+  deployment), no new wire signal is needed -- the dispatcher already knows it is DER. A new
+  protocol-version byte is only needed for runtime *negotiation* across mixed JOSS/DER peers
+  (defer unless a concrete need arises).
+- **Effort:** ~1-2 days + the spike + a qa cycle (touches the shared `Basic*` loops and possibly
+  the transport providers; cannot be fully verified in the isolated build -- needs Peter's qa).
+- **Risk:** highest in the project -- shared, security-critical constraint code on the network
+  path; a mistake silently drops or mis-enforces a format requirement.
+
+### 18.4 Recommendation
+
+Do **A1a now** (small, clean, isolatable, and exactly Peter's steer: make `DerMarshalInputStream`
+recognised as atomic-validating via the `AtomicObjectInput` marker). It delivers "a DER-exported
+service satisfies `AtomicInputValidation.YES`" with no qa dependency.
+
+Treat **A1b** as a separate, explicitly-gated decision: its marginal value is declarative
+`MarshallingFormat.DER` enforcement that flows through JERI, which configuration
+(`AtomicDerILFactory`) already achieves operationally. If wanted, start with the ~1-2h
+transport spike (sec.18.3) to convert the effort range into a number before touching shared code.
