@@ -875,10 +875,6 @@ class MasterHarness {
 		if (workingDir != null) {
             pb.directory(workingDir);
         }
-		Map<String, String> environment = pb.environment();
-		final PrintStream envOut = printStream;
-		printStream.println("Environment:");
-		environment.forEach((key, value) -> envOut.println(key + "=" + value));
         proc = pb.start();
 	    printStream = outStream;
 	    if (discardOKOutput) {
