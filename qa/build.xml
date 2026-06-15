@@ -537,6 +537,11 @@
            a SecurityException) to their VCS-tracked state using git checkout,
            undoing any writes made by SecurityPolicyWriter.
         2. Condense all other policy files in-place using PolicyCondenser.
+        3. Derive, for each proxy codebase in the condensed policy files, the
+           minimal GrantPermission ceiling (<policy>.grantperm) and the
+           per-codebase META-INF/PERMISSIONS.LIST manifest (under
+           <policy>.proxy-permissions/) using ProxyPolicyGenerator.  This step
+           is best-effort; disable with -Dpolicy.update.generate.proxy=false.
 
       Usage:
         ant -Dpolicy.update=true policy-update
