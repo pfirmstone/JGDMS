@@ -979,6 +979,7 @@ grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target
 };
 
 
+grant
 {
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
     permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "read";

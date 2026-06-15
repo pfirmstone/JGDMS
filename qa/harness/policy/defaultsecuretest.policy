@@ -2242,6 +2242,7 @@ grant // codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target
 };
 
 
+grant
 {
     permission java.lang.RuntimePermission "createPlatformThread";
 };
