@@ -932,3 +932,64 @@ mapping) to encode object-typed fields, which today handle value types only. **I
 arrays/enums; revisit float/double/char. **Then A0/B2:**
 `Der{InvocationHandler,InvocationDispatcher}` + `DerILFactory` wiring + loopback
 `ObjectEndpoint` round-trip (works on the flat model already built).
+
+## 16. B1 inc-2 — nested `@AtomicSerial` object fields (design)
+
+Today the per-object codec encodes only value-typed fields (boolean/byte/short/int/long/
+String/byte[]); a field whose type is itself an `@AtomicSerial` object is rejected by
+`SchemaGenerator.toWireType`. inc-2 lifts that to support **nested `@AtomicSerial` object
+fields**, encoded as a **value-tree** (no cycles, no shared back-references — sec.15.3).
+
+### 16.1 Where it plugs in (current code)
+
+- `SchemaGenerator.toWireType(Class, Class)` — maps a field's Java type to a wireType
+  string; throws for any object type other than String/byte[].
+- `ObjectCodec.encodeValue(Object, wireType, name)` — switch on wireType -> DER primitive.
+- `getarg.WireTypes.decode(DerReader, wireType)` + `getarg.DerFieldStore` — the decode side,
+  value-types only.
+
+### 16.2 Design
+
+- **Self-describing nested encoding (polymorphism + data-independence).** A nested field's
+  value must carry its OWN schema, because the field's declared type may be a supertype of
+  the runtime value's class and because S3.11 data-independence requires the decoder not to
+  depend on loading the originating class blindly. So a nested object field is encoded as a
+  small self-describing record: `SEQUENCE { schemaChainBytes, payloadBytes }` where
+  `payloadBytes = ObjectCodec.encodeHierarchy(value, generateChain(value.getClass()))` and
+  `schemaChainBytes` is that chain encoded. Decode: read the SEQUENCE, parse the chain, then
+  `decodeHierarchy(declaredFieldType, chain, payloadBytes)` — `decodeHierarchy` already does
+  the assignability check (runtime class must be assignable to the declared field type).
+- **NO module cycle.** `der.marshal.MarshalledInstanceRecord` already depends on
+  `der.object`; therefore `der.object` MUST NOT use it. The nested record above is built from
+  `der.object` (`ObjectCodec`, `SchemaChain`) + `der.schema` only. (A future refactor could
+  hoist a shared "self-describing object" codec into `der.object`/`der.schema` and let
+  `MarshalledInstanceRecord` build on it; for inc-2 keep a minimal nested-record codec in
+  `der.object` to avoid the cycle.)
+- **wireType marker.** `toWireType` returns a distinguished wireType for an `@AtomicSerial`
+  field type — e.g. the literal `"@AtomicSerial"` (the runtime class travels in the embedded
+  schema, so the marker need not name the class) or the declared class name. `encodeValue`
+  and the decode side branch on this marker to the nested-record path.
+- **null fields.** A null nested field encodes as DER NULL (`0x05 00`); decode returns null.
+  (Value-typed fields remain non-null per current behaviour.)
+- **No cycles / determinism (sec.15.3).** Pure tree: a nested value is encoded in full; there
+  is no handle table and no back-reference, so a cycle cannot be expressed. Add a **recursion
+  depth bound** (configurable, fail-secure `DerException` when exceeded) so a hostile deeply
+  -nested stream cannot exhaust the stack — a deserialisation-DoS guard.
+- **check-before-construction preserved.** Nested decode goes through `decodeHierarchy`, so
+  the nested object's `check(GetArg)` runs and it is fully validated+constructed before being
+  handed to the outer object's `GetArg` (consistent with @AtomicSerial copy semantics).
+
+### 16.3 Touch list / tests
+
+- `SchemaGenerator.toWireType`: recognise `@AtomicSerial` field types -> nested marker.
+- `ObjectCodec.encodeValue` (+ a private `encodeNested`/`decodeNested`): the nested-record
+  path; depth bound.
+- `getarg.WireTypes` + `getarg.DerFieldStore`: decode the nested marker via the nested-record
+  path (needs access to `ObjectCodec.decodeHierarchy` — mind package layering: the nested
+  decode may belong in `der.object` with `DerFieldStore` delegating to it).
+- The `der.stream` inc-1 codec then handles nested graphs automatically (a nested
+  `@AtomicSerial` arg is just one `[1]` record whose payload now contains nested records).
+- Tests: nested round-trip (outer holding an inner `@AtomicSerial`); polymorphic field
+  (declared supertype, runtime subtype) drives decode via embedded schema; null nested field;
+  declared-type assignability violation rejected; depth-bound DoS guard rejects over-deep
+  nesting; determinism (same value -> same bytes). Build the 3-module reactor.
