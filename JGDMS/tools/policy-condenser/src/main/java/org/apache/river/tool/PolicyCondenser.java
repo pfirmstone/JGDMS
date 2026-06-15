@@ -95,10 +95,58 @@ public class PolicyCondenser {
 	}
     }
 
-    private PolicyCondenser() 
+    private PolicyCondenser()
     {
         super();
-    } 
+    }
+
+    /**
+     * Widens a grant's permission set by removing any permission that is
+     * already implied by a broader permission in the <em>same</em> grant
+     * (e.g. {@code FilePermission "C:\\dir\\-"} implies
+     * {@code FilePermission "C:\\dir\\file"}; {@code SocketPermission "*"}
+     * implies {@code SocketPermission "host:port"}).
+     *
+     * <p>This collapses the many run-specific narrow file-system and network
+     * grants captured by SecurityPolicyWriter (per-run temp directories,
+     * ephemeral socket ports) under the broad grants that already cover them.
+     * It is least-privilege-preserving: the set of operations the grant
+     * permits is unchanged, since every removed permission is implied by one
+     * that remains.
+     *
+     * <p>Reduction is conservative: a permission is dropped only when a single
+     * other permission in the set strictly implies it (pairwise
+     * {@link Permission#implies(Permission)}).  Unresolved permissions
+     * (unknown classes) never imply and are always kept.  This applies to all
+     * permission types, but in practice only {@code FilePermission} and
+     * {@code SocketPermission} have the broad-vs-narrow redundancy it removes.
+     *
+     * @param perms the (already exact-deduplicated) permissions for one grant
+     * @return the permissions with implied entries removed
+     */
+    private static Permission[] eliminateImplied(Collection<Permission> perms) {
+	Permission[] a = perms.toArray(new Permission[0]);
+	int n = a.length;
+	List<Permission> kept = new ArrayList<Permission>(n);
+	for (int i = 0; i < n; i++) {
+	    Permission p = a[i];
+	    boolean redundant = false;
+	    for (int j = 0; j < n; j++) {
+		if (i == j) continue;
+		Permission q = a[j];
+		if (q.implies(p)) {
+		    if (p.implies(q)) {
+			// Equivalent but distinct representation: keep the earlier one.
+			if (j < i) { redundant = true; break; }
+		    } else {
+			redundant = true; break;
+		    }
+		}
+	    }
+	    if (!redundant) kept.add(p);
+	}
+	return kept.toArray(new Permission[0]);
+    }
     
     private static File policyFile(String filename) throws URISyntaxException{
        
@@ -143,7 +191,7 @@ public class PolicyCondenser {
 			grants[j] = null;
 		    }
 		}
-		builder.permissions(permissions.toArray(new Permission[0]));
+		builder.permissions(eliminateImplied(permissions));
 		PermissionGrant condensedGrant = builder.build();
 		if (!condensedGrant.isVoid()) {
 		    condensed.add(condensedGrant);
