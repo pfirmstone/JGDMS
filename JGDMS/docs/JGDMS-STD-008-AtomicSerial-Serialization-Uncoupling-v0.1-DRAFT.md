@@ -993,3 +993,96 @@ fields**, encoded as a **value-tree** (no cycles, no shared back-references — 
   (declared supertype, runtime subtype) drives decode via embedded schema; null nested field;
   declared-type assignability violation rejected; depth-bound DoS guard rejects over-deep
   nesting; determinism (same value -> same bytes). Build the 3-module reactor.
+
+## 17. B1 inc-3 — enums, arrays (design)
+
+inc-3 lifts the value-type vocabulary to cover **enums** and **arrays** (primitive,
+`String[]`, and `@AtomicSerial[]`). Same principles as before (sec.15.3): pure value-tree,
+deterministic, no cycles, fail-secure, `@AtomicSerial`-restricted for object elements.
+
+### 17.1 Enums
+
+- **Encoding by NAME, not ordinal.** Ordinal is fragile across versions (reordering enum
+  constants silently changes meaning — a real correctness/security hazard). Name is stable;
+  a removed constant is rejected fail-secure on decode. Determinism is trivial.
+- **wireType marker.** `SchemaGenerator.toWireType` returns `"enum:<className>"` so the
+  schema records the declared enum class (needed for the `Enum.valueOf` decode).
+- **Wire.** A DER UTF8String holding the constant name (e.g. `Color.RED` → `"RED"`). A null
+  enum field encodes as DER NULL (`0x05 0x00`), consistent with nested `@AtomicSerial`.
+- **Decode.** Read UTF8String → `Enum.valueOf(enumClass, name)`. An unknown name (the enum
+  has no such constant on this receiver) throws `IllegalArgumentException` from `valueOf`,
+  which is wrapped as `DerException` — fail-secure, never silently default.
+- **`enumClass` resolution.** The enum class is loaded by name from the
+  `"enum:<className>"` schema marker via the same `loadClass` helper used elsewhere
+  (`Thread.currentThread().getContextClassLoader()`); cached per stream is OPTIONAL.
+
+### 17.2 Arrays
+
+A unified wire shape regardless of element type: **the array is a DER SEQUENCE containing
+one TLV per element, in array-index order**. A null array encodes as DER NULL. Determinism
+is trivial (positional encoding). Length-bound: relies on STD-006's size-before-allocate
+discipline at the underlying DER reader (no separate cap needed at this layer).
+
+- **wireType marker.** `SchemaGenerator.toWireType` returns `"array:<componentWireType>"`
+  for an array type, where `<componentWireType>` is the recursive `toWireType` of the
+  element class — e.g. `"array:int"`, `"array:java.lang.String"`,
+  `"array:@AtomicSerial"`, `"array:enum:com.example.Color"`.
+- **Primitive arrays** (`boolean[]`/`short[]`/`int[]`/`long[]`): SEQUENCE of the
+  element-type's natural DER primitive (BOOLEAN/INTEGER, range-checked per element).
+  `byte[]` is UNCHANGED — remains OCTET STRING (the existing mapping); it is NOT promoted
+  to `"array:byte"` for compactness and back-compat.
+- **`String[]`**: SEQUENCE of (UTF8String | DER NULL) — per-element nullability supported
+  by tag-peeking on read.
+- **`@AtomicSerial[]`**: SEQUENCE of (nested-record SEQUENCE{schemaBytes, payloadBytes}
+  | DER NULL) — each element uses the same nested encoding as a single `@AtomicSerial`
+  field (`ObjectCodec.encodeNested`), with the same depth bound, **per-element**. Each
+  element's runtime class is carried in its own embedded schema (polymorphism per element).
+- **No multi-dimensional arrays yet.** `int[][]` is `"array:array:int"` if we extend
+  `toWireType` to recurse, but inc-3 caps at one level — multi-dim is inc-4 if a real
+  service needs it. State the restriction in code (fail-secure on `array:array:...`).
+- **null array** vs **empty array.** Distinct: null encodes as DER NULL; empty encodes as
+  a SEQUENCE of length 0. Decoders return `null` vs `new T[0]` accordingly.
+
+### 17.3 Float / double / char — DECISION REQUIRED (S7.6 deferral)
+
+STD-006 §7.6 deferred these types. inc-3 surfaces the decision rather than choosing
+silently; **do NOT lift the deferral without explicit go-ahead.** Options for the wire:
+
+- **`float`/`double` as OCTET STRING of IEEE-754 raw bytes** (4 / 8 bytes, big-endian).
+  Pros: deterministic (one byte sequence per value), simple, security-clean. Cons: not
+  DER-canonical for reals (ASN.1 has a `REAL` type with multiple encodings — binary /
+  decimal / special-value — which complicates determinism and review).
+- **`float`/`double` as ASN.1 REAL**. Standards-pure but multi-form (non-canonical without
+  extra rules) and a fresh attack surface; not recommended.
+- **`char` as INTEGER (16-bit)**. Simple and range-checked. Caveat: Java `char` is a UTF-16
+  *code unit*, not a code point — a single `char` field is just the 16-bit value;
+  surrogate pairs would only matter for `char[]`/`String[]`.
+- **Keep deferred**. Most RPC argument signatures don't use `float`/`double`/`char` —
+  reject at encode (current behaviour), state the deferral in the spec, lift when a
+  concrete service needs it.
+
+**Recommendation: keep deferred for inc-3** (the safest call — no fresh wire decision /
+attack surface absorbed before a real need), with the OCTET-STRING-IEEE-754 option as the
+default if/when lifted later.
+
+### 17.4 Touch list
+
+- `SchemaGenerator.toWireType`: recognise `enum` types → `"enum:<className>"`; recognise
+  array types → `"array:<componentWireType>"` (one level only; multi-dim rejected); reject
+  `array:array:...` and `array:byte` (the latter ambiguous w/ existing `byte[]` mapping).
+- `ObjectCodec.encodeValue` (+ `encodeEnum`, `encodeArray*` helpers): add cases for the new
+  markers; reuse `encodeNested` for `@AtomicSerial[]` elements (depth-bounded per element).
+- `getarg.WireTypes` + decode path: matching `decodeEnum` / `decodeArray*` (range-check,
+  element-wise tag-peek for nullable element types, `Enum.valueOf` with fail-secure unknown).
+- `DerFieldStore`: enum and primitive arrays are decoded eagerly (value types);
+  `@AtomicSerial[]` elements are decoded lazily through `DerGetArg.get` to thread the depth
+  guard (mirror the `isNested`/`rawNested` pattern at the array-element granularity).
+
+### 17.5 Tests
+
+Per element type: round-trip; null array; empty array; per-element nullability (for object
+arrays); unknown-enum-name rejection; determinism (same value → byte-identical bytes);
+polymorphism for `@AtomicSerial[]` (declared supertype, runtime subtype per element); the
+cumulative depth guard still trips on a deep `@AtomicSerial[]` chain (each element counted).
+Multi-dim and `array:byte` rejected fail-secure. Float/double/char still throw with the S7.6
+deferred message.
