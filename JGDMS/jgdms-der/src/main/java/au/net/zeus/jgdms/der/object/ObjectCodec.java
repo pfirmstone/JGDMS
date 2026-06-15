@@ -30,6 +30,7 @@ import org.apache.river.api.io.AtomicSerial;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -637,6 +638,16 @@ public final class ObjectCodec {
 
     private static byte[] encodeValue(Object value, String wireType,
                                        String fieldName, int depth) throws DerException {
+        // Enum fields (STD-008 sec.17.1): "enum:<className>"
+        if (wireType.startsWith("enum:")) {
+            return encodeEnum(value, wireType, fieldName);
+        }
+        // Array fields (STD-008 sec.17.2): "array:<componentWireType>"
+        // (includes "array:@AtomicSerial:<class>")
+        if (wireType.startsWith("array:")) {
+            return encodeArray(value, wireType, fieldName, depth);
+        }
+
         return switch (wireType) {
             case "boolean", "java.lang.Boolean" -> {
                 if (!(value instanceof Boolean b)) {
@@ -701,6 +712,103 @@ public final class ObjectCodec {
                     + "' for field '" + fieldName + "'"
                     + " (char/float/double deferred per S7.6)");
         };
+    }
+
+    /**
+     * Encodes an enum field value to its DER TLV (STD-008 sec.17.1).
+     *
+     * <p>Wire format: DER NULL for {@code null}, or DER UTF8String containing the
+     * constant name (e.g. {@code "RED"} for {@code Color.RED}).
+     *
+     * @param value     the enum value (may be null)
+     * @param wireType  the wireType string, e.g. {@code "enum:com.example.Color"}
+     * @param fieldName used in error messages
+     * @return the DER TLV bytes
+     * @throws DerException if the value is non-null but is not an instance of the
+     *                      declared enum class
+     */
+    private static byte[] encodeEnum(Object value, String wireType,
+                                      String fieldName) throws DerException {
+        if (value == null) {
+            return new byte[]{0x05, 0x00}; // DER NULL
+        }
+        if (!(value instanceof Enum<?> ev)) {
+            throw new DerException(
+                    "ObjectCodec: expected Enum for field '" + fieldName
+                    + "' (wireType " + wireType + ") but got "
+                    + value.getClass().getName());
+        }
+        // Type-check: runtime class must match the declared enum class in the wireType.
+        String className = wireType.substring(5); // strip "enum:"
+        Class<?> declaredClass = loadClass(className);
+        if (!declaredClass.isInstance(value)) {
+            throw new DerException(
+                    "ObjectCodec: enum field '" + fieldName
+                    + "' has declared class '" + className
+                    + "' but got runtime class '" + value.getClass().getName() + "'");
+        }
+        return DerWriter.writeUtf8String(ev.name());
+    }
+
+    /**
+     * Encodes an array field value to its DER TLV (STD-008 sec.17.2).
+     *
+     * <p>Wire format: DER NULL for {@code null}, or a DER SEQUENCE of N element TLVs
+     * (one per array element, in index order). Empty array encodes as a SEQUENCE of
+     * length 0. Nullable element types (String, enum, @AtomicSerial) encode each
+     * null element as DER NULL.
+     *
+     * @param value     the array value (may be null)
+     * @param wireType  the wireType string, e.g. {@code "array:int"},
+     *                  {@code "array:java.lang.String"},
+     *                  {@code "array:@AtomicSerial:com.example.Foo"}
+     * @param fieldName used in error messages
+     * @param depth     current nesting depth (threaded into per-element nested encode)
+     * @return the DER TLV bytes
+     * @throws DerException if the value is not an array, or if encoding any element fails
+     */
+    private static byte[] encodeArray(Object value, String wireType,
+                                       String fieldName, int depth) throws DerException {
+        if (value == null) {
+            return new byte[]{0x05, 0x00}; // DER NULL
+        }
+        if (!value.getClass().isArray()) {
+            throw new DerException(
+                    "ObjectCodec: expected array for field '" + fieldName
+                    + "' (wireType " + wireType + ") but got "
+                    + value.getClass().getName());
+        }
+
+        // Strip "array:" prefix to get the component wireType.
+        // Note: "array:@AtomicSerial:<class>" strips to "@AtomicSerial:<class>",
+        // which we match with startsWith("@AtomicSerial").
+        String componentWT = wireType.substring(6); // strip "array:"
+        int n = Array.getLength(value);
+        List<byte[]> elementTlvs = new ArrayList<>(n);
+
+        for (int i = 0; i < n; i++) {
+            Object elem = Array.get(value, i);
+            String elemFieldName = fieldName + "[" + i + "]";
+            byte[] elemTlv;
+            if (componentWT.startsWith("@AtomicSerial")) {
+                // @AtomicSerial element: use encodeNested (handles null and depth-bound)
+                elemTlv = encodeNested(elem, elemFieldName, depth);
+            } else if (componentWT.equals("java.lang.String")) {
+                // String element: DER NULL if null, else UTF8String
+                elemTlv = (elem == null)
+                        ? new byte[]{0x05, 0x00}
+                        : DerWriter.writeUtf8String((String) elem);
+            } else {
+                // Primitive or enum element: delegate to encodeValue.
+                // For enum elements the componentWT is "enum:<class>", which encodeEnum handles.
+                // For primitive elements, elem is always non-null (Java arrays of primitives
+                // contain their boxed form when retrieved via Array.get).
+                elemTlv = encodeValue(elem, componentWT, elemFieldName, depth);
+            }
+            elementTlvs.add(elemTlv);
+        }
+
+        return DerWriter.writeSequence(elementTlvs);
     }
 
     /**
@@ -942,6 +1050,90 @@ public final class ObjectCodec {
         } catch (IllegalAccessException | InstantiationException ex) {
             throw new AssertionError("Unexpected reflective access failure", ex);
         }
+    }
+
+    /**
+     * Decodes a nested {@code @AtomicSerial[]} array field as produced by
+     * {@link #encodeArray} for the {@code "array:@AtomicSerial:<class>"} wireType.
+     *
+     * <p>Called from {@link DerGetArg#get(String, Object)} when the field store
+     * reports the field as a nested array (wireType starting with
+     * {@code "array:@AtomicSerial:"}). The depth is threaded through so the
+     * cumulative {@code MAX_NESTING} guard applies per element -- the same guard that
+     * was fixed in inc-2 for the single-element case.
+     *
+     * <p>Wire format:
+     * <ul>
+     *   <li>DER NULL ({@code 05 00}) -- null array (returns {@code null})</li>
+     *   <li>SEQUENCE of N element TLVs -- each element is a nested record SEQUENCE
+     *       or DER NULL (null element)</li>
+     * </ul>
+     *
+     * @param rawBytes           the raw TLV bytes (DER NULL or SEQUENCE)
+     * @param componentClassName fully-qualified name of the component class (used to
+     *                           allocate the result array of the correct type)
+     * @param depth              current nesting depth (from the calling {@link DerGetArg})
+     * @return the decoded array (of type {@code componentClass[]}) or {@code null}
+     * @throws DerException if the encoding is malformed or depth exceeded
+     * @throws IOException  if element construction fails
+     */
+    public static Object decodeNestedArray(byte[] rawBytes,
+                                            String componentClassName,
+                                            int depth)
+            throws DerException, IOException, ClassNotFoundException {
+        Objects.requireNonNull(rawBytes, "rawBytes");
+        Objects.requireNonNull(componentClassName, "componentClassName");
+
+        if (rawBytes.length == 0) {
+            throw new DerException("ObjectCodec.decodeNestedArray: empty bytes");
+        }
+        // DER NULL (0x05 0x00) -> null array
+        if (rawBytes[0] == 0x05) {
+            if (rawBytes.length != 2 || rawBytes[1] != 0x00) {
+                throw new DerException(
+                        "ObjectCodec.decodeNestedArray: malformed NULL TLV (expected 05 00)");
+            }
+            return null;
+        }
+
+        // SEQUENCE of N element TLVs (each is a nested record SEQUENCE or NULL)
+        DerReader outer = new DerReader(rawBytes);
+        DerReader seq = outer.readSequence();
+        if (outer.hasMore()) {
+            throw new DerException(
+                    "ObjectCodec.decodeNestedArray: trailing bytes after array SEQUENCE");
+        }
+
+        // Collect raw element TLVs first (to know N before allocating the array)
+        List<byte[]> elementRaws = new ArrayList<>();
+        while (seq.hasMore()) {
+            DerReader.TlvHeader hdr = seq.readTlvHeader();
+            byte[] content = seq.readRawContent(hdr.contentLength());
+            // Reconstruct full TLV for decodeNested
+            byte[] tagBytes    = hdr.tag().encode();
+            byte[] lengthBytes = DerWriter.encodeLength(hdr.contentLength());
+            byte[] elementTlv  = new byte[tagBytes.length + lengthBytes.length + content.length];
+            int pos = 0;
+            System.arraycopy(tagBytes,    0, elementTlv, pos, tagBytes.length);
+            pos += tagBytes.length;
+            System.arraycopy(lengthBytes, 0, elementTlv, pos, lengthBytes.length);
+            pos += lengthBytes.length;
+            System.arraycopy(content,     0, elementTlv, pos, content.length);
+            elementRaws.add(elementTlv);
+        }
+
+        // Load component class and allocate a typed array
+        Class<?> componentClass = loadClass(componentClassName);
+        Object result = Array.newInstance(componentClass, elementRaws.size());
+
+        for (int i = 0; i < elementRaws.size(); i++) {
+            // Each element is decoded with the THREADED depth (not 0!).
+            // This is the critical invariant for the cumulative depth guard.
+            Object element = decodeNested(elementRaws.get(i), depth);
+            Array.set(result, i, element); // null element is fine (nullable elements)
+        }
+
+        return result;
     }
 
     /**

@@ -223,10 +223,28 @@ public final class SchemaGenerator {
     /**
      * Maps a Java {@link Class} to its canonical wireType string.
      *
+     * <h3>Type mapping (extended for B1 inc-3)</h3>
+     * <table border="1">
+     *   <caption>Supported type mappings</caption>
+     *   <tr><th>Java type</th><th>wireType string</th></tr>
+     *   <tr><td>{@code boolean}/{@link Boolean}</td><td>{@code "boolean"}</td></tr>
+     *   <tr><td>{@code byte}/{@link Byte}</td><td>{@code "byte"}</td></tr>
+     *   <tr><td>{@code short}/{@link Short}</td><td>{@code "short"}</td></tr>
+     *   <tr><td>{@code int}/{@link Integer}</td><td>{@code "int"}</td></tr>
+     *   <tr><td>{@code long}/{@link Long}</td><td>{@code "long"}</td></tr>
+     *   <tr><td>{@link String}</td><td>{@code "java.lang.String"}</td></tr>
+     *   <tr><td>{@code byte[]}</td><td>{@code "byte[]"} (UNCHANGED -- OCTET STRING)</td></tr>
+     *   <tr><td>{@code @AtomicSerial} type</td><td>{@code "@AtomicSerial"}</td></tr>
+     *   <tr><td>any enum type</td><td>{@code "enum:<className>"}</td></tr>
+     *   <tr><td>{@code T[]} (not {@code byte[]})</td>
+     *       <td>{@code "array:<componentWireType>"} for single-dim arrays;
+     *           multi-dim and array-of-byte rejected with {@link DerException}</td></tr>
+     * </table>
+     *
      * @param javaType  the type reported by {@code SerialForm.getType()}
      * @param declaring the declaring class (for error messages)
      * @return the wireType string
-     * @throws DerException if the type is unsupported
+     * @throws DerException if the type is unsupported or multi-dimensional
      */
     public static String toWireType(Class<?> javaType, Class<?> declaring)
             throws DerException {
@@ -236,11 +254,50 @@ public final class SchemaGenerator {
         if (javaType == int.class     || javaType == Integer.class) return "int";
         if (javaType == long.class    || javaType == Long.class)    return "long";
         if (javaType == String.class)                               return "java.lang.String";
+
+        // byte[] is UNCHANGED: OCTET STRING, NOT promoted to "array:byte".
+        // This preserves the existing compact encoding and back-compat (STD-008 sec.17.2).
         if (javaType == byte[].class)                               return "byte[]";
 
         // Nested @AtomicSerial object field (STD-008 sec.16): the runtime class
         // travels in the embedded schema so the marker need not name the class.
         if (javaType.isAnnotationPresent(AtomicSerial.class))       return "@AtomicSerial";
+
+        // Enum fields (STD-008 sec.17.1): encode by NAME for version-stability.
+        // Must be checked BEFORE the array check since enum types are not arrays.
+        if (javaType.isEnum()) return "enum:" + javaType.getName();
+
+        // Array fields (STD-008 sec.17.2): one level of array only.
+        // byte[] is handled above (OCTET STRING); reaching here means component != byte.
+        if (javaType.isArray()) {
+            Class<?> componentType = javaType.getComponentType();
+            String componentWireType = toWireType(componentType, declaring);
+            // Reject multi-dimensional arrays (array-of-array)
+            if (componentWireType.startsWith("array:")) {
+                throw new DerException(
+                        "SchemaGenerator: multi-dimensional arrays are not yet supported"
+                        + " (type " + javaType.getName() + " in class "
+                        + declaring.getName() + "); inc-3 supports one level only");
+            }
+            // Reject array:byte (ambiguous with the byte[] -> OCTET STRING mapping above).
+            // This path is actually unreachable because byte.class produces "byte" and
+            // byte[].class is handled before the isArray() check -- but guard it explicitly
+            // for fail-secure clarity.
+            if (componentWireType.equals("byte")) {
+                throw new DerException(
+                        "SchemaGenerator: array:byte is not supported (ambiguous with the"
+                        + " byte[] -> OCTET STRING mapping) in class "
+                        + declaring.getName()
+                        + "; use byte[] directly for octet strings");
+            }
+            // For @AtomicSerial component arrays, embed the component class name so
+            // the decode side can instantiate the correct array type without the field's
+            // declared Java type (which is not available from the schema alone).
+            if (componentWireType.equals("@AtomicSerial")) {
+                return "array:@AtomicSerial:" + componentType.getName();
+            }
+            return "array:" + componentWireType;
+        }
 
         // Explicitly deferred types -- give a specific message
         if (javaType == char.class    || javaType == Character.class
@@ -257,6 +314,6 @@ public final class SchemaGenerator {
                 "SchemaGenerator: unsupported serial field type " + javaType.getName()
                 + " in class " + declaring.getName()
                 + ". Supported types: boolean, byte, short, int, long, "
-                + "java.lang.String, byte[], @AtomicSerial");
+                + "java.lang.String, byte[], @AtomicSerial, enum types, single-dim arrays");
     }
 }

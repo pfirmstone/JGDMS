@@ -124,6 +124,27 @@ public final class DerFieldStore {
     }
 
     /**
+     * Wrapper stored for a nested {@code @AtomicSerial[]} array field (wireType
+     * {@code "array:@AtomicSerial:<componentClass>"}). Holds the raw TLV bytes of
+     * the outer DER NULL or SEQUENCE (each element is itself a nested record or NULL).
+     *
+     * <p>The actual decoding is deferred to {@code DerGetArg.get(name, default)}
+     * (in {@code der.object}) which calls {@code ObjectCodec.decodeNestedArray},
+     * threading the cumulative depth guard. This mirrors the {@link NestedRaw}
+     * pattern for the single-element case and preserves the no-cycle invariant:
+     * {@code der.getarg} imports nothing from {@code der.object}.
+     *
+     * @param rawBytes           raw TLV bytes of the array SEQUENCE or DER NULL
+     * @param componentClassName fully-qualified name of the component class,
+     *                           extracted from the wireType suffix after the last ':'
+     */
+    record NestedArrayRaw(byte[] rawBytes, String componentClassName) {
+        NestedArrayRaw {
+            rawBytes = rawBytes.clone(); // defensive copy
+        }
+    }
+
+    /**
      * The schema record this store was built with. This is always the schema
      * passed in at construction time (the at-marshal-time schema), never any
      * ambient or global schema.
@@ -256,6 +277,14 @@ public final class DerFieldStore {
                 // can call ObjectCodec.decodeNested -- keeping der.getarg free of
                 // any der.object dependency (no package cycle).
                 value = readNestedRawTlv(seq);
+            } else if (def.wireType().startsWith("array:@AtomicSerial:")) {
+                // @AtomicSerial[] array field (STD-008 sec.17.2): read the raw TLV bytes
+                // (SEQUENCE of element nested records, or DER NULL) without decoding.
+                // Decoding is deferred to DerGetArg.get() in der.object (via
+                // ObjectCodec.decodeNestedArray) so the cumulative depth guard is
+                // threaded through and der.getarg stays cycle-free.
+                String componentClassName = def.wireType().substring("array:@AtomicSerial:".length());
+                value = readNestedArrayRawTlv(seq, componentClassName);
             } else {
                 value = WireTypes.decode(seq, def.wireType());
             }
@@ -537,6 +566,88 @@ public final class DerFieldStore {
         System.arraycopy(lengthBytes, 0, raw, pos, lengthBytes.length); pos += lengthBytes.length;
         System.arraycopy(content,     0, raw, pos, content.length);
         return new NestedRaw(raw);
+    }
+
+    /**
+     * Reads the complete TLV bytes (tag + length + content) of the next item in
+     * {@code seq} for an {@code @AtomicSerial[]} array field, without interpreting
+     * the TLV. The raw bytes are wrapped in a {@link NestedArrayRaw} so that
+     * {@code DerGetArg} (in {@code der.object}) can decode them depth-boundedly.
+     *
+     * @param seq                sub-reader positioned at the array TLV (SEQUENCE or NULL)
+     * @param componentClassName fully-qualified name of the component class
+     * @return the raw bytes wrapped in a {@link NestedArrayRaw}
+     */
+    private static NestedArrayRaw readNestedArrayRawTlv(DerReader seq,
+                                                         String componentClassName)
+            throws DerException {
+        DerReader.TlvHeader hdr = seq.readTlvHeader();
+        byte[] content = seq.readRawContent(hdr.contentLength());
+
+        byte[] tagBytes    = hdr.tag().encode();
+        byte[] lengthBytes = DerWriter.encodeLength(hdr.contentLength());
+        byte[] raw = new byte[tagBytes.length + lengthBytes.length + content.length];
+        int pos = 0;
+        System.arraycopy(tagBytes,    0, raw, pos, tagBytes.length);    pos += tagBytes.length;
+        System.arraycopy(lengthBytes, 0, raw, pos, lengthBytes.length); pos += lengthBytes.length;
+        System.arraycopy(content,     0, raw, pos, content.length);
+        return new NestedArrayRaw(raw, componentClassName);
+    }
+
+    // =========================================================================
+    // Nested @AtomicSerial[] array access (STD-008 sec.17.2)
+    // =========================================================================
+
+    /**
+     * Returns {@code true} if the named field holds a nested {@code @AtomicSerial[]}
+     * raw array record (wireType {@code "array:@AtomicSerial:<class>"}).
+     *
+     * <p>A field that is absent (case (b)) returns {@code false}; the caller
+     * checks {@link #defaulted(String)} and returns the default.
+     *
+     * @param name the field name
+     * @return {@code true} if the stored value is a {@link NestedArrayRaw} wrapper
+     */
+    public boolean isNestedArray(String name) {
+        Object v = fields.get(name);
+        return v instanceof NestedArrayRaw;
+    }
+
+    /**
+     * Returns the raw TLV bytes for a nested {@code @AtomicSerial[]} array field
+     * (a SEQUENCE or DER NULL). The caller (in {@code der.object}) is responsible
+     * for decoding via {@code ObjectCodec.decodeNestedArray}.
+     *
+     * @param name the field name
+     * @return a defensive copy of the raw TLV bytes
+     * @throws IllegalStateException if the field is not a nested array raw field
+     *                               (check {@link #isNestedArray(String)} first)
+     */
+    public byte[] rawNestedArray(String name) {
+        Object v = fields.get(name);
+        if (!(v instanceof NestedArrayRaw nar)) {
+            throw new IllegalStateException(
+                    "DerFieldStore: field '" + name + "' is not a nested array raw field");
+        }
+        return nar.rawBytes(); // NestedArrayRaw.rawBytes() already returns a defensive copy
+    }
+
+    /**
+     * Returns the fully-qualified component class name for a nested
+     * {@code @AtomicSerial[]} array field (extracted from the wireType).
+     *
+     * @param name the field name
+     * @return the component class name (e.g. {@code "com.example.Foo"})
+     * @throws IllegalStateException if the field is not a nested array raw field
+     *                               (check {@link #isNestedArray(String)} first)
+     */
+    public String nestedArrayComponentClassName(String name) {
+        Object v = fields.get(name);
+        if (!(v instanceof NestedArrayRaw nar)) {
+            throw new IllegalStateException(
+                    "DerFieldStore: field '" + name + "' is not a nested array raw field");
+        }
+        return nar.componentClassName();
     }
 
     // =========================================================================

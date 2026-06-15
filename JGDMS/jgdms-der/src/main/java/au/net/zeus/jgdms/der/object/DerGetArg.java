@@ -286,6 +286,29 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     public Object get(String name, Object val) throws IOException {
         Objects.requireNonNull(name, "name");
         DerFieldStore store = callerStore();
+        // Nested @AtomicSerial[] array field: decode lazily on access (STD-008 sec.17.2).
+        // Must check BEFORE isNested (different wrapper type); the depth is threaded so
+        // the cumulative MAX_NESTING guard applies per element.
+        if (store.isNestedArray(name)) {
+            try {
+                return ObjectCodec.decodeNestedArray(
+                        store.rawNestedArray(name),
+                        store.nestedArrayComponentClassName(name),
+                        depth);
+            } catch (DerException e) {
+                InvalidObjectException ioe = new InvalidObjectException(
+                        "DerGetArg: failed to decode nested @AtomicSerial[] field '"
+                        + name + "': " + e.getMessage());
+                ioe.initCause(e);
+                throw ioe;
+            } catch (ClassNotFoundException e) {
+                InvalidObjectException ioe = new InvalidObjectException(
+                        "DerGetArg: class not found decoding nested array field '"
+                        + name + "': " + e.getMessage());
+                ioe.initCause(e);
+                throw ioe;
+            }
+        }
         // Nested @AtomicSerial field: decode lazily on access (STD-008 sec.16).
         // The store holds the raw TLV bytes; ObjectCodec.decodeNested does the
         // actual decode here in der.object so that der.getarg stays cycle-free.
@@ -329,6 +352,40 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(type, "type");
         DerFieldStore store = callerStore();
+        // Nested @AtomicSerial[] array field: decode lazily (same as get(String, Object))
+        if (store.isNestedArray(name)) {
+            Object decoded;
+            try {
+                decoded = ObjectCodec.decodeNestedArray(
+                        store.rawNestedArray(name),
+                        store.nestedArrayComponentClassName(name),
+                        depth);
+            } catch (DerException e) {
+                InvalidObjectException ioe = new InvalidObjectException(
+                        "DerGetArg: failed to decode nested @AtomicSerial[] field '"
+                        + name + "': " + e.getMessage());
+                ioe.initCause(e);
+                throw ioe;
+            } catch (ClassNotFoundException e) {
+                InvalidObjectException ioe = new InvalidObjectException(
+                        "DerGetArg: class not found decoding nested array field '"
+                        + name + "': " + e.getMessage());
+                ioe.initCause(e);
+                throw ioe;
+            }
+            if (decoded == null) return val;
+            if (type.isInstance(decoded)) {
+                @SuppressWarnings("unchecked")
+                T result = (T) decoded;
+                return result;
+            }
+            InvalidObjectException e = new InvalidObjectException(
+                    "DerGetArg: nested array field '" + name + "' type mismatch");
+            e.initCause(new ClassCastException(
+                    "Expected instance of " + type.getName()
+                    + " but got " + decoded.getClass().getName()));
+            throw e;
+        }
         // Nested @AtomicSerial field: decode lazily (same as get(String, Object))
         if (store.isNested(name)) {
             Object decoded;
@@ -463,10 +520,11 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                 else if (t == long.class)  store.get(fieldName, 0L);
                 // char/float/double are deferred -- skip silently (S7.6)
             } else {
-                // For nested @AtomicSerial fields, decode via get(name, null) so the
-                // NestedRaw wrapper is resolved through ObjectCodec.decodeNested.
+                // For nested @AtomicSerial or @AtomicSerial[] fields, decode via
+                // get(name, null) so the NestedRaw / NestedArrayRaw wrapper is resolved
+                // through ObjectCodec.decodeNested / decodeNestedArray.
                 Object v;
-                if (store.isNested(fieldName)) {
+                if (store.isNested(fieldName) || store.isNestedArray(fieldName)) {
                     v = get(fieldName, (Object) null); // routes through nested decode
                 } else {
                     v = store.get(fieldName, null);
