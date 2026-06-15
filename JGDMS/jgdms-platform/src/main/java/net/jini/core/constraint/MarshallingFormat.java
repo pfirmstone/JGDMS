@@ -21,7 +21,6 @@ package net.jini.core.constraint;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.Serializable;
-import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -71,11 +70,13 @@ public final class MarshallingFormat implements InvocationConstraint, Serializab
 	    new MarshallingFormat("JGDMS-STD-006/DER");
 
     /**
-     * Requires legacy Java Object Serialization. The identifier matches
-     * {@link net.jini.io.MarshalledInstance#FORMAT_JOSS}.
+     * Requires legacy Java Object Serialization. The identifier is the stable wire
+     * constant {@code "JOSS"}; it matches {@link net.jini.io.MarshalledInstance#FORMAT_JOSS}
+     * (inlined here so the constraint package does not depend on {@code net.jini.io};
+     * {@code MarshallingFormatTest} asserts the two agree).
      */
     public static final MarshallingFormat JOSS =
-	    new MarshallingFormat(MarshalledInstance.FORMAT_JOSS);
+	    new MarshallingFormat("JOSS");
 
     /**
      * Argument names and types for {@link AtomicSerial}.

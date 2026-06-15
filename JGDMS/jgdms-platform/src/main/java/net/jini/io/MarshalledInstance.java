@@ -36,6 +36,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
+import net.jini.core.constraint.InvocationConstraint;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.io.context.IntegrityEnforcement;
 import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
@@ -375,6 +378,29 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
     }
 
     /**
+     * Creates a new <code>MarshalledInstance</code> whose contained object is encoded
+     * using the wire format required by {@code constraints} (JGDMS-STD-008 sec.13). If
+     * the constraints require a {@link MarshallingFormat}, that format's codec is used
+     * (e.g. {@link MarshallingFormat#DER} selects the JGDMS-STD-006/DER codec); with no
+     * format constraint the default Java-Object-Serialization codec is used. The
+     * resulting instance is self-describing: its {@code payloadFormat} lets any receiver
+     * decode it via {@link MarshalFactoryProvider} without a subclass.
+     *
+     * @param obj the Object to be contained, or {@code null}.
+     * @param context the collection of context information objects.
+     * @param constraints the invocation constraints, or {@code null} for none.
+     * @throws IOException if the object cannot be serialized.
+     * @throws UnsupportedConstraintException if a required {@link MarshallingFormat}
+     *         cannot be satisfied on this node (no codec for it, or conflicting formats).
+     * @throws NullPointerException if {@code context} is {@code null}.
+     */
+    public MarshalledInstance(Object obj, Collection context, InvocationConstraints constraints)
+	throws IOException
+    {
+	this(obj, context, chooseMarshalFactory(constraints));
+    }
+
+    /**
      * Creates a new <code>MarshalledInstance</code> from an
      * existing <code>MarshalledObject</code>. An object equivalent
      * to the object contained in the passed <code>MarshalledObject</code>
@@ -523,6 +549,67 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
 	    }
 	}
 	return m;
+    }
+
+    /**
+     * Selects the {@link MarshalFactory} required by the given invocation constraints
+     * (JGDMS-STD-008 sec.13) -- the shared enforcement primitive for the
+     * {@link MarshallingFormat} constraint. A required {@code MarshallingFormat}
+     * determines the format: {@link #FORMAT_JOSS} (or {@code null} constraints / no
+     * format constraint) yields the built-in JOSS factory; any other format is resolved
+     * to its {@link MarshalFactoryProvider} via {@link ServiceLoader}. If a constraint
+     * only <em>prefers</em> a format, it is honoured when resolvable on this node,
+     * otherwise the default is used.
+     *
+     * @param constraints the invocation constraints, or {@code null} for none.
+     * @return the MarshalFactory to use; never {@code null}.
+     * @throws UnsupportedConstraintException if a required format has no registered
+     *         provider on this node, or two different formats are required at once.
+     */
+    public static MarshalFactory chooseMarshalFactory(InvocationConstraints constraints)
+	throws UnsupportedConstraintException
+    {
+	String format = requiredFormat(constraints);
+	if (format == null || FORMAT_JOSS.equals(format)){
+	    return new MarshalFactoryInstance();
+	}
+	MarshalFactoryProvider p = providers().get(format);
+	if (p == null){
+	    throw new UnsupportedConstraintException(
+		"No MarshalFactoryProvider for required MarshallingFormat: " + format
+		+ " (is the codec module on the classpath?)");
+	}
+	return p.marshalFactory();
+    }
+
+    /**
+     * The format identifier required by the constraints, or -- failing a hard
+     * requirement -- the first resolvable preferred format, or {@code null} for the
+     * default. Conflicting required {@code MarshallingFormat}s are unsatisfiable.
+     */
+    private static String requiredFormat(InvocationConstraints constraints)
+	throws UnsupportedConstraintException
+    {
+	if (constraints == null) return null;
+	String required = null;
+	for (InvocationConstraint c : constraints.requirements()){
+	    if (c instanceof MarshallingFormat){
+		String f = ((MarshallingFormat) c).getFormat();
+		if (required == null) required = f;
+		else if (!required.equals(f))
+		    throw new UnsupportedConstraintException(
+			"Conflicting required MarshallingFormat constraints: "
+			+ required + " and " + f);
+	    }
+	}
+	if (required != null) return required;
+	for (InvocationConstraint c : constraints.preferences()){
+	    if (c instanceof MarshallingFormat){
+		String f = ((MarshallingFormat) c).getFormat();
+		if (FORMAT_JOSS.equals(f) || providers().containsKey(f)) return f;
+	    }
+	}
+	return null;
     }
     /**
      * Returns a new copy of the contained object.
