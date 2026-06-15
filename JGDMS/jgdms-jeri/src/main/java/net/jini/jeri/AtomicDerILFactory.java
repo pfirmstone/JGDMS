@@ -27,7 +27,7 @@ import net.jini.core.constraint.MethodConstraints;
  *
  * <p>A service whose objects implement {@code @AtomicSerial} can switch from
  * JOSS to DER by replacing its {@link InvocationLayerFactory} with a
- * {@code DerILFactory} -- no other service code change is required.
+ * {@code AtomicDerILFactory} -- no other service code change is required.
  *
  * <p>DER has no compression and carries no codebase annotations.
  *
@@ -35,16 +35,16 @@ import net.jini.core.constraint.MethodConstraints;
  * <pre>
  *   BasicJeriExporter exporter = new BasicJeriExporter(
  *       TcpServerEndpoint.getInstance(0),
- *       new DerILFactory(null, MyService.class));
+ *       new AtomicDerILFactory(null, MyService.class));
  * </pre>
  *
  * @author peter
  * @since 4.0
  */
-public class DerILFactory extends BasicILFactory {
+public class AtomicDerILFactory extends BasicILFactory {
 
     /**
-     * Creates a {@code DerILFactory} with the specified server constraints,
+     * Creates a {@code AtomicDerILFactory} with the specified server constraints,
      * permission class, and class loader.
      *
      * @param serverConstraints the server constraints, or {@code null}
@@ -52,14 +52,14 @@ public class DerILFactory extends BasicILFactory {
      * @param loader the class loader (must not be {@code null})
      * @throws NullPointerException if {@code loader} is null
      */
-    public DerILFactory(MethodConstraints serverConstraints,
+    public AtomicDerILFactory(MethodConstraints serverConstraints,
                         Class permissionClass,
                         ClassLoader loader) {
         super(serverConstraints, permissionClass, notNull(loader));
     }
 
     /**
-     * Creates a {@code DerILFactory} with the specified server constraints
+     * Creates a {@code AtomicDerILFactory} with the specified server constraints
      * and proxy-or-service-implementation class.  The class loader of
      * {@code proxyOrServiceImplClass} is used.
      *
@@ -68,13 +68,13 @@ public class DerILFactory extends BasicILFactory {
      *        interface (must not be {@code null})
      * @throws NullPointerException if {@code proxyOrServiceImplClass} is null
      */
-    public DerILFactory(MethodConstraints serverConstraints,
+    public AtomicDerILFactory(MethodConstraints serverConstraints,
                         Class proxyOrServiceImplClass) {
         super(serverConstraints, null, proxyOrServiceImplClass.getClassLoader());
     }
 
     /**
-     * Creates a {@code DerILFactory} with the specified server constraints,
+     * Creates a {@code AtomicDerILFactory} with the specified server constraints,
      * permission class, and proxy-or-service-implementation class.
      *
      * @param serverConstraints the server constraints, or {@code null}
@@ -83,7 +83,7 @@ public class DerILFactory extends BasicILFactory {
      *        interface (must not be {@code null})
      * @throws NullPointerException if {@code proxyOrServiceImplClass} is null
      */
-    public DerILFactory(MethodConstraints serverConstraints,
+    public AtomicDerILFactory(MethodConstraints serverConstraints,
                         Class permissionClass,
                         Class proxyOrServiceImplClass) {
         super(serverConstraints, permissionClass,
@@ -96,7 +96,7 @@ public class DerILFactory extends BasicILFactory {
     }
 
     /**
-     * Returns a new {@link DerInvocationHandler} for the specified object
+     * Returns a new {@link AtomicDerInvocationHandler} for the specified object
      * endpoint and this factory's server constraints.
      *
      * @throws NullPointerException if any element of {@code interfaces} or
@@ -115,11 +115,11 @@ public class DerILFactory extends BasicILFactory {
         if (impl == null) {
             throw new NullPointerException();
         }
-        return new DerInvocationHandler(oe, getServerConstraints());
+        return new AtomicDerInvocationHandler(oe, getServerConstraints());
     }
 
     /**
-     * Returns a new {@link DerInvocationDispatcher} for the specified methods,
+     * Returns a new {@link AtomicDerInvocationDispatcher} for the specified methods,
      * remote object, and server capabilities.
      *
      * @throws NullPointerException if {@code impl} is null
@@ -132,7 +132,7 @@ public class DerILFactory extends BasicILFactory {
         if (impl == null) {
             throw new NullPointerException("impl is null");
         }
-        return new DerInvocationDispatcher(methods, caps,
+        return new AtomicDerInvocationDispatcher(methods, caps,
                                            getServerConstraints(),
                                            getPermissionClass(),
                                            getClassLoader());
@@ -140,7 +140,7 @@ public class DerILFactory extends BasicILFactory {
 
     @Override
     public boolean equals(Object o) {
-        if (o instanceof DerILFactory) return super.equals(o);
+        if (o instanceof AtomicDerILFactory) return super.equals(o);
         return false;
     }
 

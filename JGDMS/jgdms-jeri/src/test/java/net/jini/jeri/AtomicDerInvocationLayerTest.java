@@ -53,14 +53,14 @@ import org.junit.Test;
  *
  * <h2>Test inventory</h2>
  * <ol>
- *   <li>Configuration wiring: DerILFactory creates DerInvocationHandler and
- *       DerInvocationDispatcher.</li>
+ *   <li>Configuration wiring: AtomicDerILFactory creates AtomicDerInvocationHandler and
+ *       AtomicDerInvocationDispatcher.</li>
  *   <li>Round-trip: handler writes a {@code Point @AtomicSerial} object via
  *       DerMarshalOutputStream; dispatcher reads it back via DerMarshalInputStream;
  *       result equals original but is not the same instance (copy semantics).</li>
  * </ol>
  */
-public class DerInvocationLayerTest {
+public class AtomicDerInvocationLayerTest {
 
     // =========================================================================
     // @AtomicSerial test fixture -- a simple 2-int Point
@@ -230,8 +230,8 @@ public class DerInvocationLayerTest {
     // =========================================================================
 
     /**
-     * Verifies that {@link DerILFactory} produces a {@link DerInvocationHandler}
-     * and a {@link DerInvocationDispatcher}.
+     * Verifies that {@link AtomicDerILFactory} produces a {@link AtomicDerInvocationHandler}
+     * and a {@link AtomicDerInvocationDispatcher}.
      */
     @Test
     public void test1_configurationWiring() throws Exception {
@@ -241,8 +241,8 @@ public class DerInvocationLayerTest {
         Collection<Method> methods = pointServiceMethods();
 
         // Use the (serverConstraints, permissionClass, ClassLoader) constructor.
-        ClassLoader loader = DerInvocationLayerTest.class.getClassLoader();
-        DerILFactory factory = new DerILFactory(null, null, loader);
+        ClassLoader loader = AtomicDerInvocationLayerTest.class.getClassLoader();
+        AtomicDerILFactory factory = new AtomicDerILFactory(null, null, loader);
 
         // Call the protected factory methods directly (same-package access).
         InvocationHandler handler = factory.createInvocationHandler(
@@ -250,10 +250,10 @@ public class DerInvocationLayerTest {
         InvocationDispatcher dispatcher = factory.createInvocationDispatcher(
                 methods, fakeImpl, fakeCaps);
 
-        Assert.assertTrue("handler must be DerInvocationHandler",
-                handler instanceof DerInvocationHandler);
-        Assert.assertTrue("dispatcher must be DerInvocationDispatcher",
-                dispatcher instanceof DerInvocationDispatcher);
+        Assert.assertTrue("handler must be AtomicDerInvocationHandler",
+                handler instanceof AtomicDerInvocationHandler);
+        Assert.assertTrue("dispatcher must be AtomicDerInvocationDispatcher",
+                dispatcher instanceof AtomicDerInvocationDispatcher);
     }
 
     // =========================================================================
@@ -276,12 +276,12 @@ public class DerInvocationLayerTest {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         FakeOutboundRequest outReq = new FakeOutboundRequest(baos, new ByteArrayInputStream(new byte[0]));
 
-        DerInvocationHandler handler = new DerInvocationHandler(new FakeObjectEndpoint(), null);
+        AtomicDerInvocationHandler handler = new AtomicDerInvocationHandler(new FakeObjectEndpoint(), null);
 
         // Build a minimal dynamic proxy that has handler as its invocation handler,
         // so that Proxy.getInvocationHandler(proxy) == handler passes inside createMarshalInputStream.
         Object proxy = Proxy.newProxyInstance(
-                DerInvocationLayerTest.class.getClassLoader(),
+                AtomicDerInvocationLayerTest.class.getClassLoader(),
                 new Class[]{PointService.class, RemoteMethodControl.class, TrustEquivalence.class},
                 handler);
 
@@ -308,9 +308,9 @@ public class DerInvocationLayerTest {
         FakeInboundRequest inReq = new FakeInboundRequest(requestBais, responseBaos);
 
         Collection<Method> methods = pointServiceMethods();
-        DerInvocationDispatcher dispatcher = new DerInvocationDispatcher(
+        AtomicDerInvocationDispatcher dispatcher = new AtomicDerInvocationDispatcher(
                 methods, new FakeServerCapabilities(), null, null,
-                DerInvocationLayerTest.class.getClassLoader());
+                AtomicDerInvocationLayerTest.class.getClassLoader());
 
         FakeRemote fakeImpl = new FakeRemote();
         ObjectInput in = dispatcher.createMarshalInputStream(fakeImpl, inReq, false, ctx);
@@ -329,15 +329,15 @@ public class DerInvocationLayerTest {
     }
 
     // =========================================================================
-    // Test 3: DerILFactory equals / hashCode
+    // Test 3: AtomicDerILFactory equals / hashCode
     // =========================================================================
 
     @Test
     public void test3_factoryEquality() {
-        ClassLoader loader = DerInvocationLayerTest.class.getClassLoader();
-        DerILFactory f1 = new DerILFactory(null, null, loader);
-        DerILFactory f2 = new DerILFactory(null, null, loader);
-        Assert.assertEquals("two DerILFactory instances with same args must be equal", f1, f2);
+        ClassLoader loader = AtomicDerInvocationLayerTest.class.getClassLoader();
+        AtomicDerILFactory f1 = new AtomicDerILFactory(null, null, loader);
+        AtomicDerILFactory f2 = new AtomicDerILFactory(null, null, loader);
+        Assert.assertEquals("two AtomicDerILFactory instances with same args must be equal", f1, f2);
         Assert.assertEquals("equal factories must have equal hashCodes", f1.hashCode(), f2.hashCode());
     }
 

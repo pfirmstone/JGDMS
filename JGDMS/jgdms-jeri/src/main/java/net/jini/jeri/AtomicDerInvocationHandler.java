@@ -33,7 +33,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * the JERI call wire format (JGDMS-STD-008 sec.14, A0).
  *
  * <p>Drop-in replacement for {@link AtomicInvocationHandler}: swap the
- * {@link InvocationLayerFactory} to {@link DerILFactory} and every
+ * {@link InvocationLayerFactory} to {@link AtomicDerILFactory} and every
  * {@code @AtomicSerial} object in the call graph is encoded in DER --
  * no service code change required.
  *
@@ -45,7 +45,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * @since 4.0
  */
 @AtomicSerial
-public class DerInvocationHandler extends BasicInvocationHandler {
+public class AtomicDerInvocationHandler extends BasicInvocationHandler {
 
     private static final long serialVersionUID = 1L;
 
@@ -55,7 +55,7 @@ public class DerInvocationHandler extends BasicInvocationHandler {
         return new SerialForm[0];
     }
 
-    public static void serialize(PutArg arg, DerInvocationHandler h)
+    public static void serialize(PutArg arg, AtomicDerInvocationHandler h)
             throws IOException {
         arg.writeArgs();
     }
@@ -63,7 +63,7 @@ public class DerInvocationHandler extends BasicInvocationHandler {
     /**
      * Deserialization constructor (AtomicSerial contract).
      */
-    public DerInvocationHandler(AtomicSerial.GetArg arg)
+    public AtomicDerInvocationHandler(AtomicSerial.GetArg arg)
             throws IOException, ClassNotFoundException {
         super(arg);
     }
@@ -75,7 +75,7 @@ public class DerInvocationHandler extends BasicInvocationHandler {
      * @param oe the object endpoint for the remote object
      * @param serverConstraints the server constraints, or {@code null}
      */
-    public DerInvocationHandler(ObjectEndpoint oe,
+    public AtomicDerInvocationHandler(ObjectEndpoint oe,
                                 MethodConstraints serverConstraints) {
         super(oe, serverConstraints);
     }
@@ -86,7 +86,7 @@ public class DerInvocationHandler extends BasicInvocationHandler {
      * @param other the existing handler
      * @param clientConstraints the client constraints to apply
      */
-    public DerInvocationHandler(DerInvocationHandler other,
+    public AtomicDerInvocationHandler(AtomicDerInvocationHandler other,
                                 MethodConstraints clientConstraints) {
         super(other, clientConstraints);
     }
@@ -148,8 +148,8 @@ public class DerInvocationHandler extends BasicInvocationHandler {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof DerInvocationHandler)) return false;
-        DerInvocationHandler other = (DerInvocationHandler) o;
+        if (!(o instanceof AtomicDerInvocationHandler)) return false;
+        AtomicDerInvocationHandler other = (AtomicDerInvocationHandler) o;
         return org.apache.river.jeri.internal.runtime.Util.sameClassAndEquals(
                        getObjectEndpoint(), other.getObjectEndpoint())
                && org.apache.river.jeri.internal.runtime.Util.equals(

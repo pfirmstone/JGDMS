@@ -30,7 +30,7 @@ import net.jini.core.constraint.MethodConstraints;
  * An {@link InvocationDispatcher} that uses DER (JGDMS-STD-006) encoding for
  * the JERI call wire format on the server side (JGDMS-STD-008 sec.14, A0).
  *
- * <p>Pair with {@link DerInvocationHandler} via {@link DerILFactory}.
+ * <p>Pair with {@link AtomicDerInvocationHandler} via {@link AtomicDerILFactory}.
  *
  * <p>The streams implement {@link ObjectOutput}/{@link ObjectInput} directly;
  * return types are the base interfaces (not the {@code ObjectOutputStream}/
@@ -39,7 +39,7 @@ import net.jini.core.constraint.MethodConstraints;
  * @author peter
  * @since 4.0
  */
-public class DerInvocationDispatcher extends BasicInvocationDispatcher {
+public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
 
     /**
      * Creates a dispatcher for the given set of remote methods.
@@ -52,7 +52,7 @@ public class DerInvocationDispatcher extends BasicInvocationDispatcher {
      * @param loader the class loader, or {@code null}
      * @throws ExportException if the dispatcher cannot be created
      */
-    public DerInvocationDispatcher(Collection methods,
+    public AtomicDerInvocationDispatcher(Collection methods,
                                    ServerCapabilities caps,
                                    MethodConstraints serverConstraints,
                                    Class permissionClass,
