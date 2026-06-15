@@ -832,3 +832,73 @@ constraint and that a DER streaming codec round-trips method+arguments, with zer
 the shared JERI classes or qa. Hold **A1** (the `BasicInvocationHandler`/`Dispatcher`
 edits) for a coordinated session against your qa. Resolve sec.14.5#1 (graph model) before
 B1 — it determines the codec's size and security surface.
+
+## 15. B1 — DER Object Stream wire format and codec (DECIDED, building)
+
+Peter's decisions (2026-06-14): **(#1) `@AtomicSerial`-restricted graph model**, and the
+serialization layer is a **configuration concern** — a service that already uses
+`@AtomicSerial` switches to DER by swapping its `InvocationLayerFactory` (no code change).
+That maps A0+B1 onto the handler/dispatcher/ILFactory pattern WITHOUT editing the shared
+`Basic*` constraint loops (A1 stays deferred): selecting the `Der` ILFactory IS the choice
+of format.
+
+### 15.1 Integration model (mirror `AtomicMarshalOutputStream`)
+
+`DerMarshalOutputStream`/`DerMarshalInputStream` are `ObjectOutputStream`/`ObjectInputStream`
+subclasses in **override mode** (the `AtomicMarshalOutputStream` pattern: `super(context)` /
+the protected no-arg superctor enables override; delegate to an internal engine via
+`writeObjectOverride`/`readObjectOverride` + the typed primitive methods). They live in
+`jgdms-der` (package `au.net.zeus.jgdms.der.stream`).
+
+### 15.2 What rides which channel (ObjectOutput contract)
+
+- **Primitives** go through the TYPED methods (`writeInt`/`readInt`, `writeBoolean`, …) —
+  the JERI dispatcher reads arguments using the method's declared parameter types, so
+  primitives are not self-describing. Encoded directly with STD-006 DER primitives:
+  boolean→BOOLEAN, byte/short/int/long→INTEGER (range-checked, `WireTypes`),
+  `writeUTF`/String→UTF8String, `write(byte[])`→OCTET STRING.
+  `float`/`double`/`char` are **deferred in STD-006 (S7.6)** → throw
+  `UnsupportedOperationException` for now (gap; a service using them can't go DER-only yet).
+- **Objects** go through `writeObject`/`readObject` (self-describing). Each is one
+  DER-tagged item (a CHOICE keyed by context tag):
+  - `[0]` NULL — null reference.
+  - `[1]` an `@AtomicSerial` object: the sec.13 `MarshalledInstanceRecord` (embedded schema
+    + payload) — self-describing class + data-independent decode. Construction MUST validate
+    `@AtomicSerial` (reuse `SchemaGenerator`/`ObjectCodec`); a non-`@AtomicSerial`,
+    non-value object is **rejected** (`UnsupportedOperationException` / fail-secure — the
+    restricted model).
+  - `[2]` a back-reference: INTEGER handle into the per-stream handle table (shared/cyclic
+    graphs).
+  - `[3]` String (UTF8String), `[4]` a boxed primitive, `[5]` `byte[]` (OCTET STRING).
+  - (later) `[6]` array, `[7]` enum.
+
+### 15.3 References / identity
+
+A per-stream **handle table** (write side: identity map object→handle; read side:
+handle→object) gives each shared object one encoding and back-references repeats — required
+for cyclic/shared graphs and to match `ObjectOutputStream` identity semantics. Handles are
+assigned in write order; the reader registers each decoded object under the next handle
+BEFORE decoding its contents would be needed for cycles (forward-reference handling is an
+inc-2 concern; inc-1 supports shared acyclic refs).
+
+### 15.4 Method identifier
+
+`BasicInvocationHandler.marshalMethod`/dispatcher `unmarshalMethod` write/read the method
+identifier through the same `ObjectOutput`/`ObjectInput`. B1 must therefore support whatever
+those use (typically a `long` method hash via `writeLong`/`readLong`, or a `String`); inc-1
+supports both. Confirmed during B2 (loopback), not inc-1 (isolated).
+
+### 15.5 Components and increments
+
+Package `au.net.zeus.jgdms.der.stream`:
+- `DerMarshalOutputStream` / `DerMarshalInputStream` (override-mode framework integration).
+- `DerObjectStreamCodec` (engine: item tags, primitive read/write, handle table; reuses
+  `DerWriter`/`DerReader`, `WireTypes`, `MarshalledInstanceRecord`/`ObjectCodec`).
+
+**Increment 1 (this step, isolated):** primitives (boolean/byte/short/int/long/String/
+byte[]; float/double/char throw), `writeObject`/`readObject` for null + value objects +
+flat `@AtomicSerial` objects + shared (acyclic) references; round-trip tests against a
+`ByteArrayOutputStream` (no JERI, no network). **Increment 2:** nested `@AtomicSerial`
+object graphs + cycles. **Increment 3:** arrays/enums; revisit float/double/char.
+**Then A0/B2:** `Der{InvocationHandler,InvocationDispatcher}` + `DerILFactory` wiring +
+loopback `ObjectEndpoint` round-trip.
