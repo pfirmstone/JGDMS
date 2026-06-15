@@ -19,6 +19,7 @@ package au.net.zeus.jgdms.der.getarg;
 
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
+import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 
@@ -107,6 +108,20 @@ public final class DerFieldStore {
 
     /** Sentinel used internally to mark an absent field (not a decoded null). */
     private static final Object ABSENT = new Object();
+
+    /**
+     * Wrapper stored for a nested {@code @AtomicSerial} field (wireType
+     * {@code "@AtomicSerial"}). Holds the raw TLV bytes of the nested record
+     * (a SEQUENCE or NULL). The actual decoding is deferred to
+     * {@code DerGetArg.get(name, default)} (which lives in {@code der.object}
+     * and can call {@code ObjectCodec.decodeNested}) to keep {@code der.getarg}
+     * free of any dependency on {@code der.object}.
+     */
+    record NestedRaw(byte[] rawBytes) {
+        NestedRaw {
+            rawBytes = rawBytes.clone(); // defensive copy
+        }
+    }
 
     /**
      * The schema record this store was built with. This is always the schema
@@ -233,7 +248,17 @@ public final class DerFieldStore {
         // Phase 1: decode known fields (stop when either schema or payload exhausted)
         while (schemaIdx < fieldDefs.size() && seq.hasMore()) {
             AtomicSerialFieldDef def = fieldDefs.get(schemaIdx);
-            Object value = WireTypes.decode(seq, def.wireType());
+            final Object value;
+            if ("@AtomicSerial".equals(def.wireType())) {
+                // Nested @AtomicSerial field (STD-008 sec.16): read the raw TLV bytes
+                // (SEQUENCE{schemaBytes,payloadBytes} or NULL 05 00) without decoding.
+                // Actual decoding is deferred to DerGetArg.get() in der.object, which
+                // can call ObjectCodec.decodeNested -- keeping der.getarg free of
+                // any der.object dependency (no package cycle).
+                value = readNestedRawTlv(seq);
+            } else {
+                value = WireTypes.decode(seq, def.wireType());
+            }
             map.put(def.wireName(), value);
             schemaIdx++;
         }
@@ -451,6 +476,67 @@ public final class DerFieldStore {
      */
     public AtomicSerialSchemaRecord schema() {
         return schema;
+    }
+
+    // =========================================================================
+    // Nested @AtomicSerial field access (STD-008 sec.16)
+    // =========================================================================
+
+    /**
+     * Returns {@code true} if the named field holds a nested {@code @AtomicSerial}
+     * raw record (wireType {@code "@AtomicSerial"}), regardless of whether the value
+     * is null (DER NULL) or a real object.
+     *
+     * <p>A field that is absent (case (b)) returns {@code false} here; the caller
+     * checks {@link #defaulted(String)} and returns the default value.
+     *
+     * @param name the field name
+     * @return {@code true} if the stored value is a {@link NestedRaw} wrapper
+     */
+    public boolean isNested(String name) {
+        Object v = fields.get(name);
+        return v instanceof NestedRaw;
+    }
+
+    /**
+     * Returns the raw TLV bytes for a nested {@code @AtomicSerial} field (a
+     * SEQUENCE or DER NULL). The caller (in {@code der.object}) is responsible
+     * for decoding them via {@code ObjectCodec.decodeNested}.
+     *
+     * @param name the field name
+     * @return a defensive copy of the raw TLV bytes
+     * @throws IllegalStateException if the field is not a nested raw field
+     *                               (check {@link #isNested(String)} first)
+     */
+    public byte[] rawNested(String name) {
+        Object v = fields.get(name);
+        if (!(v instanceof NestedRaw nr)) {
+            throw new IllegalStateException(
+                    "DerFieldStore: field '" + name + "' is not a nested raw field");
+        }
+        return nr.rawBytes(); // NestedRaw.rawBytes() already returns a defensive copy
+    }
+
+    /**
+     * Reads the complete TLV bytes (tag + length + content) of the next item in
+     * {@code seq} as a raw byte array, without interpreting the TLV. Used to
+     * capture nested {@code @AtomicSerial} records (SEQUENCE or NULL) without
+     * decoding them here.
+     */
+    private static NestedRaw readNestedRawTlv(DerReader seq) throws DerException {
+        // Peek the tag to determine whether this is NULL (2 bytes) or a SEQUENCE
+        DerReader.TlvHeader hdr = seq.readTlvHeader();
+        byte[] content = seq.readRawContent(hdr.contentLength());
+
+        // Reconstruct the full TLV bytes for later decoding
+        byte[] tagBytes    = hdr.tag().encode();
+        byte[] lengthBytes = DerWriter.encodeLength(hdr.contentLength());
+        byte[] raw = new byte[tagBytes.length + lengthBytes.length + content.length];
+        int pos = 0;
+        System.arraycopy(tagBytes,    0, raw, pos, tagBytes.length);    pos += tagBytes.length;
+        System.arraycopy(lengthBytes, 0, raw, pos, lengthBytes.length); pos += lengthBytes.length;
+        System.arraycopy(content,     0, raw, pos, content.length);
+        return new NestedRaw(raw);
     }
 
     // =========================================================================

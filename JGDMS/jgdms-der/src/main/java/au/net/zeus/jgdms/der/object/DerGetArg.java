@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.object;
 
+import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
 import org.apache.river.api.io.AtomicSerial;
 
@@ -101,13 +102,36 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     private final Map<Class<?>, DerFieldStore> storeMap;
 
     /**
-     * Constructs a {@code DerGetArg} from a single-entry map (Phase 4.1 path).
+     * Nesting depth (0 at top level) of the object being constructed. Threaded into
+     * {@link ObjectCodec#decodeNested} so the {@code MAX_NESTING} DoS guard is
+     * CUMULATIVE across the construction-driven recursion: a nested {@code @AtomicSerial}
+     * field is decoded when this object's {@code (GetArg)} constructor calls
+     * {@code arg.get(...)}, so without threading the depth the guard would reset to 0 at
+     * every level and never trip (a hostile deeply-nested payload would overflow the stack).
+     */
+    private final int depth;
+
+    /**
+     * Constructs a {@code DerGetArg} at nesting depth 0 (top-level decode).
      *
      * @param storeMap ordered map of class -> DerFieldStore (must not be {@code null};
      *                 must not be empty; for Phase 4.1 has exactly one entry)
      * @throws NullPointerException if {@code storeMap} is {@code null} or empty
      */
     public DerGetArg(Map<Class<?>, DerFieldStore> storeMap) {
+        this(storeMap, 0);
+    }
+
+    /**
+     * Constructs a {@code DerGetArg} at the given nesting depth (used by
+     * {@link ObjectCodec} when decoding a nested {@code @AtomicSerial} object so the
+     * {@code MAX_NESTING} guard accumulates across nesting levels).
+     *
+     * @param storeMap ordered map of class -> DerFieldStore (must not be {@code null}/empty)
+     * @param depth    the nesting depth of the object being constructed
+     * @throws NullPointerException if {@code storeMap} is {@code null} or empty
+     */
+    public DerGetArg(Map<Class<?>, DerFieldStore> storeMap, int depth) {
         super(); // protected GetArg() performs a SerializablePermission
                  // "enableSubclassImplementation" check (AtomicSerial.Check.check()).
                  // GetArgImpl avoids it via the package-private GetArg(boolean)
@@ -122,6 +146,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         }
         // Defensive copy preserving insertion order
         this.storeMap = Collections.unmodifiableMap(new LinkedHashMap<>(storeMap));
+        this.depth = depth;
     }
 
     // =========================================================================
@@ -260,7 +285,28 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     @Override
     public Object get(String name, Object val) throws IOException {
         Objects.requireNonNull(name, "name");
-        return callerStore().get(name, val);
+        DerFieldStore store = callerStore();
+        // Nested @AtomicSerial field: decode lazily on access (STD-008 sec.16).
+        // The store holds the raw TLV bytes; ObjectCodec.decodeNested does the
+        // actual decode here in der.object so that der.getarg stays cycle-free.
+        if (store.isNested(name)) {
+            try {
+                return ObjectCodec.decodeNested(store.rawNested(name), depth);
+            } catch (DerException e) {
+                InvalidObjectException ioe = new InvalidObjectException(
+                        "DerGetArg: failed to decode nested @AtomicSerial field '"
+                        + name + "': " + e.getMessage());
+                ioe.initCause(e);
+                throw ioe;
+            } catch (ClassNotFoundException e) {
+                InvalidObjectException ioe = new InvalidObjectException(
+                        "DerGetArg: class not found decoding nested field '"
+                        + name + "': " + e.getMessage());
+                ioe.initCause(e);
+                throw ioe;
+            }
+        }
+        return store.get(name, val);
     }
 
     /**
@@ -282,7 +328,41 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     public <T> T get(String name, T val, Class<T> type) throws IOException {
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(type, "type");
-        Object stored = callerStore().get(name, null);
+        DerFieldStore store = callerStore();
+        // Nested @AtomicSerial field: decode lazily (same as get(String, Object))
+        if (store.isNested(name)) {
+            Object decoded;
+            try {
+                decoded = ObjectCodec.decodeNested(store.rawNested(name), depth);
+            } catch (DerException e) {
+                InvalidObjectException ioe = new InvalidObjectException(
+                        "DerGetArg: failed to decode nested @AtomicSerial field '"
+                        + name + "': " + e.getMessage());
+                ioe.initCause(e);
+                throw ioe;
+            } catch (ClassNotFoundException e) {
+                InvalidObjectException ioe = new InvalidObjectException(
+                        "DerGetArg: class not found decoding nested field '"
+                        + name + "': " + e.getMessage());
+                ioe.initCause(e);
+                throw ioe;
+            }
+            if (decoded == null) {
+                return val; // null -> return default (consistent with other get overloads)
+            }
+            if (type.isInstance(decoded)) {
+                @SuppressWarnings("unchecked")
+                T result = (T) decoded;
+                return result;
+            }
+            InvalidObjectException e = new InvalidObjectException(
+                    "DerGetArg: nested field '" + name + "' type mismatch");
+            e.initCause(new ClassCastException(
+                    "Expected instance of " + type.getName()
+                    + " but got " + decoded.getClass().getName()));
+            throw e;
+        }
+        Object stored = store.get(name, null);
         if (stored == null) {
             // Field is absent -- return default
             return val;
@@ -383,7 +463,14 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                 else if (t == long.class)  store.get(fieldName, 0L);
                 // char/float/double are deferred -- skip silently (S7.6)
             } else {
-                Object v = store.get(fieldName, null);
+                // For nested @AtomicSerial fields, decode via get(name, null) so the
+                // NestedRaw wrapper is resolved through ObjectCodec.decodeNested.
+                Object v;
+                if (store.isNested(fieldName)) {
+                    v = get(fieldName, (Object) null); // routes through nested decode
+                } else {
+                    v = store.get(fieldName, null);
+                }
                 if (nonNull[i] && v == null) {
                     throw new InvalidObjectException(
                             "validateInvariants: field '" + fieldName + "' must not be null");

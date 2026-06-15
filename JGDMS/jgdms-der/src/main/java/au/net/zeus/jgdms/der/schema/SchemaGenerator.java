@@ -238,6 +238,10 @@ public final class SchemaGenerator {
         if (javaType == String.class)                               return "java.lang.String";
         if (javaType == byte[].class)                               return "byte[]";
 
+        // Nested @AtomicSerial object field (STD-008 sec.16): the runtime class
+        // travels in the embedded schema so the marker need not name the class.
+        if (javaType.isAnnotationPresent(AtomicSerial.class))       return "@AtomicSerial";
+
         // Explicitly deferred types -- give a specific message
         if (javaType == char.class    || javaType == Character.class
                 || javaType == float.class  || javaType == Float.class
@@ -253,6 +257,6 @@ public final class SchemaGenerator {
                 "SchemaGenerator: unsupported serial field type " + javaType.getName()
                 + " in class " + declaring.getName()
                 + ". Supported types: boolean, byte, short, int, long, "
-                + "java.lang.String, byte[]");
+                + "java.lang.String, byte[], @AtomicSerial");
     }
 }
