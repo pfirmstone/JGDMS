@@ -33,7 +33,6 @@ import java.io.OutputStream;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -49,32 +48,22 @@ import java.util.Objects;
  * <pre>
  *   [0] PRIMITIVE   -- NULL reference (length 0)
  *   [1] CONSTRUCTED -- @AtomicSerial object; content = MarshalledInstanceRecord DER SEQUENCE
- *   [2] PRIMITIVE   -- back-reference; content = INTEGER (handle into handle table)
  *   [3] PRIMITIVE   -- java.lang.String; content = UTF8String value bytes
  *   [5] PRIMITIVE   -- byte[]; content = OCTET STRING value bytes
  * </pre>
- * Context class = 0x80 (bits 7-6 set). Constructed bit = 0x20 set for [1].
- * Single-byte tags (all tag numbers <= 30):
- * <pre>
- *   [0] primitive  -> 0x80
- *   [1] constructed -> 0xa1
- *   [2] primitive  -> 0x82
- *   [3] primitive  -> 0x83
- *   [5] primitive  -> 0x85
- * </pre>
+ * Context class = 0x80. Constructed bit = 0x20 set for [1]. Single-byte tags:
+ * [0]->0x80, [1]->0xa1, [3]->0x83, [5]->0x85.
  *
- * <h2>Handle table (acyclic shared references, inc-1)</h2>
+ * <h2>No handle table -- pure value-tree, deterministic (STD-008 sec.15.3)</h2>
  * <p>
- * Write side: {@link IdentityHashMap} mapping object -> integer handle (assigned in
- * write order, starting at 0). Only {@code @AtomicSerial} object instances are
- * tracked (String and byte[] use value semantics -- no dedup). When writing an
- * {@code @AtomicSerial} object seen before, a [2] back-reference TLV is written
- * instead of a new [1] record.
- * <p>
- * Read side: {@link ArrayList} indexed by handle. When a [1] item is decoded,
- * the reconstructed object is appended (assigned the next handle) BEFORE returning.
- * When a [2] item is decoded, the object at the given index is returned directly.
- * Forward references are not supported (inc-2/3).
+ * There is NO handle table and NO back-reference: every object occurrence is encoded in
+ * full, by VALUE. This keeps the stream a deterministic (canonical-DER) function of the
+ * argument values rather than of object identity or write order, and it carries no
+ * aliasing. It loses nothing real -- {@code @AtomicSerial} deserialization defensively
+ * copies and re-checks invariants per object, so shared identity is never preserved across
+ * the boundary anyway (a deliberate security property). Reference cycles are consequently
+ * impossible to express. A back-reference-style context tag (e.g. [2]) is not part of the
+ * grammar and is rejected fail-secure.
  */
 final class DerObjectStreamCodec {
 
@@ -86,8 +75,6 @@ final class DerObjectStreamCodec {
     private static final Tag CTX_NULL        = new Tag(Tag.CLASS_CONTEXT, false, 0);
     /** [1] constructed context tag: @AtomicSerial object (MarshalledInstanceRecord). */
     private static final Tag CTX_ATOMIC      = new Tag(Tag.CLASS_CONTEXT, true,  1);
-    /** [2] primitive context tag: back-reference INTEGER. */
-    private static final Tag CTX_BACKREF     = new Tag(Tag.CLASS_CONTEXT, false, 2);
     /** [3] primitive context tag: java.lang.String (UTF8String content). */
     private static final Tag CTX_STRING      = new Tag(Tag.CLASS_CONTEXT, false, 3);
     /** [5] primitive context tag: byte[] (OCTET STRING content). */
@@ -100,18 +87,12 @@ final class DerObjectStreamCodec {
     /** Output accumulator for the write side. */
     private final List<byte[]> writeBuffer = new ArrayList<>();
 
-    /** Handle table: object identity -> handle integer (write side). */
-    private final IdentityHashMap<Object, Integer> writeHandles = new IdentityHashMap<>();
-
     // =========================================================================
     // Read side state
     // =========================================================================
 
     /** DER reader over the input bytes (read side). */
     private DerReader reader;
-
-    /** Handle table: handle index -> object (read side). */
-    private final List<Object> readHandles = new ArrayList<>();
 
     // =========================================================================
     // Construction
@@ -175,8 +156,7 @@ final class DerObjectStreamCodec {
      *
      * <ul>
      *   <li>null -> [0] NULL</li>
-     *   <li>known @AtomicSerial handle -> [2] back-reference</li>
-     *   <li>new @AtomicSerial instance -> [1] MarshalledInstanceRecord</li>
+     *   <li>@AtomicSerial instance -> [1] MarshalledInstanceRecord (full, every occurrence)</li>
      *   <li>String -> [3]</li>
      *   <li>byte[] -> [5]</li>
      *   <li>anything else -> UnsupportedOperationException (fail-secure)</li>
@@ -201,7 +181,10 @@ final class DerObjectStreamCodec {
             return;
         }
 
-        // @AtomicSerial: check handle table first
+        // @AtomicSerial object -> a full record, EVERY occurrence (no handle table; sec.15.3).
+        // Encoded by VALUE so the stream is a deterministic (canonical-DER) function of values,
+        // not object identity/order; @AtomicSerial deserialization copies + re-checks invariants
+        // per object, so shared identity is not preserved across the boundary anyway.
         Class<?> cls = obj.getClass();
         if (!cls.isAnnotationPresent(AtomicSerial.class)) {
             throw new UnsupportedOperationException(
@@ -209,18 +192,6 @@ final class DerObjectStreamCodec {
                     + cls.getName()
                     + "; @AtomicSerial-restricted");
         }
-
-        // Back-reference if already in table
-        Integer existingHandle = writeHandles.get(obj);
-        if (existingHandle != null) {
-            byte[] handleTlv = DerWriter.writeInteger(BigInteger.valueOf(existingHandle));
-            writeBuffer.add(DerWriter.writeTlv(CTX_BACKREF, handleTlv));
-            return;
-        }
-
-        // New @AtomicSerial object: assign handle, then encode
-        int handle = writeHandles.size();
-        writeHandles.put(obj, handle);
 
         try {
             SchemaChain.Result chain = SchemaGenerator.generateChain(cls);
@@ -349,29 +320,6 @@ final class DerObjectStreamCodec {
             return null;
         }
 
-        if (CTX_BACKREF.equals(tag)) {
-            // [2] back-reference: content is a DER INTEGER
-            byte[] content;
-            try {
-                content = reader.readRawContent(hdr.contentLength());
-            } catch (DerException e) {
-                throw new IOException("readObject: failed to read back-reference content", e);
-            }
-            DerReader intReader = new DerReader(content);
-            BigInteger handle;
-            try {
-                handle = intReader.readInteger();
-            } catch (DerException e) {
-                throw new IOException("readObject: malformed back-reference INTEGER", e);
-            }
-            int h = handle.intValueExact();
-            if (h < 0 || h >= readHandles.size()) {
-                throw new IOException("readObject: back-reference handle " + h
-                        + " out of bounds (table size=" + readHandles.size() + ")");
-            }
-            return readHandles.get(h);
-        }
-
         if (CTX_STRING.equals(tag)) {
             // [3] String: content is UTF-8 bytes
             byte[] content;
@@ -433,13 +381,11 @@ final class DerObjectStreamCodec {
                 throw new IOException("readObject: decode failed for " + leafClassName, e);
             }
 
-            // Register in handle table AFTER construction (acyclic inc-1)
-            readHandles.add(obj);
             return obj;
         }
 
         throw new IOException("readObject: unexpected context tag " + tag
-                + " (expected [0],[1],[2],[3],[5])");
+                + " (expected [0],[1],[3],[5]); back-references are not supported (sec.15.3)");
     }
 
     // =========================================================================
@@ -455,17 +401,5 @@ final class DerObjectStreamCodec {
             out.write(chunk);
         }
         writeBuffer.clear();
-    }
-
-    /**
-     * Returns the total number of bytes currently accumulated in the write buffer,
-     * without draining.
-     */
-    int writtenByteCount() {
-        int total = 0;
-        for (byte[] chunk : writeBuffer) {
-            total += chunk.length;
-        }
-        return total;
     }
 }

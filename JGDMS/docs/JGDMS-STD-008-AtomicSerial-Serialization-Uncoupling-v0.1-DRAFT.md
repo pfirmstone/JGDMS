@@ -880,28 +880,32 @@ header) and is cleaner-aligned with the 4.0.0 "no Java Serialization" thesis.
     `@AtomicSerial` (reuse `SchemaGenerator`/`ObjectCodec`); a non-`@AtomicSerial`,
     non-value object is **rejected** (`UnsupportedOperationException` / fail-secure — the
     restricted model).
-  - `[2]` a back-reference: INTEGER handle into the per-stream handle table (shared
-    ACYCLIC references only — see sec.15.3).
+  - `[2]` (reserved, NOT used) — there are no back-references in the grammar; a `[2]` tag is
+    **rejected** fail-secure (sec.15.3).
   - `[3]` String (UTF8String), `[4]` a boxed primitive, `[5]` `byte[]` (OCTET STRING).
   - (later) `[6]` array, `[7]` enum.
 
-### 15.3 References / identity — NO CYCLES (security)
+### 15.3 No handle table — pure value-tree, deterministic, no cycles (security)
 
-**Cycles are out of scope by security design (Peter, 2026-06-14): they are a security risk
-and are not necessary.** Supporting a reference cycle would require registering an object in
-the handle table BEFORE its contents are decoded, i.e. exposing a partially-constructed,
-not-yet-validated object to references elsewhere in the graph — exactly the
-construction-before-validation attack surface that `@AtomicSerial` exists to eliminate.
+**Decided (Peter, 2026-06-14): no handle table, no back-references, no cycles.** Two reasons,
+both decisive:
 
-The codec is therefore **strictly post-order on the read side**: a decoded object is
-registered in the handle table only AFTER it is fully constructed. A back-reference `[2]`
-can thus only resolve to an already-completed object; a forward or out-of-range handle is
-**rejected** (`IOException`, fail-secure). This makes a cyclic (or forward-referencing)
-stream unrepresentable/undecodable by construction — the desired property.
+1. **Determinism / canonicalisation.** DER's value is a canonical encoding — one byte
+   sequence per *value*. A handle table makes the encoding depend on object *identity*
+   (whether two references are `==`) and on traversal order, so the same value could encode
+   differently and equal graphs could diverge. That breaks value-equality of the wire form,
+   which `MarshalledInstance.equals` / `schemaDigest` / any signing rely on. Without it, the
+   stream is a deterministic function of the argument **values**.
+2. **It buys nothing (and removing it shrinks attack surface).** `@AtomicSerial`
+   deserialisation defensively **copies** mutable inputs and re-checks invariants per object,
+   so shared mutable identity is never preserved across the boundary anyway (a deliberate
+   security property). Preserving identity on the wire would be a false promise.
 
-The handle table is retained only to dedup repeated **acyclic** references to the same
-already-written object (compactness + identity for DAG-shaped argument graphs); it is never
-required and could be dropped for a pure-tree model if even acyclic sharing is unwanted.
+Therefore every object occurrence is encoded **in full, by value** (a pure tree). Reference
+cycles are not representable (no back-reference exists to close a loop), and a
+back-reference-style tag (`[2]`) is rejected fail-secure. This also removes the
+partially-constructed-object exposure a cycle would otherwise require — the same hazard
+`@AtomicSerial` exists to eliminate.
 
 ### 15.4 Method identifier
 
@@ -920,9 +924,9 @@ Package `au.net.zeus.jgdms.der.stream`:
 
 **Increment 1 (DONE, isolated):** primitives (boolean/byte/short/int/long/String/
 byte[]; float/double/char throw), `writeObject`/`readObject` for null + value objects +
-flat `@AtomicSerial` objects + shared (acyclic) references + **cycle/forward-reference
-rejection** (sec.15.3); round-trip tests against a `ByteArrayOutputStream` (no JERI, no
-network). **Increment 2:** nested `@AtomicSerial` object **trees** (NO cycles — sec.15.3);
+flat `@AtomicSerial` objects; **NO handle table — pure value-tree, deterministic** (every
+occurrence encoded in full; back-reference tag rejected; sec.15.3); round-trip tests against
+a `ByteArrayOutputStream` (no JERI, no network). **Increment 2:** nested `@AtomicSerial` object **trees** (NO cycles — sec.15.3);
 requires extending the STD-006 per-object codec (`ObjectCodec`/`SchemaGenerator`/wire-type
 mapping) to encode object-typed fields, which today handle value types only. **Increment 3:**
 arrays/enums; revisit float/double/char. **Then A0/B2:**

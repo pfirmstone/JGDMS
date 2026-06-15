@@ -232,47 +232,38 @@ class DerObjectStreamTest {
     // =========================================================================
 
     /**
-     * Write the same {@code @AtomicSerial} instance twice. The second item MUST
-     * be a back-reference [2] TLV, not a full [1] record.
+     * No handle table: every occurrence is encoded in full, by VALUE (STD-008 sec.15.3).
      *
-     * <p>Discriminating assertion: the stream produced by writing the object twice
-     * is strictly SHORTER than the stream produced by writing two independent
-     * records of the same content. The back-reference encodes as a tiny context TLV
-     * (tag + length + INTEGER); a full record includes a complete
-     * {@code MarshalledInstanceRecord} SEQUENCE (schema chain + payload). For any
-     * non-trivial {@code @AtomicSerial} object the difference is large.
+     * <p>Discriminating assertions: (1) DETERMINISM -- writing the SAME instance twice
+     * produces byte-for-byte the SAME stream as writing two DISTINCT instances of equal
+     * value, i.e. the encoding depends on value, not object identity, and the second
+     * occurrence is a full record (no back-reference shortcut). (2) NO ALIASING -- the two
+     * decoded occurrences are {@code equals} but NOT the same instance, matching
+     * {@code @AtomicSerial}'s defensive-copy contract.
      */
     @Test
-    void sharedReference_secondWriteIsBackReference() throws Exception {
-        VersionedRecord v = new VersionedRecord(1, "shared", "ref");
+    void repeatedObject_encodedByValue_deterministic_noAliasing() throws Exception {
+        VersionedRecord v      = new VersionedRecord(1, "shared", "ref");
+        VersionedRecord vEqual = new VersionedRecord(1, "shared", "ref"); // equal value, distinct identity
 
-        // Stream 1: same instance twice (second should be a back-reference)
-        byte[] sharedStream = encode(out -> {
-            out.writeObject(v);
-            out.writeObject(v);
-        });
+        byte[] sameInstanceTwice = encode(out -> { out.writeObject(v); out.writeObject(v); });
+        byte[] equalInstances    = encode(out -> { out.writeObject(v); out.writeObject(vEqual); });
 
-        // Stream 2: two DIFFERENT instances with identical content (both full records)
-        VersionedRecord v2 = new VersionedRecord(1, "shared", "ref");
-        byte[] twoFullRecords = encode(out -> {
-            out.writeObject(v);
-            out.writeObject(v2);
-        });
+        // (1) Deterministic & no back-reference: identity must not change the bytes.
+        assertArrayEquals(equalInstances, sameInstanceTwice,
+                "encoding must be a deterministic function of values, independent of object identity "
+                + "(no handle table / back-reference)");
 
-        // The shared-reference stream MUST be shorter (back-ref is tiny vs full record)
-        assertTrue(sharedStream.length < twoFullRecords.length,
-                "shared stream (" + sharedStream.length + " bytes) should be shorter than "
-                + "two-full-record stream (" + twoFullRecords.length + " bytes)");
-
-        // Both objects round-trip correctly
-        VersionedRecord[] results = new VersionedRecord[2];
-        decode(sharedStream, in -> {
-            results[0] = (VersionedRecord) in.readObject();
-            results[1] = (VersionedRecord) in.readObject();
+        // (2) No aliasing: each occurrence deserializes to its own validated copy.
+        VersionedRecord[] r = new VersionedRecord[2];
+        decode(sameInstanceTwice, in -> {
+            r[0] = (VersionedRecord) in.readObject();
+            r[1] = (VersionedRecord) in.readObject();
             return null;
         });
-        assertEquals(v, results[0]);
-        assertEquals(v, results[1]);
+        assertEquals(v, r[0]);
+        assertEquals(v, r[1]);
+        assertNotSame(r[0], r[1], "no shared mutable identity across the boundary (@AtomicSerial copies)");
     }
 
     // =========================================================================
@@ -369,47 +360,23 @@ class DerObjectStreamTest {
     }
 
     // =========================================================================
-    // 9. Cycle / forward-reference rejection (security -- NO cycles by design, sec.15.3)
+    // 9. Back-references / cycles are NOT in the grammar (security -- sec.15.3)
     // =========================================================================
 
     /**
-     * A back-reference to a not-yet-registered handle -- a FORWARD reference, the shape a
-     * cycle necessarily requires -- MUST be rejected. The read side registers an object in
-     * the handle table only AFTER it is fully constructed, so a cyclic/forward-referencing
-     * stream is undecodable by construction (STD-008 sec.15.3). This proves the security
-     * property (no partially-constructed object is ever exposed via a handle), not merely
-     * the happy path.
+     * The format has NO handle table and NO back-references (sec.15.3), so a shared
+     * reference or cycle simply cannot be expressed. A back-reference-style context tag
+     * ([2]) is not part of the grammar and MUST be rejected fail-secure -- proving the
+     * security property (no partially-constructed object can ever be aliased via a handle),
+     * not merely the happy path.
      */
     @Test
-    void forwardReference_isRejected() {
-        byte[] malicious = derBackRef(0); // handle 0, but nothing has been registered yet
-        IOException ex = assertThrows(IOException.class, () ->
-                decode(malicious, DerMarshalInputStream::readObject));
-        assertTrue(ex.getMessage().contains("back-reference"),
-                "forward/cyclic back-reference must be rejected fail-secure: " + ex.getMessage());
-    }
-
-    /** An in-range object followed by an out-of-range back-reference is rejected. */
-    @Test
-    void outOfRangeBackReference_isRejected() throws Exception {
-        byte[] valid = encode(out -> out.writeObject(new VersionedRecord(1, "a", "b")));
-        byte[] malicious = concat(valid, derBackRef(5)); // only handle 0 exists
-        assertThrows(IOException.class, () ->
-                decode(malicious, in -> { in.readObject(); return in.readObject(); }));
-    }
-
-    /** Builds a raw [2] context-tagged back-reference TLV with the given handle. */
-    private static byte[] derBackRef(int handle) {
-        return DerWriter.writeTlv(
+    void backReferenceTag_isRejected() {
+        byte[] malicious = DerWriter.writeTlv(
                 new Tag(Tag.CLASS_CONTEXT, false, 2),
-                DerWriter.writeInteger(BigInteger.valueOf(handle)));
-    }
-
-    private static byte[] concat(byte[] a, byte[] b) {
-        byte[] r = new byte[a.length + b.length];
-        System.arraycopy(a, 0, r, 0, a.length);
-        System.arraycopy(b, 0, r, a.length, b.length);
-        return r;
+                DerWriter.writeInteger(BigInteger.ZERO));
+        assertThrows(IOException.class, () ->
+                decode(malicious, DerMarshalInputStream::readObject));
     }
 
     // =========================================================================
