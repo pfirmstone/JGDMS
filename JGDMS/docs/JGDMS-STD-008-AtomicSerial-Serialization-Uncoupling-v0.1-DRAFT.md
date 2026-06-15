@@ -698,3 +698,137 @@ Verified: `mvn -o -pl jgdms-platform,jgdms-der test` → platform 244 + der 279 
 Dependent modules (reggie/outrigger/mercury/etc., 43 callers) use the public API only and
 still compile; full runtime verification of those is via the qa suite (not run here — this
 branch is isolated and does not touch dist artifacts).
+
+## 14. Surface 2: JERI in-band `MarshallingFormat` enforcement — SCOPE (not yet built)
+
+Surface 1 (sec.13) made a `MarshalledInstance` honour `MarshallingFormat`. Surface 2 is
+enforcing the format for the **in-band remote call itself** — the method + arguments
+(client→server) and the return value (server→client) that travel over JERI. This section
+scopes that work; it is grounded in the current call path and is **not yet implemented**.
+
+### 14.1 Where the call is marshalled (current code)
+
+- **Client** `net.jini.jeri.BasicInvocationHandler` (jgdms-jeri):
+  - constraint check loop — `BasicInvocationHandler.java:894-926`: walks the request's
+    *unfulfilled* requirements; recognises only `Integrity.YES` and
+    `AtomicInputValidation.YES`; **any other requirement throws
+    `UnsupportedConstraintException`** (line 902-904). So a `MarshallingFormat.DER`
+    requirement is REJECTED today.
+  - wire framing — `:962-974`: writes a **marshalling-protocol-version byte**
+    (`0x00` legacy / `0x01` atomic / `0x02` ACC+Subjects) + integrity + atomicValidation
+    bytes to the RAW request stream, BEFORE the marshal stream wraps it.
+  - stream creation — `createMarshalOutputStream` `:1213-1238` returns a
+    `MarshalOutputStream` (JOSS); then `marshalMethod` + `marshalArguments` (`:986-989`)
+    write the method identifier and each argument via `ObjectOutput.writeObject`.
+- **Server** `net.jini.jeri.BasicInvocationDispatcher`:
+  - reads the version byte, determines `atomicValidation`, checks constraints
+    (`:545-554`, `:874-899`; unsupported → `unsupportedConstraint(...)`);
+    `createMarshalInputStream` `:1055-1080` returns a `MarshalInputStream`.
+- **Capability declaration** `net.jini.jeri.ServerCapabilities.checkConstraints` — the
+  transport layer states which requirement *aspects* it implements and returns the rest
+  for higher layers. Its javadoc names `Integrity` and `AtomicInputValidation` as the
+  only constraints partly handled above the transport. `MarshallingFormat` would join
+  them as a **higher-layer (invocation-layer) constraint** the transport passes through.
+
+### 14.2 The established template (how atomic serialization is selected)
+
+Format selection is done by a **handler/dispatcher subclass pair**, configured by an
+`InvocationLayerFactory` (ILFactory):
+- `AtomicInvocationHandler extends BasicInvocationHandler` overrides
+  `createMarshalOutputStream` → `AtomicMarshalOutputStream` and
+  `createMarshalInputStream` → `AtomicMarshalInputStream` (`AtomicInvocationHandler.java:159-313`).
+- `AtomicInvocationDispatcher extends BasicInvocationDispatcher` is the server peer.
+- `AtomicMarshalOutputStream extends MarshalOutputStream` (which extends
+  `ObjectOutputStream`) and `AtomicMarshalInputStream extends MarshalInputStream` — i.e.
+  **full object-graph streaming codecs** (arbitrary types, arrays, references, cycles,
+  null) with atomic validation layered on.
+
+A DER call path would mirror this: a `Der{InvocationHandler,InvocationDispatcher}` pair
++ a `Der*ILFactory`, swapping in DER streams.
+
+### 14.3 The central gap: DER has no streaming codec
+
+This is the bulk of the work and the reason Surface 2 is large. The DER codec built in
+STD-006 / sec.13 encodes a **single `@AtomicSerial` object** (object → schema chain →
+DER record). The in-band path needs an `ObjectOutput`/`ObjectInput` that streams a
+**method identifier followed by an arbitrary sequence of argument objects**, with the
+full semantics `ObjectOutputStream`/`AtomicMarshalOutputStream` provide:
+back-references/cycles, nulls, arrays, enums, the value types that appear in proxy
+method signatures, and nested graphs. **No DER equivalent of
+`MarshalOutputStream`/`MarshalInputStream` exists.** Building
+`DerMarshalOutputStream`/`DerMarshalInputStream` is a substantial new component —
+effectively a STD-006 "streaming profile" (a new phase/spec), not constraint glue.
+
+### 14.4 Decomposition
+
+- **Part A — constraint plumbing (small, mechanical).** Recognise `MarshallingFormat` in
+  the handler/dispatcher constraint loops (treat like `AtomicInputValidation`, do not
+  reject); pass it through `ServerCapabilities`/endpoint as a higher-layer constraint;
+  decide the wire indicator (sec.14.5); add the `Der*` handler/dispatcher/ILFactory pair.
+  **Alone, Part A can only fail-secure** (reject a required format the configured
+  transport can't provide) and accept `JOSS` — it cannot *do* DER without Part B.
+- **Part B — the DER streaming codec (large, the real work).**
+  `DerMarshalOutputStream`/`DerMarshalInstanceInput`-style streams implementing the
+  `ObjectOutput`/`ObjectInput` contract over DER, plus method-identifier marshalling.
+  This is where the effort, the wire-format design, and the security review concentrate.
+
+### 14.5 Decisions for Peter (these shape Part B and the wire)
+
+1. **Graph model (the big one).** Full arbitrary-graph DER (a DER clone of
+   `ObjectOutputStream`, reintroducing much of its complexity/attack surface), **or**
+   restrict in-band DER to `@AtomicSerial`-validated types + a defined value-type set
+   (primitives/arrays/String/enum/known core types) — rejecting non-`@AtomicSerial`
+   arguments. The latter is bounded and aligned with the 4.0.0 thesis (everything on the
+   wire is `@AtomicSerial`-validated; no Java Serialization). **Recommendation:
+   `@AtomicSerial`-restricted.** Consequence: only services whose method signatures use
+   `@AtomicSerial`/value types can be exported DER-only.
+2. **New pair vs extend Atomic.** `DerInvocationHandler extends BasicInvocationHandler`
+   (clean) vs `extends AtomicInvocationHandler` (reuse compression/ACC/Subject framing).
+   Recommendation: extend Basic, reuse the sec.13 codec; revisit reuse later.
+3. **Wire indicator.** Rely on the paired configuration (a `DerInvocationDispatcher`
+   knows its format) vs allocate a new marshalling-protocol-version byte (e.g. `0x03`)
+   for negotiation/mixed deployments. Recommendation: paired config first; reserve a
+   version byte if negotiation is later required.
+4. **References/cycles.** Whether the DER streaming profile supports back-references
+   (needed for cyclic graphs / shared subobjects). Recommendation: support shared/cyclic
+   references via an explicit handle table in the streaming profile (correctness).
+5. **Return-value path.** Same codec for the reply stream (server→client); confirm symmetry.
+
+### 14.6 Risks
+
+- **Touches the jini network-protocol path your qa exercises** — Part A edits
+  `BasicInvocationHandler`/`Dispatcher`/`ServerCapabilities`. Needs a coordinated qa run;
+  not isolatable the way sec.13 was.
+- **Wire-format design + security review** for Part B (a new deserialization surface; must
+  preserve fail-secure / size-before-allocate / atomic construction like STD-006).
+- **Magnitude**: Part B is comparable to the original STD-006 codec effort.
+
+### 14.7 Suggested phased plan (each phase independently verifiable where possible)
+
+1. **A0 (isolated, safe):** `DerInvocationHandler`/`Dispatcher`/`ILFactory` skeleton that
+   recognises `MarshallingFormat` and, lacking the codec, **fails-secure** (required DER →
+   `UnsupportedConstraintException`; absent → delegate to super). Unit-testable without
+   the network; proves the constraint is honoured end-to-end at the handler level.
+2. **B1:** `DerMarshalOutputStream`/`InputStream` streaming profile for the chosen graph
+   model (sec.14.5#1) — method id + `@AtomicSerial`/value-type arguments, handle table.
+   Tested in isolation (round-trip method+args byte-buffers), no network.
+3. **B2:** wire B1 into the `Der*` handler/dispatcher; loopback `ObjectEndpoint` test
+   (in-memory, no sockets/dist) exercising a real call round-trip under
+   `MarshallingFormat.DER`.
+4. **A1 (coordinated):** the `BasicInvocationHandler`/`Dispatcher`/`ServerCapabilities`
+   constraint-loop edits; verified against your qa suite (your go-ahead + run).
+
+### 14.8 Test strategy
+
+Isolated (no network/dist): codec round-trips (B1); handler fail-secure (A0); loopback
+`ObjectEndpoint` call round-trip (B2). Coordinated: qa over the constraint-loop edits (A1).
+Mirror the sec.13 discipline — discriminating tests (prove DER actually drove the call,
+not a JOSS fallback) and independent re-runs.
+
+### 14.9 Recommendation
+
+Start with **A0 + B1** (both isolatable and safe): they prove the handler honours the
+constraint and that a DER streaming codec round-trips method+arguments, with zero touch to
+the shared JERI classes or qa. Hold **A1** (the `BasicInvocationHandler`/`Dispatcher`
+edits) for a coordinated session against your qa. Resolve sec.14.5#1 (graph model) before
+B1 — it determines the codec's size and security surface.
