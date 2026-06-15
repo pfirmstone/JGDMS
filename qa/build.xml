@@ -91,10 +91,10 @@
     <property name="harness.props" location="${src.dir}/org/apache/river/test/resources/qaHarness.prop"/>
     <!--possible values: any combination of jeri,jsse,http,https,kerberos,none
         default: none -->
-    <property name="harness.configs" value="jsse"/>
+    <property name="harness.configs" value="jeri"/>
     <!-- possible values: activatable,transient,persistent
         default: transient -->
-    <property name="harness.servicemode" value="activatable"/>
+    <property name="harness.servicemode" value="transient"/>
     <!-- enable this property if you want the QA harness to generate
         HTML reports for each test in the qa/results directory -->
     <property name="harness.generateHtml" value="false"/>
