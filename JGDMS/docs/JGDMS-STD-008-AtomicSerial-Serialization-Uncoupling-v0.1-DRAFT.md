@@ -1234,3 +1234,50 @@ Treat **A1b** as a separate, explicitly-gated decision: its marginal value is de
 `MarshallingFormat.DER` enforcement that flows through JERI, which configuration
 (`AtomicDerILFactory`) already achieves operationally. If wanted, start with the ~1-2h
 transport spike (sec.18.3) to convert the effort range into a number before touching shared code.
+
+### 18.5 A1b — IMPLEMENTED (spike result + design)
+
+**Spike result (2026-06-16).** `TcpServerEndpoint.checkConstraints` (the export-time
+`ServerCapabilities` path) was probed directly:
+`MarshallingFormat.DER` *required* → REJECTED (`UnsupportedConstraintException`);
+`AtomicInputValidation.YES` *required* → REJECTED (identically); `Integrity.YES` →
+REJECTED; `Integrity.NO` → accepted; `MarshallingFormat.DER` *preferred* → accepted
+(silently dropped). **Conclusion:** `MarshallingFormat` is NOT transport-declarable — it
+behaves exactly like `AtomicInputValidation`, so it is handled at the **invocation layer**
+and must NOT be added to the per-transport `Constraints` maps. (Adding it there would be
+wrong and would break export.) A1b is therefore invocation-layer-only — no
+`tcp/http/ssl/kerberos` edits.
+
+**What was built (jgdms-jeri):**
+- `BasicInvocationHandler.marshallingFormat()` (default `FORMAT_JOSS`; overridden in
+  `AtomicDerInvocationHandler` → DER). The client unfulfilled-constraints loop now
+  recognises a required `MarshallingFormat`: it is satisfied iff it equals this proxy's
+  configured codec format, else `UnsupportedConstraintException` (fail-fast). A *preferred*
+  format that doesn't match is ignored (the codec is fixed by configuration).
+- `BasicInvocationDispatcher.marshallingFormat()` supplied via a new format-aware
+  constructor (the export check runs in a static `Builder` before the instance exists, so
+  the format is threaded as a constructor parameter rather than via an overridable method);
+  `AtomicDerInvocationDispatcher` passes the DER format. A new
+  `verifyAndStripMarshallingFormat` verifies a required `MarshallingFormat` against the
+  dispatcher's format (throw on mismatch → `ExportException` at export) and strips all
+  `MarshallingFormat` entries before the transport check — at BOTH export (the `Builder`)
+  and per-call dispatch (before `request.checkConstraints`).
+- Net effect for embedded devices: a client/service may **require `MarshallingFormat.DER`**
+  declaratively; a DER-configured peer satisfies it, a JOSS-configured peer fails fast
+  (client: at call; server: at export). Java Serialization is thereby excludable by
+  constraint, not only by configuration.
+
+**Tests (+4, `AtomicDerInvocationLayerTest`):** handler/dispatcher `marshallingFormat()`
+values (JOSS vs DER); a DER dispatcher EXPORTS with a `MarshallingFormat.DER` server
+constraint; a JOSS dispatcher with the same constraint FAILS export (`ExportException`) —
+discriminating. Verified `mvn -o -pl jgdms-platform,jgdms-jeri,jgdms-der test` →
+platform 262 + jeri 92 + der 367 = 721 green.
+
+**Caveat / remaining (needs Peter's qa):** these edits are in the SHARED
+`BasicInvocationHandler`/`BasicInvocationDispatcher` used by all services (JOSS, Atomic,
+AtomicDer). They are additive (new constructor; new constraint recognised; format stripped
+before the unchanged transport check) and the 3-module reactor is green, but full
+cross-service verification over the real network is the **qa suite** (not runnable here).
+Runtime *negotiation* across mixed JOSS/DER peers (a new protocol-version byte) is NOT
+included — out of scope; the constraint is a fail-fast consistency check against the locally
+configured codec.

@@ -58,7 +58,10 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
                                    Class permissionClass,
                                    ClassLoader loader)
             throws ExportException {
-        super(methods, caps, serverConstraints, permissionClass, loader);
+        // Pass the DER payload format so the superclass verifies/strips a
+        // MarshallingFormat.DER requirement at export + dispatch (STD-008 sec.18.3).
+        super(methods, caps, serverConstraints, permissionClass, loader,
+                net.jini.core.constraint.MarshallingFormat.DER.getFormat());
     }
 
     /**

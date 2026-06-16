@@ -76,10 +76,12 @@ import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.export.ServerContext;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
+import net.jini.io.MarshalledInstance;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.ClientSubject;
@@ -315,9 +317,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     
     /** Map from Method to Permission. */
     private final Map permissions;
-    
+
     /** Map from Long method hash to Method, for all remote methods. */
     private final Map methods;
+
+    /** Wire marshalling-format identifier of this dispatcher's codec (STD-008 sec.18.3). */
+    private final String marshallingFormat;
 
     /** Map from Subject (weak identity) to ProtectionDomain. */
     private static final ConcurrentMap<Subject, ProtectionDomain> domains =
@@ -445,16 +450,38 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 				     ClassLoader loader)
 	throws ExportException
     {
+	this(methods, serverCapabilities, serverConstraints, permissionClass, loader,
+		MarshalledInstance.FORMAT_JOSS);
+    }
+
+    /**
+     * Format-aware constructor (STD-008 sec.18.3): subclasses whose codec uses a non-JOSS
+     * wire format (e.g. {@code AtomicDerInvocationDispatcher}) pass their
+     * {@link MarshallingFormat} payload identifier so an in-band {@code MarshallingFormat}
+     * requirement can be verified at export and stripped before the transport check.
+     *
+     * @param marshallingFormat the codec's payload-format identifier (must not be null)
+     * @throws ExportException if a server constraint cannot be satisfied
+     */
+    protected BasicInvocationDispatcher(Collection methods,
+				     ServerCapabilities serverCapabilities,
+				     MethodConstraints serverConstraints,
+				     Class permissionClass,
+				     ClassLoader loader,
+				     String marshallingFormat)
+	throws ExportException
+    {
 	this(check(
 		methods,
 		serverCapabilities,
 		serverConstraints,
 		permissionClass,
-		loader
+		loader,
+		marshallingFormat
 	    )
 	);
     }
-    
+
     /*
     * Protects against finalizer attacks.
     */
@@ -462,13 +489,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		 ServerCapabilities serverCapabilities,
 		 MethodConstraints serverConstraints,
 		 Class permissionClass,
-		 ClassLoader loader) throws ExportException 
+		 ClassLoader loader,
+		 String marshallingFormat) throws ExportException
     {
 	return new Builder(methods,
 		serverCapabilities,
 		serverConstraints,
 		permissionClass,
-		loader
+		loader,
+		marshallingFormat
 	);
     }
     
@@ -479,6 +508,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	this.permConstructor = builder.permConstructor;
 	this.permUsesMethod = builder.permUsesMethod;
 	this.permissions = builder.permissions;
+	this.marshallingFormat = builder.marshallingFormat;
     }
     
     private static class Builder {
@@ -488,17 +518,23 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	Constructor permConstructor;
 	boolean permUsesMethod;
 	Map permissions;
-	
+	String marshallingFormat;
+
 	Builder(Collection methods,
 		 ServerCapabilities serverCapabilities,
 		 MethodConstraints serverConstraints,
 		 Class permissionClass,
-		 ClassLoader loader)
-	throws ExportException 
+		 ClassLoader loader,
+		 String marshallingFormat)
+	throws ExportException
 	{
 	    if (serverCapabilities == null) {
 		throw new NullPointerException();
 	    }
+	    if (marshallingFormat == null) {
+		throw new NullPointerException("marshallingFormat");
+	    }
+	    this.marshallingFormat = marshallingFormat;
 	    this.methods = new HashMap();
 	    this.loader = loader;
 	    for (Iterator iter = methods.iterator(); iter.hasNext(); ) {
@@ -526,12 +562,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    try {
 		if (serverConstraints == null) {
 		    checkConstraints(serverCapabilities,
-				     InvocationConstraints.EMPTY);
+				     InvocationConstraints.EMPTY, marshallingFormat);
 		} else {
 		    Iterator iter = serverConstraints.possibleConstraints();
 		    while (iter.hasNext()) {
 			checkConstraints(serverCapabilities,
-					 (InvocationConstraints) iter.next());
+					 (InvocationConstraints) iter.next(), marshallingFormat);
 		    }
 		}
 	    } catch (UnsupportedConstraintException e) {
@@ -543,11 +579,18 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 
     /**
      * Check that the only unfulfilled requirements are Integrity and atomicity.
+     *
+     * <p>STD-008 sec.18.3: {@link MarshallingFormat} is an invocation-layer constraint
+     * that the transport does not implement (and rejects as a requirement); it is
+     * verified against this dispatcher's configured format and stripped before the
+     * transport check.
      */
     private static void checkConstraints(ServerCapabilities serverCapabilities,
-					 InvocationConstraints constraints)
+				  InvocationConstraints constraints,
+				  String marshallingFormat)
 	throws UnsupportedConstraintException
     {
+	constraints = verifyAndStripMarshallingFormat(constraints, marshallingFormat);
 	InvocationConstraints unfulfilled =
 	    serverCapabilities.checkConstraints(constraints);
 	for (InvocationConstraint c : unfulfilled.requirements()) {
@@ -557,6 +600,60 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	    // REMIND: support ConstraintAlternatives containing Integrity?
 	}
+    }
+
+    /**
+     * Returns the wire marshalling-format identifier this dispatcher's codec produces and
+     * consumes (a {@link MarshallingFormat} payload id, STD-008 sec.18.3), supplied at
+     * construction. The base/JOSS dispatcher uses {@link MarshalledInstance#FORMAT_JOSS};
+     * {@code AtomicDerInvocationDispatcher} passes the JGDMS-STD-006/DER format via the
+     * format-aware superclass constructor. (Supplied via the constructor rather than
+     * overridden, because the export-time constraint check runs in a static Builder before
+     * the instance exists.)
+     *
+     * @return the payload-format identifier; never {@code null}.
+     */
+    protected final String marshallingFormat() {
+	return marshallingFormat;
+    }
+
+    /**
+     * Verifies every required {@link MarshallingFormat} in {@code sc} matches
+     * {@code marshallingFormat} -- throwing {@link UnsupportedConstraintException} on a
+     * mismatch -- and returns {@code sc} with all {@code MarshallingFormat} entries removed
+     * (requirements and preferences), so they are not passed to the transport (which does
+     * not implement them). A matching required format is satisfied by configuration; a
+     * preferred format that does not match is simply not applied (the codec is fixed at
+     * export time).
+     */
+    private static InvocationConstraints verifyAndStripMarshallingFormat(
+	    InvocationConstraints sc, String marshallingFormat)
+	throws UnsupportedConstraintException
+    {
+	boolean hasFormat = false;
+	for (InvocationConstraint c : sc.requirements()) {
+	    if (c instanceof MarshallingFormat) {
+		hasFormat = true;
+		if (!marshallingFormat.equals(((MarshallingFormat) c).getFormat())) {
+		    throw new UnsupportedConstraintException(
+			"cannot satisfy required " + c + "; this service's marshalling format is "
+			+ marshallingFormat);
+		}
+	    }
+	}
+	for (InvocationConstraint c : sc.preferences()) {
+	    if (c instanceof MarshallingFormat) { hasFormat = true; break; }
+	}
+	if (!hasFormat) return sc;
+	Collection<InvocationConstraint> reqs = new LinkedList<InvocationConstraint>();
+	for (InvocationConstraint c : sc.requirements()) {
+	    if (!(c instanceof MarshallingFormat)) reqs.add(c);
+	}
+	Collection<InvocationConstraint> prefs = new LinkedList<InvocationConstraint>();
+	for (InvocationConstraint c : sc.preferences()) {
+	    if (!(c instanceof MarshallingFormat)) prefs.add(c);
+	}
+	return new InvocationConstraints(reqs, prefs);
     }
 
     /**
@@ -887,6 +984,10 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		requirements.add(AtomicInputValidation.YES);
 		sc = new InvocationConstraints(requirements, sc.preferences());
 	    }
+	    // STD-008 sec.18.3: MarshallingFormat is satisfied by this dispatcher's configured
+	    // codec (verified at export); strip it before the transport check, which does not
+	    // implement it.
+	    sc = verifyAndStripMarshallingFormat(sc, marshallingFormat());
 	    InvocationConstraints unfulfilled = request.checkConstraints(sc);
 	    for (Iterator<InvocationConstraint> i = unfulfilled.requirements().iterator();
 		 i.hasNext();)

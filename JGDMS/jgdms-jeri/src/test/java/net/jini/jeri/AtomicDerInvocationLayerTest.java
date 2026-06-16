@@ -34,7 +34,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+import net.jini.constraint.BasicMethodConstraints;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.io.MarshalledInstance;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.security.proxytrust.TrustEquivalence;
@@ -346,6 +350,63 @@ public class AtomicDerInvocationLayerTest {
         AtomicDerILFactory f2 = new AtomicDerILFactory(null, null, loader);
         Assert.assertEquals("two AtomicDerILFactory instances with same args must be equal", f1, f2);
         Assert.assertEquals("equal factories must have equal hashCodes", f1.hashCode(), f2.hashCode());
+    }
+
+    // =========================================================================
+    // A1b: MarshallingFormat in-band enforcement (STD-008 sec.18.3)
+    // =========================================================================
+
+    /** marshallingFormat() reports JOSS for the base handler, DER for AtomicDer. */
+    @Test
+    public void a1b_handlerMarshallingFormats() {
+        FakeObjectEndpoint oe = new FakeObjectEndpoint();
+        Assert.assertEquals(MarshalledInstance.FORMAT_JOSS,
+                new BasicInvocationHandler(oe, null).marshallingFormat());
+        Assert.assertEquals(MarshallingFormat.DER.getFormat(),
+                new AtomicDerInvocationHandler(oe, null).marshallingFormat());
+    }
+
+    /** marshallingFormat() reports JOSS for the base dispatcher, DER for AtomicDer. */
+    @Test
+    public void a1b_dispatcherMarshallingFormats() throws Exception {
+        Collection<Method> methods = pointServiceMethods();
+        ClassLoader loader = AtomicDerInvocationLayerTest.class.getClassLoader();
+        Assert.assertEquals(MarshalledInstance.FORMAT_JOSS,
+                new BasicInvocationDispatcher(methods, new FakeServerCapabilities(), null, null, loader)
+                        .marshallingFormat());
+        Assert.assertEquals(MarshallingFormat.DER.getFormat(),
+                new AtomicDerInvocationDispatcher(methods, new FakeServerCapabilities(), null, null, loader)
+                        .marshallingFormat());
+    }
+
+    /**
+     * A DER service may DECLARE a MarshallingFormat.DER server constraint and export
+     * successfully: the DER dispatcher satisfies it (verified, then stripped before the
+     * transport check). Pre-A1b this would have thrown (unknown constraint at the transport).
+     */
+    @Test
+    public void a1b_derDispatcherExportsWithDerRequirement() throws Exception {
+        Collection<Method> methods = pointServiceMethods();
+        ClassLoader loader = AtomicDerInvocationLayerTest.class.getClassLoader();
+        MethodConstraints mc = new BasicMethodConstraints(
+                new InvocationConstraints(MarshallingFormat.DER, null));
+        AtomicDerInvocationDispatcher d = new AtomicDerInvocationDispatcher(
+                methods, new FakeServerCapabilities(), mc, null, loader);
+        Assert.assertNotNull(d);
+    }
+
+    /**
+     * A JOSS service declaring a MarshallingFormat.DER server constraint FAILS to export
+     * (its codec format does not match the required format) -- fail-fast, discriminating
+     * against the DER case above.
+     */
+    @Test(expected = ExportException.class)
+    public void a1b_jossDispatcherRejectsDerRequirement() throws Exception {
+        Collection<Method> methods = pointServiceMethods();
+        ClassLoader loader = AtomicDerInvocationLayerTest.class.getClassLoader();
+        MethodConstraints mc = new BasicMethodConstraints(
+                new InvocationConstraints(MarshallingFormat.DER, null));
+        new BasicInvocationDispatcher(methods, new FakeServerCapabilities(), mc, null, loader);
     }
 
 }

@@ -168,4 +168,13 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
             throws Throwable {
         return super.invoke(proxy, method, args);
     }
+
+    /**
+     * This handler's codec produces the JGDMS-STD-006/DER wire format, so it satisfies a
+     * {@link net.jini.core.constraint.MarshallingFormat#DER} requirement (STD-008 sec.18.3).
+     */
+    @Override
+    protected String marshallingFormat() {
+        return net.jini.core.constraint.MarshallingFormat.DER.getFormat();
+    }
 }
