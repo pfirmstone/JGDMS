@@ -318,6 +318,13 @@ public class AtomicDerInvocationLayerTest {
         Assert.assertTrue("createMarshalInputStream must return DerMarshalInputStream",
                 in instanceof DerMarshalInputStream);
 
+        // A1a (STD-008 sec.18.2): the DER in-band input stream is an AtomicObjectInput,
+        // so a DER-exported service satisfies AtomicInputValidation.YES (atomic per-object
+        // validation) -- the JERI atomic gate recognises it via this marker.
+        Assert.assertTrue("DER input stream must be an AtomicObjectInput (satisfies "
+                + "AtomicInputValidation)",
+                in instanceof org.apache.river.api.io.AtomicObjectInput);
+
         Object decoded = in.readObject();
         Assert.assertTrue("decoded object must be a Point", decoded instanceof Point);
 

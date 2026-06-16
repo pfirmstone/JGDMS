@@ -20,6 +20,7 @@ package au.net.zeus.jgdms.der.stream;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.marshal.fixtures.VersionedRecord;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -358,6 +359,52 @@ class DerObjectStreamTest {
                 DerWriter.writeInteger(BigInteger.ZERO));
         assertThrows(IOException.class, () ->
                 decode(malicious, DerMarshalInputStream::readObject));
+    }
+
+    // =========================================================================
+    // 10. AtomicObjectInput marker (A1a, STD-008 sec.18.2)
+    // =========================================================================
+
+    /** The DER in-band input stream IS an AtomicObjectInput (so it satisfies
+     *  AtomicInputValidation and routes through the typed in-band read path). */
+    @Test
+    void inputStream_isAtomicObjectInput() throws Exception {
+        byte[] bytes = encode(out -> out.writeObject(new VersionedRecord(1, "a", "b")));
+        try (DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(bytes))) {
+            assertTrue(in instanceof AtomicObjectInput,
+                    "DerMarshalInputStream must implement AtomicObjectInput (sec.18.2)");
+        }
+    }
+
+    /** readObject(Class) returns the typed object for a matching type. */
+    @Test
+    void readObjectTyped_returnsTypedObject() throws Exception {
+        VersionedRecord orig = new VersionedRecord(7, "label", "extra");
+        byte[] bytes = encode(out -> out.writeObject(orig));
+        try (DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(bytes))) {
+            VersionedRecord r = in.readObject(VersionedRecord.class);
+            assertEquals(orig, r);
+        }
+    }
+
+    /** readObject(Class) rejects a decoded object that is not assignable to the expected type. */
+    @Test
+    void readObjectTyped_rejectsTypeMismatch() throws Exception {
+        byte[] bytes = encode(out -> out.writeObject(new VersionedRecord(1, "a", "b")));
+        try (DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(bytes))) {
+            assertThrows(java.io.InvalidObjectException.class,
+                    () -> in.readObject(String.class),
+                    "decoding a VersionedRecord as String must be rejected (type gate)");
+        }
+    }
+
+    /** readObject(Class) returns null for a DER NULL item. */
+    @Test
+    void readObjectTyped_nullItem() throws Exception {
+        byte[] bytes = encode(out -> out.writeObject(null));
+        try (DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(bytes))) {
+            assertEquals(null, in.readObject(VersionedRecord.class));
+        }
     }
 
     // =========================================================================

@@ -19,8 +19,12 @@ package au.net.zeus.jgdms.der.stream;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InvalidObjectException;
+import java.io.NotActiveException;
 import java.io.ObjectInput;
+import java.io.ObjectInputValidation;
 import java.util.Objects;
+import org.apache.river.api.io.AtomicObjectInput;
 
 /**
  * DER decoding implementation of {@link ObjectInput} (JGDMS-STD-008 sec.15.1,
@@ -48,17 +52,30 @@ import java.util.Objects;
  * with {@link IOException} (overflow, per STD-006). The reader must be called in the
  * same positional order as the corresponding writes.
  *
- * <h2>Deferred types</h2>
+ * <h2>{@code float}/{@code double}/{@code char}</h2>
  * <p>
- * {@link #readFloat}, {@link #readDouble}, and {@link #readChar} throw
- * {@link UnsupportedOperationException} per STD-006 sec.7.6. {@link #readLine} and
- * {@link #skipBytes}/{@link #skip} throw {@link UnsupportedOperationException} (not
- * used by JERI unmarshalling; skipBytes also documented as IOException variant).
+ * {@link #readFloat}, {@link #readDouble}, and {@link #readChar} decode with the strict
+ * canonical rules of STD-008 sec.17.3 (S7.6 lifted): non-canonical NaN, {@code -0.0} bits,
+ * wrong length, and surrogate/out-of-range codepoints are rejected fail-secure.
+ * {@link #readLine} and {@link #skipBytes}/{@link #skip} throw
+ * {@link UnsupportedOperationException} (not used by JERI unmarshalling).
+ *
+ * <h2>Atomic per-object validation ({@link AtomicObjectInput})</h2>
+ * <p>
+ * This stream implements {@link AtomicObjectInput} (STD-008 sec.18.2): the DER codec
+ * validates every {@code @AtomicSerial} object atomically during construction (its
+ * {@code check(GetArg)} runs before the object is returned, and the codec only constructs
+ * {@code @AtomicSerial}-annotated classes -- no arbitrary gadget graphs), so no
+ * partially-constructed object can escape. Implementing this marker makes a DER-exported
+ * service satisfy a {@link net.jini.core.constraint.AtomicInputValidation#YES} requirement,
+ * and lets the JERI in-band reader ({@code Util.unmarshalValue}) and
+ * {@code MarshalledInstance.get} route DER object reads through the type-checked
+ * {@link #readObject(Class)}.
  *
  * @see DerMarshalOutputStream
  * @see DerObjectStreamCodec
  */
-public final class DerMarshalInputStream implements ObjectInput {
+public final class DerMarshalInputStream implements AtomicObjectInput {
 
     private final DerObjectStreamCodec codec;
     private final InputStream underlying;
@@ -97,6 +114,49 @@ public final class DerMarshalInputStream implements ObjectInput {
     @Override
     public Object readObject() throws ClassNotFoundException, IOException {
         return codec.readObject();
+    }
+
+    /**
+     * Reads the next self-describing object and verifies its runtime type is assignable to
+     * {@code type} (the {@link AtomicObjectInput} contract, STD-008 sec.18.2).
+     *
+     * <p>The DER codec only constructs {@code @AtomicSerial}-annotated classes, each
+     * validated atomically by its {@code check(GetArg)} during construction, so no
+     * partially-constructed object can escape; this method then rejects a fully-validated
+     * result whose type is not the one the caller expected. A {@code null} item (DER NULL)
+     * is returned as {@code null}.
+     *
+     * @param <T>  the expected type
+     * @param type the expected class (must not be null)
+     * @return the decoded object, cast to {@code T}, or {@code null}
+     * @throws InvalidObjectException if the decoded object is not assignable to {@code type}
+     * @throws IOException            if the stream is malformed
+     * @throws ClassNotFoundException if a class named in the embedded schema cannot be loaded
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T readObject(Class<T> type) throws IOException, ClassNotFoundException {
+        Objects.requireNonNull(type, "type");
+        Object obj = codec.readObject();
+        if (obj != null && !type.isInstance(obj)) {
+            throw new InvalidObjectException(
+                    "DER stream: decoded object of type " + obj.getClass().getName()
+                    + " is not assignable to expected type " + type.getName());
+        }
+        return (T) obj;
+    }
+
+    /**
+     * No-op. The DER path performs atomic per-object validation inline during construction
+     * (each {@code @AtomicSerial} object's {@code check(GetArg)} runs before it is returned);
+     * post-deserialization validation callbacks are not used (mirrors
+     * {@code DerMarshalInstanceInput}). Provided to satisfy the {@link AtomicObjectInput}
+     * contract.
+     */
+    @Override
+    public void registerValidation(ObjectInputValidation object, int priority)
+            throws NotActiveException, InvalidObjectException {
+        // DER does not use post-deserialization validation callbacks.
     }
 
     // =========================================================================
