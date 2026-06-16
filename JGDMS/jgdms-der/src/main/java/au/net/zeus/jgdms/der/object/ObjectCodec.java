@@ -32,9 +32,9 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -55,10 +55,11 @@ import java.util.Objects;
  * <p>
  * {@link #encode(Object, Class, AtomicSerialSchemaRecord)} encodes an object's
  * state to the DER bytes of the class's private SEQUENCE. The field values are
- * read from the object's declared Java fields via reflection
- * ({@link Field#setAccessible(boolean)}). The wire name comes from the schema's
- * field definitions; the assumption (safe for standard {@code @AtomicSerial}
- * classes) is that the wire name equals the Java field name.
+ * obtained by invoking the class's own {@code public static serialize(PutArg, T)}
+ * method (the {@code @AtomicSerial} WRITE contract) and reading the captured
+ * {@code put(name, value)} entries; the codec does NOT reflect on private fields.
+ * A class without {@code serialize(PutArg)} is not serialized -- {@code encode}
+ * fails fast rather than imitate Java Object Serialization's field access.
  *
  * <h2>Single-class decoding (DER -> object)</h2>
  * <p>
@@ -465,15 +466,78 @@ public final class ObjectCodec {
         Objects.requireNonNull(declaringClass, "declaringClass");
         Objects.requireNonNull(schema, "schema");
 
+        // @AtomicSerial WRITE contract: the class declares its serial form via its own
+        // serialize(PutArg) method. The codec NEVER reflects on private fields (that would
+        // imitate Java Object Serialization and reintroduce its security problems); a class
+        // without serialize(PutArg) is not serialized -- the encoder fails fast.
+        Map<String, Object> values = invokeSerialize(instance, declaringClass);
+
         List<byte[]> fieldTlvs = new ArrayList<>();
         for (AtomicSerialFieldDef fieldDef : schema.fields()) {
             String wireName = fieldDef.wireName();
             String wireType = fieldDef.wireType();
-            Object value = readFieldValue(instance, declaringClass, wireName);
+            if (!values.containsKey(wireName)) {
+                throw new DerException(
+                        "Class " + declaringClass.getName()
+                        + ".serialize(PutArg) did not put serial field '" + wireName
+                        + "' declared by serialForm(); serialize must put every serial field");
+            }
+            Object value = values.get(wireName);
             byte[] tlv = encodeValue(value, wireType, wireName, depth);
             fieldTlvs.add(tlv);
         }
         return DerWriter.writeSequence(fieldTlvs);
+    }
+
+    /**
+     * Invokes {@code declaringClass}'s {@code public static void serialize(PutArg, T)} --
+     * the {@code @AtomicSerial} WRITE contract -- and returns the captured field values.
+     *
+     * <p>Each class in the hierarchy contributes ONLY its own namespace (its own
+     * {@code serialForm()} fields) through its own {@code serialize}; a class that does
+     * not implement {@code @AtomicSerial} has no namespace and is not serialized.
+     *
+     * @throws DerException if the class has no conforming {@code serialize(PutArg, T)}
+     *                      method (fail-fast: the codec does NOT fall back to field
+     *                      reflection), or if {@code serialize} throws.
+     */
+    private static Map<String, Object> invokeSerialize(Object instance, Class<?> declaringClass)
+            throws DerException {
+        Method serialize;
+        try {
+            serialize = declaringClass.getDeclaredMethod(
+                    "serialize", AtomicSerial.PutArg.class, declaringClass);
+        } catch (NoSuchMethodException ex) {
+            throw new DerException(
+                    "Class " + declaringClass.getName()
+                    + " has no 'public static void serialize(AtomicSerial.PutArg, "
+                    + declaringClass.getSimpleName() + ")' method. Every @AtomicSerial class"
+                    + " MUST implement the serialize(PutArg) write contract; the DER codec"
+                    + " does not read fields by reflection.");
+        }
+        if (!Modifier.isStatic(serialize.getModifiers())) {
+            throw new DerException(
+                    "Class " + declaringClass.getName()
+                    + " serialize(PutArg, " + declaringClass.getSimpleName() + ") must be static");
+        }
+        serialize.setAccessible(true);
+        DerPutArg putArg = new DerPutArg();
+        try {
+            serialize.invoke(null, putArg, instance);
+        } catch (InvocationTargetException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof DerException de) {
+                throw de;
+            }
+            DerException de = new DerException(
+                    "serialize(PutArg) of " + declaringClass.getName() + " failed: " + cause);
+            de.initCause(cause);
+            throw de;
+        } catch (ReflectiveOperationException ex) {
+            throw new DerException(
+                    "Unable to invoke serialize(PutArg) of " + declaringClass.getName(), ex);
+        }
+        return putArg.captured();
     }
 
     // =========================================================================
@@ -575,45 +639,6 @@ public final class ObjectCodec {
                     "Class " + clazz.getName()
                     + " has no public (AtomicSerial.GetArg) constructor");
         }
-    }
-
-    /**
-     * Reads the value of the named field from the object instance.
-     *
-     * <p>The search starts at {@code declaringClass} and walks up the superclass chain
-     * to {@code Object} until the field is found. This is required for the Phase 4.4
-     * non-{@code @AtomicSerial} superclass case (S3.10, second rule): when an
-     * {@code @AtomicSerial} class's {@code serialForm()} includes a field that is
-     * physically declared in a non-{@code @AtomicSerial} superclass, the field will
-     * not be found in {@code declaringClass}'s own declared fields but IS accessible
-     * on the instance (because the instance is a subtype of that superclass).
-     *
-     * <p>Example: {@code Sub extends PlainSuper}, {@code Sub.serialForm()} declares
-     * {@code "legacyName"}, but {@code legacyName} is a field of {@code PlainSuper}.
-     * The walk finds it in {@code PlainSuper}.
-     */
-    private static Object readFieldValue(Object instance, Class<?> declaringClass,
-                                          String fieldName) throws DerException {
-        // Walk from declaringClass up to (but not including) Object looking for the field.
-        Class<?> cls = declaringClass;
-        while (cls != null && cls != Object.class) {
-            try {
-                Field f = cls.getDeclaredField(fieldName);
-                f.setAccessible(true);
-                return f.get(instance);
-            } catch (NoSuchFieldException ex) {
-                // Not in this class -- continue to superclass
-                cls = cls.getSuperclass();
-            } catch (IllegalAccessException ex) {
-                throw new DerException(
-                        "Cannot access field '" + fieldName + "' on "
-                        + cls.getName(), ex);
-            }
-        }
-        throw new DerException(
-                "Class " + declaringClass.getName()
-                + " (or any of its superclasses) has no declared field named '"
-                + fieldName + "'");
     }
 
     /**
@@ -960,6 +985,16 @@ public final class ObjectCodec {
             return new byte[]{0x05, 0x00};
         }
 
+        // DER replacement: a registered non-@AtomicSerial value (e.g. an
+        // AccessControlContext) is substituted with its @AtomicSerial serializer
+        // before encoding; unregistered/already-@AtomicSerial values pass through.
+        try {
+            value = au.net.zeus.jgdms.der.serial.DerReplacer.replace(value);
+        } catch (java.io.IOException e) {
+            throw new DerException("DER replacement failed for nested field '"
+                    + fieldName + "': " + e.getMessage(), e);
+        }
+
         // Depth check BEFORE recursing (depth + 1 will be the child's depth)
         if (depth + 1 > MAX_NESTING) {
             throw new DerException(
@@ -1050,7 +1085,10 @@ public final class ObjectCodec {
 
         // The declared field type is Object (checked by caller via cast); the chain drives
         // the actual runtime class. decodeHierarchy does assignability checking.
-        return decodeHierarchy(Object.class, chain, payloadBytes, depth + 1);
+        Object decoded = decodeHierarchy(Object.class, chain, payloadBytes, depth + 1);
+        // DER replacement: if the decoded value is a serializer (implements Resolve),
+        // rebuild the original object via readResolve(); otherwise pass it through.
+        return au.net.zeus.jgdms.der.serial.DerReplacer.resolve(decoded);
     }
 
     /**

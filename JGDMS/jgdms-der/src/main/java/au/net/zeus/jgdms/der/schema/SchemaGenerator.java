@@ -307,6 +307,14 @@ public final class SchemaGenerator {
         if (javaType == double.class || javaType == Double.class)    return "double";
         if (javaType == char.class   || javaType == Character.class) return "char";
 
+        // A non-@AtomicSerial type with a registered DER replacement serializer
+        // (e.g. java.security.AccessControlContext) is admitted as a nested
+        // @AtomicSerial: the serializer (which IS @AtomicSerial) is substituted at
+        // encode time and its schema travels in the embedded record.
+        if (au.net.zeus.jgdms.der.serial.DerReplacer.isRegistered(javaType)) {
+            return "@AtomicSerial";
+        }
+
         // Any other type -- not guessed, clear error
         throw new DerException(
                 "SchemaGenerator: unsupported serial field type " + javaType.getName()
