@@ -22,7 +22,6 @@ import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import java.rmi.RemoteException;
 import java.security.PrivateKey;
-import java.util.Set;
 import net.jini.activation.arg.ActivationID;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -30,7 +29,6 @@ import net.jini.config.ConfigurationProvider;
 import net.jini.id.Uuid;
 import au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
-import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy;
 import org.apache.river.config.Config;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
@@ -95,13 +93,6 @@ public class ActivatableBytecodeAnalysisEngineImpl
     /** The core implementation to which all service calls are delegated. */
     private final BytecodeAnalysisEngineImpl impl;
 
-    /**
-     * Maximum time in milliseconds to wait for in-flight analysis tasks to
-     * complete during graceful shutdown.  Defaults to 30 seconds.  Configurable
-     * via the {@code shutdownTimeoutMs} entry in component {@value #COMPONENT}.
-     */
-    private final long shutdownTimeoutMs;
-
     // -------------------------------------------------------------------------
     // Public constructors
     // -------------------------------------------------------------------------
@@ -157,12 +148,12 @@ public class ActivatableBytecodeAnalysisEngineImpl
     private ActivatableBytecodeAnalysisEngineImpl(BaeServiceParameters params,
                                                    LifeCycle lifeCycle) {
         super(params, lifeCycle);
+        // The BAE (Host 2) holds only its own signing key.  Per JGDMS-STD-002
+        // it never talks to the Verdict Registry (Host 3), so params.engineId
+        // and params.verdictRegistry are intentionally NOT passed to the impl.
         this.impl = new BytecodeAnalysisEngineImpl(
                 params.enginePrivateKey,
-                params.engineSigAlgorithm,
-                params.engineId,
-                params.verdictRegistry);
-        this.shutdownTimeoutMs = params.shutdownTimeoutMs;
+                params.engineSigAlgorithm);
     }
 
     // -------------------------------------------------------------------------
@@ -180,18 +171,15 @@ public class ActivatableBytecodeAnalysisEngineImpl
     }
 
     /**
-     * Destroys this service: initiates graceful shutdown of the analysis
-     * engine (waiting up to {@code shutdownTimeoutMs} for in-flight tasks to
-     * complete), then delegates to {@link AbstractJiniService#destroy()} to
-     * terminate discovery, unexport, and clean up resources.
+     * Destroys this service: initiates shutdown of the analysis engine (which
+     * is immediate, as {@link #analyzeJar} is synchronous and the engine owns
+     * no background threads), then delegates to
+     * {@link AbstractJiniService#destroy()} to terminate discovery, unexport,
+     * and clean up resources.
      */
     @Override
     public synchronized void destroy() {
-        try {
-            impl.shutdown(shutdownTimeoutMs);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        impl.shutdown();
         super.destroy();
     }
 
@@ -204,12 +192,6 @@ public class ActivatableBytecodeAnalysisEngineImpl
             throws AnalysisException, RemoteException {
         getReadyState().check();
         return impl.analyzeJar(request);
-    }
-
-    @Override
-    public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
-        getReadyState().check();
-        impl.requestAnalysis(codebaseUrls);
     }
 
     // -------------------------------------------------------------------------
@@ -234,16 +216,14 @@ public class ActivatableBytecodeAnalysisEngineImpl
         /** Stable engine identifier used to register with the {@link VerdictRegistry}. */
         public final String engineId;
 
-        /** Registry to which signed verdicts are submitted. */
-        public final VerdictRegistry verdictRegistry;
-
         /**
-         * Maximum time in milliseconds to wait for in-flight analysis tasks
-         * to complete during graceful shutdown.  Defaults to {@code 30000}
-         * (30 seconds).  Must be positive.  Configurable via
-         * {@code shutdownTimeoutMs} in component {@code au.net.zeus.jgdms.bae}.
+         * Registry configuration entry, read for deployment-validation
+         * purposes only.  Per JGDMS-STD-002 the BAE (Host 2) must never call
+         * the registry directly, so this reference is intentionally NOT passed
+         * to {@link BytecodeAnalysisEngineImpl}; it is retained here so that a
+         * misconfigured deployment (missing entry) still fails fast at startup.
          */
-        public final long shutdownTimeoutMs;
+        public final VerdictRegistry verdictRegistry;
 
         /**
          * Reads BAE-specific configuration entries after delegating common
@@ -271,10 +251,6 @@ public class ActivatableBytecodeAnalysisEngineImpl
 
             this.verdictRegistry = (VerdictRegistry) Config.getNonNullEntry(
                     config, COMPONENT, "verdictRegistry", VerdictRegistry.class);
-
-            this.shutdownTimeoutMs = Config.getLongEntry(
-                    config, COMPONENT, "shutdownTimeoutMs",
-                    30_000L, 1L, Long.MAX_VALUE);
         }
     }
 }

@@ -22,6 +22,7 @@ import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
 import au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,6 +30,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -42,10 +44,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.export.CodebaseAccessor;
+import net.pack200.Normalize;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -61,12 +66,20 @@ import org.apache.river.api.net.Uri;
  *       {@link #onServiceItem(ServiceItem)}.</li>
  *   <li>If the URI has not been recently processed it is queued in the
  *       worker-thread pool.</li>
- *   <li>A worker thread downloads the JAR bytes over HTTP(S).</li>
- *   <li>A SHA-256 content hash is computed from the raw bytes.</li>
+ *   <li>A worker thread downloads the raw JAR bytes over HTTP(S).</li>
+ *   <li>The raw bytes are <em>normalised</em> with
+ *       {@code net.pack200.Normalize} (reproducible options) to a
+ *       byte-reproducible Pack200 fixed point {@code C}.  All subsequent
+ *       hashing, deduplication, and analysis use {@code C}, not the raw
+ *       bytes, so the analysed artifact is identical to the one clients
+ *       look up by hash (JGDMS-STD-002 content-hash binding).</li>
+ *   <li>A SHA-256 content hash is computed from the normalised bytes
+ *       {@code C}.</li>
  *   <li>If the hash has already been submitted to the BAE pool the task
  *       is silently dropped (per-session deduplication).</li>
- *   <li>An {@link AnalysisRequest} is constructed and sent in turn to
- *       every {@link BytecodeAnalysisEngine} in the configured pool.</li>
+ *   <li>An {@link AnalysisRequest} carrying {@code C} and its content hash
+ *       is constructed and sent in turn to every
+ *       {@link BytecodeAnalysisEngine} in the configured pool.</li>
  *   <li>Each {@link JarAnalysisReport} returned by a BAE is forwarded to
  *       the {@link VerdictRegistry} via
  *       {@link VerdictRegistry#submitReport}.</li>
@@ -487,9 +500,80 @@ public class CodebaseDownloaderImpl {
                 return;
             }
 
-            byte[] jarBytes = downloadJar(uri);
+            byte[] rawBytes = downloadJar(uri);
 
-            String contentHash = computeSha256Hex(jarBytes);
+            // JGDMS-STD-002 v1.3: trust a self-consistent stamp; otherwise act as
+            // the canonicaliser of last resort.
+            //   1. If the downloaded JAR carries META-INF/CONTENT-HASH and the
+            //      declared hash matches SHA-256(stripped) → ALREADY NORMALISED:
+            //      the stamp is a build-time attestation that rawBytes IS the
+            //      canonical form.  Host 4 stores contentHash = SHA-256(rawBytes)
+            //      so the client (which always hashes raw bytes) finds it.  The
+            //      analysed bytes are rawBytes as-shipped.  Log INFO "stamped
+            //      JAR; using declared hash".
+            //   2. If the stamp is present but declared != SHA-256(stripped) →
+            //      corrupt/tampered: log WARNING and fall through to canonicalise.
+            //   3. If no stamp entry → canonicaliser of last resort: run
+            //      Normalize.normalize(rawBytes) and store contentHash =
+            //      SHA-256(normalisedBytes).
+            //
+            // In every case contentHash := SHA-256(jarBytes), so the BAE binding
+            // check (SHA-256(jarBytes) == contentHash inside AnalysisRequest)
+            // holds, and the client's lookup key (SHA-256(rawDownloadedBytes))
+            // matches contentHash whenever rawBytes == jarBytes (the stamped
+            // happy path; for the canonicaliser-of-last-resort path an unstamped
+            // third-party client lookup will simply miss and fail-closed).
+            String declaredStampHash = readStampHashOrNull(rawBytes);
+            String contentHash;
+            byte[] jarBytes;
+            if (declaredStampHash != null) {
+                byte[] stripped;
+                try {
+                    stripped = jarBytesWithEntryRemoved(rawBytes, STAMP_ENTRY_NAME);
+                } catch (IOException e) {
+                    // Stamp parse fell through to here only because the entry
+                    // existed in JarFile but the central-directory walk fails;
+                    // treat as tampered and fall back to normalisation.
+                    stripped = null;
+                }
+                String recomputedStamp = (stripped != null) ? computeSha256Hex(stripped) : null;
+                if (recomputedStamp != null
+                        && declaredStampHash.equalsIgnoreCase(recomputedStamp)) {
+                    // Happy path: stamp is self-consistent — trust it as a
+                    // build-time "this is canonical" attestation.  Analyse the
+                    // bytes as-shipped and key the registry by SHA-256(rawBytes)
+                    // so client lookups match.
+                    jarBytes = rawBytes;
+                    contentHash = computeSha256Hex(rawBytes);
+                    logger.log(Level.INFO,
+                            "stamped JAR; using declared hash (stamp declared={0},"
+                            + " contentHash=SHA-256(rawBytes)={1}) for uri={2}",
+                            new Object[]{declaredStampHash.toLowerCase(),
+                                contentHash, uri});
+                } else {
+                    logger.log(Level.WARNING,
+                            "Stamped JAR has corrupt or tampered META-INF/CONTENT-HASH"
+                                    + " (declared={0}, recomputed={1}) for uri={2};"
+                                    + " falling back to Host 4 canonicalisation",
+                            new Object[]{declaredStampHash, recomputedStamp, uri});
+                    byte[] canonical = normaliseOrNull(rawBytes, uri);
+                    if (canonical == null) {
+                        clearLastProcessed(uri, submittedAt);
+                        return;
+                    }
+                    jarBytes = canonical;
+                    contentHash = computeSha256Hex(canonical);
+                }
+            } else {
+                // No stamp: canonicaliser of last resort.
+                byte[] canonical = normaliseOrNull(rawBytes, uri);
+                if (canonical == null) {
+                    clearLastProcessed(uri, submittedAt);
+                    return;
+                }
+                jarBytes = canonical;
+                contentHash = computeSha256Hex(canonical);
+            }
 
             // Deduplicate by content hash (fast-path exit for already-seen JARs).
             if (!submittedHashes.add(contentHash)) {
@@ -499,7 +583,7 @@ public class CodebaseDownloaderImpl {
             }
 
             logger.info("Processing JAR: uri=" + uri
-                    + ", bytes=" + jarBytes.length
+                    + ", normalisedBytes=" + jarBytes.length
                     + ", hash=" + contentHash);
 
             AnalysisRequest request = new AnalysisRequest(jarBytes, contentHash, uri);
@@ -520,6 +604,12 @@ public class CodebaseDownloaderImpl {
                 } catch (RemoteException e) {
                     logger.log(Level.WARNING,
                             "Remote error with engine " + entry.engineId
+                                    + " for uri=" + uri, e);
+                } catch (RuntimeException e) {
+                    // A runtime failure from one engine must not abort the
+                    // remaining engines; log it and continue with the pool.
+                    logger.log(Level.WARNING,
+                            "Unexpected runtime error from engine " + entry.engineId
                                     + " for uri=" + uri, e);
                 }
             }
@@ -549,6 +639,246 @@ public class CodebaseDownloaderImpl {
      */
     private void clearLastProcessed(Uri uri, long submittedAt) {
         lastProcessed.remove(uri, submittedAt);
+    }
+
+    /**
+     * Name of the build-time stamp entry written by the
+     * {@code pack200-normalize-maven-plugin}.  Format of the entry body is
+     * exactly {@code SHA-256:<hex>\n} (UTF-8, single LF terminator).
+     */
+    static final String STAMP_ENTRY_NAME = "META-INF/CONTENT-HASH";
+
+    /**
+     * Reads {@link #STAMP_ENTRY_NAME} from the given JAR bytes (if present) and
+     * returns the parsed 64-hex-character SHA-256 value.  Returns {@code null}
+     * if the entry is absent or malformed.
+     *
+     * <p>The bytes are accessed read-only via a temporary {@link JarFile}; a
+     * tiny temp file is used because {@link JarFile} does not accept an
+     * in-memory stream.
+     */
+    static String readStampHashOrNull(byte[] jarBytes) {
+        java.io.File tmp = null;
+        try {
+            tmp = java.io.File.createTempFile("scap-stamp-probe-", ".jar");
+            java.nio.file.Files.write(tmp.toPath(), jarBytes);
+            try (JarFile jf = new JarFile(tmp, false)) {
+                JarEntry e = jf.getJarEntry(STAMP_ENTRY_NAME);
+                if (e == null) {
+                    return null;
+                }
+                byte[] body;
+                try (InputStream s = jf.getInputStream(e)) {
+                    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                    byte[] buf = new byte[256];
+                    int n;
+                    while ((n = s.read(buf)) > 0) {
+                        bos.write(buf, 0, n);
+                    }
+                    body = bos.toByteArray();
+                }
+                String text = new String(body, StandardCharsets.UTF_8).trim();
+                if (!text.startsWith("SHA-256:")) {
+                    return null;
+                }
+                String hex = text.substring("SHA-256:".length()).trim();
+                if (hex.length() != 64) {
+                    return null;
+                }
+                for (int i = 0; i < hex.length(); i++) {
+                    char c = hex.charAt(i);
+                    boolean ok = (c >= '0' && c <= '9')
+                            || (c >= 'a' && c <= 'f')
+                            || (c >= 'A' && c <= 'F');
+                    if (!ok) {
+                        return null;
+                    }
+                }
+                return hex;
+            }
+        } catch (IOException ex) {
+            return null;
+        } finally {
+            if (tmp != null) {
+                tmp.delete();
+            }
+        }
+    }
+
+    /**
+     * Pure-ZIP-level removal of the single entry named {@code dropEntry} from
+     * the given JAR bytes — matches the inverse of
+     * {@code NormalizeMojo.appendStamp(...)} byte-for-byte when applied to a
+     * stamped JAR.  Returns the stripped bytes, or {@code null} if the entry
+     * is not present in the central directory.
+     *
+     * @throws IOException if the input is not a well-formed ZIP
+     */
+    static byte[] jarBytesWithEntryRemoved(byte[] all, String dropEntry)
+            throws IOException {
+        EocdInfo eocd = findEocd(all);
+        if (eocd == null) {
+            throw new IOException("Input has no End-of-Central-Directory record");
+        }
+
+        int cdStart = eocd.cdOffset;
+        int cdEnd = eocd.cdOffset + eocd.cdSize;
+        int cur = cdStart;
+        int dropCdhStart = -1;
+        int dropLfhOffset = -1;
+        int dropLfhAndDataLen = -1;
+        int entriesSeen = 0;
+        while (cur < cdEnd && entriesSeen < eocd.totalEntries) {
+            if (readLE32(all, cur) != 0x02014b50L) {
+                throw new IOException("Malformed central directory at offset " + cur);
+            }
+            int nameLen = readLE16(all, cur + 28);
+            int extraLen = readLE16(all, cur + 30);
+            int commentLen = readLE16(all, cur + 32);
+            int compSize = readLE32i(all, cur + 20);
+            int lfhOffset = readLE32i(all, cur + 42);
+            String name = new String(all, cur + 46, nameLen, StandardCharsets.UTF_8);
+            int cdhLen = 46 + nameLen + extraLen + commentLen;
+            if (name.equals(dropEntry)) {
+                dropCdhStart = cur;
+                dropLfhOffset = lfhOffset;
+                int lfhNameLen = readLE16(all, lfhOffset + 26);
+                int lfhExtraLen = readLE16(all, lfhOffset + 28);
+                dropLfhAndDataLen = 30 + lfhNameLen + lfhExtraLen + compSize;
+                break;
+            }
+            cur += cdhLen;
+            entriesSeen++;
+        }
+        if (dropCdhStart < 0) {
+            return null;
+        }
+
+        // 1. Splice out LFH+data; copy remaining LFH section, then rewrite CD.
+        ByteArrayOutputStream out = new ByteArrayOutputStream(all.length - dropLfhAndDataLen);
+        out.write(all, 0, dropLfhOffset);
+        int afterDropStart = dropLfhOffset + dropLfhAndDataLen;
+        out.write(all, afterDropStart, cdStart - afterDropStart);
+
+        int newCdStart = out.size();
+        cur = cdStart;
+        entriesSeen = 0;
+        while (cur < cdEnd && entriesSeen < eocd.totalEntries) {
+            int nameLen = readLE16(all, cur + 28);
+            int extraLen = readLE16(all, cur + 30);
+            int commentLen = readLE16(all, cur + 32);
+            int cdhLen = 46 + nameLen + extraLen + commentLen;
+            if (cur == dropCdhStart) {
+                cur += cdhLen;
+                entriesSeen++;
+                continue;
+            }
+            byte[] cdh = new byte[cdhLen];
+            System.arraycopy(all, cur, cdh, 0, cdhLen);
+            int origLfhOffset = readLE32i(all, cur + 42);
+            if (origLfhOffset > dropLfhOffset) {
+                int adjusted = origLfhOffset - dropLfhAndDataLen;
+                cdh[42] = (byte) (adjusted & 0xff);
+                cdh[43] = (byte) ((adjusted >>> 8) & 0xff);
+                cdh[44] = (byte) ((adjusted >>> 16) & 0xff);
+                cdh[45] = (byte) ((adjusted >>> 24) & 0xff);
+            }
+            out.write(cdh);
+            cur += cdhLen;
+            entriesSeen++;
+        }
+        int newCdSize = out.size() - newCdStart;
+        int newTotalEntries = eocd.totalEntries - 1;
+
+        // 2. Rewritten EOCD.
+        writeLE32(out, 0x06054b50);
+        writeLE16(out, 0);
+        writeLE16(out, 0);
+        writeLE16(out, newTotalEntries);
+        writeLE16(out, newTotalEntries);
+        writeLE32(out, newCdSize);
+        writeLE32(out, newCdStart);
+        writeLE16(out, 0);
+        return out.toByteArray();
+    }
+
+    /**
+     * Runs {@link Normalize#normalize} on the raw bytes, returning the canonical
+     * form C.  Returns {@code null} (and logs+clears state) if the bytes are
+     * not a well-formed JAR.  This is the canonicaliser-of-last-resort path.
+     */
+    private byte[] normaliseOrNull(byte[] rawBytes, Uri uri) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            Normalize.normalize(new ByteArrayInputStream(rawBytes), baos,
+                    Normalize.Options.reproducible());
+            return baos.toByteArray();
+        } catch (IOException e) {
+            logger.log(Level.WARNING,
+                    "Normalisation failed (malformed JAR?) for uri=" + uri
+                            + "; skipping", e);
+            return null;
+        }
+    }
+
+    /** Result of locating the EOCD record in a ZIP byte array. */
+    private static final class EocdInfo {
+        final int cdOffset;
+        final int cdSize;
+        final int totalEntries;
+        EocdInfo(int cdOffset, int cdSize, int totalEntries) {
+            this.cdOffset = cdOffset;
+            this.cdSize = cdSize;
+            this.totalEntries = totalEntries;
+        }
+    }
+
+    private static EocdInfo findEocd(byte[] bytes) {
+        final int sig = 0x06054b50;
+        int maxCommentLen = 0xffff;
+        int start = Math.max(0, bytes.length - 22 - maxCommentLen);
+        for (int i = bytes.length - 22; i >= start; i--) {
+            if (readLE32(bytes, i) == sig) {
+                int commentLen = readLE16(bytes, i + 20);
+                if (i + 22 + commentLen == bytes.length) {
+                    int totalEntries = readLE16(bytes, i + 10);
+                    int cdSize = readLE32i(bytes, i + 12);
+                    int cdOffset = readLE32i(bytes, i + 16);
+                    if (cdOffset >= 0 && cdSize >= 0 && cdOffset + cdSize <= bytes.length) {
+                        return new EocdInfo(cdOffset, cdSize, totalEntries);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static long readLE32(byte[] b, int off) {
+        return (b[off] & 0xffL)
+                | ((b[off + 1] & 0xffL) << 8)
+                | ((b[off + 2] & 0xffL) << 16)
+                | ((b[off + 3] & 0xffL) << 24);
+    }
+
+    private static int readLE32i(byte[] b, int off) {
+        long v = readLE32(b, off);
+        return (v > Integer.MAX_VALUE) ? -1 : (int) v;
+    }
+
+    private static int readLE16(byte[] b, int off) {
+        return (b[off] & 0xff) | ((b[off + 1] & 0xff) << 8);
+    }
+
+    private static void writeLE16(ByteArrayOutputStream o, int v) {
+        o.write(v & 0xff);
+        o.write((v >>> 8) & 0xff);
+    }
+
+    private static void writeLE32(ByteArrayOutputStream o, long v) {
+        o.write((int) (v & 0xff));
+        o.write((int) ((v >>> 8) & 0xff));
+        o.write((int) ((v >>> 16) & 0xff));
+        o.write((int) ((v >>> 24) & 0xff));
     }
 
     /**

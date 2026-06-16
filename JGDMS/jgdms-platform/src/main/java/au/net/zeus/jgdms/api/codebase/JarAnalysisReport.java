@@ -17,12 +17,17 @@
  */
 package au.net.zeus.jgdms.api.codebase;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -45,9 +50,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * </ul>
  *
  * <p><strong>Deriving a {@link VerdictType} from a report.</strong>
- * The caller (typically the Codebase Downloader, Host 4) converts a
- * {@code JarAnalysisReport} to a {@link SignedVerdict} before submitting
- * to the {@link VerdictRegistry}.  The mapping is:
+ * The {@link VerdictRegistry} derives the aggregate {@link VerdictType} from
+ * the submitted report via {@link #deriveVerdictType()}.  The mapping is:
  * <ul>
  *   <li>Any {@link ClinitVerdict#BLOCKING}, {@link ClinitVerdict#CYCLE},
  *       or {@link ClinitVerdict#BLOCKING_DECLARED}
@@ -79,13 +83,14 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 @AtomicSerial
 public final class JarAnalysisReport implements Serializable {
 
-    private static final long serialVersionUID = 2L;
+    private static final long serialVersionUID = 3L;
 
     private static final String CONTENT_HASH         = "contentHash";
     private static final String CLASS_NAMES           = "classNames";
     private static final String CLASS_RESULTS         = "classResults";
     private static final String ENGINE_SIGNATURE      = "engineSignature";
     private static final String DECLARED_PERMISSIONS  = "declaredPermissions";
+    private static final String CODEBASE_URLS         = "codebaseUrls";
 
     @SuppressWarnings("unused")
     private static final ObjectStreamField[] serialPersistentFields = serialForm();
@@ -96,25 +101,18 @@ public final class JarAnalysisReport implements Serializable {
             new SerialForm(CLASS_NAMES,         String[].class),
             new SerialForm(CLASS_RESULTS,       ClassAnalysisResult[].class),
             new SerialForm(ENGINE_SIGNATURE,    byte[].class),
-            new SerialForm(DECLARED_PERMISSIONS, String[].class)
+            new SerialForm(DECLARED_PERMISSIONS, String[].class),
+            new SerialForm(CODEBASE_URLS,       String[].class)
         };
     }
 
     public static void serialize(PutArg arg, JarAnalysisReport r) throws IOException {
-        int size = r.results.size();
-        String[] classNames   = new String[size];
-        ClassAnalysisResult[] classResults = new ClassAnalysisResult[size];
-        int i = 0;
-        for (Map.Entry<String, ClassAnalysisResult> e : r.results.entrySet()) {
-            classNames[i]   = e.getKey();
-            classResults[i] = e.getValue();
-            i++;
-        }
         arg.put(CONTENT_HASH,         r.contentHash);
-        arg.put(CLASS_NAMES,          classNames);
-        arg.put(CLASS_RESULTS,        classResults);
+        arg.put(CLASS_NAMES,          r.classNames.clone());
+        arg.put(CLASS_RESULTS,        r.classResults.clone());
         arg.put(ENGINE_SIGNATURE,     r.engineSignature.clone());
         arg.put(DECLARED_PERMISSIONS, r.declaredPermissions.clone());
+        arg.put(CODEBASE_URLS,        r.codebaseUrls.clone());
         arg.writeArgs();
     }
 
@@ -152,17 +150,47 @@ public final class JarAnalysisReport implements Serializable {
                             "declaredPermissions must not contain null elements");
             }
         }
+        // codebaseUrls may be absent (old reports) or null → treated as empty
+        String[] cu = (String[]) arg.get(CODEBASE_URLS, null);
+        if (cu != null) {
+            for (String s : cu) {
+                if (s == null)
+                    throw new InvalidObjectException(
+                            "codebaseUrls must not contain null elements");
+            }
+        }
         return true;
     }
 
-    /** SHA-256 hex digest of the analysed JAR. */
+    /**
+     * SHA-256 hex digest of the analysed JAR.
+     *
+     * @serial
+     */
     private final String contentHash;
 
     /**
-     * Per-class analysis results, keyed by internal binary class name
-     * ({@code /}-separated).  Insertion order is preserved.
+     * Internal binary class names ({@code /}-separated), in insertion order.
+     * Parallel to {@link #classResults}; together they form the serialized
+     * representation of the per-class results.
+     *
+     * @serial
      */
-    private final Map<String, ClassAnalysisResult> results;
+    private final String[] classNames;
+
+    /**
+     * Per-class analysis results, parallel to {@link #classNames}.
+     *
+     * @serial
+     */
+    private final ClassAnalysisResult[] classResults;
+
+    /**
+     * Per-class analysis results, keyed by internal binary class name
+     * ({@code /}-separated), insertion order preserved.  Runtime-only view
+     * derived from {@link #classNames}/{@link #classResults}; not serialized.
+     */
+    private final transient Map<String, ClassAnalysisResult> results;
 
     /**
      * DER-encoded signature produced by the engine's private key over the
@@ -184,6 +212,18 @@ public final class JarAnalysisReport implements Serializable {
     private final String[] declaredPermissions;
 
     /**
+     * The codebase URI(s) (RFC 3986 URI strings) from which the analysed JAR
+     * was downloaded.  Carried for traceability and so the
+     * {@link VerdictRegistry} can build a URL-to-hash index for reactive
+     * condemnation of a content hash when a crash or carrier-pinning event is
+     * later reported against one of these URLs.
+     *
+     * <p>May be empty when the origin is not tracked; never {@code null}, and
+     * never contains {@code null} elements.
+     */
+    private final String[] codebaseUrls;
+
+    /**
      * {@link AtomicSerial} deserialization constructor.
      *
      * @param arg the deserialization argument bag
@@ -196,19 +236,28 @@ public final class JarAnalysisReport implements Serializable {
 
     private JarAnalysisReport(GetArg arg, boolean checked) throws IOException, ClassNotFoundException {
         contentHash      = (String) arg.get(CONTENT_HASH, null);
-        String[] classNames   = (String[]) arg.get(CLASS_NAMES, null);
-        ClassAnalysisResult[] classResults =
-                (ClassAnalysisResult[]) arg.get(CLASS_RESULTS, null);
-        Map<String, ClassAnalysisResult> map =
-                new LinkedHashMap<String, ClassAnalysisResult>(classNames.length * 2);
-        for (int i = 0; i < classNames.length; i++) {
-            map.put(classNames[i], classResults[i]);
-        }
-        results          = Collections.unmodifiableMap(map);
+        classNames       = ((String[]) arg.get(CLASS_NAMES, null)).clone();
+        classResults     = ((ClassAnalysisResult[]) arg.get(CLASS_RESULTS, null)).clone();
+        results          = buildResults(classNames, classResults);
         engineSignature  = ((byte[]) arg.get(ENGINE_SIGNATURE, null)).clone();
         // declaredPermissions may be absent in older reports → treat as empty
         String[] dp = (String[]) arg.get(DECLARED_PERMISSIONS, null);
         declaredPermissions = (dp != null) ? dp.clone() : new String[0];
+        // codebaseUrls may be absent in older reports → treat as empty
+        String[] cu = (String[]) arg.get(CODEBASE_URLS, null);
+        codebaseUrls = (cu != null) ? cu.clone() : new String[0];
+    }
+
+    /** Builds the unmodifiable insertion-ordered results map from the two
+     *  parallel serialized arrays. */
+    private static Map<String, ClassAnalysisResult> buildResults(
+            String[] names, ClassAnalysisResult[] resultsArr) {
+        Map<String, ClassAnalysisResult> map =
+                new LinkedHashMap<String, ClassAnalysisResult>(names.length * 2);
+        for (int i = 0; i < names.length; i++) {
+            map.put(names[i], resultsArr[i]);
+        }
+        return Collections.unmodifiableMap(map);
     }
 
     /**
@@ -228,11 +277,15 @@ public final class JarAnalysisReport implements Serializable {
     public JarAnalysisReport(String contentHash,
                               Map<String, ClassAnalysisResult> results,
                               byte[] engineSignature) {
-        this(contentHash, results, engineSignature, new String[0]);
+        this(contentHash, results, engineSignature, new String[0], new String[0]);
     }
 
     /**
-     * Constructs a {@code JarAnalysisReport} with declared permissions.
+     * Constructs a {@code JarAnalysisReport} with declared permissions and no
+     * codebase URLs.
+     *
+     * <p>Backward-compatible convenience constructor; equivalent to calling the
+     * five-argument constructor with an empty {@code codebaseUrls} array.
      *
      * @param contentHash          SHA-256 hex digest of the analysed JAR; must
      *                             be non-null and non-empty
@@ -249,6 +302,32 @@ public final class JarAnalysisReport implements Serializable {
                               Map<String, ClassAnalysisResult> results,
                               byte[] engineSignature,
                               String[] declaredPermissions) {
+        this(contentHash, results, engineSignature, declaredPermissions, new String[0]);
+    }
+
+    /**
+     * Constructs a {@code JarAnalysisReport} with declared permissions and
+     * codebase URLs.
+     *
+     * @param contentHash          SHA-256 hex digest of the analysed JAR; must
+     *                             be non-null and non-empty
+     * @param results              per-class analysis results; must be non-null
+     * @param engineSignature      DER-encoded engine signature; must be non-null
+     *                             and non-empty
+     * @param declaredPermissions  lines from {@code META-INF/PERMISSIONS.LIST};
+     *                             must be non-null; individual elements must be
+     *                             non-null
+     * @param codebaseUrls         RFC 3986 URI strings of the JAR's origin; must
+     *                             be non-null; individual elements must be
+     *                             non-null; may be empty
+     * @throws IllegalArgumentException if any argument fails a precondition
+     * @throws NullPointerException     if any argument is {@code null}
+     */
+    public JarAnalysisReport(String contentHash,
+                              Map<String, ClassAnalysisResult> results,
+                              byte[] engineSignature,
+                              String[] declaredPermissions,
+                              String[] codebaseUrls) {
         if (contentHash == null)          throw new NullPointerException("contentHash");
         if (contentHash.isEmpty())        throw new IllegalArgumentException("contentHash must not be empty");
         if (results == null)              throw new NullPointerException("results");
@@ -260,12 +339,28 @@ public final class JarAnalysisReport implements Serializable {
             if (declaredPermissions[i] == null)
                 throw new NullPointerException("declaredPermissions[" + i + "]");
         }
+        if (codebaseUrls == null)         throw new NullPointerException("codebaseUrls");
+        for (int i = 0; i < codebaseUrls.length; i++) {
+            if (codebaseUrls[i] == null)
+                throw new NullPointerException("codebaseUrls[" + i + "]");
+        }
 
         this.contentHash          = contentHash;
-        this.results              = Collections.unmodifiableMap(
-                new LinkedHashMap<String, ClassAnalysisResult>(results));
+        Map<String, ClassAnalysisResult> ordered =
+                new LinkedHashMap<String, ClassAnalysisResult>(results);
+        int size = ordered.size();
+        this.classNames           = new String[size];
+        this.classResults         = new ClassAnalysisResult[size];
+        int i = 0;
+        for (Map.Entry<String, ClassAnalysisResult> e : ordered.entrySet()) {
+            this.classNames[i]   = e.getKey();
+            this.classResults[i] = e.getValue();
+            i++;
+        }
+        this.results              = Collections.unmodifiableMap(ordered);
         this.engineSignature      = engineSignature.clone();
         this.declaredPermissions  = declaredPermissions.clone();
+        this.codebaseUrls         = codebaseUrls.clone();
     }
 
     /**
@@ -306,6 +401,90 @@ public final class JarAnalysisReport implements Serializable {
      * @return non-null copy of the declared-permission lines
      */
     public String[] getDeclaredPermissions() { return declaredPermissions.clone(); }
+
+    /**
+     * Returns a copy of the codebase URI strings (RFC 3986) from which the
+     * analysed JAR was downloaded.
+     *
+     * <p>Returns an empty array when the origin is not tracked.
+     *
+     * @return non-null copy of the codebase URI strings; never contains
+     *         {@code null} elements
+     */
+    public String[] getCodebaseUrls() { return codebaseUrls.clone(); }
+
+    /**
+     * Returns the exact bytes that the engine signs and the registry verifies
+     * for this report — the single source of truth for the report's signed
+     * canonical form.
+     *
+     * <p>The format is a NUL-delimited ({@code 0x00}) UTF-8 byte stream with
+     * three section markers ({@code "C"}, {@code "P"}, {@code "U"}) that
+     * disambiguate the concatenation of the three variable-length sections:
+     * <pre>
+     *   contentHash + NUL
+     *   "C" + NUL
+     *   for each className in sorted(results.keySet()):
+     *       className + NUL + clinitVerdict.name() + NUL + atomicVerdict.name() + NUL
+     *   "P" + NUL
+     *   for each perm in sorted(declaredPermissions):
+     *       perm + NUL
+     *   "U" + NUL
+     *   for each url in sorted(codebaseUrls):
+     *       url + NUL
+     * </pre>
+     *
+     * <p>Both the analysis engine (when signing) and the
+     * {@link VerdictRegistry} (when verifying) MUST use exactly these bytes, so
+     * any change to a report field that affects the signed content is reflected
+     * here and only here.
+     *
+     * @return the canonical signed/verified byte representation of this report
+     */
+    public byte[] canonicalBytes() {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+        try {
+            writeField(baos, contentHash);
+
+            // Section "C": per-class results, sorted by class name.
+            writeField(baos, "C");
+            List<String> sortedNames = new ArrayList<String>(results.keySet());
+            Collections.sort(sortedNames);
+            for (String name : sortedNames) {
+                ClassAnalysisResult cr = results.get(name);
+                writeField(baos, name);
+                writeField(baos, cr.getClinitVerdict().name());
+                writeField(baos, cr.getAtomicVerdict().name());
+            }
+
+            // Section "P": declared permissions, sorted.
+            writeField(baos, "P");
+            String[] sortedPerms = declaredPermissions.clone();
+            Arrays.sort(sortedPerms);
+            for (String perm : sortedPerms) {
+                writeField(baos, perm);
+            }
+
+            // Section "U": codebase URLs, sorted.
+            writeField(baos, "U");
+            String[] sortedUrls = codebaseUrls.clone();
+            Arrays.sort(sortedUrls);
+            for (String url : sortedUrls) {
+                writeField(baos, url);
+            }
+        } catch (IOException e) {
+            // ByteArrayOutputStream.write never throws — unreachable.
+            throw new AssertionError("ByteArrayOutputStream threw IOException", e);
+        }
+        return baos.toByteArray();
+    }
+
+    /** Writes {@code s} as UTF-8 bytes followed by a single NUL (0x00). */
+    private static void writeField(ByteArrayOutputStream baos, String s)
+            throws IOException {
+        baos.write(s.getBytes(StandardCharsets.UTF_8));
+        baos.write(0);
+    }
 
     /**
      * Derives the aggregate {@link VerdictType} from all per-class results.
@@ -367,6 +546,7 @@ public final class JarAnalysisReport implements Serializable {
         return "JarAnalysisReport{contentHash='" + contentHash
                 + "', classCount=" + results.size()
                 + ", verdict=" + deriveVerdictType()
-                + ", declaredPermissions=" + declaredPermissions.length + '}';
+                + ", declaredPermissions=" + declaredPermissions.length
+                + ", codebaseUrls=" + codebaseUrls.length + '}';
     }
 }

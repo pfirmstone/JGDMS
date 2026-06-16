@@ -48,6 +48,13 @@
             <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- net.pack200.Normalize: Host 4 normalises raw JAR bytes to a
+             byte-reproducible Pack200 fixed point before hashing (JGDMS-STD-002).
+             Version is managed by the parent pom's pack200.version property. -->
+        <dependency>
+            <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+            <artifactId>Pack200-ex-openjdk</artifactId>
+        </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-lib</artifactId>

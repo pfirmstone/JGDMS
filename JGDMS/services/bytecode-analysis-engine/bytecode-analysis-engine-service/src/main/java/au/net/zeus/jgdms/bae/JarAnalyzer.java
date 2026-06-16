@@ -91,6 +91,14 @@ final class JarAnalyzer {
     private static final Logger logger =
             Logger.getLogger(JarAnalyzer.class.getName());
 
+    /**
+     * Non-empty placeholder signature used only to build the intermediate
+     * {@link JarAnalysisReport} whose {@link JarAnalysisReport#canonicalBytes()}
+     * is signed.  The signature field is excluded from the canonical form, so
+     * its value never affects the signed/verified bytes.
+     */
+    private static final byte[] PLACEHOLDER_SIGNATURE = new byte[]{ 0 };
+
     private final PrivateKey enginePrivateKey;
     private final String     sigAlgorithm;
 
@@ -268,15 +276,29 @@ final class JarAnalyzer {
                     cycleParticipants));
         }
 
+        // ---- Codebase URLs for traceability / reactive condemnation ---------
+        String[] codebaseUrls = (request.getOriginalUri() != null)
+                ? new String[]{ request.getOriginalUri().toString() }
+                : new String[0];
+
         // ---- Sign the report ------------------------------------------------
+        // The signed bytes are exactly JarAnalysisReport.canonicalBytes() — the
+        // single source of truth shared with the VerdictRegistry verifier.  We
+        // sign a placeholder-signature report's canonicalBytes() (the signature
+        // field is excluded from the canonical form), then rebuild the final
+        // report carrying the real signature.
         byte[] signature;
         try {
-            signature = sign(contentHash, results, declaredPermissions);
+            JarAnalysisReport unsigned = new JarAnalysisReport(
+                    contentHash, results, PLACEHOLDER_SIGNATURE,
+                    declaredPermissions, codebaseUrls);
+            signature = sign(unsigned.canonicalBytes());
         } catch (Exception ex) {
             throw new AnalysisException("Failed to sign JarAnalysisReport", ex);
         }
 
-        return new JarAnalysisReport(contentHash, results, signature, declaredPermissions);
+        return new JarAnalysisReport(
+                contentHash, results, signature, declaredPermissions, codebaseUrls);
     }
 
     // -------------------------------------------------------------------------
@@ -316,56 +338,21 @@ final class JarAnalyzer {
     }
 
     /**
-     * Signs the canonical representation of the report fields with the
-     * engine's private key.
+     * Signs {@code canonicalBytes} with the engine's private key.
      *
-     * <p>The canonical form is:
-     * <pre>
-     *   contentHash (UTF-8 bytes) + NUL
-     *   for each className (sorted):
-     *     className (UTF-8) + NUL
-     *     clinitVerdict.name() (UTF-8) + NUL
-     *     atomicVerdict.name() (UTF-8) + NUL
-     *   for each declaredPermission (sorted):
-     *     permission (UTF-8) + NUL
-     * </pre>
+     * <p>The bytes passed here MUST be exactly
+     * {@link JarAnalysisReport#canonicalBytes()} so that the registry, which
+     * verifies against the same single-source-of-truth canonical form, accepts
+     * the signature.
+     *
+     * @param canonicalBytes the report's canonical byte form; must be non-null
+     * @return the DER-encoded signature
      */
-    private byte[] sign(String contentHash,
-                        Map<String, ClassAnalysisResult> results,
-                        String[] declaredPermissions)
+    private byte[] sign(byte[] canonicalBytes)
             throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         Signature signer = Signature.getInstance(sigAlgorithm);
         signer.initSign(enginePrivateKey);
-
-        byte nul = 0;
-        byte[] hashBytes = contentHash.getBytes(StandardCharsets.UTF_8);
-        signer.update(hashBytes);
-        signer.update(nul);
-
-        // Sort class names for determinism
-        List<String> sortedNames = new ArrayList<String>(results.keySet());
-        Collections.sort(sortedNames);
-        for (String name : sortedNames) {
-            ClassAnalysisResult cr = results.get(name);
-            signer.update(name.getBytes(StandardCharsets.UTF_8));
-            signer.update(nul);
-            signer.update(cr.getClinitVerdict().name()
-                    .getBytes(StandardCharsets.UTF_8));
-            signer.update(nul);
-            signer.update(cr.getAtomicVerdict().name()
-                    .getBytes(StandardCharsets.UTF_8));
-            signer.update(nul);
-        }
-
-        // Sort declared permissions for determinism before including in signature
-        List<String> sortedPerms = new ArrayList<String>(declaredPermissions.length);
-        for (String p : declaredPermissions) sortedPerms.add(p);
-        Collections.sort(sortedPerms);
-        for (String perm : sortedPerms) {
-            signer.update(perm.getBytes(StandardCharsets.UTF_8));
-            signer.update(nul);
-        }
-
+        signer.update(canonicalBytes);
         return signer.sign();
     }
 

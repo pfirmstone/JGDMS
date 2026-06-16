@@ -19,6 +19,7 @@ import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -600,21 +601,55 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
 
     /**
-     * Computes the SHA-256 hex digest of the JAR accessible at the given URL.
+     * Computes the SCAP content hash of the JAR accessible at the given URL.
+     *
+     * <p>Per JGDMS-STD-002 v1.3 the client computes the content hash as
+     * {@code SHA-256(rawDownloadedBytes)} — a plain SHA-256 over the bytes
+     * pulled from {@code jarUrl}, with no normalisation step.  Producers run
+     * {@code net.pack200.Normalize} at build time via the
+     * {@code pack200-normalize-maven-plugin}, so the published artifact IS the
+     * canonical form {@code C} and {@code SHA-256(rawBytes) ==
+     * SHA-256(C) == contentHash} that Host 4 stored in the
+     * {@link VerdictRegistry}.  A third-party JAR that the publisher forgot to
+     * pre-normalise will simply miss the verdict lookup; the fail-closed gate
+     * then refuses to load it (operationally strict — see
+     * {@link #checkVerdictForJar}).
      *
      * <p>The URL must point directly to a JAR file (not a directory).
      *
      * @param jarUrl the URL of the JAR to hash
-     * @return lowercase hexadecimal SHA-256 digest (64 characters)
+     * @return lowercase hexadecimal SHA-256 digest of the raw JAR bytes
+     *         (64 characters)
      * @throws IOException if the JAR cannot be read or SHA-256 is unavailable
      */
     static String computeJarHash(URL jarUrl) throws IOException {
+        byte[] rawJarBytes = readJarBytesBounded(jarUrl);
+
+        // SCAP v1.3: client hashes the RAW downloaded bytes.  Producers
+        // pre-normalise codebase JARs at build time (pack200-normalize-maven-plugin),
+        // so for any properly-shipped JAR rawBytes == canonical C and this hash
+        // equals the contentHash Host 4 recorded.  An unstamped third-party JAR
+        // will simply miss the lookup → fail-closed refusal in checkVerdictForJar.
         MessageDigest digest;
         try {
             digest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
             throw new IOException("SHA-256 MessageDigest not available", e);
         }
+        return bytesToHex(digest.digest(rawJarBytes));
+    }
+
+    /**
+     * Reads the full content of the JAR at {@code jarUrl} into a byte array,
+     * applying the configured connect/read timeouts and the
+     * {@link #maxJarBytes} size cap (DoS guards).
+     *
+     * @param jarUrl the URL of the JAR to read
+     * @return the raw JAR bytes
+     * @throws IOException if the JAR cannot be read or exceeds the size cap
+     */
+    private static byte[] readJarBytesBounded(URL jarUrl) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (InputStream in = openUrlWithTimeout(jarUrl)) {
             byte[] buf = new byte[8192];
             int n;
@@ -626,10 +661,10 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                             "JAR at " + jarUrl + " exceeds maximum allowed size of "
                             + maxJarBytes + " bytes during hash computation");
                 }
-                digest.update(buf, 0, n);
+                out.write(buf, 0, n);
             }
         }
-        return bytesToHex(digest.digest());
+        return out.toByteArray();
     }
 
     /**

@@ -19,7 +19,6 @@ package au.net.zeus.jgdms.bae.proxy;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
-import java.util.Set;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
@@ -29,7 +28,6 @@ import au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 import java.io.InvalidObjectException;
 
@@ -37,7 +35,7 @@ import java.io.InvalidObjectException;
  * Client-side smart proxy for the {@link BytecodeAnalysisEngine} service.
  *
  * <p>This class is downloaded to client JVMs and forwards
- * {@link #requestAnalysis} calls to the remote server-side implementation
+ * {@link #analyzeJar} calls to the remote server-side implementation
  * over a JERI transport channel.
  *
  * <p>The proxy is {@link AtomicSerial} and extends {@link AbstractSmartProxy},
@@ -114,11 +112,6 @@ public class BytecodeAnalysisEngineProxy
     }
 
     @Override
-    public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
-        ((BytecodeAnalysisEngine) server).requestAnalysis(codebaseUrls);
-    }
-
-    @Override
     public JarAnalysisReport analyzeJar(AnalysisRequest request)
             throws AnalysisException, RemoteException {
         return ((BytecodeAnalysisEngine) server).analyzeJar(request);
@@ -183,11 +176,6 @@ public class BytecodeAnalysisEngineProxy
         public RemoteMethodControl setConstraints(MethodConstraints constraints) {
             return new ConstrainableBytecodeAnalysisEngineProxy(
                     (BytecodeAnalysisEngine) server, getReferentUuid(), constraints);
-        }
-
-        @Override
-        public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
-            ((BytecodeAnalysisEngine) server).requestAnalysis(codebaseUrls);
         }
 
         @Override

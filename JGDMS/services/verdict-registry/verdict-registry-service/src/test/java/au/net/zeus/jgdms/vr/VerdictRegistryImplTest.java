@@ -27,15 +27,21 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import au.net.zeus.jgdms.api.codebase.AtomicSerialVerdict;
+import au.net.zeus.jgdms.api.codebase.ClassAnalysisResult;
+import au.net.zeus.jgdms.api.codebase.ClinitVerdict;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
+import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
-import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
+import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.net.Uri;
 import org.junit.Before;
 import org.junit.Test;
@@ -56,18 +62,17 @@ import static org.junit.Assert.assertTrue;
  *   <li>Constructor argument guards</li>
  *   <li>{@code registerAnalysisEngine} / {@code revokeAnalysisEngine} argument
  *       guards and behaviour</li>
- *   <li>{@code submitVerdict}: unregistered engine, invalid signature, valid
- *       SAFE verdict, valid DANGEROUS verdict, quorum policy</li>
+ *   <li>{@code submitReport}: hash-keyed push model, quorum policy,
+ *       crash/pinning condemnation</li>
  *   <li>{@code reportCrash}: argument guard, valid crash report → DANGEROUS</li>
  *   <li>{@code getVerdict}: null/empty guards, no-verdict and verdict-present
  *       cases</li>
  *   <li>Lease management: {@code renewEventLease} and {@code cancelEventLease}
  *       argument guards and unknown-lease handling</li>
- *   <li>Quorum revocation: revoking an engine after quorum was met retracts
- *       a stale SAFE verdict</li>
+ *   <li>Quorum revocation: revoking an engine after the hash quorum was met
+ *       retracts a stale SAFE hash verdict</li>
  *   <li>{@code codebaseKey} — canonical key ordering</li>
- *   <li>{@code canonicalBytesForVerdict} / {@code canonicalBytesForCrashReport}
- *       — determinism and field impact</li>
+ *   <li>{@code canonicalBytesForCrashReport} — determinism</li>
  * </ul>
  *
  * @author Peter Firmstone
@@ -79,7 +84,7 @@ public class VerdictRegistryImplTest {
 
     /** Registry key pair — used to sign {@link RegistryVerdict} objects. */
     private KeyPair registryKeyPair;
-    /** Engine key pair — used to sign {@link SignedVerdict} objects. */
+    /** Engine key pair — used to sign {@link JarAnalysisReport} objects. */
     private KeyPair engineKeyPair;
     /** Phoenix key pair — used to sign {@link CrashReport} objects. */
     private KeyPair phoenixKeyPair;
@@ -229,85 +234,72 @@ public class VerdictRegistryImplTest {
     }
 
     // =========================================================================
-    // submitVerdict — unregistered engine is discarded
+    // submitReport — unregistered engine is discarded
     // =========================================================================
 
     @Test
-    public void testSubmitVerdictFromUnregisteredEngineIsDiscarded()
+    public void testSubmitReportFromUnregisteredEngineIsDiscarded()
             throws Exception {
-        SignedVerdict sv = buildSignedVerdict(
-                codebaseUrls, VerdictType.SAFE, engineKeyPair);
-        registry.submitVerdict("unregistered", sv);
-        assertNull("Unregistered engine verdict must be discarded",
-                registry.getVerdict(codebaseUrls));
+        String hash = "ff00";
+        JarAnalysisReport report = buildSignedReport(
+                hash, VerdictType.SAFE, new String[0],
+                new String[]{"http://example.com/a.jar"}, engineKeyPair);
+        registry.submitReport("unregistered", report);
+        assertNull("Unregistered engine report must be discarded",
+                registry.getVerdictByHash(hash));
     }
 
     // =========================================================================
-    // submitVerdict — SAFE verdict publishes a RegistryVerdict (quorum = 1)
+    // submitReport — DANGEROUS report publishes immediately (quorum = 1)
     // =========================================================================
 
     @Test
-    public void testSubmitSafeVerdictPublishesRegistryVerdictWithQuorumOne()
+    public void testSubmitDangerousReportPublishesImmediately()
             throws Exception {
         registry.registerAnalysisEngine(
                 "e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
 
-        SignedVerdict sv = buildSignedVerdict(
-                codebaseUrls, VerdictType.SAFE, engineKeyPair);
-        registry.submitVerdict("e1", sv);
+        String hash = "ff11";
+        JarAnalysisReport report = buildSignedReport(
+                hash, VerdictType.DANGEROUS, new String[0],
+                new String[]{"http://example.com/a.jar"}, engineKeyPair);
+        registry.submitReport("e1", report);
 
-        RegistryVerdict rv = registry.getVerdict(codebaseUrls);
-        assertNotNull("A SAFE RegistryVerdict must be published", rv);
-        assertEquals(VerdictType.SAFE, rv.getVerdict());
-    }
-
-    // =========================================================================
-    // submitVerdict — DANGEROUS verdict publishes immediately
-    // =========================================================================
-
-    @Test
-    public void testSubmitDangerousVerdictPublishesImmediately()
-            throws Exception {
-        registry.registerAnalysisEngine(
-                "e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
-
-        SignedVerdict sv = buildSignedVerdict(
-                codebaseUrls, VerdictType.DANGEROUS, engineKeyPair);
-        registry.submitVerdict("e1", sv);
-
-        RegistryVerdict rv = registry.getVerdict(codebaseUrls);
+        RegistryVerdict rv = registry.getVerdictByHash(hash);
         assertNotNull("A DANGEROUS RegistryVerdict must be published", rv);
         assertEquals(VerdictType.DANGEROUS, rv.getVerdict());
     }
 
     // =========================================================================
-    // submitVerdict — invalid signature is discarded
+    // submitReport — invalid signature is discarded
     // =========================================================================
 
     @Test
-    public void testSubmitVerdictWithBadSignatureIsDiscarded()
+    public void testSubmitReportWithBadSignatureIsDiscarded()
             throws Exception {
         registry.registerAnalysisEngine(
                 "e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
 
-        // Build a verdict but sign it with the wrong key
+        // Build a report but sign it with the wrong key
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
         kpg.initialize(1024);
         KeyPair wrongKey = kpg.generateKeyPair();
-        SignedVerdict sv = buildSignedVerdict(
-                codebaseUrls, VerdictType.SAFE, wrongKey);
-        registry.submitVerdict("e1", sv);
+        String hash = "ff22";
+        JarAnalysisReport report = buildSignedReport(
+                hash, VerdictType.SAFE, new String[0],
+                new String[]{"http://example.com/a.jar"}, wrongKey);
+        registry.submitReport("e1", report);
 
-        assertNull("Verdict with bad signature must be discarded",
-                registry.getVerdict(codebaseUrls));
+        assertNull("Report with bad signature must be discarded",
+                registry.getVerdictByHash(hash));
     }
 
     // =========================================================================
-    // submitVerdict — quorum = 2
+    // submitReport — quorum = 2 (hash-keyed)
     // =========================================================================
 
     @Test
-    public void testQuorumOfTwoRequiresTwoSafeVotes() throws Exception {
+    public void testHashQuorumOfTwoRequiresTwoSafeReports() throws Exception {
         VerdictRegistryImpl twoRegistry = new VerdictRegistryImpl(
                 registryKeyPair.getPrivate(), SIG_ALGORITHM,
                 phoenixKeyPair.getPublic(),   SIG_ALGORITHM, 2);
@@ -319,26 +311,30 @@ public class VerdictRegistryImplTest {
         twoRegistry.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
         twoRegistry.registerAnalysisEngine("e2", engine2Key.getPublic(), SIG_ALGORITHM);
 
-        // First vote — quorum not yet met
-        twoRegistry.submitVerdict("e1",
-                buildSignedVerdict(codebaseUrls, VerdictType.SAFE, engineKeyPair));
-        assertNull("Single vote must not meet quorum of 2",
-                twoRegistry.getVerdict(codebaseUrls));
+        String hash = "ff33";
+        String[] urls = { "http://example.com/a.jar" };
 
-        // Second vote — quorum met
-        twoRegistry.submitVerdict("e2",
-                buildSignedVerdict(codebaseUrls, VerdictType.SAFE, engine2Key));
-        RegistryVerdict rv = twoRegistry.getVerdict(codebaseUrls);
-        assertNotNull("Two SAFE votes must meet quorum of 2", rv);
+        // First report — quorum not yet met
+        twoRegistry.submitReport("e1",
+                buildSignedReport(hash, VerdictType.SAFE, new String[0], urls, engineKeyPair));
+        assertNull("Single report must not meet quorum of 2",
+                twoRegistry.getVerdictByHash(hash));
+
+        // Second report — quorum met
+        twoRegistry.submitReport("e2",
+                buildSignedReport(hash, VerdictType.SAFE, new String[0], urls, engine2Key));
+        RegistryVerdict rv = twoRegistry.getVerdictByHash(hash);
+        assertNotNull("Two SAFE reports must meet quorum of 2", rv);
         assertEquals(VerdictType.SAFE, rv.getVerdict());
     }
 
     // =========================================================================
-    // revokeAnalysisEngine — vote is removed; stale SAFE verdict is retracted
+    // revokeAnalysisEngine — hash vote is removed; stale SAFE hash verdict is
+    // retracted when the quorum is no longer met
     // =========================================================================
 
     @Test
-    public void testRevokingVotingEngineRetractsSafeVerdict() throws Exception {
+    public void testRevokingVotingEngineRetractsSafeHashVerdict() throws Exception {
         VerdictRegistryImpl twoRegistry = new VerdictRegistryImpl(
                 registryKeyPair.getPrivate(), SIG_ALGORITHM,
                 phoenixKeyPair.getPublic(),   SIG_ALGORITHM, 2);
@@ -350,17 +346,20 @@ public class VerdictRegistryImplTest {
         twoRegistry.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
         twoRegistry.registerAnalysisEngine("e2", engine2Key.getPublic(), SIG_ALGORITHM);
 
-        // Two SAFE votes → quorum met
-        twoRegistry.submitVerdict("e1",
-                buildSignedVerdict(codebaseUrls, VerdictType.SAFE, engineKeyPair));
-        twoRegistry.submitVerdict("e2",
-                buildSignedVerdict(codebaseUrls, VerdictType.SAFE, engine2Key));
-        assertNotNull(twoRegistry.getVerdict(codebaseUrls));
+        String hash = "ff44";
+        String[] urls = { "http://example.com/a.jar" };
 
-        // Revoke one engine — quorum no longer met; verdict should be retracted
+        // Two SAFE reports → hash quorum met
+        twoRegistry.submitReport("e1",
+                buildSignedReport(hash, VerdictType.SAFE, new String[0], urls, engineKeyPair));
+        twoRegistry.submitReport("e2",
+                buildSignedReport(hash, VerdictType.SAFE, new String[0], urls, engine2Key));
+        assertNotNull(twoRegistry.getVerdictByHash(hash));
+
+        // Revoke one engine — quorum no longer met; hash verdict retracted
         twoRegistry.revokeAnalysisEngine("e1");
-        assertNull("Revoking a voting engine must retract a stale SAFE verdict",
-                twoRegistry.getVerdict(codebaseUrls));
+        assertNull("Revoking a voting engine must retract a stale SAFE hash verdict",
+                twoRegistry.getVerdictByHash(hash));
     }
 
     // =========================================================================
@@ -435,22 +434,22 @@ public class VerdictRegistryImplTest {
     }
 
     // =========================================================================
-    // submitVerdict — null engineId / null verdict guard
+    // submitReport — null engineId / null report guard
     // =========================================================================
 
     @Test(expected = NullPointerException.class)
-    public void testSubmitVerdictNullEngineIdThrowsNPE() throws RemoteException {
-        registry.submitVerdict(null, null);
+    public void testSubmitReportNullEngineIdThrowsNPE() throws RemoteException {
+        registry.submitReport(null, null);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testSubmitVerdictEmptyEngineIdThrowsIAE() throws RemoteException {
-        registry.submitVerdict("", null);
+    public void testSubmitReportEmptyEngineIdThrowsIAE() throws RemoteException {
+        registry.submitReport("", null);
     }
 
     @Test(expected = NullPointerException.class)
-    public void testSubmitVerdictNullVerdictThrowsNPE() throws RemoteException {
-        registry.submitVerdict("e1", null);
+    public void testSubmitReportNullReportThrowsNPE() throws RemoteException {
+        registry.submitReport("e1", null);
     }
 
     // =========================================================================
@@ -475,22 +474,6 @@ public class VerdictRegistryImplTest {
     }
 
     // =========================================================================
-    // canonicalBytesForVerdict — determinism
-    // =========================================================================
-
-    @Test
-    public void testCanonicalBytesForVerdictDeterministic()
-            throws Exception {
-        registry.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
-        SignedVerdict sv = buildSignedVerdict(codebaseUrls, VerdictType.SAFE, engineKeyPair);
-
-        byte[] b1 = VerdictRegistryImpl.canonicalBytesForVerdict(sv);
-        byte[] b2 = VerdictRegistryImpl.canonicalBytesForVerdict(sv);
-        assertTrue("canonicalBytesForVerdict must be deterministic",
-                java.util.Arrays.equals(b1, b2));
-    }
-
-    // =========================================================================
     // canonicalBytesForCrashReport — determinism
     // =========================================================================
 
@@ -504,45 +487,192 @@ public class VerdictRegistryImplTest {
     }
 
     // =========================================================================
+    // submitReport — #1: report with declared permissions AND codebase URLs is
+    // accepted (signature verified over JarAnalysisReport.canonicalBytes())
+    // =========================================================================
+
+    @Test
+    public void testSubmitReportWithPermsAndUrlsIsAccepted() throws Exception {
+        registry.registerAnalysisEngine(
+                "e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
+
+        String hash = "aa11";
+        String[] perms = {
+            "permission java.net.SocketPermission \"*\", \"connect\";",
+            "permission java.io.FilePermission \"/tmp/-\", \"read\";"
+        };
+        String[] urls = { "http://example.com/lib.jar" };
+        JarAnalysisReport report = buildSignedReport(
+                hash, VerdictType.SAFE, perms, urls, engineKeyPair);
+
+        registry.submitReport("e1", report);
+
+        RegistryVerdict rv = registry.getVerdictByHash(hash);
+        assertNotNull("Report with perms+urls must be accepted and published", rv);
+        assertEquals(VerdictType.SAFE, rv.getVerdict());
+    }
+
+    // =========================================================================
+    // submitReport — #2: reportPinning for a URL flips the hash to DANGEROUS
+    // =========================================================================
+
+    @Test
+    public void testReportPinningCondemnsKnownHash() throws Exception {
+        registry.registerAnalysisEngine(
+                "e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
+
+        String hash = "bb22";
+        String url  = "http://example.com/pinning.jar";
+        JarAnalysisReport report = buildSignedReport(
+                hash, VerdictType.SAFE, new String[0], new String[]{url}, engineKeyPair);
+        registry.submitReport("e1", report);
+        assertEquals(VerdictType.SAFE, registry.getVerdictByHash(hash).getVerdict());
+
+        Set<Uri> urls = new LinkedHashSet<Uri>();
+        urls.add(new Uri(url));
+        registry.reportPinning(new PinningReport(
+                urls.toArray(new Uri[0]), 1_000_000L, 5L, 0L, 1L));
+
+        RegistryVerdict rv = registry.getVerdictByHash(hash);
+        assertNotNull(rv);
+        assertEquals("Pinning report must condemn the known content hash",
+                VerdictType.DANGEROUS, rv.getVerdict());
+    }
+
+    @Test
+    public void testReportCrashCondemnsKnownHash() throws Exception {
+        registry.registerAnalysisEngine(
+                "e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
+
+        String hash = "cc33";
+        String url  = "http://example.com/crash.jar";
+        JarAnalysisReport report = buildSignedReport(
+                hash, VerdictType.SAFE, new String[0], new String[]{url}, engineKeyPair);
+        registry.submitReport("e1", report);
+
+        Set<Uri> urls = new LinkedHashSet<Uri>();
+        urls.add(new Uri(url));
+        registry.reportCrash(buildCrashReport(urls, phoenixKeyPair));
+
+        RegistryVerdict rv = registry.getVerdictByHash(hash);
+        assertNotNull(rv);
+        assertEquals("Crash report must condemn the known content hash",
+                VerdictType.DANGEROUS, rv.getVerdict());
+    }
+
+    // =========================================================================
+    // submitReport — #2: pending-ordering — crash for {u} BEFORE the report;
+    // a later report for H/{u} ends DANGEROUS
+    // =========================================================================
+
+    @Test
+    public void testPendingCondemnationFlipsLaterReport() throws Exception {
+        registry.registerAnalysisEngine(
+                "e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
+
+        String hash = "dd44";
+        String url  = "http://example.com/pending.jar";
+
+        // Crash arrives first — no hash known yet for this URL → pending.
+        Set<Uri> urls = new LinkedHashSet<Uri>();
+        urls.add(new Uri(url));
+        registry.reportCrash(buildCrashReport(urls, phoenixKeyPair));
+        assertNull("No report yet — hash verdict must be absent",
+                registry.getVerdictByHash(hash));
+
+        // Now the SAFE report for the same URL arrives — must be forced DANGEROUS.
+        JarAnalysisReport report = buildSignedReport(
+                hash, VerdictType.SAFE, new String[0], new String[]{url}, engineKeyPair);
+        registry.submitReport("e1", report);
+
+        RegistryVerdict rv = registry.getVerdictByHash(hash);
+        assertNotNull(rv);
+        assertEquals("A pending URL condemnation must force the later report DANGEROUS",
+                VerdictType.DANGEROUS, rv.getVerdict());
+    }
+
+    // =========================================================================
+    // #6: hash-keyed published verdict survives a simulated restart
+    // =========================================================================
+
+    @Test
+    public void testHashVerdictSurvivesRestart() throws Exception {
+        java.nio.file.Path logDir =
+                java.nio.file.Files.createTempDirectory("vr-test-hash-persist-");
+        java.nio.file.Path restartDir = null;
+        try {
+            VerdictRegistryImpl boot1 = new VerdictRegistryImpl(
+                    registryKeyPair.getPrivate(), SIG_ALGORITHM,
+                    phoenixKeyPair.getPublic(),   SIG_ALGORITHM, 1,
+                    logDir.toString());
+            boot1.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
+
+            String hash = "ee55";
+            String[] urls = { "http://example.com/persist.jar" };
+            JarAnalysisReport report = buildSignedReport(
+                    hash, VerdictType.SAFE, new String[0], urls, engineKeyPair);
+            boot1.submitReport("e1", report);
+            assertNotNull("Pre-restart hash verdict must exist",
+                    boot1.getVerdictByHash(hash));
+
+            // Simulate a restart by recovering from a copy of boot1's log
+            // directory.  (A copy is used rather than the same directory because
+            // boot1 keeps OS file handles open within this single JVM, which on
+            // Windows blocks boot2's snapshot consolidation from deleting the
+            // old log file.  The copy faithfully exercises the recovery path.)
+            restartDir = java.nio.file.Files.createTempDirectory("vr-test-hash-restart-");
+            for (java.nio.file.Path src : (Iterable<java.nio.file.Path>)
+                    java.nio.file.Files.list(logDir)::iterator) {
+                java.nio.file.Files.copy(src,
+                        restartDir.resolve(src.getFileName()),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            VerdictRegistryImpl boot2 = new VerdictRegistryImpl(
+                    registryKeyPair.getPrivate(), SIG_ALGORITHM,
+                    phoenixKeyPair.getPublic(),   SIG_ALGORITHM, 1,
+                    restartDir.toString());
+            RegistryVerdict recovered = boot2.getVerdictByHash(hash);
+            assertNotNull("Hash verdict must survive restart", recovered);
+            assertEquals(VerdictType.SAFE, recovered.getVerdict());
+        } finally {
+            deleteDirectory(logDir);
+            deleteDirectory(restartDir);
+        }
+    }
+
+    // =========================================================================
     // Private helpers
     // =========================================================================
 
     /**
-     * Builds a {@link SignedVerdict} for {@code codebaseUrls} and the given
-     * verdict type, signed with the supplied key pair.
+     * Builds a {@link JarAnalysisReport} for {@code contentHash} that derives to
+     * {@code wanted}, with the supplied declared permissions and codebase URLs,
+     * signed over {@link JarAnalysisReport#canonicalBytes()} with the supplied
+     * key pair.
      */
-    private static SignedVerdict buildSignedVerdict(Set<Uri> codebaseUrls,
-                                                    VerdictType type,
-                                                    KeyPair signingKey)
-            throws NoSuchAlgorithmException, InvalidKeyException,
-                   SignatureException, IOException, URISyntaxException {
-        Uri[] sorted = sortedUris(codebaseUrls);
-        long timestamp = System.currentTimeMillis();
-        byte[] canonical = canonicalBytesForSignedVerdict(sorted, type, timestamp);
-        byte[] sig = rsaSign(signingKey, canonical);
-        return new SignedVerdict(sorted, type, timestamp, sig);
-    }
+    private static JarAnalysisReport buildSignedReport(String contentHash,
+                                                       VerdictType wanted,
+                                                       String[] declaredPermissions,
+                                                       String[] codebaseUrls,
+                                                       KeyPair signingKey)
+            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        Map<String, ClassAnalysisResult> results =
+                new LinkedHashMap<String, ClassAnalysisResult>();
+        ClinitVerdict cv = (wanted == VerdictType.DANGEROUS)
+                ? ClinitVerdict.BLOCKING : ClinitVerdict.CLEAN;
+        results.put("com/example/Foo", new ClassAnalysisResult(
+                "com/example/Foo", cv, AtomicSerialVerdict.COMPLIANT,
+                Collections.<String>emptyList(),
+                Collections.<String>emptyList()));
 
-    /**
-     * Produces the canonical bytes that a BAE engine signs for a
-     * {@link SignedVerdict}.  Mirrors {@code BytecodeAnalysisEngineImpl.canonicalBytes}
-     * without creating a cross-module test dependency.
-     */
-    private static byte[] canonicalBytesForSignedVerdict(Uri[] sortedUrls,
-                                                          VerdictType type,
-                                                          long timestamp)
-            throws IOException {
-        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-        java.io.DataOutputStream dos = new java.io.DataOutputStream(baos);
-        for (Uri uri : sortedUrls) {
-            byte[] b = uri.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            dos.writeInt(b.length);
-            dos.write(b);
-        }
-        dos.writeInt(type.ordinal());
-        dos.writeLong(timestamp);
-        dos.flush();
-        return baos.toByteArray();
+        // Sign canonicalBytes() of an intermediate (placeholder-signature) report.
+        JarAnalysisReport unsigned = new JarAnalysisReport(
+                contentHash, results, new byte[]{0},
+                declaredPermissions, codebaseUrls);
+        byte[] sig = rsaSign(signingKey, unsigned.canonicalBytes());
+        return new JarAnalysisReport(
+                contentHash, results, sig, declaredPermissions, codebaseUrls);
     }
 
     /**
@@ -595,85 +725,8 @@ public class VerdictRegistryImplTest {
     }
 
     // =========================================================================
-    // Persistence — restart recovery
+    // Persistence — log corruption detection
     // =========================================================================
-
-    /**
-     * Verifies that after a simulated restart, accumulated quorum votes are
-     * replayed from the persistent log and the published verdict is available
-     * without re-submission.
-     */
-//    @Test
-//    public void testVerdictRegistry_RestartRecovery_ReplaysVotes() throws Exception {
-//        java.nio.file.Path logDir = java.nio.file.Files.createTempDirectory("vr-test-restart-");
-//        try {
-//            // --- First "boot": register engine, submit SAFE vote ---
-//            VerdictRegistryImpl r1 = new VerdictRegistryImpl(
-//                    registryKeyPair.getPrivate(), SIG_ALGORITHM,
-//                    phoenixKeyPair.getPublic(),   SIG_ALGORITHM, 1,
-//                    logDir.toString());
-//            r1.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
-//            SignedVerdict sv = buildSignedVerdict(codebaseUrls, VerdictType.SAFE, engineKeyPair);
-//            r1.submitVerdict("e1", sv);
-//
-//            // Verdict must be published after first boot.
-//            RegistryVerdict v1 = r1.getVerdict(codebaseUrls);
-//            assertNotNull("Verdict must be published after first boot", v1);
-//            assertEquals("Verdict type must be SAFE", VerdictType.SAFE, v1.getVerdict());
-//
-//            // --- Simulated restart: new instance, same log directory ---
-//            VerdictRegistryImpl r2 = new VerdictRegistryImpl(
-//                    registryKeyPair.getPrivate(), SIG_ALGORITHM,
-//                    phoenixKeyPair.getPublic(),   SIG_ALGORITHM, 1,
-//                    logDir.toString());
-//
-//            // Without re-submission the verdict must be recovered from the log.
-//            RegistryVerdict v2 = r2.getVerdict(codebaseUrls);
-//            assertNotNull("Verdict must be recovered from persistent log", v2);
-//            assertEquals("Recovered verdict type must be SAFE", VerdictType.SAFE, v2.getVerdict());
-//        } finally {
-//            deleteDirectory(logDir);
-//        }
-//    }
-//
-//    /**
-//     * Verifies that a published SAFE verdict survives shutdown and is still
-//     * retrievable after a full restart.
-//     */
-//    @Test
-//    public void testVerdictRegistry_Persistence_SurvivesShutdown() throws Exception {
-//        java.nio.file.Path logDir = java.nio.file.Files.createTempDirectory("vr-test-persist-");
-//        try {
-//            // Boot 1: publish SAFE verdict.
-//            VerdictRegistryImpl boot1 = new VerdictRegistryImpl(
-//                    registryKeyPair.getPrivate(), SIG_ALGORITHM,
-//                    phoenixKeyPair.getPublic(),   SIG_ALGORITHM, 1,
-//                    logDir.toString());
-//            boot1.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
-//            boot1.submitVerdict("e1", buildSignedVerdict(codebaseUrls, VerdictType.SAFE, engineKeyPair));
-//            assertNotNull("Pre-shutdown: verdict must exist", boot1.getVerdict(codebaseUrls));
-//
-//            // Boot 2: new instance, same log — verdict must still be there.
-//            VerdictRegistryImpl boot2 = new VerdictRegistryImpl(
-//                    registryKeyPair.getPrivate(), SIG_ALGORITHM,
-//                    phoenixKeyPair.getPublic(),   SIG_ALGORITHM, 1,
-//                    logDir.toString());
-//            RegistryVerdict recovered = boot2.getVerdict(codebaseUrls);
-//            assertNotNull("Post-restart: verdict must survive shutdown", recovered);
-//            assertEquals("Post-restart verdict type must be SAFE",
-//                    VerdictType.SAFE, recovered.getVerdict());
-//
-//            // Boot 3: another restart — idempotent.
-//            VerdictRegistryImpl boot3 = new VerdictRegistryImpl(
-//                    registryKeyPair.getPrivate(), SIG_ALGORITHM,
-//                    phoenixKeyPair.getPublic(),   SIG_ALGORITHM, 1,
-//                    logDir.toString());
-//            assertNotNull("Third boot: verdict still recoverable",
-//                    boot3.getVerdict(codebaseUrls));
-//        } finally {
-//            deleteDirectory(logDir);
-//        }
-//    }
 
     /**
      * Verifies that a corrupted log file causes {@link VerdictRegistryImpl} to
@@ -690,7 +743,9 @@ public class VerdictRegistryImplTest {
                     phoenixKeyPair.getPublic(),   SIG_ALGORITHM, 1,
                     logDir.toString());
             boot1.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
-            boot1.submitVerdict("e1", buildSignedVerdict(codebaseUrls, VerdictType.SAFE, engineKeyPair));
+            boot1.submitReport("e1", buildSignedReport(
+                    "abcd", VerdictType.SAFE, new String[0],
+                    new String[]{"http://example.com/a.jar"}, engineKeyPair));
 
             // Corrupt the snapshot file to simulate a partially-written disk.
             java.io.File[] files = logDir.toFile().listFiles();
@@ -724,12 +779,19 @@ public class VerdictRegistryImplTest {
         }
     }
 
-    /** Recursively deletes a temporary directory used by persistence tests. */
+    /**
+     * Recursively deletes a temporary directory used by persistence tests.
+     *
+     * <p>Best-effort: on Windows the {@link org.apache.river.reliableLog.ReliableLog}
+     * may still hold open handles on its log files when the test finishes, which
+     * blocks deletion.  Deletion failures are therefore ignored — the OS reclaims
+     * the temp directory eventually, and the recovery assertions have already run.
+     */
     private static void deleteDirectory(java.nio.file.Path dir) throws java.io.IOException {
         if (dir == null || !java.nio.file.Files.exists(dir)) return;
         java.nio.file.Files.walk(dir)
                 .sorted(java.util.Comparator.reverseOrder())
                 .map(java.nio.file.Path::toFile)
-                .forEach(java.io.File::delete);
+                .forEach(java.io.File::delete); // best-effort; ignore failures
     }
 }

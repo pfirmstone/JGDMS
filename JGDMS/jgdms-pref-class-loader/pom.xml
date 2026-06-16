@@ -48,6 +48,17 @@
             <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- JGDMS-STD-002 v1.3: the client hashes the RAW downloaded bytes;
+             producers pre-normalise codebase JARs at build time via the
+             pack200-normalize-maven-plugin, so the client no longer depends on
+             net.pack200.Normalize at runtime.  Pack200-ex-openjdk is still
+             required at test scope because the existing test fixtures construct
+             stamped JARs in-memory to verify the hash-equality contract. -->
+        <dependency>
+            <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+            <artifactId>Pack200-ex-openjdk</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

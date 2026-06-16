@@ -32,7 +32,6 @@ import net.jini.io.MarshalledInstance;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
-import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.junit.Before;
 import org.junit.After;
@@ -713,7 +712,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
      * A minimal, configurable stub for {@link VerdictRegistry} that avoids
      * any network calls.
      */
-    private static final class StubVerdictRegistry implements VerdictRegistry {
+    private static class StubVerdictRegistry implements VerdictRegistry {
 
         private RegistryVerdict verdictToReturn = null;
         private int failTimes = 0;
@@ -756,12 +755,6 @@ public class PreferredProxyCodebaseProviderVerdictTest {
 
         @Override
         public void revokeAnalysisEngine(String engineId) throws RemoteException {
-            throw new UnsupportedOperationException("not used in these tests");
-        }
-
-        @Override
-        public void submitVerdict(String engineId, SignedVerdict verdict)
-                throws RemoteException {
             throw new UnsupportedOperationException("not used in these tests");
         }
 
@@ -1090,5 +1083,170 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         PreferredProxyCodebaseProvider.resetInconclusiveStrictMode();
         assertTrue("after reset field should be true again",
                 PreferredProxyCodebaseProvider.inconclusiveStrictMode);
+    }
+
+    // -------------------------------------------------------------------------
+    // computeJarHash — JGDMS-STD-002 v1.3: client hashes RAW downloaded bytes
+    // -------------------------------------------------------------------------
+
+    /**
+     * Writes the given bytes to a temp file and returns its URL.
+     */
+    private static java.net.URL writeTempJar(byte[] rawJarBytes) throws Exception {
+        java.io.File tmp = java.io.File.createTempFile("scaptest", ".jar");
+        tmp.deleteOnExit();
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp)) {
+            fos.write(rawJarBytes);
+        }
+        return tmp.toURI().toURL();
+    }
+
+    /** Builds raw bytes of a minimal valid JAR containing a single entry. */
+    private static byte[] buildMinimalJarBytes() throws Exception {
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        try (java.util.jar.JarOutputStream jos =
+                new java.util.jar.JarOutputStream(baos)) {
+            java.util.zip.ZipEntry e = new java.util.zip.ZipEntry("a/b/Hello.txt");
+            jos.putNextEntry(e);
+            jos.write("hello scap".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            jos.closeEntry();
+        }
+        return baos.toByteArray();
+    }
+
+    /** Plain lowercase-hex SHA-256 of the given bytes. */
+    private static String rawHash(byte[] bytes) throws Exception {
+        java.security.MessageDigest md =
+                java.security.MessageDigest.getInstance("SHA-256");
+        byte[] d = md.digest(bytes);
+        StringBuilder sb = new StringBuilder(d.length * 2);
+        for (byte b : d) {
+            sb.append(Character.forDigit((b >> 4) & 0xF, 16));
+            sb.append(Character.forDigit(b & 0xF, 16));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * JGDMS-STD-002 v1.3: the client computes {@code SHA-256(rawDownloadedBytes)}
+     * directly — no normalisation step.  Producers run
+     * {@code pack200-normalize-maven-plugin} at build time so the published
+     * artifact IS the canonical form C and rawBytesHash == contentHash that
+     * Host 4 recorded.
+     */
+    @Test
+    public void computeJarHash_returnsRawBytesHash() throws Exception {
+        byte[] rawJar = buildMinimalJarBytes();
+        java.net.URL jarUrl = writeTempJar(rawJar);
+
+        String actual = PreferredProxyCodebaseProvider.computeJarHash(jarUrl);
+
+        assertEquals("client hash must equal SHA-256(rawDownloadedBytes) per v1.3",
+                rawHash(rawJar), actual);
+    }
+
+    /**
+     * A non-JAR artifact (garbage bytes) is still hashed — the client no longer
+     * parses the JAR and therefore cannot tell that the artifact is malformed.
+     * The registry lookup will simply miss and the fail-closed gate in
+     * {@link PreferredProxyCodebaseProvider#checkVerdictForJar} will refuse the
+     * load.  This test asserts that {@code computeJarHash} returns
+     * {@code SHA-256(bytes)} and does not throw.
+     */
+    @Test
+    public void computeJarHash_arbitraryBytes_returnsRawBytesHash() throws Exception {
+        byte[] garbage = new byte[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        java.net.URL jarUrl = writeTempJar(garbage);
+        String h = PreferredProxyCodebaseProvider.computeJarHash(jarUrl);
+        assertEquals("hash must be over the raw downloaded bytes",
+                rawHash(garbage), h);
+    }
+
+    /**
+     * End-to-end of the verdict lookup hashing path: a request for a known JAR
+     * queries the {@link VerdictRegistry} with {@code SHA-256(rawBytes)} —
+     * the value a build-time-normalised producer would have published as the
+     * stamp's declared hash (and the value Host 4 has recorded).
+     */
+    @Test
+    public void resolveVerdictPath_queriesRegistryWithRawBytesHash()
+            throws Exception {
+        byte[] rawJar = buildMinimalJarBytes();
+        java.net.URL jarUrl = writeTempJar(rawJar);
+        String expectedHash = rawHash(rawJar);
+
+        HashCapturingStubRegistry stub = new HashCapturingStubRegistry();
+        stub.setVerdictToReturn(newVerdictForHash(VerdictType.SAFE, expectedHash));
+
+        String computed = PreferredProxyCodebaseProvider.computeJarHash(jarUrl);
+        PreferredProxyCodebaseProvider.checkVerdictForJar(stub, computed, PATH);
+
+        assertEquals("registry must be queried with SHA-256(rawDownloadedBytes)",
+                expectedHash, stub.getLastQueriedHash());
+    }
+
+    // -------------------------------------------------------------------------
+    // #7 verdict matrix — INCONCLUSIVE with INCONCLUSIVEPermit -> load
+    // -------------------------------------------------------------------------
+
+    /**
+     * Verifies the gate's permission shape: a {@link java.security.ProtectionDomain}
+     * granting {@link INCONCLUSIVEPermit} for the specific hash implies it (and
+     * the wildcard form implies the specific hash).  This is the contract the
+     * strict-mode gate exercises via
+     * {@link java.security.AccessController#checkPermission(java.security.Permission)};
+     * coverage of the AccessController stack-walk itself belongs in an
+     * integration test with a configured policy file.  Coverage of the
+     * fail-closed path lives in
+     * {@link #checkVerdictForJar_inconclusive_strictMode_withoutPermission_throwsIOException};
+     * coverage of the non-strict bypass in
+     * {@link #checkVerdictForJar_inconclusive_nonStrictMode_proceedsWithoutPermissionCheck}.
+     */
+    @Test
+    public void inconclusivePermit_grantedDomain_impliesSpecificHash() {
+        java.security.Permissions perms = new java.security.Permissions();
+        perms.add(new INCONCLUSIVEPermit(FAKE_HASH));
+        java.security.ProtectionDomain pd = new java.security.ProtectionDomain(
+                new java.security.CodeSource(null,
+                        (java.security.cert.Certificate[]) null),
+                perms);
+        assertTrue("PD granting the specific INCONCLUSIVEPermit should imply it",
+                pd.implies(new INCONCLUSIVEPermit(FAKE_HASH)));
+
+        java.security.Permissions wildcardPerms = new java.security.Permissions();
+        wildcardPerms.add(new INCONCLUSIVEPermit("*"));
+        java.security.ProtectionDomain wildcardPd = new java.security.ProtectionDomain(
+                new java.security.CodeSource(null,
+                        (java.security.cert.Certificate[]) null),
+                wildcardPerms);
+        assertTrue("PD granting INCONCLUSIVEPermit \"*\" should imply specific hash",
+                wildcardPd.implies(new INCONCLUSIVEPermit(FAKE_HASH)));
+    }
+
+    /** Builds a {@link RegistryVerdict} for a specific content hash. */
+    private static RegistryVerdict newVerdictForHash(VerdictType type, String hash)
+            throws URISyntaxException {
+        Uri[] urls = new Uri[]{new Uri("urn:sha256:" + hash)};
+        return new RegistryVerdict(urls, type, System.currentTimeMillis(), DUMMY_SIG);
+    }
+
+    /**
+     * A {@link StubVerdictRegistry} variant that records the content hash passed
+     * to {@link #getVerdictByHash(String)} so tests can assert which hash the
+     * client used for the lookup.
+     */
+    private static final class HashCapturingStubRegistry extends StubVerdictRegistry {
+        private volatile String lastQueriedHash;
+
+        String getLastQueriedHash() {
+            return lastQueriedHash;
+        }
+
+        @Override
+        public RegistryVerdict getVerdictByHash(String contentHash)
+                throws RemoteException {
+            this.lastQueriedHash = contentHash;
+            return super.getVerdictByHash(contentHash);
+        }
     }
 }

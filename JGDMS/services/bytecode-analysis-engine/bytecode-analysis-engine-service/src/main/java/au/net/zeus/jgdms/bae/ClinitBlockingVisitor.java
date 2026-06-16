@@ -402,6 +402,27 @@ final class ClinitBlockingVisitor {
                                      String descriptor, boolean isInterface) {
             callees.add(owner + "/" + name + "/" + descriptor);
         }
+
+        /**
+         * Models the class-initialization edge created by a static-field
+         * reference.  A {@code GETSTATIC} or {@code PUTSTATIC} instruction
+         * triggers the owner class's {@code <clinit>} (JVMS §5.5), so we add a
+         * synthetic callee edge to {@code owner + "/<clinit>/()V"}.  This lets
+         * the BFS reachability scan and the cycle detector follow a blocking
+         * {@code <clinit>} reached purely through a static-field reference chain
+         * into another JAR class.
+         *
+         * <p>Instance-field instructions ({@code GETFIELD}/{@code PUTFIELD}) do
+         * not trigger initialization on their own and are intentionally left
+         * unmodeled.
+         */
+        @Override
+        public void visitFieldInsn(int opcode, String owner, String name,
+                                   String descriptor) {
+            if (opcode == Opcodes.GETSTATIC || opcode == Opcodes.PUTSTATIC) {
+                callees.add(owner + "/<clinit>/()V");
+            }
+        }
     }
 
     // -------------------------------------------------------------------------

@@ -110,7 +110,7 @@ public class SpiffeJwtDispatchIntegrationTest {
     }
 
     private static boolean hasTlsIdentity(Subject subject) throws Exception {
-        Method method = SslEndpointImpl.class.getDeclaredMethod("hasTlsIdentity", Subject.class);
+        Method method = Utilities.class.getDeclaredMethod("hasTlsIdentity", Subject.class);
         method.setAccessible(true);
         return (Boolean) method.invoke(null, subject);
     }

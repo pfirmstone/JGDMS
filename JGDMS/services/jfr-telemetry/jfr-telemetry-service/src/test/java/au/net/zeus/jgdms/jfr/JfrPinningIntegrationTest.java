@@ -43,7 +43,6 @@ import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
-import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.junit.Test;
@@ -119,7 +118,6 @@ public class JfrPinningIntegrationTest {
         public void reportCrash(CrashReport report) {}
         public void registerAnalysisEngine(String id, PublicKey k, String alg) {}
         public void revokeAnalysisEngine(String id) {}
-        public void submitVerdict(String id, SignedVerdict v) {}
         public void submitReport(String id, JarAnalysisReport r) {}
         public RegistryVerdict getVerdict(Set<Uri> u) { return null; }
         public RegistryVerdict getVerdictByHash(String h) { return null; }

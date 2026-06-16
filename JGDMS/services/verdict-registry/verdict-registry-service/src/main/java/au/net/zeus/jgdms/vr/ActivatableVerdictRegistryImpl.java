@@ -34,7 +34,6 @@ import net.jini.io.MarshalledInstance;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
-import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.net.Uri;
@@ -220,13 +219,6 @@ public class ActivatableVerdictRegistryImpl
     public void revokeAnalysisEngine(String engineId) throws RemoteException {
         getReadyState().check();
         impl.revokeAnalysisEngine(engineId);
-    }
-
-    @Override
-    public void submitVerdict(String engineId,
-                              SignedVerdict verdict) throws RemoteException {
-        getReadyState().check();
-        impl.submitVerdict(engineId, verdict);
     }
 
     @Override

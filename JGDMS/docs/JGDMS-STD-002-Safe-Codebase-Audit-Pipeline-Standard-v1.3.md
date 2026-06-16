@@ -1,21 +1,49 @@
 # JGDMS-STD-002 — Safe Codebase Audit Pipeline Standard
 
-> ⚠️ **SUPERSEDED.** This version (1.2) is superseded by
-> **[JGDMS-STD-002 v1.3](JGDMS-STD-002-Safe-Codebase-Audit-Pipeline-Standard-v1.3.md)**.
-> It is retained for history only. v1.2 contains a factual error: it claims the
-> `AnalysisRequest` Pack200 transport is byte-reversible (`unpack(pack(C)) == C`).
-> That is **false** — the Pack200 unpacker rewrites the JAR manifest, so the
-> content-hash binding cannot be verified after a Pack200 wire round-trip. v1.3
-> moves normalisation to **build time**, changes the `AnalysisRequest` wire codec
-> to lossless **DEFLATE**, adds the `META-INF/CONTENT-HASH` producer stamp, and
-> defines the operationally-strict client policy. Read v1.3 instead.
-
-**Version:** 1.2
-**Status:** Superseded by v1.3
+**Version:** 1.3
+**Status:** Active
 **Scope:** Deployment topology, trust boundaries, data flow, and service contracts for
 the JGDMS dynamic static-analysis pipeline that audits bytecode before it is unmarshalled
 by clients.
 
+> **Changes in v1.3 (from v1.2):**
+> - **Producer-side build-time normalisation.** Producers MUST pre-normalise codebase
+>   JARs at build time via `au.net.zeus.pack200-ex-openjdk:pack200-normalize-maven-plugin`
+>   (goal `pack200-normalize:normalize`, bound to `package`). The published artifact
+>   IS the canonical form `C`.
+> - **Build-time content stamp.** The plugin appends a single STORED ZIP entry
+>   `META-INF/CONTENT-HASH` whose body is exactly `SHA-256:<lowercase-hex>\n`
+>   (UTF-8, single LF terminator) recording `SHA-256(C)` where `C` is the
+>   pre-stamp canonical bytes. The stamp is the last entry. A verifier strips the
+>   stamp entry and recomputes `SHA-256` to validate.
+> - **Client hashes RAW downloaded bytes.** The client computes
+>   `SHA-256(rawDownloadedBytes)` directly — no runtime `Normalize.normalize`. For a
+>   properly-shipped (pre-normalised + stamped) JAR `rawBytes == C` so this hash
+>   equals the registry's `contentHash`. The `Pack200-ex-openjdk` runtime dependency
+>   is removed from the client.
+> - **Operationally strict client policy.** Verdict absent → refuse (`IOException`);
+>   `DANGEROUS` → refuse; `INCONCLUSIVE` → requires `INCONCLUSIVEPermit` in the
+>   caller's `AccessControlContext` to load (otherwise refuse); `SAFE` → load.
+>   A publisher who forgets to pre-normalise will miss the verdict lookup and the
+>   client refuses to load.
+> - **Host 4 stamp-trust logic.** If the downloaded JAR carries a self-consistent
+>   `META-INF/CONTENT-HASH` (declared == `SHA-256(stripped)`), Host 4 treats the
+>   stamp as a build-time attestation that the bytes are already canonical and
+>   analyses them as-shipped; the registry `contentHash` is `SHA-256(rawBytes)`
+>   (the value clients also compute, so the lookup matches). The declared stamp
+>   hash is the canonicality witness, NOT the registry lookup key. If the stamp
+>   is absent Host 4 is the canonicaliser-of-last-resort: it runs
+>   `Normalize.normalize(rawBytes)` and uses `SHA-256(normalisedBytes)` as the
+>   contentHash. If the stamp mismatches `SHA-256(stripped)` Host 4 logs a
+>   WARNING and falls back to canonicalisation.
+> - **`AnalysisRequest` wire format clarification (DEFLATE).** The `packedJarBytes`
+>   field is the canonical `C` carried under lossless DEFLATE — NOT Pack200 —
+>   because `unpack(pack(C)) != C` byte-for-byte on the JAR manifest, which would
+>   break the binding check. `Normalize` / Pack200 remains the producer-side
+>   canonicalisation; only the wire codec changed.
+> - **New section:** Producer-side build-time normalisation (see
+>   "Build-Time Normalisation and Stamping" below).
+>
 > **Changes in v1.2 (from v1.1):**
 > - **Normalisation step added to pipeline.** `Normalize.normalize()` from
 >   `pfirmstone/Pack200-ex-openjdk` is now called by Host 4 (and Host 5 for
@@ -269,21 +297,43 @@ path.
 
 **Trigger:** `ServiceRegistrar` discovery events from Host 1.
 
-**Workflow for a new JAR:**
+**Workflow for a new JAR (v1.3 stamp-trust):**
 ```
 Host 1 fires ServiceRegistrar event (new codebase URL discovered)
   → CD checks VR (Host 3): getVerdictByHash(H) — skip if already known
   → CD downloads JAR bytes B over TLS (only host with outbound internet)
-  → CD normalises B: Normalize.normalize(B) → C  (Pack200 round-trip + ZIP
-      canonicalisation; produces byte-reproducible form)
-  → CD computes SHA-256 hash H of C  (this is the contentHash / javaCodeDigest)
-  → CD builds AnalysisRequest(Pack200-compressed(C), H, bfsDepth, codebaseUrls)
+  → Stamp check:
+      if META-INF/CONTENT-HASH is present in B:
+        declared := parsed SHA-256 from stamp body
+        stripped := B with stamp entry removed (ZIP-level splice; inverse
+                    of pack200-normalize-maven-plugin's appendStamp)
+        recomputed := SHA-256(stripped)
+        if declared == recomputed:                      # stamped + self-consistent
+          C := B                                        # bytes-as-shipped (trusted canonical)
+          H := SHA-256(B)                               # contentHash = SHA-256(rawBytes)
+          # the declared stamp hash is the canonicality witness, not the lookup key
+          log INFO "stamped JAR; using declared hash"
+        else:                                           # stamped + tampered
+          log WARNING; fall through to canonicalise
+          C := Normalize.normalize(B)
+          H := SHA-256(C)
+      else:                                             # unstamped
+          C := Normalize.normalize(B)                   # canonicaliser of last resort
+          H := SHA-256(C)
+  → CD builds AnalysisRequest(DEFLATE-compressed(C), H, bfsDepth, codebaseUrls)
   → For each BAE instance in pool (Host 2):
        report = BAE.analyzeJar(request)          // round-robin dispatch
        VR.submitReport(engineId, report)          // CD submits to Host 3
   → Wait for RegistryVerdict via event or poll
   → Gate client access on RegistryVerdict.getVerdictType()
 ```
+
+Note: clients compute `SHA-256(rawDownloadedBytes)` directly (no runtime
+normalisation). For a properly-shipped (pre-normalised + stamped) JAR
+`rawBytes == B == C`, so the client's lookup key equals the stamped declared
+hash equals Host 4's recorded `contentHash`. A third-party JAR that arrived
+unstamped will be canonicalised by Host 4 but the client's raw hash will not
+match — the operationally-strict gate then refuses the load.
 
 **Normalisation detail.** `Normalize.normalize()` is provided by
 `pfirmstone/Pack200-ex-openjdk` (`net.pack200.Normalize`). It performs a Pack200
@@ -399,7 +449,7 @@ Carries JAR bytes from Host 4 or Host 5 to a BAE instance on Host 2.
 
 | Field | Wire form | Notes |
 |-------|-----------|-------|
-| `packedJarBytes` | `byte[]` | Pack200-compressed **normalised** JAR bytes (serial form only). The normalised form is the output of `Normalize.normalize()` — a Pack200 fixed point with canonical ZIP layout. |
+| `packedJarBytes` | `byte[]` | **DEFLATE-compressed** canonical JAR bytes `C` (serial form only). `C` is the producer's pre-normalised + stamped JAR (build-time `pack200-normalize:normalize` output) or, for unstamped third-party JARs, the output of Host 4's `Normalize.normalize()`. DEFLATE is a byte-exact inverse — `inflate(deflate(C)) == C` — so the engine recovers `C` for the binding check. Pack200 is deliberately NOT used as the wire codec: `unpack(pack(C)) != C` byte-for-byte on the JAR manifest, which would break the binding check. |
 | `jarBytes` (in-memory) | `byte[]` | Decompressed in `check(GetArg)` — never serialized |
 | `contentHash` | `String` | SHA-256 hex digest of the **normalised** JAR bytes, computed by Host 4/5 after `Normalize.normalize()`. This is the `javaCodeDigest` used by JGDMS-STD-007 as the primary key for language-native artifact lookup. |
 | `originalUri` | `URI` | Primary codebase URL (traceability only) |
@@ -641,6 +691,87 @@ normalisation step is needed for STD-007.
 A `SAFE` SCAP verdict on `contentHash` H is a prerequisite for STD-007 compilation
 of the same JAR (STD-007 §3.3): the interchange service MUST NOT compile a JAR that
 has not received a `SAFE` `RegistryVerdict`.
+
+---
+
+## Build-Time Normalisation and Stamping  (v1.3)
+
+Producers MUST pre-normalise codebase JARs at build time so that the published
+artifact IS the canonical form `C` and `SHA-256(rawBytes) == contentHash` from
+the consumer's point of view.
+
+### Producer Maven configuration
+
+Add the following plugin execution to each module that produces a Jini codebase
+JAR:
+
+```xml
+<plugin>
+  <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+  <artifactId>pack200-normalize-maven-plugin</artifactId>
+  <version>${pack200.version}</version>
+  <executions>
+    <execution>
+      <id>normalize-codebase-jar</id>
+      <phase>package</phase>
+      <goals><goal>normalize</goal></goals>
+    </execution>
+  </executions>
+</plugin>
+```
+
+The mojo (a) runs `Normalize.normalize(jar, out, Options.reproducible())` in
+place over the just-built JAR, then (b) appends a single STORED ZIP entry
+`META-INF/CONTENT-HASH` recording `SHA-256(C)` of the pre-stamp canonical bytes.
+
+**Ordering.** For modules that also Pack200-compress the JAR via
+`maven-antrun-plugin` (`au.net.zeus.util.jar.pack.Driver`), the
+`pack200-normalize-maven-plugin` declaration MUST come BEFORE the
+`maven-antrun-plugin` declaration in the same `<build>/<plugins>` list so the
+`.pack.gz` is generated from the canonical (normalised + stamped) JAR. Maven
+executes same-phase executions in plugin-declaration order.
+
+### Stamp wire format
+
+| Item | Value |
+|------|-------|
+| Entry name | `META-INF/CONTENT-HASH` |
+| Compression | STORED (no DEFLATE) |
+| Last-mod time | DOS 1980-01-01 00:00:00 (fixed for reproducibility) |
+| Position | LAST entry in the JAR |
+| Body | exactly `SHA-256:<lowercase-hex>\n` (UTF-8, single LF terminator, 73 bytes) |
+| Recorded hash | `SHA-256(C)` where `C` is the JAR with the stamp entry removed |
+
+### Verification
+
+A verifier (Host 4, or any auditor) recomputes:
+
+1. `stripped := B with META-INF/CONTENT-HASH entry removed (ZIP-level splice)`
+2. `recomputed := SHA-256(stripped)`
+3. If `recomputed == declared` the stamp is valid: the bytes are canonical and
+   the declared hash is trustworthy.
+
+The ZIP splice is the byte-exact inverse of the mojo's appended-entry
+construction. See `NormalizeMojo.jarBytesWithEntryRemoved(...)` for the
+reference algorithm and Host 4's `CodebaseDownloaderImpl.jarBytesWithEntryRemoved(...)`
+for the consumer copy.
+
+### Client policy (operationally strict)
+
+The client (`PreferredProxyCodebaseProvider`):
+
+1. Hashes the raw downloaded bytes: `contentHash := SHA-256(rawDownloadedBytes)`.
+2. Queries `VerdictRegistry.getVerdictByHash(contentHash)`.
+3. Verdict matrix:
+   - `null`              → `IOException` (refuse)
+   - `DANGEROUS`         → `IOException` (refuse)
+   - `INCONCLUSIVE`      → `AccessController.checkPermission(new INCONCLUSIVEPermit(contentHash))`;
+                           if denied, `IOException` (refuse); if granted, load
+   - `SAFE`              → load
+
+The client never normalises at runtime; this is build-time-only. A JAR a
+publisher forgot to pre-normalise will simply miss the verdict lookup and the
+fail-closed gate will refuse to load it.
 
 ---
 

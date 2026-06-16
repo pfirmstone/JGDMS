@@ -77,6 +77,23 @@
                     <maxmem>1024m</maxmem>
                 </configuration>
             </plugin>
+            <!-- pack200-normalize MUST run BEFORE the antrun pack200 below so
+                 the .pack.gz is built from the canonical (normalised+stamped)
+                 JAR.  Same-phase executions run in plugin-declaration order. -->
+            <plugin>
+                <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+                <artifactId>pack200-normalize-maven-plugin</artifactId>
+                <version>${pack200.version}</version>
+                <executions>
+                    <execution>
+                        <id>normalize-codebase-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>normalize</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-antrun-plugin</artifactId>

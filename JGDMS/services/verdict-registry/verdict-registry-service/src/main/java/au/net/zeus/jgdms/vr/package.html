@@ -36,8 +36,8 @@ service codebase.</p>
   <li><strong>Engine registration / revocation</strong> — BAE instances
       register their public key with the VR to participate in quorum
       voting.</li>
-  <li><strong>Verdict submission and quorum logic</strong> — incoming
-      {@link au.net.zeus.jgdms.api.codebase.SignedVerdict} records are
+  <li><strong>Report submission and quorum logic</strong> — incoming
+      {@link au.net.zeus.jgdms.api.codebase.JarAnalysisReport} records are
       verified against the submitting BAE's registered key.  When the
       configured quorum of independent BAEs agree on an outcome, the VR
       signs and stores a

@@ -52,7 +52,6 @@ import net.jini.lease.LeaseRenewalManager;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
-import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
@@ -86,7 +85,7 @@ import au.net.zeus.jgdms.vr.proxy.VerdictEventLease;
  * </ol>
  *
  * <h2>Write operations</h2>
- * All write methods ({@code registerAnalysisEngine}, {@code submitVerdict},
+ * All write methods ({@code registerAnalysisEngine}, {@code submitReport},
  * {@code reportCrash}, etc.) throw {@link UnsupportedOperationException}.
  * Analysis engines and crash reporters must always target the primary.
  *
@@ -409,12 +408,6 @@ public class ReadReplicaVerdictRegistry
 
     @Override
     public void revokeAnalysisEngine(String engineId) throws RemoteException {
-        throw new UnsupportedOperationException(
-                "ReadReplicaVerdictRegistry is read-only; direct all write operations to the primary.");
-    }
-
-    @Override
-    public void submitVerdict(String engineId, SignedVerdict verdict) throws RemoteException {
         throw new UnsupportedOperationException(
                 "ReadReplicaVerdictRegistry is read-only; direct all write operations to the primary.");
     }

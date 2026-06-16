@@ -58,9 +58,7 @@ import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
-import au.net.zeus.jgdms.api.codebase.ClassAnalysisResult;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
-import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
@@ -76,7 +74,7 @@ import au.net.zeus.jgdms.vr.proxy.VerdictEventLease;
  *
  * <p>This is the authoritative, low-risk component in the safe-codebase
  * architecture.  It manages {@code BytecodeAnalysisEngine} registration,
- * applies quorum policy over submitted {@link SignedVerdict} objects, and
+ * applies quorum policy over submitted {@link JarAnalysisReport} objects, and
  * produces authoritative {@link RegistryVerdict} results for clients.
  *
  * <h2>Thread safety</h2>
@@ -100,9 +98,13 @@ import au.net.zeus.jgdms.vr.proxy.VerdictEventLease;
  * <ul>
  *   <li>{@link RegisterEngineRecord} / {@link RevokeEngineRecord} — engine
  *       lifecycle events.</li>
- *   <li>{@link VoteRecord} — a signature-verified vote submission.</li>
- *   <li>{@link PublishedVerdictRecord} — a newly published
- *       {@link RegistryVerdict}.</li>
+ *   <li>{@link HashVoteRecord} — a signature-verified report submission
+ *       (hash-keyed push model).</li>
+ *   <li>{@link HashPublishedVerdictRecord} — a newly published hash-keyed
+ *       {@link RegistryVerdict} (push model, including crash/pinning
+ *       condemnations).</li>
+ *   <li>{@link PublishedVerdictRecord} — a newly published URL-keyed
+ *       DANGEROUS {@link RegistryVerdict} (crash/pinning fail-safe).</li>
  * </ul>
  * On startup, {@link ReliableLog#recover()} replays the snapshot plus all
  * subsequent log entries to reconstruct the full in-memory state.  A new
@@ -194,6 +196,26 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             new ConcurrentHashMap<String, RegistryVerdict>();
 
     /**
+     * Index from codebase URI string to the set of content hashes whose reports
+     * declared that URI.  Populated from {@link JarAnalysisReport#getCodebaseUrls()}
+     * on each accepted {@link #submitReport}.  Used to resolve a crash- or
+     * pinning-driven URL condemnation to the concrete content hash(es) that
+     * must be condemned in the hash-keyed store.
+     */
+    private final ConcurrentHashMap<String, Set<String>> uriToHashes =
+            new ConcurrentHashMap<String, Set<String>>();
+
+    /**
+     * URIs that have been condemned (via {@link #reportCrash} /
+     * {@link #reportPinning}) before any report mapping them to a content hash
+     * arrived.  When a later report declares one of these URIs, its content
+     * hash is forced to {@link VerdictType#DANGEROUS} and the applied URIs are
+     * removed from this set.
+     */
+    private final Set<String> pendingUrlCondemnations =
+            ConcurrentHashMap.newKeySet();
+
+    /**
      * Source of event IDs.  Each call to {@link #registerVerdictListener}
      * consumes one ID.
      */
@@ -258,19 +280,21 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     }
 
     /**
-     * Mutable per-codebase vote accumulator.  All fields are accessed only
-     * while {@code synchronized (this)}.
+     * Mutable per-codebase DANGEROUS-condemnation state.  All fields are
+     * accessed only while {@code synchronized (this)}.
+     *
+     * <p>Only {@link #reportCrash} and {@link #reportPinning} populate this
+     * URL-keyed store, publishing permanent DANGEROUS verdicts that
+     * {@link #getVerdict(Set)} reads.  There is no URL-keyed SAFE quorum; SAFE
+     * verdicts are produced solely on the hash-keyed push path
+     * ({@link #submitReport}).
      */
     private static final class VerdictState {
         /**
-         * Sorted URL strings captured when the first verdict for this
-         * codebase key arrives.  Used to reconstruct the {@link Uri} set when
-         * re-evaluating after an engine revocation.
+         * Sorted URL strings captured when the first condemnation for this
+         * codebase key arrives.  Used to issue the URL-keyed DANGEROUS verdict.
          */
         Uri[] codebaseUrls;
-
-        /** Per-engine votes: engineId → VerdictType. */
-        final Map<String, VerdictType> votes = new HashMap<String, VerdictType>();
 
         /** True once a DANGEROUS RegistryVerdict has been published. Permanent. */
         boolean dangerous;
@@ -547,107 +571,57 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         logger.log(Level.INFO, "Revoked analysis engine: {0}", engineId);
         appendLogRecord(new RevokeEngineRecord(engineId));
 
-        // Remove the revoked engine's vote from every codebase state and
-        // re-evaluate.  DANGEROUS verdicts are permanent (fail-safe), so only
-        // SAFE re-evaluation is needed.
-        for (Map.Entry<String, VerdictState> entry : verdictStates.entrySet()) {
-            String codebaseKey = entry.getKey();
-            VerdictState state = entry.getValue();
-            synchronized (state) {
-                if (state.votes.remove(engineId) != null && !state.dangerous) {
-                    logger.log(Level.INFO,
-                            "Removed vote from revoked engine {0} for key {1}",
-                            new Object[]{engineId, codebaseKey});
-                    RegistryVerdict rv = evaluateSafe(state);
-                    if (rv != null) {
-                        publishedVerdicts.put(codebaseKey, rv);
-                    } else {
-                        // Quorum is no longer met; retract any previously-published
-                        // SAFE verdict so clients do not rely on a stale result.
-                        publishedVerdicts.remove(codebaseKey);
-                    }
-                }
-            }
-        }
+        // Remove the revoked engine's vote from every hash-keyed state and
+        // re-evaluate the SAFE quorum on the live (push-model) store.
+        // DANGEROUS verdicts are permanent (fail-safe), so only SAFE
+        // re-evaluation is needed.
+        reevaluateHashStatesAfterRevoke(engineId);
     }
 
-    @Override
-    public void submitVerdict(String engineId, SignedVerdict verdict) throws RemoteException {
-        if (engineId == null) throw new NullPointerException("engineId");
-        if (engineId.isEmpty()) throw new IllegalArgumentException("engineId must not be empty");
-        if (verdict == null) throw new NullPointerException("verdict");
-
-        EngineRegistration reg = engines.get(engineId);
-        if (reg == null) {
-            logger.log(Level.WARNING,
-                    "Discarding verdict from unregistered/revoked engine: {0}", engineId);
-            return;
-        }
-
-        // Verify the signature before accepting the verdict.
-        try {
-            byte[] canonical = canonicalBytesForVerdict(verdict);
-            if (!verify(reg.publicKey, reg.sigAlgorithm, canonical, verdict.getSignature())) {
-                logger.log(Level.WARNING,
-                        "Invalid signature on verdict from engine {0}; discarding", engineId);
-                return;
-            }
-        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException | IOException e) {
-            logger.log(Level.WARNING,
-                    "Signature verification failed for engine " + engineId + "; discarding", e);
-            return;
-        }
-
-        Set<Uri> codebaseUrls = verdict.getCodebaseUrls();
-        String   codebaseKey  = codebaseKey(codebaseUrls);
-        VerdictState state    = verdictStates.computeIfAbsent(
-                codebaseKey, k -> new VerdictState());
-
-        RegistryVerdict publishedRv = null;
-        boolean         dangerous   = false;
-        String[]        sortedUrlStrings = null;
-
-        synchronized (state) {
-            if (state.dangerous) {
-                // Already locked in DANGEROUS; nothing more to do.
-                return;
-            }
-            // Capture the URI set on first arrival.
-            if (state.codebaseUrls == null) {
-                state.codebaseUrls = sortedUriArray(codebaseUrls);
-            }
-            sortedUrlStrings = uriArrayToStrings(state.codebaseUrls);
-            state.votes.put(engineId, verdict.getVerdict());
-
-            if (verdict.getVerdict() == VerdictType.DANGEROUS) {
-                RegistryVerdict rv = issueVerdict(state.codebaseUrls, VerdictType.DANGEROUS);
-                if (rv != null) {
-                    state.dangerous = true;
-                    publishedVerdicts.put(codebaseKey, rv);
-                    logger.log(Level.WARNING,
-                            "Published DANGEROUS verdict (engine vote) for key: {0}",
-                            codebaseKey);
-                    publishedRv = rv;
-                    dangerous   = true;
+    /**
+     * Removes {@code engineId}'s vote from every {@link HashVerdictState} and
+     * re-evaluates the SAFE quorum on the live hash-keyed store.  For each
+     * content hash whose vote set changed and that is not permanently
+     * {@code dangerous}: if the SAFE quorum is still met the hash verdict is
+     * re-published (idempotent); otherwise any previously-published SAFE hash
+     * verdict is retracted so clients do not rely on a stale result.  Each
+     * change is persisted and any newly published verdict is notified.
+     *
+     * @param engineId the revoked engine whose votes are withdrawn
+     */
+    private void reevaluateHashStatesAfterRevoke(String engineId) {
+        for (Map.Entry<String, HashVerdictState> entry : hashVerdictStates.entrySet()) {
+            String contentHash = entry.getKey();
+            HashVerdictState state = entry.getValue();
+            RegistryVerdict publishedRv = null;
+            synchronized (state) {
+                if (state.votes.remove(engineId) == null || state.dangerous) {
+                    continue;
                 }
-            } else {
-                RegistryVerdict rv = evaluateSafe(state);
-                if (rv != null) {
-                    publishedVerdicts.put(codebaseKey, rv);
-                    logger.log(Level.INFO,
-                            "Published SAFE verdict for key: {0}", codebaseKey);
-                    publishedRv = rv;
+                logger.log(Level.INFO,
+                        "Removed vote from revoked engine {0} for content hash {1}",
+                        new Object[]{engineId, contentHash});
+                long safeCount = 0;
+                for (VerdictType v : state.votes.values()) {
+                    if (v == VerdictType.SAFE) safeCount++;
+                }
+                if (safeCount >= quorumMinimum) {
+                    RegistryVerdict rv = issueHashVerdict(contentHash, VerdictType.SAFE);
+                    if (rv != null) {
+                        hashPublishedVerdicts.put(contentHash, rv);
+                        publishedRv = rv;
+                    }
+                } else {
+                    // Quorum is no longer met; retract any previously-published
+                    // SAFE hash verdict.
+                    hashPublishedVerdicts.remove(contentHash);
                 }
             }
-        }
-
-        // Log the accepted vote outside of the VerdictState lock.
-        appendLogRecord(new VoteRecord(engineId, codebaseKey,
-                sortedUrlStrings, verdict.getVerdict()));
-        if (publishedRv != null) {
-            appendLogRecord(new PublishedVerdictRecord(
-                    codebaseKey, publishedRv, dangerous));
-            notifyListeners(codebaseKey, publishedRv);
+            if (publishedRv != null) {
+                appendLogRecord(new HashPublishedVerdictRecord(
+                        contentHash, publishedRv, false));
+                notifyListeners("hash:" + contentHash, publishedRv);
+            }
         }
     }
 
@@ -698,6 +672,12 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             appendLogRecord(new PublishedVerdictRecord(codebaseKey, publishedRv, true));
             notifyListeners(codebaseKey, publishedRv);
         }
+
+        // Reactive hash condemnation: resolve each URI to its known content
+        // hash(es) and condemn the hash-keyed store; record pending otherwise.
+        for (Uri uri : codebaseUrls) {
+            condemnHashesForUri(uri.toString());
+        }
     }
 
     @Override
@@ -741,6 +721,12 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             appendLogRecord(new PublishedVerdictRecord(codebaseKey, publishedRv, true));
             notifyListeners(codebaseKey, publishedRv);
         }
+
+        // Reactive hash condemnation: resolve each URI to its known content
+        // hash(es) and condemn the hash-keyed store; record pending otherwise.
+        for (Uri uri : codebaseUrls) {
+            condemnHashesForUri(uri.toString());
+        }
     }
 
     @Override
@@ -764,9 +750,12 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             return;
         }
 
-        // Verify the engine's signature on the report.
+        // Verify the engine's signature over the report's single-source-of-truth
+        // canonical form.  This covers contentHash, per-class verdicts, declared
+        // permissions AND codebase URLs — fixing the prior silent-discard bug for
+        // reports that declared permissions or carried codebase URLs.
         try {
-            byte[] canonical = canonicalBytesForReport(report);
+            byte[] canonical = report.canonicalBytes();
             if (!verify(reg.publicKey, reg.sigAlgorithm, canonical,
                         report.getEngineSignature())) {
                 logger.log(Level.WARNING,
@@ -774,16 +763,33 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                         engineId);
                 return;
             }
-        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException
-                | IOException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException e) {
             logger.log(Level.WARNING,
                     "Signature verification failed for JarAnalysisReport from engine "
                     + engineId + "; discarding", e);
             return;
         }
 
-        String contentHash = report.getContentHash();
-        VerdictType derived = report.deriveVerdictType();
+        String   contentHash  = report.getContentHash();
+        String[] reportUrls   = report.getCodebaseUrls();
+        VerdictType derived   = report.deriveVerdictType();
+
+        // Record the URI → content-hash index for reactive condemnation, and
+        // determine whether any of this report's URIs is already condemned.
+        boolean forcedDangerous = false;
+        for (String uri : reportUrls) {
+            uriToHashes.computeIfAbsent(uri, k -> ConcurrentHashMap.newKeySet())
+                    .add(contentHash);
+            if (pendingUrlCondemnations.remove(uri)) {
+                forcedDangerous = true;
+            }
+        }
+        if (forcedDangerous) {
+            derived = VerdictType.DANGEROUS;
+            logger.log(Level.WARNING,
+                    "Forcing DANGEROUS for content hash {0} due to a pending URL "
+                    + "condemnation", contentHash);
+        }
 
         HashVerdictState state = hashVerdictStates.computeIfAbsent(
                 contentHash, k -> new HashVerdictState());
@@ -793,6 +799,9 @@ public class VerdictRegistryImpl implements VerdictRegistry {
 
         synchronized (state) {
             if (state.dangerous) {
+                // Still log the accepted vote for replay completeness.
+                appendLogRecord(new HashVoteRecord(
+                        engineId, contentHash, derived, reportUrls));
                 return;
             }
             state.votes.put(engineId, derived);
@@ -826,8 +835,57 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             }
         }
 
+        // Persist the accepted vote and any published verdict for restart recovery.
+        appendLogRecord(new HashVoteRecord(engineId, contentHash, derived, reportUrls));
         if (publishedRv != null) {
+            appendLogRecord(new HashPublishedVerdictRecord(
+                    contentHash, publishedRv, isDangerous));
             notifyListeners("hash:" + contentHash, publishedRv);
+        }
+    }
+
+    /**
+     * Condemns every content hash known to be served from {@code uri} as
+     * permanently {@link VerdictType#DANGEROUS}, publishing a hash-keyed
+     * {@link RegistryVerdict} and notifying {@code hash:}-scoped listeners.
+     * If no content hash is yet known for {@code uri}, the URI is recorded in
+     * {@link #pendingUrlCondemnations} so that a later report mapping it to a
+     * hash is forced DANGEROUS.
+     *
+     * <p>Called from {@link #reportCrash} and {@link #reportPinning} after the
+     * existing URL-keyed condemnation.
+     *
+     * @param uri the condemned codebase URI string
+     */
+    private void condemnHashesForUri(String uri) {
+        Set<String> hashes = uriToHashes.get(uri);
+        if (hashes == null || hashes.isEmpty()) {
+            pendingUrlCondemnations.add(uri);
+            return;
+        }
+        for (String contentHash : hashes) {
+            HashVerdictState state = hashVerdictStates.computeIfAbsent(
+                    contentHash, k -> new HashVerdictState());
+            RegistryVerdict publishedRv = null;
+            synchronized (state) {
+                if (state.dangerous) {
+                    continue;
+                }
+                RegistryVerdict rv = issueHashVerdict(contentHash, VerdictType.DANGEROUS);
+                if (rv != null) {
+                    state.dangerous = true;
+                    hashPublishedVerdicts.put(contentHash, rv);
+                    logger.log(Level.WARNING,
+                            "Condemned content hash {0} (DANGEROUS) via URL {1}",
+                            new Object[]{contentHash, uri});
+                    publishedRv = rv;
+                }
+            }
+            if (publishedRv != null) {
+                appendLogRecord(new HashPublishedVerdictRecord(
+                        contentHash, publishedRv, true));
+                notifyListeners("hash:" + contentHash, publishedRv);
+            }
         }
     }
 
@@ -978,30 +1036,6 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     }
 
     /**
-     * Evaluates whether the current vote state has reached the SAFE quorum and,
-     * if so, issues a signed {@link RegistryVerdict}.  Called with the
-     * {@code VerdictState} lock held.
-     *
-     * @return a new {@link RegistryVerdict} if the quorum was reached, or
-     *         {@code null} if it was not (or signing failed)
-     */
-    private RegistryVerdict evaluateSafe(VerdictState state) {
-        if (state.codebaseUrls == null) {
-            return null;
-        }
-        long safeCount = 0L;
-        for (VerdictType v : state.votes.values()) {
-            if (v == VerdictType.SAFE) {
-                safeCount++;
-            }
-        }
-        if (safeCount >= quorumMinimum) {
-            return issueVerdict(state.codebaseUrls, VerdictType.SAFE);
-        }
-        return null;
-    }
-
-    /**
      * Fans out a newly-published {@link RegistryVerdict} to every registered
      * listener whose codebase key matches, and to all <em>global</em>
      * listeners (those registered via {@link #registerGlobalVerdictListener}
@@ -1068,40 +1102,6 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     }
 
     /**
-     * Produces the canonical bytes of a {@link JarAnalysisReport} for
-     * verification against the submitting engine's public key.
-     *
-     * <p>Format matches {@link au.net.zeus.jgdms.bae.JarAnalyzer#sign}:
-     * <ol>
-     *   <li>contentHash (UTF-8) + NUL byte.</li>
-     *   <li>For each className in sorted order:
-     *       className (UTF-8) + NUL + clinitVerdict.name() (UTF-8) + NUL +
-     *       atomicVerdict.name() (UTF-8) + NUL.</li>
-     * </ol>
-     */
-    static byte[] canonicalBytesForReport(JarAnalysisReport report) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
-        byte nul = 0;
-        byte[] hashBytes = report.getContentHash().getBytes(StandardCharsets.UTF_8);
-        baos.write(hashBytes);
-        baos.write(nul);
-
-        java.util.List<String> sortedNames =
-                new java.util.ArrayList<String>(report.getResults().keySet());
-        java.util.Collections.sort(sortedNames);
-        for (String name : sortedNames) {
-            ClassAnalysisResult cr = report.getResults().get(name);
-            baos.write(name.getBytes(StandardCharsets.UTF_8));
-            baos.write(nul);
-            baos.write(cr.getClinitVerdict().name().getBytes(StandardCharsets.UTF_8));
-            baos.write(nul);
-            baos.write(cr.getAtomicVerdict().name().getBytes(StandardCharsets.UTF_8));
-            baos.write(nul);
-        }
-        return baos.toByteArray();
-    }
-
-    /**
      * Returns a deterministic string key for a set of codebase URIs.
      * The key is the null-byte-separated, lexicographically sorted list of
      * URI strings.
@@ -1136,33 +1136,6 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         }
         Arrays.sort(sorted);
         return sorted;
-    }
-
-    /**
-     * Produces the canonical bytes for a {@link SignedVerdict} that are
-     * verified against the submitting engine's public key.
-     *
-     * <p>Format:
-     * <ol>
-     *   <li>For each URL in lexicographic order:
-     *       4-byte big-endian byte-length, then UTF-8 bytes.</li>
-     *   <li>4-byte big-endian {@link VerdictType#ordinal()}.</li>
-     *   <li>8-byte big-endian timestamp.</li>
-     * </ol>
-     */
-    static byte[] canonicalBytesForVerdict(SignedVerdict verdict) throws IOException {
-        String[] sorted = sortedUriStrings(verdict.getCodebaseUrls());
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream      dos  = new DataOutputStream(baos);
-        for (String url : sorted) {
-            byte[] b = url.getBytes(StandardCharsets.UTF_8);
-            dos.writeInt(b.length);
-            dos.write(b);
-        }
-        dos.writeInt(verdict.getVerdict().ordinal());
-        dos.writeLong(verdict.getTimestamp());
-        dos.flush();
-        return baos.toByteArray();
     }
 
     /**
@@ -1201,8 +1174,8 @@ public class VerdictRegistryImpl implements VerdictRegistry {
      * Produces the canonical bytes that the registry signs for a
      * {@link RegistryVerdict}.
      *
-     * <p>Format mirrors {@link #canonicalBytesForVerdict}: sorted URLs,
-     * verdict ordinal, timestamp.
+     * <p>Format: sorted URLs (4-byte length-prefixed UTF-8 each), 4-byte
+     * verdict ordinal, 8-byte timestamp.
      */
     private static byte[] canonicalBytesForRegistryVerdict(Uri[] sortedUrls,
                                                             VerdictType type,
@@ -1325,7 +1298,6 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                                     vs.codebaseUrls == null
                                             ? new String[0]
                                             : uriArrayToStrings(vs.codebaseUrls),
-                                    new HashMap<String, VerdictType>(vs.votes),
                                     vs.dangerous));
                 }
             }
@@ -1342,8 +1314,44 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                                 rv.getSignature()));
             }
 
+            // Hash-keyed (push-model) state.
+            HashMap<String, SerializableHashVerdictState> hashStateSnap =
+                    new HashMap<String, SerializableHashVerdictState>(hashVerdictStates.size());
+            for (Map.Entry<String, HashVerdictState> e : hashVerdictStates.entrySet()) {
+                HashVerdictState hvs = e.getValue();
+                synchronized (hvs) {
+                    hashStateSnap.put(e.getKey(),
+                            new SerializableHashVerdictState(
+                                    new HashMap<String, VerdictType>(hvs.votes),
+                                    hvs.dangerous));
+                }
+            }
+
+            HashMap<String, SerializablePublishedVerdict> hashPubSnap =
+                    new HashMap<String, SerializablePublishedVerdict>(hashPublishedVerdicts.size());
+            for (Map.Entry<String, RegistryVerdict> e : hashPublishedVerdicts.entrySet()) {
+                RegistryVerdict rv = e.getValue();
+                hashPubSnap.put(e.getKey(),
+                        new SerializablePublishedVerdict(
+                                sortedUriStrings(rv.getCodebaseUrls()),
+                                rv.getVerdict(),
+                                rv.getTimestamp(),
+                                rv.getSignature()));
+            }
+
+            HashMap<String, java.util.HashSet<String>> uriIdxSnap =
+                    new HashMap<String, java.util.HashSet<String>>(uriToHashes.size());
+            for (Map.Entry<String, Set<String>> e : uriToHashes.entrySet()) {
+                uriIdxSnap.put(e.getKey(),
+                        new java.util.HashSet<String>(e.getValue()));
+            }
+
+            java.util.HashSet<String> pendingSnap =
+                    new java.util.HashSet<String>(pendingUrlCondemnations);
+
             PersistentSnapshot snap =
-                    new PersistentSnapshot(engSnap, stateSnap, pubSnap);
+                    new PersistentSnapshot(engSnap, stateSnap, pubSnap,
+                            hashStateSnap, hashPubSnap, uriIdxSnap, pendingSnap);
             ObjectOutputStream oos = new ObjectOutputStream(out);
             oos.writeObject(snap);
             oos.flush();
@@ -1366,7 +1374,6 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                 if (svs.codebaseUrls != null && svs.codebaseUrls.length > 0) {
                     vs.codebaseUrls = stringsToUriArray(svs.codebaseUrls);
                 }
-                vs.votes.putAll(svs.votes);
                 vs.dangerous = svs.dangerous;
                 verdictStates.put(e.getKey(), vs);
             }
@@ -1380,6 +1387,42 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                                                 spv.timestamp, spv.signature));
                 }
             }
+
+            // Hash-keyed (push-model) state.  Guard each field for forward
+            // compatibility with older (v1) snapshots that lacked these fields.
+            if (snap.hashStates != null) {
+                for (Map.Entry<String, SerializableHashVerdictState> e
+                        : snap.hashStates.entrySet()) {
+                    SerializableHashVerdictState shvs = e.getValue();
+                    HashVerdictState hvs = new HashVerdictState();
+                    hvs.votes.putAll(shvs.votes);
+                    hvs.dangerous = shvs.dangerous;
+                    hashVerdictStates.put(e.getKey(), hvs);
+                }
+            }
+            if (snap.hashPublished != null) {
+                for (Map.Entry<String, SerializablePublishedVerdict> e
+                        : snap.hashPublished.entrySet()) {
+                    SerializablePublishedVerdict spv = e.getValue();
+                    Uri[] uris = stringsToUriArray(spv.codebaseUrls);
+                    if (uris.length > 0) {
+                        hashPublishedVerdicts.put(e.getKey(),
+                                new RegistryVerdict(uris, spv.verdictType,
+                                                    spv.timestamp, spv.signature));
+                    }
+                }
+            }
+            if (snap.uriToHashes != null) {
+                for (Map.Entry<String, java.util.HashSet<String>> e
+                        : snap.uriToHashes.entrySet()) {
+                    uriToHashes.computeIfAbsent(e.getKey(),
+                                    k -> ConcurrentHashMap.newKeySet())
+                            .addAll(e.getValue());
+                }
+            }
+            if (snap.pendingUrlCondemnations != null) {
+                pendingUrlCondemnations.addAll(snap.pendingUrlCondemnations);
+            }
         }
 
         @Override
@@ -1392,47 +1435,29 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             } else if (update instanceof RevokeEngineRecord) {
                 RevokeEngineRecord rec = (RevokeEngineRecord) update;
                 engines.remove(rec.engineId);
-                // Re-evaluate quorum for all codebases that had a vote from
-                // the revoked engine.
-                for (Map.Entry<String, VerdictState> entry : verdictStates.entrySet()) {
-                    String codebaseKey = entry.getKey();
-                    VerdictState state = entry.getValue();
+                // Re-evaluate the SAFE quorum on the live hash-keyed store for
+                // every content hash that had a vote from the revoked engine,
+                // mirroring the runtime revoke path.
+                for (Map.Entry<String, HashVerdictState> entry
+                        : hashVerdictStates.entrySet()) {
+                    String contentHash = entry.getKey();
+                    HashVerdictState state = entry.getValue();
                     synchronized (state) {
-                        if (state.votes.remove(rec.engineId) != null && !state.dangerous) {
-                            RegistryVerdict rv = evaluateSafe(state);
+                        if (state.votes.remove(rec.engineId) == null || state.dangerous) {
+                            continue;
+                        }
+                        long safeCount = 0;
+                        for (VerdictType v : state.votes.values()) {
+                            if (v == VerdictType.SAFE) safeCount++;
+                        }
+                        if (safeCount >= quorumMinimum) {
+                            RegistryVerdict rv = issueHashVerdict(
+                                    contentHash, VerdictType.SAFE);
                             if (rv != null) {
-                                publishedVerdicts.put(codebaseKey, rv);
-                            } else {
-                                publishedVerdicts.remove(codebaseKey);
+                                hashPublishedVerdicts.put(contentHash, rv);
                             }
-                        }
-                    }
-                }
-
-            } else if (update instanceof VoteRecord) {
-                VoteRecord rec = (VoteRecord) update;
-                VerdictState state = verdictStates.computeIfAbsent(
-                        rec.codebaseKey, k -> new VerdictState());
-                synchronized (state) {
-                    if (state.codebaseUrls == null
-                            && rec.codebaseUrls != null
-                            && rec.codebaseUrls.length > 0) {
-                        state.codebaseUrls = stringsToUriArray(rec.codebaseUrls);
-                    }
-                    state.votes.put(rec.engineId, rec.verdictType);
-                    // Re-evaluate quorum in case the corresponding
-                    // PublishedVerdictRecord was not flushed before a crash.
-                    if (rec.verdictType == VerdictType.DANGEROUS && !state.dangerous) {
-                        RegistryVerdict rv = issueVerdict(
-                                state.codebaseUrls, VerdictType.DANGEROUS);
-                        if (rv != null) {
-                            state.dangerous = true;
-                            publishedVerdicts.put(rec.codebaseKey, rv);
-                        }
-                    } else if (rec.verdictType != VerdictType.DANGEROUS) {
-                        RegistryVerdict rv = evaluateSafe(state);
-                        if (rv != null) {
-                            publishedVerdicts.put(rec.codebaseKey, rv);
+                        } else {
+                            hashPublishedVerdicts.remove(contentHash);
                         }
                     }
                 }
@@ -1455,6 +1480,63 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                         }
                     }
                 }
+
+            } else if (update instanceof HashVoteRecord) {
+                HashVoteRecord rec = (HashVoteRecord) update;
+                // Rebuild the URI → content-hash index.
+                if (rec.codebaseUrls != null) {
+                    for (String uri : rec.codebaseUrls) {
+                        uriToHashes.computeIfAbsent(uri,
+                                        k -> ConcurrentHashMap.newKeySet())
+                                .add(rec.contentHash);
+                        pendingUrlCondemnations.remove(uri);
+                    }
+                }
+                HashVerdictState state = hashVerdictStates.computeIfAbsent(
+                        rec.contentHash, k -> new HashVerdictState());
+                synchronized (state) {
+                    state.votes.put(rec.engineId, rec.verdictType);
+                    // Re-evaluate in case the corresponding
+                    // HashPublishedVerdictRecord was not flushed before a crash.
+                    if (rec.verdictType == VerdictType.DANGEROUS && !state.dangerous) {
+                        RegistryVerdict rv = issueHashVerdict(
+                                rec.contentHash, VerdictType.DANGEROUS);
+                        if (rv != null) {
+                            state.dangerous = true;
+                            hashPublishedVerdicts.put(rec.contentHash, rv);
+                        }
+                    } else if (rec.verdictType != VerdictType.DANGEROUS
+                            && !state.dangerous) {
+                        long safeCount = 0;
+                        for (VerdictType v : state.votes.values()) {
+                            if (v == VerdictType.SAFE) safeCount++;
+                        }
+                        if (safeCount >= quorumMinimum) {
+                            RegistryVerdict rv = issueHashVerdict(
+                                    rec.contentHash, VerdictType.SAFE);
+                            if (rv != null) {
+                                hashPublishedVerdicts.put(rec.contentHash, rv);
+                            }
+                        }
+                    }
+                }
+
+            } else if (update instanceof HashPublishedVerdictRecord) {
+                HashPublishedVerdictRecord rec = (HashPublishedVerdictRecord) update;
+                Uri[] uris = stringsToUriArray(rec.codebaseUrls);
+                if (uris.length > 0) {
+                    RegistryVerdict rv = new RegistryVerdict(
+                            uris, rec.verdictType, rec.timestamp, rec.signature);
+                    hashPublishedVerdicts.put(rec.contentHash, rv);
+                    HashVerdictState state = hashVerdictStates.computeIfAbsent(
+                            rec.contentHash, k -> new HashVerdictState());
+                    synchronized (state) {
+                        if (rec.dangerous) {
+                            state.dangerous = true;
+                        }
+                    }
+                }
+
             } else {
                 logger.log(Level.WARNING,
                         "Unknown log record type during recovery: {0}",
@@ -1469,16 +1551,29 @@ public class VerdictRegistryImpl implements VerdictRegistry {
 
     /** Full snapshot of all persistent state. */
     static final class PersistentSnapshot implements Serializable {
-        private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 3L;
         final HashMap<String, SerializableEngineReg>        engines;
         final HashMap<String, SerializableVerdictState>     states;
         final HashMap<String, SerializablePublishedVerdict> published;
+        // Hash-keyed (push-model) state.
+        final HashMap<String, SerializableHashVerdictState> hashStates;
+        final HashMap<String, SerializablePublishedVerdict> hashPublished;
+        final HashMap<String, java.util.HashSet<String>>    uriToHashes;
+        final java.util.HashSet<String>                     pendingUrlCondemnations;
         PersistentSnapshot(HashMap<String, SerializableEngineReg>        engines,
                            HashMap<String, SerializableVerdictState>     states,
-                           HashMap<String, SerializablePublishedVerdict> published) {
-            this.engines   = engines;
-            this.states    = states;
-            this.published = published;
+                           HashMap<String, SerializablePublishedVerdict> published,
+                           HashMap<String, SerializableHashVerdictState> hashStates,
+                           HashMap<String, SerializablePublishedVerdict> hashPublished,
+                           HashMap<String, java.util.HashSet<String>>    uriToHashes,
+                           java.util.HashSet<String>                     pendingUrlCondemnations) {
+            this.engines       = engines;
+            this.states        = states;
+            this.published     = published;
+            this.hashStates    = hashStates;
+            this.hashPublished = hashPublished;
+            this.uriToHashes   = uriToHashes;
+            this.pendingUrlCondemnations = pendingUrlCondemnations;
         }
     }
 
@@ -1493,18 +1588,26 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         }
     }
 
-    /** Serialisable form of {@link VerdictState}. */
+    /** Serialisable form of {@link VerdictState} (URL-keyed DANGEROUS state). */
     static final class SerializableVerdictState implements Serializable {
-        private static final long serialVersionUID = 1L;
-        final String[]                   codebaseUrls; // sorted URI strings
-        final HashMap<String, VerdictType> votes;
-        final boolean                    dangerous;
-        SerializableVerdictState(String[] codebaseUrls,
-                                 HashMap<String, VerdictType> votes,
-                                 boolean dangerous) {
+        private static final long serialVersionUID = 2L;
+        final String[] codebaseUrls; // sorted URI strings
+        final boolean  dangerous;
+        SerializableVerdictState(String[] codebaseUrls, boolean dangerous) {
             this.codebaseUrls = codebaseUrls;
-            this.votes        = votes;
             this.dangerous    = dangerous;
+        }
+    }
+
+    /** Serialisable form of {@link HashVerdictState} (push-model, hash-keyed). */
+    static final class SerializableHashVerdictState implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final HashMap<String, VerdictType> votes;
+        final boolean                      dangerous;
+        SerializableHashVerdictState(HashMap<String, VerdictType> votes,
+                                     boolean dangerous) {
+            this.votes     = votes;
+            this.dangerous = dangerous;
         }
     }
 
@@ -1547,26 +1650,6 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     }
 
     /**
-     * Log record: a signature-verified vote was accepted.
-     * URI strings are stored instead of {@link Uri} objects because {@link Uri}
-     * is not {@link Serializable}.
-     */
-    static final class VoteRecord implements Serializable {
-        private static final long serialVersionUID = 1L;
-        final String      engineId;
-        final String      codebaseKey;
-        final String[]    codebaseUrls; // sorted URI strings
-        final VerdictType verdictType;
-        VoteRecord(String engineId, String codebaseKey,
-                   String[] codebaseUrls, VerdictType verdictType) {
-            this.engineId     = engineId;
-            this.codebaseKey  = codebaseKey;
-            this.codebaseUrls = codebaseUrls;
-            this.verdictType  = verdictType;
-        }
-    }
-
-    /**
      * Log record: a {@link RegistryVerdict} was published.
      * Stores the raw fields of the verdict rather than the verdict itself
      * because {@link RegistryVerdict} uses {@code @AtomicSerial} and requires
@@ -1583,6 +1666,49 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         PublishedVerdictRecord(String codebaseKey, RegistryVerdict verdict,
                                boolean dangerous) {
             this.codebaseKey  = codebaseKey;
+            this.codebaseUrls = sortedUriStrings(verdict.getCodebaseUrls());
+            this.verdictType  = verdict.getVerdict();
+            this.timestamp    = verdict.getTimestamp();
+            this.signature    = verdict.getSignature();
+            this.dangerous    = dangerous;
+        }
+    }
+
+    /**
+     * Log record: a signature-verified {@link JarAnalysisReport} vote was
+     * accepted (push model, hash-keyed).  Carries the report's codebase URI
+     * strings so the {@link #uriToHashes} index can be rebuilt on recovery.
+     */
+    static final class HashVoteRecord implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final String      engineId;
+        final String      contentHash;
+        final VerdictType verdictType; // derived verdict
+        final String[]    codebaseUrls;
+        HashVoteRecord(String engineId, String contentHash,
+                       VerdictType verdictType, String[] codebaseUrls) {
+            this.engineId     = engineId;
+            this.contentHash  = contentHash;
+            this.verdictType  = verdictType;
+            this.codebaseUrls = codebaseUrls;
+        }
+    }
+
+    /**
+     * Log record: a hash-keyed {@link RegistryVerdict} was published (push
+     * model), including crash/pinning-driven condemnations.
+     */
+    static final class HashPublishedVerdictRecord implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final String      contentHash;
+        final String[]    codebaseUrls; // sorted URI strings (synthetic urn:sha256)
+        final VerdictType verdictType;
+        final long        timestamp;
+        final byte[]      signature;
+        final boolean     dangerous;
+        HashPublishedVerdictRecord(String contentHash, RegistryVerdict verdict,
+                                   boolean dangerous) {
+            this.contentHash  = contentHash;
             this.codebaseUrls = sortedUriStrings(verdict.getCodebaseUrls());
             this.verdictType  = verdict.getVerdict();
             this.timestamp    = verdict.getTimestamp();

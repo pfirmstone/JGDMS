@@ -18,20 +18,23 @@
 package au.net.zeus.jgdms.jfr;
 
 import java.rmi.RemoteException;
+import java.rmi.server.ServerNotActiveException;
+import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.security.auth.Subject;
+import net.jini.export.ServerContext;
+import net.jini.io.context.ClientSubject;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.telemetry.JfrTelemetryService;
@@ -49,38 +52,41 @@ import au.net.zeus.jgdms.api.telemetry.PinningReport;
  *       total or event count crosses the configured threshold the service
  *       submits an aggregate {@link PinningReport} to the
  *       {@link VerdictRegistry}.</li>
+ *   <li><strong>Per-client rate-limiting and deduplication</strong> (STD-002):
+ *       the authenticated caller identity is derived from the Jini server
+ *       context; each client is limited to a configurable number of accepted
+ *       reports per fixed window, repeated reports for the same
+ *       {@code (client, codebase)} pair within a window are dropped, and the
+ *       contribution of any single report is capped.  This prevents one client
+ *       from inflating a codebase's totals across the threshold by itself.</li>
  *   <li>Periodic sweep: a background daemon thread resets aggregation state
  *       at a configurable interval so that one-off pinning events do not
  *       permanently condemn a codebase.</li>
  * </ul>
  *
- * <h2>Thread safety</h2>
- * <ul>
- *   <li>{@link #aggregates} is a {@link ConcurrentHashMap}; entries are
- *       created lock-free via {@code computeIfAbsent}.</li>
- *   <li>Per-codebase state ({@link PinningState}) uses {@code AtomicLong}
- *       for all counters.  The {@code submitted} flag is guarded by
- *       {@code synchronized(state)} to guarantee exactly-once submission to the
- *       Verdict Registry per sweep window.  The flag is reset if the
- *       VerdictRegistry is unavailable or the remote call fails, so that a
- *       future threshold crossing will retry.</li>
- *   <li>The periodic sweep runs in a single-threaded daemon executor; it
- *       replaces each {@link PinningState} entry atomically using
- *       {@link ConcurrentHashMap#replace}.</li>
- * </ul>
+ * <h2>Client identity</h2>
+ * The authenticated caller is obtained via
+ * {@link ServerContext#getServerContextElement(Class)
+ * ServerContext.getServerContextElement(ClientSubject.class)} and a stable
+ * id string is derived from the returned {@link Subject}'s principal names.
+ * If no client subject is available (unauthenticated, local, or not in a
+ * remote call) the report is attributed to a single shared
+ * {@value #ANONYMOUS_CLIENT_ID} bucket (conservative: all unauthenticated
+ * callers share one rate-limit budget).
  *
  * <h2>Defaults</h2>
  * <ul>
- *   <li>Pinned-nanosecond threshold: {@value #DEFAULT_PINNED_NANOS_THRESHOLD}
- *       ns (30 seconds of cumulative carrier-thread pinning).</li>
- *   <li>Event-count threshold: {@value #DEFAULT_EVENT_COUNT_THRESHOLD} events.
- *   </li>
+ *   <li>Pinned-nanosecond threshold: {@value #DEFAULT_PINNED_NANOS_THRESHOLD} ns.</li>
+ *   <li>Event-count threshold: {@value #DEFAULT_EVENT_COUNT_THRESHOLD} events.</li>
  *   <li>Sweep interval: {@value #DEFAULT_SWEEP_INTERVAL_MINUTES} minutes.</li>
+ *   <li>Max accepted reports per client per window:
+ *       {@value #DEFAULT_MAX_REPORTS_PER_CLIENT_PER_WINDOW}.</li>
+ *   <li>Rate-limit window: {@value #DEFAULT_RATE_LIMIT_WINDOW_MILLIS} ms.</li>
+ *   <li>Max pinned ns counted from a single report:
+ *       {@value #DEFAULT_MAX_PINNED_NANOS_PER_REPORT} ns.</li>
+ *   <li>Max events counted from a single report:
+ *       {@value #DEFAULT_MAX_EVENTS_PER_REPORT}.</li>
  * </ul>
- *
- * <p>The Jini lifecycle wrapper {@link ActivatableJfrTelemetryServiceImpl}
- * reads these from a Jini {@link net.jini.config.Configuration} and constructs
- * an instance of this class.
  *
  * @see JfrTelemetryService
  * @see ActivatableJfrTelemetryServiceImpl
@@ -102,6 +108,31 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
 
     /** Default sweep interval: 60 minutes between aggregation resets. */
     public static final int DEFAULT_SWEEP_INTERVAL_MINUTES = 60;
+
+    /**
+     * Default maximum number of <em>accepted</em> reports a single client
+     * identity may contribute per rate-limit window.  Reports beyond this are
+     * dropped.  Chosen so that no single client can, on its own, drive a
+     * codebase across {@link #DEFAULT_EVENT_COUNT_THRESHOLD} within a window
+     * even at the per-report cap.
+     */
+    public static final int DEFAULT_MAX_REPORTS_PER_CLIENT_PER_WINDOW = 10;
+
+    /** Default rate-limit window: 60 seconds. */
+    public static final long DEFAULT_RATE_LIMIT_WINDOW_MILLIS = 60_000L;
+
+    /**
+     * Default cap on the pinned-nanosecond contribution counted from any single
+     * report (5 s).  A forged report claiming an enormous duration cannot
+     * contribute more than this.
+     */
+    public static final long DEFAULT_MAX_PINNED_NANOS_PER_REPORT = 5_000_000_000L; // 5 s
+
+    /** Default cap on the event-count contribution counted from any single report. */
+    public static final long DEFAULT_MAX_EVENTS_PER_REPORT = 10L;
+
+    /** Bucket id used for callers with no authenticated client subject. */
+    static final String ANONYMOUS_CLIENT_ID = "anonymous";
 
     private static final Logger logger =
             Logger.getLogger(JfrTelemetryServiceImpl.class.getName());
@@ -135,13 +166,7 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
 
         /**
          * Last-seen wall-clock time (epoch ms), updated atomically on each
-         * {@code reportPinning} call.  Initialised to {@code windowStartMs}
-         * so that a sweeper run that races with the very first
-         * {@code reportPinning} call does not purge a brand-new state whose
-         * counter has not yet been updated.
-         * <p>Unlike the other {@code AtomicLong} fields, this is not
-         * initialised inline because it must be set to {@code windowStartMs}
-         * rather than {@code 0L} — see the constructor.
+         * accepted {@code reportPinning} call.
          */
         final AtomicLong lastSeenMs;
 
@@ -162,6 +187,26 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
         }
     }
 
+    /**
+     * Per-client rate-limit + dedup state for a single fixed window.
+     * Guarded by {@code synchronized(this)}.
+     */
+    static final class ClientRateState {
+
+        /** Epoch-ms start of the current fixed window. */
+        long windowStartMs;
+
+        /** Count of accepted reports in the current window. */
+        int acceptedInWindow;
+
+        /** Codebase keys already counted for this client in the current window. */
+        final Set<String> seenCodebaseKeys = new java.util.HashSet<String>();
+
+        ClientRateState(long windowStartMs) {
+            this.windowStartMs = windowStartMs;
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------
@@ -169,6 +214,10 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
     /** Per-codebase aggregation state. Key is the canonical codebase URL set. */
     private final ConcurrentHashMap<String, PinningState> aggregates =
             new ConcurrentHashMap<String, PinningState>();
+
+    /** Per-client rate-limit / dedup state. Key is the client identity string. */
+    private final ConcurrentHashMap<String, ClientRateState> clientRates =
+            new ConcurrentHashMap<String, ClientRateState>();
 
     /** Threshold: cumulative pinned ns before DANGEROUS verdict is submitted. */
     private final long pinnedNanosThreshold;
@@ -178,6 +227,18 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
 
     /** Sweep interval in minutes. */
     private final int sweepIntervalMinutes;
+
+    /** Max accepted reports per client per rate-limit window. */
+    private final int maxReportsPerClientPerWindow;
+
+    /** Rate-limit window length in milliseconds. */
+    private final long rateLimitWindowMillis;
+
+    /** Cap on pinned-ns contribution counted from any single report. */
+    private final long maxPinnedNanosPerReport;
+
+    /** Cap on event-count contribution counted from any single report. */
+    private final long maxEventsPerReport;
 
     /**
      * The Verdict Registry to notify when a threshold is crossed.
@@ -198,7 +259,8 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
     // -------------------------------------------------------------------------
 
     /**
-     * Creates a service instance with default thresholds and sweep interval.
+     * Creates a service instance with default thresholds, sweep interval, and
+     * per-client rate-limit / dedup settings.
      */
     public JfrTelemetryServiceImpl() {
         this(DEFAULT_PINNED_NANOS_THRESHOLD,
@@ -208,35 +270,73 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
     }
 
     /**
-     * Creates a service instance with explicit thresholds.
+     * Creates a service instance with explicit thresholds and the default
+     * per-client rate-limit / dedup settings.
      *
-     * @param pinnedNanosThreshold  cumulative pinned-ns threshold; must be
-     *                              positive
+     * @param pinnedNanosThreshold  cumulative pinned-ns threshold; must be positive
      * @param eventCountThreshold   event-count threshold; must be positive
      * @param sweepIntervalMinutes  sweep interval in minutes; must be positive
-     * @param verdictRegistry       the Verdict Registry to notify, or
-     *                              {@code null} if not yet available
-     * @throws IllegalArgumentException if any numeric argument is
-     *                                  non-positive
+     * @param verdictRegistry       the Verdict Registry to notify, or {@code null}
+     * @throws IllegalArgumentException if any numeric argument is non-positive
      */
     public JfrTelemetryServiceImpl(long pinnedNanosThreshold,
                                    long eventCountThreshold,
                                    int  sweepIntervalMinutes,
                                    VerdictRegistry verdictRegistry) {
+        this(pinnedNanosThreshold, eventCountThreshold, sweepIntervalMinutes,
+             verdictRegistry,
+             DEFAULT_MAX_REPORTS_PER_CLIENT_PER_WINDOW,
+             DEFAULT_RATE_LIMIT_WINDOW_MILLIS,
+             DEFAULT_MAX_PINNED_NANOS_PER_REPORT,
+             DEFAULT_MAX_EVENTS_PER_REPORT);
+    }
+
+    /**
+     * Creates a service instance with explicit thresholds and per-client
+     * rate-limit / dedup settings.
+     *
+     * @param pinnedNanosThreshold          cumulative pinned-ns threshold; positive
+     * @param eventCountThreshold           event-count threshold; positive
+     * @param sweepIntervalMinutes          sweep interval in minutes; positive
+     * @param verdictRegistry               the Verdict Registry, or {@code null}
+     * @param maxReportsPerClientPerWindow  max accepted reports per client per
+     *                                      window; positive
+     * @param rateLimitWindowMillis         rate-limit window length (ms); positive
+     * @param maxPinnedNanosPerReport       per-report pinned-ns cap; positive
+     * @param maxEventsPerReport            per-report event-count cap; positive
+     * @throws IllegalArgumentException if any numeric argument is non-positive
+     */
+    public JfrTelemetryServiceImpl(long pinnedNanosThreshold,
+                                   long eventCountThreshold,
+                                   int  sweepIntervalMinutes,
+                                   VerdictRegistry verdictRegistry,
+                                   int  maxReportsPerClientPerWindow,
+                                   long rateLimitWindowMillis,
+                                   long maxPinnedNanosPerReport,
+                                   long maxEventsPerReport) {
         if (pinnedNanosThreshold <= 0)
-            throw new IllegalArgumentException(
-                    "pinnedNanosThreshold must be positive");
+            throw new IllegalArgumentException("pinnedNanosThreshold must be positive");
         if (eventCountThreshold <= 0)
-            throw new IllegalArgumentException(
-                    "eventCountThreshold must be positive");
+            throw new IllegalArgumentException("eventCountThreshold must be positive");
         if (sweepIntervalMinutes <= 0)
-            throw new IllegalArgumentException(
-                    "sweepIntervalMinutes must be positive");
+            throw new IllegalArgumentException("sweepIntervalMinutes must be positive");
+        if (maxReportsPerClientPerWindow <= 0)
+            throw new IllegalArgumentException("maxReportsPerClientPerWindow must be positive");
+        if (rateLimitWindowMillis <= 0)
+            throw new IllegalArgumentException("rateLimitWindowMillis must be positive");
+        if (maxPinnedNanosPerReport <= 0)
+            throw new IllegalArgumentException("maxPinnedNanosPerReport must be positive");
+        if (maxEventsPerReport <= 0)
+            throw new IllegalArgumentException("maxEventsPerReport must be positive");
 
         this.pinnedNanosThreshold = pinnedNanosThreshold;
         this.eventCountThreshold  = eventCountThreshold;
         this.sweepIntervalMinutes = sweepIntervalMinutes;
         this.verdictRegistry      = verdictRegistry;
+        this.maxReportsPerClientPerWindow = maxReportsPerClientPerWindow;
+        this.rateLimitWindowMillis = rateLimitWindowMillis;
+        this.maxPinnedNanosPerReport = maxPinnedNanosPerReport;
+        this.maxEventsPerReport = maxEventsPerReport;
 
         this.sweepExecutor = new java.util.concurrent.ScheduledThreadPoolExecutor(1,
                 Thread.ofVirtual().name("JGDMS-JfrTelemetryService-Sweeper").factory());
@@ -248,10 +348,6 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
 
     /**
      * Starts the periodic aggregation-state sweep.
-     *
-     * <p>This method is called by {@link ActivatableJfrTelemetryServiceImpl}
-     * from its {@code onExported} callback, after the service has been
-     * successfully exported and is ready to receive calls.
      */
     void startSweeper() {
         sweepFuture = sweepExecutor.scheduleAtFixedRate(
@@ -261,19 +357,22 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
                 TimeUnit.MINUTES);
         logger.log(Level.CONFIG,
                 "JFR Telemetry sweeper started; interval={0} min,"
-                        + " pinnedNanosThreshold={1} ns,"
-                        + " eventCountThreshold={2}",
+                        + " pinnedNanosThreshold={1} ns, eventCountThreshold={2},"
+                        + " maxReportsPerClientPerWindow={3}, rateLimitWindowMs={4},"
+                        + " maxPinnedNanosPerReport={5}, maxEventsPerReport={6}",
                 new Object[]{
                     sweepIntervalMinutes,
                     pinnedNanosThreshold,
-                    eventCountThreshold
+                    eventCountThreshold,
+                    maxReportsPerClientPerWindow,
+                    rateLimitWindowMillis,
+                    maxPinnedNanosPerReport,
+                    maxEventsPerReport
                 });
     }
 
     /**
      * Shuts down the sweep executor.
-     *
-     * <p>Called by {@link ActivatableJfrTelemetryServiceImpl#destroy()}.
      */
     void shutdown() {
         if (sweepFuture != null) {
@@ -290,9 +389,6 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
     /**
      * Injects (or replaces) the {@link VerdictRegistry} reference.
      *
-     * <p>Called by the Jini wrapper after discovering the registry via
-     * {@link net.jini.lookup.ServiceDiscoveryManager}.
-     *
      * @param registry the Verdict Registry; may be {@code null} to clear
      */
     void setVerdictRegistry(VerdictRegistry registry) {
@@ -306,31 +402,115 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
     @Override
     public void reportPinning(PinningReport report) throws RemoteException {
         if (report == null) throw new NullPointerException("report");
+        reportPinning(report, currentClientId());
+    }
 
-        Set<Uri> urls      = report.getCodebaseUrls();
-        String   key       = codebaseKey(urls);
-        long     nowMs     = System.currentTimeMillis();
+    /**
+     * Records a pinning report attributed to the given client identity.
+     *
+     * <p>This is the rate-limited / deduplicated core; the public
+     * {@link #reportPinning(PinningReport)} derives {@code clientId} from the
+     * Jini server context and delegates here.  It is package-private so that
+     * unit tests can exercise the per-client limiter without a live server
+     * context.
+     *
+     * <p>Enforcement order:
+     * <ol>
+     *   <li>Cap this report's contribution to
+     *       {@link #maxPinnedNanosPerReport} / {@link #maxEventsPerReport}.</li>
+     *   <li>Drop if the client has already been counted for this codebase in
+     *       the current window (dedup).</li>
+     *   <li>Drop if the client has reached its per-window report quota
+     *       (rate-limit).</li>
+     *   <li>Otherwise aggregate and check the codebase threshold.</li>
+     * </ol>
+     *
+     * @param report   the pinning report; must be non-null
+     * @param clientId the caller's stable identity; must be non-null
+     */
+    void reportPinning(PinningReport report, String clientId)
+            throws RemoteException {
+        if (report == null)   throw new NullPointerException("report");
+        if (clientId == null) throw new NullPointerException("clientId");
 
+        Set<Uri> urls  = report.getCodebaseUrls();
+        String   key   = codebaseKey(urls);
+        long     nowMs = System.currentTimeMillis();
+
+        // 1. Cap the contribution of a single report so a forged report cannot
+        //    inflate totals by itself.
+        long cappedNanos  = Math.min(Math.max(0L, report.getPinnedNanos()),
+                                     maxPinnedNanosPerReport);
+        long cappedEvents = Math.min(Math.max(0L, report.getEventCount()),
+                                     maxEventsPerReport);
+
+        // 2 & 3. Per-client dedup + rate-limit (atomic over the client state).
+        if (!admitForClient(clientId, key, nowMs)) {
+            if (logger.isLoggable(Level.FINE)) {
+                logger.log(Level.FINE,
+                        "Dropping over-limit/duplicate pinning report:"
+                                + " client={0}, codebase={1}",
+                        new Object[]{clientId, key});
+            }
+            return;
+        }
+
+        // 4. Aggregate and check threshold.
         PinningState state = aggregates.computeIfAbsent(
                 key, k -> new PinningState(k, uriSetToStrings(urls), nowMs));
 
-        long totalPinnedNanos = state.pinnedNanos.addAndGet(report.getPinnedNanos());
-        long totalEventCount  = state.eventCount.addAndGet(report.getEventCount());
+        long totalPinnedNanos = state.pinnedNanos.addAndGet(cappedNanos);
+        long totalEventCount  = state.eventCount.addAndGet(cappedEvents);
         state.lastSeenMs.set(nowMs);
 
         if (logger.isLoggable(Level.FINE)) {
             logger.log(Level.FINE,
-                    "Pinning recorded: key={0}, newPinnedNanos={1},"
-                            + " totalPinnedNanos={2}, totalEvents={3}",
-                    new Object[]{key, report.getPinnedNanos(),
+                    "Pinning recorded: client={0}, key={1}, addedNanos={2},"
+                            + " totalPinnedNanos={3}, totalEvents={4}",
+                    new Object[]{clientId, key, cappedNanos,
                         totalPinnedNanos, totalEventCount});
         }
 
-        // Check threshold and submit to VerdictRegistry if exceeded.
         if (!state.submitted
                 && (totalPinnedNanos >= pinnedNanosThreshold
                         || totalEventCount >= eventCountThreshold)) {
             submitToRegistry(state, totalPinnedNanos, totalEventCount, nowMs);
+        }
+    }
+
+    /**
+     * Applies the per-client dedup + rate-limit policy for one report.  Returns
+     * {@code true} if the report should be aggregated, {@code false} if it must
+     * be dropped.  The decision and the bookkeeping update are performed
+     * atomically under the client's lock so concurrent reports from the same
+     * client cannot both slip past the quota.
+     *
+     * @param clientId the caller identity
+     * @param key      the codebase key
+     * @param nowMs    current epoch ms
+     * @return {@code true} to accept, {@code false} to drop
+     */
+    private boolean admitForClient(String clientId, String key, long nowMs) {
+        ClientRateState rate = clientRates.computeIfAbsent(
+                clientId, k -> new ClientRateState(nowMs));
+        synchronized (rate) {
+            // Roll the fixed window if it has elapsed.
+            if (nowMs - rate.windowStartMs >= rateLimitWindowMillis) {
+                rate.windowStartMs = nowMs;
+                rate.acceptedInWindow = 0;
+                rate.seenCodebaseKeys.clear();
+            }
+            // Dedup: same (client, codebase) already counted this window.
+            if (rate.seenCodebaseKeys.contains(key)) {
+                return false;
+            }
+            // Rate-limit: client has reached its per-window quota.
+            if (rate.acceptedInWindow >= maxReportsPerClientPerWindow) {
+                return false;
+            }
+            rate.acceptedInWindow++;
+            rate.seenCodebaseKeys.add(key);
+            return true;
         }
     }
 
@@ -349,22 +529,85 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
     }
 
     // -------------------------------------------------------------------------
+    // Client identity
+    // -------------------------------------------------------------------------
+
+    /**
+     * Derives a stable client-id string for the current remote call.
+     *
+     * <p>Queries the Jini server context for a {@link ClientSubject}; if one is
+     * present and authenticated, joins its principal names (sorted, so order is
+     * stable) into the id.  If the call is not remote, no client subject is
+     * available, or the subject has no principals, returns
+     * {@value #ANONYMOUS_CLIENT_ID} (a single shared bucket — conservative).
+     *
+     * @return a non-null, stable client identity string
+     */
+    String currentClientId() {
+        try {
+            ClientSubject cs = (ClientSubject)
+                    ServerContext.getServerContextElement(ClientSubject.class);
+            if (cs == null) {
+                return ANONYMOUS_CLIENT_ID;
+            }
+            Subject subject = cs.getClientSubject();
+            return clientIdFromSubject(subject);
+        } catch (ServerNotActiveException e) {
+            // Not in a remote call (local / test invocation).
+            return ANONYMOUS_CLIENT_ID;
+        } catch (SecurityException e) {
+            // Not permitted to read the client subject — treat as anonymous.
+            logger.log(Level.FINE,
+                    "Not permitted to read client subject; using anonymous bucket",
+                    e);
+            return ANONYMOUS_CLIENT_ID;
+        } catch (RuntimeException | Error e) {
+            // Resolving the server context can fail for reasons unrelated to
+            // the caller (e.g. a ServerContext.Spi provider that is not on the
+            // classpath raises ServiceConfigurationError).  A telemetry report
+            // must never be dropped because identity resolution failed, so fall
+            // back to the shared anonymous bucket (conservative).
+            logger.log(Level.FINE,
+                    "Could not resolve client identity from server context;"
+                            + " using anonymous bucket",
+                    e);
+            return ANONYMOUS_CLIENT_ID;
+        }
+    }
+
+    /**
+     * Builds a stable identity string from a client {@link Subject}'s
+     * principals.  Returns {@value #ANONYMOUS_CLIENT_ID} if the subject is
+     * {@code null} or has no principals.
+     */
+    static String clientIdFromSubject(Subject subject) {
+        if (subject == null) return ANONYMOUS_CLIENT_ID;
+        Set<Principal> principals = subject.getPrincipals();
+        if (principals == null || principals.isEmpty()) {
+            return ANONYMOUS_CLIENT_ID;
+        }
+        List<String> names = new ArrayList<String>(principals.size());
+        for (Principal p : principals) {
+            if (p != null && p.getName() != null) {
+                names.add(p.getName());
+            }
+        }
+        if (names.isEmpty()) return ANONYMOUS_CLIENT_ID;
+        java.util.Collections.sort(names); // stable regardless of iteration order
+        return String.join("|", names);
+    }
+
+    // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
 
     /**
      * Attempts to submit the aggregate pinning data to the Verdict Registry.
-     * The {@link PinningState#submitted} flag is set to {@code true} exactly
-     * once, and only after both the report has been built and the registry
-     * reference is confirmed to be non-null.  This guarantees that a
-     * transiently-unavailable registry does not permanently suppress future
-     * submission attempts within the same sweep window.
      */
     private void submitToRegistry(PinningState state,
                                   long totalPinnedNanos,
                                   long totalEventCount,
                                   long nowMs) {
-        // Atomically claim the submission right.
         synchronized (state) {
             if (state.submitted) return;
             state.submitted = true;
@@ -413,33 +656,36 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
     }
 
     /**
-     * Resets the {@link PinningState#submitted} flag so that the next
-     * threshold crossing will attempt another submission.  Called whenever a
-     * submission attempt fails (registry unavailable, build error, or
-     * {@link RemoteException}).
+     * Resets the {@link PinningState#submitted} flag so that the next threshold
+     * crossing will attempt another submission.
      */
     private static void resetSubmitted(PinningState state) {
         synchronized (state) { state.submitted = false; }
     }
 
     /**
-     * Periodic sweep: clears per-codebase aggregation state so that a
-     * one-off pinning burst in a previous window does not permanently
-     * condemn a codebase.  Only entries whose {@code submitted} flag is
-     * already {@code true} (or that have not been seen in the last sweep
-     * interval) are cleared.
+     * Periodic sweep: clears stale per-codebase aggregation state and stale
+     * per-client rate-limit state so neither a one-off pinning burst nor an
+     * idle client's bookkeeping accumulates indefinitely.
      */
     private void sweep() {
-        long cutoffMs = System.currentTimeMillis()
-                - (sweepIntervalMinutes * 60_000L);
+        long now      = System.currentTimeMillis();
+        long cutoffMs = now - (sweepIntervalMinutes * 60_000L);
         int removed = 0;
         for (Map.Entry<String, PinningState> entry : aggregates.entrySet()) {
             PinningState state = entry.getValue();
-            // Remove states that were either already submitted or have been
-            // inactive for the full sweep interval.
             if (state.submitted || state.lastSeenMs.get() < cutoffMs) {
                 aggregates.remove(entry.getKey(), state);
                 removed++;
+            }
+        }
+        // Drop client rate state whose window has long elapsed.
+        for (Map.Entry<String, ClientRateState> entry : clientRates.entrySet()) {
+            ClientRateState rate = entry.getValue();
+            synchronized (rate) {
+                if (now - rate.windowStartMs >= rateLimitWindowMillis) {
+                    clientRates.remove(entry.getKey(), rate);
+                }
             }
         }
         if (removed > 0) {
@@ -451,7 +697,6 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
 
     /**
      * Produces a canonical, order-independent key for a codebase URL set.
-     * Sorts the URI strings lexicographically before joining.
      */
     static String codebaseKey(Set<Uri> uris) {
         String[] sorted = new String[uris.size()];

@@ -32,18 +32,18 @@ enforce the JGDMS <em>safe-codebase</em> guarantee: the
 
 <dl>
   <dt>{@link au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine}</dt>
-  <dd>Remote interface for the BAE service.  Clients pass a set of codebase
-      {@link org.apache.river.api.net.Uri URIs} and receive a signed
-      {@link au.net.zeus.jgdms.api.codebase.SignedVerdict} that records
-      whether the bytecode at those URLs was judged safe, unsafe, or
-      indeterminate.  The BAE runs in a dedicated Phoenix activation group
-      with restrictive security permissions so that analysing malicious
-      bytecode cannot compromise the broader system.</dd>
+  <dd>Remote interface for the BAE service.  It analyses the bytecode of a
+      JAR and returns a signed
+      {@link au.net.zeus.jgdms.api.codebase.JarAnalysisReport} that records
+      whether the bytecode was judged safe, unsafe, or indeterminate.  The
+      BAE runs in a dedicated Phoenix activation group with restrictive
+      security permissions so that analysing malicious bytecode cannot
+      compromise the broader system.</dd>
 
   <dt>{@link au.net.zeus.jgdms.api.codebase.VerdictRegistry}</dt>
-  <dd>Remote interface for the VR service.  Clients submit
-      {@link au.net.zeus.jgdms.api.codebase.SignedVerdict} records produced
-      by registered BAE instances.  When a configurable quorum of independent
+  <dd>Remote interface for the VR service.  Registered BAE instances submit
+      {@link au.net.zeus.jgdms.api.codebase.JarAnalysisReport} records via
+      {@code submitReport}.  When a configurable quorum of independent
       BAEs agree, the registry stores a
       {@link au.net.zeus.jgdms.api.codebase.RegistryVerdict} that downstream
       consumers can retrieve and trust.  The VR holds the registry signing
@@ -58,10 +58,10 @@ enforce the JGDMS <em>safe-codebase</em> guarantee: the
   <dd>Enumeration of possible analysis outcomes: {@code SAFE},
       {@code UNSAFE}, and {@code INDETERMINATE}.</dd>
 
-  <dt>{@link au.net.zeus.jgdms.api.codebase.SignedVerdict}</dt>
-  <dd>A BAE-signed verdict for a specific codebase, carrying the codebase
-      URIs, verdict type, analysis timestamp, and the BAE's digital
-      signature.</dd>
+  <dt>{@link au.net.zeus.jgdms.api.codebase.JarAnalysisReport}</dt>
+  <dd>A BAE-signed analysis report for a specific JAR, carrying the content
+      hash, per-class analysis results, declared permissions, codebase URIs,
+      and the BAE's digital signature.</dd>
 
   <dt>{@link au.net.zeus.jgdms.api.codebase.RegistryVerdict}</dt>
   <dd>A registry-countersigned verdict stored by the VR after a quorum of

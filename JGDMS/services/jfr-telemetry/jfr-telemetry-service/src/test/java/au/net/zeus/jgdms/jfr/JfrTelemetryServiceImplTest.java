@@ -33,7 +33,6 @@ import net.jini.io.MarshalledInstance;
 import java.security.PublicKey;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
-import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -75,8 +74,6 @@ public class JfrTelemetryServiceImplTest {
                                            String sigAlgorithm) {}
         @Override
         public void revokeAnalysisEngine(String engineId) {}
-        @Override
-        public void submitVerdict(String engineId, SignedVerdict verdict) {}
         @Override
         public void submitReport(String engineId, JarAnalysisReport report) {}
         @Override
@@ -157,15 +154,16 @@ public class JfrTelemetryServiceImplTest {
         Set<Uri> urlSet = makeUriSet(uri1);
         long now = System.currentTimeMillis();
 
-        // First report: just below threshold
+        // First report from clientA: just below threshold.
         PinningReport r1 = new PinningReport(uris, LOW_PINNED_NANOS_THRESHOLD - 1,
                 1L, now - 2000L, now - 1000L);
-        service.reportPinning(r1);
+        service.reportPinning(r1, "clientA");
         assertTrue(stubRegistry.pinningReports.isEmpty());
 
-        // Second report: crosses threshold
+        // Second report from a DIFFERENT client crosses the codebase threshold.
+        // (A second report from clientA for the same codebase would be deduped.)
         PinningReport r2 = new PinningReport(uris, 2L, 1L, now - 1000L, now);
-        service.reportPinning(r2);
+        service.reportPinning(r2, "clientB");
 
         assertEquals("Registry should have been called exactly once",
                 1, stubRegistry.pinningReports.size());
@@ -181,11 +179,13 @@ public class JfrTelemetryServiceImplTest {
         Set<Uri> urlSet = makeUriSet(uri2);
         long now = System.currentTimeMillis();
 
-        // Submit events one-by-one until the threshold is crossed.
+        // Submit events one-by-one from DISTINCT clients until the codebase
+        // threshold is crossed.  Each client contributes one (deduped) report
+        // for this codebase.
         for (int i = 0; i < LOW_EVENT_COUNT_THRESHOLD; i++) {
             PinningReport r = new PinningReport(uris, 10L, 1L,
                     now - 1000L, now);
-            service.reportPinning(r);
+            service.reportPinning(r, "client-" + i);
         }
 
         assertEquals("Registry should have been called exactly once",
@@ -268,19 +268,20 @@ public class JfrTelemetryServiceImplTest {
         Uri[] uris = new Uri[]{uri1};
         long now = System.currentTimeMillis();
 
-        // First report crosses threshold but VR is null — submitted flag must
-        // be reset so that the next report can retry.
+        // First report (clientA) crosses threshold but VR is null — submitted
+        // flag must be reset so that a later report can retry.
         PinningReport r1 = new PinningReport(uris, LOW_PINNED_NANOS_THRESHOLD + 1,
                 1L, now - 2000L, now - 1000L);
-        svc.reportPinning(r1);
+        svc.reportPinning(r1, "clientA");
 
-        // Now inject a real registry and send another report that also exceeds
-        // the (already-accumulated) threshold.
+        // Now inject a real registry and send another report (from a different
+        // client, so it is not deduped) for the same already-over-threshold
+        // codebase; this must trigger the retry.
         StubVerdictRegistry registry = new StubVerdictRegistry();
         svc.setVerdictRegistry(registry);
 
         PinningReport r2 = new PinningReport(uris, 1L, 1L, now - 1000L, now);
-        svc.reportPinning(r2);
+        svc.reportPinning(r2, "clientB");
 
         assertEquals("Registry must receive the report after becoming available",
                 1, registry.pinningReports.size());
@@ -292,6 +293,184 @@ public class JfrTelemetryServiceImplTest {
         Set<Uri> b = makeUriSet(uri2, uri1);
         assertEquals(JfrTelemetryServiceImpl.codebaseKey(a),
                      JfrTelemetryServiceImpl.codebaseKey(b));
+    }
+
+    // -------------------------------------------------------------------------
+    // Per-client rate-limit + dedup (STD-002)
+    // -------------------------------------------------------------------------
+
+    /**
+     * One client cannot cross a codebase's event-count threshold on its own:
+     * deduplication counts at most one report per (client, codebase) per window,
+     * so repeated reports from a single identity for the same codebase are
+     * dropped and the threshold is never reached.
+     */
+    @Test
+    public void testDedup_SingleClientCannotInflateCodebase() throws Exception {
+        // Threshold is 5 events; per-report cap is 1 event.
+        JfrTelemetryServiceImpl svc = new JfrTelemetryServiceImpl(
+                Long.MAX_VALUE, 5L, SWEEP_INTERVAL_MINUTES, stubRegistry,
+                /*maxReportsPerClientPerWindow*/ 100,
+                /*rateLimitWindowMillis*/ 60_000L,
+                /*maxPinnedNanosPerReport*/ Long.MAX_VALUE,
+                /*maxEventsPerReport*/ 1L);
+
+        Uri[] uris = new Uri[]{uri1};
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < 50; i++) {
+            svc.reportPinning(
+                    new PinningReport(uris, 0L, 1L, now - 1000L, now), "attacker");
+        }
+
+        assertTrue("Dedup must prevent one client from crossing the threshold",
+                stubRegistry.pinningReports.isEmpty());
+        // Exactly one (deduped) event should have been counted.
+        assertEquals(1L, svc.getPinCount(makeUriSet(uri1)));
+    }
+
+    /**
+     * The rate limiter drops reports once a client exceeds its per-window quota,
+     * counting different codebases (which bypass dedup).
+     */
+    @Test
+    public void testRateLimit_DropsExcessReportsFromOneClient() throws Exception {
+        int quota = 3;
+        JfrTelemetryServiceImpl svc = new JfrTelemetryServiceImpl(
+                Long.MAX_VALUE, Long.MAX_VALUE, SWEEP_INTERVAL_MINUTES, stubRegistry,
+                /*maxReportsPerClientPerWindow*/ quota,
+                /*rateLimitWindowMillis*/ 60_000L,
+                /*maxPinnedNanosPerReport*/ Long.MAX_VALUE,
+                /*maxEventsPerReport*/ Long.MAX_VALUE);
+
+        long now = System.currentTimeMillis();
+        // Five DISTINCT codebases from the same client; only `quota` accepted.
+        for (int i = 0; i < 5; i++) {
+            Uri u = new Uri("https://example.com/cb-" + i + ".jar");
+            svc.reportPinning(
+                    new PinningReport(new Uri[]{u}, 7L, 1L, now - 1000L, now),
+                    "noisy-client");
+        }
+
+        long accepted = 0;
+        for (int i = 0; i < 5; i++) {
+            accepted += svc.getPinCount(
+                    makeUriSet(new Uri("https://example.com/cb-" + i + ".jar")));
+        }
+        assertEquals("Only the per-window quota of reports must be accepted",
+                (long) quota, accepted);
+    }
+
+    /**
+     * Different client identities are rate-limited independently: each client
+     * gets its own quota.
+     */
+    @Test
+    public void testRateLimit_DifferentClientsIndependent() throws Exception {
+        int quota = 2;
+        JfrTelemetryServiceImpl svc = new JfrTelemetryServiceImpl(
+                Long.MAX_VALUE, Long.MAX_VALUE, SWEEP_INTERVAL_MINUTES, stubRegistry,
+                quota, 60_000L, Long.MAX_VALUE, Long.MAX_VALUE);
+
+        long now = System.currentTimeMillis();
+        // clientA exhausts its quota across distinct codebases.
+        for (int i = 0; i < 5; i++) {
+            svc.reportPinning(new PinningReport(
+                    new Uri[]{new Uri("https://a.example/" + i + ".jar")},
+                    1L, 1L, now - 1000L, now), "clientA");
+        }
+        // clientB reports a fresh codebase — must still be accepted (own quota).
+        Uri bUri = new Uri("https://b.example/lib.jar");
+        svc.reportPinning(new PinningReport(
+                new Uri[]{bUri}, 9L, 3L, now - 1000L, now), "clientB");
+
+        assertEquals("clientB's report must be counted despite clientA's quota",
+                3L, svc.getPinCount(makeUriSet(bUri)));
+    }
+
+    /**
+     * A single forged report cannot contribute more than the per-report caps to
+     * a codebase's totals.
+     */
+    @Test
+    public void testPerReportCap_LimitsSingleReportContribution() throws Exception {
+        JfrTelemetryServiceImpl svc = new JfrTelemetryServiceImpl(
+                Long.MAX_VALUE, Long.MAX_VALUE, SWEEP_INTERVAL_MINUTES, stubRegistry,
+                100, 60_000L,
+                /*maxPinnedNanosPerReport*/ 1_000L,
+                /*maxEventsPerReport*/ 2L);
+
+        Uri[] uris = new Uri[]{uri1};
+        long now = System.currentTimeMillis();
+        // Forged huge values; must be capped to (1_000 ns, 2 events).
+        svc.reportPinning(new PinningReport(
+                uris, 999_999_999L, 999L, now - 1000L, now), "forger");
+
+        assertEquals(1_000L, svc.getPinnedNanos(makeUriSet(uri1)));
+        assertEquals(2L,     svc.getPinCount(makeUriSet(uri1)));
+    }
+
+    /**
+     * The public {@code reportPinning} path falls back to a single shared
+     * anonymous bucket when no client subject is available (e.g. a local call):
+     * a second public call for the same codebase is deduped.
+     */
+    @Test
+    public void testAnonymousFallback_DedupsLocalCalls() throws Exception {
+        JfrTelemetryServiceImpl svc = new JfrTelemetryServiceImpl(
+                Long.MAX_VALUE, Long.MAX_VALUE, SWEEP_INTERVAL_MINUTES, stubRegistry);
+
+        Uri[] uris = new Uri[]{uri1};
+        long now = System.currentTimeMillis();
+        svc.reportPinning(new PinningReport(uris, 5L, 1L, now - 1000L, now));
+        svc.reportPinning(new PinningReport(uris, 5L, 1L, now - 1000L, now));
+
+        // Second anonymous report for the same codebase is deduped → only one
+        // event counted.
+        assertEquals(1L, svc.getPinCount(makeUriSet(uri1)));
+    }
+
+    /**
+     * {@code currentClientId()} returns the anonymous bucket id when invoked
+     * outside a remote call.
+     */
+    @Test
+    public void testCurrentClientId_NotInRemoteCall_IsAnonymous() {
+        assertEquals(JfrTelemetryServiceImpl.ANONYMOUS_CLIENT_ID,
+                service.currentClientId());
+    }
+
+    /**
+     * The subject-to-id derivation is stable and order-independent over the
+     * subject's principals, and falls back to anonymous for an empty subject.
+     */
+    @Test
+    public void testClientIdFromSubject_StableAndOrderIndependent() {
+        java.security.Principal p1 =
+                new javax.security.auth.x500.X500Principal("CN=alice");
+        java.security.Principal p2 =
+                new javax.security.auth.x500.X500Principal("CN=bob");
+
+        java.util.Set<java.security.Principal> set1 =
+                new java.util.LinkedHashSet<>();
+        set1.add(p1); set1.add(p2);
+        java.util.Set<java.security.Principal> set2 =
+                new java.util.LinkedHashSet<>();
+        set2.add(p2); set2.add(p1);
+
+        javax.security.auth.Subject s1 = new javax.security.auth.Subject(
+                false, set1, java.util.Collections.emptySet(),
+                java.util.Collections.emptySet());
+        javax.security.auth.Subject s2 = new javax.security.auth.Subject(
+                false, set2, java.util.Collections.emptySet(),
+                java.util.Collections.emptySet());
+
+        assertEquals(JfrTelemetryServiceImpl.clientIdFromSubject(s1),
+                     JfrTelemetryServiceImpl.clientIdFromSubject(s2));
+        assertEquals(JfrTelemetryServiceImpl.ANONYMOUS_CLIENT_ID,
+                JfrTelemetryServiceImpl.clientIdFromSubject(null));
+        assertEquals(JfrTelemetryServiceImpl.ANONYMOUS_CLIENT_ID,
+                JfrTelemetryServiceImpl.clientIdFromSubject(
+                        new javax.security.auth.Subject()));
     }
 
     // -------------------------------------------------------------------------

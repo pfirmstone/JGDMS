@@ -68,6 +68,24 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- pack200-normalize: stamp META-INF/CONTENT-HASH so the published
+                 codebase JAR's raw bytes equal the canonical form `C` clients
+                 hash via SHA-256(rawBytes) for VerdictRegistry lookups
+                 (JGDMS-STD-002 v1.3). -->
+            <plugin>
+                <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+                <artifactId>pack200-normalize-maven-plugin</artifactId>
+                <version>${pack200.version}</version>
+                <executions>
+                    <execution>
+                        <id>normalize-codebase-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>normalize</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 

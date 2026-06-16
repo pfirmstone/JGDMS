@@ -18,8 +18,6 @@
 package au.net.zeus.jgdms.bae.proxy;
 
 import java.rmi.RemoteException;
-import java.util.Collections;
-import java.util.Set;
 import net.jini.admin.Administrable;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
@@ -29,7 +27,6 @@ import au.net.zeus.jgdms.api.codebase.AnalysisException;
 import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
 import au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
-import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 import org.junit.Before;
 import org.junit.Test;
@@ -65,8 +62,6 @@ public class BytecodeAnalysisEngineProxyTest {
      */
     static class MockBaeServer implements BytecodeAnalysisEngine, Administrable {
 
-        Set<Uri> lastAnalysisRequest;
-        boolean requestAnalysisCalled = false;
         final Object adminObject;
 
         MockBaeServer(Object adminObject) {
@@ -77,12 +72,6 @@ public class BytecodeAnalysisEngineProxyTest {
         public JarAnalysisReport analyzeJar(AnalysisRequest request)
                 throws AnalysisException, RemoteException {
             return null;
-        }
-
-        @Override
-        public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
-            requestAnalysisCalled = true;
-            lastAnalysisRequest = codebaseUrls;
         }
 
         @Override
@@ -228,22 +217,6 @@ public class BytecodeAnalysisEngineProxyTest {
     }
 
     // =========================================================================
-    // BytecodeAnalysisEngine method delegation
-    // =========================================================================
-
-    @Test
-    public void testRequestAnalysisDelegatesToServer() throws RemoteException {
-        BytecodeAnalysisEngineProxy proxy =
-                new BytecodeAnalysisEngineProxy(plainServer, serviceId);
-        Set<Uri> urls = Collections.emptySet();
-        proxy.requestAnalysis(urls);
-        assertTrue("requestAnalysis() must delegate to the server stub",
-                plainServer.requestAnalysisCalled);
-        assertSame("requestAnalysis() must pass the URL set unchanged to the server",
-                urls, plainServer.lastAnalysisRequest);
-    }
-
-    // =========================================================================
     // Administrable delegation
     // =========================================================================
 
@@ -323,19 +296,6 @@ public class BytecodeAnalysisEngineProxyTest {
                         proxy.setConstraints(null);
         assertEquals("setConstraints() must preserve the service UUID",
                 serviceId, constrained.getReferentUuid());
-    }
-
-    @Test
-    public void testConstrainableRequestAnalysisDelegatesToServer() throws RemoteException {
-        BytecodeAnalysisEngineProxy.ConstrainableBytecodeAnalysisEngineProxy proxy =
-                new BytecodeAnalysisEngineProxy.ConstrainableBytecodeAnalysisEngineProxy(
-                        rmcServer, serviceId, null);
-        Set<Uri> urls = Collections.emptySet();
-        proxy.requestAnalysis(urls);
-        // The stored server stub is rmcServer.setConstraints(null); to observe
-        // the call we check the original rmcServer flag — but since setConstraints
-        // returns a new MockRmcBaeServer we cannot track this without a shared flag.
-        // We verify no exception was thrown (delegation succeeded).
     }
 
     @Test

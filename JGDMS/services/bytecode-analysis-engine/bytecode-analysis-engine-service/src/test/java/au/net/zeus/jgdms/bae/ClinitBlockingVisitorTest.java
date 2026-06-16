@@ -131,6 +131,35 @@ public class ClinitBlockingVisitorTest {
         return cw.toByteArray();
     }
 
+    /**
+     * Builds a class whose {@code <clinit>} reads a static field of
+     * {@code fieldOwner} via {@code GETSTATIC}.  Referencing a static field
+     * triggers the owner class's {@code <clinit>}, so this models a static-
+     * field-triggered initialization edge into another class.
+     */
+    private static byte[] buildClinitReadingStaticField(
+            String className, String fieldOwner,
+            String fieldName, String fieldDescriptor) {
+
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        cw.visit(Opcodes.V11,
+                 Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER,
+                 className,
+                 null, "java/lang/Object", null);
+
+        MethodVisitor mv = cw.visitMethod(
+                Opcodes.ACC_STATIC, "<clinit>", "()V", null, null);
+        mv.visitCode();
+        mv.visitFieldInsn(Opcodes.GETSTATIC, fieldOwner, fieldName, fieldDescriptor);
+        // discard the value so the synthetic stub is well-formed enough for ASM
+        mv.visitInsn(Opcodes.POP);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+        cw.visitEnd();
+        return cw.toByteArray();
+    }
+
     private static ClinitVerdict analyze(byte[] classBytes) throws Exception {
         java.util.Map<String, java.util.Set<String>> callGraph =
                 new java.util.HashMap<>();
@@ -322,6 +351,97 @@ public class ClinitBlockingVisitorTest {
                 "sun/nio/ch/Poller", "pollSelector", "(IJ)V",
                 Opcodes.INVOKESTATIC);
         assertEquals(ClinitVerdict.BLOCKING, analyze(bytes));
+    }
+
+    // -------------------------------------------------------------------------
+    // Static-field-triggered <clinit> edge (GETSTATIC / PUTSTATIC)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Class A's {@code <clinit>} reads a static field of class B (a
+     * {@code GETSTATIC}); B's {@code <clinit>} calls a blocking sink
+     * ({@code Thread.sleep}).  Reading B's static field triggers B's
+     * {@code <clinit>}, so the blocking path must be reachable from A and the
+     * verdict must be {@link ClinitVerdict#BLOCKING}.
+     */
+    @Test
+    public void testStaticFieldReferenceTriggersBlockingClinit_isBlocking()
+            throws Exception {
+        String classA = "au/net/zeus/jgdms/bae/test/A";
+        String classB = "au/net/zeus/jgdms/bae/test/B";
+
+        byte[] aBytes = buildClinitReadingStaticField(
+                classA, classB, "FLAG", "I");
+
+        // B.<clinit> calls Thread.sleep (a registered blocking sink).
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        cw.visit(Opcodes.V11,
+                 Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER,
+                 classB, null, "java/lang/Object", null);
+        // declare the static field that A references
+        cw.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "FLAG", "I", null, null).visitEnd();
+        MethodVisitor mv = cw.visitMethod(
+                Opcodes.ACC_STATIC, "<clinit>", "()V", null, null);
+        mv.visitCode();
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC,
+                "java/lang/Thread", "sleep", "(J)V", false);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+        cw.visitEnd();
+        byte[] bBytes = cw.toByteArray();
+
+        java.util.Map<String, java.util.Set<String>> callGraph =
+                new java.util.HashMap<>();
+        java.util.Map<String, Boolean> isNativeMap = new java.util.HashMap<>();
+        ClinitBlockingVisitor.indexClass(aBytes, callGraph, isNativeMap, new String[]{null});
+        ClinitBlockingVisitor.indexClass(bBytes, callGraph, isNativeMap, new String[]{null});
+
+        ClinitVerdict v = ClinitBlockingVisitor.analyzeClinitReachability(
+                classA, callGraph, isNativeMap, 20).verdict;
+        assertEquals(ClinitVerdict.BLOCKING, v);
+    }
+
+    /**
+     * Sanity check: without the {@code visitFieldInsn} edge, a {@code <clinit>}
+     * that only reads a static field of a class with a clean {@code <clinit>}
+     * stays CLEAN.
+     */
+    @Test
+    public void testStaticFieldReferenceToCleanClinit_isClean()
+            throws Exception {
+        String classA = "au/net/zeus/jgdms/bae/test/CleanA";
+        String classB = "au/net/zeus/jgdms/bae/test/CleanB";
+
+        byte[] aBytes = buildClinitReadingStaticField(
+                classA, classB, "FLAG", "I");
+
+        // B.<clinit> does nothing blocking.
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        cw.visit(Opcodes.V11,
+                 Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER,
+                 classB, null, "java/lang/Object", null);
+        cw.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "FLAG", "I", null, null).visitEnd();
+        MethodVisitor mv = cw.visitMethod(
+                Opcodes.ACC_STATIC, "<clinit>", "()V", null, null);
+        mv.visitCode();
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+        cw.visitEnd();
+        byte[] bBytes = cw.toByteArray();
+
+        java.util.Map<String, java.util.Set<String>> callGraph =
+                new java.util.HashMap<>();
+        java.util.Map<String, Boolean> isNativeMap = new java.util.HashMap<>();
+        ClinitBlockingVisitor.indexClass(aBytes, callGraph, isNativeMap, new String[]{null});
+        ClinitBlockingVisitor.indexClass(bBytes, callGraph, isNativeMap, new String[]{null});
+
+        ClinitVerdict v = ClinitBlockingVisitor.analyzeClinitReachability(
+                classA, callGraph, isNativeMap, 20).verdict;
+        assertEquals(ClinitVerdict.CLEAN, v);
     }
 
     // -------------------------------------------------------------------------

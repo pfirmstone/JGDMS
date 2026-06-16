@@ -31,7 +31,6 @@ import au.net.zeus.jgdms.api.codebase.ClassAnalysisResult;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
-import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy;
 import au.net.zeus.jgdms.vr.proxy.VerdictEvent;
 import net.jini.core.constraint.ConstraintAlternatives;
@@ -161,21 +160,6 @@ public class AtomicSerialComplianceVisitorTest {
     }
 
     /**
-     * {@link SignedVerdict} uses explicit {@code CHECKCAST} for every object
-     * type it reads from {@code GetArg} (e.g.
-     * {@code (String[]) arg.get(CODEBASE_URLS, null)} and
-     * {@code (byte[]) arg.get(SIGNATURE, null)}) and the typed 3-argument
-     * form for {@code VerdictType}.  This is the safe pattern and must yield
-     * {@link AtomicSerialVerdict#COMPLIANT}.
-     */
-    @Test
-    public void testRealClass_SignedVerdict_isCompliant() throws Exception {
-        byte[] classBytes = loadClassBytes(SignedVerdict.class);
-        assertEquals(AtomicSerialVerdict.COMPLIANT,
-                     AtomicSerialComplianceVisitor.analyze(classBytes));
-    }
-
-    /**
      * {@link CrashReport} uses explicit {@code CHECKCAST} for byte-array and
      * String-array fields and the typed 3-argument form for {@code String}
      * (stderr summary).  This must yield {@link AtomicSerialVerdict#COMPLIANT}.
@@ -188,9 +172,9 @@ public class AtomicSerialComplianceVisitorTest {
     }
 
     /**
-     * {@link RegistryVerdict} is structurally identical to
-     * {@link SignedVerdict} — CHECKCAST for arrays and typed 3-arg form for
-     * the verdict enum — and must yield {@link AtomicSerialVerdict#COMPLIANT}.
+     * {@link RegistryVerdict} uses CHECKCAST for arrays and the typed 3-arg
+     * form for the verdict enum, and must yield
+     * {@link AtomicSerialVerdict#COMPLIANT}.
      */
     @Test
     public void testRealClass_RegistryVerdict_isCompliant() throws Exception {

@@ -37,7 +37,7 @@ import au.net.zeus.jgdms.api.telemetry.PinningReport;
  * <ul>
  *   <li>It <strong>never</strong> downloads or parses bytecode.</li>
  *   <li>Its inputs are well-typed, signed data objects
- *       ({@link SignedVerdict} and {@link CrashReport}) received over
+ *       ({@link JarAnalysisReport} and {@link CrashReport}) received over
  *       authenticated Jini connections.</li>
  *   <li>It holds the private signing key that clients trust;
  *       {@link BytecodeAnalysisEngine} instances do <em>not</em> hold this
@@ -45,14 +45,14 @@ import au.net.zeus.jgdms.api.telemetry.PinningReport;
  * </ul>
  *
  * <h2>BAE registration</h2>
- * Before a {@link BytecodeAnalysisEngine} can submit verdicts it must be
+ * Before a {@link BytecodeAnalysisEngine} can submit reports it must be
  * registered via {@link #registerAnalysisEngine}.  The registry stores the
  * engine's public key and uses it to verify the signatures on subsequent
- * {@link SignedVerdict} submissions.  Operators revoke a compromised engine
+ * {@link JarAnalysisReport} submissions.  Operators revoke a compromised engine
  * by calling {@link #revokeAnalysisEngine}.
  *
  * <h2>Verdict submission</h2>
- * Analysis engines call {@link #submitVerdict} after completing an analysis.
+ * Analysis engines call {@link #submitReport} after completing an analysis.
  * Phoenix crash reporters call {@link #reportCrash} directly, bypassing any
  * analysis engine.  Each {@link CrashReport} is treated as an implicit
  * {@link VerdictType#DANGEROUS} vote.
@@ -72,7 +72,7 @@ import au.net.zeus.jgdms.api.telemetry.PinningReport;
  * any individual {@link BytecodeAnalysisEngine} is required.
  *
  * @see BytecodeAnalysisEngine
- * @see SignedVerdict
+ * @see JarAnalysisReport
  * @see CrashReport
  * @see RegistryVerdict
  * @since 3.1.1
@@ -84,7 +84,7 @@ public interface VerdictRegistry extends Remote {
     /**
      * Registers a {@link BytecodeAnalysisEngine} with this registry.
      *
-     * <p>After registration the registry accepts {@link SignedVerdict}
+     * <p>After registration the registry accepts {@link JarAnalysisReport}
      * submissions whose signatures can be verified against {@code engineKey}.
      * Calling this method a second time with the same {@code engineId} updates
      * the stored public key.
@@ -92,7 +92,7 @@ public interface VerdictRegistry extends Remote {
      * @param engineId  a stable, registry-unique identifier for the engine
      *                  (e.g. a UUID string); must be non-null and non-empty
      * @param engineKey the engine's public key used to verify
-     *                  {@link SignedVerdict} signatures; must be non-null
+     *                  {@link JarAnalysisReport} signatures; must be non-null
      * @param sigAlgorithm the JCA standard name of the signature algorithm
      *                  used by the engine (e.g. {@code "SHA256withRSA"});
      *                  must be non-null and non-empty
@@ -107,7 +107,7 @@ public interface VerdictRegistry extends Remote {
     /**
      * Revokes a previously registered {@link BytecodeAnalysisEngine}.
      *
-     * <p>After revocation the registry stops accepting {@link SignedVerdict}
+     * <p>After revocation the registry stops accepting {@link JarAnalysisReport}
      * submissions from the engine identified by {@code engineId}.  Any
      * {@link RegistryVerdict} that currently counts a verdict from the
      * revoked engine toward the quorum is invalidated and re-evaluated.
@@ -119,33 +119,6 @@ public interface VerdictRegistry extends Remote {
      * @throws RemoteException          if a communication failure occurs
      */
     void revokeAnalysisEngine(String engineId) throws RemoteException;
-
-    /**
-     * Submits a {@link SignedVerdict} from a registered
-     * {@link BytecodeAnalysisEngine} to this registry.
-     *
-     * <p>The registry:
-     * <ol>
-     *   <li>Verifies the signature against the engine's registered public
-     *       key.</li>
-     *   <li>Applies the quorum policy to determine whether an authoritative
-     *       {@link RegistryVerdict} can be issued or updated.</li>
-     *   <li>If the verdict type is {@link VerdictType#DANGEROUS}, immediately
-     *       publishes a {@code DANGEROUS} {@link RegistryVerdict} regardless
-     *       of the quorum state.</li>
-     * </ol>
-     *
-     * <p>Submissions from unregistered or revoked engines are silently
-     * discarded.
-     *
-     * @param engineId the identifier of the submitting engine; must be
-     *                 non-null and non-empty
-     * @param verdict  the signed verdict to submit; must be non-null
-     * @throws IllegalArgumentException if any argument fails a precondition
-     * @throws NullPointerException     if any argument is {@code null}
-     * @throws RemoteException          if a communication failure occurs
-     */
-    void submitVerdict(String engineId, SignedVerdict verdict) throws RemoteException;
 
     /**
      * Submits a {@link CrashReport} from a Phoenix crash reporter directly

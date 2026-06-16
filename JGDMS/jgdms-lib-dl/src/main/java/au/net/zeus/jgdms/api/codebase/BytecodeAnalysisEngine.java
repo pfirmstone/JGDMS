@@ -19,8 +19,6 @@ package au.net.zeus.jgdms.api.codebase;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.util.Set;
-import org.apache.river.api.net.Uri;
 
 /**
  * Remote service interface for a Bytecode Analysis Engine (BAE).
@@ -37,6 +35,13 @@ import org.apache.river.api.net.Uri;
  *   <li>Inbound JERI connections only from the Codebase Downloader
  *       (Host 4) and the JFR Telemetry Service (Host 5).</li>
  * </ul>
+ *
+ * <p><strong>Push model only.</strong> {@link #analyzeJar(AnalysisRequest)} is
+ * the sole analysis entry point: the caller supplies the JAR bytes directly.
+ * Re-analysis (e.g. triggered by the JFR Telemetry Service, Host 5, on a
+ * {@code jdk.VirtualThreadPinned} event) is performed the same way — Host 4/5
+ * re-fetches the bytes and pushes them through {@link #analyzeJar}.  The engine
+ * never fetches codebase URLs itself and never submits to the registry.
  *
  * <p><strong>Isolation invariants:</strong>
  * <ul>
@@ -64,7 +69,6 @@ import org.apache.river.api.net.Uri;
  * @see VerdictRegistry
  * @see AnalysisRequest
  * @see JarAnalysisReport
- * @see SignedVerdict
  * @see CrashReport
  * @since 3.1.1
  * @author Peter Firmstone
@@ -112,30 +116,4 @@ public interface BytecodeAnalysisEngine extends Remote {
      */
     JarAnalysisReport analyzeJar(AnalysisRequest request)
             throws AnalysisException, RemoteException;
-
-    /**
-     * Requests that the engine trigger re-analysis of the JARs identified by
-     * the given content hashes.  This is an asynchronous fire-and-forget
-     * method: it returns as soon as the request is queued.  The engine will
-     * eventually call {@link #analyzeJar} for each hash (after obtaining
-     * the JAR bytes via an appropriate source) and submit the result to the
-     * {@link VerdictRegistry}.
-     *
-     * <p>This method is retained for compatibility with the JFR Telemetry
-     * Service (Host 5), which requests re-analysis based on
-     * {@code jdk.VirtualThreadPinned} events without supplying JAR bytes
-     * directly.
-     *
-     * <p><em>Note:</em> New deployments should prefer
-     * {@link #analyzeJar(AnalysisRequest)}, which gives the caller full
-     * control over the JAR bytes and avoids outbound network access from the
-     * BAE host.
-     *
-     * @param codebaseUrls the ordered set of RFC3986-normalised codebase URIs
-     *        to re-analyse; must be non-null and non-empty
-     * @throws IllegalArgumentException if {@code codebaseUrls} is empty
-     * @throws NullPointerException     if {@code codebaseUrls} is {@code null}
-     * @throws RemoteException          if a communication failure occurs
-     */
-    void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException;
 }

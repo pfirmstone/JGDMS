@@ -61,7 +61,7 @@ import org.apache.river.api.net.Uri;
  *
  * @see VerdictRegistry
  * @see BytecodeAnalysisEngine
- * @see SignedVerdict
+ * @see JarAnalysisReport
  * @since 3.1.1
  * @author Peter Firmstone
  * @author GitHub Copilot

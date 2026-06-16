@@ -27,6 +27,7 @@ import au.net.zeus.jgdms.downloader.CodebaseDownloaderImpl.EngineEntry;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -43,6 +44,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
+import net.pack200.Normalize;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.UnknownLeaseException;
@@ -112,6 +114,107 @@ public class CodebaseDownloaderImplTest {
         return baos.toByteArray();
     }
 
+    /**
+     * Returns the SHA-256 hex the downloader is expected to submit for an
+     * unstamped {@code rawBytes}: the hash of the <em>normalised</em> (Pack200
+     * fixed point) form.  Host 4 is the canonicaliser of last resort for
+     * third-party JARs that arrived unstamped (JGDMS-STD-002 v1.3).
+     */
+    private static String expectedNormalisedHash(byte[] rawBytes) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Normalize.normalize(new ByteArrayInputStream(rawBytes), baos,
+                Normalize.Options.reproducible());
+        return CodebaseDownloaderImpl.computeSha256Hex(baos.toByteArray());
+    }
+
+    /**
+     * Returns the raw normalised bytes that the build-time stamp would record.
+     */
+    private static byte[] normaliseRaw(byte[] rawBytes) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Normalize.normalize(new ByteArrayInputStream(rawBytes), baos,
+                Normalize.Options.reproducible());
+        return baos.toByteArray();
+    }
+
+    /**
+     * Builds a stamped JAR by appending a {@code META-INF/CONTENT-HASH} entry
+     * to the given canonical JAR bytes following the wire format produced by
+     * {@code pack200-normalize-maven-plugin}: a single STORED ZIP entry whose
+     * body is {@code SHA-256:<hex>\n}.
+     *
+     * @param canonical the canonical (already-normalised) JAR bytes
+     * @param declaredHashHex the lowercase-hex SHA-256 to record (may differ
+     *                        from the actual hash to simulate tampering)
+     */
+    private static byte[] buildStamped(byte[] canonical, String declaredHashHex)
+            throws IOException {
+        EocdInfoT eocd = findEocdT(canonical);
+        if (eocd == null) throw new IOException("no EOCD");
+        byte[] nameBytes = "META-INF/CONTENT-HASH".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] stampBody = ("SHA-256:" + declaredHashHex + "\n")
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        java.util.zip.CRC32 c = new java.util.zip.CRC32();
+        c.update(stampBody, 0, stampBody.length);
+        long crc = c.getValue();
+        int dosTime = 0x0000;
+        int dosDate = 0x0021;
+        int newLfhOffset = eocd.cdOffset;
+        ByteArrayOutputStream lfh = new ByteArrayOutputStream(30 + nameBytes.length + stampBody.length);
+        writeLE32T(lfh, 0x04034b50); writeLE16T(lfh, 20); writeLE16T(lfh, 0); writeLE16T(lfh, 0);
+        writeLE16T(lfh, dosTime); writeLE16T(lfh, dosDate);
+        writeLE32T(lfh, crc); writeLE32T(lfh, stampBody.length); writeLE32T(lfh, stampBody.length);
+        writeLE16T(lfh, nameBytes.length); writeLE16T(lfh, 0);
+        lfh.write(nameBytes); lfh.write(stampBody);
+        ByteArrayOutputStream cdh = new ByteArrayOutputStream(46 + nameBytes.length);
+        writeLE32T(cdh, 0x02014b50); writeLE16T(cdh, 20); writeLE16T(cdh, 20); writeLE16T(cdh, 0); writeLE16T(cdh, 0);
+        writeLE16T(cdh, dosTime); writeLE16T(cdh, dosDate);
+        writeLE32T(cdh, crc); writeLE32T(cdh, stampBody.length); writeLE32T(cdh, stampBody.length);
+        writeLE16T(cdh, nameBytes.length); writeLE16T(cdh, 0); writeLE16T(cdh, 0); writeLE16T(cdh, 0);
+        writeLE16T(cdh, 0); writeLE32T(cdh, 0); writeLE32T(cdh, newLfhOffset);
+        cdh.write(nameBytes);
+        int existingCdSize = eocd.cdSize;
+        int newCdSize = existingCdSize + cdh.size();
+        int newCdOffset = newLfhOffset + lfh.size();
+        int newTotalEntries = eocd.totalEntries + 1;
+        ByteArrayOutputStream bos = new ByteArrayOutputStream(canonical.length + lfh.size() + cdh.size() + 22);
+        bos.write(canonical, 0, newLfhOffset);
+        bos.write(lfh.toByteArray());
+        bos.write(canonical, newLfhOffset, existingCdSize);
+        bos.write(cdh.toByteArray());
+        writeLE32T(bos, 0x06054b50); writeLE16T(bos, 0); writeLE16T(bos, 0);
+        writeLE16T(bos, newTotalEntries); writeLE16T(bos, newTotalEntries);
+        writeLE32T(bos, newCdSize); writeLE32T(bos, newCdOffset); writeLE16T(bos, 0);
+        return bos.toByteArray();
+    }
+
+    private static final class EocdInfoT { final int cdOffset, cdSize, totalEntries;
+        EocdInfoT(int o, int s, int n){cdOffset=o;cdSize=s;totalEntries=n;} }
+    private static EocdInfoT findEocdT(byte[] bytes) {
+        int sig = 0x06054b50; int start = Math.max(0, bytes.length - 22 - 0xffff);
+        for (int i = bytes.length - 22; i >= start; i--) {
+            if (readLE32T(bytes, i) == sig) {
+                int commentLen = readLE16T(bytes, i + 20);
+                if (i + 22 + commentLen == bytes.length) {
+                    int n = readLE16T(bytes, i + 10);
+                    int sz = readLE32iT(bytes, i + 12);
+                    int off = readLE32iT(bytes, i + 16);
+                    if (off >= 0 && sz >= 0 && off + sz <= bytes.length) return new EocdInfoT(off, sz, n);
+                }
+            }
+        }
+        return null;
+    }
+    private static long readLE32T(byte[] b, int off) {
+        return (b[off] & 0xffL) | ((b[off+1]&0xffL)<<8) | ((b[off+2]&0xffL)<<16) | ((b[off+3]&0xffL)<<24);
+    }
+    private static int readLE32iT(byte[] b, int off) { long v = readLE32T(b, off); return v > Integer.MAX_VALUE ? -1 : (int) v; }
+    private static int readLE16T(byte[] b, int off) { return (b[off]&0xff) | ((b[off+1]&0xff)<<8); }
+    private static void writeLE16T(ByteArrayOutputStream o, int v) { o.write(v&0xff); o.write((v>>>8)&0xff); }
+    private static void writeLE32T(ByteArrayOutputStream o, long v) {
+        o.write((int)(v&0xff)); o.write((int)((v>>>8)&0xff)); o.write((int)((v>>>16)&0xff)); o.write((int)((v>>>24)&0xff));
+    }
+
     /** Serves {@code bytes} at the given path with status 200. */
     private void serveBytes(String path, byte[] bytes) {
         httpServer.createContext(path, exchange -> {
@@ -149,7 +252,6 @@ public class CodebaseDownloaderImplTest {
 
         @Override public void registerAnalysisEngine(String id, PublicKey k, String alg) {}
         @Override public void revokeAnalysisEngine(String id) {}
-        @Override public void submitVerdict(String id, au.net.zeus.jgdms.api.codebase.SignedVerdict v) {}
         @Override public void reportCrash(au.net.zeus.jgdms.api.codebase.CrashReport r) {}
         @Override public EventRegistration registerVerdictListener(
                 RemoteEventListener l, Set<Uri> u, MarshalledInstance h, long d) { return null; }
@@ -192,9 +294,6 @@ public class CodebaseDownloaderImplTest {
             latch.countDown();
             return report;
         }
-
-        @Override
-        public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {}
     }
 
     // -------------------------------------------------------------------------
@@ -246,9 +345,52 @@ public class CodebaseDownloaderImplTest {
 
         Assert.assertEquals(1, vr.reports.size());
         Assert.assertNotNull(vr.reports.get("e1"));
-        String expectedHash = CodebaseDownloaderImpl.computeSha256Hex(MINIMAL_JAR);
+        // The downloader normalises before hashing, so the submitted hash is
+        // SHA-256 of the normalised bytes, NOT of the raw download.
+        String expectedHash = expectedNormalisedHash(MINIMAL_JAR);
         Assert.assertEquals(expectedHash,
                 engine.lastRequest.getContentHash());
+    }
+
+    /**
+     * Asserts the JGDMS-STD-002 normalise-before-hash contract: the
+     * {@code contentHash} the downloader submits equals
+     * {@code SHA-256(Normalize.normalize(rawBytes))} and differs from the
+     * SHA-256 of the raw bytes (proving normalisation actually happened).
+     */
+    @Test
+    public void testContentHashIsOfNormalisedBytes() throws Exception {
+        String path = "/normalise.jar";
+        serveBytes(path, MINIMAL_JAR);
+
+        CountDownLatch latch  = new CountDownLatch(1);
+        StubEngine engine     = new StubEngine("e1", latch);
+        CapturingVerdictRegistry vr = new CapturingVerdictRegistry();
+
+        CodebaseDownloaderImpl impl = new CodebaseDownloaderImpl(
+                Collections.singletonList(new EngineEntry("e1", engine)),
+                vr, DEFAULT_MAX, 5_000, 5_000, 1);
+
+        Uri uri = new Uri(baseUrl + path);
+        impl.submitForAnalysis(Collections.singleton(uri));
+
+        Assert.assertTrue("analyzeJar should be called within 5s",
+                latch.await(5, TimeUnit.SECONDS));
+        impl.shutdown(5_000);
+
+        String normalisedHash = expectedNormalisedHash(MINIMAL_JAR);
+        String rawHash        = CodebaseDownloaderImpl.computeSha256Hex(MINIMAL_JAR);
+
+        Assert.assertEquals("submitted hash must be of the normalised bytes",
+                normalisedHash, engine.lastRequest.getContentHash());
+        Assert.assertNotEquals(
+                "normalisation must change the bytes (so the hash differs from raw)",
+                rawHash, engine.lastRequest.getContentHash());
+        // The bytes carried in the request must hash to the submitted hash.
+        Assert.assertEquals(
+                normalisedHash,
+                CodebaseDownloaderImpl.computeSha256Hex(
+                        engine.lastRequest.getJarBytes()));
     }
 
     @Test
@@ -304,8 +446,9 @@ public class CodebaseDownloaderImplTest {
                 latch.await(5, TimeUnit.SECONDS));
 
         // Verify the hash is tracked so any future submission of the same
-        // content will be deduplicated.
-        String expectedHash = CodebaseDownloaderImpl.computeSha256Hex(MINIMAL_JAR);
+        // content will be deduplicated.  The tracked hash is of the normalised
+        // bytes, not of the raw download.
+        String expectedHash = expectedNormalisedHash(MINIMAL_JAR);
 
         impl.shutdown(5_000);
 
@@ -445,6 +588,111 @@ public class CodebaseDownloaderImplTest {
         Assert.assertFalse("analyzeJar must NOT be called when size limit exceeded",
                 called);
         Assert.assertTrue(vr.reports.isEmpty());
+    }
+
+    // -------------------------------------------------------------------------
+    // JGDMS-STD-002 v1.3 stamp-trust path tests
+    // -------------------------------------------------------------------------
+
+    /**
+     * Happy path: a stamped JAR whose declared META-INF/CONTENT-HASH matches
+     * SHA-256(stripped) is trusted as "already canonical".  The contentHash
+     * Host 4 stores is SHA-256(rawBytes) so that clients (which always hash raw
+     * downloaded bytes) find a matching verdict; the declared stamp hash is the
+     * build-time attestation that verifies the stamp's self-consistency.
+     */
+    @Test
+    public void testStampedJar_happyPath_usesDeclaredHash() throws Exception {
+        byte[] canonical = normaliseRaw(MINIMAL_JAR);
+        String declared = CodebaseDownloaderImpl.computeSha256Hex(canonical);
+        byte[] stamped = buildStamped(canonical, declared);
+        String path = "/stamped-happy.jar";
+        serveBytes(path, stamped);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        StubEngine engine = new StubEngine("e1", latch);
+        CapturingVerdictRegistry vr = new CapturingVerdictRegistry();
+
+        CodebaseDownloaderImpl impl = new CodebaseDownloaderImpl(
+                Collections.singletonList(new EngineEntry("e1", engine)),
+                vr, DEFAULT_MAX, 5_000, 5_000, 1);
+
+        Uri uri = new Uri(baseUrl + path);
+        impl.submitForAnalysis(Collections.singleton(uri));
+        Assert.assertTrue(latch.await(5, TimeUnit.SECONDS));
+        impl.shutdown(5_000);
+
+        // Host 4 stores SHA-256(rawBytes) so clients (which hash raw bytes)
+        // find the verdict — the declared stamp hash is the self-consistency
+        // attestation but is NOT the registry lookup key.
+        String expectedContentHash = CodebaseDownloaderImpl.computeSha256Hex(stamped);
+        Assert.assertEquals("stamped happy path: contentHash == SHA-256(rawBytes)",
+                expectedContentHash, engine.lastRequest.getContentHash());
+        Assert.assertNotEquals(
+                "declared stamp hash (= SHA-256 of pre-stamp C) is intentionally"
+                + " different from contentHash (= SHA-256 of stamped published JAR)",
+                declared, engine.lastRequest.getContentHash());
+    }
+
+    /**
+     * Tampered stamp path: the declared hash does NOT match SHA-256(stripped).
+     * Host 4 logs a warning and falls back to Normalize+SHA-256 over the raw
+     * bytes — i.e. the canonicaliser-of-last-resort behaviour.
+     */
+    @Test
+    public void testStampedJar_tamperedStamp_fallsBackToCanonicalisation() throws Exception {
+        byte[] canonical = normaliseRaw(MINIMAL_JAR);
+        String lyingDeclared =
+                "0000000000000000000000000000000000000000000000000000000000000000";
+        byte[] tampered = buildStamped(canonical, lyingDeclared);
+        String path = "/stamped-tampered.jar";
+        serveBytes(path, tampered);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        StubEngine engine = new StubEngine("e1", latch);
+        CapturingVerdictRegistry vr = new CapturingVerdictRegistry();
+
+        CodebaseDownloaderImpl impl = new CodebaseDownloaderImpl(
+                Collections.singletonList(new EngineEntry("e1", engine)),
+                vr, DEFAULT_MAX, 5_000, 5_000, 1);
+
+        Uri uri = new Uri(baseUrl + path);
+        impl.submitForAnalysis(Collections.singleton(uri));
+        Assert.assertTrue(latch.await(5, TimeUnit.SECONDS));
+        impl.shutdown(5_000);
+
+        String fallback = expectedNormalisedHash(tampered);
+        Assert.assertEquals("tampered stamp: fall back to normalise(rawBytes)+SHA-256",
+                fallback, engine.lastRequest.getContentHash());
+        Assert.assertNotEquals("must NOT trust the lying declared hash",
+                lyingDeclared, engine.lastRequest.getContentHash());
+    }
+
+    /**
+     * Unstamped path: a third-party JAR without META-INF/CONTENT-HASH is
+     * canonicalised by Host 4 and the contentHash is SHA-256(normalisedBytes).
+     */
+    @Test
+    public void testUnstampedJar_canonicaliserOfLastResort() throws Exception {
+        String path = "/unstamped.jar";
+        serveBytes(path, MINIMAL_JAR);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        StubEngine engine = new StubEngine("e1", latch);
+        CapturingVerdictRegistry vr = new CapturingVerdictRegistry();
+
+        CodebaseDownloaderImpl impl = new CodebaseDownloaderImpl(
+                Collections.singletonList(new EngineEntry("e1", engine)),
+                vr, DEFAULT_MAX, 5_000, 5_000, 1);
+
+        Uri uri = new Uri(baseUrl + path);
+        impl.submitForAnalysis(Collections.singleton(uri));
+        Assert.assertTrue(latch.await(5, TimeUnit.SECONDS));
+        impl.shutdown(5_000);
+
+        Assert.assertEquals("unstamped: SHA-256(normalisedBytes) as before",
+                expectedNormalisedHash(MINIMAL_JAR),
+                engine.lastRequest.getContentHash());
     }
 
     /**

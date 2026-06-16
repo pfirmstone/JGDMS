@@ -32,7 +32,6 @@ import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
-import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.net.Uri;
@@ -73,7 +72,6 @@ public class VerdictRegistryProxyTest {
 
         boolean registerEngineCalled   = false;
         boolean revokeEngineCalled     = false;
-        boolean submitVerdictCalled    = false;
         boolean reportCrashCalled      = false;
         boolean getVerdictCalled       = false;
         Set<Uri> lastGetVerdictRequest;
@@ -94,11 +92,6 @@ public class VerdictRegistryProxyTest {
         @Override
         public void revokeAnalysisEngine(String engineId) throws RemoteException {
             revokeEngineCalled = true;
-        }
-
-        @Override
-        public void submitVerdict(String engineId, SignedVerdict verdict) throws RemoteException {
-            submitVerdictCalled = true;
         }
 
         @Override
@@ -325,14 +318,6 @@ public class VerdictRegistryProxyTest {
         proxy.revokeAnalysisEngine("engine-1");
         assertTrue("revokeAnalysisEngine() must delegate to the server stub",
                 plainServer.revokeEngineCalled);
-    }
-
-    @Test
-    public void testSubmitVerdictDelegatesToServer() throws RemoteException {
-        VerdictRegistryProxy proxy = new VerdictRegistryProxy(plainServer, serviceId);
-        proxy.submitVerdict("engine-1", null);
-        assertTrue("submitVerdict() must delegate to the server stub",
-                plainServer.submitVerdictCalled);
     }
 
     @Test

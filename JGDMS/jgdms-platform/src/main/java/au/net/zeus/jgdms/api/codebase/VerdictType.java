@@ -21,7 +21,7 @@ package au.net.zeus.jgdms.api.codebase;
  * The outcome of a codebase safety assessment performed by a
  * {@link BytecodeAnalysisEngine}.
  *
- * <p>A {@code VerdictType} is embedded in a {@link SignedVerdict} that the
+ * <p>A {@code VerdictType} is derived from a {@link JarAnalysisReport} that the
  * analysis engine transmits to a {@link VerdictRegistry}.  The registry
  * aggregates verdicts from one or more engines according to a configurable
  * quorum policy and publishes an authoritative {@link RegistryVerdict} to
