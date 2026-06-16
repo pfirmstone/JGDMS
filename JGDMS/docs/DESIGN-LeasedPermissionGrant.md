@@ -26,6 +26,45 @@ decisions noted below are settled per the SOW and are not re-litigated here.*
 
 ---
 
+## 0. As-built note (2026-06-16)
+
+The primitive was implemented and verified (`mvn -o -pl jgdms-platform clean test`
+on a **vanilla JDK 21** — see the build note below; full platform suite green,
+13 new unit tests). Three points where the as-built code differs from this design
+document, recorded here so the doc and the code agree:
+
+1. **Builder integration: Option B was chosen, NOT the Option A recommended in
+   §2.2.** `PermissionGrantBuilder` is one of the JGDMS classes embedded in the
+   DirtyChai JDK's `java.base`. Adding a `lease(Lease)` method to it would *not
+   resolve at runtime* under DirtyChai (the `java.base` copy, without the method,
+   shadows the rebuilt platform jar — confirmed by a `NoSuchMethodError` during
+   testing) unless `java.base` itself is rebuilt. A new decorator class has no
+   such problem. So the build is a **single new class plus its test**, no change
+   to `PermissionGrantBuilder` / `PermissionGrantBuilderImp`. Callers wrap
+   manually: `new LeasedPermissionGrant(builder.build(), lease)`.
+   `getBuilderTemplate()` simply delegates to the wrapped grant's template
+   (identical to `ExternallyVoidablePermissionGrant`); the Option-B objection in
+   §2.2 about the serialization-proxy hook is moot because the class is not
+   `Serializable` (§1.9).
+
+2. **`impliesEquivalent` is conservative, not a plain delegate.** It returns true
+   only for another `LeasedPermissionGrant` with the *same* `Lease`. A plain
+   delegate (as the §2.1 skeleton implies) would let external permission
+   consolidation treat a leased grant as equivalent to its undecorated wrapped
+   grant and merge its permissions into an unleased one — stripping the lease, a
+   widening path contrary to the monotone-attenuation requirement (SOW §5).
+
+3. **`@since` is `3.1.1`, not `4.0.0`.** Trunk `jgdms-platform` is
+   `3.1.1-SNAPSHOT`; the `4.0.0` in §2.1 was aspirational.
+
+**Build note:** because DirtyChai's `java.base` embeds `org.apache.river.api.security`
+and `net.jini.*`, the platform module must be compiled/tested with a *vanilla*
+JDK 21 (e.g. `JAVA_HOME=C:\Program Files\Zulu\jdk-21`). Under DirtyChai +
+`--release 21`, javac silently emits the `java.base`-embedded copy of any edited
+platform class, dropping added members.
+
+---
+
 ## 1. Design note
 
 ### 1.1 Lease semantics — when does `isVoid()` flip true?
@@ -367,9 +406,13 @@ public final class LeasedPermissionGrant extends PermissionGrant {
 
 ### 2.2 Builder integration
 
+> **Superseded by §0 (as-built): Option B was chosen, not Option A.** The
+> options below are retained for the design rationale; see §0 for why extending
+> `PermissionGrantBuilder` (Option A) is unsafe on the DirtyChai runtime.
+
 Two options were evaluated.
 
-**Option A (recommended, least invasive): extend `PermissionGrantBuilder`
+**Option A (originally recommended, least invasive): extend `PermissionGrantBuilder`
 with a `lease(Lease)` method.**
 
 `PermissionGrantBuilder` is abstract (line 48 of
@@ -415,8 +458,13 @@ externally means `LeasedPermissionGrant.getBuilderTemplate()` would need to
 return a builder pre-loaded with the wrapped grant's template *plus* the
 lease — duplicating what Option A does anyway.
 
-**Recommendation:** Option A. Single touch point on the builder, builder
-stays the canonical construction path.
+**Recommendation (revised, as-built):** Option B. Although Option A is the
+tidier construction path in the abstract, `PermissionGrantBuilder` is embedded
+in the DirtyChai `java.base`, so a new method on it cannot be relied upon at
+runtime (§0). Option B keeps the change to a single new decorator class. The
+serialization-proxy objection to Option B does not apply: `LeasedPermissionGrant`
+is not `Serializable` (§1.9), and `getBuilderTemplate()` delegates to the wrapped
+grant's template.
 
 ### 2.3 `DynamicPolicyProvider.grant()` — no change required
 
