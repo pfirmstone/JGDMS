@@ -1,7 +1,7 @@
 # JGDMS-STD-008: @AtomicSerial Serialization Uncoupling (JGDMS 4.0.0)
 
 **Status:** Draft (for discussion)
-**Version:** 0.6-DRAFT
+**Version:** 0.9-DRAFT
 **Applies to:** JGDMS 4.0.0, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Depends on:** JGDMS-STD-001 (@AtomicSerial), JGDMS-STD-006 (DER Wire Format)
 **References:** Birrell, Evers, Nelson, Owicki, Wobber, *Distributed Garbage
@@ -10,11 +10,34 @@ normative DGC algorithm (§6).
 **Supersedes (on completion):** the Java-Object-Serialization coupling of the
 `@AtomicSerial` API as defined in STD-001
 
-> **Editorial note (v0.6-DRAFT):** This standard captures the 4.0.0 decision to
+> **Editorial note (v0.9-DRAFT):** This standard captures the 4.0.0 decision to
 > remove all Java Object Serialization coupling from the `@AtomicSerial` API. It
 > records the design agreed in design discussion; field-level details marked
 > **[OPEN]** await confirmation. Class/line references are against `trunk`
 > (worktree `der-wireformat-std006`).
+>
+> **Changes in v0.9:** §18 added — A1 in-band JERI `MarshallingFormat` enforcement.
+> A1a: `DerMarshalInputStream implements org.apache.river.api.io.AtomicObjectInput`
+> (the DER service satisfies `AtomicInputValidation.YES`; in-band DER object args
+> route via `readObject(type)`). A1b: `MarshallingFormat.DER` as a JERI in-band
+> constraint in `BasicInvocationHandler`/`BasicInvocationDispatcher` — a transport
+> spike confirmed it is invocation-layer-only (like `AtomicInputValidation`), so no
+> tcp/http/ssl/kerberos edits. **Needs Peter qa** (edits in shared Basic* code).
+>
+> **Changes in v0.8:** §17 added — B1 inc-3: enums by name; unified arrays
+> (primitive/String/Enum/`@AtomicSerial` component types; multi-dim rejected at
+> schema time); and §17.3 lift of S7.6 — strict-canonical IEEE-754 float/double and
+> Unicode-codepoint char (canonical NaN, +0.0 only, surrogate/supplementary
+> rejected), driven by Entry-match determinism on transmitted bytes. §16 added —
+> B1 inc-2: nested `@AtomicSerial` object fields as a self-describing value-tree,
+> with a cumulative `MAX_NESTING` depth guard threaded through the `GetArg` ctor.
+>
+> **Changes in v0.7:** §14 added — Surface 2 scope (enforce `MarshallingFormat` on
+> the JERI call itself). §15 added — the DER Object Stream wire format and codec:
+> the streams implement the `ObjectOutput`/`ObjectInput` INTERFACES directly, and
+> **there is no handle table — a pure value-tree, deterministic, with no cycles by
+> security design** (a shared or cyclic graph is encoded by value / rejected
+> fail-secure, never aliased via back-references).
 >
 > **Changes in v0.2:** §6 (client-side DGC) rewritten against the source
 > algorithm (SRC-RR-116): the dirty/clean/lease/sequence-number protocol is
