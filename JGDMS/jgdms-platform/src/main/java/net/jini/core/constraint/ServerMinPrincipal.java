@@ -72,8 +72,10 @@ public final class ServerMinPrincipal
     /**
      * @serialField principals Principal[] The principals.
      */
-    private static final ObjectStreamField[] serialPersistentFields 
-            = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(PRINCIPALS, Principal[].class, true)
+    };
     
     public static SerialForm [] serialForm (){
         return new SerialForm []{

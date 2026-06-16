@@ -21,11 +21,7 @@ import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInput;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamField;
-import java.io.ObjectStreamClass;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -377,22 +373,114 @@ public @interface AtomicSerial {
      * 
      * @author peter
      */
-    public static abstract class GetArg extends ObjectInputStream.GetField 
-					implements ObjectStreamContext {
-	
+    public static abstract class GetArg implements ObjectStreamContext {
+
 	/**
          * Not intended for general construction, however may be extended
          * by an ObjectInput implementation or for testing purposes.
-         * 
+         *
          * @throws SecurityException if caller doesn't have permission java.io.SerializablePermission "enableSubclassImplementation";
+         * // SPIKE-TODO sec4.4: replace SerializablePermission guard with AtomicSerialPermission
          */
 	protected GetArg() {
 	    this(Check.check());
 	}
-	
+
 	GetArg(boolean check){
-	    super();
 	}
+
+	/**
+	 * Returns true if the field named {@code name} has not been assigned
+	 * a value and still holds a default value for its type, false otherwise.
+	 *
+	 * @param name the name of the field to test
+	 * @return true if the field holds its default value, false otherwise
+	 * @throws IOException if an I/O error occurs
+	 * @throws IllegalArgumentException if the corresponding field cannot be found
+	 */
+	public abstract boolean defaulted(String name) throws IOException;
+
+	/**
+	 * Get the value of the named boolean field from the persistent field.
+	 * @param name  the name of the field
+	 * @param val   the default value to use if {@code name} does not have a value
+	 * @return the value of the named {@code boolean} field
+	 * @throws IOException if there are I/O errors while reading from the underlying stream
+	 */
+	public abstract boolean get(String name, boolean val) throws IOException;
+
+	/**
+	 * Get the value of the named byte field from the persistent field.
+	 * @param name  the name of the field
+	 * @param val   the default value
+	 * @return the value of the named {@code byte} field
+	 * @throws IOException if there are I/O errors
+	 */
+	public abstract byte get(String name, byte val) throws IOException;
+
+	/**
+	 * Get the value of the named char field from the persistent field.
+	 * @param name  the name of the field
+	 * @param val   the default value
+	 * @return the value of the named {@code char} field
+	 * @throws IOException if there are I/O errors
+	 */
+	public abstract char get(String name, char val) throws IOException;
+
+	/**
+	 * Get the value of the named short field from the persistent field.
+	 * @param name  the name of the field
+	 * @param val   the default value
+	 * @return the value of the named {@code short} field
+	 * @throws IOException if there are I/O errors
+	 */
+	public abstract short get(String name, short val) throws IOException;
+
+	/**
+	 * Get the value of the named int field from the persistent field.
+	 * @param name  the name of the field
+	 * @param val   the default value
+	 * @return the value of the named {@code int} field
+	 * @throws IOException if there are I/O errors
+	 */
+	public abstract int get(String name, int val) throws IOException;
+
+	/**
+	 * Get the value of the named long field from the persistent field.
+	 * @param name  the name of the field
+	 * @param val   the default value
+	 * @return the value of the named {@code long} field
+	 * @throws IOException if there are I/O errors
+	 */
+	public abstract long get(String name, long val) throws IOException;
+
+	/**
+	 * Get the value of the named float field from the persistent field.
+	 * @param name  the name of the field
+	 * @param val   the default value
+	 * @return the value of the named {@code float} field
+	 * @throws IOException if there are I/O errors
+	 */
+	public abstract float get(String name, float val) throws IOException;
+
+	/**
+	 * Get the value of the named double field from the persistent field.
+	 * @param name  the name of the field
+	 * @param val   the default value
+	 * @return the value of the named {@code double} field
+	 * @throws IOException if there are I/O errors
+	 */
+	public abstract double get(String name, double val) throws IOException;
+
+	/**
+	 * Get the value of the named Object field from the persistent field.
+	 * @param name  the name of the field
+	 * @param val   the default value
+	 * @return the value of the named {@code Object} field
+	 * @throws IOException if there are I/O errors
+	 * @throws ClassNotFoundException if class of a serialized object cannot be found
+	 */
+	public abstract Object get(String name, Object val) throws IOException, ClassNotFoundException;
 
 	/**
 	 * Provides access to stream classes that belong to the Object under
@@ -460,21 +548,83 @@ public @interface AtomicSerial {
      * Parameter argument received by an @AtomicSerial object in order to 
      * serialize its internal object state.
      */
-    public static abstract class PutArg extends ObjectOutputStream.PutField
-                                        implements ObjectStreamContext {
-	
+    public static abstract class PutArg implements ObjectStreamContext {
+
 	/**
          * To be implemented by a Serialization framework.
-         * 
+         *
          * @throws SecurityException if caller doesn't have permission java.io.SerializablePermission "enableSubclassImplementation";
+         * // SPIKE-TODO sec4.4: replace SerializablePermission guard with AtomicSerialPermission
          */
 	protected PutArg() {
 	    this(Check.check());
 	}
-        
+
         PutArg(boolean check){
-	    super();
 	}
+
+        /**
+         * Find and set the boolean value of a given field named {@code name}.
+         * @param name  the name of the field to set
+         * @param value new value for the field
+         */
+        public abstract void put(String name, boolean value);
+
+        /**
+         * Find and set the byte value of a given field named {@code name}.
+         * @param name  the name of the field to set
+         * @param value new value for the field
+         */
+        public abstract void put(String name, byte value);
+
+        /**
+         * Find and set the char value of a given field named {@code name}.
+         * @param name  the name of the field to set
+         * @param value new value for the field
+         */
+        public abstract void put(String name, char value);
+
+        /**
+         * Find and set the double value of a given field named {@code name}.
+         * @param name  the name of the field to set
+         * @param value new value for the field
+         */
+        public abstract void put(String name, double value);
+
+        /**
+         * Find and set the float value of a given field named {@code name}.
+         * @param name  the name of the field to set
+         * @param value new value for the field
+         */
+        public abstract void put(String name, float value);
+
+        /**
+         * Find and set the int value of a given field named {@code name}.
+         * @param name  the name of the field to set
+         * @param value new value for the field
+         */
+        public abstract void put(String name, int value);
+
+        /**
+         * Find and set the long value of a given field named {@code name}.
+         * @param name  the name of the field to set
+         * @param value new value for the field
+         */
+        public abstract void put(String name, long value);
+
+        /**
+         * Find and set the short value of a given field named {@code name}.
+         * @param name  the name of the field to set
+         * @param value new value for the field
+         */
+        public abstract void put(String name, short value);
+
+        /**
+         * Find and set the Object value of a given field named {@code name}.
+         * @param name  the name of the field to set
+         * @param value new value for the field
+         */
+        public abstract void put(String name, Object value);
         
         /**
          * Write buffered fields of the calling Object to the stream.
@@ -496,36 +646,65 @@ public @interface AtomicSerial {
      * A serial argument used by an {@link AtomicSerial} implementation to
      * define each serial argument populated into {@link PutArg} and {@link GetArg}
      * by name and type.
-     * 
-     * <h2>The serial form of an @AtomicSerial class, is defined by a public static 
-     * serialPersistentFields method signature.</h2>
-     * <p>
-     * <code>
-     * public static {@link SerialForm} [] serialForm()
-     * </code>
-     * <p>
+     *
+     * <p>Ordering: primitives before non-primitives; within each group,
+     * alphabetical by name. This reproduces the {@code ObjectStreamField}
+     * ordering so that {@code Arrays.sort(SerialForm[])} yields the same
+     * field order as the legacy JOSS path.
      */
-    public static class SerialForm extends ObjectStreamField {
-   
-        private final Class type;
+    public static final class SerialForm implements Comparable<SerialForm> {
+
+        private final String name;
+        private final Class<?> type;
+        private final boolean unshared;
 
         public SerialForm(String name, Class<?> type, boolean unshared) {
-            super(name, type, unshared);
+            if (name == null) throw new NullPointerException("name");
+            if (type == null) throw new NullPointerException("type");
+            this.name = name;
             this.type = type;
+            this.unshared = unshared;
         }
 
         public SerialForm(String name, Class<?> type) {
-            super(name, type);
-            this.type = type;
+            this(name, type, false);
+        }
+
+        /** Returns the name of the field. */
+        public String getName() {
+            return name;
+        }
+
+        /** Returns the type of the field. */
+        public Class<?> getType() {
+            return type;
+        }
+
+        /** Returns true if the field is unshared. */
+        public boolean isUnshared() {
+            return unshared;
+        }
+
+        /**
+         * Ordering mirrors {@code ObjectStreamField}: primitive fields before
+         * non-primitive fields, then alphabetically by name within each group.
+         */
+        @Override
+        public int compareTo(SerialForm other) {
+            boolean thisPrim = this.type.isPrimitive();
+            boolean otherPrim = other.type.isPrimitive();
+            if (thisPrim != otherPrim) {
+                return thisPrim ? -1 : 1;
+            }
+            return this.name.compareTo(other.name);
         }
 
         @Override
-        public Class getType(){
-            return type;
+        public String toString() {
+            return "SerialForm(" + name + "," + type.getName() + (unshared ? ",unshared" : "") + ")";
         }
-    
     }
-    
+
 }
 
 

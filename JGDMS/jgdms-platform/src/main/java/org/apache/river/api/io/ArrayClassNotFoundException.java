@@ -16,7 +16,6 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -50,7 +49,9 @@ public class ArrayClassNotFoundException extends ClassNotFoundException {
         arg.writeArgs();
     }
     
-    public static void putArgs(ObjectOutputStream.PutField pf, ArrayClassNotFoundException e){
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    // (no writeObject in this class, so no PutField overload needed)
+    public static void putArgs(AtomicSerial.PutArg pf, ArrayClassNotFoundException e){
         pf.put(MESSAGE, e.message());
 	pf.put(ARR, e.arr);
         pf.put(EXCEPTION_INDEXES, e.exceptionIndexes);

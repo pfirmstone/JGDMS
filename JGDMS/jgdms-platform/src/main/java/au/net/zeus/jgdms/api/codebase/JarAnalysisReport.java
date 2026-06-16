@@ -87,8 +87,14 @@ public final class JarAnalysisReport implements Serializable {
     private static final String ENGINE_SIGNATURE      = "engineSignature";
     private static final String DECLARED_PERMISSIONS  = "declaredPermissions";
 
-    @SuppressWarnings("unused")
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(CONTENT_HASH,        String.class),
+        new ObjectStreamField(CLASS_NAMES,         String[].class),
+        new ObjectStreamField(CLASS_RESULTS,       ClassAnalysisResult[].class),
+        new ObjectStreamField(ENGINE_SIGNATURE,    byte[].class),
+        new ObjectStreamField(DECLARED_PERMISSIONS, String[].class)
+    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {

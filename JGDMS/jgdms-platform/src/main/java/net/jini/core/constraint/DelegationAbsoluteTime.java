@@ -91,8 +91,13 @@ public final class DelegationAbsoluteTime
      * The maximum stop time in milliseconds
      * from midnight, January 1, 1970 UTC.
      */
-    private static final ObjectStreamField [] serialPersistentFields 
-            = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(MIN_START, Long.TYPE),
+        new ObjectStreamField(MAX_START, Long.TYPE),
+        new ObjectStreamField(MIN_STOP, Long.TYPE),
+        new ObjectStreamField(MAX_STOP, Long.TYPE)
+    };
     
     /**
      * Argument names and types for {@link AtomicSerial}

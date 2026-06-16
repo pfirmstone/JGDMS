@@ -109,7 +109,15 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
      */
     private static volatile Map<String,MarshalFactoryProvider> providers;
 
-    private static final ObjectStreamField [] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(PAYLOAD_BYTES, byte[].class),
+        new ObjectStreamField(CODEBASE_ANNOTATION, byte[].class),
+        new ObjectStreamField(SCHEMA_BYTES, byte[].class),
+        new ObjectStreamField(SCHEMA_DIGEST, byte[].class),
+        new ObjectStreamField(PAYLOAD_FORMAT, String.class),
+        new ObjectStreamField(HASH, int.class)
+    };
 
     public static SerialForm [] serialForm(){
         return new SerialForm [] {
@@ -127,6 +135,17 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
         args.writeArgs();
     }
 
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    private static void putArgs(AtomicSerial.PutArg pf, MarshalledInstance obj) {
+        pf.put(PAYLOAD_BYTES, obj.payloadBytes);
+        pf.put(CODEBASE_ANNOTATION, obj.codebaseAnnotation);
+        pf.put(SCHEMA_BYTES, obj.schemaBytes);
+        pf.put(SCHEMA_DIGEST, obj.schemaDigest);
+        pf.put(PAYLOAD_FORMAT, obj.payloadFormat);
+        pf.put(HASH, obj.hash);
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     private static void putArgs(ObjectOutputStream.PutField pf, MarshalledInstance obj) {
         pf.put(PAYLOAD_BYTES, obj.payloadBytes);
         pf.put(CODEBASE_ANNOTATION, obj.codebaseAnnotation);

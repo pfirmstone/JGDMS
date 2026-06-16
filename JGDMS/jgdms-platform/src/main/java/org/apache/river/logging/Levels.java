@@ -90,8 +90,13 @@ public class Levels {
         private static final String RESOURCE_BUNDLE_NAME = "resourceBundleName";
         private static final String LOCALIZED_LEVEL_NAME = "localizedLevelName";
         
-        private static final ObjectStreamField [] serialPersistentFields
-                = serialForm();
+        // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+        private static final ObjectStreamField[] serialPersistentFields = {
+            new ObjectStreamField(NAME, String.class),
+            new ObjectStreamField(VALUE, int.class),
+            new ObjectStreamField(RESOURCE_BUNDLE_NAME, String.class),
+            new ObjectStreamField(LOCALIZED_LEVEL_NAME, String.class)
+        };
         
         public static SerialForm [] serialForm(){
             return new SerialForm []{

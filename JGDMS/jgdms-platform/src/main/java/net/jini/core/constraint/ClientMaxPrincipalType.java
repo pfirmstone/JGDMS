@@ -66,8 +66,10 @@ public final class ClientMaxPrincipalType
     /**
      * @serialField classes Class[] The classes.
      */
-    private static final ObjectStreamField[] serialPersistentFields
-            = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("classes", Class[].class, true)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

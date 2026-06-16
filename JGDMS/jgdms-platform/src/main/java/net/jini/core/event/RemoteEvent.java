@@ -115,8 +115,14 @@ public class RemoteEvent extends java.util.EventObject {
 
     private static final long serialVersionUID = 1777278867291906446L;
     
-    private static final ObjectStreamField[] serialPersistentFields = 
-	serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("source", Object.class),
+        new ObjectStreamField("eventID", long.class),
+        new ObjectStreamField("seqNum", long.class),
+        new ObjectStreamField("handback", MarshalledObject.class),
+        new ObjectStreamField("miHandback", MarshalledInstance.class)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

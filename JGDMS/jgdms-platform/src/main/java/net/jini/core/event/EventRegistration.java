@@ -59,6 +59,14 @@ public final class EventRegistration implements java.io.Serializable {
     private final static String LEASE = "lease";
     private final static String SEQ_NUM = "seqNum";
     
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final java.io.ObjectStreamField[] serialPersistentFields = {
+        new java.io.ObjectStreamField(EVENT_ID, long.class),
+        new java.io.ObjectStreamField(SOURCE, Object.class),
+        new java.io.ObjectStreamField(LEASE, Lease.class),
+        new java.io.ObjectStreamField(SEQ_NUM, long.class)
+    };
+
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm(EVENT_ID, Long.TYPE),
@@ -67,12 +75,21 @@ public final class EventRegistration implements java.io.Serializable {
             new SerialForm(SEQ_NUM, Long.TYPE)
         };
     }
-    
+
     public static void serialize(PutArg arg, EventRegistration e) throws IOException{
         putArgs(arg, e);
         arg.writeArgs();
     }
-    
+
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    private static void putArgs(PutArg fields, EventRegistration e){
+        fields.put(EVENT_ID, e.eventID);
+        fields.put(SOURCE, e.source);
+        fields.put(LEASE, e.lease);
+        fields.put(SEQ_NUM, e.seqNum);
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     private static void putArgs(PutField fields, EventRegistration e){
         fields.put(EVENT_ID, e.eventID);
         fields.put(SOURCE, e.source);

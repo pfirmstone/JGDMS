@@ -60,8 +60,10 @@ public final class ConstraintAlternatives
      * @serialField constraints InvocationConstraint[]
      * The alternative constraints.
      */
-    private static final ObjectStreamField[] serialPersistentFields
-            = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("constraints", InvocationConstraint[].class, true)
+    };
     
     public static SerialForm [] serialForm(){
         return new SerialForm[]{

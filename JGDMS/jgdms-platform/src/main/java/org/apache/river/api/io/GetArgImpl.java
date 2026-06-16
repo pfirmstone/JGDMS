@@ -60,7 +60,11 @@ class GetArgImpl extends AtomicSerial.GetArg {
 	this.in = in;
     }
 
-    @Override
+    /**
+     * JOSS-internal detail: returns the ObjectStreamClass for the calling
+     * class's field store. NOT on the GetArg contract (sec4.3 removed it).
+     * Kept here for any JOSS-internal code within this package that calls it.
+     */
     public ObjectStreamClass getObjectStreamClass() {
 	return classFields.get(CONTEXT.caller()).getObjectStreamClass();
     }

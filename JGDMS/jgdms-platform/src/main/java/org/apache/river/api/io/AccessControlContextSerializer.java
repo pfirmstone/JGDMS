@@ -125,7 +125,11 @@ public final class AccessControlContextSerializer implements Serializable {
      * presence can identify processes running a vulnerable JDK module.
      */
     private static final String JRT_JAVA_BASE_LOCATION = "jrt:/java.base";
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(TRANSPORT_BYTES, byte[].class),
+        new ObjectStreamField(DIGEST_TRANSPORT_BYTES, byte[].class)
+    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[]{
@@ -614,7 +618,12 @@ public final class AccessControlContextSerializer implements Serializable {
         private static final String LOCATION = "location";
         private static final String PRINCIPAL_TYPES = "principalTypes";
         private static final String PRINCIPAL_NAMES = "principalNames";
-        private static final ObjectStreamField[] serialPersistentFields = serialForm();
+        // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+        private static final ObjectStreamField[] serialPersistentFields = {
+            new ObjectStreamField(LOCATION, String.class),
+            new ObjectStreamField(PRINCIPAL_TYPES, String[].class),
+            new ObjectStreamField(PRINCIPAL_NAMES, String[].class)
+        };
 
         static SerialForm[] serialForm() {
             return new SerialForm[]{
