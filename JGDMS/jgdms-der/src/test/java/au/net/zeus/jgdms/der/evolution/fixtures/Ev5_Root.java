@@ -60,6 +60,12 @@ public class Ev5_Root {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): emit each serialForm() field by name. */
+    public static void serialize(AtomicSerial.PutArg arg, Ev5_Root o) throws IOException {
+        arg.put("rootVal", o.rootVal);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

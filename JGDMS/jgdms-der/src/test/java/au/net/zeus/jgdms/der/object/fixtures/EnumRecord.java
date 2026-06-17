@@ -36,6 +36,13 @@ public final class EnumRecord {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): label + nullable enum. */
+    public static void serialize(AtomicSerial.PutArg arg, EnumRecord o) throws IOException {
+        arg.put("label",  o.label);
+        arg.put("status", o.status);
+        arg.writeArgs();
+    }
+
     private final String label;
     private final Status status; // nullable
 

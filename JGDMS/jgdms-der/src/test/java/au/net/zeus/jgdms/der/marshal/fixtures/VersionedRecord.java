@@ -69,6 +69,14 @@ public final class VersionedRecord {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): emit each serialForm() field by name. */
+    public static void serialize(AtomicSerial.PutArg arg, VersionedRecord o) throws IOException {
+        arg.put("id",    o.id);
+        arg.put("label", o.label);
+        arg.put("extra", o.extra);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

@@ -36,6 +36,12 @@ public class LeakRoot {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): emit each serialForm() field by name. */
+    public static void serialize(AtomicSerial.PutArg arg, LeakRoot o) throws IOException {
+        arg.put("rootName", o.rootName);
+        arg.writeArgs();
+    }
+
     final String rootName;
 
     public LeakRoot(String rootName) {

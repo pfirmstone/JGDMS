@@ -56,6 +56,13 @@ public final class Ev6_Beta extends Ev67_Mid {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): Beta's OWN namespace only. */
+    public static void serialize(AtomicSerial.PutArg arg, Ev6_Beta o) throws IOException {
+        arg.put("betaVal", o.betaVal);
+        arg.put("betaTag", o.betaTag);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

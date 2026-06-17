@@ -59,6 +59,13 @@ public class Ev67_Mid extends Ev67_Alpha {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): Mid's OWN namespace only. */
+    public static void serialize(AtomicSerial.PutArg arg, Ev67_Mid o) throws IOException {
+        arg.put("midVal", o.midVal);
+        arg.put("midTag", o.midTag);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

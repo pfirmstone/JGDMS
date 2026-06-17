@@ -19,8 +19,6 @@ package au.net.zeus.jgdms.der.object;
 
 import au.net.zeus.jgdms.der.object.fixtures.Bar;
 import au.net.zeus.jgdms.der.object.fixtures.Foo;
-import au.net.zeus.jgdms.der.object.fixtures.PlainSuper;
-import au.net.zeus.jgdms.der.object.fixtures.Sub;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
@@ -34,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Phase 4.4 acceptance tests: S3.10 wire-visibility rules for non-{@code @AtomicSerial}
  * classes in a hierarchy (JGDMS-STD-006 S3.10).
  *
- * <h2>S3.10 rules under test</h2>
+ * <h2>S3.10 rule under test</h2>
  *
  * <p><b>Rule 1 -- Non-{@code @AtomicSerial} subclass dropped to its superclass.</b>
  * When {@code Bar extends Foo} and only {@code Foo} carries {@code @AtomicSerial}:
@@ -43,14 +41,11 @@ import static org.junit.jupiter.api.Assertions.*;
  * is silently dropped. {@code generateChain(Bar.class)} yields a single-record chain whose
  * sole entry names {@code Foo}, not {@code Bar}.
  *
- * <p><b>Rule 2 -- Non-{@code @AtomicSerial} superclass carried in the lowest
- * {@code @AtomicSerial} class's namespace.</b>
- * When {@code Sub extends PlainSuper} and only {@code Sub} carries {@code @AtomicSerial}:
- * there is NO separate {@code PlainSuper} SEQUENCE on the wire. {@code Sub}'s
- * {@code serialForm()} declares {@code legacyName} (PlainSuper's state) in {@code Sub}'s
- * own namespace. {@code Sub}'s {@code (GetArg)} constructor reads it and passes it to
- * {@code super(legacyName)}. {@code generateChain(Sub.class)} yields a single-record chain
- * whose sole entry names {@code Sub}.
+ * <p>(S3.10's "rule 2" -- an {@code @AtomicSerial} class carrying a non-{@code @AtomicSerial}
+ * superclass's field in its own namespace -- was REMOVED under STD-008 full enforcement:
+ * a class serializes only its OWN namespace, and a non-{@code @AtomicSerial} class has no
+ * namespace, so reaching into a non-{@code @AtomicSerial} superclass's state is a contract
+ * violation. The {@code Sub}/{@code PlainSuper} fixtures and their cases were deleted.)
  *
  * <h2>Tests in this class</h2>
  * <ul>
@@ -59,11 +54,8 @@ import static org.junit.jupiter.api.Assertions.*;
  *       (Foo's only -- no Bar SEQUENCE on the wire).</li>
  *   <li><b>4.4.3</b> -- Round-trip of {@code Bar}: decoded runtime class is exactly
  *       {@code Foo} (not {@code Bar}); Foo's fields survive; {@code barOnly} is gone.</li>
- *   <li><b>4.4.4</b> -- Chain from {@code Sub.class} contains exactly one record
- *       ({@code Sub}) -- no separate {@code PlainSuper} record.</li>
- *   <li><b>4.4.5</b> -- Round-trip of {@code Sub}: decoded object is a {@code Sub};
- *       {@code PlainSuper}'s {@code legacyName} (carried in Sub's namespace) survives;
- *       {@code Sub}'s own {@code subValue} survives.</li>
+ *   <li><b>4.4.6</b> -- Phase 4.3 regression: a fully-{@code @AtomicSerial} chain
+ *       (Alpha) is unchanged.</li>
  * </ul>
  */
 class WireVisibilityTest {
@@ -193,23 +185,17 @@ class WireVisibilityTest {
     }
 
     // =========================================================================
-    // 4.4.3b -- decodeHierarchy with Bar.class as expectedSupertype works too
+    // 4.4.3b -- decodeHierarchy with Bar.class as expectedSupertype throws
     // =========================================================================
 
     /**
-     * 4.4.3b -- The {@code expectedSupertype} parameter may also be {@code Bar.class}
-     * (since {@code Foo} IS assignable to {@code Bar}'s supertype -- wait, actually
-     * {@code Foo} is NOT assignable to {@code Bar}; {@code Bar} extends {@code Foo},
-     * so {@code Bar} is assignable to {@code Foo} but not the reverse).
+     * 4.4.3b -- When {@code expectedSupertype = Bar.class}, the assignability check
+     * {@code Bar.class.isAssignableFrom(Foo.class)} is {@code false} (Bar extends Foo,
+     * not the reverse), so {@code decodeHierarchy(Bar.class, chain, der)} must throw a
+     * {@link au.net.zeus.jgdms.der.DerException} identifying the mismatch.
      *
-     * <p>When {@code expectedSupertype = Bar.class}, the assignability check
-     * {@code Bar.class.isAssignableFrom(Foo.class)} is {@code false}, so
-     * {@code decodeHierarchy(Bar.class, chain, der)} should throw a {@link
-     * au.net.zeus.jgdms.der.DerException} identifying the mismatch.
-     *
-     * <p>This test documents and proves the assignability check boundary:
-     * the caller cannot ask for "decode as a Bar" when the construct class is Foo
-     * (Foo is not a Bar).
+     * <p>This documents the assignability check boundary: the caller cannot ask for
+     * "decode as a Bar" when the construct class is Foo (Foo is not a Bar).
      */
     @Test
     void test_4_4_3b_DecodeHierarchy_With_Bar_As_ExpectedSupertype_Throws() throws Exception {
@@ -222,104 +208,6 @@ class WireVisibilityTest {
                 () -> ObjectCodec.decodeHierarchy(Bar.class, chain, der),
                 "decodeHierarchy(Bar.class, ...) must throw DerException "
                 + "because Foo (the construct class) is not a Bar");
-    }
-
-    // =========================================================================
-    // 4.4.4 -- Chain from Sub.class: exactly one record (Sub) -- no PlainSuper
-    // =========================================================================
-
-    /**
-     * 4.4.4 -- {@code generateChain(Sub.class)} must yield a chain with exactly ONE
-     * record, and that record must name {@code Sub}.
-     *
-     * <p>Proves S3.10 (second rule): {@code PlainSuper} is a non-{@code @AtomicSerial}
-     * superclass -> invisible to the wire -> NO separate {@code PlainSuper} SEQUENCE.
-     * The set of SEQUENCEs on the wire == {@code {Sub}}, the sole {@code @AtomicSerial}
-     * class.
-     */
-    @Test
-    void test_4_4_4_Chain_From_Sub_Contains_Only_Sub_Record_No_PlainSuper() throws Exception {
-        SchemaChain.Result chain = SchemaGenerator.generateChain(Sub.class);
-        List<AtomicSerialSchemaRecord> records = chain.chain();
-
-        assertEquals(1, records.size(),
-                "Chain from Sub.class must have exactly 1 record "
-                + "(PlainSuper is plain -- invisible to wire)");
-
-        AtomicSerialSchemaRecord onlyRecord = records.get(0);
-        assertEquals(Sub.class.getName(), onlyRecord.className(),
-                "The sole chain record must name Sub");
-
-        // Sub's schema carries both legacyName (for PlainSuper) and subValue (Sub's own)
-        assertEquals(2, onlyRecord.fields().size(),
-                "Sub's schema must declare exactly 2 fields");
-        assertEquals("legacyName", onlyRecord.fields().get(0).wireName(),
-                "First field must be legacyName (Sub carries PlainSuper's state)");
-        assertEquals("subValue",   onlyRecord.fields().get(1).wireName(),
-                "Second field must be subValue (Sub's own field)");
-
-        // Confirm PlainSuper is nowhere in the chain
-        for (AtomicSerialSchemaRecord r : records) {
-            assertNotEquals(PlainSuper.class.getName(), r.className(),
-                    "PlainSuper must NOT appear in the chain -- it is not @AtomicSerial");
-        }
-    }
-
-    // =========================================================================
-    // 4.4.5 -- Round-trip of Sub: legacyName and subValue survive; result is Sub
-    // =========================================================================
-
-    /**
-     * 4.4.5 -- Full round-trip of {@code Sub}:
-     * <ul>
-     *   <li>The decoded object's runtime class is {@code Sub}.</li>
-     *   <li>{@code PlainSuper}'s {@code legacyName} (carried in Sub's namespace) survives.</li>
-     *   <li>{@code Sub}'s own {@code subValue} survives.</li>
-     *   <li>No separate {@code PlainSuper} SEQUENCE is emitted (chain has 1 record).</li>
-     * </ul>
-     *
-     * <p>Proves S3.10 (second rule): {@code Sub} is responsible for constructing
-     * {@code PlainSuper}. Its {@code (GetArg)} constructor reads {@code legacyName}
-     * from Sub's own store and passes it as an ordinary argument to
-     * {@code super(legacyName)}.
-     */
-    @Test
-    void test_4_4_5_RoundTrip_Sub_LegacyName_And_SubValue_Survive() throws Exception {
-        String legacyName = "legacy-value";
-        int    subValue   = 77;
-
-        Sub original = new Sub(legacyName, subValue);
-
-        // Pre-conditions
-        assertEquals(legacyName, original.getLegacyName(), "Pre-condition: legacyName set");
-        assertEquals(subValue,   original.getSubValue(),   "Pre-condition: subValue set");
-
-        SchemaChain.Result chain = SchemaGenerator.generateChain(Sub.class);
-        assertEquals(1, chain.chain().size(),
-                "Chain must have exactly 1 record -- no PlainSuper SEQUENCE");
-
-        byte[] der = ObjectCodec.encodeHierarchy(original, chain);
-        Sub decoded = ObjectCodec.decodeHierarchy(Sub.class, chain, der);
-
-        // Runtime class must be exactly Sub
-        assertEquals(Sub.class, decoded.getClass(),
-                "Decoded object must be exactly a Sub");
-
-        // PlainSuper's legacyName must survive (Sub carried it in its own namespace)
-        assertEquals(legacyName, decoded.getLegacyName(),
-                "legacyName (PlainSuper state, carried in Sub's namespace) must survive");
-
-        // Sub's own field must survive
-        assertEquals(subValue, decoded.getSubValue(),
-                "subValue (Sub's own field) must survive");
-
-        // Full equality check
-        assertEquals(original, decoded,
-                "Decoded Sub must equal the original");
-
-        // Confirm decoded is also a PlainSuper (inheritance preserved at runtime)
-        assertTrue(decoded instanceof PlainSuper,
-                "Decoded Sub must still be a PlainSuper (inheritance chain intact)");
     }
 
     // =========================================================================

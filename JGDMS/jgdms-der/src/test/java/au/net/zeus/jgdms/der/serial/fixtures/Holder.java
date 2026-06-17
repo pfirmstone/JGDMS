@@ -35,6 +35,12 @@ public final class Holder {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): the replaceable Marker field (DerReplacer seam). */
+    public static void serialize(AtomicSerial.PutArg arg, Holder o) throws IOException {
+        arg.put("marker", o.marker);
+        arg.writeArgs();
+    }
+
     private final Marker marker;
 
     public Holder(Marker marker) {

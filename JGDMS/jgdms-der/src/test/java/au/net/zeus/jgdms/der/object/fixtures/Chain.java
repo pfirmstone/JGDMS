@@ -36,6 +36,12 @@ public final class Chain {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): the self-nested link. */
+    public static void serialize(AtomicSerial.PutArg arg, Chain o) throws IOException {
+        arg.put("next", o.next);
+        arg.writeArgs();
+    }
+
     private final Chain next;
 
     public Chain(Chain next) {

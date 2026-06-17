@@ -63,6 +63,13 @@ public class Beta extends Alpha {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): Beta's OWN namespace only. */
+    public static void serialize(AtomicSerial.PutArg arg, Beta o) throws IOException {
+        arg.put("x",        o.x);
+        arg.put("betaOnly", o.betaOnly);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

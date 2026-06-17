@@ -56,6 +56,13 @@ public class Alpha {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): Alpha's OWN namespace only. */
+    public static void serialize(AtomicSerial.PutArg arg, Alpha o) throws IOException {
+        arg.put("x",          o.x);
+        arg.put("alphaLabel", o.alphaLabel);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

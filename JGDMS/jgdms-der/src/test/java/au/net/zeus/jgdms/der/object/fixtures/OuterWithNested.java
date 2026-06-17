@@ -45,6 +45,13 @@ public final class OuterWithNested {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): tag + nested @AtomicSerial field. */
+    public static void serialize(AtomicSerial.PutArg arg, OuterWithNested o) throws IOException {
+        arg.put("tag",   o.tag);
+        arg.put("inner", o.inner);
+        arg.writeArgs();
+    }
+
     private final String      tag;
     private final NestedValue inner; // may be null; may be a NestedValueSub at runtime
 

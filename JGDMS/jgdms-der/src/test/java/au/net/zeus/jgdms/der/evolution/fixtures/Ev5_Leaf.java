@@ -73,6 +73,13 @@ public final class Ev5_Leaf extends Ev5_Root {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): Leaf's OWN namespace only. */
+    public static void serialize(AtomicSerial.PutArg arg, Ev5_Leaf o) throws IOException {
+        arg.put("leafVal", o.leafVal);
+        arg.put("leafTag", o.leafTag);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

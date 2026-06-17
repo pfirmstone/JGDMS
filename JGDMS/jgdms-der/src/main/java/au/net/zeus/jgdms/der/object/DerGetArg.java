@@ -23,7 +23,6 @@ import org.apache.river.api.io.AtomicSerial;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectStreamClass;
 import java.lang.StackWalker.Option;
 import java.util.Collection;
 import java.util.Collections;
@@ -73,12 +72,6 @@ import java.util.Objects;
  * {@link java.lang.reflect.InvocationTargetException}, a failing {@code check}
  * unwinds completely: NO object is returned and no partially-constructed instance
  * escapes.
- *
- * <h2>getObjectStreamClass</h2>
- * <p>
- * Returns {@code null} in the DER path -- there is no {@link ObjectStreamClass} in
- * a DER-decoded object. Fixture constructors (and production code in the DER path)
- * MUST NOT call this method. It is present only to satisfy the abstract contract.
  *
  * <h2>getReader</h2>
  * <p>
@@ -204,17 +197,8 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     }
 
     // =========================================================================
-    // ObjectInputStream.GetField abstract methods
+    // AtomicSerial.GetArg typed field accessors
     // =========================================================================
-
-    /**
-     * Returns {@code null} -- no {@link ObjectStreamClass} exists in the DER path.
-     * DER-path constructors and {@code check} methods MUST NOT call this method.
-     */
-    @Override
-    public ObjectStreamClass getObjectStreamClass() {
-        return null;
-    }
 
     @Override
     public boolean defaulted(String name) throws IOException {

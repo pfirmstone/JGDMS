@@ -73,6 +73,15 @@ public final class ServiceSchemaEntry {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): emit each serialForm() field by name. */
+    public static void serialize(AtomicSerial.PutArg arg, ServiceSchemaEntry o) throws IOException {
+        arg.put("schemaDigest",     o.schemaDigest);
+        arg.put("serviceInterface", o.serviceInterface);
+        arg.put("schemaVersion",    o.schemaVersion);
+        arg.put("schemaFormat",     o.schemaFormat);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields (names MUST match serialForm wire names exactly)
     // -------------------------------------------------------------------------

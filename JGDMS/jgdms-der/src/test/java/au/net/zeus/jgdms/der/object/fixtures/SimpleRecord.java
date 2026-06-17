@@ -49,6 +49,18 @@ public final class SimpleRecord {
         };
     }
 
+    /**
+     * @AtomicSerial WRITE contract (STD-008): emit each {@code serialForm()} field
+     * by name. The DER codec invokes this instead of reflecting on private fields.
+     */
+    public static void serialize(AtomicSerial.PutArg arg, SimpleRecord o) throws IOException {
+        arg.put("active",  o.active);
+        arg.put("count",   o.count);
+        arg.put("name",    o.name);
+        arg.put("payload", o.payload);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields (names MUST match serialForm wire names)
     // -------------------------------------------------------------------------

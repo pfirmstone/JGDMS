@@ -47,6 +47,12 @@ public class Ev67_Alpha {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): emit each serialForm() field by name. */
+    public static void serialize(AtomicSerial.PutArg arg, Ev67_Alpha o) throws IOException {
+        arg.put("alphaVal", o.alphaVal);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

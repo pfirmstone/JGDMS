@@ -50,6 +50,18 @@ public final class MultiTypeRecord {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): emit each serialForm() field by name. */
+    public static void serialize(AtomicSerial.PutArg arg, MultiTypeRecord o) throws IOException {
+        arg.put("flag",   o.flag);
+        arg.put("tiny",   o.tiny);
+        arg.put("small",  o.small);
+        arg.put("medium", o.medium);
+        arg.put("large",  o.large);
+        arg.put("text",   o.text);
+        arg.put("data",   o.data);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

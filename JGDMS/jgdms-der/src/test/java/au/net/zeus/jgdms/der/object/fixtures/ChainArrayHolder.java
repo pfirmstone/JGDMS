@@ -37,6 +37,12 @@ public final class ChainArrayHolder {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): the @AtomicSerial[] field. */
+    public static void serialize(AtomicSerial.PutArg arg, ChainArrayHolder o) throws IOException {
+        arg.put("chains", o.chains);
+        arg.writeArgs();
+    }
+
     private final Chain[] chains;
 
     public ChainArrayHolder(Chain[] chains) {

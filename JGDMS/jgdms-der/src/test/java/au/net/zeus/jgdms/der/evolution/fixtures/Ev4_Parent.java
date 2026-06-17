@@ -50,6 +50,12 @@ public class Ev4_Parent {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): emit each serialForm() field by name. */
+    public static void serialize(AtomicSerial.PutArg arg, Ev4_Parent o) throws IOException {
+        arg.put("parentValue", o.parentValue);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

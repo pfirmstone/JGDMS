@@ -55,6 +55,18 @@ public final class Ev3_EvolvedSub {
         };
     }
 
+    /**
+     * @AtomicSerial WRITE contract (STD-008). S11.3: {@code newBaseTag} was absorbed
+     * into this class's OWN namespace (no non-{@code @AtomicSerial} superclass field
+     * is reached), so all three are own fields.
+     */
+    public static void serialize(AtomicSerial.PutArg arg, Ev3_EvolvedSub o) throws IOException {
+        arg.put("legacyName", o.legacyName);
+        arg.put("subValue",   o.subValue);
+        arg.put("newBaseTag", o.newBaseTag);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

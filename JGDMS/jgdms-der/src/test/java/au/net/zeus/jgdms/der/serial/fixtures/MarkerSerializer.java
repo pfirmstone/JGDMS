@@ -40,6 +40,12 @@ public final class MarkerSerializer implements Resolve {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): emit the flattened value. */
+    public static void serialize(AtomicSerial.PutArg arg, MarkerSerializer o) throws IOException {
+        arg.put("value", o.value);
+        arg.writeArgs();
+    }
+
     private final int value;
 
     public MarkerSerializer(Marker m) {

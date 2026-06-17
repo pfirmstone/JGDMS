@@ -44,6 +44,16 @@ public final class ArrayRecord {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): primitive + String arrays. */
+    public static void serialize(AtomicSerial.PutArg arg, ArrayRecord o) throws IOException {
+        arg.put("ints",     o.ints);
+        arg.put("longs",    o.longs);
+        arg.put("shorts",   o.shorts);
+        arg.put("booleans", o.booleans);
+        arg.put("strings",  o.strings);
+        arg.writeArgs();
+    }
+
     private final int[]     ints;
     private final long[]    longs;
     private final short[]   shorts;

@@ -41,6 +41,13 @@ public class NestedValue {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): emit each serialForm() field by name. */
+    public static void serialize(AtomicSerial.PutArg arg, NestedValue o) throws IOException {
+        arg.put("id",    o.id);
+        arg.put("label", o.label);
+        arg.writeArgs();
+    }
+
     private final int    id;
     private final String label;
 

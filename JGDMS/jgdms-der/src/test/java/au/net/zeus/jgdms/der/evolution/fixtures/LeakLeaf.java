@@ -37,6 +37,12 @@ public class LeakLeaf extends LeakMid {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): wire name "shared" carries LeakLeaf's leafShared. */
+    public static void serialize(AtomicSerial.PutArg arg, LeakLeaf o) throws IOException {
+        arg.put("shared", o.leafShared);
+        arg.writeArgs();
+    }
+
     final String leafShared;
 
     public LeakLeaf(String rootName, String midShared, String leafShared) {

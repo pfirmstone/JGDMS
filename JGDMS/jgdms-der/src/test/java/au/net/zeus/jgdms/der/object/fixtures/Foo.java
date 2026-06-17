@@ -51,6 +51,13 @@ public class Foo {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): Foo's own fields. */
+    public static void serialize(AtomicSerial.PutArg arg, Foo o) throws IOException {
+        arg.put("fooId",    o.fooId);
+        arg.put("fooLabel", o.fooLabel);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

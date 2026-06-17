@@ -47,6 +47,13 @@ public final class NestedArrayHolder {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): tag + @AtomicSerial[] field. */
+    public static void serialize(AtomicSerial.PutArg arg, NestedArrayHolder o) throws IOException {
+        arg.put("tag",      o.tag);
+        arg.put("elements", o.elements);
+        arg.writeArgs();
+    }
+
     private final String       tag;
     private final NestedValue[] elements; // may be null; elements may be null
 

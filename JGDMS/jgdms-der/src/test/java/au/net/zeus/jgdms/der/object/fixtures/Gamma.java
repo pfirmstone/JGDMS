@@ -62,6 +62,13 @@ public final class Gamma extends Beta {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): Gamma's OWN namespace only. */
+    public static void serialize(AtomicSerial.PutArg arg, Gamma o) throws IOException {
+        arg.put("gammaValue", o.gammaValue);
+        arg.put("gammaTag",   o.gammaTag);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

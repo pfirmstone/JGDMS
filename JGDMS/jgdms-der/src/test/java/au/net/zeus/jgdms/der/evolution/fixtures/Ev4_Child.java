@@ -67,6 +67,13 @@ public final class Ev4_Child extends Ev4_Parent {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): Child's OWN namespace (legacy carry-forward of parentValue). */
+    public static void serialize(AtomicSerial.PutArg arg, Ev4_Child o) throws IOException {
+        arg.put("parentValue", o.parentValue);
+        arg.put("childValue",  o.childValue);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

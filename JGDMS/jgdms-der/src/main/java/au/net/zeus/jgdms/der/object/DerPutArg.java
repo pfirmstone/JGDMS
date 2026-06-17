@@ -37,9 +37,9 @@ import org.apache.river.api.io.AtomicSerial;
  * written, and a class that declines to implement {@code serialize(PutArg)} is
  * not serialized (the encoder fails fast).
  *
- * <p>{@link #writeArgs()} is a no-op (the values are already captured);
- * {@link #output()} and the deprecated {@link #write(ObjectOutput)} are
- * unsupported -- there is no underlying object stream, by design.
+ * <p>{@link #writeArgs()} is a no-op (the values are already captured) and
+ * {@link #output()} is unsupported -- there is no underlying object stream,
+ * by design.
  *
  * <p>Construction goes through the {@code protected PutArg()} ctor, which (like
  * {@code DerGetArg}'s use of {@code protected GetArg()}) performs the
@@ -103,13 +103,6 @@ final class DerPutArg extends AtomicSerial.PutArg {
     @Override
     public void put(String name, Object val) {
         values.put(name, val);
-    }
-
-    @Override
-    @Deprecated
-    public void write(ObjectOutput out) {
-        throw new UnsupportedOperationException(
-                "DerPutArg captures put() values; there is no underlying object stream to write to");
     }
 
     @Override

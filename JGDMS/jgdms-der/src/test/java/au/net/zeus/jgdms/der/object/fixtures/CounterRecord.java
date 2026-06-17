@@ -46,6 +46,13 @@ public final class CounterRecord {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): emit each serialForm() field by name. */
+    public static void serialize(AtomicSerial.PutArg arg, CounterRecord o) throws IOException {
+        arg.put("value", o.value);
+        arg.put("label", o.label);
+        arg.writeArgs();
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------

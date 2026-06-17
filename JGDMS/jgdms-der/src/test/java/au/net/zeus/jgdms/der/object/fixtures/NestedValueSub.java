@@ -40,6 +40,12 @@ public final class NestedValueSub extends NestedValue {
         };
     }
 
+    /** @AtomicSerial WRITE contract (STD-008): NestedValueSub's OWN namespace only. */
+    public static void serialize(AtomicSerial.PutArg arg, NestedValueSub o) throws IOException {
+        arg.put("extra", o.extra);
+        arg.writeArgs();
+    }
+
     private final String extra;
 
     public NestedValueSub(int id, String label, String extra) {
