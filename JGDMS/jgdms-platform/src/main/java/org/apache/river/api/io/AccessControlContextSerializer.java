@@ -60,8 +60,7 @@ import org.apache.river.api.net.Uri;
  */
 @Serializer(replaceObType = AccessControlContext.class)
 @AtomicSerial
-public final class AccessControlContextSerializer implements Serializable {
-    private static final long serialVersionUID = 1L;
+public final class AccessControlContextSerializer {
     /**
      * Serial field name for the HTTPMD-URL transport bytes.
      * The serial representation stores the binary transport bytes rather than
@@ -126,12 +125,6 @@ public final class AccessControlContextSerializer implements Serializable {
      * presence can identify processes running a vulnerable JDK module.
      */
     private static final String JRT_JAVA_BASE_LOCATION = "jrt:/java.base";
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(TRANSPORT_BYTES, byte[].class),
-        new ObjectStreamField(DIGEST_TRANSPORT_BYTES, byte[].class)
-    };
-
     public static SerialForm[] serialForm() {
         return new SerialForm[]{
             new SerialForm(TRANSPORT_BYTES, byte[].class),
@@ -915,12 +908,5 @@ public final class AccessControlContextSerializer implements Serializable {
     @Override
     public int hashCode() {
         return 31 * Arrays.hashCode(domains) + Arrays.hashCode(digestBytes());
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-        ObjectOutputStream.PutField pf = out.putFields();
-        pf.put(TRANSPORT_BYTES, marshalForTransport(context));
-        pf.put(DIGEST_TRANSPORT_BYTES, marshalDigestForTransport(context));
-        out.writeFields();
     }
 }
