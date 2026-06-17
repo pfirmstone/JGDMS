@@ -35,7 +35,6 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationFile;
 import net.jini.config.ConfigurationProvider;
-import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  * Check that the persistence directory supplied by any
@@ -164,7 +163,7 @@ public class CheckPersistence extends AbstractPlugin {
 
 	public Object run(String[] args) {
             if (System.getSecurityManager() == null) {
-	    System.setSecurityManager(new CombinerSecurityManager());
+	    /* SecurityManager selected at launch via -Djava.security.manager (no programmatic install) */;
             }
 	    String dir = args[0];
 	    File dirFile = new File(dir);

@@ -43,8 +43,6 @@ import javax.security.auth.login.LoginException;
 import javax.security.auth.Subject;
 
 import org.apache.river.action.GetIntegerAction;
-import org.apache.river.api.security.CombinerSecurityManager;
-//import org.apache.river.tool.SecurityPolicyWriter;
 
 import au.net.zeus.rmi.tls.TlsRMIClientSocketFactory;
 import java.io.IOException;
@@ -312,7 +310,11 @@ public class ServiceStarter {
     public synchronized static void ensureSecurityManager() {
         if (System.getSecurityManager() == null) {
 //	    System.setSecurityManager(new SecurityPolicyWriter());
-            System.setSecurityManager(new CombinerSecurityManager());
+            // No programmatic install: the SecurityManager is selected at JVM
+            // launch via -Djava.security.manager=default (DirtyChai installs its
+            // SecurityManager; stock OpenJDK installs java.lang.SecurityManager).
+            // Launching without the property deliberately leaves no SecurityManager
+            // installed, a supported inspection/test mode.
         }
     }
 

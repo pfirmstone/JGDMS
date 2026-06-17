@@ -25,7 +25,6 @@ import net.jini.activation.arg.ActivationGroupID;
 import java.util.Collections;
 import net.jini.loader.ClassLoading;
 import org.apache.river.api.io.AtomicMarshalInputStream;
-import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  * This is the bootstrap code to start a virtual machine (VM) executing an
@@ -59,9 +58,9 @@ public class ActivationGroupInit {
     public static void main(String args[])
     {
 	try {
-	    if (System.getSecurityManager() == null) {
-		System.setSecurityManager(new CombinerSecurityManager());
-	    }
+	    // No programmatic install: the SecurityManager is selected at JVM
+	    // launch via -Djava.security.manager, which the activator forwards
+	    // into this group's command line (see Activation.buildGroupProcess).
 	    AtomicMarshalInputStream in =
 		new AtomicMarshalInputStream(
 				   System.in,

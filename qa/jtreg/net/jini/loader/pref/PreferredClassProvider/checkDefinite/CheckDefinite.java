@@ -28,7 +28,7 @@
  * @build CheckDefinite
  * @build TestLibrary TestParams HTTPD
  *
- * @run main/othervm/policy=security.policy/timeout=100/secure=org.apache.river.api.security.CombinerSecurityManager -DtrustProxy=true CheckDefinite
+ * @run main/othervm/policy=security.policy/timeout=100 -Djava.security.manager=default -DtrustProxy=true CheckDefinite
  */
 
 import java.net.URL;

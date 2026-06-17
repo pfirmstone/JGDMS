@@ -33,8 +33,6 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.config.Configuration;
-import org.apache.river.api.security.CombinerSecurityManager;
-import org.apache.river.tool.SecurityPolicyWriter;
 
 /**
  * The slave side of a distributed test. This class provides the main
@@ -193,7 +191,7 @@ public class SlaveTest {
 	System.setErr(System.out);
 	if (System.getSecurityManager() == null) {
 //	    System.setSecurityManager(new SecurityPolicyWriter());// Seems to be ok here with jsse
-	    System.setSecurityManager(new CombinerSecurityManager());
+	    /* SecurityManager selected at launch via -Djava.security.manager (no programmatic install) */;
 	}
 	try {
 	    ObjectInputStream ois = new ObjectInputStream(System.in);
