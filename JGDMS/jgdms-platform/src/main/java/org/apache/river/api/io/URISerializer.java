@@ -20,10 +20,7 @@ package org.apache.river.api.io;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Objects;
@@ -36,18 +33,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType = URI.class)
 @AtomicSerial
-public class URISerializer implements Serializable {
-   private static final long serialVersionUID = 1L;
-    
-    /**
-     * By defining serial persistent fields, we don't need to use transient fields.
-     * All fields can be final and this object becomes immutable.
-     */
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("uriExternalForm", String.class)
-    };
-    
+public class URISerializer {
+
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("uriExternalForm", String.class)
@@ -59,13 +46,7 @@ public class URISerializer implements Serializable {
         arg.writeArgs();
     }
 
-    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
     private static void putArgs(PutArg pf, URISerializer u){
-        pf.put("uriExternalForm", u.uriExternalForm);
-    }
-
-    // DUAL-PATH: PutField overload for the JOSS writeObject() path
-    private static void putArgs(ObjectOutputStream.PutField pf, URISerializer u){
         pf.put("uriExternalForm", u.uriExternalForm);
     }
     
@@ -120,14 +101,4 @@ public class URISerializer implements Serializable {
 	if (uri != null) return uri;
 	return check(uriExternalForm);
     }
-    
-    /**
-     * @serialData 
-     * @param out
-     * @throws IOException 
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	putArgs(out.putFields(), this);
-	out.writeFields();
-    }  
 }

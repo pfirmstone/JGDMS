@@ -19,9 +19,6 @@ import net.jini.loader.ProxyCodebaseSpi;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInput;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.security.AccessController;
@@ -48,22 +45,11 @@ import org.apache.river.resource.Service;
  * @author peter
  */
 @AtomicSerial
-class ProxySerializer implements Serializable {
-    private static final long serialVersionUID = 1L;
-    
+class ProxySerializer {
+
     private static final String BOOTSTRAP_PROXY = "bootstrapProxy";
     private static final String SERVICE_PROXY = "serviceProxy";
-    
-    /**
-     * By defining serial persistent fields, we don't need to use transient fields.
-     * All fields can be final and this object becomes immutable.
-     */
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(BOOTSTRAP_PROXY, CodebaseAccessor.class),
-        new ObjectStreamField(SERVICE_PROXY, MarshalledInstance.class)
-    };
-    
+
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm(BOOTSTRAP_PROXY, CodebaseAccessor.class),
@@ -236,12 +222,7 @@ class ProxySerializer implements Serializable {
 	return getProvider(read.defaultLoader).resolve(bootstrapProxy, serviceProxy, read.defaultLoader,
 		read.verifierLoader, context);
     }
-    
-    // So we can implement ReadObject
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-   
+
     @AtomicSerial.ReadInput
     static ReadObject getReader(){
 	return new RO();

@@ -19,10 +19,7 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import javax.security.auth.x500.X500Principal;
@@ -36,18 +33,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType = X500Principal.class)
 @AtomicSerial
-public class X500PrincipalSerializer implements Serializable, Resolve {
-    private static final long serialVersionUID = 1L;
-    
-    /**
-     * By defining serial persistent fields, we don't need to use transient fields.
-     * All fields can be final and this object becomes immutable.
-     */
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("encoded", byte[].class)
-    };
-    
+public class X500PrincipalSerializer implements Resolve {
+
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("encoded", byte[].class)
@@ -59,13 +46,7 @@ public class X500PrincipalSerializer implements Serializable, Resolve {
         arg.writeArgs();
     }
 
-    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
     private static void putArg(PutArg pf, X500PrincipalSerializer s){
-	pf.put("encoded", s.encoded);  //Remind: clone?
-    }
-
-    // DUAL-PATH: PutField overload for the JOSS writeObject() path
-    private static void putArg(ObjectOutputStream.PutField pf, X500PrincipalSerializer s){
 	pf.put("encoded", s.encoded);  //Remind: clone?
     }
     
@@ -86,17 +67,7 @@ public class X500PrincipalSerializer implements Serializable, Resolve {
 	if (principal != null) return principal;
         return new X500Principal(encoded);
     }
-    
-    /**
-     * @serialData 
-     * @param out
-     * @throws IOException 
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	putArg(out.putFields(), this);
-	out.writeFields();
-    }
-    
+
     @Override
     public boolean equals(Object obj){
         if (!(obj instanceof X500PrincipalSerializer)) return false;
