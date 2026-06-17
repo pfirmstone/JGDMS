@@ -110,7 +110,10 @@ public class SpiffeJwtDispatchIntegrationTest {
     }
 
     private static boolean hasTlsIdentity(Subject subject) throws Exception {
-        Method method = SslEndpointImpl.class.getDeclaredMethod("hasTlsIdentity", Subject.class);
+        // hasTlsIdentity is declared `protected static` on the Utilities base class and merely
+        // inherited by SslEndpointImpl; getDeclaredMethod does not see inherited methods, so reflect
+        // on the declaring class.
+        Method method = Utilities.class.getDeclaredMethod("hasTlsIdentity", Subject.class);
         method.setAccessible(true);
         return (Boolean) method.invoke(null, subject);
     }
