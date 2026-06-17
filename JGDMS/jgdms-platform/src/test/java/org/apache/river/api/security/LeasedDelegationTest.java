@@ -169,7 +169,9 @@ public class LeasedDelegationTest {
             }
         } finally {
             sm.gating = false;
-            System.setSecurityManager(previous);
+            // DirtyChai forbids setSecurityManager(null); under -Djava.security.manager=allow
+            // no SM exists at startup, so only restore when one was actually installed.
+            if (previous != null) System.setSecurityManager(previous);
         }
     }
 
