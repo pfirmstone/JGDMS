@@ -546,8 +546,9 @@ public class NonActivatableServiceDescriptor
      * <P>
      * This method:
      * <UL>
-     * <LI> installs an {@link  org.apache.river.api.security.CombinerSecurityManager CombinerSecurityManager}
-     *      if no security manager is already in place
+     * <LI> calls {@link ServiceStarter#ensureSecurityManager()} (a no-op
+     *      retained for compatibility &mdash; the {@code SecurityManager} is
+     *      now selected at JVM launch via {@code -Djava.security.manager})
      * <LI> creates an 
      *      <code>ActivateWrapper.ExportClassLoader</code> with
      *      the associated service's import codebase, export codebase and 

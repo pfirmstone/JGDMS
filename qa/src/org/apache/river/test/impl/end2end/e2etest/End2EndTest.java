@@ -25,8 +25,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
-import org.apache.river.api.security.CombinerSecurityManager;
-import org.apache.river.tool.SecurityPolicyWriter;
 
 /**
  * The entry point for the end-to-end test. Sets up the server
@@ -117,7 +115,7 @@ public class End2EndTest implements Constants, TestCoordinator {
 	}
         if (System.getSecurityManager() == null) {
 //	    System.setSecurityManager(new SecurityPolicyWriter());
-            System.setSecurityManager(new CombinerSecurityManager());
+            /* SecurityManager selected at launch via -Djava.security.manager (no programmatic install) */;
         }
 	server = new SecureServer(this);
 	MarshalledInstance pickeledStub = server.getProxy();

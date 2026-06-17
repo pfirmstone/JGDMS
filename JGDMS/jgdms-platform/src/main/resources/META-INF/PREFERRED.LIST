@@ -72,13 +72,13 @@ Name: net/jini/export/ServerContext$Spi.class
 Preferred: true
 
 Name: net/jini/export/CodebaseAccessor.class
-Preferred: true
+Preferred: false
 
 Name: net/jini/export/ProxyAccessor.class
-Preferred: true
+Preferred: false
 
 Name: net/jini/export/DynamicProxyCodebaseAccessor.class
-Preferred: true
+Preferred: false
 
 Name: net/jini/id/UuidFactory$Impl.class
 Preferred: true
@@ -609,21 +609,6 @@ Name: org/apache/river/api/security/CertificateGrant.class
 Preferred: true
 
 Name: org/apache/river/api/security/ClassLoaderGrant.class
-Preferred: true
-
-Name: org/apache/river/api/security/CombinerSecurityManager$1.class
-Preferred: true
-
-Name: org/apache/river/api/security/CombinerSecurityManager$Action.class
-Preferred: true
-
-Name: org/apache/river/api/security/CombinerSecurityManager$DelegateDomainCombiner.class
-Preferred: true
-
-Name: org/apache/river/api/security/CombinerSecurityManager$DelegateProtectionDomain.class
-Preferred: true
-
-Name: org/apache/river/api/security/CombinerSecurityManager$PermissionCheck.class
 Preferred: true
 
 Name: org/apache/river/api/security/ConcurrentPermissions.class

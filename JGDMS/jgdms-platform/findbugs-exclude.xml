@@ -41,19 +41,6 @@
         <Bug pattern="SE_BAD_FIELD"/>
     </Match>
     <Match>
-        <!-- Perofrmance optimisation, Boolean reference comparisons are 
-             safe in this case, as only Boolean.FALSE and Boolean.TRUE are
-             used. -->
-        <Class name="org.apache.river.api.security.CombinerSecurityManager"/>
-        <Bug pattern="RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN"/>
-    </Match>
-    <Match>
-        <!-- // putIfAbsent: It doesn't matter if it already existed,
-                // the context we have is valid to perform a permissionCheck.-->
-        <Class name="org.apache.river.api.security.CombinerSecurityManager"/>
-        <Bug pattern="RV_RETURN_VALUE_OF_PUTIFABSENT_IGNORED"/>
-    </Match>
-    <Match>
         <!--Lease is an interface, it may be Remote or Serializable, this
             bug ignores the possiblity that it's actually Remote and not
             Serializable        -->

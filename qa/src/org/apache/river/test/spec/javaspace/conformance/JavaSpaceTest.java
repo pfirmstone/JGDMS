@@ -35,8 +35,6 @@ import net.jini.core.transaction.TransactionFactory;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.security.ProxyPreparer;
 import net.jini.space.JavaSpace;
-import org.apache.river.api.security.CombinerSecurityManager;
-import org.apache.river.tool.SecurityPolicyWriter;
 
 /**
  *
@@ -158,7 +156,7 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
         try {
             if (System.getSecurityManager() == null) {
 //		System.setSecurityManager(new SecurityPolicyWriter()); 
-                System.setSecurityManager(new CombinerSecurityManager());
+                /* SecurityManager selected at launch via -Djava.security.manager (no programmatic install) */;
             }
             printSpaceInfo();
             js = (JavaSpace) getManager().startService(spaceName); // prepared
