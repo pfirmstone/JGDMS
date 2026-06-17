@@ -58,8 +58,11 @@ class ProxySerializer implements Serializable {
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
-    private static final ObjectStreamField[] serialPersistentFields = 
-	serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(BOOTSTRAP_PROXY, CodebaseAccessor.class),
+        new ObjectStreamField(SERVICE_PROXY, MarshalledInstance.class)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

@@ -358,7 +358,11 @@ public final class HttpsEndpoint
      *		    The socket factory for creating sockets, or
      *		    <code>null</code> to use default sockets.
      */
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("serverHost", String.class),
+        new ObjectStreamField("port", int.class),
+        new ObjectStreamField("socketFactory", SocketFactory.class)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

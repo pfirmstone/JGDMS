@@ -40,8 +40,13 @@ public class StackTraceElementSerializer implements Serializable {
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
-    private static final ObjectStreamField[] serialPersistentFields 
-            = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("declaringClass", String.class),
+        new ObjectStreamField("methodName", String.class),
+        new ObjectStreamField("fileName", String.class),
+        new ObjectStreamField("lineNumber", int.class)
+    };
     
     private static final String DECLARING_CLASS = "declaringClass";
     private static final String METHOD_NAME = "methodName";
@@ -61,7 +66,16 @@ public class StackTraceElementSerializer implements Serializable {
         putArgs(args, obj);
         args.writeArgs();
     }
-    
+
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    private static void putArgs(AtomicSerial.PutArg pf, StackTraceElementSerializer obj) {
+        pf.put(DECLARING_CLASS, obj.declaringClass);
+	pf.put(METHOD_NAME, obj.methodName);
+	pf.put(FILE_NAME, obj.fileName);
+	pf.put(LINE_NUMBER, obj.lineNumber);
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     private static void putArgs(ObjectOutputStream.PutField pf, StackTraceElementSerializer obj) {
         pf.put(DECLARING_CLASS, obj.declaringClass);
 	pf.put(METHOD_NAME, obj.methodName);

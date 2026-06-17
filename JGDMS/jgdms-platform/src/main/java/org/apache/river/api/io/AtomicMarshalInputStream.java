@@ -1174,21 +1174,33 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 //        return fields.toArray(new ObjectStreamField[fields.size()]);
     }
     
+    /**
+     * Converts a {@link SerialForm} array to an {@link ObjectStreamField} array.
+     * JOSS-bridge adapter: SerialForm no longer extends ObjectStreamField (sec4.1).
+     */
+    static ObjectStreamField[] toOSF(SerialForm[] sf) {
+        ObjectStreamField[] osf = new ObjectStreamField[sf.length];
+        for (int i = 0; i < sf.length; i++) {
+            osf[i] = new ObjectStreamField(sf[i].getName(), sf[i].getType(), sf[i].isUnshared());
+        }
+        return osf;
+    }
+
     private ObjectStreamField [] fields(Class clz) throws IOException{
         try {
             Method m = clz.getMethod("serialForm", EMPTY_CONSTRUCTOR_PARAM_TYPES);
             int modifiers = m.getModifiers();
             if (Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers) && m.getReturnType() == SerialForm [].class){
-                ObjectStreamField [] fields = (ObjectStreamField[]) m.invoke(null, (Object []) null);
-                Arrays.sort(fields);
-                return fields;
+                SerialForm[] serialForms = (SerialForm[]) m.invoke(null, (Object []) null);
+                Arrays.sort(serialForms);
+                return toOSF(serialForms);
             }
         } catch (NoSuchMethodException ex) {
             //TODO enable logger
 //            Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, "@AtomicSerial class is missing public static method serialPersistent fields", ex);
         } catch (Exception ex) {
             throw new IOException("Unable to access serialForm method" , ex);
-        } 
+        }
         return new ObjectStreamField[0];
     }
     

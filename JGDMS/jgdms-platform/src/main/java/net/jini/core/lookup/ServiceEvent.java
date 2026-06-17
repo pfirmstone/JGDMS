@@ -56,18 +56,31 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
     private static final String SERVICE_ID = "serviceID";
     private static final String TRANSITION = "transition";
     
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final java.io.ObjectStreamField[] serialPersistentFields = {
+        new java.io.ObjectStreamField(SERVICE_ID, ServiceID.class),
+        new java.io.ObjectStreamField(TRANSITION, Long.TYPE)
+    };
+
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm(SERVICE_ID, ServiceID.class),
             new SerialForm(TRANSITION, Long.TYPE)
         };
     }
-    
+
     public static void serialize(PutArg arg, ServiceEvent e) throws IOException{
         putArgs(arg, e);
         arg.writeArgs();
     }
-    
+
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    private static void putArgs(PutArg field, ServiceEvent e){
+        field.put(SERVICE_ID, e.serviceID);
+        field.put(TRANSITION, e.transition);
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     private static void putArgs(PutField field, ServiceEvent e){
         field.put(SERVICE_ID, e.serviceID);
         field.put(TRANSITION, e.transition);

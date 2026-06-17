@@ -45,8 +45,10 @@ public class TimeoutExpiredException extends TransactionException {
      * so only ref id's will be sent, the objects these fields refer to will
      * only be sent once.
      */
-    private static final ObjectStreamField[] serialPersistentFields = 
-	serialForm(); 
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("committed", Boolean.TYPE)
+    };
 
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

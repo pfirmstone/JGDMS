@@ -65,8 +65,13 @@ final class PermissionSerializer implements Serializable, Resolve {
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
-    private static final ObjectStreamField[] serialPersistentFields = 
-	serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(TARGET_TYPE, Class.class),
+        new ObjectStreamField(UNRESOLVED_TYPE, String.class),
+        new ObjectStreamField(TARGET_NAME, String.class),
+        new ObjectStreamField(TARGET_ACTIONS, String.class)
+    };
     
     public static SerialForm [] serialForm(){
         return new SerialForm []{
@@ -81,7 +86,16 @@ final class PermissionSerializer implements Serializable, Resolve {
         putArgs(args, obj);
         args.writeArgs();
     }
-    
+
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    private static void putArgs(AtomicSerial.PutArg pf, PermissionSerializer obj) {
+        pf.put("targetType", obj.targetType);
+	pf.put("unresolvedtype", obj.unresolvedType);
+	pf.put("targetName", obj.targetName);
+	pf.put("targetActions", obj.targetActions);
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     private static void putArgs(ObjectOutputStream.PutField pf, PermissionSerializer obj) {
         pf.put("targetType", obj.targetType);
 	pf.put("unresolvedtype", obj.unresolvedType);

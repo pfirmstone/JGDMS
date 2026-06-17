@@ -58,7 +58,8 @@ public class SerializableTestObjectNoFields implements Serializable {
         return new SerialForm[]{};
     }
     
-    private static final ObjectStreamField [] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {};
 
     public static void serialize(PutArg args, SerializableTestObjectNoFields obj) throws IOException {
         System.out.println("writing fields directly to stream");

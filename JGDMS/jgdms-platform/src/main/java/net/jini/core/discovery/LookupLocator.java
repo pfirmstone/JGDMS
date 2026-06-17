@@ -77,8 +77,12 @@ import org.apache.river.api.net.Uri;
 @AtomicSerial
 public class LookupLocator implements Serializable {
     private static final long serialVersionUID = 1448769379829432795L;
-    private static final ObjectStreamField[] serialPersistentFields = 
-            serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("host", String.class),
+        new ObjectStreamField("port", Integer.TYPE),
+        new ObjectStreamField("scheme", String.class)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

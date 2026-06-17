@@ -65,8 +65,11 @@ public final class StringMethodConstraints
     /**
      * @serialField descs MethodDesc[] The ordered method descriptors.
      */
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
-    
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("descs", StringMethodDesc[].class, true)
+    };
+
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("descs", StringMethodDesc[].class, true)
@@ -112,9 +115,13 @@ public final class StringMethodConstraints
 	 * The non-empty constraints for the specified method or methods, or
 	 * <code>null</code> if there are no constraints.
 	 */
-	private static final ObjectStreamField[] serialPersistentFields = 
-                serialForm();
-        
+        // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+	private static final ObjectStreamField[] serialPersistentFields = {
+            new ObjectStreamField("name", String.class),
+            new ObjectStreamField("types", String[].class, true),
+            new ObjectStreamField("constraints", InvocationConstraints.class)
+        };
+
         public static SerialForm [] serialForm(){
             return new SerialForm[]{
                 new SerialForm("name", String.class),

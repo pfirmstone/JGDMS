@@ -358,26 +358,39 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
         currentPutField = new EmulatedFieldsForDumping(this, fields(currentClass.forClass()));
     }
     
+    /**
+     * Converts a {@link SerialForm} array to an {@link ObjectStreamField} array.
+     * This is the JOSS-bridge adapter: SerialForm is no longer a subtype of
+     * ObjectStreamField (sec4.1 neutral types), so we convert at the JOSS boundary.
+     */
+    private static ObjectStreamField[] toOSF(SerialForm[] sf) {
+        ObjectStreamField[] osf = new ObjectStreamField[sf.length];
+        for (int i = 0; i < sf.length; i++) {
+            osf[i] = new ObjectStreamField(sf[i].getName(), sf[i].getType(), sf[i].isUnshared());
+        }
+        return osf;
+    }
+
     private ObjectStreamField [] fields(Class clz) throws IOException{
         if (Proxy.class.equals(clz)){
-            return new SerialForm[]{
+            return toOSF(new SerialForm[]{
                 new SerialForm("h", InvocationHandler.class)
-            };
+            });
         }
         try {
             Method m = clz.getMethod("serialForm", new Class [0]);
             int modifiers = m.getModifiers();
             if (Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers) && m.getReturnType() == SerialForm [].class){
 //                System.out.println("Invoking serialForm method on " + clz);
-                ObjectStreamField [] fields = (ObjectStreamField[]) m.invoke(null, (Object []) null);
-                Arrays.sort(fields);
-                return fields;
+                SerialForm [] serialForms = (SerialForm[]) m.invoke(null, (Object []) null);
+                Arrays.sort(serialForms);
+                return toOSF(serialForms);
             }
         } catch (NoSuchMethodException ex) {
             Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, "@AtomicSerial class is missing public static method serialForm", ex);
         } catch (Exception ex) {
             throw new IOException("Unable to access serialForm method" , ex);
-        } 
+        }
         return new ObjectStreamField [0];
     }
 

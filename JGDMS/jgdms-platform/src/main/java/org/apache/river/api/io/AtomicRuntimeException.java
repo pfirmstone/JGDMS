@@ -39,13 +39,13 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 public abstract class AtomicRuntimeException extends RuntimeException {
     private static final long serialVersionUID = 1L;
     
-    /**
-     * In earlier versions the extra fields will duplicate those of Throwable,
-     * so only ref id's will be sent, so the objects these fields refer to will
-     * only be sent once.
-     */
-    private static final ObjectStreamField[] serialPersistentFields = 
-	serialForm(); 
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("message", String.class),
+        new ObjectStreamField("cause", Throwable.class),
+        new ObjectStreamField("stack", StackTraceElement[].class),
+        new ObjectStreamField("suppressed", Throwable[].class)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
@@ -60,7 +60,18 @@ public abstract class AtomicRuntimeException extends RuntimeException {
         putFields(arg, e);
         arg.writeArgs();
     }
-    
+
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    private static void putFields(PutArg pf, AtomicRuntimeException e){
+        pf.put("message", e.getMessage());
+	Throwable cause = e.getCause();
+	if (cause == e) cause = null;
+	pf.put("cause", cause);
+	pf.put("stack", e.getStackTrace());
+	pf.put("suppressed", e.getSuppressed());
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     private static void putFields(ObjectOutputStream.PutField pf, AtomicRuntimeException e){
         pf.put("message", e.getMessage());
 	Throwable cause = e.getCause();

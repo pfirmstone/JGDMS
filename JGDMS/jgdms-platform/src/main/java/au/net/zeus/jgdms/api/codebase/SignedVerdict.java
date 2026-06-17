@@ -74,8 +74,13 @@ public final class SignedVerdict implements Serializable {
     private static final String TIMESTAMP      = "timestamp";
     private static final String SIGNATURE      = "signature";
 
-    @SuppressWarnings("unused")
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(CODEBASE_URLS, String[].class),
+        new ObjectStreamField(VERDICT,       VerdictType.class),
+        new ObjectStreamField(TIMESTAMP,     Long.TYPE),
+        new ObjectStreamField(SIGNATURE,     byte[].class)
+    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {

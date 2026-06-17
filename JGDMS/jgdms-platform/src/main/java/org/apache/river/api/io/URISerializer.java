@@ -43,8 +43,10 @@ public class URISerializer implements Serializable {
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
-    private static final ObjectStreamField[] serialPersistentFields = 
-	serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("uriExternalForm", String.class)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
@@ -56,7 +58,13 @@ public class URISerializer implements Serializable {
         putArgs(arg, u);
         arg.writeArgs();
     }
-    
+
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    private static void putArgs(PutArg pf, URISerializer u){
+        pf.put("uriExternalForm", u.uriExternalForm);
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     private static void putArgs(ObjectOutputStream.PutField pf, URISerializer u){
         pf.put("uriExternalForm", u.uriExternalForm);
     }

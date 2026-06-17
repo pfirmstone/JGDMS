@@ -53,9 +53,6 @@ public class ThrowableSerializer implements Serializable, Resolve {
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
-    private static final ObjectStreamField[] serialPersistentFields
-            = serialForm();
-    
     /**
      * Serial argument / field names
      */
@@ -67,6 +64,18 @@ public class ThrowableSerializer implements Serializable, Resolve {
     private static final String CLASSNAME = "classname";
     private static final String LENGTH = "length";
     private static final String EOF = "eof";
+
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(CLASS, Class.class),
+        new ObjectStreamField(MESSAGE, String.class),
+        new ObjectStreamField(CAUSE, Throwable.class),
+        new ObjectStreamField(STACK, StackTraceElement[].class),
+        new ObjectStreamField(SUPPRESSED, Throwable[].class),
+        new ObjectStreamField(CLASSNAME, String.class),
+        new ObjectStreamField(LENGTH, int.class),
+        new ObjectStreamField(EOF, boolean.class),
+    };
     
     public static SerialForm [] serialForm(){
         return new SerialForm []{
@@ -85,7 +94,20 @@ public class ThrowableSerializer implements Serializable, Resolve {
         putArgs(args, obj);
         args.writeArgs();
     }
-    
+
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    private static void putArgs(AtomicSerial.PutArg pf, ThrowableSerializer obj) {
+        pf.put(CLASS, obj.clazz);
+	pf.put(MESSAGE, obj.message);
+	pf.put(CAUSE, obj.cause);
+	pf.put(STACK, obj.stack);
+	pf.put(SUPPRESSED, obj.suppressed);
+        pf.put(CLASSNAME, obj.classname);
+        pf.put(LENGTH, obj.length);
+        pf.put(EOF, obj.eof);
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     private static void putArgs(ObjectOutputStream.PutField pf, ThrowableSerializer obj) {
         pf.put(CLASS, obj.clazz);
 	pf.put(MESSAGE, obj.message);

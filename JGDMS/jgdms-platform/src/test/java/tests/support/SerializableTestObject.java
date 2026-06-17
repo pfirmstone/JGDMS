@@ -79,14 +79,39 @@ public class SerializableTestObject implements Serializable {
         };
     }
     
-    private static final ObjectStreamField [] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(TEST_STR, String.class),
+        new ObjectStreamField(TEST_ARRY, long[].class),
+        new ObjectStreamField(TEST_INT, int.class),
+        new ObjectStreamField(TEST_BYTE, byte.class),
+        new ObjectStreamField(TEST_BOOLEAN, boolean.class),
+        new ObjectStreamField(TEST_CHAR, char.class),
+        new ObjectStreamField(TEST_SHORT, short.class),
+        new ObjectStreamField(TEST_LONG, long.class),
+        new ObjectStreamField(TEST_FLOAT, float.class),
+        new ObjectStreamField(TEST_DOUBLE, double.class)
+    };
 
     public static void serialize(PutArg args, SerializableTestObject obj) throws IOException {
         System.out.println("writing fields to stream");
         putArgs(args, obj);
         args.writeArgs();
     }
-    
+
+    public static void putArgs(PutArg args, SerializableTestObject obj) throws IOException {
+        args.put(TEST_STR, obj.str);
+        args.put(TEST_ARRY, obj.longs);
+        args.put(TEST_INT, obj.integer);
+        args.put(TEST_BYTE, obj.tbyte);
+        args.put(TEST_BOOLEAN, obj.bool);
+        args.put(TEST_CHAR, obj.tchar);
+        args.put(TEST_SHORT, obj.tshort);
+        args.put(TEST_LONG, obj.tlong);
+        args.put(TEST_FLOAT, obj.tfloat);
+        args.put(TEST_DOUBLE, obj.tdouble);
+    }
+
     public static void putArgs(PutField args, SerializableTestObject obj) throws IOException {
         args.put(TEST_STR, obj.str);
         args.put(TEST_ARRY, obj.longs);
@@ -99,7 +124,7 @@ public class SerializableTestObject implements Serializable {
         args.put(TEST_FLOAT, obj.tfloat);
         args.put(TEST_DOUBLE, obj.tdouble);
     }
-    
+
     private void writeObject(ObjectOutputStream out) throws IOException {
         putArgs(out.putFields(), this);
         out.writeFields();

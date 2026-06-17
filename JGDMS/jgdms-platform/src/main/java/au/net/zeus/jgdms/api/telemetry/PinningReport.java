@@ -95,8 +95,15 @@ public final class PinningReport implements Serializable {
     private static final String PERIOD_START_MS = "periodStartMs";
     private static final String PERIOD_END_MS   = "periodEndMs";
 
-    @SuppressWarnings("unused")
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(CODEBASE_URLS,   String[].class),
+        new ObjectStreamField(PINNED_NANOS,    Long.TYPE),
+        new ObjectStreamField(EVENT_COUNT,     Long.TYPE),
+        new ObjectStreamField(PERIOD_START_MS, Long.TYPE),
+        new ObjectStreamField(PERIOD_END_MS,   Long.TYPE)
+    };
+
 
     // -------------------------------------------------------------------------
     // @AtomicSerial protocol

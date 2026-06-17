@@ -60,9 +60,11 @@ import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.io.MarshalInputStream;
+import net.jini.io.MarshalledInstance;
 import net.jini.io.MarshalOutputStream;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
@@ -899,6 +901,11 @@ public class BasicInvocationHandler
 		    integrity = true;
 		} else if ( c == AtomicInputValidation.YES){
 		    atomicValidation = true;
+		} else if (c instanceof MarshallingFormat) {
+		    // STD-008 sec.18.3: MarshallingFormat is an invocation-layer constraint
+		    // (the transport defers it). It is satisfied iff this proxy's configured
+		    // codec produces that format; otherwise the requirement cannot be met.
+		    requireMarshallingFormat((MarshallingFormat) c);
 		} else if (!(c instanceof Integrity) && !(c instanceof AtomicInputValidation)) {
 		    throw new UnsupportedConstraintException(
 			"cannot satisfy unfulfilled constraint: " + c);
@@ -1183,6 +1190,36 @@ public class BasicInvocationHandler
 	} catch (Exception e) {
 	    throw new UndeclaredThrowableException(
 		e, "exception constructing invocation handler");
+	}
+    }
+
+    /**
+     * Returns the wire marshalling-format identifier this handler's codec produces and
+     * consumes (a {@link MarshallingFormat} payload id, STD-008 sec.18.3). The base
+     * handler uses Java Object Serialization ({@link MarshalledInstance#FORMAT_JOSS});
+     * {@code AtomicDerInvocationHandler} overrides this to return the JGDMS-STD-006/DER
+     * format. Used to satisfy or reject an in-band {@link MarshallingFormat} requirement.
+     *
+     * @return the payload-format identifier; never {@code null}.
+     */
+    protected String marshallingFormat() {
+	return MarshalledInstance.FORMAT_JOSS;
+    }
+
+    /**
+     * Verifies that a required {@link MarshallingFormat} matches this proxy's configured
+     * codec ({@link #marshallingFormat()}). The marshalling format is fixed by the proxy's
+     * invocation-layer configuration (the {@link InvocationLayerFactory}), so a mismatched
+     * requirement cannot be satisfied at runtime -- fail-fast with
+     * {@link UnsupportedConstraintException}.
+     */
+    private void requireMarshallingFormat(MarshallingFormat c)
+	throws UnsupportedConstraintException
+    {
+	if (!marshallingFormat().equals(c.getFormat())) {
+	    throw new UnsupportedConstraintException(
+		"cannot satisfy required " + c + "; this proxy's marshalling format is "
+		+ marshallingFormat());
 	}
     }
 

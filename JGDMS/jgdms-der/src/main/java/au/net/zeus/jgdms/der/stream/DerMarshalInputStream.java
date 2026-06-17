@@ -1,0 +1,403 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package au.net.zeus.jgdms.der.stream;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InvalidObjectException;
+import java.io.NotActiveException;
+import java.io.ObjectInput;
+import java.io.ObjectInputValidation;
+import java.util.Objects;
+import org.apache.river.api.io.AtomicObjectInput;
+
+/**
+ * DER decoding implementation of {@link ObjectInput} (JGDMS-STD-008 sec.15.1,
+ * Increment 1).
+ *
+ * <h2>Direct interface implementation</h2>
+ * <p>
+ * This class implements {@link java.io.ObjectInput} <em>directly</em> -- it does NOT
+ * extend {@link java.io.ObjectInputStream}. Per STD-008 sec.15.1, the DER streams must
+ * not carry any Java Object Serialization machinery. The JERI contract depends only on
+ * the {@code ObjectOutput}/{@code ObjectInput} interfaces; implementing them directly is
+ * cleaner and aligns with the 4.0.0 "no Java Serialization" thesis.
+ *
+ * <h2>Initialisation</h2>
+ * <p>
+ * The constructor reads ALL bytes from the supplied {@link InputStream} eagerly into a
+ * buffer and feeds them to {@link DerObjectStreamCodec}. This is safe because a DER stream
+ * is a bounded call-buffer (the caller has already framed the data); a streaming approach
+ * would require additional framing beyond the DER TLV layer.
+ *
+ * <h2>Typed primitives (positional, sec.15.2)</h2>
+ * <p>
+ * Each typed read decodes the next DER TLV from the buffer and range-checks the value
+ * against the target type. INTEGER values that do not fit the target type are rejected
+ * with {@link IOException} (overflow, per STD-006). The reader must be called in the
+ * same positional order as the corresponding writes.
+ *
+ * <h2>{@code float}/{@code double}/{@code char}</h2>
+ * <p>
+ * {@link #readFloat}, {@link #readDouble}, and {@link #readChar} decode with the strict
+ * canonical rules of STD-008 sec.17.3 (S7.6 lifted): non-canonical NaN, {@code -0.0} bits,
+ * wrong length, and surrogate/out-of-range codepoints are rejected fail-secure.
+ * {@link #readLine} and {@link #skipBytes}/{@link #skip} throw
+ * {@link UnsupportedOperationException} (not used by JERI unmarshalling).
+ *
+ * <h2>Atomic per-object validation ({@link AtomicObjectInput})</h2>
+ * <p>
+ * This stream implements {@link AtomicObjectInput} (STD-008 sec.18.2): the DER codec
+ * validates every {@code @AtomicSerial} object atomically during construction (its
+ * {@code check(GetArg)} runs before the object is returned, and the codec only constructs
+ * {@code @AtomicSerial}-annotated classes -- no arbitrary gadget graphs), so no
+ * partially-constructed object can escape. Implementing this marker makes a DER-exported
+ * service satisfy a {@link net.jini.core.constraint.AtomicInputValidation#YES} requirement,
+ * and lets the JERI in-band reader ({@code Util.unmarshalValue}) and
+ * {@code MarshalledInstance.get} route DER object reads through the type-checked
+ * {@link #readObject(Class)}.
+ *
+ * @see DerMarshalOutputStream
+ * @see DerObjectStreamCodec
+ */
+public final class DerMarshalInputStream implements AtomicObjectInput {
+
+    private final DerObjectStreamCodec codec;
+    private final InputStream underlying;
+
+    /**
+     * Constructs a DER object-stream reader over {@code in}.
+     * <p>
+     * All bytes are read eagerly from {@code in} and handed to the codec.
+     * No Java Object Serialization header is expected.
+     *
+     * @param in the source of DER-encoded data (must not be null)
+     * @throws IOException if reading from {@code in} fails
+     */
+    public DerMarshalInputStream(InputStream in) throws IOException {
+        this.underlying = Objects.requireNonNull(in, "in");
+        byte[] buf = in.readAllBytes();
+        this.codec = new DerObjectStreamCodec();
+        this.codec.initReader(buf);
+    }
+
+    // =========================================================================
+    // Object reading (self-describing, sec.15.2)
+    // =========================================================================
+
+    /**
+     * Reads the next self-describing object item from the DER stream.
+     * <p>
+     * Dispatches on the context tag. See {@link DerObjectStreamCodec} for the tag-to-kind
+     * table. Returns {@code null} for a [0] NULL item.
+     *
+     * @return the decoded object (may be null)
+     * @throws IOException if the stream is malformed
+     * @throws ClassNotFoundException if an {@code @AtomicSerial} class named in the schema
+     *                                cannot be loaded
+     */
+    @Override
+    public Object readObject() throws ClassNotFoundException, IOException {
+        return codec.readObject();
+    }
+
+    /**
+     * Reads the next self-describing object and verifies its runtime type is assignable to
+     * {@code type} (the {@link AtomicObjectInput} contract, STD-008 sec.18.2).
+     *
+     * <p>The DER codec only constructs {@code @AtomicSerial}-annotated classes, each
+     * validated atomically by its {@code check(GetArg)} during construction, so no
+     * partially-constructed object can escape; this method then rejects a fully-validated
+     * result whose type is not the one the caller expected. A {@code null} item (DER NULL)
+     * is returned as {@code null}.
+     *
+     * @param <T>  the expected type
+     * @param type the expected class (must not be null)
+     * @return the decoded object, cast to {@code T}, or {@code null}
+     * @throws InvalidObjectException if the decoded object is not assignable to {@code type}
+     * @throws IOException            if the stream is malformed
+     * @throws ClassNotFoundException if a class named in the embedded schema cannot be loaded
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T readObject(Class<T> type) throws IOException, ClassNotFoundException {
+        Objects.requireNonNull(type, "type");
+        Object obj = codec.readObject();
+        if (obj != null && !type.isInstance(obj)) {
+            throw new InvalidObjectException(
+                    "DER stream: decoded object of type " + obj.getClass().getName()
+                    + " is not assignable to expected type " + type.getName());
+        }
+        return (T) obj;
+    }
+
+    /**
+     * No-op. The DER path performs atomic per-object validation inline during construction
+     * (each {@code @AtomicSerial} object's {@code check(GetArg)} runs before it is returned);
+     * post-deserialization validation callbacks are not used (mirrors
+     * {@code DerMarshalInstanceInput}). Provided to satisfy the {@link AtomicObjectInput}
+     * contract.
+     */
+    @Override
+    public void registerValidation(ObjectInputValidation object, int priority)
+            throws NotActiveException, InvalidObjectException {
+        // DER does not use post-deserialization validation callbacks.
+    }
+
+    // =========================================================================
+    // Typed primitive reads (positional, DER-decoded)
+    // =========================================================================
+
+    /** Reads a DER BOOLEAN TLV and returns the value. */
+    @Override
+    public boolean readBoolean() throws IOException {
+        return codec.readBoolean();
+    }
+
+    /**
+     * Reads a DER INTEGER TLV and returns it as a {@code byte}.
+     * Throws {@link IOException} if the value is outside [-128, 127].
+     */
+    @Override
+    public byte readByte() throws IOException {
+        return codec.readByte();
+    }
+
+    /**
+     * Reads a DER INTEGER TLV and returns it as an unsigned byte (0-255).
+     * Derives from {@link #readByte()}.
+     */
+    @Override
+    public int readUnsignedByte() throws IOException {
+        return codec.readByte() & 0xFF;
+    }
+
+    /**
+     * Reads a DER INTEGER TLV and returns it as a {@code short}.
+     * Throws {@link IOException} if the value is outside [-32768, 32767].
+     */
+    @Override
+    public short readShort() throws IOException {
+        return codec.readShort();
+    }
+
+    /**
+     * Reads a DER INTEGER TLV and returns it as an unsigned short (0-65535).
+     * Derives from {@link #readShort()}.
+     */
+    @Override
+    public int readUnsignedShort() throws IOException {
+        return codec.readShort() & 0xFFFF;
+    }
+
+    /**
+     * Reads a DER INTEGER TLV and returns it as an {@code int}.
+     * Throws {@link IOException} if the value does not fit in an int.
+     */
+    @Override
+    public int readInt() throws IOException {
+        return codec.readInt();
+    }
+
+    /**
+     * Reads a DER INTEGER TLV and returns it as a {@code long}.
+     * Throws {@link IOException} if the value does not fit in a long.
+     */
+    @Override
+    public long readLong() throws IOException {
+        return codec.readLong();
+    }
+
+    /** Strict canonical IEEE-754 decode (STD-008 sec.17.3.1; S7.6 lifted). */
+    @Override
+    public float readFloat() throws IOException {
+        return codec.readFloat();
+    }
+
+    /** Strict canonical IEEE-754 decode (STD-008 sec.17.3.1; S7.6 lifted). */
+    @Override
+    public double readDouble() throws IOException {
+        return codec.readDouble();
+    }
+
+    /** Unicode codepoint INTEGER decode (STD-008 sec.17.3.2; S7.6 lifted). */
+    @Override
+    public char readChar() throws IOException {
+        return codec.readChar();
+    }
+
+    /**
+     * Reads a DER UTF8String TLV and returns the decoded string.
+     * <p>
+     * This is the positional inverse of {@link DerMarshalOutputStream#writeUTF(String)}.
+     * It is NOT self-describing -- the reader must know to call {@code readUTF} at this
+     * position.
+     */
+    @Override
+    public String readUTF() throws IOException {
+        return codec.readUTF();
+    }
+
+    /**
+     * Throws {@link UnsupportedOperationException}: deprecated and not used by JERI.
+     */
+    @Override
+    public String readLine() throws IOException {
+        throw new UnsupportedOperationException(
+                "DER stream: readLine() is deprecated and not supported");
+    }
+
+    // =========================================================================
+    // Byte-array reads
+    // =========================================================================
+
+    /**
+     * Reads a DER OCTET STRING TLV and copies the content into {@code buf}.
+     * <p>
+     * Expects exactly {@code buf.length} bytes in the OCTET STRING.
+     *
+     * @param buf destination array (must not be null)
+     * @throws IOException if the OCTET STRING length does not match {@code buf.length}
+     */
+    @Override
+    public void readFully(byte[] buf) throws IOException {
+        Objects.requireNonNull(buf, "buf");
+        byte[] decoded = codec.readOctetString();
+        if (decoded.length != buf.length) {
+            throw new IOException("readFully: expected " + buf.length
+                    + " bytes but decoded OCTET STRING has " + decoded.length);
+        }
+        System.arraycopy(decoded, 0, buf, 0, buf.length);
+    }
+
+    /**
+     * Reads a DER OCTET STRING TLV and copies the content into {@code buf[off..off+len-1]}.
+     * <p>
+     * Expects exactly {@code len} bytes in the OCTET STRING.
+     *
+     * @param buf destination array
+     * @param off offset into buf
+     * @param len expected number of bytes
+     * @throws IOException on length mismatch or decode error
+     */
+    @Override
+    public void readFully(byte[] buf, int off, int len) throws IOException {
+        Objects.requireNonNull(buf, "buf");
+        byte[] decoded = codec.readOctetString();
+        if (decoded.length != len) {
+            throw new IOException("readFully(off,len): expected " + len
+                    + " bytes but decoded OCTET STRING has " + decoded.length);
+        }
+        System.arraycopy(decoded, 0, buf, off, len);
+    }
+
+    /**
+     * Reads a DER OCTET STRING TLV and copies its content into {@code buf}.
+     * Returns the number of bytes copied (the full OCTET STRING length, or -1 at
+     * end of stream).
+     *
+     * @param buf destination array
+     * @return bytes copied, or -1 if no more data is available
+     * @throws IOException on decode error
+     */
+    @Override
+    public int read(byte[] buf) throws IOException {
+        Objects.requireNonNull(buf, "buf");
+        if (codec.available() == 0) return -1;
+        byte[] decoded = codec.readOctetString();
+        int n = Math.min(decoded.length, buf.length);
+        System.arraycopy(decoded, 0, buf, 0, n);
+        return n;
+    }
+
+    /**
+     * Reads a DER OCTET STRING TLV and copies up to {@code len} bytes into
+     * {@code buf[off..]}.
+     *
+     * @param buf destination array
+     * @param off offset
+     * @param len max bytes to copy
+     * @return bytes copied, or -1 at end of stream
+     * @throws IOException on decode error
+     */
+    @Override
+    public int read(byte[] buf, int off, int len) throws IOException {
+        Objects.requireNonNull(buf, "buf");
+        if (codec.available() == 0) return -1;
+        byte[] decoded = codec.readOctetString();
+        int n = Math.min(decoded.length, len);
+        System.arraycopy(decoded, 0, buf, off, n);
+        return n;
+    }
+
+    /**
+     * Reads a single byte (inverse of {@link DerMarshalOutputStream#write(int)}).
+     * <p>
+     * The value is returned as an unsigned int (0-255) or -1 at end of stream.
+     *
+     * @return the byte value as an unsigned int (0-255), or -1 at end of stream
+     * @throws IOException on decode error
+     */
+    @Override
+    public int read() throws IOException {
+        if (codec.available() == 0) return -1;
+        return codec.readSingleByte();
+    }
+
+    /**
+     * Throws {@link UnsupportedOperationException}: skip is not used by JERI unmarshalling;
+     * positional DER streams cannot meaningfully skip typed values.
+     */
+    @Override
+    public long skip(long n) throws IOException {
+        throw new UnsupportedOperationException(
+                "DER stream: skip() not supported on positional DER stream");
+    }
+
+    /**
+     * Throws {@link UnsupportedOperationException}: skipBytes is not used by JERI unmarshalling.
+     */
+    @Override
+    public int skipBytes(int n) throws IOException {
+        throw new UnsupportedOperationException(
+                "DER stream: skipBytes() not supported on positional DER stream");
+    }
+
+    /**
+     * Returns a non-zero value if there is more data available, zero otherwise.
+     * Used by callers to check end-of-stream before attempting a read.
+     */
+    @Override
+    public int available() throws IOException {
+        return codec.available();
+    }
+
+    // =========================================================================
+    // Close
+    // =========================================================================
+
+    /**
+     * Closes the underlying input stream.
+     *
+     * @throws IOException if closing the underlying stream throws
+     */
+    @Override
+    public void close() throws IOException {
+        underlying.close();
+    }
+}

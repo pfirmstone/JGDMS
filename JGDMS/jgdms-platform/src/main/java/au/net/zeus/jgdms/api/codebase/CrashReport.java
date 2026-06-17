@@ -86,8 +86,14 @@ public final class CrashReport implements Serializable {
     private static final String STDERR_SUMMARY = "stderrSummary";
     private static final String SIGNATURE      = "signature";
 
-    @SuppressWarnings("unused")
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(CODEBASE_URLS,  String[].class),
+        new ObjectStreamField(EXIT_CODE,      Integer.TYPE),
+        new ObjectStreamField(INCARNATION,    Long.TYPE),
+        new ObjectStreamField(STDERR_SUMMARY, String.class),
+        new ObjectStreamField(SIGNATURE,      byte[].class)
+    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
