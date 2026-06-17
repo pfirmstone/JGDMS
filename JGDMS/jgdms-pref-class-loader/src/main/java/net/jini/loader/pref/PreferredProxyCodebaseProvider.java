@@ -814,15 +814,40 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                 cs = new CodeSource(jarUrl, (java.security.cert.Certificate[]) null);
             }
 
-            ProtectionDomain pd = new ProtectionDomain(cs, null, null, principals);
-            boolean denied;
+            ProtectionDomain digestPd = new ProtectionDomain(cs, null, null, principals);
+            boolean granted;
             try {
-                Security.checkPermission(bootPerm, pd);
-                denied = false;
+                // Preferred (stronger) form: the policy grants BootstrapPermission
+                // scoped to this JAR's cryptographic digest (a DigestGrant).
+                Security.checkPermission(bootPerm, digestPd);
+                granted = true;
             } catch (SecurityException e) {
-                denied = true;
+                granted = false;
             }
-            if (denied) {
+            if (!granted) {
+                // Honour a non-digest BootstrapPermission grant.  The installed
+                // policy may grant BootstrapPermission by URL or unconditionally
+                // rather than by JAR digest; a digest-bearing DigestCodeSource
+                // domain does not pick up such grants.  Re-check against a plain
+                // CodeSource so the policy is honoured rather than silently
+                // overridden into a breakage.  Running without digest-scoped
+                // grants is weaker and not recommended, hence the WARNING.
+                ProtectionDomain plainPd = new ProtectionDomain(
+                        new CodeSource(jarUrl, (java.security.cert.Certificate[]) null),
+                        null, null, principals);
+                try {
+                    Security.checkPermission(bootPerm, plainPd);
+                    granted = true;
+                    logger.log(Level.WARNING,
+                           "Boot window: JAR {0} permitted by a non-digest"
+                           + " BootstrapPermission grant (digest-scoped grants are"
+                           + " recommended); codebase: {1}; SHA-256: {2}",
+                           new Object[]{jarUrl, path, hashLog});
+                } catch (SecurityException e) {
+                    granted = false;
+                }
+            }
+            if (!granted) {
                 logger.log(Level.SEVERE,
                        "Boot window: JAR denied BootstrapPermission (digest/URL check);"
                        + " refusing codebase: {0}; jar: {1}; SHA-256: {2}",
