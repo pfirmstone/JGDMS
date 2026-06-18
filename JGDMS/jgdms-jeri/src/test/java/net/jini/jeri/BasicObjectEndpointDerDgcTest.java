@@ -16,6 +16,10 @@
  */
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
+import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputValidation;
@@ -41,16 +45,14 @@ import org.junit.Test;
  * {@code null} the live reference registers on the {@link DeserializationCompletion}
  * context element instead.
  *
- * <p>These tests drive the constructor directly with a fake {@code GetArg} that models the
+ * <p>The first three tests drive the constructor with a fake {@code GetArg} that models the
  * DER path (no reader; a recording {@code DeserializationCompletion} in the object-stream
- * context), and do not fire the batched dirty ({@code endDecodeUnit}/{@code close}), which
- * would attempt a real network {@code registerRefs}. A fake {@code GetArg} is used because a
- * full DER round-trip of a real {@code BasicObjectEndpoint} is not yet possible: its
- * interface-typed {@code ep} field now encodes, but its {@code id} field's runtime type
- * {@code net.jini.id.UuidFactory$Impl} lacks a {@code serialize(PutArg)} DER write contract.
- * The interface-typed-field mechanism is covered by
- * {@code au.net.zeus.jgdms.der.object.InterfaceFieldRoundTripTest}; the end-of-decode-unit
- * firing by {@code au.net.zeus.jgdms.der.stream.DerDecodeUnitContextTest}.
+ * context); the last does a real DER encode/decode round-trip of a DGC-enabled
+ * {@code BasicObjectEndpoint} (now possible: its interface-typed {@code ep} field travels by
+ * runtime concrete type, and its {@code @Stateless} {@code Uuid} encodes as an empty leaf).
+ * None fire the batched dirty ({@code endDecodeUnit}/{@code close}), which would attempt a
+ * real network {@code registerRefs}; the end-of-decode-unit firing is covered, network-free,
+ * by {@code au.net.zeus.jgdms.der.stream.DerDecodeUnitContextTest}.
  */
 public class BasicObjectEndpointDerDgcTest {
 
@@ -93,13 +95,35 @@ public class BasicObjectEndpointDerDgcTest {
                 0, completion.registrationCount);
     }
 
-    // NOTE: a full real DER round-trip of a BasicObjectEndpoint is not yet possible. The
-    // interface-typed 'ep' field now encodes (SchemaGenerator polymorphic @AtomicSerial
-    // slot), but its 'id' field's runtime type net.jini.id.UuidFactory$Impl is @AtomicSerial
-    // WITHOUT a serialize(PutArg) DER write contract (and TcpEndpoint's chain is unverified),
-    // so encode fails deeper in the graph. Making the JERI proxy graph fully DER-serializable
-    // is a separate workstream; the interface-field step is proven by
-    // au.net.zeus.jgdms.der.object.InterfaceFieldRoundTripTest.
+    /**
+     * End-to-end: a DGC-enabled BasicObjectEndpoint encodes and decodes over the real DER
+     * wire without the NPE -- its interface-typed Endpoint 'ep' field travels by runtime
+     * concrete @AtomicSerial type (TcpEndpoint), and its @Stateless Uuid id
+     * (net.jini.id.UuidFactory$Impl) now encodes as an empty leaf over the Uuid base. The
+     * decode registers the batched dirty on the stream's decode-unit token; the stream is
+     * left unclosed so the dirty is not fired (which would hit the network).
+     */
+    @Test
+    public void dgcEnabled_realDerRoundTrip_noNpe() throws Exception {
+        BasicObjectEndpoint original = new BasicObjectEndpoint(EP, ID, true);
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (DerMarshalOutputStream out = new DerMarshalOutputStream(baos)) {
+            out.writeObject(original);
+        }
+
+        // Not closed on purpose: close()/endDecodeUnit() would flush the batched dirty and
+        // attempt a real network registerRefs. readObject() exercises the (formerly NPEing)
+        // DGC registration path end-to-end.
+        DerMarshalInputStream in =
+                new DerMarshalInputStream(new ByteArrayInputStream(baos.toByteArray()));
+        Object decoded = in.readObject();
+
+        Assert.assertTrue("decoded object must be a BasicObjectEndpoint",
+                decoded instanceof BasicObjectEndpoint);
+        Assert.assertEquals("DGC endpoint must round-trip over DER", original, decoded);
+        Assert.assertNotSame("decoded endpoint must be a distinct instance", original, decoded);
+    }
 
     /** Records {@code registerCompletion} calls; never fires (no network). */
     private static final class RecordingCompletion implements DeserializationCompletion {

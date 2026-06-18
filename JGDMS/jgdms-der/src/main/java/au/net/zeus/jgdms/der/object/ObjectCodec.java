@@ -495,6 +495,13 @@ public final class ObjectCodec {
         Objects.requireNonNull(declaringClass, "declaringClass");
         Objects.requireNonNull(schema, "schema");
 
+        // A @Stateless @AtomicSerial class has no serial fields and (per the annotation
+        // contract) implements no serialize(PutArg); it contributes an empty private
+        // SEQUENCE. Its schema record likewise has no fields (see SchemaGenerator).
+        if (declaringClass.isAnnotationPresent(AtomicSerial.Stateless.class)) {
+            return DerWriter.writeSequence(Collections.emptyList());
+        }
+
         // @AtomicSerial WRITE contract: the class declares its serial form via its own
         // serialize(PutArg) method. The codec NEVER reflects on private fields (that would
         // imitate Java Object Serialization and reintroduce its security problems); a class
@@ -653,20 +660,28 @@ public final class ObjectCodec {
     // =========================================================================
 
     /**
-     * Finds and returns the {@code public C(AtomicSerial.GetArg)} constructor,
+     * Finds and returns the {@code C(AtomicSerial.GetArg)} deserialization constructor,
      * making it accessible.
+     *
+     * <p>The constructor need NOT be public: an {@code @AtomicSerial} deserialization
+     * constructor is conventionally non-public (package-private or protected) because it
+     * is invoked only by the deserialization framework, never by user code (e.g.
+     * {@code net.jini.jeri.BasicObjectEndpoint}'s is package-private). This mirrors the
+     * JOSS/atomic path, which likewise reaches the declared constructor via
+     * {@code setAccessible}. The security boundary is unchanged: only {@code @AtomicSerial}
+     * classes are ever constructed, and {@code check(GetArg)} still runs first.
      */
     @SuppressWarnings("unchecked")
     private static <T> Constructor<T> findGetArgConstructor(Class<T> clazz)
             throws DerException {
         try {
-            Constructor<T> ctor = clazz.getConstructor(AtomicSerial.GetArg.class);
+            Constructor<T> ctor = clazz.getDeclaredConstructor(AtomicSerial.GetArg.class);
             ctor.setAccessible(true);
             return ctor;
         } catch (NoSuchMethodException ex) {
             throw new DerException(
                     "Class " + clazz.getName()
-                    + " has no public (AtomicSerial.GetArg) constructor");
+                    + " has no (AtomicSerial.GetArg) deserialization constructor");
         }
     }
 

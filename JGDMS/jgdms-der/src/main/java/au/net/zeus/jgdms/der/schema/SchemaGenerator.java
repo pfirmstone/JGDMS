@@ -103,7 +103,15 @@ public final class SchemaGenerator {
             throws DerException {
         Objects.requireNonNull(atomicSerialClass, "atomicSerialClass");
 
-        AtomicSerial.SerialForm[] serialForm = invokeSerialForm(atomicSerialClass);
+        // A @Stateless @AtomicSerial class (e.g. a trivial preferred-class subclass such as
+        // net.jini.id.UuidFactory$Impl, or a no-extra-state Throwable like LeaseException)
+        // "has no arguments, Objects or data to write to the stream" and, per the annotation
+        // contract, implements neither serialize(PutArg) nor serialForm(). It contributes an
+        // empty namespace (no fields); the codec must not require serialForm() from it.
+        AtomicSerial.SerialForm[] serialForm =
+                atomicSerialClass.isAnnotationPresent(AtomicSerial.Stateless.class)
+                        ? new AtomicSerial.SerialForm[0]
+                        : invokeSerialForm(atomicSerialClass);
 
         List<AtomicSerialFieldDef> fields = new ArrayList<>(serialForm.length);
         for (AtomicSerial.SerialForm sf : serialForm) {
