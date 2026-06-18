@@ -380,17 +380,19 @@ public @interface AtomicSerial {
     public static abstract class GetArg implements ObjectStreamContext {
 
 	/**
-         * Not intended for general construction, however may be extended
-         * by an ObjectInput implementation or for testing purposes.
-         *
-         * @throws SecurityException if caller doesn't have permission java.io.SerializablePermission "enableSubclassImplementation";
-         * // SPIKE-TODO sec4.4: replace SerializablePermission guard with AtomicSerialPermission
-         */
+	 * Not intended for general construction, however may be extended
+	 * by an ObjectInput implementation or for testing purposes.
+	 * <p>
+	 * As of the 4.0.0 Java-Serialization uncoupling this constructor is a
+	 * no-op: the {@code SerializablePermission("enableSubclassImplementation")}
+	 * guard has been dropped. The typed {@code get} accessors are {@code final}
+	 * and memoize per {@code (callerClass, name)} (see {@link #lookup}), so an
+	 * untrusted {@code GetArg} subclass cannot return one value to a class's
+	 * {@code check(GetArg)} invariant check and a different value to its
+	 * {@code (GetArg)} constructor; idempotency makes check-then-construct sound
+	 * without a subclass-construction permission.
+	 */
 	protected GetArg() {
-	    this(Check.check());
-	}
-
-	GetArg(boolean check){
 	}
 
 	/**
@@ -817,16 +819,14 @@ public @interface AtomicSerial {
     public static abstract class PutArg implements ObjectStreamContext {
 
 	/**
-         * To be implemented by a Serialization framework.
-         *
-         * @throws SecurityException if caller doesn't have permission java.io.SerializablePermission "enableSubclassImplementation";
-         * // SPIKE-TODO sec4.4: replace SerializablePermission guard with AtomicSerialPermission
-         */
+	 * To be implemented by a Serialization framework.
+	 * <p>
+	 * As of the 4.0.0 Java-Serialization uncoupling this constructor is a
+	 * no-op: the {@code SerializablePermission("enableSubclassImplementation")}
+	 * guard has been dropped (the same guard was removed from {@link GetArg} --
+	 * see that constructor for the idempotency rationale).
+	 */
 	protected PutArg() {
-	    this(Check.check());
-	}
-
-        PutArg(boolean check){
 	}
 
         /**

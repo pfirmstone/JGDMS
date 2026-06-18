@@ -48,7 +48,7 @@ class EmulatedFieldsForDumping extends PutArg {
      *            (names, types, etc).
      */
     EmulatedFieldsForDumping(ObjOutputStream oos, ObjectStreamField [] streamFields) {
-        super(false); // Use package-private bypass -- no SerializablePermission needed for JOSS-internal class
+        super(); // protected PutArg() is a no-op since the 4.0.0 guard drop.
         emulatedFields = new EmulatedFields(streamFields);
         this.oos = oos;
         fields = 0;

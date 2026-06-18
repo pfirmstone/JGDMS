@@ -57,7 +57,7 @@ class GetArgImpl extends AtomicSerial.GetArg {
     final ObjectInput in;
 
     GetArgImpl(Map<Class, ObjectInputStream.GetField> args, Map<Class, AtomicSerial.ReadObject> readers, ObjectInput in) {
-	super(false); // Avoids permission check.
+	super(); // protected GetArg() is a no-op since the 4.0.0 guard drop.
 	classFields = args;
 	this.readers = readers;
 	this.in = in;

@@ -60,7 +60,7 @@ public class GetArgIdempotencyTest {
         private final Class<?> caller;
 
         HostileGetArg(Class<?> caller) {
-            super(false); // package-private bypass (same package); not under test here
+            super(); // protected GetArg() is a no-op since the 4.0.0 guard drop
             this.caller = caller;
         }
 

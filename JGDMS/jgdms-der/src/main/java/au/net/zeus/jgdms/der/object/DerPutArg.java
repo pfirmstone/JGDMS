@@ -42,10 +42,11 @@ import org.apache.river.api.io.AtomicSerial;
  * by design.
  *
  * <p>Construction goes through the {@code protected PutArg()} ctor, which (like
- * {@code DerGetArg}'s use of {@code protected GetArg()}) performs the
- * {@code SerializablePermission("enableSubclassImplementation")} check under an
- * active {@code SecurityManager}; both guards are removed by the 4.0.0
- * Java-Serialization uncoupling.
+ * {@code DerGetArg}'s use of {@code protected GetArg()}) is a no-op as of the
+ * 4.0.0 Java-Serialization uncoupling: the
+ * {@code SerializablePermission("enableSubclassImplementation")} guard has been
+ * dropped (idempotency of the memoizing GetArg accessors makes check-then-construct
+ * sound without it).
  */
 final class DerPutArg extends AtomicSerial.PutArg {
 
