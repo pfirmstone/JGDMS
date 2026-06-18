@@ -65,8 +65,12 @@ public class EntryClass implements Serializable {
     private static final String SUPERCLASS = "superclass";
     private static final String NUM_FIELDS = "numFields";
     
-    private static final ObjectStreamField[] serialPersistentFields = 
-        serialForm();
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(NAME, String.class),
+        new ObjectStreamField(HASH, Long.TYPE),
+        new ObjectStreamField(SUPERCLASS, EntryClass.class),
+        new ObjectStreamField(NUM_FIELDS, Integer.TYPE)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
