@@ -26,6 +26,7 @@ import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.DeSerializationPermission;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -36,13 +37,21 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigInteger;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.Permission;
+import java.security.PrivilegedAction;
+import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import net.jini.io.context.DeserializationCompletion;
 
 /**
@@ -123,6 +132,63 @@ public final class ObjectCodec {
      */
     public static final int MAX_NESTING = 16;
 
+    /**
+     * The {@link DeSerializationPermission} required for a protection domain to
+     * participate in {@code @AtomicSerial} de-serialization via the DER path.
+     */
+    private static final Permission ATOMIC = new DeSerializationPermission("ATOMIC");
+
+    /**
+     * Per-class {@code DeSerializationPermission("ATOMIC")} gate (STD-008): before
+     * any {@code @AtomicSerial (GetArg)} constructor runs, every class in the
+     * hierarchy whose constructor will execute must have
+     * {@code DeSerializationPermission("ATOMIC")} granted to its protection domain.
+     * This is the DER-path counterpart of {@code AtomicMarshalInputStream}'s
+     * per-class check ({@code ObjectStreamClassContainer.deSerializationPermitted(ATOMIC)}):
+     * it lets a deployment restrict which classes may be reconstructed from an
+     * untrusted stream, independent of the parameter objects (which are validated
+     * separately by each class's {@code check(GetArg)}). No-op when no
+     * {@link SecurityManager} is installed.
+     *
+     * @param classes the {@code @AtomicSerial} classes about to be constructed
+     */
+    private static void checkAtomicDeSerializationPermitted(Collection<Class<?>> classes) {
+        checkAtomicDeSerializationPermitted(classes, System.getSecurityManager());
+    }
+
+    /**
+     * Testable seam for {@link #checkAtomicDeSerializationPermitted(Collection)}:
+     * the {@link SecurityManager} is passed in so the gate can be exercised with a
+     * denying / permitting manager without installing one process-wide (which
+     * Java&nbsp;21 forbids at runtime unless started with
+     * {@code -Djava.security.manager=allow}). The permission is checked against an
+     * {@link AccessControlContext} built from the protection domains of the classes
+     * being decoded (so the grant must sit with the class's codebase, not the
+     * caller's).
+     *
+     * @param classes the {@code @AtomicSerial} classes about to be constructed
+     * @param sm      the active security manager, or {@code null}
+     * @throws SecurityException if {@code sm} denies
+     *         {@code DeSerializationPermission("ATOMIC")} for the classes' domains
+     */
+    @SuppressWarnings("removal")
+    static void checkAtomicDeSerializationPermitted(Collection<Class<?>> classes,
+                                                    SecurityManager sm) {
+        if (sm == null) return;
+        AccessControlContext ctx = AccessController.doPrivileged(
+                (PrivilegedAction<AccessControlContext>) () -> {
+                    Set<ProtectionDomain> domains = new LinkedHashSet<>();
+                    for (Class<?> c : classes) {
+                        if (c == null) continue;
+                        ProtectionDomain pd = c.getProtectionDomain();
+                        if (pd != null) domains.add(pd);
+                    }
+                    return new AccessControlContext(
+                            domains.toArray(new ProtectionDomain[0]));
+                });
+        sm.checkPermission(ATOMIC, ctx);
+    }
+
     private ObjectCodec() {
         throw new AssertionError("no instances");
     }
@@ -166,7 +232,8 @@ public final class ObjectCodec {
         map.put(clazz, store);
         DerGetArg arg = new DerGetArg(map);
 
-        // 3. Find and invoke the (GetArg) constructor
+        // 3. Per-class DeSerializationPermission("ATOMIC") gate, then construct
+        checkAtomicDeSerializationPermitted(map.keySet());
         Constructor<T> ctor = findGetArgConstructor(clazz);
         try {
             return ctor.newInstance(arg);
@@ -422,6 +489,10 @@ public final class ObjectCodec {
 
         // Assemble the multi-entry DerGetArg (superclass-first insertion order)
         DerGetArg arg = new DerGetArg(storeMap, 0, decodeUnit);
+
+        // Per-class DeSerializationPermission("ATOMIC") gate: every @AtomicSerial
+        // class in the hierarchy whose (GetArg) constructor will run must be permitted.
+        checkAtomicDeSerializationPermitted(storeMap.keySet());
 
         // Invoke the CONSTRUCT CLASS's (GetArg) constructor -- it chains up via super(check(arg)).
         // For all-@AtomicSerial hierarchies (Phase 4.3) this is the same as the old leafClass.
@@ -1214,6 +1285,9 @@ public final class ObjectCodec {
         }
 
         DerGetArg arg = new DerGetArg(storeMap, depth, decodeUnit);
+
+        // Per-class DeSerializationPermission("ATOMIC") gate (nested decode path too).
+        checkAtomicDeSerializationPermitted(storeMap.keySet());
 
         @SuppressWarnings("unchecked")
         Constructor<? extends T> ctor = (Constructor<? extends T>)

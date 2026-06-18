@@ -17,7 +17,6 @@
 
 package au.net.zeus.jgdms.der.object;
 
-import java.io.ObjectOutput;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -42,10 +41,11 @@ import org.apache.river.api.io.AtomicSerial;
  * by design.
  *
  * <p>Construction goes through the {@code protected PutArg()} ctor, which (like
- * {@code DerGetArg}'s use of {@code protected GetArg()}) performs the
- * {@code SerializablePermission("enableSubclassImplementation")} check under an
- * active {@code SecurityManager}; both guards are removed by the 4.0.0
- * Java-Serialization uncoupling.
+ * {@code DerGetArg}'s use of {@code protected GetArg()}) is a no-op as of the
+ * 4.0.0 Java-Serialization uncoupling: the
+ * {@code SerializablePermission("enableSubclassImplementation")} guard has been
+ * dropped (idempotency of the memoizing GetArg accessors makes check-then-construct
+ * sound without it).
  */
 final class DerPutArg extends AtomicSerial.PutArg {
 
@@ -108,13 +108,6 @@ final class DerPutArg extends AtomicSerial.PutArg {
     @Override
     public void writeArgs() {
         // No-op: put(name, value) already captured every field.
-    }
-
-    @Override
-    public ObjectOutput output() {
-        throw new UnsupportedOperationException(
-                "DerPutArg exposes no ObjectOutput; the DER encoder reads captured values, "
-                + "it does not stream");
     }
 
     @Override

@@ -19,7 +19,6 @@ package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
@@ -32,8 +31,6 @@ import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.lease.AbstractLease;
 import org.apache.river.lease.ID;
@@ -52,15 +49,18 @@ public abstract class RegistrarLease extends AbstractLease implements ReferentUu
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("server", Registrar.class),
-            new SerialForm("leaseID", Uuid.class)
+            new SerialForm("leaseID", Uuid.class),
+            new SerialForm("registrarIDMostSig", Long.TYPE),
+            new SerialForm("registrarIDLeastSig", Long.TYPE)
         };
     }
-    
+
     public static void serialize(PutArg arg, RegistrarLease rl) throws IOException{
         arg.put("server", rl.server);
         arg.put("leaseID", rl.leaseID);
+        arg.put("registrarIDMostSig", rl.registrarID.getMostSignificantBits());
+        arg.put("registrarIDLeastSig", rl.registrarID.getLeastSignificantBits());
         arg.writeArgs();
-        rl.registrarID.writeBytes(arg.output());
     }
 
     /**
@@ -80,19 +80,9 @@ public abstract class RegistrarLease extends AbstractLease implements ReferentUu
      */
     final Uuid leaseID;
 
-    /**
-     * Called reflectively by AtomicSerial serializer framework.
-     * @return 
-     */
-    @ReadInput
-    private static ReadObject getRO(){
-	return new RO();
-    }
-    
     private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	Registrar server = (Registrar) arg.get("server", null);
 	Uuid leaseID = (Uuid) arg.get("leaseID", null);
-	RO r = (RO) arg.getReader();
 	if (server == null) {
 	    throw new InvalidObjectException("null server");
 	} else if (leaseID == null) {
@@ -100,12 +90,14 @@ public abstract class RegistrarLease extends AbstractLease implements ReferentUu
 	}
 	return arg;
     }
-    
+
     RegistrarLease(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	server = (Registrar) arg.get("server", null);
 	leaseID = (Uuid) arg.get("leaseID", null);
-	registrarID = ((RO) arg.getReader()).registrarID;
+	registrarID = new ServiceID(
+		arg.get("registrarIDMostSig", 0L),
+		arg.get("registrarIDLeastSig", 0L));
     }
 
 
@@ -220,17 +212,6 @@ public abstract class RegistrarLease extends AbstractLease implements ReferentUu
 	} else if (leaseID == null) {
 	    throw new InvalidObjectException("null leaseID");
 	}
-    }
-
-    private static class RO implements ReadObject{
-	
-	ServiceID registrarID;
-
-	@Override
-	public void read(ObjectInput in) throws IOException, ClassNotFoundException {
-	    registrarID = new ServiceID(in);
-	}
-	
     }
 
     /**

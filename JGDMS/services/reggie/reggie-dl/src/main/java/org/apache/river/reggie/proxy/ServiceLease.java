@@ -19,7 +19,6 @@ package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
@@ -31,8 +30,6 @@ import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
@@ -50,11 +47,16 @@ public class ServiceLease extends RegistrarLease {
     private static final String LEASE_TYPE = "service";   
     
     public static SerialForm[] serialForm(){
-        return new SerialForm[]{};
+        return new SerialForm[]{
+            new SerialForm("serviceIDMostSig", Long.TYPE),
+            new SerialForm("serviceIDLeastSig", Long.TYPE)
+        };
     }
-    
+
     public static void serialize(PutArg arg, ServiceLease sl) throws IOException{
-        sl.serviceID.writeBytes(arg.output());
+        arg.put("serviceIDMostSig", sl.serviceID.getMostSignificantBits());
+        arg.put("serviceIDLeastSig", sl.serviceID.getLeastSignificantBits());
+        arg.writeArgs();
     }
 
     /**
@@ -79,20 +81,11 @@ public class ServiceLease extends RegistrarLease {
 		server, registrarID, serviceID, leaseID, expiration);
     }
 
-    @ReadInput
-    private static ReadObject getRO(){
-	return new RO();
-    }
-    
-    private static GetArg check(GetArg arg){
-	RO r = (RO) arg.getReader();
-	if (r.serviceID == null) throw new NullPointerException();
-	return arg;
-    }
-    
     ServiceLease(GetArg arg) throws IOException, ClassNotFoundException{
-	super(check(arg));
-	serviceID = ((RO) arg.getReader()).serviceID;
+	super(arg);
+	serviceID = new ServiceID(
+		arg.get("serviceIDMostSig", 0L),
+		arg.get("serviceIDLeastSig", 0L));
     }
     
     /** Constructor for use by getInstance(), ConstrainableServiceLease. */
@@ -162,14 +155,4 @@ public class ServiceLease extends RegistrarLease {
 	throw new InvalidObjectException("no data");
     }
     
-    private static class RO implements ReadObject{
-	
-	ServiceID serviceID;
-
-	@Override
-	public void read(ObjectInput input) throws IOException, ClassNotFoundException {
-	    serviceID = new ServiceID(input);
-}
-	
-    }
 }
