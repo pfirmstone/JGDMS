@@ -36,7 +36,7 @@ excluding a class's own inner classes):
 |---|---|---|---|
 | `net.jini.security.proxytrust.ProxyTrustExporter` | ~~static `Executor` pool + mutable statics (PREFER)~~ **RESOLVED 2026-06-18** | **0** | **fixed lock-free** (see below) — now SHARE, no relocation needed |
 | `net.jini.id.UuidFactory` | ~~`synchronized(lock)` + `SecureRandom` (PREFER)~~ **RESOLVED 2026-06-18** | 1 — `ConfigUtil` (`create(String)` only) | **lock dropped; shared `SecureRandom` kept by design; deliberate-share override** (§2b) |
-| `net.jini.core.constraint.DelegationAbsoluteTime` | `static synchronized getFormatter()` (**CONFLICT**, `@AtomicSerial` wire type) | 3 (`ConstraintTrustVerifier`, `DelegationRelativeTime`, `Plaintext`) | **stays** — must keep wire identity; remedy is lock-free (`ThreadLocal<SimpleDateFormat>`) |
+| `net.jini.core.constraint.DelegationAbsoluteTime` | ~~`static synchronized getFormatter()` (CONFLICT, `@AtomicSerial` wire type)~~ **RESOLVED 2026-06-18** | 3 | **fixed lock-free** (§2c) — `SimpleDateFormat` → shared immutable `DateTimeFormatter`; now a normal cross-boundary SHARE |
 | `net.jini.export.ServerContext`, `net.jini.security.policy.PolicyFileProvider`, `org.apache.river.api.security.DelegatePermission` | benign bare-lock cache / (a) (**review**) | 0 | movable but **not motivated** (no real isolation hazard) |
 | `Constants`(8), `ClassLoading`(5), `Security`(15), `Service`(9), `DiscoveryV2`(1), `ObjectStreamClassContainer`(3), `OSGiServiceIterator`(1) | review | ≥1 | stay (core infra) |
 
@@ -82,6 +82,19 @@ platform needs no preferred classes. A refinement for the `-dl` rollout: "static
 `SecureRandom` field ⇒ prefer" is override territory in a vthread world, not an
 automatic prefer.
 
+## 2c. DelegationAbsoluteTime — resolved lock-free (2026-06-18)
+
+Its only hazard was a `static synchronized getFormatter()` caching a
+non-thread-safe `SimpleDateFormat` (used solely by `toString()`). Replaced with a
+single shared, immutable, thread-safe `java.time.format.DateTimeFormatter` — no
+lock, no `SoftReference` cache, no per-thread state.
+(`appendValue(MILLI_OF_SECOND, 4)` reproduces the old `"SSSS"` output exactly;
+verified byte-identical.) Neither `ThreadLocal` nor `ScopedValue` fits a
+`toString()` leaf with no binding scope (see
+[[jgdms-no-threadlocal-virtual-threads]]). With the lock and the mutable
+`formatterRef` gone, the class has no hazard — it is **no longer a CONFLICT**,
+just a normal cross-boundary SHARE. The platform CONFLICT bucket is now empty.
+
 ## 4. Recommended next steps
 
 1. **`ProxyTrustExporter`**: ~~confirm topology / relocate~~ **done** — fixed
@@ -89,11 +102,11 @@ automatic prefer.
 2. **`UuidFactory`**: ~~assess / move~~ **done** — lock dropped, shared
    `SecureRandom` kept by design, recorded as a deliberate-share override (§2b).
    Platform's emitted `PREFERRED.LIST` is now empty.
-3. **Platform list**: now empty and override-backed; the gate enforces it. Could
-   still be deleted entirely once the tool is also pointed at the `-dl` modules.
-4. **`DelegationAbsoluteTime`**: apply the lock-free `getFormatter()` fix
-   (`ThreadLocal<SimpleDateFormat>`; SOW §2 conflict bucket) — the last open
-   platform hazard, a CONFLICT (cross-boundary wire type, must stay shared).
+3. **`DelegationAbsoluteTime`**: ~~apply lock-free fix~~ **done** — shared
+   immutable `DateTimeFormatter` (§2c); no longer a CONFLICT, now a normal SHARE.
+4. **Platform list**: all three platform hazards are resolved, so no class is
+   preferred — the emitted list is empty and override-backed, and the gate
+   enforces it. It could be deleted entirely once the tool also targets `-dl`.
 5. **Roll the analyzer across the `-dl` modules** (SOW §7) with finding #1's
    fuller cross-boundary resolution (classpath supertype lookup) in place, and
    treat a shared `SecureRandom` field as override territory, not auto-prefer.

@@ -20,12 +20,13 @@ had drifted on 256 classes). The two flagged isolation hazards were then fixed a
 the source: `ProxyTrustExporter` made lock-free with `java.lang.ref.Cleaner`, and
 `UuidFactory`'s redundant lazy-init lock dropped (its shared `SecureRandom` kept
 by design and recorded as a deliberate share in `jgdms-platform`'s
-`META-INF/preferred-overrides.txt`). So the **emitted `PREFERRED.LIST` is now
-empty** (platform needs no preferred classes), and the build enforces that with
-`check --overrides --fail-on-drift`. The only remaining flagged class is the
-CONFLICT `DelegationAbsoluteTime` (a cross-boundary wire type — fix is lock-free,
-not prefer). Snapshot outputs and the overrides are in [`samples/`](samples) and
-[the platform overrides file](../../jgdms-platform/src/main/resources/META-INF/preferred-overrides.txt).
+`META-INF/preferred-overrides.txt`); and `DelegationAbsoluteTime`'s `static
+synchronized getFormatter()`/`SimpleDateFormat` replaced with a shared immutable
+`DateTimeFormatter` (so it is no longer a CONFLICT — the CONFLICT bucket is now
+empty). So the **emitted `PREFERRED.LIST` is now empty** (no `jgdms-platform`
+class needs isolating), and the build enforces that with `check --overrides
+--fail-on-drift`. Snapshot outputs and the overrides are in [`samples/`](samples)
+and [the platform overrides file](../../jgdms-platform/src/main/resources/META-INF/preferred-overrides.txt).
 
 ## Decision model
 

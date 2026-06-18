@@ -130,14 +130,27 @@ public class JgdmsPlatformGroundTruthTest {
                 + "{UuidFactory}, was:" + names, 1, prefer);
     }
 
-    // ---- §8 CONFLICT (must share; lock-free TODO) -------------------------
+    // ---- §8 CONFLICT bucket -- resolved lock-free -------------------------
 
     @Test
-    public void delegationAbsoluteTimeIsConflict() {
+    public void delegationAbsoluteTimeSharesAfterFormatterFix() {
+        // The §8 audit flagged this as CONFLICT (static synchronized
+        // getFormatter() on a cross-boundary @AtomicSerial wire type). The
+        // non-thread-safe SimpleDateFormat was replaced with a shared immutable
+        // DateTimeFormatter, removing the lock; with no hazard it now simply
+        // SHAREs (no longer a CONFLICT), staying a normal cross-boundary type.
         ClassDecision d = get("net/jini/core/constraint/DelegationAbsoluteTime");
-        assertEquals(Decision.CONFLICT, d.getAnalysisDecision());
+        assertEquals(Decision.SHARE, d.getAnalysisDecision());
         assertTrue(d.isCrossBoundary());
-        assertTrue(FixtureSupport.hasKind(d, HazardKind.STATIC_SYNCHRONIZED_METHOD));
+        assertFalse(FixtureSupport.hasKind(d, HazardKind.STATIC_SYNCHRONIZED_METHOD));
+    }
+
+    @Test
+    public void platformHasNoConflicts() {
+        for (ClassDecision d : byName.values()) {
+            assertFalse("unexpected CONFLICT: " + d.getInternalName(),
+                    d.getAnalysisDecision() == Decision.CONFLICT);
+        }
     }
 
     // ---- §8 SHARE ---------------------------------------------------------

@@ -3,9 +3,9 @@ Preferred-Class Analysis Report
 
 Analyzed classes : 618
   PREFER (true)  : 1
-  SHARE  (false) : 616
-  CONFLICT       : 1  (must share, yet contends -- lock-free remedy needed)
-  needs review   : 12
+  SHARE  (false) : 617
+  CONFLICT       : 0  (must share, yet contends -- lock-free remedy needed)
+  needs review   : 11
   overrides      : 1
 
 -- PREFER (isolate; Preferred: true) ----------------------------------
@@ -14,10 +14,7 @@ net.jini.id.UuidFactory
     (B) CONTENDED_STATIC_FIELD: static field secureRandom of contended type java.security.SecureRandom
 
 -- CONFLICT (must share; needs lock-free remedy; do NOT prefer) ------
-
-net.jini.core.constraint.DelegationAbsoluteTime
-    cross-boundary: [@AtomicSerial wire type, implements java.io.Serializable (wire value type)]
-    (B) STATIC_SYNCHRONIZED_METHOD: static synchronized method getFormatter()Ljava/text/SimpleDateFormat;
+  (none)
 
 -- NEEDS REVIEW (defaulted to SHARE; override to prefer if deliberate) -
 
