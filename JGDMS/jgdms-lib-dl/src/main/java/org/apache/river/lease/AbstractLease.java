@@ -20,21 +20,15 @@ package org.apache.river.lease;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
-import java.io.ObjectOutputStream.PutField;
 import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
-import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
@@ -54,20 +48,26 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
-            new SerialForm("serialFormat", Integer.TYPE)
+            new SerialForm("serialFormat", Integer.TYPE),
+            new SerialForm("expiration", Long.TYPE)
         };
     }
-    
+
     public static void serialize(PutArg arg, AbstractLease al) throws IOException{
-        writeObj(arg, arg.output(), al);
+        int format = al.serialFormat;
+        arg.put("serialFormat", format);
+        arg.put("expiration", adjustedVal(format, al.expiration));
+        arg.writeArgs();
     }
-    
-    private static void writeObj(PutField pf, ObjectOutput stream, AbstractLease al)
-            throws IOException{
-        int format;
-	long val;
-	    format = al.serialFormat;
-	    val = al.expiration;
+
+    /**
+     * Converts an absolute expiration to the value placed on the wire: the
+     * relative duration when {@code serialFormat} is {@link Lease#DURATION},
+     * the absolute expiration when {@link Lease#ABSOLUTE}. Shared by the
+     * {@code @AtomicSerial} write path and the JOSS {@code writeObject}.
+     */
+    private static long adjustedVal(int format, long expiration){
+        long val = expiration;
 	if (format == Lease.DURATION) {
 	    long exp = val;
 	    val -= System.currentTimeMillis();
@@ -76,13 +76,7 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
 	    if (exp < 0 && val > 0)
 		val = Long.MIN_VALUE;
 	}
-	pf.put("serialFormat", format);
-        if (pf instanceof PutArg){
-            ((PutArg)pf).writeArgs();
-        } else if (stream instanceof ObjectOutputStream){
-            ((ObjectOutputStream)stream).writeFields();
-        }
-	stream.writeLong(val);
+	return val;
     }
 
     /**
@@ -100,20 +94,9 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
      */
     protected volatile int serialFormat = Lease.DURATION;
 
-    /**
-     * Called reflectively by AtomicSerial serializer framework.
-     * @return 
-     */
-    @ReadInput
-    private static ReadObject getRO(){
-	return new RO();
-    }
-    
     private static long checkExpiration(GetArg arg) throws IOException, ClassNotFoundException{
 	int serialFormat = arg.get("serialFormat", Lease.DURATION);
-	RO r = (RO)arg.getReader();
-	if (r.readNotCalled) throw new InvalidObjectException("ReadObject wasn't called");
-	long val = r.val;
+	long val = arg.get("expiration", 0L);
 	if (serialFormat == Lease.DURATION) {
 	    long dur = val;
 	    val += System.currentTimeMillis();
@@ -199,7 +182,12 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
      * is ABSOLUTE, or the relative duration if serialFormat is DURATION
      */
     private void writeObject(ObjectOutputStream stream) throws IOException {
-	writeObj(stream.putFields(), stream, this);
+	int format = this.serialFormat;
+	long val = adjustedVal(format, this.expiration);
+	ObjectOutputStream.PutField pf = stream.putFields();
+	pf.put("serialFormat", format);
+	stream.writeFields();
+	stream.writeLong(val);
     }
 
     /**
@@ -235,17 +223,5 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
 	    throw new InvalidObjectException("invalid serial format");
 	}
 	expiration = val;
-    }
-    
-    private static class RO implements ReadObject{
-	
-	long val;
-	boolean readNotCalled = true;
-
-	@Override
-	public void read(ObjectInput stream) throws IOException, ClassNotFoundException {
-	    val = stream.readLong();
-	    readNotCalled = false;
-}
     }
 }

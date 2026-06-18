@@ -19,7 +19,6 @@ package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Proxy;
@@ -32,12 +31,9 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.export.ProxyAccessor;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
@@ -53,14 +49,20 @@ public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
-            new SerialForm("serviceItem", Object.class)
+            new SerialForm("serviceItem", Object.class),
+            new SerialForm("servIDMostSig", Long.TYPE),
+            new SerialForm("servIDLeastSig", Long.TYPE)
         };
     }
-    
+
     public static void serialize(PutArg arg, RegistrarEvent re) throws IOException{
         arg.put("serviceItem", re.serviceItem);
+        // servID (not the inherited, deliberately-null ServiceEvent.serviceID) is the
+        // event's service id, written as two longs (the old path wrote it as 16 raw
+        // bytes via arg.output()).
+        arg.put("servIDMostSig", re.servID.getMostSignificantBits());
+        arg.put("servIDLeastSig", re.servID.getLeastSignificantBits());
         arg.writeArgs();
-        re.serviceID.writeBytes(arg.output());
     }
 
     /**
@@ -81,27 +83,23 @@ public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
     
     private transient Proxy bootstrap;
     
-    @ReadInput
-    private static ReadObject getRO(){
-	return new RO();
-    }
-    
     private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	Object serviceItem = arg.get("serviceItem", null);
 	if (serviceItem == null ||
 	    serviceItem instanceof ServiceItem ||
 	    serviceItem instanceof Item )
 	{
-	    RO r = (RO) arg.getReader();
-	    if (r.servID instanceof ServiceID) return arg;
+	    return arg;
 	}
 	throw new InvalidObjectException("Invariants weren't satisfied");
     }
-    
+
     public RegistrarEvent(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
 	serviceItem = arg.get("serviceItem", null);
-	servID = ((RO) arg.getReader()).servID;
+	servID = new ServiceID(
+		arg.get("servIDMostSig", 0L),
+		arg.get("servIDLeastSig", 0L));
     }
 
     /**
@@ -216,13 +214,4 @@ public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
 	throw new IllegalStateException("source wasn't a service registrar proxy");
     }
     
-    private static class RO implements ReadObject {
-
-	ServiceID servID;
-	@Override
-	public void read(ObjectInput in) throws IOException, ClassNotFoundException {
-	    servID = new ServiceID(in);
-}
-	
-    }
 }

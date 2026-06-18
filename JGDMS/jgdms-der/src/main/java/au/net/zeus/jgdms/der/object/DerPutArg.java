@@ -17,7 +17,6 @@
 
 package au.net.zeus.jgdms.der.object;
 
-import java.io.ObjectOutput;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -109,13 +108,6 @@ final class DerPutArg extends AtomicSerial.PutArg {
     @Override
     public void writeArgs() {
         // No-op: put(name, value) already captured every field.
-    }
-
-    @Override
-    public ObjectOutput output() {
-        throw new UnsupportedOperationException(
-                "DerPutArg exposes no ObjectOutput; the DER encoder reads captured values, "
-                + "it does not stream");
     }
 
     @Override

@@ -16,15 +16,11 @@
 package tests.support;
 
 import java.io.IOException;
-import java.io.ObjectInput;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.util.Objects;
-import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
@@ -37,53 +33,33 @@ public class SerializableTestSubclass extends SerializableTestObject {
     private static final long serialVersionUID = 1L;
     
     public static SerialForm [] serialForm() {
-        return new SerialForm[0];
+        return new SerialForm[]{
+            new SerialForm("sto", SerializableTestObject.class)
+        };
     }
-    
+
     // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
     private static final ObjectStreamField[] serialPersistentFields = {};
-    
+
     public static void serialize(PutArg args, SerializableTestSubclass obj) throws IOException{
-        System.out.println("Writing object to stream");
-        args.output().writeObject(obj.sto);
+        args.put("sto", obj.sto);
+        args.writeArgs();
     }
-    
+
     private void writeObject(ObjectOutputStream out) throws IOException {
         out.writeObject(sto);
     }
-    
-    @ReadInput
-    public static ReadObject read(){
-        return new RO();
-    }
+
     private final SerializableTestObject sto;
 
     public SerializableTestSubclass(AtomicSerial.GetArg args) throws IOException, ClassNotFoundException {
         super(args);
-        sto = ((RO)args.getReader()).sto;
+        sto = args.get("sto", null, SerializableTestObject.class);
     }
     
     public SerializableTestSubclass(String str, long[] longs, int integer, boolean bool, byte tbyte, char tchar, short tshort, long tlong, float tfloat, double tdouble, SerializableTestObject sto) {
         super(str, longs, integer, bool, tbyte, tchar, tshort, tlong, tfloat, tdouble);
         this.sto = sto;
-    }
-
-    private static class RO implements ReadObject {
-
-        SerializableTestObject sto;
-        
-        public RO() {
-        }
-
-        @Override
-        public void read(AtomicObjectInput input) throws IOException, ClassNotFoundException {
-            sto = input.readObject(SerializableTestObject.class);
-        }
-
-        @Override
-        public void read(ObjectInput input) throws IOException, ClassNotFoundException {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
     }
 
     @Override

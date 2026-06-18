@@ -16,14 +16,12 @@
 package tests.support;
 
 import java.io.IOException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Objects;
-import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -38,41 +36,49 @@ public class SerializableTestObjectNoFields implements Serializable {
     
     private static final long serialVersionUID = 1L;
     
-    @AtomicSerial.ReadInput
-    public static AtomicSerial.ReadObject read(){
-        return new RO();
+    public static SerialForm[] serialForm() {
+        return new SerialForm[]{
+            new SerialForm("str", String.class),
+            new SerialForm("longs", long[].class),
+            new SerialForm("integer", int.class),
+            new SerialForm("bool", boolean.class),
+            new SerialForm("tbyte", byte.class),
+            new SerialForm("tchar", char.class),
+            new SerialForm("tshort", short.class),
+            new SerialForm("tlong", long.class),
+            new SerialForm("tfloat", float.class),
+            new SerialForm("tdouble", double.class)
+        };
     }
 
-    /**
-     * serialPersistentFields.
-     *
-     * This method will be used by serialization frameworks to get names and
-     * types of serial arguments. These will ensure type checking occurs during
-     * de-serialization, fields will be de-serialized and created prior to the
-     * instantiation of the parent object.
-     *
-     * @return array of SerialForm
-     * @see ObjectStreamField
-     */
-    public static SerialForm[] serialForm() {
-        return new SerialForm[]{};
-    }
-    
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {};
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1);
+    // it mirrors serialForm() here so a JOSS-written stream is also readable by the
+    // AtomicMarshalInputStream (named-field cross-protocol round-trip).
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("str", String.class),
+        new ObjectStreamField("longs", long[].class),
+        new ObjectStreamField("integer", int.class),
+        new ObjectStreamField("bool", boolean.class),
+        new ObjectStreamField("tbyte", byte.class),
+        new ObjectStreamField("tchar", char.class),
+        new ObjectStreamField("tshort", short.class),
+        new ObjectStreamField("tlong", long.class),
+        new ObjectStreamField("tfloat", float.class),
+        new ObjectStreamField("tdouble", double.class)
+    };
 
     public static void serialize(PutArg args, SerializableTestObjectNoFields obj) throws IOException {
-        System.out.println("writing fields directly to stream");
-        args.output().writeUTF(obj.str);
-        args.output().writeObject(obj.longs);
-        args.output().writeInt(obj.integer);
-        args.output().writeByte(obj.tbyte);
-        args.output().writeBoolean(obj.bool);
-        args.output().writeChar(obj.tchar);
-        args.output().writeShort(obj.tshort);
-        args.output().writeLong(obj.tlong);
-        args.output().writeFloat(obj.tfloat);
-        args.output().writeDouble(obj.tdouble);
+        args.put("str", obj.str);
+        args.put("longs", obj.longs);
+        args.put("integer", obj.integer);
+        args.put("bool", obj.bool);
+        args.put("tbyte", obj.tbyte);
+        args.put("tchar", obj.tchar);
+        args.put("tshort", obj.tshort);
+        args.put("tlong", obj.tlong);
+        args.put("tfloat", obj.tfloat);
+        args.put("tdouble", obj.tdouble);
+        args.writeArgs();
     }
 
     private String str;
@@ -94,16 +100,16 @@ public class SerializableTestObjectNoFields implements Serializable {
      * @throws ClassNotFoundException
      */
     public SerializableTestObjectNoFields(GetArg args) throws IOException, ClassNotFoundException {
-        this(((RO)args.getReader()).str,
-            ((RO)args.getReader()).longs,
-            ((RO)args.getReader()).integer,
-            ((RO)args.getReader()).bool,
-            ((RO)args.getReader()).tbyte,
-            ((RO)args.getReader()).tchar,
-            ((RO)args.getReader()).tshort,
-            ((RO)args.getReader()).tlong,
-            ((RO)args.getReader()).tfloat,
-            ((RO)args.getReader()).tdouble
+        this(args.get("str", null, String.class),
+            args.get("longs", new long[0], long[].class),
+            args.get("integer", 0),
+            args.get("bool", false),
+            args.get("tbyte", (byte) 0),
+            args.get("tchar", (char) 0),
+            args.get("tshort", (short) 0),
+            args.get("tlong", 0L),
+            args.get("tfloat", 0.0F),
+            args.get("tdouble", 0.0)
         );
     }
 
@@ -209,64 +215,10 @@ public class SerializableTestObjectNoFields implements Serializable {
     }
     
     private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException{
-        this.str = input.readUTF();
-        this.longs = (long[]) input.readObject();
-        this.integer = input.readInt();
-        this.bool = input.readBoolean();
-        this.tbyte = input.readByte();
-        this.tchar = input.readChar();
-        this.tshort = input.readShort();
-        this.tlong = input.readLong();
-        this.tfloat = input.readFloat();
-        this.tdouble = input.readDouble();
+        input.defaultReadObject();
     }
-    
+
     private void writeObject(ObjectOutputStream out) throws IOException {
-        out.writeUTF(str);
-        out.writeObject(longs);
-        out.writeInt(integer);
-        out.writeByte(tbyte);
-        out.writeBoolean(bool);
-        out.writeChar(tchar);
-        out.writeShort(tshort);
-        out.writeLong(tlong);
-        out.writeFloat(tfloat);
-        out.writeDouble(tdouble);
-    }
-
-    private static class RO implements AtomicSerial.ReadObject {
-        
-        private String str;
-        private long[] longs;
-        private int integer;
-        private boolean bool;
-        private byte tbyte;
-        private char tchar;
-        private short tshort;
-        private long tlong;
-        private float tfloat;
-        private double tdouble;
-
-        public RO() {
-        }
-
-        @Override
-        public void read(AtomicObjectInput input) throws IOException, ClassNotFoundException {
-            this.str = input.readUTF();
-            this.longs = input.readObject(long[].class).clone();
-            this.integer = input.readInt();
-            this.bool = input.readBoolean();
-            this.tbyte = input.readByte();
-            this.tchar = input.readChar();
-            this.tshort = input.readShort();
-            this.tlong = input.readLong();
-            this.tfloat = input.readFloat();
-            this.tdouble = input.readDouble();
-        }
-
-        @Override
-        public void read(ObjectInput input) throws IOException, ClassNotFoundException {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
+        out.defaultWriteObject();
     }
 }

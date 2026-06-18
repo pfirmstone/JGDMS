@@ -19,7 +19,6 @@ package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
@@ -56,8 +55,6 @@ import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.proxy.MarshalledWrapper;
 
@@ -79,14 +76,17 @@ public class RegistrarProxy
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
-            new SerialForm("server", Registrar.class)
+            new SerialForm("server", Registrar.class),
+            new SerialForm("registrarIDMostSig", Long.TYPE),
+            new SerialForm("registrarIDLeastSig", Long.TYPE)
         };
     }
-    
+
     public static void serialize(PutArg arg, RegistrarProxy rp) throws IOException{
         arg.put("server", rp.server);
+        arg.put("registrarIDMostSig", rp.registrarID.getMostSignificantBits());
+        arg.put("registrarIDLeastSig", rp.registrarID.getLeastSignificantBits());
         arg.writeArgs();
-        rp.registrarID.writeBytes(arg.output());
     }
 
     /**
@@ -112,27 +112,21 @@ public class RegistrarProxy
 	    new RegistrarProxy(server, registrarID);
     }
 
-    @ReadInput
-    private static RO getRO(){
-	return new RO();
-    }
-    
     private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{
 	Registrar server = (Registrar) arg.get("server", null);
 	if (server == null) throw new InvalidObjectException("null server");
-	RO r = (RO) arg.getReader();
-	if (r.registrarID == null) throw new InvalidObjectException("null ServiceID");
 	return true;
     }
-    
+
     RegistrarProxy(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     }
-    
+
     RegistrarProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException{
 	server = (Registrar) arg.get("server", null);
-	RO r = (RO) arg.getReader();
-	registrarID = r.registrarID;
+	registrarID = new ServiceID(
+		arg.get("registrarIDMostSig", 0L),
+		arg.get("registrarIDLeastSig", 0L));
     }
     
     /** Constructor for use by getInstance(), ConstrainableRegistrarProxy. */
@@ -380,16 +374,5 @@ public class RegistrarProxy
     @Override
     public Object getProxy() {
 	return server;
-    }
-    
-    private static class RO implements ReadObject{
-	
-	ServiceID registrarID;
-	    
-	@Override
-	public void read(ObjectInput in) throws IOException, ClassNotFoundException {
-	    registrarID = new ServiceID(in);
-}
-	
     }
 }

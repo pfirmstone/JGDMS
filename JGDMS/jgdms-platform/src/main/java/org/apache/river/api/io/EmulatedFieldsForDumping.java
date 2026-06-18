@@ -18,7 +18,6 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
-import java.io.ObjectOutput;
 import java.io.ObjectStreamField;
 import java.util.Collection;
 import java.util.Collections;
@@ -208,11 +207,6 @@ class EmulatedFieldsForDumping extends PutArg {
     public void writeArgs() throws IOException {
         oos.writeFields();
         fields = 0;
-    }
-
-    @Override
-    public ObjectOutput output() {
-        return oos;
     }
 
     @Override

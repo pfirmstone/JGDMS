@@ -21,7 +21,6 @@ import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
@@ -42,8 +41,6 @@ import net.jini.lookup.DiscoveryAdmin;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
@@ -146,14 +143,17 @@ public class AdminProxy
     
     public static SerialForm [] serialForm () {
         return new SerialForm[]{
-            new SerialForm(SERVER, Registrar.class)
+            new SerialForm(SERVER, Registrar.class),
+            new SerialForm("registrarIDMostSig", Long.TYPE),
+            new SerialForm("registrarIDLeastSig", Long.TYPE)
         };
     }
-    
+
     public static void serialize(PutArg arg, AdminProxy ap) throws IOException {
         arg.put(SERVER, ap.server);
+        arg.put("registrarIDMostSig", ap.registrarID.getMostSignificantBits());
+        arg.put("registrarIDLeastSig", ap.registrarID.getLeastSignificantBits());
         arg.writeArgs();
-        ap.registrarID.writeBytes(arg.output());
     }
 
     /**
@@ -193,25 +193,21 @@ public class AdminProxy
 	    constraints, server, methodMappings);
     }
     
-    @ReadInput
-    static RO getRO(){
-	return new RO();
-    }
-    
     private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{
 	Registrar server = (Registrar) arg.get(SERVER, null);
 	if (server == null) throw new NullPointerException();
-	if (((RO) arg.getReader()).registrarID == null) throw new NullPointerException();
 	return true;
     }
 
     AdminProxy(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     }
-    
+
     private AdminProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
 	server = (Registrar) arg.get(SERVER, null);
-	registrarID = ((RO) arg.getReader()).registrarID;
+	registrarID = new ServiceID(
+		arg.get("registrarIDMostSig", 0L),
+		arg.get("registrarIDLeastSig", 0L));
     }
     
     /** Constructor for use by getInstance(), ConstrainableAdminProxy. */
@@ -399,16 +395,5 @@ public class AdminProxy
      */
     private void readObjectNoData() throws ObjectStreamException {
 	throw new InvalidObjectException("no data");
-    }
-    
-    private static class RO implements ReadObject {
-
-	ServiceID registrarID;
-	
-	@Override
-	public void read(ObjectInput in) throws IOException, ClassNotFoundException {
-	    registrarID = new ServiceID(in);
-}
-	
     }
 }

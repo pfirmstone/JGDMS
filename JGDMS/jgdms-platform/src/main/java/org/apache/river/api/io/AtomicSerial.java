@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -695,10 +694,9 @@ public @interface AtomicSerial {
 	 * a Reader instance, with {@link ReadInput}, then the stream will provide
 	 * the ReadObject access to the stream at a time that suits the stream, 
          * prior to Object instantiation.
-	 * This method provides a way for an object under construction to 
-	 * retrieve information from the stream.  This is provided to retain
-	 * compatibility with {@link PutArg#output() } when ObjectOutput is used 
-         * to write Objects directly to the stream.
+	 * This method provides a way for an object under construction to
+	 * retrieve information read directly from the stream by a {@link ReadInput}
+	 * annotated reader method, prior to Object instantiation.
 	 *
 	 * @return ReadObject instance provided by static class method after it has
 	 * read from the stream, or null.
@@ -897,15 +895,7 @@ public @interface AtomicSerial {
          * 
          * @throws IOException 
          */
-        public abstract void writeArgs() throws IOException; //REMIND: If we prevent direct access to the stream we don't need this method
-        
-        /**
-         * Provides access to underlying ObjectOutput for writing fields out in
-         * order.
-         * 
-         * @return 
-         */
-        public abstract ObjectOutput output();
+        public abstract void writeArgs() throws IOException;
     }
     
     /**
