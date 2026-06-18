@@ -61,8 +61,11 @@ import org.apache.river.api.io.Valid;
 public final class EntryRep implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 2L;
-    private static final ObjectStreamField[] serialPersistentFields = 
-        serialForm();
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("eclass", EntryClass.class),
+        new ObjectStreamField("codebase", String.class),
+        new ObjectStreamField("fields", Object[].class)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

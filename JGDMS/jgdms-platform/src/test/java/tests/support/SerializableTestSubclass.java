@@ -40,7 +40,8 @@ public class SerializableTestSubclass extends SerializableTestObject {
         return new SerialForm[0];
     }
     
-    private static final ObjectStreamField [] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {};
     
     public static void serialize(PutArg args, SerializableTestSubclass obj) throws IOException{
         System.out.println("Writing object to stream");

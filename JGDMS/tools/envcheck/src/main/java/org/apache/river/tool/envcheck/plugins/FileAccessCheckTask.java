@@ -19,7 +19,6 @@ package org.apache.river.tool.envcheck.plugins;
 
 import org.apache.river.tool.envcheck.SubVMTask;
 import org.apache.river.tool.envcheck.Util;
-import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  * A subtask which checks for the accessibility of a file identified
@@ -41,7 +40,7 @@ public class FileAccessCheckTask implements SubVMTask {
      */
     public Object run(String[] args) {
         if (System.getSecurityManager() == null) {
-	System.setSecurityManager(new CombinerSecurityManager());
+	/* SecurityManager selected at launch via -Djava.security.manager (no programmatic install) */;
         }
 	return Util.checkSystemPropertyFile(args[0], args[1]);
     }

@@ -44,13 +44,13 @@ public abstract class AtomicException extends Exception {
     private static final String STACK = "stack";
     private static final String SUPPRESSED = "suppressed";
     
-    /**
-     * In earlier versions the extra fields will duplicate those of Throwable,
-     * so only ref id's will be sent, so the objects these fields refer to will
-     * only be sent once.
-     */
-    private static final ObjectStreamField[] serialPersistentFields 
-            = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(MESSAGE, String.class),
+        new ObjectStreamField(CAUSE, Throwable.class),
+        new ObjectStreamField(STACK, StackTraceElement[].class),
+        new ObjectStreamField(SUPPRESSED, Throwable[].class)
+    };
     
     public static SerialForm [] serialForm(){
         return new SerialForm []{
@@ -65,7 +65,18 @@ public abstract class AtomicException extends Exception {
         putArgs(arg, e);
         arg.writeArgs();
     }
-    
+
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    public static void putArgs(PutArg pf, AtomicException e){
+        pf.put(MESSAGE, e.getMessage());
+	Throwable cause = e.getCause();
+	if (cause == e) cause = null;
+	pf.put(CAUSE, cause);
+	pf.put(STACK, e.getStackTrace());
+	pf.put(SUPPRESSED, e.getSuppressed());
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     public static void putArgs(PutField pf, AtomicException e){
         pf.put(MESSAGE, e.getMessage());
 	Throwable cause = e.getCause();

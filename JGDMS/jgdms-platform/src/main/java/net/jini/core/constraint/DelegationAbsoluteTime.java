@@ -23,9 +23,11 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.lang.ref.SoftReference;
-import java.text.FieldPosition;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.Date;
 import java.util.Locale;
 import org.apache.river.api.io.AtomicSerial;
@@ -91,8 +93,13 @@ public final class DelegationAbsoluteTime
      * The maximum stop time in milliseconds
      * from midnight, January 1, 1970 UTC.
      */
-    private static final ObjectStreamField [] serialPersistentFields 
-            = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(MIN_START, Long.TYPE),
+        new ObjectStreamField(MAX_START, Long.TYPE),
+        new ObjectStreamField(MIN_STOP, Long.TYPE),
+        new ObjectStreamField(MAX_STOP, Long.TYPE)
+    };
     
     /**
      * Argument names and types for {@link AtomicSerial}
@@ -144,9 +151,18 @@ public final class DelegationAbsoluteTime
     private final long maxStop;
 
     /**
-     * SoftReference containing a SimpleDateFormat instance, or null.
+     * Immutable, thread-safe formatter for "yyyy.MM.dd HH:mm:ss.SSSS zzz" in the
+     * default time zone. A single shared instance with no per-thread state:
+     * DateTimeFormatter is thread-safe (unlike SimpleDateFormat), so no lock or
+     * cache is needed. appendValue(MILLI_OF_SECOND, 4) reproduces the output of
+     * SimpleDateFormat's "SSSS" (milliseconds zero-padded to 4 digits).
      */
-    private static SoftReference formatterRef;
+    private static final DateTimeFormatter FORMATTER = new DateTimeFormatterBuilder()
+		.appendPattern("yyyy.MM.dd HH:mm:ss.")
+		.appendValue(ChronoField.MILLI_OF_SECOND, 4)
+		.appendPattern(" zzz")
+		.toFormatter(Locale.US)
+		.withZone(ZoneId.systemDefault());
 
     /**
      * Creates a constraint with the specified absolute times.
@@ -345,13 +361,11 @@ public final class DelegationAbsoluteTime
      * Returns a string representation of this object.
      */
     public String toString() {
-	SimpleDateFormat formatter = getFormatter();
-	FieldPosition pos = new FieldPosition(0);
 	StringBuffer buf = new StringBuffer(95);
 	buf.append("DelegationAbsoluteTime[start: ");
-	format(minStart, maxStart, formatter, buf, pos);
+	format(minStart, maxStart, buf);
 	buf.append(", stop: ");
-	format(minStop, maxStop, formatter, buf, pos);
+	format(minStop, maxStop, buf);
 	buf.append(']');
 	return buf.toString();
     }
@@ -359,37 +373,16 @@ public final class DelegationAbsoluteTime
     /**
      * Format a min,max time pair.
      */
-    private static void format(long min,
-			       long max,
-			       SimpleDateFormat formatter,
-			       StringBuffer buf,
-			       FieldPosition pos)
-    {
+    private static void format(long min, long max, StringBuffer buf) {
 	if (min == max) {
-	    formatter.format(new Date(min), buf, pos);
+	    buf.append(FORMATTER.format(Instant.ofEpochMilli(min)));
 	} else {
 	    buf.append('[');
-	    formatter.format(new Date(min), buf, pos);
+	    buf.append(FORMATTER.format(Instant.ofEpochMilli(min)));
 	    buf.append(", ");
-	    formatter.format(new Date(max), buf, pos);
+	    buf.append(FORMATTER.format(Instant.ofEpochMilli(max)));
 	    buf.append(']');
 	}
-    }
-
-    /**
-     * Returns a formatter for "yyyy.MM.dd HH:mm:ss.SSSS zzz".
-     */
-    private static synchronized SimpleDateFormat getFormatter() {
-	SimpleDateFormat formatter = null;
-	if (formatterRef != null) {
-	    formatter = (SimpleDateFormat) formatterRef.get();
-	}
-	if (formatter == null) {
-	    formatter = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss.SSSS zzz",
-					     Locale.US);
-	    formatterRef = new SoftReference(formatter);
-	}
-	return formatter;
     }
 
     /**

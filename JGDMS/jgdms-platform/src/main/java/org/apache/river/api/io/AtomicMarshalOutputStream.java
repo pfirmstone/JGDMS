@@ -248,7 +248,15 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
     
     @Override
     public ObjectOutputStream.PutField putFields() throws IOException {
-	return d.putFields();
+	// Engine swap (STD-008): the delegate is now an ObjOutputStream whose putFields()
+	// returns AtomicSerial.PutArg (no longer a java.io.ObjectOutputStream.PutField since
+	// Inc1 uncoupled them). The legacy JDK PutField API is not used in the serialize(PutArg)
+	// flow -- @AtomicSerial classes receive the delegate's PutArg via serialize(). Fail fast
+	// rather than fabricate an incompatible PutField.
+	throw new UnsupportedOperationException(
+	    "AtomicMarshalOutputStream uses the serialize(PutArg) engine; the legacy "
+	    + "ObjectOutputStream.PutField API is not exposed -- implement "
+	    + "public static void serialize(AtomicSerial.PutArg, T) instead.");
     }
     
     @Override
@@ -257,9 +265,12 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
     }
     
     /**
-     * This implementation will be changed to subclass ObjOuputStream
+     * Engine swap (STD-008): subclasses ObjOutputStream (serialize(PutArg)-driven)
+     * instead of java.io.ObjectOutputStream, so @AtomicSerial marshalling no longer
+     * goes through JDK Object Serialization. The replaceObject substitution layer
+     * (serializers map + @AtomicSerial/@AtomicExternal ignore) is unchanged.
      */
-    private static final class DelegateObjectOutputStream extends ObjectOutputStream {
+    private static final class DelegateObjectOutputStream extends ObjOutputStream {
     
 	final Map<Class,Class> serializers;
 	final AtomicMarshalOutputStream aout;

@@ -130,6 +130,13 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Permit tests to install a SecurityManager on JDK 17+
+                         (JEP 411). This only *allows* setSecurityManager; no SM
+                         is installed unless a test does so explicitly. Needed by
+                         AgentDelegationCeilingTest. -->
+                    <argLine>-Djava.security.manager=allow</argLine>
+                </configuration>
             </plugin>
         </plugins>
     </build>

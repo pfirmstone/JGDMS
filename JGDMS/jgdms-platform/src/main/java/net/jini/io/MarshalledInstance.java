@@ -33,6 +33,12 @@ import java.security.Guard;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.ServiceLoader;
+import net.jini.core.constraint.InvocationConstraint;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.io.context.IntegrityEnforcement;
 import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
@@ -81,82 +87,157 @@ import org.apache.river.api.io.Valid;
 public class MarshalledInstance implements Serializable, net.jini.activation.arg.MarshalledObject {
     
     private static final Guard UNMARSHAL = new DeSerializationPermission("MARSHALL");
-    
-    private static final String OBJ_BYTES = "objBytes";
-    private static final String LOC_BYTES = "locBytes";
+
+    /**
+     * Reserved {@code payloadFormat} identifier for the legacy Java-Object-Serialization
+     * codec (the built-in default; not discovered through {@link MarshalFactoryProvider}).
+     */
+    public static final String FORMAT_JOSS = "JOSS";
+
+    private static final byte[] EMPTY = new byte[0];
+
+    private static final String PAYLOAD_BYTES = "payloadBytes";
+    private static final String CODEBASE_ANNOTATION = "codebaseAnnotation";
+    private static final String SCHEMA_BYTES = "schemaBytes";
+    private static final String SCHEMA_DIGEST = "schemaDigest";
+    private static final String PAYLOAD_FORMAT = "payloadFormat";
     private static final String HASH = "hash";
-    
-    private static final ObjectStreamField [] serialPersistentFields = serialForm();
-    
+
+    /**
+     * Lazily-loaded {@link MarshalFactoryProvider}s keyed by {@code payloadFormat}
+     * (JGDMS-STD-008 sec.13.2). The JOSS default is NOT in this map.
+     */
+    private static volatile Map<String,MarshalFactoryProvider> providers;
+
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(PAYLOAD_BYTES, byte[].class),
+        new ObjectStreamField(CODEBASE_ANNOTATION, byte[].class),
+        new ObjectStreamField(SCHEMA_BYTES, byte[].class),
+        new ObjectStreamField(SCHEMA_DIGEST, byte[].class),
+        new ObjectStreamField(PAYLOAD_FORMAT, String.class),
+        new ObjectStreamField(HASH, int.class)
+    };
+
     public static SerialForm [] serialForm(){
         return new SerialForm [] {
-            new SerialForm(OBJ_BYTES, byte[].class),
-            new SerialForm(LOC_BYTES, byte[].class),
+            new SerialForm(PAYLOAD_BYTES, byte[].class),
+            new SerialForm(CODEBASE_ANNOTATION, byte[].class),
+            new SerialForm(SCHEMA_BYTES, byte[].class),
+            new SerialForm(SCHEMA_DIGEST, byte[].class),
+            new SerialForm(PAYLOAD_FORMAT, String.class),
             new SerialForm(HASH, Integer.TYPE)
         };
-    }   
-    
+    }
+
     public static void serialize(AtomicSerial.PutArg args, MarshalledInstance obj) throws IOException {
         putArgs(args, obj);
         args.writeArgs();
     }
-    
+
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    private static void putArgs(AtomicSerial.PutArg pf, MarshalledInstance obj) {
+        pf.put(PAYLOAD_BYTES, obj.payloadBytes);
+        pf.put(CODEBASE_ANNOTATION, obj.codebaseAnnotation);
+        pf.put(SCHEMA_BYTES, obj.schemaBytes);
+        pf.put(SCHEMA_DIGEST, obj.schemaDigest);
+        pf.put(PAYLOAD_FORMAT, obj.payloadFormat);
+        pf.put(HASH, obj.hash);
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     private static void putArgs(ObjectOutputStream.PutField pf, MarshalledInstance obj) {
-        pf.put(OBJ_BYTES, obj.objBytes);
-        pf.put(LOC_BYTES, obj.locBytes);
+        pf.put(PAYLOAD_BYTES, obj.payloadBytes);
+        pf.put(CODEBASE_ANNOTATION, obj.codebaseAnnotation);
+        pf.put(SCHEMA_BYTES, obj.schemaBytes);
+        pf.put(SCHEMA_DIGEST, obj.schemaDigest);
+        pf.put(PAYLOAD_FORMAT, obj.payloadFormat);
         pf.put(HASH, obj.hash);
     }
 
     /**
-     * @serial Bytes of serialized representation.  If <code>objBytes</code> is
-     * <code>null</code> then the object marshalled was a <code>null</code>
-     * reference.
-     */  
-    private final byte[] objBytes;
- 
+     * @serial Bytes of the encoded contained object (STD-008 sec.13.1; formerly
+     * {@code objBytes}). If <code>payloadBytes</code> is <code>null</code> then the
+     * object marshalled was a <code>null</code> reference.
+     */
+    private final byte[] payloadBytes;
+
     /**
-     * @serial Bytes of location annotations, which are ignored by
-     * <code>equals</code>.  If <code>locBytes</code> is null, there were no
-     * non-<code>null</code> annotations during marshalling.
-     */  
-    private final byte[] locBytes;
- 
+     * @serial Bytes of the OPTIONAL codebase annotation (STD-006 sec.8 backup URL;
+     * formerly {@code locBytes}), which are ignored by <code>equals</code>. If
+     * <code>null</code>, there were no non-<code>null</code> annotations during
+     * marshalling.
+     */
+    private final byte[] codebaseAnnotation;
+
+    /**
+     * @serial Embedded schema describing {@code payloadBytes} (STD-006 sec.7.8),
+     * promoted to first-class state (STD-008 sec.13.1). Never {@code null}; empty for
+     * schema-less formats such as {@link #FORMAT_JOSS}. Ignored by {@code equals}.
+     */
+    private final byte[] schemaBytes;
+
+    /**
+     * @serial 32-byte SHA-256 digest of the leaf schema record, exposed for the
+     * sec.12.4 fast-path. Never {@code null}; empty for schema-less formats. Ignored
+     * by {@code equals}.
+     */
+    private final byte[] schemaDigest;
+
+    /**
+     * @serial Self-describing payload-format identifier (STD-008 sec.13.1) selecting
+     * the decoding codec via {@link MarshalFactoryProvider}. Never {@code null};
+     * {@link #FORMAT_JOSS} for the legacy path. Ignored by {@code equals}.
+     */
+    private final String payloadFormat;
+
     /**
      * @serial Stored hash code of contained object.
-     *   
+     *
      * @see #hashCode
-     */  
+     */
     private final int hash;
 
     static final long serialVersionUID = -5187033771082433496L;
-    
-    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{
-	byte [] objBytes = arg.get("objBytes", null, byte[].class);
-	byte [] locBytes = arg.get("locBytes", null, byte[].class);
-	int hash = arg.get("hash", 0);
-	if ((objBytes == null) && ((hash != 13) || (locBytes != null)))
-	    throw new InvalidObjectException("Bad hash or annotation");
+
+    /**
+     * Hash of the marshalled representation, matching {@code java.rmi.MarshalledObject}
+     * so the hashcode is comparable across VMs and across the MarshalledObject conversion.
+     */
+    private static int computeHash(byte[] payloadBytes){
 	int h = 0;
-	if (objBytes == null){
-	    h = 13;
-	} else {
-	    for (int i = 0; i < objBytes.length; i++) {
-		h = 31 * h + objBytes[i];
-	    }
+	for (int i = 0; i < payloadBytes.length; i++) {
+	    h = 31 * h + payloadBytes[i];
 	}
+	return h;
+    }
+
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{
+	byte [] payloadBytes = arg.get(PAYLOAD_BYTES, null, byte[].class);
+	byte [] codebaseAnnotation = arg.get(CODEBASE_ANNOTATION, null, byte[].class);
+	int hash = arg.get(HASH, 0);
+	if ((payloadBytes == null) && ((hash != 13) || (codebaseAnnotation != null)))
+	    throw new InvalidObjectException("Bad hash or annotation");
+	int h = (payloadBytes == null) ? 13 : computeHash(payloadBytes);
 	if (h != hash) throw new InvalidObjectException("Bad hash or annotation");
 	UNMARSHAL.checkGuard(null);
 	return true;
     }
-    
+
     public MarshalledInstance(GetArg arg) throws IOException, ClassNotFoundException{
 	this(check(arg), arg);
     }
-    
+
     private MarshalledInstance( boolean check, GetArg arg) throws IOException, ClassNotFoundException {
-	objBytes = Valid.copy(arg.get("objBytes", null, byte[].class));
-	locBytes = Valid.copy(arg.get("locBytes", null, byte[].class));
-	hash = arg.get("hash", 0);
+	payloadBytes = Valid.copy(arg.get(PAYLOAD_BYTES, null, byte[].class));
+	codebaseAnnotation = Valid.copy(arg.get(CODEBASE_ANNOTATION, null, byte[].class));
+	byte[] sb = Valid.copy(arg.get(SCHEMA_BYTES, null, byte[].class));
+	schemaBytes = (sb == null) ? EMPTY : sb;
+	byte[] sd = Valid.copy(arg.get(SCHEMA_DIGEST, null, byte[].class));
+	schemaDigest = (sd == null) ? EMPTY : sd;
+	String fmt = arg.get(PAYLOAD_FORMAT, FORMAT_JOSS, String.class);
+	payloadFormat = (fmt == null) ? FORMAT_JOSS : fmt;
+	hash = arg.get(HASH, 0);
     }
     
     /*
@@ -194,75 +275,83 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
      * @throws NullPointerException if context or marshalFactory is null.
      */
     protected MarshalledInstance(Object obj, Collection context, MarshalFactory marshalFactory) throws IOException{
-	this(obj, context, marshalFactory,
-		obj != null ? new ByteArrayOutputStream() : null,
-		obj != null ? new ByteArrayOutputStream() : null);
+	this(marshal(obj, context, marshalFactory));
     }
-    
-    private MarshalledInstance(Object obj, Collection context, MarshalFactory factory, ByteArrayOutputStream bout,
-	    ByteArrayOutputStream lout) throws IOException
-    {
-	this(bout, 
-	    obj != null ?
-		writeOutRetLocAnnotation(obj, context, factory, bout, lout) 
-		: null
-	);
+
+    private MarshalledInstance(Marshalled m){
+	this.payloadBytes = m.payloadBytes;
+	this.codebaseAnnotation = m.codebaseAnnotation;
+	this.schemaBytes = m.schemaBytes;
+	this.schemaDigest = m.schemaDigest;
+	this.payloadFormat = m.payloadFormat;
+	this.hash = m.hash;
     }
-    
+
     /**
-     * 
-     * @param obj Object to be marshaled.
-     * @param context
-     * @param factory MarshalFactory used to create MarshalIntstanceOutput
-     * @param bout ByteArrayOutputStream to write object serial form.
-     * @param lout ByteArrayOutputStream to write code-base annotation to.
-     * @return byte array of location.
-     * @throws IOException 
+     * Encodes {@code obj} via the factory and captures the resulting first-class state
+     * (STD-008 sec.13). All work happens in this static method, before any field of the
+     * new instance is assigned, preserving the finalizer-attack protection of the
+     * original constructor chain.
+     *
+     * <p>The schema, digest and format are reported by the
+     * {@link MarshalInstanceOutput} after writing (default JOSS values for schema-less
+     * codecs). The hash matches {@code java.rmi.MarshalledObject} so it is comparable
+     * across VMs and across the MarshalledObject conversion. A {@code null} object
+     * yields {@code payloadBytes == null} and the MarshalledObject null-hash (13).
      */
-    private static byte[] writeOutRetLocAnnotation(Object obj, Collection context, MarshalFactory factory,
-	    ByteArrayOutputStream bout, ByteArrayOutputStream lout) throws IOException
-    {
+    private static Marshalled marshal(Object obj, Collection context, MarshalFactory factory) throws IOException {
 	if (context == null) throw new NullPointerException();
 	if (factory == null) throw new NullPointerException();
+	if (obj == null){
+	    return new Marshalled(null, null, EMPTY, EMPTY, FORMAT_JOSS, 13);
+	}
+	ByteArrayOutputStream bout = new ByteArrayOutputStream();
+	ByteArrayOutputStream lout = new ByteArrayOutputStream();
 	MarshalInstanceOutput out = null;
 	try {
 	    out = factory.createMarshalOutput(bout, lout, context);
 	    out.writeObject(obj);
 	    out.flush();
-	    // locBytes is null if no annotations
-	    return out.hadAnnotations() ? lout.toByteArray() : null;
+	    byte[] payload = bout.toByteArray();
+	    // codebaseAnnotation is null if no annotations
+	    byte[] annotation = out.hadAnnotations() ? lout.toByteArray() : null;
+	    byte[] schema = out.getSchemaBytes();
+	    byte[] digest = out.getSchemaDigest();
+	    String format = out.getPayloadFormat();
+	    return new Marshalled(
+		    payload,
+		    annotation,
+		    schema == null ? EMPTY : schema,
+		    digest == null ? EMPTY : digest,
+		    format == null ? FORMAT_JOSS : format,
+		    computeHash(payload));
 	} finally {
 	    try {
 		if (out != null) out.close();
 	    } catch (IOException e){} // Ignore
 	}
     }
-    
-    private MarshalledInstance(ByteArrayOutputStream bout, byte[] locBytes){
-	this(bout != null ? bout.toByteArray() : null, locBytes);
-    }
-    
-    private MarshalledInstance(byte[] objBytes, byte[] locBytes){
-	this.objBytes = objBytes;
-	this.locBytes = locBytes;
-	// Calculate hash from the marshalled representation of object
-	// so the hashcode will be comparable when sent between VMs.
-	//
-	// Note: This calculation must match the calculation in
-	//	 java.rmi.MarshalledObject since we use this hash
-	//	 in the converted MarshalledObject. The reverse is
-	//	 also true in that we use the MarshalledObject's
-	//	 hash for our hash. (see the MarshalledInstance(
-	//	 MarshalledObject) constructor)
-	//
-	if (objBytes == null){
-	    hash = 13; // null hash for java.rmi.MarshalledObject
-	} else {
-	    int h = 0;
-	    for (int i = 0; i < objBytes.length; i++) {
-		h = 31 * h + objBytes[i];
-	    }
-	    hash = h;
+
+    /**
+     * Immutable carrier of the first-class marshalled state, returned by
+     * {@link #marshal} so a single private constructor can assign all final fields.
+     */
+    private static final class Marshalled {
+	final byte[] payloadBytes;
+	final byte[] codebaseAnnotation;
+	final byte[] schemaBytes;
+	final byte[] schemaDigest;
+	final String payloadFormat;
+	final int hash;
+
+	Marshalled(byte[] payloadBytes, byte[] codebaseAnnotation, byte[] schemaBytes,
+		byte[] schemaDigest, String payloadFormat, int hash){
+	    this.payloadBytes = payloadBytes;
+	    this.codebaseAnnotation = codebaseAnnotation;
+	    this.schemaBytes = schemaBytes;
+	    this.schemaDigest = schemaDigest;
+	    this.payloadFormat = payloadFormat;
+	    this.hash = hash;
 	}
     }
     
@@ -308,6 +397,29 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
     }
 
     /**
+     * Creates a new <code>MarshalledInstance</code> whose contained object is encoded
+     * using the wire format required by {@code constraints} (JGDMS-STD-008 sec.13). If
+     * the constraints require a {@link MarshallingFormat}, that format's codec is used
+     * (e.g. {@link MarshallingFormat#DER} selects the JGDMS-STD-006/DER codec); with no
+     * format constraint the default Java-Object-Serialization codec is used. The
+     * resulting instance is self-describing: its {@code payloadFormat} lets any receiver
+     * decode it via {@link MarshalFactoryProvider} without a subclass.
+     *
+     * @param obj the Object to be contained, or {@code null}.
+     * @param context the collection of context information objects.
+     * @param constraints the invocation constraints, or {@code null} for none.
+     * @throws IOException if the object cannot be serialized.
+     * @throws UnsupportedConstraintException if a required {@link MarshallingFormat}
+     *         cannot be satisfied on this node (no codec for it, or conflicting formats).
+     * @throws NullPointerException if {@code context} is {@code null}.
+     */
+    public MarshalledInstance(Object obj, Collection context, InvocationConstraints constraints)
+	throws IOException
+    {
+	this(obj, context, chooseMarshalFactory(constraints));
+    }
+
+    /**
      * Creates a new <code>MarshalledInstance</code> from an
      * existing <code>MarshalledObject</code>. An object equivalent
      * to the object contained in the passed <code>MarshalledObject</code>
@@ -348,8 +460,12 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
 	} catch (ClassNotFoundException ioe){
 	    throw new AssertionError(ioe);
 	}
-	objBytes = privateMO.objBytes;
-	locBytes = privateMO.locBytes;
+	// A java.rmi.MarshalledObject is always Java-Object-Serialization.
+	payloadBytes = privateMO.objBytes;
+	codebaseAnnotation = privateMO.locBytes;
+	schemaBytes = EMPTY;
+	schemaDigest = EMPTY;
+	payloadFormat = FORMAT_JOSS;
 	hash = privateMO.hash;
     }
     
@@ -375,11 +491,16 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
 	// the class during readObject(). (See resolveClass() in
 	// ToMOInputStream)
 	//
+	if (!FORMAT_JOSS.equals(payloadFormat))
+	    throw new IllegalStateException(
+		"Cannot convert a non-JOSS MarshalledInstance (payloadFormat="
+		+ payloadFormat + ") to java.rmi.MarshalledObject");
+
 	net.jini.io.MarshalledObject privateMO =
 		new net.jini.io.MarshalledObject();
 
-	privateMO.objBytes = objBytes;
-	privateMO.locBytes = locBytes;
+	privateMO.objBytes = payloadBytes;
+	privateMO.locBytes = codebaseAnnotation;
 	privateMO.hash = hash;
 
 	java.rmi.MarshalledObject mo = null;
@@ -406,7 +527,108 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
      * @return a new MarshalFactory instance.
      */
     protected MarshalFactory getMarshalFactory(){
-	return new MarshalFactoryInstance();
+	return factoryForFormat(payloadFormat);
+    }
+
+    /**
+     * Resolves the {@link MarshalFactory} for a {@code payloadFormat} (STD-008 sec.13.2):
+     * the built-in JOSS factory for {@link #FORMAT_JOSS} (or {@code null}), otherwise the
+     * {@link MarshalFactoryProvider} discovered by {@link ServiceLoader} for that format.
+     * Subclasses (e.g. {@code AtomicMarshalledInstance}) that override
+     * {@link #getMarshalFactory()} bypass this lookup entirely.
+     */
+    private static MarshalFactory factoryForFormat(String format){
+	if (format == null || FORMAT_JOSS.equals(format)){
+	    return new MarshalFactoryInstance();
+	}
+	MarshalFactoryProvider p = providers().get(format);
+	if (p == null){
+	    throw new IllegalStateException(
+		"No MarshalFactoryProvider registered for payloadFormat: " + format
+		+ " (is the codec module on the classpath?)");
+	}
+	return p.marshalFactory();
+    }
+
+    private static Map<String,MarshalFactoryProvider> providers(){
+	Map<String,MarshalFactoryProvider> m = providers;
+	if (m == null){
+	    m = loadProviders();
+	    providers = m;
+	}
+	return m;
+    }
+
+    private static Map<String,MarshalFactoryProvider> loadProviders(){
+	Map<String,MarshalFactoryProvider> m = new HashMap<String,MarshalFactoryProvider>();
+	for (MarshalFactoryProvider p : ServiceLoader.load(MarshalFactoryProvider.class)){
+	    String fmt = p.payloadFormat();
+	    if (fmt != null && !FORMAT_JOSS.equals(fmt) && !m.containsKey(fmt)){
+		m.put(fmt, p);
+	    }
+	}
+	return m;
+    }
+
+    /**
+     * Selects the {@link MarshalFactory} required by the given invocation constraints
+     * (JGDMS-STD-008 sec.13) -- the shared enforcement primitive for the
+     * {@link MarshallingFormat} constraint. A required {@code MarshallingFormat}
+     * determines the format: {@link #FORMAT_JOSS} (or {@code null} constraints / no
+     * format constraint) yields the built-in JOSS factory; any other format is resolved
+     * to its {@link MarshalFactoryProvider} via {@link ServiceLoader}. If a constraint
+     * only <em>prefers</em> a format, it is honoured when resolvable on this node,
+     * otherwise the default is used.
+     *
+     * @param constraints the invocation constraints, or {@code null} for none.
+     * @return the MarshalFactory to use; never {@code null}.
+     * @throws UnsupportedConstraintException if a required format has no registered
+     *         provider on this node, or two different formats are required at once.
+     */
+    public static MarshalFactory chooseMarshalFactory(InvocationConstraints constraints)
+	throws UnsupportedConstraintException
+    {
+	String format = requiredFormat(constraints);
+	if (format == null || FORMAT_JOSS.equals(format)){
+	    return new MarshalFactoryInstance();
+	}
+	MarshalFactoryProvider p = providers().get(format);
+	if (p == null){
+	    throw new UnsupportedConstraintException(
+		"No MarshalFactoryProvider for required MarshallingFormat: " + format
+		+ " (is the codec module on the classpath?)");
+	}
+	return p.marshalFactory();
+    }
+
+    /**
+     * The format identifier required by the constraints, or -- failing a hard
+     * requirement -- the first resolvable preferred format, or {@code null} for the
+     * default. Conflicting required {@code MarshallingFormat}s are unsatisfiable.
+     */
+    private static String requiredFormat(InvocationConstraints constraints)
+	throws UnsupportedConstraintException
+    {
+	if (constraints == null) return null;
+	String required = null;
+	for (InvocationConstraint c : constraints.requirements()){
+	    if (c instanceof MarshallingFormat){
+		String f = ((MarshallingFormat) c).getFormat();
+		if (required == null) required = f;
+		else if (!required.equals(f))
+		    throw new UnsupportedConstraintException(
+			"Conflicting required MarshallingFormat constraints: "
+			+ required + " and " + f);
+	    }
+	}
+	if (required != null) return required;
+	for (InvocationConstraint c : constraints.preferences()){
+	    if (c instanceof MarshallingFormat){
+		String f = ((MarshallingFormat) c).getFormat();
+		if (FORMAT_JOSS.equals(f) || providers().containsKey(f)) return f;
+	    }
+	}
+	return null;
     }
     /**
      * Returns a new copy of the contained object.
@@ -594,7 +816,7 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
                       final Class<T> type)
 	throws IOException, ClassNotFoundException 
     {
-	if (objBytes == null)   // must have been a null object
+	if (payloadBytes == null)   // must have been a null object
 	    return null;
 	final Collection ctext;
 	if (context == null) {
@@ -604,20 +826,21 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
 		public boolean integrityEnforced() {
 		    return verifyCodebaseIntegrity;
 		}
-		
+
 	    });
 	} else {
 	    ctext = context;
 	}
-	final ByteArrayInputStream bin = new ByteArrayInputStream(objBytes);
-	// locBytes is null if no annotations
+	final ByteArrayInputStream bin = new ByteArrayInputStream(payloadBytes);
+	// codebaseAnnotation is null if no annotations
 	final ByteArrayInputStream lin =
-	    (locBytes == null ? null : new ByteArrayInputStream(locBytes));
-	
+	    (codebaseAnnotation == null ? null : new ByteArrayInputStream(codebaseAnnotation));
+
 	MarshalInstanceInput in = null;
 	try {
 	    in = getMarshalFactory().createMarshalInput(
-		bin, lin, defaultLoader, verifyCodebaseIntegrity,
+		bin, lin, schemaBytes, schemaDigest, payloadFormat,
+		defaultLoader, verifyCodebaseIntegrity,
 		verifierLoader, ctext);
 	    in.useCodebaseAnnotations();
             if (in instanceof AtomicObjectInput){
@@ -655,7 +878,7 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
     public boolean fullyEquals(Object obj) {
 	if (equals(obj)) {
 	    MarshalledInstance other = (MarshalledInstance)obj;
-	    return Arrays.equals(locBytes, other.locBytes);
+	    return Arrays.equals(codebaseAnnotation, other.codebaseAnnotation);
 	}
 	return false;
     }
@@ -696,7 +919,7 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
 	    MarshalledInstance other = (MarshalledInstance)obj;
 	    if (hash != other.hash)
 		return false;
-	    return Arrays.equals(objBytes, other.objBytes);
+	    return Arrays.equals(payloadBytes, other.payloadBytes);
 	}
 	return false;
     }
@@ -720,7 +943,7 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
      * @return true if MarshalledInstance contains a null reference.
      */
     public final boolean isNull() {
-	return objBytes == null;
+	return payloadBytes == null;
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException {
@@ -740,10 +963,10 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
     {
 	in.defaultReadObject();
 
-	// If contained object is null, then hash and locBytes must be
+	// If contained object is null, then hash and codebaseAnnotation must be
 	// proper
 	//
-	if ((objBytes == null) && ((hash != 13) || (locBytes != null)))
+	if ((payloadBytes == null) && ((hash != 13) || (codebaseAnnotation != null)))
 	    throw new InvalidObjectException("Bad hash or annotation");
     }
 

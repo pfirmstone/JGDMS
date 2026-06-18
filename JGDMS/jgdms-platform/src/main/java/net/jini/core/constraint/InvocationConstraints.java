@@ -55,7 +55,11 @@ public final class InvocationConstraints implements Serializable {
      * @serialField reqs InvocationConstraint[] The requirements.
      * @serialField prefs InvocationConstraint[] The preferences.
      */
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("reqs", InvocationConstraint[].class, true),
+        new ObjectStreamField("prefs", InvocationConstraint[].class, true)
+    };
     
     public static SerialForm [] serialForm(){
         return new SerialForm[]{

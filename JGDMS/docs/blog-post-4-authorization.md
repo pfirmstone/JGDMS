@@ -73,7 +73,16 @@ round-trip works transparently.
 ## Three-Layer Authorization Stack
 
 Authorization in JGDMS is not a single on/off switch. It is a composable stack of three policy
-providers:
+providers.
+
+> **A note on composition (status clarification).** The "three layers" below are a *wrapping
+> and assembly convention*, **not a hard-wired chain**. `DynamicPolicyProvider` and
+> `RemotePolicyProvider` each generically wrap **any** base `ScalableNestedPolicy`/`Policy` —
+> they are not bound to the specific `SpiffePolicyFile` → `RemotePolicy` → `DynamicPolicy`
+> ordering shown here. That ordering is a *deployment assembly* chosen by whoever wires the
+> providers; the types themselves impose no fixed sequence. (Code review,
+> `docs/agent-authority-code-review-2026-06-14.md` §2 claim 1, §5.) The arrangement below is
+> the recommended assembly, not an invariant of the implementation.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -123,6 +132,15 @@ providers:
 The effective permission for any codebase is the **intersection** of what the code declares it
 needs (`PERMISSIONS.LIST`), what the grant ceiling allows (`GrantPermission`), and what the SPIFFE
 principal scope permits. No single party controls the outcome unilaterally.
+
+> **Mechanism clarification (from the code review).** The "intersection" here is *conjunctive
+> gating of grant applicability*, not an arithmetic set-intersection of permission lists.
+> *Within* a single matching grant, permissions are unioned; the **meet** is across the
+> *gating dimensions* — a grant contributes nothing unless **all** of {codebase/digest,
+> all-principals-present, `GrantPermission` ceiling} hold. Adding a `principal`, `digest`, or
+> `codebase` clause can therefore only *remove* matching domains — which is why "adding terms
+> narrows" is true at the clause level. (See `docs/agent-authority-code-review-2026-06-14.md`
+> §2 claim 2, §5.)
 
 ### The Three-Principal Grant: Defending Against a Compromised Axis
 

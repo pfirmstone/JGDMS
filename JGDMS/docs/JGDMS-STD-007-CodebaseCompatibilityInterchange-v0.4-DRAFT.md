@@ -154,6 +154,65 @@ awareness of Pack200 on Graal's side — Graal receives a plain normalised JAR.
 The output artifacts (WASM modules, shared libraries, LLVM bitcode) use ZSTD
 compression for transport where applicable.
 
+### 2.5 The Purpose of Polyglot Support: AI as a First-Class Peer
+
+Polyglot participation is not an end in itself. Its purpose is to admit **AI workloads** —
+which are non-JVM by nature (Python orchestration, C++/CUDA kernels, native inference
+runtimes, Rust agent tooling) — as first-class peers in a JGDMS federation. A system that
+requires every participant to be a JVM excludes precisely the workloads that now most need
+a trusted distributed substrate.
+
+**Java is the trust integration layer, not the universal implementation language.** JGDMS
+does not host AI computation; it provides the membrane at each trust boundary that
+establishes *who* a participant is (STD-003) and *what it is authorised to do* (the
+DirtyChai authorization model). The polyglot layer — STD-006 for data, STD-007 for code —
+lets computation run where it must, natively, while identity, admission control, least
+privilege, delegation, and audit remain in the Java trust layer.
+
+This reframes the security model for AI participants. SCAP (STD-002) content-hash-verifies
+a proxy or agent *harness*, but the behaviour of an AI participant lives in its inference:
+non-deterministic, promptable, and unverifiable in principle — no content hash can certify
+that a model will not attempt an action. SCAP therefore secures the *plumbing*; the
+participant's *behaviour* can only be constrained by least-privilege authorization. Strong
+identity is necessary but not sufficient: an authenticated AI participant remains an
+untrusted actor whose every action is mediated by policy under default-deny, with no
+ambient authority, and whose delegated authority can only *narrow* as it passes along a
+chain — because a participant cannot be relied upon to limit itself.
+
+Positioned this way, JGDMS is not merely "polyglot Jini." It is a **trust and authorization
+fabric for multi-organisation, multi-agent AI**, approached from the mature
+distributed-systems-security tradition — federated, leased, least-privilege,
+discovery-based — rather than by retrofitting authorization onto a language runtime or a
+model tool-call protocol.
+
+> **Implementation status (as of 2026-06-15).** The *agent-authority layer* described
+> above — the **baseline playpen** grant template, **checkpoint escalation**, the
+> **notify-user** escalation-request channel, and the **leased async user→agent
+> delegation** primitive — is **design-intent, not yet implemented**. There is no
+> agent-authority class, no lease-bound user→SVID grant, no derived/narrowed JWT, and no
+> notify-user channel in either the JGDMS or DirtyChai tree. These features are *buildable
+> on* the primitives below, but no code yet exercises them.
+>
+> The underlying authorization **primitives** that this framing relies on *are* confirmed
+> present in code:
+>
+> - **All-principals-present conjunction** — multi-principal grants are conjunctive
+>   (`PrincipalGrant.implies` uses `containsAll`); every named principal must be present.
+> - **`DigestGrant` / `DigestCodeSource` content-hash gate** — grants can be pinned to the
+>   SHA-256 of the JAR, not merely its URL.
+> - **`GrantPermission` ceiling on both grant paths** — a caller cannot dynamically grant
+>   (or remotely push) beyond its own `GrantPermission`.
+> - **Additive-only `SubjectDomainCombiner`** — `callAs` only makes principals *present*;
+>   it never widens a domain's permissions, so authority can only narrow across a
+>   delegation chain.
+> - **GC-scoped per-proxy `DynamicPolicy` grants** — proxy-bound grants are voided when the
+>   proxy's `ProtectionDomain` is garbage-collected.
+> - **Peer-scoped network via `AuthenticationPermission`** — its `peer` clause pins the
+>   remote identity on the authenticated SSL/JERI path.
+>
+> See `docs/agent-authority-code-review-2026-06-14.md` (§3A/§3D, §4.1) and
+> `docs/SOW-AI-Agent-Authority-Support.md` for the gap analysis and the build-out plan.
+
 ---
 
 ## 3. Design Principles

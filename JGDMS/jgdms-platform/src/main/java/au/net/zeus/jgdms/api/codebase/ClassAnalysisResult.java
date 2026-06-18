@@ -67,8 +67,14 @@ public final class ClassAnalysisResult implements Serializable {
     private static final String BLOCKING_CALL_PATH = "blockingCallPath";
     private static final String CYCLE_PARTICIPANTS  = "cycleParticipants";
 
-    @SuppressWarnings("unused")
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(CLASS_NAME,        String.class),
+        new ObjectStreamField(CLINIT_VERDICT,     ClinitVerdict.class),
+        new ObjectStreamField(ATOMIC_VERDICT,     AtomicSerialVerdict.class),
+        new ObjectStreamField(BLOCKING_CALL_PATH, String[].class),
+        new ObjectStreamField(CYCLE_PARTICIPANTS,  String[].class)
+    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {

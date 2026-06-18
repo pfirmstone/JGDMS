@@ -26,7 +26,7 @@
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>security-policy-debug</artifactId>
 
-    <name>Module :: DebugDyanamicPolicyProvider and SecurityPolicyWriter</name>
+    <name>Module :: DebugDynamicPolicyProvider</name>
     <description>Tool used to determine security policy requirements.
     </description>
 

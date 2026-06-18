@@ -143,6 +143,16 @@ separation into the authorization model:
   administrator without restarting services, but the update is constrained by the bootstrap policy
   ceiling. Live policy authority is bounded.
 
+> **Status clarification (code review, `docs/agent-authority-code-review-2026-06-14.md` §2/§5).**
+> The "three-layer policy stack" is a *wrapping and assembly convention*, not a type-enforced
+> chain: `DynamicPolicyProvider` and `RemotePolicyProvider` each generically wrap any base
+> `ScalableNestedPolicy`/`Policy`, and the `SpiffePolicyFile → RemotePolicy → DynamicPolicy`
+> ordering is chosen at deployment time by whoever wires the providers. The "three-way
+> intersection" is realised as *conjunctive gating of grant applicability* (a grant applies only
+> when codebase/digest **and** all-principals-present **and** the `GrantPermission` ceiling all
+> hold), not as an arithmetic set-intersection of permission lists. The separation-of-duties
+> property the bullets describe holds in code; only the framing of the mechanism is refined here.
+
 ### Fallacy 7: Transport cost is zero
 
 Every byte serialized, every TLS handshake, every policy check, every class load has a cost.

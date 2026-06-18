@@ -62,6 +62,13 @@ import java.util.logging.Logger;
  *       (so that SecurityPolicyWriter's writes to them are undone).</li>
  *   <li>Runs {@link PolicyCondenser} on every other {@code .policy} file,
  *       replacing the original with the condensed result in-place.</li>
+ *   <li>Runs {@link ProxyPolicyGenerator} on every condensed file to derive,
+ *       for each proxy codebase it contains, the minimal {@code GrantPermission}
+ *       ceiling ({@code <policy>.grantperm}) and the per-codebase
+ *       {@code META-INF/PERMISSIONS.LIST} manifest (under
+ *       {@code <policy>.proxy-permissions/}).  This step is best-effort and
+ *       never fails the run; it can be disabled with
+ *       {@code -Dpolicy.update.generate.proxy=false}.</li>
  * </ol>
  *
  * <p><b>Usage</b> (Ant / command line):
@@ -104,6 +111,14 @@ public class PolicyUpdatePostProcessor {
 
     private final File qaDir;
 
+    /**
+     * Whether to derive proxy {@code GrantPermission} ceilings and
+     * {@code PERMISSIONS.LIST} manifests after condensing each policy file.
+     * Enabled by default; disable with {@code -Dpolicy.update.generate.proxy=false}.
+     */
+    private final boolean generateProxy =
+            !"false".equalsIgnoreCase(System.getProperty("policy.update.generate.proxy", "true"));
+
     PolicyUpdatePostProcessor(File qaDir) {
         this.qaDir = qaDir;
     }
@@ -119,6 +134,7 @@ public class PolicyUpdatePostProcessor {
         int restored = 0;
         int condensed = 0;
         int skipped = 0;
+        int proxyCodebases = 0;
 
         for (File pf : allPolicyFiles) {
             String basename = pf.getName();
@@ -136,14 +152,18 @@ public class PolicyUpdatePostProcessor {
                 } else {
                     skipped++;
                 }
+                if (generateProxy) {
+                    proxyCodebases += generateProxyArtifacts(pf);
+                }
             }
         }
 
         LOG.log(Level.INFO,
-                "Policy update complete: {0} restored, {1} condensed, {2} skipped/unchanged.",
-                new Object[]{restored, condensed, skipped});
+                "Policy update complete: {0} restored, {1} condensed, {2} skipped/unchanged, {3} proxy codebase(s).",
+                new Object[]{restored, condensed, skipped, proxyCodebases});
         System.out.println("Policy update complete: " + restored + " restored, "
-                + condensed + " condensed, " + skipped + " skipped/unchanged.");
+                + condensed + " condensed, " + skipped + " skipped/unchanged, "
+                + proxyCodebases + " proxy codebase(s) processed.");
     }
 
     /**
@@ -293,6 +313,32 @@ public class PolicyUpdatePostProcessor {
                         + " with condensed version", e2);
                 return false;
             }
+        }
+    }
+
+    /**
+     * Derives proxy {@code GrantPermission} ceilings and
+     * {@code META-INF/PERMISSIONS.LIST} manifests from a (condensed) policy
+     * file by delegating to {@link ProxyPolicyGenerator}.  Best-effort: any
+     * failure is logged and swallowed so it never breaks a policy-update run.
+     *
+     * @return the number of proxy codebases for which artefacts were generated
+     */
+    private int generateProxyArtifacts(File policyFile) {
+        try {
+            File outDir = new File(policyFile.getAbsolutePath() + ".proxy-permissions");
+            ProxyPolicyGenerator.Result r =
+                    new ProxyPolicyGenerator().generate(policyFile, outDir);
+            if (r.proxyCount() > 0) {
+                LOG.log(Level.FINE,
+                        "Proxy artefacts generated for {0}: {1} codebase(s)",
+                        new Object[]{policyFile.getAbsolutePath(), r.proxyCount()});
+            }
+            return r.proxyCount();
+        } catch (Throwable t) {
+            LOG.log(Level.WARNING,
+                    "ProxyPolicyGenerator failed for " + policyFile.getAbsolutePath(), t);
+            return 0;
         }
     }
 

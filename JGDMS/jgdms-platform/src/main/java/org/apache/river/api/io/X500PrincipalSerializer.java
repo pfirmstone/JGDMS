@@ -43,8 +43,10 @@ public class X500PrincipalSerializer implements Serializable, Resolve {
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
-    private static final ObjectStreamField[] serialPersistentFields = 
-                                                    serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("encoded", byte[].class)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
@@ -56,7 +58,13 @@ public class X500PrincipalSerializer implements Serializable, Resolve {
         putArg(arg, s);
         arg.writeArgs();
     }
-    
+
+    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
+    private static void putArg(PutArg pf, X500PrincipalSerializer s){
+	pf.put("encoded", s.encoded);  //Remind: clone?
+    }
+
+    // DUAL-PATH: PutField overload for the JOSS writeObject() path
     private static void putArg(ObjectOutputStream.PutField pf, X500PrincipalSerializer s){
 	pf.put("encoded", s.encoded);  //Remind: clone?
     }

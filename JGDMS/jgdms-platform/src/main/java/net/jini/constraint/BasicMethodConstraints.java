@@ -60,7 +60,10 @@ public final class BasicMethodConstraints
     /**
      * @serialField descs MethodDesc[] The ordered method descriptors.
      */
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("descs", MethodDesc[].class, true)
+    };
     
     public static AtomicSerial.SerialForm[] serialForm(){
         return new AtomicSerial.SerialForm[]{

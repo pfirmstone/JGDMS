@@ -54,7 +54,7 @@ import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
  * Permission.  A user granted a DelegatePermission does not have the privilege
  * of the candidate Permission, although a user with a candidate Permission
  * has the privilege of the DelegatePermission that represents the candidate, 
- * while the @ref DelegateSecurityManager is in force.
+ * while a delegate-aware SecurityManager that honours {@link PermissionDelegate} is in force.
  * <p>
  * A DelegatePermission requires a method guard delegate to encapsulate a privileged
  * resource. The developer is responsible for developing the method guard wrapper, an 
@@ -77,7 +77,7 @@ import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
  * does something we don't like, such as exceed a pre set limit or behave
  * in a manner we would like to avoid, such as hogging network bandwidth.
  * <p>
- * If the SecurityManager installed doesn't implement DelegateSecurityManager,
+ * If the installed SecurityManager does not honour the {@link PermissionDelegate} interface,
  * DelegatePermission's will be disabled.  This allows delegate's
  * to be included in code, the decision to utilise delegate functionality may
  * delayed until runtime or deployment.
@@ -170,7 +170,7 @@ import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
  * @author Peter Firmstone
  * @since 3.0.0
  */
-public final class DelegatePermission extends Permission{
+public final class DelegatePermission extends Permission implements PermissionDelegate{
     private static final long serialVersionUID = 1L;
     /* Object Pool ensures that equals performs very well in collections for 
      * optimum AccessControlContext result caching and minimises memory 
@@ -324,7 +324,7 @@ public final class DelegatePermission extends Permission{
     
     public void checkGuard(Object object) throws SecurityException {
 	SecurityManager sm = System.getSecurityManager();
-	if (sm instanceof DelegateSecurityManager) sm.checkPermission(this);
+	if (sm != null) sm.checkPermission(this);
     }
 
     @Override
@@ -337,6 +337,18 @@ public final class DelegatePermission extends Permission{
     }
     
     public Permission getPermission(){
+	return permission;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the wrapped (candidate) permission, so a delegate-aware
+     * {@code SecurityManager} can satisfy this {@code DelegatePermission}
+     * against a domain that implies the candidate.
+     */
+    @Override
+    public Permission getPermissionToCheck(){
 	return permission;
     }
 

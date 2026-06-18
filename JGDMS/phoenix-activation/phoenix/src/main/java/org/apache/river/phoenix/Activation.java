@@ -103,7 +103,6 @@ import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
-import org.apache.river.api.security.CombinerSecurityManager;
 import org.apache.river.config.Config;
 import org.apache.river.phoenix.common.AccessAtomicILFactory;
 import org.apache.river.phoenix.dl.AID;
@@ -1767,6 +1766,18 @@ class Activation implements Serializable {
 	    argv.add(command[i]);
 	}
 
+	// Propagate the activator's SecurityManager selection to the spawned
+	// group JVM, unless the group already overrode it.  The SecurityManager
+	// is selected at launch via -Djava.security.manager (no programmatic
+	// install); forwarding keeps groups running under the same SM as phoenix.
+	String smManagerProp = System.getProperty("java.security.manager");
+	if (smManagerProp != null
+		&& (props == null
+		    || props.getProperty("java.security.manager") == null))
+	{
+	    argv.add("-Djava.security.manager=" + smManagerProp);
+	}
+
 	ProcessBuilder pb = new ProcessBuilder(argv);
 
 	// Optional working directory override
@@ -2254,7 +2265,10 @@ class Activation implements Serializable {
      */
     public static void main(String[] args) {
 	if (System.getSecurityManager() == null) {
-	    System.setSecurityManager(new CombinerSecurityManager());
+	    // No programmatic install: the SecurityManager is selected at JVM
+	    // launch via -Djava.security.manager (forwarded to spawned activation
+	    // groups by buildGroupProcess).  Running without it leaves no
+	    // SecurityManager installed, a supported inspection/test mode.
 //	    System.setSecurityManager(new SecurityPolicyWriter());
 	}
 	boolean stop = false;

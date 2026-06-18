@@ -63,8 +63,14 @@ import org.apache.river.proxy.Bootstrap;
 public final class Item implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 2L;
-    private static final ObjectStreamField[] serialPersistentFields = 
-        serialForm();
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("serviceID", ServiceID.class),
+        new ObjectStreamField("serviceType", ServiceType.class),
+        new ObjectStreamField("codebase", String.class),
+        new ObjectStreamField("service", MarshalledWrapper.class),
+        new ObjectStreamField("attributeSets", EntryRep[].class),
+        new ObjectStreamField("bootstrapProxy", java.lang.reflect.Proxy.class)
+    };
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

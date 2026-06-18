@@ -39,9 +39,7 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
-import org.apache.river.api.security.CombinerSecurityManager;
 import org.apache.river.api.io.AtomicMarshalInputStream;
-import org.apache.river.tool.SecurityPolicyWriter;
 //import org.bouncycastle.jce.provider.BouncyCastleProvider;
 //import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 
@@ -104,7 +102,7 @@ class MasterTest {
             logger.log(Level.WARNING, "SecurityManager was null");
 //	    System.setSecurityManager(new java.rmi.RMISecurityManager());
 //            System.setSecurityManager(new SecurityPolicyWriter()); // Seems to be ok here
-            System.setSecurityManager(new CombinerSecurityManager());
+            /* SecurityManager selected at launch via -Djava.security.manager (no programmatic install) */;
 	}
 	Policy policy = Policy.getPolicy();
 	if (!(policy instanceof DynamicPolicy)){

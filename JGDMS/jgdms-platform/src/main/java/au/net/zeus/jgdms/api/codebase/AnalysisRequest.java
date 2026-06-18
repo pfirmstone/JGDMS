@@ -93,8 +93,13 @@ public final class AnalysisRequest implements Serializable {
     private static final String ORIGINAL_URI   = "originalUri";
     private static final String MAX_BFS_DEPTH  = "maxBfsDepth";
 
-    @SuppressWarnings("unused")
-    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField(PACKED_JAR_BYTES, byte[].class),
+        new ObjectStreamField(CONTENT_HASH,     String.class),
+        new ObjectStreamField(ORIGINAL_URI,     String.class),
+        new ObjectStreamField(MAX_BFS_DEPTH,    Integer.TYPE)
+    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {

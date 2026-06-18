@@ -19,7 +19,6 @@ package org.apache.river.api.io;
 
 import java.io.IOException;
 import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,11 +26,9 @@ import org.apache.river.api.io.AtomicSerial.PutArg;
 
 /**
  * An EmulatedFieldsForDumping is an object that represents a set of emulated
- * fields for an object being dumped. It is a concrete implementation for
- * ObjectOutputStream.PutField
- * 
- * 
- * @see ObjectOutputStream.PutField
+ * fields for an object being dumped. It is a concrete implementation of
+ * {@link AtomicSerial.PutArg}, the JOSS-internal write path.
+ *
  * @see EmulatedFieldsForLoading
  */
 class EmulatedFieldsForDumping extends PutArg {
@@ -51,7 +48,7 @@ class EmulatedFieldsForDumping extends PutArg {
      *            (names, types, etc).
      */
     EmulatedFieldsForDumping(ObjOutputStream oos, ObjectStreamField [] streamFields) {
-        super();
+        super(false); // Use package-private bypass -- no SerializablePermission needed for JOSS-internal class
         emulatedFields = new EmulatedFields(streamFields);
         this.oos = oos;
         fields = 0;
@@ -205,10 +202,7 @@ class EmulatedFieldsForDumping extends PutArg {
         fields ++;
     }
 
-    @Override
-    public void write(ObjectOutput out) throws IOException {
-        throw new UnsupportedOperationException("Not supported.");
-    }
+    // write(ObjectOutput) removed -- PutArg no longer extends ObjectOutputStream.PutField (sec4.3)
 
     @Override
     public void writeArgs() throws IOException {

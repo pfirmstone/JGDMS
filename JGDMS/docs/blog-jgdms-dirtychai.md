@@ -325,7 +325,17 @@ dependency on DirtyChai.
 ### Three-Layer Authorization Stack
 
 Authorization in JGDMS is not a single on/off switch. It is a composable stack of three policy
-providers:
+providers.
+
+> **Composition note (code review, `docs/agent-authority-code-review-2026-06-14.md` §2/§5).**
+> The "three layers" are a *wrapping and assembly convention*, not a hard-wired chain.
+> `DynamicPolicyProvider` and `RemotePolicyProvider` each generically wrap **any** base
+> `ScalableNestedPolicy`/`Policy`; the `SpiffePolicyFile → RemotePolicy → DynamicPolicy`
+> ordering shown below is a deployment assembly chosen by whoever wires the providers, not a
+> sequence enforced by the types. Likewise the "three-way intersection" is realised as
+> *conjunctive gating of grant applicability* (a grant applies only when codebase/digest **and**
+> all-principals-present **and** the `GrantPermission` ceiling all hold), not as an arithmetic
+> set-intersection of permission lists.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
