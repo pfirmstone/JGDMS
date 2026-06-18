@@ -23,12 +23,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.NotSerializableException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -614,17 +610,10 @@ public final class AccessControlContextSerializer {
     }
 
     @AtomicSerial
-    static final class DomainIdentityRecord implements Serializable {
-        private static final long serialVersionUID = 1L;
+    static final class DomainIdentityRecord {
         private static final String LOCATION = "location";
         private static final String PRINCIPAL_TYPES = "principalTypes";
         private static final String PRINCIPAL_NAMES = "principalNames";
-        // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-        private static final ObjectStreamField[] serialPersistentFields = {
-            new ObjectStreamField(LOCATION, String.class),
-            new ObjectStreamField(PRINCIPAL_TYPES, String[].class),
-            new ObjectStreamField(PRINCIPAL_NAMES, String[].class)
-        };
 
         static SerialForm[] serialForm() {
             return new SerialForm[]{
@@ -803,16 +792,6 @@ public final class AccessControlContextSerializer {
             h = 31 * h + Arrays.hashCode(principalNames);
             return h;
         }
-
-        private void writeObject(ObjectOutputStream out) throws IOException {
-            throw new NotSerializableException(
-                "DomainIdentityRecord must be serialized using @AtomicSerial transport records only");
-        }
-
-        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-            throw new NotSerializableException(
-                "DomainIdentityRecord must be deserialized using @AtomicSerial transport records only");
-        }
     }
 
     static final class DomainIdentity extends ProtectionDomain {
@@ -820,18 +799,9 @@ public final class AccessControlContextSerializer {
         DomainIdentity(CodeSource cs, Principal[] principals) {
             super(cs, null, null, principals);
         }
-        
-        private void writeObject(ObjectOutputStream out) throws IOException {
-            throw new NotSerializableException("DomainIdentity must be serialized using @AtomicSerial transport records only");
-        }
-        
-        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-            throw new NotSerializableException("DomainIdentity must be deserialized using @AtomicSerial transport records only");
-        }
     }
 
-    private static final class NamedPrincipal implements Principal, Serializable {
-        private static final long serialVersionUID = 1L;
+    private static final class NamedPrincipal implements Principal {
         private final String name;
 
         private NamedPrincipal(String name) {
@@ -858,16 +828,6 @@ public final class AccessControlContextSerializer {
         @Override
         public String toString() {
             return "NamedPrincipal[" + name + "]";
-        }
-
-        private void writeObject(ObjectOutputStream out) throws IOException {
-            throw new NotSerializableException(
-                "NamedPrincipal must not be serialized outside of AccessControlContextSerializer");
-        }
-
-        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-            throw new NotSerializableException(
-                "NamedPrincipal must not be deserialized outside of AccessControlContextSerializer");
         }
     }
 
