@@ -142,7 +142,7 @@ public class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,
             };
         }
         
-        public static void serializer(PutArg arg, Ent e) throws IOException{
+        public static void serialize(PutArg arg, Ent e) throws IOException{
             arg.put("key", e.key);
             arg.put("value", e.value);
             arg.put("keyClass", e.keyClass);
