@@ -1,0 +1,15 @@
+# Deliberate preferred-class overrides for jgdms-platform.
+# Applied over the analyzer's bytecode analysis; see
+# docs/SOW-PreferredList-Analyzer.md (sec. 6) and
+# docs/PreferredList-Relocation-Findings.md.
+# Format:  fully.qualified.Class = true|false   # reason
+#
+# UuidFactory keeps ONE shared SecureRandom (a CSPRNG -- required for unguessable
+# Uuids). Sharing it is the correct virtual-thread design: SecureRandom is
+# thread-safe and, on JDK 24+ (JEP 491), its internal lock no longer pins virtual
+# threads; a per-thread ThreadLocal would explode to one instance per virtual
+# thread, and ThreadLocalRandom is not cryptographically secure. The analyzer
+# flags the shared SecureRandom field conservatively; this records the human
+# judgement that it must share.
+
+net.jini.id.UuidFactory = false   # deliberate share: shared SecureRandom is correct for virtual threads (see header)

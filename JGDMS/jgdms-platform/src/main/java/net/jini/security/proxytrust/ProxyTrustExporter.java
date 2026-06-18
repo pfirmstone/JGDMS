@@ -18,11 +18,9 @@
 
 package net.jini.security.proxytrust;
 
-import org.apache.river.thread.Executor;
-import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
+import java.lang.ref.Cleaner;
 import java.lang.ref.Reference;
-import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
@@ -30,12 +28,9 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.security.Permission;
-import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.Set;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
-import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 
 /**
@@ -60,15 +55,14 @@ public class ProxyTrustExporter implements Exporter {
     /** Permission required to use class loader of main proxy's class */
     private static final Permission loaderPermission =
 				      new RuntimePermission("getClassLoader");
-    /** Executor that executes tasks in pooled system threads. */
-    private static final Executor systemThreadPool =
-	(Executor) Security.doPrivileged(new GetThreadPoolAction(false));
-    /** Holds strong refs to WeakRefs until they are cleared */
-    private static final Set refs = new HashSet();
-    /** Reference queue for WeakRefs */
-    private static final ReferenceQueue queue = new ReferenceQueue();
-    /** WeakRef reaper, if any */
-    private static Reaper reaper = null;
+    /**
+     * Cleaner that releases the bootstrap remote object once the main remote
+     * object has been garbage collected, replacing the former static
+     * WeakReference / ReferenceQueue / reaper-thread machinery. A {@code
+     * Cleaner} is thread-safe and owns its own daemon thread, so no static lock
+     * or shared thread pool is required.
+     */
+    private static final Cleaner cleaner = Cleaner.create();
 
     /** The main exporter, for the main remote object.*/
     private final Exporter mainExporter;
@@ -76,8 +70,8 @@ public class ProxyTrustExporter implements Exporter {
     private final Exporter bootExporter;
     /** The class loader to define the proxy class in, or null */
     private final ClassLoader loader;
-    /** WeakRef to impl */
-    private WeakRef ref = null;
+    /** Cleanup registration for the current export, or null. */
+    private Cleaner.Cleanable cleanable = null;
 
     /**
      * Creates an instance with the specified main exporter (which will be
@@ -237,16 +231,16 @@ public class ProxyTrustExporter implements Exporter {
 		    ifaces.addFirst(ifs[i]);
 		}
 	    }
-	    ref = new WeakRef(impl);
-	    synchronized (refs) {
-		if (reaper == null) {
-		    reaper = new Reaper();
-		    systemThreadPool.execute(reaper,
-					     "ProxyTrustExporter.Reaper");
-		}
-		refs.add(ref);
+	    ProxyTrustImpl bootImpl = new ProxyTrustImpl(impl);
+	    // Keep the bootstrap impl reachable while the main object is; the
+	    // cleaner releases it (so the bootstrap can be unexported and
+	    // collected) once the main object is GC'd. The action must not
+	    // reference the main object, so it holds the bootstrap impl, whose
+	    // reference back to the main object is weak.
+	    if (impl != null) {
+		cleanable = cleaner.register(impl, new BootHolder(bootImpl));
 	    }
-	    boot = bootExporter.export(ref.boot);
+	    boot = bootExporter.export(bootImpl);
 	    if (!(boot instanceof ProxyTrust)) {
 		throw new ExportException(
 			     "bootstrap proxy must implement ProxyTrust");
@@ -270,8 +264,8 @@ public class ProxyTrustExporter implements Exporter {
 	    throw new ExportException("export failed", e);
 	} finally {
 	    if (!ok) {
-		if (ref != null) {
-		    ref.enqueue();
+		if (cleanable != null) {
+		    cleanable.clean();
 		}
 		if (boot != null) {
 		    bootExporter.unexport(true);
@@ -299,67 +293,39 @@ public class ProxyTrustExporter implements Exporter {
 	    return false;
 	}
 	bootExporter.unexport(true);
-	if (ref != null) {
-	    ref.enqueue();
+	if (cleanable != null) {
+	    cleanable.clean();
 	}
 	return true;
     }
 
     /**
-     * Weak reference to the main remote object with strong reference
-     * to the bootstrap remote object.
+     * Holds the bootstrap remote object strongly while the main remote object
+     * is reachable, releasing it when the {@link Cleaner} runs (the main object
+     * has been collected) or on an explicit {@link #unexport}. Registered with
+     * the cleaner against the main remote object, so it must not reference that
+     * object; it holds the {@link ProxyTrustImpl}, whose reference back to the
+     * main object is weak.
      */
-    private static class WeakRef extends WeakReference {
-	/** The bootstrap remote object */
-	ProxyTrust boot;
+    private static final class BootHolder implements Runnable {
+	private ProxyTrustImpl bootImpl;
 
-	/** Create an instance registered with queue */
-	WeakRef(Remote impl) {
-	    super(impl, queue);
-	    this.boot = new ProxyTrustImpl(this);
+	BootHolder(ProxyTrustImpl bootImpl) {
+	    this.bootImpl = bootImpl;
 	}
 
-	/** Clear both references */
-	public void clear() {
-	    super.clear();
-	    boot = null;
-	}
-    }
-
-    /** WeakRef reaper */
-    private static class Reaper implements Runnable {
-	Reaper() {
-	}
-
-	/**
-	 * Keep removing refs from the queue, clearing them, and removing
-	 * them from the refs list, until the refs list is empty.
-	 */
 	public void run() {
-	    try {
-		while (true) {
-		    Reference ref = queue.remove();
-		    ref.clear();
-		    synchronized (refs) {
-			refs.remove(ref);
-			if (refs.isEmpty()) {
-			    reaper = null;
-			    return;
-			}
-		    }
-		}
-	    } catch (InterruptedException e) {
-	    }
+	    bootImpl = null;
 	}
     }
 
     /** ProxyTrust impl class */
     private static class ProxyTrustImpl implements ProxyTrust {
 	/** Weak reference to the main remote object */
-	protected final Reference ref;
+	private final Reference ref;
 
-	ProxyTrustImpl(Reference ref) {
-	    this.ref = ref;
+	ProxyTrustImpl(Remote impl) {
+	    this.ref = new WeakReference(impl);
 	}
 
 	/** Delegate to the main remote object */

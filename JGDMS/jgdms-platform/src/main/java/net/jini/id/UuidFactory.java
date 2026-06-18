@@ -40,11 +40,16 @@ import org.apache.river.api.net.Uri;
  **/
 public final class UuidFactory {
 
-    /** guards secureRandom */
-    private static final Object lock = new Object();
-
-    /** source of cryptographically strong random bits, lazily created */
-    private static SecureRandom secureRandom;
+    /**
+     * Source of cryptographically strong random bits. A single shared instance:
+     * SecureRandom is thread-safe, and on JDK 24+ (JEP 491) its internal lock no
+     * longer pins virtual threads, so sharing one CSPRNG is the correct design
+     * for a virtual-thread system -- a per-thread instance (ThreadLocal) would
+     * explode to one SecureRandom per virtual thread, and ThreadLocalRandom is
+     * not cryptographically secure. SecureRandom self-seeds lazily on first use,
+     * so eager construction here is cheap.
+     */
+    private static final SecureRandom secureRandom = new SecureRandom();
 
     /**
      * Creates a new <code>Uuid</code> with the specified 128-bit
@@ -164,11 +169,6 @@ public final class UuidFactory {
      * @see SecureRandom
      **/
     public static Uuid generate() {
-	synchronized (lock) {
-	    if (secureRandom == null) {
-		secureRandom = new SecureRandom();
-	    }
-	}
 	long bits0 = secureRandom.nextLong();
 	long bits1 = secureRandom.nextLong();
 
