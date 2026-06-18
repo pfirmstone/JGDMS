@@ -315,6 +315,23 @@ public final class SchemaGenerator {
             return "@AtomicSerial";
         }
 
+        // A field declared as an interface or abstract class is a polymorphic slot: it
+        // cannot itself be the runtime type, and its runtime value's concrete
+        // @AtomicSerial class travels in the embedded schema -- exactly as for a nested
+        // @AtomicSerial field (the marker need not name a class). It is encoded as
+        // "@AtomicSerial": encodeNested uses value.getClass(), and at decode the embedded
+        // chain supplies the concrete class while the declared interface/abstract type is
+        // used only for the constructor's assignability check. The runtime value MUST be
+        // @AtomicSerial (or carry a registered serializer), else encodeNested fails fast.
+        // (A CONCRETE non-@AtomicSerial type is a single fixed type, not a polymorphic
+        // slot, so it is still rejected below.) This is what lets a live remote reference
+        // -- e.g. net.jini.jeri.BasicObjectEndpoint, whose 'ep' field is declared as the
+        // Endpoint interface -- travel on the DER wire (JGDMS-STD-008 sec.16).
+        if (javaType.isInterface()
+                || java.lang.reflect.Modifier.isAbstract(javaType.getModifiers())) {
+            return "@AtomicSerial";
+        }
+
         // Any other type -- not guessed, clear error
         throw new DerException(
                 "SchemaGenerator: unsupported serial field type " + javaType.getName()

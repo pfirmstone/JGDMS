@@ -41,13 +41,16 @@ import org.junit.Test;
  * {@code null} the live reference registers on the {@link DeserializationCompletion}
  * context element instead.
  *
- * <p>This test drives the constructor directly with a fake {@code GetArg} that models the
+ * <p>These tests drive the constructor directly with a fake {@code GetArg} that models the
  * DER path (no reader; a recording {@code DeserializationCompletion} in the object-stream
- * context). It verifies the registration without DER-encoding a {@code BasicObjectEndpoint}
- * (its {@code ep} field is declared as the {@code Endpoint} interface, which the current
- * DER {@code SchemaGenerator} does not encode) and without firing the batched dirty (which
- * would attempt a real network {@code registerRefs}). The end-of-decode-unit firing is
- * covered, network-free, by {@code au.net.zeus.jgdms.der.stream.DerDecodeUnitContextTest}.
+ * context), and do not fire the batched dirty ({@code endDecodeUnit}/{@code close}), which
+ * would attempt a real network {@code registerRefs}. A fake {@code GetArg} is used because a
+ * full DER round-trip of a real {@code BasicObjectEndpoint} is not yet possible: its
+ * interface-typed {@code ep} field now encodes, but its {@code id} field's runtime type
+ * {@code net.jini.id.UuidFactory$Impl} lacks a {@code serialize(PutArg)} DER write contract.
+ * The interface-typed-field mechanism is covered by
+ * {@code au.net.zeus.jgdms.der.object.InterfaceFieldRoundTripTest}; the end-of-decode-unit
+ * firing by {@code au.net.zeus.jgdms.der.stream.DerDecodeUnitContextTest}.
  */
 public class BasicObjectEndpointDerDgcTest {
 
@@ -89,6 +92,14 @@ public class BasicObjectEndpointDerDgcTest {
         Assert.assertEquals("a non-DGC endpoint must not register a completion",
                 0, completion.registrationCount);
     }
+
+    // NOTE: a full real DER round-trip of a BasicObjectEndpoint is not yet possible. The
+    // interface-typed 'ep' field now encodes (SchemaGenerator polymorphic @AtomicSerial
+    // slot), but its 'id' field's runtime type net.jini.id.UuidFactory$Impl is @AtomicSerial
+    // WITHOUT a serialize(PutArg) DER write contract (and TcpEndpoint's chain is unverified),
+    // so encode fails deeper in the graph. Making the JERI proxy graph fully DER-serializable
+    // is a separate workstream; the interface-field step is proven by
+    // au.net.zeus.jgdms.der.object.InterfaceFieldRoundTripTest.
 
     /** Records {@code registerCompletion} calls; never fires (no network). */
     private static final class RecordingCompletion implements DeserializationCompletion {
