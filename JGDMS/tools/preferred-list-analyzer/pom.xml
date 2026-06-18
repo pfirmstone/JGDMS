@@ -39,6 +39,7 @@
         <!-- Compiled module the build-time linter analyses (relative to this module). -->
         <preferred.target.classes>${project.basedir}/../../jgdms-platform/target/classes</preferred.target.classes>
         <preferred.target.list>${project.basedir}/../../jgdms-platform/src/main/resources/META-INF/PREFERRED.LIST</preferred.target.list>
+        <preferred.target.overrides>${project.basedir}/../../jgdms-platform/src/main/resources/META-INF/preferred-overrides.txt</preferred.target.overrides>
         <!-- Skip the build-time check (e.g. when building this module standalone). -->
         <preferred.check.skip>false</preferred.check.skip>
     </properties>
@@ -126,6 +127,8 @@
                                     <arg value="${preferred.target.classes}"/>
                                     <arg value="--list"/>
                                     <arg value="${preferred.target.list}"/>
+                                    <arg value="--overrides"/>
+                                    <arg value="${preferred.target.overrides}"/>
                                     <arg value="--report"/>
                                     <arg value="${project.build.directory}/preferred-list/jgdms-platform.report.txt"/>
                                     <arg value="--fail-on-drift"/>

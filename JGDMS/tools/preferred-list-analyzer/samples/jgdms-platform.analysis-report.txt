@@ -6,12 +6,11 @@ Analyzed classes : 618
   SHARE  (false) : 616
   CONFLICT       : 1  (must share, yet contends -- lock-free remedy needed)
   needs review   : 12
-  overrides      : 0
+  overrides      : 1
 
 -- PREFER (isolate; Preferred: true) ----------------------------------
 
 net.jini.id.UuidFactory
-    (B) SYNCHRONIZED_ON_STATIC_FIELD: synchronized block on static field lock
     (B) CONTENDED_STATIC_FIELD: static field secureRandom of contended type java.security.SecureRandom
 
 -- CONFLICT (must share; needs lock-free remedy; do NOT prefer) ------
@@ -64,3 +63,9 @@ org.apache.river.resource.OSGiServiceIterator
 
 org.apache.river.resource.Service
     (A) MUTABLE_STATIC_STATE: mutable static field osgi reassigned at runtime (mutable singleton) [Z]
+
+-- OVERRIDES APPLIED --------------------------------------------------
+  net.jini.id.UuidFactory = false   # deliberate share: shared SecureRandom is correct for virtual threads (see header)
+
+  divergent from analysis:
+    net.jini.id.UuidFactory: analysis=true override=false

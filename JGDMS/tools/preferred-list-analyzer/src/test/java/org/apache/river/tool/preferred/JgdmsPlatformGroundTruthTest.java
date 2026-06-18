@@ -86,11 +86,17 @@ public class JgdmsPlatformGroundTruthTest {
     // ---- §8 PREFER (isolate) ----------------------------------------------
 
     @Test
-    public void uuidFactoryIsPreferred() {
+    public void uuidFactoryAnalysisIsPreferViaSharedSecureRandom() {
+        // UuidFactory keeps one shared SecureRandom (a CSPRNG) by design; its
+        // redundant lazy-init lock was dropped, so the only remaining hazard is
+        // the contended SecureRandom field. A deliberate-share override
+        // (jgdms-platform META-INF/preferred-overrides.txt) demotes it to share
+        // in the emitted list -- the build gate enforces that end to end.
         ClassDecision d = get("net/jini/id/UuidFactory");
         assertEquals(Decision.PREFER, d.getAnalysisDecision());
-        assertTrue(FixtureSupport.hasKind(d, HazardKind.SYNCHRONIZED_ON_STATIC_FIELD));
         assertTrue(FixtureSupport.hasKind(d, HazardKind.CONTENDED_STATIC_FIELD));
+        assertFalse("lazy-init lock was dropped",
+                FixtureSupport.hasKind(d, HazardKind.SYNCHRONIZED_ON_STATIC_FIELD));
     }
 
     @Test
@@ -117,8 +123,10 @@ public class JgdmsPlatformGroundTruthTest {
             }
         }
         // After the ProxyTrustExporter Cleaner fix, UuidFactory is the only
-        // remaining shared-static isolation hazard in jgdms-platform.
-        assertEquals("share-by-default: PREFER set should be exactly "
+        // remaining shared-static isolation hazard the analysis finds. It is in
+        // turn recorded as a deliberate share via the override file, so the
+        // emitted PREFERRED.LIST is empty (platform needs no preferred classes).
+        assertEquals("share-by-default: analysed PREFER set should be exactly "
                 + "{UuidFactory}, was:" + names, 1, prefer);
     }
 

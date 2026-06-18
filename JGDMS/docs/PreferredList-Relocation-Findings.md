@@ -35,7 +35,7 @@ excluding a class's own inner classes):
 | Class | Hazard (analyzer verdict) | Incoming platform deps | Relocation verdict |
 |---|---|---|---|
 | `net.jini.security.proxytrust.ProxyTrustExporter` | ~~static `Executor` pool + mutable statics (PREFER)~~ **RESOLVED 2026-06-18** | **0** | **fixed lock-free** (see below) — now SHARE, no relocation needed |
-| `net.jini.id.UuidFactory` | `synchronized(lock)` + `SecureRandom` in `generate()` (**PREFER**) | 1 — `org.apache.river.config.ConfigUtil`, which calls only `create(String)` (parse), **not** the hazardous `generate()` | near-clean; movable if `ConfigUtil`'s single ref is handled |
+| `net.jini.id.UuidFactory` | ~~`synchronized(lock)` + `SecureRandom` (PREFER)~~ **RESOLVED 2026-06-18** | 1 — `ConfigUtil` (`create(String)` only) | **lock dropped; shared `SecureRandom` kept by design; deliberate-share override** (§2b) |
 | `net.jini.core.constraint.DelegationAbsoluteTime` | `static synchronized getFormatter()` (**CONFLICT**, `@AtomicSerial` wire type) | 3 (`ConstraintTrustVerifier`, `DelegationRelativeTime`, `Plaintext`) | **stays** — must keep wire identity; remedy is lock-free (`ThreadLocal<SimpleDateFormat>`) |
 | `net.jini.export.ServerContext`, `net.jini.security.policy.PolicyFileProvider`, `org.apache.river.api.security.DelegatePermission` | benign bare-lock cache / (a) (**review**) | 0 | movable but **not motivated** (no real isolation hazard) |
 | `Constants`(8), `ClassLoading`(5), `Security`(15), `Service`(9), `DiscoveryV2`(1), `ObjectStreamClassContainer`(3), `OSGiServiceIterator`(1) | review | ≥1 | stay (core infra) |
@@ -56,26 +56,44 @@ holds the bootstrap impl (whose back-reference to the main object is weak) and s
 never pins the registered object. The analyzer now classifies it **SHARE** (no
 hazard) — the hazard is dissolved, not relocated. It stays in `jgdms-platform`.
 
-## 3. Open question for the remaining candidate (UuidFactory)
+## 2b. UuidFactory — lock dropped, recorded as a deliberate share (2026-06-18)
 
-Relocating to `jgdms-lib-dl` isolates instances loaded through a **downloaded
-codebase** (per-codebase classloader). For a server-side hazard, lock-free is
-usually the better remedy than relocation (as done for `ProxyTrustExporter`).
-`UuidFactory`'s `generate()` lock + `SecureRandom` is similarly server-side; the
-same lock-free treatment (or accepting the shared generator) is likely preferable
-to a move, and its sole platform dependency (`ConfigUtil`) uses only the benign
-`create(String)` path.
+`UuidFactory.generate()`'s only hazard left was a shared static `SecureRandom`
+guarded by a lazy-init lock (the `nextLong()` calls were already outside the
+lock). The lock was redundant, so it was dropped — `secureRandom` is now an eager
+`private static final SecureRandom`. The generator is **kept shared on purpose**:
+that is the correct design for a virtual-thread system. `SecureRandom` is
+thread-safe and, on JDK 24+ (JEP 491), its internal lock no longer pins virtual
+threads; a per-thread `ThreadLocal<SecureRandom>` would explode to one instance
+per virtual thread; `ThreadLocalRandom` is not cryptographically secure (and
+these `Uuid`s must be unguessable); and `ScopedValue` doesn't fit a leaf utility
+with no enclosing binding scope.
+
+The analyzer still flags the shared `SecureRandom` field conservatively
+(`CONTENDED_STATIC_FIELD` → PREFER). That is precisely an override case, so it is
+recorded in `jgdms-platform/src/main/resources/META-INF/preferred-overrides.txt`
+(`net.jini.id.UuidFactory = false`). The build gate runs `check --overrides
+--fail-on-drift`, so it enforces end-to-end that the override demotes it.
+
+**End state:** with both `ProxyTrustExporter` (lock-free) and `UuidFactory`
+(deliberate share) resolved, no class in `jgdms-platform` is preferred — the
+emitted `PREFERRED.LIST` is empty (header + `Preferred: false`), confirming
+platform needs no preferred classes. A refinement for the `-dl` rollout: "static
+`SecureRandom` field ⇒ prefer" is override territory in a vthread world, not an
+automatic prefer.
 
 ## 4. Recommended next steps
 
-1. **Decide the platform list**: remove `jgdms-platform`'s `PREFERRED.LIST`
-   (needs none) and retarget the analyzer + `--fail-on-drift` gate at the `-dl`
-   modules; or leave the inert flip as-is.
-2. **`ProxyTrustExporter`**: ~~confirm topology / relocate~~ **done** — fixed
+1. **`ProxyTrustExporter`**: ~~confirm topology / relocate~~ **done** — fixed
    lock-free with `java.lang.ref.Cleaner` (§2a); now SHARE, stays in platform.
-3. **`UuidFactory`**: assess moving with the one `ConfigUtil.create()` ref; or
-   leave (its hazardous `generate()` path is unused within platform).
+2. **`UuidFactory`**: ~~assess / move~~ **done** — lock dropped, shared
+   `SecureRandom` kept by design, recorded as a deliberate-share override (§2b).
+   Platform's emitted `PREFERRED.LIST` is now empty.
+3. **Platform list**: now empty and override-backed; the gate enforces it. Could
+   still be deleted entirely once the tool is also pointed at the `-dl` modules.
 4. **`DelegationAbsoluteTime`**: apply the lock-free `getFormatter()` fix
-   (SOW §2 conflict bucket — independent of any move).
+   (`ThreadLocal<SimpleDateFormat>`; SOW §2 conflict bucket) — the last open
+   platform hazard, a CONFLICT (cross-boundary wire type, must stay shared).
 5. **Roll the analyzer across the `-dl` modules** (SOW §7) with finding #1's
-   fuller cross-boundary resolution (classpath supertype lookup) in place.
+   fuller cross-boundary resolution (classpath supertype lookup) in place, and
+   treat a shared `SecureRandom` field as override territory, not auto-prefer.

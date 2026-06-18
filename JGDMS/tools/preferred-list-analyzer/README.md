@@ -12,16 +12,20 @@ the stale hand-maintained lists. See `docs/SOW-PreferredList-Analyzer.md`.
 | ASM signal scanner, decision engine, override mechanism, `PREFERRED.LIST` parse/render/diff, report | **done** |
 | `PreferredListTool` CLI (`generate` / `check` subcommands, runnable `Main-Class`) | **done** |
 | Build integration — `check` runs in this module's `verify` and **fails on drift** | **done** |
-| Unit fixtures (one per hazard/share kind) + CLI tests + `jgdms-platform` §8 ground-truth acceptance | **done — 41 tests green** |
+| Unit fixtures + CLI tests + override mechanism + `jgdms-platform` ground-truth acceptance | **done — 43 tests green** |
 
 Validated against the compiled `jgdms-platform`: it reproduces the 2026-06-17
-audit ground truth exactly — `PREFER` = {`UuidFactory`, `ProxyTrustExporter`},
-`CONFLICT` = {`DelegationAbsoluteTime`}, everything else `SHARE` (the bootstrap
-interfaces, the `*Serializer` `serialVersionUID`-only classes, and the wire value
-types all share). **`jgdms-platform`'s live `META-INF/PREFERRED.LIST` is now the
-tool-generated list** (share-by-default; this replaced an 879-line hand-maintained
-list that had drifted on 256 classes). The build now derives and enforces it.
-Snapshot outputs are in [`samples/`](samples).
+audit ground truth and replaced the stale 879-line hand-maintained list (which
+had drifted on 256 classes). The two flagged isolation hazards were then fixed at
+the source: `ProxyTrustExporter` made lock-free with `java.lang.ref.Cleaner`, and
+`UuidFactory`'s redundant lazy-init lock dropped (its shared `SecureRandom` kept
+by design and recorded as a deliberate share in `jgdms-platform`'s
+`META-INF/preferred-overrides.txt`). So the **emitted `PREFERRED.LIST` is now
+empty** (platform needs no preferred classes), and the build enforces that with
+`check --overrides --fail-on-drift`. The only remaining flagged class is the
+CONFLICT `DelegationAbsoluteTime` (a cross-boundary wire type — fix is lock-free,
+not prefer). Snapshot outputs and the overrides are in [`samples/`](samples) and
+[the platform overrides file](../../jgdms-platform/src/main/resources/META-INF/preferred-overrides.txt).
 
 ## Decision model
 
