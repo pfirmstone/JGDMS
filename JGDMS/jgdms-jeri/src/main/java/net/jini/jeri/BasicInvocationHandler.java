@@ -72,6 +72,7 @@ import net.jini.io.context.IntegrityEnforcement;
 import net.jini.security.jwt.JwtRawToken;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.action.GetBooleanAction;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -1056,6 +1057,10 @@ public class BasicInvocationHandler
 			"invalid response code " + responseCode);
 		}
 
+		// Fire end-of-decode-unit completion callbacks (e.g. the client DGC batched
+		// dirty) after the result is unmarshalled and BEFORE in.close() drives the mux
+		// Acknowledgment; no-op on the JOSS/atomic path (SRC RR-116 dirty-before-ack).
+		if (in instanceof AtomicObjectInput) ((AtomicObjectInput) in).endDecodeUnit();
 		in.close();
 	    }
 	    ok = true;

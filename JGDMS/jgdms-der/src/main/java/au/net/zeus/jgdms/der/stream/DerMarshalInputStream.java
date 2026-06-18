@@ -81,6 +81,14 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     private final InputStream underlying;
 
     /**
+     * Completion sink for this decode unit. {@code @AtomicSerial} objects decoded from
+     * this stream register post-graph callbacks here (via {@link #registerValidation} or
+     * the {@link net.jini.io.context.DeserializationCompletion} context element exposed by
+     * the active {@code DerGetArg}); {@link #endDecodeUnit()} fires them before close.
+     */
+    private final DerDecodeUnit decodeUnit = new DerDecodeUnit();
+
+    /**
      * Constructs a DER object-stream reader over {@code in}.
      * <p>
      * All bytes are read eagerly from {@code in} and handed to the codec.
@@ -93,7 +101,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
         this.underlying = Objects.requireNonNull(in, "in");
         byte[] buf = in.readAllBytes();
         this.codec = new DerObjectStreamCodec();
-        this.codec.initReader(buf);
+        this.codec.initReader(buf, decodeUnit);
     }
 
     // =========================================================================
@@ -147,16 +155,36 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     }
 
     /**
-     * No-op. The DER path performs atomic per-object validation inline during construction
-     * (each {@code @AtomicSerial} object's {@code check(GetArg)} runs before it is returned);
-     * post-deserialization validation callbacks are not used (mirrors
-     * {@code DerMarshalInstanceInput}). Provided to satisfy the {@link AtomicObjectInput}
-     * contract.
+     * Registers a post-deserialization callback for this decode unit. Unlike
+     * {@link java.io.ObjectInputStream}, the DER codec has no automatic "run validations
+     * when the outermost {@code readObject} returns" trigger, so the callbacks are held
+     * and fired explicitly by {@link #endDecodeUnit()} (called by the JERI framing layer
+     * after the value-sequence is read and before this stream is closed). Each
+     * {@code @AtomicSerial} object is itself validated atomically during construction (its
+     * {@code check(GetArg)} runs before it is returned); this callback channel is for
+     * cross-object, end-of-unit work such as the client DGC batched {@code dirty}.
+     *
+     * @param object   the callback (must not be {@code null})
+     * @param priority run-order priority; higher priorities run first
+     * @throws InvalidObjectException if {@code object} is {@code null}
+     * @throws NotActiveException     if this decode unit has already completed
      */
     @Override
     public void registerValidation(ObjectInputValidation object, int priority)
             throws NotActiveException, InvalidObjectException {
-        // DER does not use post-deserialization validation callbacks.
+        decodeUnit.registerCompletion(object, priority);
+    }
+
+    /**
+     * Runs the callbacks registered for this decode unit (in decreasing-priority order),
+     * exactly once. The JERI framing layer calls this after the whole argument/result
+     * value-sequence has been read and BEFORE {@link #close()} (close drives the mux
+     * acknowledgement), so the client DGC {@code dirty} is issued before the receiver
+     * acknowledges receipt (SRC&nbsp;RR-116 transmit-race invariant). Idempotent.
+     */
+    @Override
+    public void endDecodeUnit() throws IOException {
+        decodeUnit.flush();
     }
 
     // =========================================================================
@@ -394,10 +422,22 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     /**
      * Closes the underlying input stream.
      *
-     * @throws IOException if closing the underlying stream throws
+     * <p>As a safety net, the decode unit is flushed first (so any registered completion
+     * callbacks run before the close that drives the acknowledgement, even if the framing
+     * layer omitted the explicit {@link #endDecodeUnit()} call). The flush is idempotent,
+     * so on the normal path -- where {@code endDecodeUnit()} already ran -- this is a
+     * no-op and does not invert the dirty-before-ack ordering. The underlying stream is
+     * always closed, even if a completion callback throws.
+     *
+     * @throws IOException if a completion callback fails, or if closing the underlying
+     *                     stream throws
      */
     @Override
     public void close() throws IOException {
-        underlying.close();
+        try {
+            decodeUnit.flush();
+        } finally {
+            underlying.close();
+        }
     }
 }

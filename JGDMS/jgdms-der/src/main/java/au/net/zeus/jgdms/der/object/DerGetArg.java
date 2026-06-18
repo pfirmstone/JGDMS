@@ -19,6 +19,7 @@ package au.net.zeus.jgdms.der.object;
 
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
+import net.jini.io.context.DeserializationCompletion;
 import org.apache.river.api.io.AtomicSerial;
 
 import java.io.IOException;
@@ -105,6 +106,16 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     private final int depth;
 
     /**
+     * Per-decode-unit completion sink, exposed through {@link #getObjectStreamContext()}
+     * as a {@link DeserializationCompletion} context element so a decoded DGC live
+     * reference can register its batched {@code dirty}. {@code null} when there is no
+     * decode-unit context (e.g. a standalone object decode). The same instance is threaded
+     * to every nested {@code DerGetArg} of the decode unit, so nested DGC refs batch with
+     * the outer refs.
+     */
+    private final DeserializationCompletion decodeUnit;
+
+    /**
      * Constructs a {@code DerGetArg} at nesting depth 0 (top-level decode).
      *
      * @param storeMap ordered map of class -> DerFieldStore (must not be {@code null};
@@ -112,7 +123,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
      * @throws NullPointerException if {@code storeMap} is {@code null} or empty
      */
     public DerGetArg(Map<Class<?>, DerFieldStore> storeMap) {
-        this(storeMap, 0);
+        this(storeMap, 0, null);
     }
 
     /**
@@ -125,6 +136,21 @@ public final class DerGetArg extends AtomicSerial.GetArg {
      * @throws NullPointerException if {@code storeMap} is {@code null} or empty
      */
     public DerGetArg(Map<Class<?>, DerFieldStore> storeMap, int depth) {
+        this(storeMap, depth, null);
+    }
+
+    /**
+     * Constructs a {@code DerGetArg} at the given nesting depth with a decode-unit
+     * completion token (threaded by {@link ObjectCodec} on the JERI/DER stream path so a
+     * decoded DGC live reference can register its batched {@code dirty}).
+     *
+     * @param storeMap   ordered map of class -> DerFieldStore (must not be {@code null}/empty)
+     * @param depth      the nesting depth of the object being constructed
+     * @param decodeUnit the per-decode-unit completion sink, or {@code null}
+     * @throws NullPointerException if {@code storeMap} is {@code null} or empty
+     */
+    public DerGetArg(Map<Class<?>, DerFieldStore> storeMap, int depth,
+                     DeserializationCompletion decodeUnit) {
         super(); // protected GetArg() performs a SerializablePermission
                  // "enableSubclassImplementation" check (AtomicSerial.Check.check()).
                  // GetArgImpl avoids it via the package-private GetArg(boolean)
@@ -140,6 +166,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         // Defensive copy preserving insertion order
         this.storeMap = Collections.unmodifiableMap(new LinkedHashMap<>(storeMap));
         this.depth = depth;
+        this.decodeUnit = decodeUnit;
     }
 
     // =========================================================================
@@ -279,7 +306,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                 return ObjectCodec.decodeNestedArray(
                         store.rawNestedArray(name),
                         store.nestedArrayComponentClassName(name),
-                        depth);
+                        depth, decodeUnit);
             } catch (DerException e) {
                 InvalidObjectException ioe = new InvalidObjectException(
                         "DerGetArg: failed to decode nested @AtomicSerial[] field '"
@@ -299,7 +326,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         // actual decode here in der.object so that der.getarg stays cycle-free.
         if (store.isNested(name)) {
             try {
-                return ObjectCodec.decodeNested(store.rawNested(name), depth);
+                return ObjectCodec.decodeNested(store.rawNested(name), depth, decodeUnit);
             } catch (DerException e) {
                 InvalidObjectException ioe = new InvalidObjectException(
                         "DerGetArg: failed to decode nested @AtomicSerial field '"
@@ -344,7 +371,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                 decoded = ObjectCodec.decodeNestedArray(
                         store.rawNestedArray(name),
                         store.nestedArrayComponentClassName(name),
-                        depth);
+                        depth, decodeUnit);
             } catch (DerException e) {
                 InvalidObjectException ioe = new InvalidObjectException(
                         "DerGetArg: failed to decode nested @AtomicSerial[] field '"
@@ -375,7 +402,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         if (store.isNested(name)) {
             Object decoded;
             try {
-                decoded = ObjectCodec.decodeNested(store.rawNested(name), depth);
+                decoded = ObjectCodec.decodeNested(store.rawNested(name), depth, decodeUnit);
             } catch (DerException e) {
                 InvalidObjectException ioe = new InvalidObjectException(
                         "DerGetArg: failed to decode nested @AtomicSerial field '"
@@ -447,12 +474,20 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     }
 
     /**
-     * Returns an empty, immutable list -- there is no ObjectStreamContext in the
-     * DER path.
+     * Returns the decode-unit context for this object stream.
+     *
+     * <p>When this {@code DerGetArg} was constructed with a decode-unit completion token
+     * (the JERI/DER stream path), the returned collection holds a single
+     * {@link DeserializationCompletion} element: a decoded DGC live reference (e.g.
+     * {@code net.jini.jeri.BasicObjectEndpoint}) registers its batched {@code dirty}
+     * callback on it, to be fired when the decode unit completes and before the stream is
+     * acknowledged. Otherwise the collection is empty.
      */
     @Override
     public Collection getObjectStreamContext() {
-        return Collections.emptyList();
+        return decodeUnit == null
+                ? Collections.emptyList()
+                : Collections.singletonList(decodeUnit);
     }
 
     /**

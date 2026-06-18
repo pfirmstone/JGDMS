@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.util.Arrays;
 import java.util.Objects;
+import net.jini.io.context.DeserializationCompletion;
 
 /**
  * Entry point for Phase 5.2: decode a {@link MarshalledInstanceRecord} using
@@ -180,6 +181,30 @@ public final class MarshalledInstanceCodec {
             MarshalledInstanceRecord rec,
             Class<T> receiverClass)
             throws DerException, IOException, ClassNotFoundException {
+        return decodeMarshalledInstance(rec, receiverClass, null);
+    }
+
+    /**
+     * As {@link #decodeMarshalledInstance(MarshalledInstanceRecord, Class)}, threading a
+     * decode-unit completion token into the constructed {@code DerGetArg}s so a decoded
+     * DGC live reference can register its batched {@code dirty} on the per-decode-unit
+     * token (used on the JERI/DER stream path; {@code null} for a standalone decode).
+     *
+     * @param <T>            the expected return type
+     * @param rec            the {@code MarshalledInstanceRecord} to decode
+     * @param receiverClass  the receiver's class
+     * @param decodeUnit     the per-decode-unit completion sink, or {@code null}
+     * @return a {@link Result} with the constructed object and detected schema case
+     * @throws DerException           if the DER encoding is malformed
+     * @throws IOException            if construction fails with an {@link IOException}
+     * @throws ClassNotFoundException if a class named in the schema cannot be loaded
+     * @throws NullPointerException   if {@code rec} or {@code receiverClass} is null
+     */
+    public static <T> Result<T> decodeMarshalledInstance(
+            MarshalledInstanceRecord rec,
+            Class<T> receiverClass,
+            DeserializationCompletion decodeUnit)
+            throws DerException, IOException, ClassNotFoundException {
 
         Objects.requireNonNull(rec,           "rec");
         Objects.requireNonNull(receiverClass, "receiverClass");
@@ -209,7 +234,8 @@ public final class MarshalledInstanceCodec {
         T object = ObjectCodec.decodeHierarchy(
                 receiverClass,
                 embeddedChain,
-                rec.payloadBytes());
+                rec.payloadBytes(),
+                decodeUnit);
 
         return new Result<>(object, schemaCase);
     }
