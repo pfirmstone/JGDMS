@@ -305,6 +305,36 @@ class EmulatedFields {
     }
 
     /**
+     * Returns the boxed value of the named field, or {@code absent} if the field
+     * is not present or still holds its default value. Unlike the typed getters,
+     * this works for a field of any type -- it is the single untyped accessor a
+     * memoizing {@code GetArg} needs in order to resolve each field exactly once
+     * (boxing primitive fields via their declared type).
+     *
+     * @param name   the name of the field to find
+     * @param absent the sentinel to return when the field is absent/defaulted
+     *               (must be distinct from any real field value)
+     * @return the boxed field value (possibly {@code null}), or {@code absent}
+     * @throws ClassNotFoundException if the field's class could not be resolved
+     */
+    public synchronized Object getBoxed(String name, Object absent) throws ClassNotFoundException {
+	ObjectSlot slot = findSlot(name, null);
+	if (slot == null || slot.isDefaulted()) {
+	    return absent;
+	}
+	Class<?> type = slot.getField().getType();
+	if (type == Boolean.TYPE)   return slot.isBooleanValue();
+	if (type == Byte.TYPE)      return slot.getByteValue();
+	if (type == Character.TYPE) return slot.getCharValue();
+	if (type == Short.TYPE)     return slot.getShortValue();
+	if (type == Integer.TYPE)   return slot.getIntValue();
+	if (type == Long.TYPE)      return slot.getLongValue();
+	if (type == Float.TYPE)     return slot.getFloatValue();
+	if (type == Double.TYPE)    return slot.getDoubleValue();
+	return slot.getFieldValue();
+    }
+
+    /**
      * Finds and returns the short value of a given field named {@code name} in
      * the receiver. If the field has not been assigned any value yet, the
      * default value {@code defaultValue} is returned instead.

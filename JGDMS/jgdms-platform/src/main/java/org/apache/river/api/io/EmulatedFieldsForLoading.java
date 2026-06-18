@@ -227,9 +227,29 @@ class EmulatedFieldsForLoading extends ObjectInputStream.GetField {
     }
     
     public <T> T get(String name, T defaultValue, Class<T> type)
-	    throws IOException, IllegalArgumentException, ClassNotFoundException 
+	    throws IOException, IllegalArgumentException, ClassNotFoundException
     {
 	return emulatedFields.get(name, defaultValue, type);
+    }
+
+    /**
+     * Untyped boxed accessor used by the memoizing {@link AtomicSerial.GetArg}
+     * base: returns the boxed value of the named field, or {@code absent} if the
+     * field is not present / still holds its default value. Mirrors the
+     * CNFE-to-IOException wrapping of {@link #get(String, Object)} so that a
+     * field whose class cannot be resolved surfaces as an IOException.
+     *
+     * @param name   the name of the field to find
+     * @param absent the sentinel returned when the field is absent/defaulted
+     * @return the boxed field value (possibly {@code null}), or {@code absent}
+     * @throws IOException if the field's class could not be resolved
+     */
+    Object getBoxed(String name, Object absent) throws IOException {
+	try {
+	    return emulatedFields.getBoxed(name, absent);
+	} catch (ClassNotFoundException ex) {
+	    throw new IOException("Unable to get field: " + name, ex);
+	}
     }
 
     /**

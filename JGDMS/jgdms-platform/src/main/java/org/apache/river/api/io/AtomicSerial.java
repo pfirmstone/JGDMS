@@ -33,6 +33,10 @@ import java.lang.reflect.Modifier;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import net.jini.io.ObjectStreamContext;
 
 /**
@@ -390,6 +394,138 @@ public @interface AtomicSerial {
 	}
 
 	/**
+	 * StackWalker used to resolve the {@code @AtomicSerial} caller class for
+	 * field dispatch. {@code RETAIN_CLASS_REFERENCE} is required to read
+	 * declaring classes; it is the same caller-introspection API the JDK itself
+	 * uses for caller validation, and the only such mechanism that survives on a
+	 * stock OpenJDK that has dropped the Authorization framework. Owning caller
+	 * dispatch in the base (rather than in each impl) is what lets the typed
+	 * {@code get} accessors be {@code final} and memoizing.
+	 */
+	private static final StackWalker WALKER =
+		StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
+
+	/**
+	 * Sentinel returned by {@link #lookup(Class, String)} when a field is absent
+	 * or still holds its default value. Distinct from a real {@code null} field
+	 * value. Visible to subclass implementations in other packages so a
+	 * {@code lookup} hook can signal absence.
+	 */
+	protected static final Object ABSENT = new Object();
+
+	/**
+	 * Per-{@code (caller-class, field-name)} memoization of resolved field
+	 * values. The outer key is the resolved {@code @AtomicSerial} caller class;
+	 * the inner key is the field name; the value is the boxed field value
+	 * (possibly {@code null}) or {@link #ABSENT}.
+	 * <p>
+	 * This is what makes the typed {@code get} accessors IDEMPOTENT: the first
+	 * read of a {@code (caller, name)} pair invokes {@link #lookup} exactly once
+	 * and caches the result, so a hostile or replayed {@code GetArg} cannot
+	 * return one value to a class's {@code check(GetArg)} invariant check and a
+	 * different value to its {@code (GetArg)} constructor (TOCTOU). The
+	 * {@code get} overloads are {@code final}, so a subclass can only influence
+	 * a field value through {@code lookup}, which the base calls at most once.
+	 */
+	private final Map<Class<?>, Map<String, Object>> cache = new HashMap<Class<?>, Map<String, Object>>();
+
+	/** Cached set-form view of {@link #serialClasses()} for caller filtering. */
+	private volatile Set<Class<?>> serialClassSet;
+
+	private Set<Class<?>> serialClassSet() {
+	    Set<Class<?>> s = serialClassSet;
+	    if (s == null) {
+		Class[] classes = serialClasses();
+		s = new HashSet<Class<?>>(classes.length * 2);
+		for (Class<?> c : classes) s.add(c);
+		serialClassSet = s;
+	    }
+	    return s;
+	}
+
+	/**
+	 * Resolves the {@code @AtomicSerial} class on whose behalf a {@code get} or
+	 * {@code defaulted} call is being made, by walking the call stack and
+	 * returning the first frame whose declaring class is one of
+	 * {@link #serialClasses()}. If exactly one class is registered and no frame
+	 * matches (e.g. synthetic bridge or lambda frames sit between the caller and
+	 * here), that single class is returned as a safe fallback.
+	 *
+	 * @return the resolved caller class
+	 * @throws InvalidObjectException if no registered class is on the stack and
+	 *         more than one class is registered (ambiguous hierarchy)
+	 */
+	protected Class<?> callerClass() throws InvalidObjectException {
+	    final Set<Class<?>> serial = serialClassSet();
+	    Class<?> found = WALKER.walk(frames ->
+		frames.map(StackWalker.StackFrame::getDeclaringClass)
+		      .filter(serial::contains)
+		      .findFirst()
+		      .orElse(null));
+	    if (found != null) return found;
+	    if (serial.size() == 1) return serial.iterator().next();
+	    throw new InvalidObjectException(
+		"GetArg: cannot determine caller @AtomicSerial class from stack; "
+		+ "registered classes: " + serial);
+	}
+
+	/**
+	 * Resolves and memoizes the value of field {@code name} for the current
+	 * caller class. {@link #lookup} is invoked at most once per
+	 * {@code (caller, name)}; the boxed result (or {@link #ABSENT}) is cached and
+	 * returned on every subsequent read. This is the idempotency guarantee that
+	 * makes check-then-construct sound even against an untrusted {@code GetArg}.
+	 */
+	private Object cachedLookup(String name)
+		throws IOException, ClassNotFoundException
+	{
+	    Class<?> caller = callerClass();
+	    synchronized (cache) {
+		Map<String, Object> byName = cache.get(caller);
+		if (byName == null) {
+		    byName = new HashMap<String, Object>();
+		    cache.put(caller, byName);
+		}
+		if (byName.containsKey(name)) {
+		    return byName.get(name);
+		}
+		Object value = lookup(caller, name);
+		byName.put(name, value);
+		return value;
+	    }
+	}
+
+	/**
+	 * Fetches the boxed value of field {@code name} for the already-resolved
+	 * {@code callerClass}, or {@link #ABSENT} when the field is absent/defaulted.
+	 * Implemented by subclasses; called at most once per {@code (caller, name)}
+	 * by {@link #cachedLookup(String)} -- the base owns memoization, so a
+	 * subclass MUST NOT cache and MUST NOT depend on call count. Any lazily
+	 * decoded nested value is decoded here and then memoized by the base
+	 * (decode-once), so the cumulative nesting/DoS guard is honoured exactly
+	 * once per field.
+	 *
+	 * @param callerClass the resolved {@code @AtomicSerial} caller class
+	 * @param name        the field name
+	 * @return the boxed field value (possibly {@code null}), or {@link #ABSENT}
+	 */
+	protected abstract Object lookup(Class<?> callerClass, String name)
+		throws IOException, ClassNotFoundException;
+
+	/**
+	 * Reports whether field {@code name} is absent or still holds its default
+	 * value for the already-resolved {@code callerClass}, WITHOUT decoding any
+	 * value, so {@link #defaulted(String)} stays side-effect free. Implemented
+	 * by subclasses.
+	 *
+	 * @param callerClass the resolved {@code @AtomicSerial} caller class
+	 * @param name        the field name
+	 * @return {@code true} if the field is absent or defaulted
+	 */
+	protected abstract boolean isDefaulted(Class<?> callerClass, String name)
+		throws IOException;
+
+	/**
 	 * Returns true if the field named {@code name} has not been assigned
 	 * a value and still holds a default value for its type, false otherwise.
 	 *
@@ -398,7 +534,9 @@ public @interface AtomicSerial {
 	 * @throws IOException if an I/O error occurs
 	 * @throws IllegalArgumentException if the corresponding field cannot be found
 	 */
-	public abstract boolean defaulted(String name) throws IOException;
+	public final boolean defaulted(String name) throws IOException {
+	    return isDefaulted(callerClass(), name);
+	}
 
 	/**
 	 * Get the value of the named boolean field from the persistent field.
@@ -407,7 +545,14 @@ public @interface AtomicSerial {
 	 * @return the value of the named {@code boolean} field
 	 * @throws IOException if there are I/O errors while reading from the underlying stream
 	 */
-	public abstract boolean get(String name, boolean val) throws IOException;
+	public final boolean get(String name, boolean val) throws IOException {
+	    try {
+		Object v = cachedLookup(name);
+		return v == ABSENT ? val : ((Boolean) v).booleanValue();
+	    } catch (ClassNotFoundException e) {
+		throw new IOException("Unexpected class resolution failure for field: " + name, e);
+	    }
+	}
 
 	/**
 	 * Get the value of the named byte field from the persistent field.
@@ -416,7 +561,14 @@ public @interface AtomicSerial {
 	 * @return the value of the named {@code byte} field
 	 * @throws IOException if there are I/O errors
 	 */
-	public abstract byte get(String name, byte val) throws IOException;
+	public final byte get(String name, byte val) throws IOException {
+	    try {
+		Object v = cachedLookup(name);
+		return v == ABSENT ? val : ((Byte) v).byteValue();
+	    } catch (ClassNotFoundException e) {
+		throw new IOException("Unexpected class resolution failure for field: " + name, e);
+	    }
+	}
 
 	/**
 	 * Get the value of the named char field from the persistent field.
@@ -425,7 +577,14 @@ public @interface AtomicSerial {
 	 * @return the value of the named {@code char} field
 	 * @throws IOException if there are I/O errors
 	 */
-	public abstract char get(String name, char val) throws IOException;
+	public final char get(String name, char val) throws IOException {
+	    try {
+		Object v = cachedLookup(name);
+		return v == ABSENT ? val : ((Character) v).charValue();
+	    } catch (ClassNotFoundException e) {
+		throw new IOException("Unexpected class resolution failure for field: " + name, e);
+	    }
+	}
 
 	/**
 	 * Get the value of the named short field from the persistent field.
@@ -434,7 +593,14 @@ public @interface AtomicSerial {
 	 * @return the value of the named {@code short} field
 	 * @throws IOException if there are I/O errors
 	 */
-	public abstract short get(String name, short val) throws IOException;
+	public final short get(String name, short val) throws IOException {
+	    try {
+		Object v = cachedLookup(name);
+		return v == ABSENT ? val : ((Short) v).shortValue();
+	    } catch (ClassNotFoundException e) {
+		throw new IOException("Unexpected class resolution failure for field: " + name, e);
+	    }
+	}
 
 	/**
 	 * Get the value of the named int field from the persistent field.
@@ -443,7 +609,14 @@ public @interface AtomicSerial {
 	 * @return the value of the named {@code int} field
 	 * @throws IOException if there are I/O errors
 	 */
-	public abstract int get(String name, int val) throws IOException;
+	public final int get(String name, int val) throws IOException {
+	    try {
+		Object v = cachedLookup(name);
+		return v == ABSENT ? val : ((Integer) v).intValue();
+	    } catch (ClassNotFoundException e) {
+		throw new IOException("Unexpected class resolution failure for field: " + name, e);
+	    }
+	}
 
 	/**
 	 * Get the value of the named long field from the persistent field.
@@ -452,7 +625,14 @@ public @interface AtomicSerial {
 	 * @return the value of the named {@code long} field
 	 * @throws IOException if there are I/O errors
 	 */
-	public abstract long get(String name, long val) throws IOException;
+	public final long get(String name, long val) throws IOException {
+	    try {
+		Object v = cachedLookup(name);
+		return v == ABSENT ? val : ((Long) v).longValue();
+	    } catch (ClassNotFoundException e) {
+		throw new IOException("Unexpected class resolution failure for field: " + name, e);
+	    }
+	}
 
 	/**
 	 * Get the value of the named float field from the persistent field.
@@ -461,7 +641,14 @@ public @interface AtomicSerial {
 	 * @return the value of the named {@code float} field
 	 * @throws IOException if there are I/O errors
 	 */
-	public abstract float get(String name, float val) throws IOException;
+	public final float get(String name, float val) throws IOException {
+	    try {
+		Object v = cachedLookup(name);
+		return v == ABSENT ? val : ((Float) v).floatValue();
+	    } catch (ClassNotFoundException e) {
+		throw new IOException("Unexpected class resolution failure for field: " + name, e);
+	    }
+	}
 
 	/**
 	 * Get the value of the named double field from the persistent field.
@@ -470,7 +657,14 @@ public @interface AtomicSerial {
 	 * @return the value of the named {@code double} field
 	 * @throws IOException if there are I/O errors
 	 */
-	public abstract double get(String name, double val) throws IOException;
+	public final double get(String name, double val) throws IOException {
+	    try {
+		Object v = cachedLookup(name);
+		return v == ABSENT ? val : ((Double) v).doubleValue();
+	    } catch (ClassNotFoundException e) {
+		throw new IOException("Unexpected class resolution failure for field: " + name, e);
+	    }
+	}
 
 	/**
 	 * Get the value of the named Object field from the persistent field.
@@ -480,7 +674,10 @@ public @interface AtomicSerial {
 	 * @throws IOException if there are I/O errors
 	 * @throws ClassNotFoundException if class of a serialized object cannot be found
 	 */
-	public abstract Object get(String name, Object val) throws IOException, ClassNotFoundException;
+	public final Object get(String name, Object val) throws IOException, ClassNotFoundException {
+	    Object v = cachedLookup(name);
+	    return v == ABSENT ? val : v;
+	}
 
 	/**
 	 * Provides access to stream classes that belong to the Object under
@@ -534,14 +731,83 @@ public @interface AtomicSerial {
 	 *	   if object to be returned is not an instance of type.
 	 * @throws NullPointerException if type is null.
          */
-        public abstract <T> T get(String name, T val, Class<T> type) 
-		throws IOException, ClassNotFoundException;
-	
-	public abstract GetArg validateInvariants(  String[] fields, 
-						    Class[] types,
-						    boolean[] nonNull) 
-							throws IOException;	  
-	
+        public final <T> T get(String name, T val, Class<T> type)
+		throws IOException, ClassNotFoundException
+	{
+	    if (type == null) throw new NullPointerException("type");
+	    Object v = cachedLookup(name);
+	    if (v == ABSENT || v == null) return val;
+	    if (type.isInstance(v)) {
+		@SuppressWarnings("unchecked")
+		T result = (T) v;
+		return result;
+	    }
+	    InvalidObjectException e = new InvalidObjectException(
+		    "Input validation failed for field: " + name);
+	    e.initCause(new ClassCastException(
+		    "Field '" + name + "' is a " + v.getClass().getName()
+		    + ", not assignable to " + type.getName()));
+	    throw e;
+	}
+
+	/**
+	 * Simple invariant check helper for subclasses with no intra-hierarchy
+	 * invariants: forces each field to be read (so primitive decode errors
+	 * surface) and checks object fields for nullability and type. Each field is
+	 * read through the {@code final} memoizing {@code get} accessors, so the
+	 * values validated here are guaranteed identical to the values the
+	 * constructor subsequently reads.
+	 *
+	 * @param fields  field names
+	 * @param types   the type of each field, parallel to {@code fields}
+	 * @param nonNull {@code true} entries mark fields that must not be null
+	 * @return this {@code GetArg}
+	 * @throws IOException if invariants are not satisfied
+	 * @throws NullPointerException if any argument is null
+	 * @throws IllegalArgumentException if array lengths differ
+	 */
+	public final GetArg validateInvariants(String[] fields,
+					       Class[] types,
+					       boolean[] nonNull) throws IOException
+	{
+	    if (fields == null || types == null || nonNull == null)
+		throw new NullPointerException("null arguments not allowed");
+	    if (fields.length != types.length || fields.length != nonNull.length)
+		throw new IllegalArgumentException("array arguments must have equal lengths");
+	    for (int i = 0, l = fields.length; i < l; i++) {
+		Class<?> type = types[i];
+		String name = fields[i];
+		if (type.isPrimitive()) {
+		    // Force a read to confirm the field is present / decodable.
+		    if (type == boolean.class) get(name, false);
+		    else if (type == byte.class) get(name, (byte) 0);
+		    else if (type == char.class) get(name, (char) 0);
+		    else if (type == short.class) get(name, (short) 0);
+		    else if (type == int.class) get(name, 0);
+		    else if (type == long.class) get(name, 0L);
+		    else if (type == float.class) get(name, 0.0F);
+		    else if (type == double.class) get(name, 0.0D);
+		} else {
+		    Object o;
+		    try {
+			o = get(name, (Object) null);
+		    } catch (ClassNotFoundException e) {
+			InvalidObjectException ex = new InvalidObjectException(
+				"Failed to resolve class for field: " + name);
+			ex.initCause(e);
+			throw ex;
+		    }
+		    if (nonNull[i] && o == null) {
+			throw new InvalidObjectException(name + " cannot be null");
+		    } else if (o != null && !type.isInstance(o)) {
+			throw new InvalidObjectException(
+				name + " must be an instance of " + type);
+		    }
+		}
+	    }
+	    return this;
+	}
+
 	}
     
     /**
