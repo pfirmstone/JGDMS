@@ -43,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import net.jini.io.context.DeserializationCompletion;
 
 /**
  * DER object encoder and decoder for single {@code @AtomicSerial} classes
@@ -328,6 +329,34 @@ public final class ObjectCodec {
                                          SchemaChain.Result chain,
                                          byte[] hierarchyPayload)
             throws DerException, IOException, ClassNotFoundException {
+        return decodeHierarchy(expectedSupertype, chain, hierarchyPayload,
+                               (DeserializationCompletion) null);
+    }
+
+    /**
+     * As {@link #decodeHierarchy(Class, SchemaChain.Result, byte[])}, threading a
+     * decode-unit completion token into the top-level {@code DerGetArg} (and, via the
+     * {@code DerGetArg}, into any nested decode) so that a decoded DGC live reference can
+     * register its batched {@code dirty} on the per-decode-unit token. {@code decodeUnit}
+     * may be {@code null} (no DGC context).
+     *
+     * @param <T>              the constructed type
+     * @param expectedSupertype the supertype the chain's construct class must be assignable to
+     * @param chain            the linked schema chain (leaf-first)
+     * @param hierarchyPayload the DER bytes produced by {@link #encodeHierarchy}
+     * @param decodeUnit       the per-decode-unit completion sink, or {@code null}
+     * @return the constructed instance
+     * @throws DerException           if the DER encoding is malformed or unassignable
+     * @throws InvalidObjectException if any class's {@code check(GetArg)} fails
+     * @throws IOException            if construction fails with IOException
+     * @throws ClassNotFoundException if a class named in the schema cannot be loaded
+     * @throws NullPointerException   if any of the first three arguments is {@code null}
+     */
+    public static <T> T decodeHierarchy(Class<T> expectedSupertype,
+                                         SchemaChain.Result chain,
+                                         byte[] hierarchyPayload,
+                                         DeserializationCompletion decodeUnit)
+            throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         Objects.requireNonNull(chain, "chain");
         Objects.requireNonNull(hierarchyPayload, "hierarchyPayload");
@@ -392,7 +421,7 @@ public final class ObjectCodec {
         }
 
         // Assemble the multi-entry DerGetArg (superclass-first insertion order)
-        DerGetArg arg = new DerGetArg(storeMap);
+        DerGetArg arg = new DerGetArg(storeMap, 0, decodeUnit);
 
         // Invoke the CONSTRUCT CLASS's (GetArg) constructor -- it chains up via super(check(arg)).
         // For all-@AtomicSerial hierarchies (Phase 4.3) this is the same as the old leafClass.
@@ -465,6 +494,13 @@ public final class ObjectCodec {
         Objects.requireNonNull(instance, "instance");
         Objects.requireNonNull(declaringClass, "declaringClass");
         Objects.requireNonNull(schema, "schema");
+
+        // A @Stateless @AtomicSerial class has no serial fields and (per the annotation
+        // contract) implements no serialize(PutArg); it contributes an empty private
+        // SEQUENCE. Its schema record likewise has no fields (see SchemaGenerator).
+        if (declaringClass.isAnnotationPresent(AtomicSerial.Stateless.class)) {
+            return DerWriter.writeSequence(Collections.emptyList());
+        }
 
         // @AtomicSerial WRITE contract: the class declares its serial form via its own
         // serialize(PutArg) method. The codec NEVER reflects on private fields (that would
@@ -624,20 +660,28 @@ public final class ObjectCodec {
     // =========================================================================
 
     /**
-     * Finds and returns the {@code public C(AtomicSerial.GetArg)} constructor,
+     * Finds and returns the {@code C(AtomicSerial.GetArg)} deserialization constructor,
      * making it accessible.
+     *
+     * <p>The constructor need NOT be public: an {@code @AtomicSerial} deserialization
+     * constructor is conventionally non-public (package-private or protected) because it
+     * is invoked only by the deserialization framework, never by user code (e.g.
+     * {@code net.jini.jeri.BasicObjectEndpoint}'s is package-private). This mirrors the
+     * JOSS/atomic path, which likewise reaches the declared constructor via
+     * {@code setAccessible}. The security boundary is unchanged: only {@code @AtomicSerial}
+     * classes are ever constructed, and {@code check(GetArg)} still runs first.
      */
     @SuppressWarnings("unchecked")
     private static <T> Constructor<T> findGetArgConstructor(Class<T> clazz)
             throws DerException {
         try {
-            Constructor<T> ctor = clazz.getConstructor(AtomicSerial.GetArg.class);
+            Constructor<T> ctor = clazz.getDeclaredConstructor(AtomicSerial.GetArg.class);
             ctor.setAccessible(true);
             return ctor;
         } catch (NoSuchMethodException ex) {
             throw new DerException(
                     "Class " + clazz.getName()
-                    + " has no public (AtomicSerial.GetArg) constructor");
+                    + " has no (AtomicSerial.GetArg) deserialization constructor");
         }
     }
 
@@ -1040,6 +1084,25 @@ public final class ObjectCodec {
      */
     public static Object decodeNested(byte[] nestedRecordBytes, int depth)
             throws DerException, IOException, ClassNotFoundException {
+        return decodeNested(nestedRecordBytes, depth, null);
+    }
+
+    /**
+     * Token-threading variant of {@link #decodeNested(byte[], int)}: the decode-unit
+     * completion token is propagated to the nested object's {@code DerGetArg} so that a
+     * nested DGC live reference batches with the outer refs of the same decode unit.
+     *
+     * @param nestedRecordBytes the raw bytes of the nested record TLV (SEQUENCE or NULL)
+     * @param depth             current nesting depth (for the DoS guard)
+     * @param decodeUnit        the per-decode-unit completion sink, or {@code null}
+     * @return the decoded object, or {@code null} for a DER NULL encoding
+     * @throws DerException if the encoding is malformed or depth exceeded
+     * @throws IOException  if construction fails
+     * @throws ClassNotFoundException if a class named in the schema cannot be loaded
+     */
+    public static Object decodeNested(byte[] nestedRecordBytes, int depth,
+                                      DeserializationCompletion decodeUnit)
+            throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(nestedRecordBytes, "nestedRecordBytes");
         if (depth > MAX_NESTING) {
             throw new DerException(
@@ -1085,7 +1148,7 @@ public final class ObjectCodec {
 
         // The declared field type is Object (checked by caller via cast); the chain drives
         // the actual runtime class. decodeHierarchy does assignability checking.
-        Object decoded = decodeHierarchy(Object.class, chain, payloadBytes, depth + 1);
+        Object decoded = decodeHierarchy(Object.class, chain, payloadBytes, depth + 1, decodeUnit);
         // DER replacement: if the decoded value is a serializer (implements Resolve),
         // rebuild the original object via readResolve(); otherwise pass it through.
         return au.net.zeus.jgdms.der.serial.DerReplacer.resolve(decoded);
@@ -1099,7 +1162,8 @@ public final class ObjectCodec {
     private static <T> T decodeHierarchy(Class<T> expectedSupertype,
                                           SchemaChain.Result chain,
                                           byte[] hierarchyPayload,
-                                          int depth)
+                                          int depth,
+                                          DeserializationCompletion decodeUnit)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         Objects.requireNonNull(chain, "chain");
@@ -1149,7 +1213,7 @@ public final class ObjectCodec {
             }
         }
 
-        DerGetArg arg = new DerGetArg(storeMap, depth);
+        DerGetArg arg = new DerGetArg(storeMap, depth, decodeUnit);
 
         @SuppressWarnings("unchecked")
         Constructor<? extends T> ctor = (Constructor<? extends T>)
@@ -1201,6 +1265,29 @@ public final class ObjectCodec {
                                             String componentClassName,
                                             int depth)
             throws DerException, IOException, ClassNotFoundException {
+        return decodeNestedArray(rawBytes, componentClassName, depth, null);
+    }
+
+    /**
+     * Token-threading variant of {@link #decodeNestedArray(byte[], String, int)}: the
+     * decode-unit completion token is propagated to each element's nested decode so a
+     * DGC live reference inside an {@code @AtomicSerial[]} field batches with the outer
+     * refs of the same decode unit.
+     *
+     * @param rawBytes           the raw TLV bytes (DER NULL or SEQUENCE)
+     * @param componentClassName fully-qualified name of the component class
+     * @param depth              current nesting depth
+     * @param decodeUnit         the per-decode-unit completion sink, or {@code null}
+     * @return the decoded array, or {@code null}
+     * @throws DerException if the encoding is malformed or depth exceeded
+     * @throws IOException  if element construction fails
+     * @throws ClassNotFoundException if a class named in the schema cannot be loaded
+     */
+    public static Object decodeNestedArray(byte[] rawBytes,
+                                            String componentClassName,
+                                            int depth,
+                                            DeserializationCompletion decodeUnit)
+            throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(rawBytes, "rawBytes");
         Objects.requireNonNull(componentClassName, "componentClassName");
 
@@ -1249,7 +1336,7 @@ public final class ObjectCodec {
         for (int i = 0; i < elementRaws.size(); i++) {
             // Each element is decoded with the THREADED depth (not 0!).
             // This is the critical invariant for the cumulative depth guard.
-            Object element = decodeNested(elementRaws.get(i), depth);
+            Object element = decodeNested(elementRaws.get(i), depth, decodeUnit);
             Array.set(result, i, element); // null element is fine (nullable elements)
         }
 

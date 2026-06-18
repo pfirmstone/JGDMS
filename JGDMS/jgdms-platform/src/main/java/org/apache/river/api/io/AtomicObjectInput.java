@@ -77,5 +77,31 @@ public interface AtomicObjectInput extends ObjectInput {
      */
     public void registerValidation(ObjectInputValidation object,
             int priority) throws NotActiveException, InvalidObjectException;
-    
+
+    /**
+     * Signals that the current decode unit (one self-contained unmarshalling scope,
+     * e.g. one request's arguments or one reply's result, possibly spanning several
+     * top-level {@code readObject} reads) is complete. The deserializer calls this
+     * after the whole value-sequence has been read but BEFORE the stream is closed
+     * or acknowledged, so that any callbacks registered via
+     * {@link #registerValidation} run at that point.
+     *
+     * <p>The default is a no-op: a JOSS-backed stream (an {@code ObjectInputStream})
+     * runs its registered validations automatically when the outermost
+     * {@code readObject} completes, so it needs no explicit signal. A wire format
+     * with no such automatic trigger (e.g. the DER object stream) overrides this to
+     * run the registered validations exactly once, in decreasing-priority order.
+     * Idempotent: a second call has no effect.
+     *
+     * <p>This is what lets client-side DGC fire its batched {@code dirty} call when
+     * a decode unit completes but before the receiver acknowledges it (JGDMS-STD-008
+     * &sect;6, SRC&nbsp;RR-116 transmit-race invariant), uniformly across wire formats.
+     *
+     * @throws IOException if a registered validation fails
+     */
+    default void endDecodeUnit() throws IOException {
+        // No-op by default: JOSS-backed streams flush registered validations
+        // automatically when the outermost readObject completes.
+    }
+
 }

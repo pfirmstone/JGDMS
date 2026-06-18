@@ -100,6 +100,7 @@ import net.jini.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
 import org.apache.river.api.io.AccessControlContextSerializer;
+import org.apache.river.api.io.AtomicObjectInput;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,
@@ -1012,6 +1013,11 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	     * Unmarshal arguments.
 	     */
 	    Object[] args = unmarshalArguments(impl, method, in, context);
+	    // Fire end-of-decode-unit completion callbacks (e.g. the client DGC batched
+	    // dirty for live refs received as arguments) after the whole argument sequence
+	    // is read and BEFORE the reply (the argument ack) is written; no-op on the
+	    // JOSS/atomic path (SRC RR-116 dirty-before-ack).
+	    if (in instanceof AtomicObjectInput) ((AtomicObjectInput) in).endDecodeUnit();
 	    if (logger.isLoggable(Level.FINE)) {
 		logCall(impl, method, args);
 	    }

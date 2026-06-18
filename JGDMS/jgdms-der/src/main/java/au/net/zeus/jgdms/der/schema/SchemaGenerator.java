@@ -103,7 +103,15 @@ public final class SchemaGenerator {
             throws DerException {
         Objects.requireNonNull(atomicSerialClass, "atomicSerialClass");
 
-        AtomicSerial.SerialForm[] serialForm = invokeSerialForm(atomicSerialClass);
+        // A @Stateless @AtomicSerial class (e.g. a trivial preferred-class subclass such as
+        // net.jini.id.UuidFactory$Impl, or a no-extra-state Throwable like LeaseException)
+        // "has no arguments, Objects or data to write to the stream" and, per the annotation
+        // contract, implements neither serialize(PutArg) nor serialForm(). It contributes an
+        // empty namespace (no fields); the codec must not require serialForm() from it.
+        AtomicSerial.SerialForm[] serialForm =
+                atomicSerialClass.isAnnotationPresent(AtomicSerial.Stateless.class)
+                        ? new AtomicSerial.SerialForm[0]
+                        : invokeSerialForm(atomicSerialClass);
 
         List<AtomicSerialFieldDef> fields = new ArrayList<>(serialForm.length);
         for (AtomicSerial.SerialForm sf : serialForm) {
@@ -312,6 +320,23 @@ public final class SchemaGenerator {
         // @AtomicSerial: the serializer (which IS @AtomicSerial) is substituted at
         // encode time and its schema travels in the embedded record.
         if (au.net.zeus.jgdms.der.serial.DerReplacer.isRegistered(javaType)) {
+            return "@AtomicSerial";
+        }
+
+        // A field declared as an interface or abstract class is a polymorphic slot: it
+        // cannot itself be the runtime type, and its runtime value's concrete
+        // @AtomicSerial class travels in the embedded schema -- exactly as for a nested
+        // @AtomicSerial field (the marker need not name a class). It is encoded as
+        // "@AtomicSerial": encodeNested uses value.getClass(), and at decode the embedded
+        // chain supplies the concrete class while the declared interface/abstract type is
+        // used only for the constructor's assignability check. The runtime value MUST be
+        // @AtomicSerial (or carry a registered serializer), else encodeNested fails fast.
+        // (A CONCRETE non-@AtomicSerial type is a single fixed type, not a polymorphic
+        // slot, so it is still rejected below.) This is what lets a live remote reference
+        // -- e.g. net.jini.jeri.BasicObjectEndpoint, whose 'ep' field is declared as the
+        // Endpoint interface -- travel on the DER wire (JGDMS-STD-008 sec.16).
+        if (javaType.isInterface()
+                || java.lang.reflect.Modifier.isAbstract(javaType.getModifiers())) {
             return "@AtomicSerial";
         }
 

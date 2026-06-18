@@ -26,6 +26,7 @@ import au.net.zeus.jgdms.der.marshal.MarshalledInstanceRecord;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
+import net.jini.io.context.DeserializationCompletion;
 import org.apache.river.api.io.AtomicSerial;
 
 import java.io.IOException;
@@ -94,6 +95,14 @@ final class DerObjectStreamCodec {
     /** DER reader over the input bytes (read side). */
     private DerReader reader;
 
+    /**
+     * Completion sink for the current decode unit, threaded into the constructed
+     * {@code DerGetArg}s so that a decoded DGC live reference can register its batched
+     * {@code dirty} on the per-decode-unit token. May be {@code null} (e.g. a standalone
+     * MarshalledInstance decode with no DGC context).
+     */
+    private DeserializationCompletion decodeUnit;
+
     // =========================================================================
     // Construction
     // =========================================================================
@@ -101,10 +110,22 @@ final class DerObjectStreamCodec {
     /** Creates a fresh codec ready for writing; initialise read side later via {@link #initReader}. */
     DerObjectStreamCodec() {}
 
-    /** Initialises the read side over a complete DER byte array. */
+    /** Initialises the read side over a complete DER byte array (no decode-unit token). */
     void initReader(byte[] buf) {
+        initReader(buf, null);
+    }
+
+    /**
+     * Initialises the read side over a complete DER byte array, threading the given
+     * decode-unit completion token into every {@code DerGetArg} constructed during decode.
+     *
+     * @param buf        the complete DER byte array (must not be {@code null})
+     * @param decodeUnit the per-decode-unit completion sink, or {@code null}
+     */
+    void initReader(byte[] buf, DeserializationCompletion decodeUnit) {
         Objects.requireNonNull(buf, "buf");
         this.reader = new DerReader(buf);
+        this.decodeUnit = decodeUnit;
     }
 
     // =========================================================================
@@ -495,7 +516,7 @@ final class DerObjectStreamCodec {
             Object obj;
             try {
                 MarshalledInstanceCodec.Result<?> result =
-                        MarshalledInstanceCodec.decodeMarshalledInstance(rec, leafClass);
+                        MarshalledInstanceCodec.decodeMarshalledInstance(rec, leafClass, decodeUnit);
                 obj = result.object();
             } catch (DerException e) {
                 throw new IOException("readObject: decode failed for " + leafClassName, e);

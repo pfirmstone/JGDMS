@@ -21,6 +21,7 @@ package net.jini.jeri;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.NotActiveException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectInputValidation;
@@ -45,6 +46,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.ObjectStreamContext;
 import net.jini.io.context.AcknowledgmentSource;
+import net.jini.io.context.DeserializationCompletion;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -230,12 +232,17 @@ public final class BasicObjectEndpoint
     private static final DgcClient dgcClient = new DgcClient();
 
     /**
-     * maps ObjectInputStream to DgcBatchContext
+     * Maps a decode-unit token to its DgcBatchContext. The token is the
+     * {@code ObjectInputStream} on the JOSS/atomic path, or the
+     * {@link DeserializationCompletion} context element on the DER (or any non-JOSS)
+     * path -- both have one instance per decode unit, so per-call dirty batching is
+     * preserved. Keyed on {@code Object} to accept either; weakly held so an entry is
+     * collected once the call's stream/token is unreferenced.
      * REMIND: We'd really like to use a weak *identity* hash map here--
      * does the lack of equals() security here create a risk?
      */
-    private static final Map<ObjectInputStream,DgcBatchContext> streamBatches 
-            = new WeakHashMap<ObjectInputStream,DgcBatchContext>(64);
+    private static final Map<Object,DgcBatchContext> streamBatches
+            = new WeakHashMap<Object,DgcBatchContext>(64);
 
     /**
      * The endpoint to send remote call requests to.
@@ -313,6 +320,35 @@ public final class BasicObjectEndpoint
 	    RO r = (RO) arg.getReader();
 	    DgcBatchContext batchContext;
 	    /*
+	     * Resolve the per-decode-unit token. On the JOSS/atomic path the RO reader
+	     * is present and its backing ObjectInputStream is the token (registered
+	     * validations run automatically on outermost-readObject completion). On the
+	     * DER (or any non-JOSS) path there is no reader and no automatic trigger, so
+	     * the token is the DeserializationCompletion context element, whose callbacks
+	     * the deserializer fires when the decode unit completes -- after the value
+	     * sequence is read and BEFORE the stream/ack closes (SRC RR-116 dirty-before-ack).
+	     */
+	    final boolean joss = (r != null);
+	    final Object token;
+	    if (joss) {
+		token = r.in;
+	    } else {
+		DeserializationCompletion completion = null;
+		for (Object next : arg.getObjectStreamContext()) {
+		    if (next instanceof DeserializationCompletion) {
+			completion = (DeserializationCompletion) next;
+			break;
+		    }
+		}
+		if (completion == null) {
+		    throw new InvalidObjectException(
+			"DGC-enabled BasicObjectEndpoint deserialized on a stream providing"
+			+ " neither a ReadObject reader nor a DeserializationCompletion"
+			+ " context element; cannot register the batched client DGC dirty call");
+		}
+		token = completion;
+	    }
+	    /*
 	     * REMIND: short circuit lookup with thread local,
 	     * to avoid synchronization overhead in the common case?
 	     *
@@ -321,15 +357,20 @@ public final class BasicObjectEndpoint
 	     * need to optimise at this time.
 	     */
 	    synchronized (streamBatches) {
-		batchContext = (DgcBatchContext) streamBatches.get(r.in);
+		batchContext = streamBatches.get(token);
 		if (batchContext == null) {
 		    batchContext = new DgcBatchContext();
 		    try {				// REMIND: priority??
-			((ObjectInputStream) r.in).registerValidation(batchContext, 0);
+			if (joss) {
+			    ((ObjectInputStream) r.in).registerValidation(batchContext, 0);
+			} else {
+			    // NotActiveException (an IOException) propagates as a decode failure.
+			    ((DeserializationCompletion) token).registerCompletion(batchContext, 0);
+			}
 		    } catch (InvalidObjectException e) { // should be NPE
 			throw new AssertionError();
 		    }
-		    streamBatches.put((ObjectInputStream) r.in, batchContext);
+		    streamBatches.put(token, batchContext);
 		}
 	    }
 	    batchContext.addLiveRef(this); // Safe publication of this.
