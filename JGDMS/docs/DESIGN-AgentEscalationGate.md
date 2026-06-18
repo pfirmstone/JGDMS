@@ -255,11 +255,19 @@ One relation split delivers three properties at once:
    (a one-shot, or a genuine denial that is already throwing). Passive lease *expiry* needs no
    trigger: `impliesOnce` re-reads liveness every call and the next check denies.
 2. **Never recorded into generated policy** — the most important property. `SecurityPolicyWriter`
-   records via the protected per-PD path, which is driven by `implies`. A one-shot is invisible
-   there, so polpAudit never writes it into the least-privilege **floor**. Were it recorded, the
-   escalation would become a *permanent baseline grant* on the next deployment — the human-gated
-   one-shot silently demoted to standing authority, the worst failure mode in the design. The
-   `impliesOnce`-after-and-outside-the-recorder placement makes that structurally impossible.
+   (polpAudit) is *observe-only*: it records every exercised permission and filters already-granted
+   ones at shutdown. That does **not** exclude a one-shot on its own — and a shutdown-time filter
+   cannot, because the one-shot grant is ephemeral and gone by then. So the recorder makes the
+   discrimination **at record time, while the grant is live**, with the same stable-first ordering
+   the SM uses: it skips recording exactly when `!pd.implies(p) && pd.impliesOnce(p)` — stable
+   denies but a live one-shot grants — and still allows the operation (observe-only). Were a one-shot
+   recorded, the escalation would become a *permanent baseline grant* on the next deployment — the
+   human-gated one-shot silently demoted to standing authority, the worst failure mode in the design.
+   *Operational contract:* this excludes only a one-shot whose grant is live at check time, i.e. the
+   escalation ran through the `EscalationGate` during the audit; an escalation-only permission
+   exercised *without* the gate is indistinguishable from a genuine floor gap and is recorded
+   (human review of the generated floor is the backstop). So: during polpAudit, drive escalation-gated
+   operations through the gate, or do not exercise them.
 3. **Safe to express as a `DelegatePermission`.** Because (2) keeps one-shots out of the floor, a
    one-shot capability can be a `DelegatePermission` without re-permanentising the very reference it
    exists to revoke; and `impliesOnce` is the same per-`(PD, Permission)` relation the
@@ -461,10 +469,14 @@ deployment test must exercise (C13).
   never minted (or already consumed) and installs nothing. An in-flight escalation does not survive
   an agent restore (§3).
 - **Policy-recording leak (T3):** a one-shot must never be written into generated least-privilege
-  policy, or the next deployment promotes it to a permanent baseline grant. Because `polpAudit`
-  (`SecurityPolicyWriter`) records via the protected per-PD path driven by `implies`, and one-shots
-  are invisible to `implies` (reported only by the after-and-outside `impliesOnce`), they are
-  structurally excluded from the floor (§3, §6-9).
+  policy, or the next deployment promotes it to a permanent baseline grant. `polpAudit`
+  (`SecurityPolicyWriter`) is observe-only — it records *everything* exercised — so exclusion is an
+  explicit **record-time** decision (a shutdown filter can't help: the one-shot grant is gone by
+  then). The recorder skips exactly when `!pd.implies(p) && pd.impliesOnce(p)` (stable denies, a live
+  one-shot grants) and still allows the op. Caveat: this catches only a one-shot whose grant is live
+  at check time (the escalation ran through the gate during the audit); an escalation perm exercised
+  outside the gate looks like a floor gap and is recorded, with human review of the floor as the
+  backstop (§3, §6-9).
 - **Self-approval/extension (T4):** enforced by reachability. The agent never receives the
   `EscalationAuthority`, the decision, the `ApprovalId`, the `Lease`, or the `LeasedDelegation`
   handle — the handle goes to the `DelegationSink` (the coordinator), and `request(...)` returns
@@ -533,9 +545,13 @@ deployment test must exercise (C13).
    `DynamicPolicyProvider`) reports one-shot authority. The SM leaves its protected per-PD recording
    check unchanged and **adds** an `impliesOnce` consultation *after* a failed `implies`, outside
    that method. One split, three properties: a one-shot is never cached (no overhead on the stable
-   path; passive expiry needs no trigger), never written into generated policy (the recorder runs
-   off `implies`, so an escalation can't be promoted to a permanent baseline grant — the worst
-   failure mode), and safe to express as a `DelegatePermission` (no floor leak; the method guard
+   path; passive expiry needs no trigger), never written into generated policy — `SecurityPolicyWriter`
+   is observe-only (it records *everything* exercised), so exclusion is an explicit **record-time**
+   skip when `!pd.implies(p) && pd.impliesOnce(p)` (stable denies, a live one-shot grants), not a
+   shutdown filter (the grant is gone by then); this keeps an escalation from being promoted to a
+   permanent baseline grant (the worst failure mode). Only a one-shot whose grant is *live during the
+   audit* is excluded, so escalations must run through the gate during polpAudit (human floor-review
+   is the backstop). Third, safe to express as a `DelegatePermission` (no floor leak; the method guard
    rides the uncached `impliesOnce` per use). The soundness corner resolves exactly — `implies`-first
    means a permanently-granted perm stays cached even if a one-shot also covers it. *Supersedes the
    earlier `clearCache`-on-revoke approach, which never fired on the eventless expiry path;*
@@ -615,10 +631,13 @@ deployment test must exercise (C13).
   stable grant wins and caching is correct; the one-shot does not force non-caching of an
   independently-permanent decision.
 - **C16** (no policy-recording leak, T3) Under `polpAudit` (`SecurityPolicyWriter`): an agent
-  exercises a one-shot escalation; assert the generated policy file does **not** contain the
-  escalated permission (it is reported only by `impliesOnce`, invisible to the `implies`-driven
-  protected per-PD recording path), while a permission exercised via `implies` *is* recorded.
-  Guards the worst failure mode — a one-shot promoted to a permanent baseline grant.
+  exercises an escalation **through the `EscalationGate`** (so the one-shot grant is live during the
+  audit), plus a genuinely-ungranted permission. Assert the generated policy file omits the escalated
+  permission but includes the genuinely-missing one — i.e. the recorder's record-time skip
+  (`!pd.implies(p) && pd.impliesOnce(p)`) excludes the live one-shot while still capturing real floor
+  gaps. **Negative control:** the same escalation perm exercised *without* the gate (no live one-shot
+  grant) IS recorded, documenting the operational contract that escalations must run through the gate
+  during an audit. Guards the worst failure mode — a one-shot promoted to a permanent baseline grant.
 
 ---
 
