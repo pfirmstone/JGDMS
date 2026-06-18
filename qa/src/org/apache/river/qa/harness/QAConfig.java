@@ -289,8 +289,40 @@ public final class QAConfig implements Serializable {
 
     private String resumeMessage;
     
-    private static final ObjectStreamField [] serialPersistentFields = serialForm();
-    
+    // serialPersistentFields must be INDEPENDENT of serialForm(): since the
+    // @AtomicSerial uncoupling (commits ec9b5de25/14948b112) SerialForm no
+    // longer extends ObjectStreamField, so SerialForm[] is not assignable to
+    // ObjectStreamField[].  Mirror serialForm()'s fields explicitly for the
+    // plain java.io (JOSS) path, matching the platform convention (STD-008 9.1).
+    private static final ObjectStreamField [] serialPersistentFields = {
+        new ObjectStreamField("uniqueString", String.class),
+        new ObjectStreamField("overrideProviders", List.class),
+        new ObjectStreamField("failureAnalyzers", List.class),
+        new ObjectStreamField("configProps", Map.class),
+        new ObjectStreamField("configSetProps", Map.class),
+        new ObjectStreamField("defaultProps", Map.class),
+        new ObjectStreamField("td", TestDescription.class),
+        new ObjectStreamField("dynamicProps", Map.class),
+        new ObjectStreamField("propertyOverrides", Map.class),
+        new ObjectStreamField("args", String[].class),
+        new ObjectStreamField("configTags", String[].class),
+        new ObjectStreamField("currentTag", String.class),
+        new ObjectStreamField("trackKey", String.class),
+        new ObjectStreamField("hostList", List.class),
+        new ObjectStreamField("selectedIndexes", List.class),
+        new ObjectStreamField("tokenMap", Map.class),
+        new ObjectStreamField("testJar", String.class),
+        new ObjectStreamField("harnessJar", String.class),
+        new ObjectStreamField("searchList", String[].class),
+        new ObjectStreamField("testSuspended", Boolean.TYPE),
+        new ObjectStreamField("hostIndex", Integer.TYPE),
+        new ObjectStreamField("passCount", Integer.TYPE),
+        new ObjectStreamField("callAutot", Boolean.TYPE),
+        new ObjectStreamField("testTotal", Integer.TYPE),
+        new ObjectStreamField("testIndex", Integer.TYPE),
+        new ObjectStreamField("resumeMessage", String.class)
+    };
+
     public static SerialForm [] serialForm(){
         return new SerialForm[]{
             new SerialForm("uniqueString", String.class),
@@ -323,7 +355,36 @@ public final class QAConfig implements Serializable {
     }
     
     public static void serialize(PutArg arg, QAConfig q) throws IOException {
-        putFields(arg, q);
+        // Atomic codec path: PutArg is no longer an ObjectOutputStream.PutField
+        // (since the @AtomicSerial uncoupling), so write each field directly
+        // rather than reusing putFields(PutField,..) which the JOSS writeObject
+        // path below still uses.
+        arg.put("uniqueString", q.uniqueString);
+        arg.put("overrideProviders", q.overrideProviders);
+        arg.put("failureAnalyzers", q.failureAnalyzers);
+        arg.put("configProps", q.configProps);
+        arg.put("configSetProps", q.configSetProps);
+        arg.put("defaultProps", q.defaultProps);
+        arg.put("td", q.td);
+        arg.put("dynamicProps", q.dynamicProps);
+        arg.put("propertyOverrides", q.propertyOverrides);
+        arg.put("args", q.args);
+        arg.put("configTags", q.configTags);
+        arg.put("currentTag", q.currentTag);
+        arg.put("trackKey", q.trackKey);
+        arg.put("hostList", q.hostList);
+        arg.put("selectedIndexes", q.selectedIndexes);
+        arg.put("tokenMap", q.resolver.getTokenMap());
+        arg.put("testJar", q.testJar);
+        arg.put("harnessJar", q.harnessJar);
+        arg.put("searchList", q.searchList);
+        arg.put("testSuspended", q.testSuspended);
+        arg.put("hostIndex", q.hostIndex);
+        arg.put("passCount", q.passCount);
+        arg.put("callAutot", q.callAutot);
+        arg.put("testTotal", q.testTotal);
+        arg.put("testIndex", q.testIndex);
+        arg.put("resumeMessage", q.resumeMessage);
         arg.writeArgs();
     }
     
