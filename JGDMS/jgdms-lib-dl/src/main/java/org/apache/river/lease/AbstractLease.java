@@ -22,9 +22,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
-import java.io.ObjectOutputStream.PutField;
 import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
@@ -58,31 +56,24 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
         };
     }
     
-    public static void serialize(PutArg arg, AbstractLease al) throws IOException{
-        writeObj(arg, arg.output(), al);
+    public static void serialize(PutArg arg, AbstractLease al) throws IOException {
+        int format = al.serialFormat;
+        long val = adjustedVal(format, al.expiration);
+        arg.put("serialFormat", format);
+        arg.writeArgs();
+        arg.output().writeLong(val);
     }
-    
-    private static void writeObj(PutField pf, ObjectOutput stream, AbstractLease al)
-            throws IOException{
-        int format;
-	long val;
-	    format = al.serialFormat;
-	    val = al.expiration;
-	if (format == Lease.DURATION) {
-	    long exp = val;
-	    val -= System.currentTimeMillis();
-	    // If we subtract positive from negative, and the result is
-	    // positive, we must have underflowed, so use Long.MIN_VALUE
-	    if (exp < 0 && val > 0)
-		val = Long.MIN_VALUE;
-	}
-	pf.put("serialFormat", format);
-        if (pf instanceof PutArg){
-            ((PutArg)pf).writeArgs();
-        } else if (stream instanceof ObjectOutputStream){
-            ((ObjectOutputStream)stream).writeFields();
+
+    private static long adjustedVal(int format, long expiration) {
+        long val = expiration;
+        if (format == Lease.DURATION) {
+            long exp = val;
+            val -= System.currentTimeMillis();
+            // If we subtract positive from negative, and the result is
+            // positive, we must have underflowed, so use Long.MIN_VALUE
+            if (exp < 0 && val > 0) val = Long.MIN_VALUE;
         }
-	stream.writeLong(val);
+        return val;
     }
 
     /**
@@ -199,7 +190,12 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
      * is ABSOLUTE, or the relative duration if serialFormat is DURATION
      */
     private void writeObject(ObjectOutputStream stream) throws IOException {
-	writeObj(stream.putFields(), stream, this);
+        int format = this.serialFormat;
+        long val = adjustedVal(format, this.expiration);
+        java.io.ObjectOutputStream.PutField pf = stream.putFields();
+        pf.put("serialFormat", format);
+        stream.writeFields();
+        stream.writeLong(val);
     }
 
     /**
