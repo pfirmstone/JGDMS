@@ -18,6 +18,7 @@
 package org.apache.river.tool.preferred;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
@@ -93,15 +94,20 @@ public class JgdmsPlatformGroundTruthTest {
     }
 
     @Test
-    public void proxyTrustExporterIsPreferred() {
+    public void proxyTrustExporterSharesAfterCleanerFix() {
+        // The §8 audit flagged ProxyTrustExporter (static Executor pool + lock).
+        // Its WeakReference/ReferenceQueue/reaper-pool machinery was replaced
+        // with java.lang.ref.Cleaner, dissolving the hazard, so it now SHAREs
+        // with no hazard rather than being preferred.
         ClassDecision d = get("net/jini/security/proxytrust/ProxyTrustExporter");
-        assertEquals(Decision.PREFER, d.getAnalysisDecision());
-        assertTrue("systemThreadPool shared-pool hazard",
-                FixtureSupport.hasKind(d, HazardKind.CONTENDED_STATIC_FIELD));
+        assertEquals(Decision.SHARE, d.getAnalysisDecision());
+        assertTrue("Cleaner refactor removed all static-state hazards",
+                d.getHazards().isEmpty());
+        assertFalse(d.isNeedsReview());
     }
 
     @Test
-    public void preferSetIsExactlyTheTwoAuditCases() {
+    public void preferSetIsExactlyUuidFactory() {
         int prefer = 0;
         StringBuilder names = new StringBuilder();
         for (ClassDecision d : byName.values()) {
@@ -110,8 +116,10 @@ public class JgdmsPlatformGroundTruthTest {
                 names.append(' ').append(d.getInternalName());
             }
         }
-        assertEquals("share-by-default: PREFER set should be exactly {UuidFactory, "
-                + "ProxyTrustExporter}, was:" + names, 2, prefer);
+        // After the ProxyTrustExporter Cleaner fix, UuidFactory is the only
+        // remaining shared-static isolation hazard in jgdms-platform.
+        assertEquals("share-by-default: PREFER set should be exactly "
+                + "{UuidFactory}, was:" + names, 1, prefer);
     }
 
     // ---- §8 CONFLICT (must share; lock-free TODO) -------------------------

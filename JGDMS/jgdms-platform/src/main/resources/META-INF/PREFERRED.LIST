@@ -4,6 +4,3 @@ Preferred: false
 
 Name: net/jini/id/UuidFactory.class
 Preferred: true
-
-Name: net/jini/security/proxytrust/ProxyTrustExporter.class
-Preferred: true

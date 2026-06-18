@@ -1,8 +1,8 @@
 Preferred-Class Analysis Report
 ===============================
 
-Analyzed classes : 619
-  PREFER (true)  : 2
+Analyzed classes : 618
+  PREFER (true)  : 1
   SHARE  (false) : 616
   CONFLICT       : 1  (must share, yet contends -- lock-free remedy needed)
   needs review   : 12
@@ -13,12 +13,6 @@ Analyzed classes : 619
 net.jini.id.UuidFactory
     (B) SYNCHRONIZED_ON_STATIC_FIELD: synchronized block on static field lock
     (B) CONTENDED_STATIC_FIELD: static field secureRandom of contended type java.security.SecureRandom
-
-net.jini.security.proxytrust.ProxyTrustExporter
-    (B) SYNCHRONIZED_ON_STATIC_FIELD: synchronized block on static field refs
-    (B) CONTENDED_STATIC_FIELD: static field systemThreadPool of contended type org.apache.river.thread.Executor
-    (A) MUTABLE_STATIC_STATE: static final container refs mutated at runtime (registry/cache) [java.util.Set]
-    (A) MUTABLE_STATIC_STATE: mutable static field reaper reassigned at runtime (mutable singleton) [net.jini.security.proxytrust.ProxyTrustExporter$Reaper]
 
 -- CONFLICT (must share; needs lock-free remedy; do NOT prefer) ------
 

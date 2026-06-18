@@ -34,31 +34,45 @@ excluding a class's own inner classes):
 
 | Class | Hazard (analyzer verdict) | Incoming platform deps | Relocation verdict |
 |---|---|---|---|
-| `net.jini.security.proxytrust.ProxyTrustExporter` | static `Executor` pool + mutable statics (**PREFER**) | **0** | **clean candidate** for `jgdms-lib-dl` |
+| `net.jini.security.proxytrust.ProxyTrustExporter` | ~~static `Executor` pool + mutable statics (PREFER)~~ **RESOLVED 2026-06-18** | **0** | **fixed lock-free** (see below) — now SHARE, no relocation needed |
 | `net.jini.id.UuidFactory` | `synchronized(lock)` + `SecureRandom` in `generate()` (**PREFER**) | 1 — `org.apache.river.config.ConfigUtil`, which calls only `create(String)` (parse), **not** the hazardous `generate()` | near-clean; movable if `ConfigUtil`'s single ref is handled |
 | `net.jini.core.constraint.DelegationAbsoluteTime` | `static synchronized getFormatter()` (**CONFLICT**, `@AtomicSerial` wire type) | 3 (`ConstraintTrustVerifier`, `DelegationRelativeTime`, `Plaintext`) | **stays** — must keep wire identity; remedy is lock-free (`ThreadLocal<SimpleDateFormat>`) |
 | `net.jini.export.ServerContext`, `net.jini.security.policy.PolicyFileProvider`, `org.apache.river.api.security.DelegatePermission` | benign bare-lock cache / (a) (**review**) | 0 | movable but **not motivated** (no real isolation hazard) |
 | `Constants`(8), `ClassLoading`(5), `Security`(15), `Service`(9), `DiscoveryV2`(1), `ObjectStreamClassContainer`(3), `OSGiServiceIterator`(1) | review | ≥1 | stay (core infra) |
 
-## 3. Open question (needs JGDMS-topology judgement)
+## 2a. ProxyTrustExporter — resolved lock-free (2026-06-18)
+
+The topology question below was answered "lock-free, not relocation":
+`ProxyTrustExporter`'s hazard was a hand-rolled
+`WeakReference`/`ReferenceQueue`/reaper-thread auto-unexport cleaner, whose
+`synchronized(refs)` guarded the reaper start-on-first / stop-on-empty lifecycle
+against a shared static thread pool. It was replaced with
+`java.lang.ref.Cleaner` (platform compiles at release 21) — `Cleaner` owns the
+ReferenceQueue, the daemon thread, and the strong-reachability of registrations,
+so all four static hazard fields (`systemThreadPool`, `refs`, `queue`, `reaper`)
+and the `synchronized` block were deleted. A `BootHolder` cleaning action keeps
+the bootstrap impl reachable while the main object is, releasing it on GC; it
+holds the bootstrap impl (whose back-reference to the main object is weak) and so
+never pins the registered object. The analyzer now classifies it **SHARE** (no
+hazard) — the hazard is dissolved, not relocated. It stays in `jgdms-platform`.
+
+## 3. Open question for the remaining candidate (UuidFactory)
 
 Relocating to `jgdms-lib-dl` isolates instances loaded through a **downloaded
-codebase** (per-codebase classloader). `ProxyTrustExporter`'s shared-`Executor`
-hazard, however, is largely a **server-side** concern — the exporter is used to
-*export* a proxy, not downloaded by clients. So it is not obvious that lib-dl
-placement isolates the hazardous usage; the real remedy there may be lock-free /
-per-instance state regardless of which jar it ships in. This call needs the
-download-topology expertise and is the gate before any move.
+codebase** (per-codebase classloader). For a server-side hazard, lock-free is
+usually the better remedy than relocation (as done for `ProxyTrustExporter`).
+`UuidFactory`'s `generate()` lock + `SecureRandom` is similarly server-side; the
+same lock-free treatment (or accepting the shared generator) is likely preferable
+to a move, and its sole platform dependency (`ConfigUtil`) uses only the benign
+`create(String)` path.
 
 ## 4. Recommended next steps
 
 1. **Decide the platform list**: remove `jgdms-platform`'s `PREFERRED.LIST`
    (needs none) and retarget the analyzer + `--fail-on-drift` gate at the `-dl`
    modules; or leave the inert flip as-is.
-2. **`ProxyTrustExporter`**: confirm the topology question (§3); if relocation is
-   the right remedy and no reflection/config-string ref exists (jdeps sees only
-   static bytecode refs), move it (+ inner classes) to `jgdms-lib-dl`, fix poms,
-   verify.
+2. **`ProxyTrustExporter`**: ~~confirm topology / relocate~~ **done** — fixed
+   lock-free with `java.lang.ref.Cleaner` (§2a); now SHARE, stays in platform.
 3. **`UuidFactory`**: assess moving with the one `ConfigUtil.create()` ref; or
    leave (its hazardous `generate()` path is unused within platform).
 4. **`DelegationAbsoluteTime`**: apply the lock-free `getFormatter()` fix
