@@ -23,7 +23,6 @@ import org.apache.river.api.io.AtomicSerial;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.lang.StackWalker.Option;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -36,30 +35,25 @@ import java.util.Objects;
  * {@code @AtomicSerial} class in the hierarchy (exactly one entry for Phase 4.1;
  * the map structure is ready for Phase 4.3 hierarchy support).
  *
- * <h2>Caller dispatch via StackWalker</h2>
+ * <h2>Caller dispatch and idempotency (shared base)</h2>
  * <p>
- * Every {@code get}, {@code defaulted}, and {@code getReader} call resolves
- * to the {@link DerFieldStore} of the {@code @AtomicSerial} class whose
- * {@code (GetArg)} constructor (or its static {@code check} method) is currently
- * on the call stack. The resolution is performed by
- * {@link #callerClass()}, which uses
- * {@code StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE)} to walk frames
- * and return the FIRST frame whose declaring class is a key in the map.
- *
- * <h2>Why StackWalker for caller resolution</h2>
- * <p>
- * The reference implementation {@code GetArgImpl} resolves the calling class via a
- * nested {@code SecurityManager} subclass that calls {@code getClassContext()}.
- * That mechanism remains valid on DirtyChai (the JGDMS target JDK), which
- * <em>retains and advances</em> the Authorization / {@code SecurityManager}
- * framework ({@code au.zeus.jdk.authorization.*}) rather than removing it.
- * {@code DerGetArg} instead uses {@code StackWalker} -- the same caller-stack
- * introspection API the DirtyChai JDK itself uses for caller validation: it
- * resolves the caller class directly, without instantiating a
- * {@code SecurityManager} subclass, and is lazy-streaming and {@code null}-safe.
- * Both approaches are valid on DirtyChai; StackWalker is chosen here as the
- * cleaner, dependency-free option (and it is also the only one of the two that
- * survives on a stock OpenJDK that has dropped the Authorization framework).
+ * As of Inc2, caller resolution, per-{@code (caller, field)} memoization and all
+ * the typed {@code get} accessors live in the {@link AtomicSerial.GetArg} base
+ * (which resolves the caller via {@code StackWalker} and makes the {@code get}
+ * overloads {@code final} and idempotent). This class supplies only:
+ * <ul>
+ *   <li>{@link #lookup(Class, String)} -- the untyped value hook, called at most
+ *       once per {@code (caller, name)} by the memoizing base. Lazily-decoded
+ *       nested {@code @AtomicSerial} / {@code @AtomicSerial[]} fields are decoded
+ *       HERE (so the cumulative {@code MAX_NESTING} depth guard is threaded), and
+ *       the decoded value is then memoized by the base (decode-once);</li>
+ *   <li>{@link #isDefaulted(Class, String)} -- the decode-free presence hook;</li>
+ *   <li>{@code serialClasses()}, {@code getReader()} (returns {@code null}) and
+ *       {@code getObjectStreamContext()} (returns an empty list).</li>
+ * </ul>
+ * Because the base memoizes the first value returned per field, a hostile or
+ * replayed {@code GetArg} cannot return one value to a class's
+ * {@code check(GetArg)} and a different value to its {@code (GetArg)} constructor.
  *
  * <h2>check-before-construction contract</h2>
  * <p>
@@ -72,20 +66,8 @@ import java.util.Objects;
  * {@link java.lang.reflect.InvocationTargetException}, a failing {@code check}
  * unwinds completely: NO object is returned and no partially-constructed instance
  * escapes.
- *
- * <h2>getReader</h2>
- * <p>
- * Returns {@code null} -- there is no {@link AtomicSerial.ReadObject} in the DER
- * path; DER classes do not use {@code @ReadInput}.
- *
- * <h2>getObjectStreamContext</h2>
- * <p>
- * Returns {@link Collections#emptyList()} -- no ObjectStreamContext in the DER path.
  */
 public final class DerGetArg extends AtomicSerial.GetArg {
-
-    private static final StackWalker WALKER =
-            StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
 
     /**
      * One entry per {@code @AtomicSerial} class in the hierarchy.
@@ -125,14 +107,12 @@ public final class DerGetArg extends AtomicSerial.GetArg {
      * @throws NullPointerException if {@code storeMap} is {@code null} or empty
      */
     public DerGetArg(Map<Class<?>, DerFieldStore> storeMap, int depth) {
-        super(); // protected GetArg() performs a SerializablePermission
-                 // "enableSubclassImplementation" check (AtomicSerial.Check.check()).
-                 // GetArgImpl avoids it via the package-private GetArg(boolean)
-                 // constructor (it shares AtomicSerial's package); DerGetArg lives in
-                 // a separate module/package and intentionally goes through the
-                 // checked constructor, so under an active DirtyChai SecurityManager
-                 // the DER deserializer's codebase must be granted that
-                 // SerializablePermission by policy.
+        super(); // As of Inc2 step 6 the protected GetArg() constructor is a no-op
+                 // (the SerializablePermission "enableSubclassImplementation" /
+                 // Check.check() guard was dropped: idempotency of the final memoizing
+                 // get() accessors makes check-then-construct sound even against an
+                 // untrusted GetArg, so the subclass-construction permission is no
+                 // longer required).
         Objects.requireNonNull(storeMap, "storeMap");
         if (storeMap.isEmpty()) {
             throw new IllegalArgumentException("storeMap must not be empty");
@@ -143,137 +123,38 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     }
 
     // =========================================================================
-    // Caller dispatch
+    // AtomicSerial.GetArg base hooks
     // =========================================================================
 
     /**
-     * Resolves the {@link DerFieldStore} for the class currently calling via
-     * {@link #callerClass()}.
-     *
-     * @return the {@code DerFieldStore} for the calling class
-     * @throws InvalidObjectException if no matching class is found on the stack
+     * Resolves the {@link DerFieldStore} for the already-resolved
+     * {@code callerClass} (the base performs caller resolution against
+     * {@link #serialClasses()}, which is exactly {@code storeMap.keySet()}, so a
+     * missing entry indicates a programming error rather than an attacker-driven
+     * mismatch).
      */
-    private DerFieldStore callerStore() throws InvalidObjectException {
-        Class<?> caller = callerClass();
-        DerFieldStore store = storeMap.get(caller);
+    private DerFieldStore store(Class<?> callerClass) throws InvalidObjectException {
+        DerFieldStore store = storeMap.get(callerClass);
         if (store == null) {
             throw new InvalidObjectException(
-                    "DerGetArg: no field store for caller class " + caller.getName()
+                    "DerGetArg: no field store for caller class " + callerClass.getName()
                     + "; registered classes: " + storeMap.keySet());
         }
         return store;
     }
 
     /**
-     * Walks the call stack and returns the first frame whose declaring class is
-     * a key in {@link #storeMap}.
-     *
-     * <p>If exactly one class is registered (Phase 4.1) and no matching frame is
-     * found, returns that single class as a safe fallback. (This handles edge cases
-     * where synthetic bridge methods or lambdas appear between the constructor and
-     * this call.)
-     *
-     * @return the {@code @AtomicSerial} class currently invoking this {@code GetArg}
-     * @throws InvalidObjectException if the stack has no recognisable @AtomicSerial
-     *         frame and the map has more than one entry (hierarchy: ambiguous)
-     */
-    private Class<?> callerClass() throws InvalidObjectException {
-        Class<?> found = WALKER.walk(frames ->
-            frames.map(StackWalker.StackFrame::getDeclaringClass)
-                  .filter(storeMap::containsKey)
-                  .findFirst()
-                  .orElse(null)
-        );
-        if (found != null) {
-            return found;
-        }
-        // Fallback: if only one class registered, use it (safe for Phase 4.1)
-        if (storeMap.size() == 1) {
-            return storeMap.keySet().iterator().next();
-        }
-        throw new InvalidObjectException(
-                "DerGetArg: cannot determine caller @AtomicSerial class from stack; "
-                + "registered classes: " + storeMap.keySet());
-    }
-
-    // =========================================================================
-    // AtomicSerial.GetArg typed field accessors
-    // =========================================================================
-
-    @Override
-    public boolean defaulted(String name) throws IOException {
-        Objects.requireNonNull(name, "name");
-        return callerStore().defaulted(name);
-    }
-
-    @Override
-    public boolean get(String name, boolean val) throws IOException {
-        Objects.requireNonNull(name, "name");
-        return callerStore().get(name, val);
-    }
-
-    @Override
-    public byte get(String name, byte val) throws IOException {
-        Objects.requireNonNull(name, "name");
-        return callerStore().get(name, val);
-    }
-
-    /**
-     * Reads a {@code char} field (STD-008 sec.17.3.2): DER INTEGER carrying a Unicode
-     * codepoint in BMP non-surrogate range. Surrogate / out-of-range values are rejected.
+     * Untyped value hook. Returns the boxed field value, or {@link #ABSENT} when
+     * the field is absent/defaulted. Nested {@code @AtomicSerial} and
+     * {@code @AtomicSerial[]} fields are decoded here (depth-threaded); the base
+     * memoizes the result so the decode happens exactly once per field.
      */
     @Override
-    public char get(String name, char val) throws IOException {
-        Objects.requireNonNull(name, "name");
-        return callerStore().get(name, val);
-    }
-
-    @Override
-    public short get(String name, short val) throws IOException {
-        Objects.requireNonNull(name, "name");
-        return callerStore().get(name, val);
-    }
-
-    @Override
-    public int get(String name, int val) throws IOException {
-        Objects.requireNonNull(name, "name");
-        return callerStore().get(name, val);
-    }
-
-    @Override
-    public long get(String name, long val) throws IOException {
-        Objects.requireNonNull(name, "name");
-        return callerStore().get(name, val);
-    }
-
-    /**
-     * Reads a {@code float} field (STD-008 sec.17.3.1): IEEE-754 BE in 4-byte OCTET STRING
-     * with strict canonical NaN and canonical {@code +0.0} (non-canonical patterns rejected
-     * fail-secure for Entry-matching determinism).
-     */
-    @Override
-    public float get(String name, float val) throws IOException {
-        Objects.requireNonNull(name, "name");
-        return callerStore().get(name, val);
-    }
-
-    /**
-     * Reads a {@code double} field (STD-008 sec.17.3.1): IEEE-754 BE in 8-byte OCTET STRING
-     * with strict canonical NaN and canonical {@code +0.0} (non-canonical patterns rejected).
-     */
-    @Override
-    public double get(String name, double val) throws IOException {
-        Objects.requireNonNull(name, "name");
-        return callerStore().get(name, val);
-    }
-
-    @Override
-    public Object get(String name, Object val) throws IOException {
-        Objects.requireNonNull(name, "name");
-        DerFieldStore store = callerStore();
-        // Nested @AtomicSerial[] array field: decode lazily on access (STD-008 sec.17.2).
-        // Must check BEFORE isNested (different wrapper type); the depth is threaded so
-        // the cumulative MAX_NESTING guard applies per element.
+    protected Object lookup(Class<?> callerClass, String name) throws IOException {
+        DerFieldStore store = store(callerClass);
+        // Nested @AtomicSerial[] array field: decode lazily (STD-008 sec.17.2).
+        // Check BEFORE isNested (different wrapper type); depth is threaded so the
+        // cumulative MAX_NESTING guard applies per element.
         if (store.isNestedArray(name)) {
             try {
                 return ObjectCodec.decodeNestedArray(
@@ -281,149 +162,49 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                         store.nestedArrayComponentClassName(name),
                         depth);
             } catch (DerException e) {
-                InvalidObjectException ioe = new InvalidObjectException(
-                        "DerGetArg: failed to decode nested @AtomicSerial[] field '"
-                        + name + "': " + e.getMessage());
-                ioe.initCause(e);
-                throw ioe;
+                throw nested("failed to decode nested @AtomicSerial[] field", name, e);
             } catch (ClassNotFoundException e) {
-                InvalidObjectException ioe = new InvalidObjectException(
-                        "DerGetArg: class not found decoding nested array field '"
-                        + name + "': " + e.getMessage());
-                ioe.initCause(e);
-                throw ioe;
+                throw nested("class not found decoding nested array field", name, e);
             }
         }
-        // Nested @AtomicSerial field: decode lazily on access (STD-008 sec.16).
-        // The store holds the raw TLV bytes; ObjectCodec.decodeNested does the
-        // actual decode here in der.object so that der.getarg stays cycle-free.
+        // Nested @AtomicSerial field: decode lazily (STD-008 sec.16). The store
+        // holds the raw TLV bytes; ObjectCodec.decodeNested does the actual decode
+        // here in der.object so that der.getarg stays cycle-free.
         if (store.isNested(name)) {
             try {
                 return ObjectCodec.decodeNested(store.rawNested(name), depth);
             } catch (DerException e) {
-                InvalidObjectException ioe = new InvalidObjectException(
-                        "DerGetArg: failed to decode nested @AtomicSerial field '"
-                        + name + "': " + e.getMessage());
-                ioe.initCause(e);
-                throw ioe;
+                throw nested("failed to decode nested @AtomicSerial field", name, e);
             } catch (ClassNotFoundException e) {
-                InvalidObjectException ioe = new InvalidObjectException(
-                        "DerGetArg: class not found decoding nested field '"
-                        + name + "': " + e.getMessage());
-                ioe.initCause(e);
-                throw ioe;
+                throw nested("class not found decoding nested field", name, e);
             }
         }
-        return store.get(name, val);
+        // Plain field: ABSENT (decode-free) when absent/defaulted, else the decoded
+        // value. defaulted() already treats a null map value as absent, so a present
+        // non-nested value is never null here.
+        if (store.defaulted(name)) {
+            return ABSENT;
+        }
+        return store.get(name, null);
     }
 
     /**
-     * Typed Object get with type check (mirrors {@code GetArgImpl}).
-     *
-     * <p>If the stored value is {@code null} (field absent), returns {@code val}.
-     * If the stored value is not an instance of {@code type}, throws
-     * {@link InvalidObjectException} with a {@link ClassCastException} cause.
-     *
-     * @param <T>  the expected type
-     * @param name the field name
-     * @param val  the default value if absent
-     * @param type the expected runtime type (must not be {@code null})
-     * @return the decoded value cast to T, or {@code val} if absent
-     * @throws InvalidObjectException if the stored value is not an instance of {@code type}
-     * @throws NullPointerException   if {@code name} or {@code type} is {@code null}
+     * Decode-free presence hook backing {@link #defaulted(String)}.
      */
     @Override
-    public <T> T get(String name, T val, Class<T> type) throws IOException {
-        Objects.requireNonNull(name, "name");
-        Objects.requireNonNull(type, "type");
-        DerFieldStore store = callerStore();
-        // Nested @AtomicSerial[] array field: decode lazily (same as get(String, Object))
-        if (store.isNestedArray(name)) {
-            Object decoded;
-            try {
-                decoded = ObjectCodec.decodeNestedArray(
-                        store.rawNestedArray(name),
-                        store.nestedArrayComponentClassName(name),
-                        depth);
-            } catch (DerException e) {
-                InvalidObjectException ioe = new InvalidObjectException(
-                        "DerGetArg: failed to decode nested @AtomicSerial[] field '"
-                        + name + "': " + e.getMessage());
-                ioe.initCause(e);
-                throw ioe;
-            } catch (ClassNotFoundException e) {
-                InvalidObjectException ioe = new InvalidObjectException(
-                        "DerGetArg: class not found decoding nested array field '"
-                        + name + "': " + e.getMessage());
-                ioe.initCause(e);
-                throw ioe;
-            }
-            if (decoded == null) return val;
-            if (type.isInstance(decoded)) {
-                @SuppressWarnings("unchecked")
-                T result = (T) decoded;
-                return result;
-            }
-            InvalidObjectException e = new InvalidObjectException(
-                    "DerGetArg: nested array field '" + name + "' type mismatch");
-            e.initCause(new ClassCastException(
-                    "Expected instance of " + type.getName()
-                    + " but got " + decoded.getClass().getName()));
-            throw e;
-        }
-        // Nested @AtomicSerial field: decode lazily (same as get(String, Object))
-        if (store.isNested(name)) {
-            Object decoded;
-            try {
-                decoded = ObjectCodec.decodeNested(store.rawNested(name), depth);
-            } catch (DerException e) {
-                InvalidObjectException ioe = new InvalidObjectException(
-                        "DerGetArg: failed to decode nested @AtomicSerial field '"
-                        + name + "': " + e.getMessage());
-                ioe.initCause(e);
-                throw ioe;
-            } catch (ClassNotFoundException e) {
-                InvalidObjectException ioe = new InvalidObjectException(
-                        "DerGetArg: class not found decoding nested field '"
-                        + name + "': " + e.getMessage());
-                ioe.initCause(e);
-                throw ioe;
-            }
-            if (decoded == null) {
-                return val; // null -> return default (consistent with other get overloads)
-            }
-            if (type.isInstance(decoded)) {
-                @SuppressWarnings("unchecked")
-                T result = (T) decoded;
-                return result;
-            }
-            InvalidObjectException e = new InvalidObjectException(
-                    "DerGetArg: nested field '" + name + "' type mismatch");
-            e.initCause(new ClassCastException(
-                    "Expected instance of " + type.getName()
-                    + " but got " + decoded.getClass().getName()));
-            throw e;
-        }
-        Object stored = store.get(name, null);
-        if (stored == null) {
-            // Field is absent -- return default
-            return val;
-        }
-        if (type.isInstance(stored)) {
-            @SuppressWarnings("unchecked")
-            T result = (T) stored;
-            return result;
-        }
-        InvalidObjectException e = new InvalidObjectException(
-                "DerGetArg: input validation failed for field '" + name + "'");
-        e.initCause(new ClassCastException(
-                "Expected instance of " + type.getName()
-                + " but got " + stored.getClass().getName()));
-        throw e;
+    protected boolean isDefaulted(Class<?> callerClass, String name) throws IOException {
+        return store(callerClass).defaulted(name);
+    }
+
+    private static InvalidObjectException nested(String what, String name, Throwable cause) {
+        InvalidObjectException ioe = new InvalidObjectException(
+                "DerGetArg: " + what + " '" + name + "': " + cause.getMessage());
+        ioe.initCause(cause);
+        return ioe;
     }
 
     // =========================================================================
-    // AtomicSerial.GetArg abstract methods
+    // AtomicSerial.GetArg metadata methods
     // =========================================================================
 
     /**
@@ -453,82 +234,5 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     @Override
     public Collection getObjectStreamContext() {
         return Collections.emptyList();
-    }
-
-    /**
-     * Validates invariants for the calling class's fields (mirrors
-     * {@code GetArgImpl.validateInvariants}).
-     *
-     * <p>For each field in {@code fields}:
-     * <ul>
-     *   <li>If the field type is primitive, calls the corresponding typed
-     *       {@code get} to verify the field is decodable.</li>
-     *   <li>If the field type is an Object type, retrieves the value and checks:
-     *       <ul>
-     *         <li>If {@code nonNull[i]} is {@code true} and the value is
-     *             {@code null} (absent), throws {@link InvalidObjectException}.</li>
-     *         <li>If the value is non-null and not an instance of
-     *             {@code types[i]}, throws {@link InvalidObjectException}.</li>
-     *       </ul>
-     *   </li>
-     * </ul>
-     *
-     * @param fields  array of field names
-     * @param types   array of expected types, parallel to {@code fields}
-     * @param nonNull array of non-null flags, parallel to {@code fields}
-     * @return {@code this} (fluent)
-     * @throws IOException              if any invariant is violated
-     * @throws NullPointerException     if any argument is {@code null}
-     * @throws IllegalArgumentException if array lengths differ
-     */
-    @Override
-    public AtomicSerial.GetArg validateInvariants(String[] fields, Class[] types,
-                                                   boolean[] nonNull) throws IOException {
-        Objects.requireNonNull(fields, "fields");
-        Objects.requireNonNull(types, "types");
-        Objects.requireNonNull(nonNull, "nonNull");
-        if (fields.length != types.length || fields.length != nonNull.length) {
-            throw new IllegalArgumentException(
-                    "validateInvariants: arrays must have equal length");
-        }
-        // Resolve caller store once, outside the loop (same caller throughout)
-        DerFieldStore store = callerStore();
-        for (int i = 0; i < fields.length; i++) {
-            Class<?> t = types[i];
-            String fieldName = fields[i];
-            if (t.isPrimitive()) {
-                // Force a get to confirm the field is decodable / present
-                if (t == boolean.class) store.get(fieldName, false);
-                else if (t == byte.class)  store.get(fieldName, (byte) 0);
-                else if (t == short.class) store.get(fieldName, (short) 0);
-                else if (t == int.class)   store.get(fieldName, 0);
-                else if (t == long.class)  store.get(fieldName, 0L);
-                // STD-008 sec.17.3 (S7.6 lifted): validate float/double/char too.
-                else if (t == float.class) store.get(fieldName, 0.0f);
-                else if (t == double.class) store.get(fieldName, 0.0);
-                else if (t == char.class)  store.get(fieldName, (char) 0);
-            } else {
-                // For nested @AtomicSerial or @AtomicSerial[] fields, decode via
-                // get(name, null) so the NestedRaw / NestedArrayRaw wrapper is resolved
-                // through ObjectCodec.decodeNested / decodeNestedArray.
-                Object v;
-                if (store.isNested(fieldName) || store.isNestedArray(fieldName)) {
-                    v = get(fieldName, (Object) null); // routes through nested decode
-                } else {
-                    v = store.get(fieldName, null);
-                }
-                if (nonNull[i] && v == null) {
-                    throw new InvalidObjectException(
-                            "validateInvariants: field '" + fieldName + "' must not be null");
-                }
-                if (v != null && !t.isInstance(v)) {
-                    throw new InvalidObjectException(
-                            "validateInvariants: field '" + fieldName
-                            + "' must be an instance of " + t.getName()
-                            + " but got " + v.getClass().getName());
-                }
-            }
-        }
-        return this;
     }
 }
