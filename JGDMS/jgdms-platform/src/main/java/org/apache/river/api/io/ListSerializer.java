@@ -18,8 +18,6 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.AbstractList;
 import java.util.Collection;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -29,9 +27,8 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @author peter
  */
 @AtomicSerial
-class ListSerializer<T> extends AbstractList<T> implements Serializable {
-    
-    private static final long serialVersionUID = 1L;
+class ListSerializer<T> extends AbstractList<T> {
+
     private static final String ELEMENTS = "elements";
     
     public static AtomicSerial.SerialForm [] serialForm(){
@@ -75,14 +72,5 @@ class ListSerializer<T> extends AbstractList<T> implements Serializable {
     public int size() {
 	return elements.length;
     }
-    
-    /**
-     * @serialData 
-     * @param out
-     * @throws IOException 
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-    
+
 }

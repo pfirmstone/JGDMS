@@ -18,10 +18,7 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
@@ -35,18 +32,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType = Properties.class)
 @AtomicSerial
-public class PropertiesSerializer implements Serializable, Resolve {
-    private static final long serialVersionUID = 1L;
-    
-    /**
-     * By defining serial persistent fields, we don't need to use transient fields.
-     * All fields can be final and this object becomes immutable.
-     */
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("m", MapSerializer.class)
-    };
-    
+public class PropertiesSerializer implements Resolve {
+
     public static SerialForm [] serialForm(){
         return new SerialForm[]{
             new SerialForm("m", MapSerializer.class)
@@ -85,16 +72,5 @@ public class PropertiesSerializer implements Serializable, Resolve {
     @Override
     public Object readResolve() throws ObjectStreamException {
 	return p;
-    }
-    
-    /**
-     * @serialData 
-     * @param out
-     * @throws IOException 
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	ObjectOutputStream.PutField pf = out.putFields();
-	pf.put("m", m);
-	out.writeFields();
     }
 }

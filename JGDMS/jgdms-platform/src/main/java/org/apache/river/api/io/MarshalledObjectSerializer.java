@@ -19,7 +19,6 @@ package org.apache.river.api.io;
 
 import java.io.IOException;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -32,9 +31,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType = MarshalledObject.class)
 @AtomicSerial
-class MarshalledObjectSerializer implements Serializable {
-    private static final long serialVersionUID = 1L;
-    
+class MarshalledObjectSerializer {
+
     private static final String INSTANCE = "instance";
     
     public static SerialForm [] serialForm(){

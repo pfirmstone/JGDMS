@@ -21,10 +21,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.security.Permission;
@@ -52,27 +49,13 @@ import org.apache.river.impl.Messages;
  */
 @Serializer(replaceObType = Permission.class)
 @AtomicSerial
-final class PermissionSerializer implements Serializable, Resolve {
-    
-    private static final long serialVersionUID = 1L;
-    
+final class PermissionSerializer implements Resolve {
+
     private static final String TARGET_TYPE = "targetType";
     private static final String UNRESOLVED_TYPE = "unresolvedType";
     private static final String TARGET_NAME = "targetName";
     private static final String TARGET_ACTIONS = "targetActions";
-    
-    /**
-     * By defining serial persistent fields, we don't need to use transient fields.
-     * All fields can be final and this object becomes immutable.
-     */
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(TARGET_TYPE, Class.class),
-        new ObjectStreamField(UNRESOLVED_TYPE, String.class),
-        new ObjectStreamField(TARGET_NAME, String.class),
-        new ObjectStreamField(TARGET_ACTIONS, String.class)
-    };
-    
+
     public static SerialForm [] serialForm(){
         return new SerialForm []{
             new SerialForm(TARGET_TYPE, Class.class),
@@ -87,16 +70,7 @@ final class PermissionSerializer implements Serializable, Resolve {
         args.writeArgs();
     }
 
-    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
     private static void putArgs(AtomicSerial.PutArg pf, PermissionSerializer obj) {
-        pf.put("targetType", obj.targetType);
-	pf.put("unresolvedtype", obj.unresolvedType);
-	pf.put("targetName", obj.targetName);
-	pf.put("targetActions", obj.targetActions);
-    }
-
-    // DUAL-PATH: PutField overload for the JOSS writeObject() path
-    private static void putArgs(ObjectOutputStream.PutField pf, PermissionSerializer obj) {
         pf.put("targetType", obj.targetType);
 	pf.put("unresolvedtype", obj.unresolvedType);
 	pf.put("targetName", obj.targetName);
@@ -296,15 +270,5 @@ final class PermissionSerializer implements Serializable, Resolve {
     @Override
     public Object readResolve() throws ObjectStreamException {
 	return permission;
-    }
-    
-    /**
-     * @serialData 
-     * @param out
-     * @throws IOException 
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	putArgs(out.putFields(), this);
-	out.writeFields();
     }
 }

@@ -19,10 +19,7 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Objects;
@@ -36,20 +33,10 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType=URL.class)
 @AtomicSerial
-class URLSerializer implements Serializable {
-    private static final long serialVersionUID = 1L;
-    
+class URLSerializer {
+
     private static final String URL_EXTERNAL_FORM = "urlExternalForm";
-    
-    /**
-     * By defining serial persistent fields, we don't need to use transient fields.
-     * All fields can be final and this object becomes immutable.
-     */
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(URL_EXTERNAL_FORM, String.class)
-    };
-    
+
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm(URL_EXTERNAL_FORM, String.class)
@@ -101,16 +88,5 @@ class URLSerializer implements Serializable {
 	if (url != null) return url;
 	return new URL(null, urlExternalForm);
     }
-   
-    /**
-     * @serialData 
-     * @param out
-     * @throws IOException 
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	ObjectOutputStream.PutField pf = out.putFields();
-	pf.put("urlExternalForm", urlExternalForm);
-	out.writeFields();
-    }
-    
+
 }

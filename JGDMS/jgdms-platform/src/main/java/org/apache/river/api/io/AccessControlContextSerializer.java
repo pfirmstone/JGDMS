@@ -23,12 +23,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.NotSerializableException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -60,8 +56,7 @@ import org.apache.river.api.net.Uri;
  */
 @Serializer(replaceObType = AccessControlContext.class)
 @AtomicSerial
-public final class AccessControlContextSerializer implements Serializable {
-    private static final long serialVersionUID = 1L;
+public final class AccessControlContextSerializer {
     /**
      * Serial field name for the HTTPMD-URL transport bytes.
      * The serial representation stores the binary transport bytes rather than
@@ -126,12 +121,6 @@ public final class AccessControlContextSerializer implements Serializable {
      * presence can identify processes running a vulnerable JDK module.
      */
     private static final String JRT_JAVA_BASE_LOCATION = "jrt:/java.base";
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(TRANSPORT_BYTES, byte[].class),
-        new ObjectStreamField(DIGEST_TRANSPORT_BYTES, byte[].class)
-    };
-
     public static SerialForm[] serialForm() {
         return new SerialForm[]{
             new SerialForm(TRANSPORT_BYTES, byte[].class),
@@ -621,17 +610,10 @@ public final class AccessControlContextSerializer implements Serializable {
     }
 
     @AtomicSerial
-    static final class DomainIdentityRecord implements Serializable {
-        private static final long serialVersionUID = 1L;
+    static final class DomainIdentityRecord {
         private static final String LOCATION = "location";
         private static final String PRINCIPAL_TYPES = "principalTypes";
         private static final String PRINCIPAL_NAMES = "principalNames";
-        // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-        private static final ObjectStreamField[] serialPersistentFields = {
-            new ObjectStreamField(LOCATION, String.class),
-            new ObjectStreamField(PRINCIPAL_TYPES, String[].class),
-            new ObjectStreamField(PRINCIPAL_NAMES, String[].class)
-        };
 
         static SerialForm[] serialForm() {
             return new SerialForm[]{
@@ -810,16 +792,6 @@ public final class AccessControlContextSerializer implements Serializable {
             h = 31 * h + Arrays.hashCode(principalNames);
             return h;
         }
-
-        private void writeObject(ObjectOutputStream out) throws IOException {
-            throw new NotSerializableException(
-                "DomainIdentityRecord must be serialized using @AtomicSerial transport records only");
-        }
-
-        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-            throw new NotSerializableException(
-                "DomainIdentityRecord must be deserialized using @AtomicSerial transport records only");
-        }
     }
 
     static final class DomainIdentity extends ProtectionDomain {
@@ -827,18 +799,9 @@ public final class AccessControlContextSerializer implements Serializable {
         DomainIdentity(CodeSource cs, Principal[] principals) {
             super(cs, null, null, principals);
         }
-        
-        private void writeObject(ObjectOutputStream out) throws IOException {
-            throw new NotSerializableException("DomainIdentity must be serialized using @AtomicSerial transport records only");
-        }
-        
-        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-            throw new NotSerializableException("DomainIdentity must be deserialized using @AtomicSerial transport records only");
-        }
     }
 
-    private static final class NamedPrincipal implements Principal, Serializable {
-        private static final long serialVersionUID = 1L;
+    private static final class NamedPrincipal implements Principal {
         private final String name;
 
         private NamedPrincipal(String name) {
@@ -865,16 +828,6 @@ public final class AccessControlContextSerializer implements Serializable {
         @Override
         public String toString() {
             return "NamedPrincipal[" + name + "]";
-        }
-
-        private void writeObject(ObjectOutputStream out) throws IOException {
-            throw new NotSerializableException(
-                "NamedPrincipal must not be serialized outside of AccessControlContextSerializer");
-        }
-
-        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-            throw new NotSerializableException(
-                "NamedPrincipal must not be deserialized outside of AccessControlContextSerializer");
         }
     }
 
@@ -915,12 +868,5 @@ public final class AccessControlContextSerializer implements Serializable {
     @Override
     public int hashCode() {
         return 31 * Arrays.hashCode(domains) + Arrays.hashCode(digestBytes());
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-        ObjectOutputStream.PutField pf = out.putFields();
-        pf.put(TRANSPORT_BYTES, marshalForTransport(context));
-        pf.put(DIGEST_TRANSPORT_BYTES, marshalDigestForTransport(context));
-        out.writeFields();
     }
 }

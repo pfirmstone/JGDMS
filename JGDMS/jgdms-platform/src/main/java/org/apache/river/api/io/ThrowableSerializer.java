@@ -22,12 +22,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
-import java.io.ObjectStreamField;
 import java.io.OptionalDataException;
-import java.io.Serializable;
 import java.io.WriteAbortedException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -46,13 +42,8 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @Serializer(replaceObType = Throwable.class)
 @AtomicSerial
-public class ThrowableSerializer implements Serializable, Resolve {
-    private static final long serialVersionUID = 1L;
-    
-    /**
-     * By defining serial persistent fields, we don't need to use transient fields.
-     * All fields can be final and this object becomes immutable.
-     */
+public class ThrowableSerializer implements Resolve {
+
     /**
      * Serial argument / field names
      */
@@ -65,18 +56,6 @@ public class ThrowableSerializer implements Serializable, Resolve {
     private static final String LENGTH = "length";
     private static final String EOF = "eof";
 
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(CLASS, Class.class),
-        new ObjectStreamField(MESSAGE, String.class),
-        new ObjectStreamField(CAUSE, Throwable.class),
-        new ObjectStreamField(STACK, StackTraceElement[].class),
-        new ObjectStreamField(SUPPRESSED, Throwable[].class),
-        new ObjectStreamField(CLASSNAME, String.class),
-        new ObjectStreamField(LENGTH, int.class),
-        new ObjectStreamField(EOF, boolean.class),
-    };
-    
     public static SerialForm [] serialForm(){
         return new SerialForm []{
             new SerialForm(CLASS, Class.class),
@@ -95,20 +74,7 @@ public class ThrowableSerializer implements Serializable, Resolve {
         args.writeArgs();
     }
 
-    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
     private static void putArgs(AtomicSerial.PutArg pf, ThrowableSerializer obj) {
-        pf.put(CLASS, obj.clazz);
-	pf.put(MESSAGE, obj.message);
-	pf.put(CAUSE, obj.cause);
-	pf.put(STACK, obj.stack);
-	pf.put(SUPPRESSED, obj.suppressed);
-        pf.put(CLASSNAME, obj.classname);
-        pf.put(LENGTH, obj.length);
-        pf.put(EOF, obj.eof);
-    }
-
-    // DUAL-PATH: PutField overload for the JOSS writeObject() path
-    private static void putArgs(ObjectOutputStream.PutField pf, ThrowableSerializer obj) {
         pf.put(CLASS, obj.clazz);
 	pf.put(MESSAGE, obj.message);
 	pf.put(CAUSE, obj.cause);
@@ -490,24 +456,4 @@ public class ThrowableSerializer implements Serializable, Resolve {
 	return result;
     }
     
-    /**
-     * @serialData 
-     * @param out
-     * @throws IOException 
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	putArgs(out.putFields(), this);
-	out.writeFields();
-    }
-    
-    /**
-     * 
-     * @param in
-     * @throws IOException
-     * @throws ClassNotFoundException 
-     */
-    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-	in.defaultReadObject();
-    }
-
 }

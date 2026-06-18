@@ -21,7 +21,6 @@ package org.apache.river.api.io;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.net.URI;
 import java.util.Objects;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -34,9 +33,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType = File.class)
 @AtomicSerial
-class FileSerializer implements Serializable{
-    private static final long serialVersionUID = 1L;
-    
+class FileSerializer {
+
     private static final String PATH = "path";
     
     public static SerialForm [] serialForm(){
