@@ -282,20 +282,24 @@ side-read. *(`ObjectStreamContext` is `net.jini.io`; renaming it to drop the
 
 `@ReadInput` + `ReadObject.read(ObjectInput)` is the only hook that reads a
 `java.io.ObjectInput` stream directly. Analysis of the 14 production uses
-classifies each as **A** (trivially expressible as declared fields), **B** (needs a
-non-field mechanism), or **C** (legacy-only):
+classifies each as **A** (trivially expressible as declared fields) or **B** (needs
+a non-field mechanism). (The previously-"C / delete" `com.sun.jini.proxy.MarshalledWrapper`
+is reclassified to **B-integrity**: `jini-2.1-compat` is RETAINED because Rio depends
+on it, so its `MarshalledWrapper` is retained and migrated, not deleted. The "C"
+category is now empty.)
 
 | Use | Class(es) | Disposition |
 |---|---|---|
 | A (×7) | reggie `AdminProxy`/`RegistrarProxy`/`RegistrarEvent`/`RegistrarLease`/`ServiceLease`, `AbstractLease` | The raw 16-byte `ServiceID` / `long` expiration written after the field block — only existed to avoid JOSS codebase-annotation loss (Sun bug 4745728), irrelevant under DER → **declare as `serialForm()` fields**, drop `@ReadInput`. |
-| B-integrity (×2) | `org.apache.river.proxy.MarshalledWrapper`, outrigger `EntryRep` | Read an integrity boolean from the **stream context**, not from bytes → call `integrityEnforced(arg)` via `ObjectStreamContext` (§4.5); drop `@ReadInput` (vestigial). Fixes a latent `(ObjectInputStream)` cast in outrigger; outrigger `EntryRep` also needs a first `serialForm()`. |
+| B-integrity (×3) | `org.apache.river.proxy.MarshalledWrapper`, `com.sun.jini.proxy.MarshalledWrapper` (`jini-2.1-compat`), outrigger `EntryRep` | Read an integrity boolean from the **stream context**, not from bytes → call `integrityEnforced(arg)` via `ObjectStreamContext` (§4.5); drop `@ReadInput` (vestigial). Fixes a latent `(ObjectInputStream)` cast in outrigger; outrigger `EntryRep` also needs a first `serialForm()`. `jini-2.1-compat` is RETAINED (Rio depends on it), so its `MarshalledWrapper` is migrated here, not deleted. |
+| B-loaders (×1) | `ProxySerializer` | Reads the stream's default/verifier class loaders (used by `readResolve` for proxy resolution) → surface via a `StreamClassLoaders` context element (§4.5); drop `@ReadInput`. (Also migrate its `getObjectStreamClass()` per §4.3.) |
 | B-persistence (×2) | `FiddlerImpl.RegistrationInfo`, `RegistrarImpl.EventReg` | Read a marshalled listener (service-internal persistence) → **declare the listener as a `MarshalledInstance` field**; drop `@ReadInput`. |
 | B-DGC (×1) | `BasicObjectEndpoint` | Captures the raw stream for client-side DGC batch coalescing → replaced by a DER-native callback (§6). |
-| C (×1) | `com.sun.jini.proxy.MarshalledWrapper` (deprecated `jini-2.1-compat`) | **Deleted** with the module. |
 
-**Outcome:** `@ReadInput`/`ReadObject` is REMOVED from the API. The only legitimate
-non-field need (integrity) is served by the neutral `ObjectStreamContext`; the only
-genuine stream need (DGC) is served by §6.
+**Outcome:** `@ReadInput`/`ReadObject` is REMOVED from the API. The legitimate
+non-field needs — integrity and the default/verifier class loaders — are served by
+neutral `ObjectStreamContext` elements (`IntegrityEnforcement`, `StreamClassLoaders`;
+§4.5); the only genuine stream need (DGC) is served by §6.
 
 ---
 
@@ -337,17 +341,23 @@ calls `ObjectInputStream.registerValidation(...)` so that all references decoded
 one stream are coalesced into a single batched `dirty` call fired when the stream's
 object graph is fully read. Both `Map` key and `registerValidation` are JOSS-only.
 
-4.0.0 MUST provide a **DER-native** equivalent with no `java.io` dependency:
+4.0.0 MUST provide a **DER-native** equivalent with no JOSS *implementation*
+dependency — i.e. no `ObjectInputStream`/`ObjectOutputStream` (the concrete Java
+Object Serialization engine). Neutral `java.io` *interfaces* (`ObjectInput`,
+`ObjectOutput`, and `ObjectInputValidation`) remain permitted, exactly as
+`AtomicObjectInput` already builds on `ObjectInput`. The equivalent is:
 
 - a per-**decode-unit** identity token (an opaque handle for the current
   request/reply decode, obtainable from the decode context) that keys the
   `DgcBatchContext`; and
 - an **end-of-decode-unit completion callback** — the neutral analogue of
   `registerValidation` — invoked exactly once when the decode unit's object graph is
-  fully decoded, which flushes the batched `dirty` call.
+  fully decoded, which flushes the batched `dirty` call. The callback type MAY be the
+  neutral `java.io.ObjectInputValidation` interface (so `DgcBatchContext` is reused
+  unchanged); it MUST NOT depend on `ObjectInputStream`.
 
 This preserves the existing batching semantics (one `dirty` RPC per decode unit
-rather than per reference) without any Java-serialization type.
+rather than per reference) without any JOSS implementation type.
 
 ### 6.3 Ordering constraint that MUST be preserved (RR-116 Invariant 3)
 
