@@ -66,9 +66,16 @@ public final class DecisionEngine {
      * @param serializableClasses the set of internal names known (transitively)
      *                            to be {@code Serializable} across the analyzed
      *                            set; used for the cross-boundary determination
+     * @param unresolvedSupertype {@code true} if the class has a superclass that
+     *                            is outside the analyzed set, so its
+     *                            cross-boundary ({@code Serializable}-via-base)
+     *                            status cannot be confirmed; a would-be prefer is
+     *                            then downgraded to share+review rather than risk
+     *                            silently preferring a wire type
      * @return the decision; never null
      */
-    public ClassDecision classify(ClassSignals signals, Set<String> serializableClasses) {
+    public ClassDecision classify(ClassSignals signals, Set<String> serializableClasses,
+                                  boolean unresolvedSupertype) {
         if (signals == null) throw new NullPointerException("signals");
 
         String name = signals.getInternalName();
@@ -125,6 +132,7 @@ public final class DecisionEngine {
         // lives).
         Decision decision;
         boolean needsReview = false;
+        String  reviewNote  = null;
         if (crossBoundary) {
             if (hasB) {
                 decision = Decision.CONFLICT;   // must share, yet has lock coupling
@@ -133,7 +141,22 @@ public final class DecisionEngine {
                 decision = Decision.SHARE;
             }
         } else if (hasStrongB) {
-            decision = Decision.PREFER;
+            if (unresolvedSupertype) {
+                // A superclass lives outside the analyzed module, so we cannot
+                // confirm the class is not Serializable-via-base (a wire type).
+                // Preferring such a type would give the downloaded copy a distinct
+                // <C,L> identity and risk a ClassCastException across the loader
+                // divide, so do not silently prefer — surface for review instead.
+                decision = Decision.SHARE;
+                needsReview = true;
+                reviewNote = "strong lock/blocking hazard would prefer, but a "
+                        + "superclass is outside the analyzed module; its "
+                        + "cross-boundary (Serializable) status is unverified, so "
+                        + "defaulting to share. Override to prefer if it is not a "
+                        + "wire type.";
+            } else {
+                decision = Decision.PREFER;
+            }
         } else if (hasB) {
             decision = Decision.SHARE;          // weak lock only — surface for review
             needsReview = true;
@@ -148,7 +171,10 @@ public final class DecisionEngine {
             decision = Decision.SHARE;
         }
 
-        return new ClassDecision(name, decision, hazards, crossBoundary, xReasons, needsReview);
+        ClassDecision cd =
+                new ClassDecision(name, decision, hazards, crossBoundary, xReasons, needsReview);
+        if (reviewNote != null) cd.setReviewNote(reviewNote);
+        return cd;
     }
 
     /**

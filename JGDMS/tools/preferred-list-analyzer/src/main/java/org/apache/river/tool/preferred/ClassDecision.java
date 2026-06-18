@@ -43,6 +43,10 @@ public final class ClassDecision {
     private Boolean overrideValue;   // null = no override; else the forced Preferred:
     private String  overrideReason;
 
+    // Optional caveat explaining why a row is surfaced for review (e.g. a
+    // would-be prefer downgraded because its cross-boundary status is uncertain).
+    private String  reviewNote;
+
     ClassDecision(String internalName, Decision analysisDecision, List<Hazard> hazards,
                   boolean crossBoundary, List<String> crossBoundaryReasons,
                   boolean needsReview) {
@@ -122,6 +126,15 @@ public final class ClassDecision {
 
     public boolean isOverridden() {
         return overrideValue != null;
+    }
+
+    /** A caveat for the review report, or {@code null}. */
+    public String getReviewNote() {
+        return reviewNote;
+    }
+
+    void setReviewNote(String note) {
+        this.reviewNote = note;
     }
 
     /**

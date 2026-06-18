@@ -102,6 +102,9 @@ public final class AnalysisReport {
             for (Hazard h : d.getHazards()) {
                 sb.append("    ").append(h).append('\n');
             }
+            if (d.getReviewNote() != null) {
+                sb.append("    note: ").append(d.getReviewNote()).append('\n');
+            }
         }
         if (!any) sb.append("  (none)\n");
 

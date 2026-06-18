@@ -94,6 +94,22 @@ java ... org.apache.river.tool.preferred.PreferredListTool generate \
 Skip the gate with `-Dpreferred.check.skip=true`; retarget another module with
 `-Dpreferred.target.classes=...` / `-Dpreferred.target.list=...`.
 
+## Limitations / follow-ups
+
+- **Cross-boundary detection resolves supertypes only within the analyzed
+  module.** A class that is `Serializable` solely via a base in another module
+  (e.g. `java.security.Permission`, `Throwable`, `EventObject`) is not seen as a
+  wire type. As a safety net, a class that would otherwise PREFER on a strong (b)
+  hazard but whose superclass chain leaves the analyzed set is **downgraded to
+  SHARE + review** (with a note) rather than silently preferred — preferring a
+  hidden wire type would risk a `ClassCastException` across the loader divide.
+  The fuller fix (resolve supertypes on the classpath, or seed known Serializable
+  bases) is warranted **before pointing the tool at the `-dl`/proxy modules**,
+  where proxy classes routinely extend Serializable bases.
+- **Contended/blocking field types are matched exactly** against the configurable
+  set; a static field declared as a custom subtype of a lock/pool not in the set
+  is missed. Add it to `AnalyzerConfig`, or use the override file.
+
 ## Programmatic use
 
 ```java

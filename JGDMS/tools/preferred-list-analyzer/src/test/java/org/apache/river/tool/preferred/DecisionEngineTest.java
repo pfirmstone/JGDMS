@@ -22,6 +22,8 @@ import static org.apache.river.tool.preferred.FixtureSupport.decision;
 import static org.apache.river.tool.preferred.FixtureSupport.hasKind;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
@@ -144,5 +146,30 @@ public class DecisionEngineTest {
         ClassDecision d = decision(analyzeFixtures(cfg, "StaticFinalMutableMap"),
                 "StaticFinalMutableMap");
         assertEquals(Decision.PREFER, d.getAnalysisDecision());
+    }
+
+    // ---- finding #1: cross-boundary safety guard ---------------------------
+
+    @Test
+    public void strongBWithUnresolvedSuperDowngradesToReview() {
+        // superclass (java.util.EventObject) is outside the analyzed set, so the
+        // Serializable-via-base status is unverifiable: must NOT silently prefer.
+        ClassDecision d = decision(analyzeFixtures(DEF, "StrongBExternalSuper"),
+                "StrongBExternalSuper");
+        assertTrue(hasKind(d, HazardKind.CONTENDED_STATIC_FIELD)); // strong (b) present
+        assertEquals(Decision.SHARE, d.getAnalysisDecision());     // but downgraded
+        assertTrue(d.isNeedsReview());
+        assertNotNull("downgrade should explain itself", d.getReviewNote());
+    }
+
+    @Test
+    public void strongBWithResolvedSuperChainStillPrefers() {
+        // entire super chain (StrongBLocalSuper -> LocalBase -> Object) is in-set,
+        // so the guard must not fire.
+        ClassDecision d = decision(
+                analyzeFixtures(DEF, "StrongBLocalSuper", "LocalBase"),
+                "StrongBLocalSuper");
+        assertEquals(Decision.PREFER, d.getAnalysisDecision());
+        assertNull(d.getReviewNote());
     }
 }

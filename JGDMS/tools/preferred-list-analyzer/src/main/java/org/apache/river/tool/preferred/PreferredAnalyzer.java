@@ -133,7 +133,8 @@ public final class PreferredAnalyzer {
         // Phase 3: classify.
         List<ClassDecision> out = new ArrayList<ClassDecision>(signalsByName.size());
         for (ClassSignals s : signalsByName.values()) {
-            out.add(engine.classify(s, serializable));
+            boolean unresolvedSuper = hasUnresolvedSupertype(s, signalsByName);
+            out.add(engine.classify(s, serializable, unresolvedSuper));
         }
         Collections.sort(out, new Comparator<ClassDecision>() {
             public int compare(ClassDecision a, ClassDecision b) {
@@ -180,6 +181,32 @@ public final class PreferredAnalyzer {
         for (String iface : s.getInterfaces()) {
             if ("java/io/Serializable".equals(iface)) return true;
             if (serializable.contains(iface)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns {@code true} if walking the class's superclass chain reaches a
+     * class that is <em>not</em> in the analyzed set before reaching
+     * {@code java.lang.Object} &mdash; i.e. an ancestor we could not inspect, so
+     * its {@code Serializable} status (and hence the class's cross-boundary
+     * status) cannot be confirmed.  Interfaces are not followed here: wire value
+     * types reach {@code Serializable} through their superclass chain (or declare
+     * it directly, which {@link #computeSerializable} already catches).
+     *
+     * <p>This is a conservative safety net for the cross-boundary heuristic; the
+     * fuller fix (resolving supertypes on the classpath) is warranted before the
+     * tool is pointed at the {@code -dl}/proxy modules.
+     */
+    static boolean hasUnresolvedSupertype(ClassSignals s,
+                                          Map<String, ClassSignals> signalsByName) {
+        String sup = s.getSuperName();
+        int guard = 0;
+        while (sup != null && !"java/lang/Object".equals(sup)) {
+            if (++guard > 4096) break;            // pathological-cycle safety
+            ClassSignals parent = signalsByName.get(sup);
+            if (parent == null) return true;      // ancestor outside the analyzed set
+            sup = parent.getSuperName();
         }
         return false;
     }

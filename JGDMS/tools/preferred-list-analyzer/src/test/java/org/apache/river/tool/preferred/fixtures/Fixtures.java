@@ -111,3 +111,29 @@ class NonFinalStaticSingleton {
     static Object instance;
     void init() { instance = new Object(); }
 }
+
+/**
+ * A strong-(b) hazard whose superclass ({@code java.util.EventObject}, a
+ * Serializable wire base) is outside the analyzed set.  The cross-boundary status
+ * cannot be confirmed, so the analyzer must NOT silently prefer it — it downgrades
+ * to SHARE+review (finding #1 safety guard).
+ */
+class StrongBExternalSuper extends java.util.EventObject {
+    static final long serialVersionUID = 1L;
+    static final SecureRandom R = new SecureRandom();
+    StrongBExternalSuper(Object source) { super(source); }
+    long next() { return R.nextLong(); }
+}
+
+/** An in-set base (extends Object) for the resolved-supertype contrast case. */
+class LocalBase { }
+
+/**
+ * A strong-(b) hazard whose entire superclass chain ({@code LocalBase} -&gt;
+ * Object) is inside the analyzed set, so the safety guard must NOT fire and the
+ * class is preferred as usual.
+ */
+class StrongBLocalSuper extends LocalBase {
+    static final SecureRandom R = new SecureRandom();
+    long next() { return R.nextLong(); }
+}
