@@ -466,3 +466,4 @@ bootjdk/JGDMS/services/codebase-downloader/codebase-downloader-service/target/
 JGDMS/services/codebase-downloader/codebase-downloader-dl/target/
 /JGDMS/services/codebase-downloader/codebase-downloader-service/target/
 /JGDMS/.vs
+/JGDMS/tools/preferred-list-analyzer/target
