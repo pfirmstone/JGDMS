@@ -158,17 +158,28 @@ public class BasicObjectEndpointDerDgcTest {
             this.completion = completion;
         }
 
+        // Inc2 GetArg contract: the base owns the final typed get(...)/defaulted accessors
+        // and caller resolution (via serialClasses() + StackWalker); subclasses supply the
+        // boxed value via lookup() and presence via isDefaulted().
         @Override
-        @SuppressWarnings("unchecked")
-        public <T> T get(String name, T val, Class<T> type) {
-            if ("ep".equals(name)) return (T) ep;
-            if ("id".equals(name)) return (T) id;
-            return val;
+        protected Object lookup(Class<?> callerClass, String name) {
+            switch (name) {
+                case "ep":  return ep;
+                case "id":  return id;
+                case "dgc": return Boolean.valueOf(dgc);
+                default:    return ABSENT;
+            }
         }
 
         @Override
-        public boolean get(String name, boolean val) {
-            return "dgc".equals(name) ? dgc : val;
+        protected boolean isDefaulted(Class<?> callerClass, String name) {
+            return false; // all three fields are present
+        }
+
+        @Override
+        public Class[] serialClasses() {
+            // The base resolves the caller against this set (single class -> safe fallback).
+            return new Class[] { BasicObjectEndpoint.class };
         }
 
         @Override
@@ -181,23 +192,6 @@ public class BasicObjectEndpointDerDgcTest {
             return completion == null
                     ? Collections.emptyList()
                     : Collections.singletonList(completion);
-        }
-
-        // ---- unused accessors -------------------------------------------------
-        @Override public boolean defaulted(String name) { throw uoe(); }
-        @Override public byte get(String name, byte val) { throw uoe(); }
-        @Override public char get(String name, char val) { throw uoe(); }
-        @Override public short get(String name, short val) { throw uoe(); }
-        @Override public int get(String name, int val) { throw uoe(); }
-        @Override public long get(String name, long val) { throw uoe(); }
-        @Override public float get(String name, float val) { throw uoe(); }
-        @Override public double get(String name, double val) { throw uoe(); }
-        @Override public Object get(String name, Object val) { throw uoe(); }
-        @Override public Class[] serialClasses() { throw uoe(); }
-        @Override public GetArg validateInvariants(String[] f, Class[] t, boolean[] n) { throw uoe(); }
-
-        private static UnsupportedOperationException uoe() {
-            return new UnsupportedOperationException("not used by this test");
         }
     }
 }
