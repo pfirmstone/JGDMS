@@ -18,19 +18,33 @@
 
 package org.apache.river.test.spec.servicediscovery;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 import org.apache.river.qa.harness.OverrideProvider;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.TestException;
 
-/** 
+/**
  * A test override provider which searches the test properties
  * for a non-zero value of <code>org.apache.river.sdm.discardWait</code>.
- * If found, an override is generated for 
+ * If found, an override is generated for
  * <code>net.jini.lookup.ServiceDiscoveryManager.discardWait</code>
  * having that value. An override is only generated for tests
  * (serviceName == null)
  */
+@AtomicSerial
+@Stateless
 public class DiscardWaitOverrideProvider implements OverrideProvider {
+
+    private static final long serialVersionUID = 1L;
+
+    /** Normal construction. */
+    public DiscardWaitOverrideProvider() { }
+
+    /** {@code @AtomicSerial} deserialization constructor (stateless: no fields). */
+    public DiscardWaitOverrideProvider(GetArg arg) throws IOException, ClassNotFoundException { }
 
     public String[] getOverrides(QAConfig config,
 				 String serviceName,
