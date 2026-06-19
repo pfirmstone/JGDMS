@@ -18,13 +18,27 @@
 
 package org.apache.river.qa.harness;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * A <code>HarnessRequest</code> to delete all files which have been
  * registered for deletion with <code>QAConfig</code>.
  */
+@AtomicSerial
+@Stateless
 class DeleteRegisteredFilesRequest implements HarnessRequest {
+
+    private static final long serialVersionUID = 1L;
+
+    /** Normal construction. */
+    DeleteRegisteredFilesRequest() { }
+
+    /** {@code @AtomicSerial} deserialization constructor (stateless: no fields). */
+    DeleteRegisteredFilesRequest(GetArg arg) throws IOException, ClassNotFoundException { }
 
     /**
      * Called by the slave test to delete registered files.

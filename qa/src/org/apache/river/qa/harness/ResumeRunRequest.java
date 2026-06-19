@@ -18,13 +18,28 @@
 
 package org.apache.river.qa.harness;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
+
 /**
  * A <code>SlaveRequest</code> to stop a service previously started
  * on the slave.
  */
+@AtomicSerial
+@Stateless
 public class ResumeRunRequest implements InboundAutotRequest {
 
-    public Object doRequest(QAConfig config, AdminManager manager) 
+    private static final long serialVersionUID = 1L;
+
+    /** Normal construction. */
+    public ResumeRunRequest() { }
+
+    /** {@code @AtomicSerial} deserialization constructor (stateless: no fields). */
+    public ResumeRunRequest(GetArg arg) throws IOException, ClassNotFoundException { }
+
+    public Object doRequest(QAConfig config, AdminManager manager)
 	throws Exception 
     {
 	if (config != null) { // should never be null

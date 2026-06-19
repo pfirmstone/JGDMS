@@ -18,9 +18,24 @@
 
 package org.apache.river.qa.harness;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
+
+@AtomicSerial
+@Stateless
 public class IsSuspendedRequest implements InboundAutotRequest {
 
-    public Object doRequest(QAConfig config, AdminManager manager) 
+    private static final long serialVersionUID = 1L;
+
+    /** Normal construction. */
+    public IsSuspendedRequest() { }
+
+    /** {@code @AtomicSerial} deserialization constructor (stateless: no fields). */
+    public IsSuspendedRequest(GetArg arg) throws IOException, ClassNotFoundException { }
+
+    public Object doRequest(QAConfig config, AdminManager manager)
 	throws Exception 
     {
 	Boolean b = Boolean.FALSE;

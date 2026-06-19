@@ -18,10 +18,25 @@
 
 package org.apache.river.qa.harness;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
+
 /**
  * A <code>SlaveRequest</code> to perform cleanup and exit the VM.
  */
+@AtomicSerial
+@Stateless
 class TeardownRequest implements SlaveRequest {
+
+    private static final long serialVersionUID = 1L;
+
+    /** Normal construction. */
+    TeardownRequest() { }
+
+    /** {@code @AtomicSerial} deserialization constructor (stateless: no fields). */
+    TeardownRequest(GetArg arg) throws IOException, ClassNotFoundException { }
 
     /**
      * Called by the <code>SlaveTest</code> after unmarshalling this object.
