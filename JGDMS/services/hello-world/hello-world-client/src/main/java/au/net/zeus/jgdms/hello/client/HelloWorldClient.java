@@ -120,6 +120,16 @@ public class HelloWorldClient {
             String reply = svc.sayHello(greetingName);
             System.out.println("Service replied: " + reply);
 
+        } catch (java.util.NoSuchElementException e) {
+            // ServiceDiscoveryHelper.lookup throws this when no HelloService
+            // is discovered within the timeout — report it cleanly rather
+            // than letting it surface as an unhandled stack trace.
+            logger.log(Level.WARNING,
+                    "No HelloService found within {0} ms — is the service running"
+                    + " and registered with a reachable lookup service?",
+                    lookupTimeoutMs);
+            System.out.println("No HelloService found within "
+                    + lookupTimeoutMs + " ms.");
         } catch (RemoteException e) {
             logger.log(Level.SEVERE, "Remote call failed", e);
             throw e;

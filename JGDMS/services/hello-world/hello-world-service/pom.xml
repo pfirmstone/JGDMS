@@ -40,6 +40,11 @@
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms.hello</groupId>
+            <artifactId>hello-world-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms.hello</groupId>
             <artifactId>hello-world-dl</artifactId>
             <version>${project.version}</version>
         </dependency>

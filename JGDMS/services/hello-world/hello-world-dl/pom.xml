@@ -38,6 +38,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>au.net.zeus.jgdms.hello</groupId>
+            <artifactId>hello-world-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
@@ -78,6 +83,21 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!--
+                      The AtomicSerial codec resolves classes via RMIClassLoader.
+                      A resources jar on the test classpath declares the
+                      PreferredClassProvider RMIClassLoaderSpi, whose impl class
+                      (jgdms-pref-class-loader) is intentionally not a -dl
+                      dependency. For these in-JVM round-trip unit tests the JDK
+                      default provider is sufficient and avoids the unresolved-SPI
+                      failure; the full preferred-class path is covered in qa.
+                    -->
+                    <argLine>-Djava.rmi.server.RMIClassLoaderSpi=default</argLine>
+                </configuration>
             </plugin>
         </plugins>
     </build>

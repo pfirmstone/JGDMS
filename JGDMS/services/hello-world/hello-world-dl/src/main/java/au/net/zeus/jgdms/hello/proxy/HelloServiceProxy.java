@@ -24,6 +24,7 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 import au.net.zeus.jgdms.api.hello.HelloService;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 
@@ -52,6 +53,7 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  * @author GitHub Copilot
  */
 @AtomicSerial
+@Stateless  // no own serialized state; server + proxyID live on AbstractSmartProxy
 public class HelloServiceProxy
         extends AbstractSmartProxy
         implements HelloService {
@@ -70,7 +72,15 @@ public class HelloServiceProxy
      */
     public static AbstractSmartProxy create(HelloService server, Uuid proxyID) {
         if (server instanceof RemoteMethodControl) {
-            return new ConstrainableHelloServiceProxy(server, proxyID, null);
+            // Preserve the constraints already configured on the exported
+            // stub: building the bootstrap proxy must NOT strip them (passing
+            // null here would call setConstraints(null) and discard the
+            // server's integrity/authentication requirements). Clients later
+            // narrow via RemoteMethodControl.setConstraints on the proxy.
+            MethodConstraints serverConstraints =
+                    ((RemoteMethodControl) server).getConstraints();
+            return new ConstrainableHelloServiceProxy(server, proxyID,
+                                                      serverConstraints);
         }
         return new HelloServiceProxy(server, proxyID);
     }
@@ -120,6 +130,7 @@ public class HelloServiceProxy
      * @since 3.1.1
      */
     @AtomicSerial
+    @Stateless  // no own serialized state
     public static final class ConstrainableHelloServiceProxy
             extends AbstractSmartProxy.ConstrainableSmartProxy
             implements HelloService {

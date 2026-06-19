@@ -21,6 +21,7 @@ import java.rmi.RemoteException;
 import net.jini.activation.arg.ActivationID;
 import net.jini.id.Uuid;
 import au.net.zeus.jgdms.api.hello.HelloService;
+import au.net.zeus.jgdms.hello.proxy.HelloServiceBackend;
 import au.net.zeus.jgdms.hello.proxy.HelloServiceProxy;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import org.apache.river.start.lifecycle.LifeCycle;
@@ -77,7 +78,7 @@ import org.apache.river.start.lifecycle.LifeCycle;
  */
 public class HelloWorldServiceImpl
         extends AbstractJiniService
-        implements HelloService {
+        implements HelloServiceBackend {
 
     /** Configuration component name for this service. */
     static final String COMPONENT = "au.net.zeus.jgdms.hello";
