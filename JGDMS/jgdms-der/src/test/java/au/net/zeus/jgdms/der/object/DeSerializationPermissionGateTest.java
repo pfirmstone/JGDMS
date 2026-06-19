@@ -18,10 +18,7 @@
 package au.net.zeus.jgdms.der.object;
 
 import au.net.zeus.jgdms.der.object.fixtures.NestedValue;
-import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
-import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import org.apache.river.api.io.DeSerializationPermission;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import java.security.Permission;
@@ -36,12 +33,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@link ObjectCodec} (STD-008): before an {@code @AtomicSerial (GetArg)}
  * constructor runs, the classes being decoded must hold the permission.
  *
- * <p>Java&nbsp;21 forbids installing a {@link SecurityManager} at runtime unless
- * the JVM was started with {@code -Djava.security.manager=allow}, so the bulk of
- * the coverage drives the package-private
+ * <p>These unit tests drive the package-private
  * {@link ObjectCodec#checkAtomicDeSerializationPermitted(java.util.Collection, SecurityManager)}
- * seam with a manager passed in directly (no process-wide install). A separate
- * end-to-end test installs a real manager but self-skips when the flag is absent.
+ * seam with a manager passed in directly (no process-wide install). Coverage with a
+ * REAL installed {@link SecurityManager} belongs in the qa / jtreg integration suites:
+ * a shared unit-test JVM cannot safely install one (DirtyChai forbids uninstalling a
+ * SecurityManager once set, so it would leak into sibling tests).
  */
 @SuppressWarnings("removal") // SecurityManager is deprecated for removal but is the gate's mechanism
 class DeSerializationPermissionGateTest {
@@ -115,35 +112,9 @@ class DeSerializationPermissionGateTest {
                 "even when permitted, the gate must actually perform the ATOMIC check");
     }
 
-    /**
-     * End-to-end: a real installed SecurityManager that denies ATOMIC must make
-     * {@link ObjectCodec#decode} fail before construction. Self-skips on a JVM not
-     * started with {@code -Djava.security.manager=allow}.
-     */
-    @Test
-    void endToEnd_realManagerDeniesDecode() throws Exception {
-        NestedValue v = new NestedValue(1, "gate");
-        AtomicSerialSchemaRecord schema = SchemaGenerator.generate(NestedValue.class);
-        byte[] payload = ObjectCodec.encode(v, NestedValue.class, schema); // encode with no SM
-
-        SecurityManager previous = System.getSecurityManager();
-        DenyAtomicSM sm = new DenyAtomicSM();
-        boolean installed = false;
-        try {
-            try {
-                System.setSecurityManager(sm);
-                installed = true;
-            } catch (UnsupportedOperationException e) {
-                Assumptions.assumeTrue(false,
-                        "skipped: JVM not started with -Djava.security.manager=allow");
-            }
-            assertThrows(SecurityException.class,
-                    () -> ObjectCodec.decode(NestedValue.class, schema, payload),
-                    "decode must be denied when the class lacks DeSerializationPermission(ATOMIC)");
-        } finally {
-            if (installed) {
-                System.setSecurityManager(previous);
-            }
-        }
-    }
+    // NOTE: the end-to-end test that installs a REAL process-wide SecurityManager lives in
+    // the qa / jtreg integration suites, not here. On DirtyChai a SecurityManager cannot be
+    // uninstalled once set (System.setSecurityManager(null) is refused), so installing one in
+    // a shared unit-test JVM leaks the manager into sibling tests. The gate's behaviour under
+    // a real manager is covered there; the seam tests above exercise the gate logic directly.
 }
