@@ -7,14 +7,14 @@
 
     <parent>
         <groupId>${groupId}</groupId>
-        <artifactId>${artifactId}</artifactId>
+        <artifactId>${rootArtifactId}</artifactId>
         <version>${version}</version>
     </parent>
 
-    <artifactId>${artifactId}-api</artifactId>
+    <artifactId>${artifactId}</artifactId>
     <packaging>jar</packaging>
 
-    <name>${artifactId}-api</name>
+    <name>${artifactId}</name>
     <description>
         Service interface module for ${serviceName}Service.
         This module contains only the remote service interface — shared by

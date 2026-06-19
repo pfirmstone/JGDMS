@@ -21,10 +21,10 @@
     </description>
 
     <modules>
-        <module>${artifactId}-api</module>
-        <module>${artifactId}-dl</module>
-        <module>${artifactId}-service</module>
-        <module>${artifactId}-client</module>
+        <module>api</module>
+        <module>dl</module>
+        <module>service</module>
+        <module>client</module>
     </modules>
 
     <properties>
