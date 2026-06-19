@@ -88,6 +88,19 @@
                     </execution>
                 </executions>
             </plugin> 
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- EntryFieldIndexTest builds real EntryReps, whose static init
+                             pulls in the RMI codebase machinery. Use the default RMI class
+                             provider so the test JVM needs no preferred-class-loader SPI on
+                             its classpath; the index logic under test is independent of the
+                             class provider. -->
+                        <java.rmi.server.RMIClassLoaderSpi>default</java.rmi.server.RMIClassLoaderSpi>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

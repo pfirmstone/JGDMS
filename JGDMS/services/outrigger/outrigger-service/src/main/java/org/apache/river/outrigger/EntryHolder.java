@@ -49,7 +49,16 @@ class EntryHolder implements TransactionConstants {
     
     private final Queue<EntryHandle> content = new ConcurrentLinkedQueue<EntryHandle>();
 
-    /** 
+    /**
+     * Per-field hash-bucket index over {@link #content}, used to pick the
+     * most-selective constrained field for a template query instead of scanning
+     * the whole queue.  Kept in step with {@code content} in {@link #add} and
+     * {@link #remove}.  A pure candidate filter -- {@link EntryRep#matches} below
+     * remains the arbiter of a match.
+     */
+    private final EntryFieldIndex index = new EntryFieldIndex();
+
+    /**
      * The map of cookies to handles, shared with the
      * <code>EntryHolderSet</code> and every other
      * <code>EntryHolder</code>.  
@@ -134,7 +143,21 @@ class EntryHolder implements TransactionConstants {
         EntryHandleTmplDesc desc = null;
         long startTime = 0;
 
-        for (EntryHandle handle : content) {
+        /*
+         * Use the per-field index to narrow the scan. earlyAbort means a
+         * constrained field hashed to an empty bucket, so nothing can match.
+         * A null candidate set means the template constrained no indexable
+         * field (a pure wildcard) -- fall back to scanning all of content.
+         * Otherwise we only scan the most-selective field's bucket; the
+         * quick-reject and full matches() below still confirm every candidate.
+         */
+        final EntryFieldIndex.CandidateSet cs = index.candidates(tmpl);
+        if (cs.earlyAbort)
+            return null;
+        final Iterable<EntryHandle> candidates =
+            (cs.candidates != null) ? cs.candidates : content;
+
+        for (EntryHandle handle : candidates) {
 
             if (startTime == 0) {
                 // First time through
@@ -541,6 +564,7 @@ class EntryHolder implements TransactionConstants {
         synchronized (handle){ //typically synchronized externally anyway.
             if (txn != null) txn.add(handle);
             content.add(handle);
+            index.insert(handle);
             EntryHandle existed = idMap.putIfAbsent(rep.getCookie(), handle);
             if (existed != null) throw new IllegalStateException("An EntryHandle with that Cookie already exists in idMap");
         }
@@ -745,6 +769,14 @@ class EntryHolder implements TransactionConstants {
 	{
 	    matchingLogger.entering("ContinuingQuery", "next");
             EntryHandleTmplDesc[] descs = descLocal.get();
+	    /*
+	     * NOTE: the multi-template path still scans all of content. The
+	     * EntryFieldIndex is currently applied only to the single-template
+	     * hasMatch() hot path. Extending it here means unioning the
+	     * per-template candidate sets (and falling back to a full scan if
+	     * any template is a pure wildcard); left as a follow-up so this
+	     * change stays small and reviewable. Correctness is unaffected.
+	     */
 	    while (contentsIterator.hasNext()) {
 	        EntryHandle handle = contentsIterator.next();
 	        if(descs == null){
@@ -807,6 +839,7 @@ class EntryHolder implements TransactionConstants {
             ok = h.remove();
             if (!ok) throw new AssertionError("EntryHandle not removed");
             h.removalComplete();
+            index.remove(h);
             // Ensure removal of EntryHandle is atomic.
             boolean removed = idMap.remove(h.rep().getCookie(), h);
             if (!removed) throw new IllegalStateException ("EntryHandle was missing from idMap at time of removal");
