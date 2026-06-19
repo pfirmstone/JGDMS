@@ -3,6 +3,7 @@ package ${package};
 import java.rmi.RemoteException;
 import net.jini.activation.arg.ActivationID;
 import net.jini.id.Uuid;
+import ${package}.proxy.${serviceName}ServiceBackend;
 import ${package}.proxy.${serviceName}ServiceProxy;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import org.apache.river.start.lifecycle.LifeCycle;
@@ -37,7 +38,7 @@ import org.apache.river.start.lifecycle.LifeCycle;
  */
 public class ${serviceName}ServiceImpl
         extends AbstractJiniService
-        implements ${serviceName}Service {
+        implements ${serviceName}ServiceBackend {
 
     /** Configuration component name for this service. */
     static final String COMPONENT = "${component}";

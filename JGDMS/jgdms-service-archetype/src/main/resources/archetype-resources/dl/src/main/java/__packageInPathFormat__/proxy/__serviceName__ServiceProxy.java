@@ -7,6 +7,7 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 import ${package}.${serviceName}Service;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 
@@ -33,6 +34,7 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  * @since 1.0
  */
 @AtomicSerial
+@Stateless  // no own serialized state; server + proxyID live on AbstractSmartProxy
 public class ${serviceName}ServiceProxy
         extends AbstractSmartProxy
         implements ${serviceName}Service {
@@ -52,8 +54,12 @@ public class ${serviceName}ServiceProxy
     public static AbstractSmartProxy create(${serviceName}Service server,
                                             Uuid proxyID) {
         if (server instanceof RemoteMethodControl) {
+            // Preserve the constraints already configured on the exported stub;
+            // passing null would call setConstraints(null) and discard them.
+            MethodConstraints serverConstraints =
+                    ((RemoteMethodControl) server).getConstraints();
             return new Constrainable${serviceName}ServiceProxy(
-                    server, proxyID, null);
+                    server, proxyID, serverConstraints);
         }
         return new ${serviceName}ServiceProxy(server, proxyID);
     }
@@ -106,6 +112,7 @@ public class ${serviceName}ServiceProxy
      * @since 1.0
      */
     @AtomicSerial
+    @Stateless  // no own serialized state
     public static final class Constrainable${serviceName}ServiceProxy
             extends AbstractSmartProxy.ConstrainableSmartProxy
             implements ${serviceName}Service {
