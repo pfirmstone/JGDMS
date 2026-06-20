@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Map;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Class that logs the creation of a set by the service
@@ -36,6 +38,23 @@ class CreateLeaseSet extends LoggedOperation {
      * @serial
      */
     private LeaseSet set;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the field read by the
+     * {@code (GetArg)} constructor; the super-class {@code setID} is rebuilt
+     * from {@code set.getUuid()} and is not part of this level's serial form.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("set", LeaseSet.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, CreateLeaseSet o) throws IOException {
+        arg.put("set", o.set);
+        arg.writeArgs();
+    }
 
     /**
      * Simple constructor

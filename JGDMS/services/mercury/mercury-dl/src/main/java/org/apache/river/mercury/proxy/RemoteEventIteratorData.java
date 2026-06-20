@@ -25,6 +25,8 @@ import java.util.Collection;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -43,6 +45,24 @@ public class RemoteEventIteratorData implements Serializable {
 
     /** Initial set of entries */
     final Collection<RemoteEventData> events;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("uuid", Uuid.class),
+            new SerialForm("events", Collection.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, RemoteEventIteratorData o) throws IOException {
+        arg.put("uuid", o.uuid);
+        arg.put("events", o.events);
+        arg.writeArgs();
+    }
 
     /**
      * Creates a new RemoteEventIteratorData instance.

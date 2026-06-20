@@ -21,6 +21,8 @@ import java.io.IOException;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Simple struct to hold the <code>Uuid</code> for a new
@@ -46,6 +48,26 @@ public class MatchSetData implements java.io.Serializable {
      * <code>reps</code>.
      */
     final long intialLeaseDuration;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("uuid", Uuid.class),
+            new SerialForm("reps", EntryRep[].class),
+            new SerialForm("intialLeaseDuration", long.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, MatchSetData o) throws IOException {
+        arg.put("uuid", o.uuid);
+        arg.put("reps", o.reps);
+        arg.put("intialLeaseDuration", o.intialLeaseDuration);
+        arg.writeArgs();
+    }
 
     /**
      * Creates a new MatchSetData instance.

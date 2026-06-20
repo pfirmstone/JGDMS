@@ -42,6 +42,8 @@ import net.jini.security.ProxyPreparer;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Class that wraps client Leases.  Provides hooks for synchronization 
@@ -61,6 +63,34 @@ class ClientLeaseWrapper implements Lease, Serializable {
 
     /** Logger for logging messages for this class */
     private static final Logger logger = Logger.getLogger("org.apache.river.norm");
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor; the {@code set}, {@code clientLease},
+     * {@code recoveredLeasePreparer}, {@code renewalPending} and
+     * {@code renewedList} fields are transient and not part of the serial form.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("lastFailure", Throwable.class),
+            new SerialForm("marshalledClientLease", MarshalledInstance.class),
+            new SerialForm("clientLeaseExpiration", long.class),
+            new SerialForm("UID", long.class),
+            new SerialForm("membershipExpiration", long.class),
+            new SerialForm("renewDuration", long.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, ClientLeaseWrapper o) throws IOException {
+        arg.put("lastFailure", o.lastFailure);
+        arg.put("marshalledClientLease", o.marshalledClientLease);
+        arg.put("clientLeaseExpiration", o.clientLeaseExpiration);
+        arg.put("UID", o.UID);
+        arg.put("membershipExpiration", o.membershipExpiration);
+        arg.put("renewDuration", o.renewDuration);
+        arg.writeArgs();
+    }
 
     /* Map for comparing lease constraints. */
     private static final Method[] leaseToLeaseMethods;

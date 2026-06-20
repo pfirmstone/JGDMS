@@ -25,6 +25,7 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.api.telemetry.JfrTelemetryService;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
@@ -49,6 +50,7 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  * @author GitHub Copilot
  */
 @AtomicSerial
+@Stateless
 public class JfrTelemetryServiceProxy
         extends AbstractSmartProxy
         implements JfrTelemetryService {
@@ -123,6 +125,7 @@ public class JfrTelemetryServiceProxy
      * @since 3.1.1
      */
     @AtomicSerial
+    @Stateless
     public static final class ConstrainableJfrTelemetryServiceProxy
             extends AbstractSmartProxy.ConstrainableSmartProxy
             implements JfrTelemetryService {

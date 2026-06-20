@@ -24,6 +24,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.mahalo.proxy.InternalManagerException;
 
 /**
@@ -44,6 +46,22 @@ class AbortRecord implements TxnLogRecord  {
     static final long serialVersionUID = -8121722031382234695L;
 
     static final Logger logger = TxnManagerImpl.participantLogger;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the field read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("parts", ParticipantHandle[].class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, AbortRecord o) throws IOException {
+        arg.put("parts", o.parts);
+        arg.writeArgs();
+    }
 
     /**
      * Constructs an <code>AbortRecord</code> which  represents a

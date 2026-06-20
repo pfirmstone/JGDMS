@@ -27,6 +27,7 @@ import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 import org.apache.river.api.security.RemotePolicyService;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 
@@ -46,6 +47,7 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  * @since 3.1.1
  */
 @AtomicSerial
+@Stateless
 public class RemotePolicyServiceProxy
         extends AbstractSmartProxy
         implements RemotePolicyService {
@@ -139,6 +141,7 @@ public class RemotePolicyServiceProxy
      * @since 3.1.1
      */
     @AtomicSerial
+    @Stateless
     public static final class ConstrainableRemotePolicyServiceProxy
             extends AbstractSmartProxy.ConstrainableSmartProxy
             implements RemotePolicyService {

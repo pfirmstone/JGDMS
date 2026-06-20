@@ -35,6 +35,7 @@ import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 import java.io.InvalidObjectException;
@@ -61,6 +62,7 @@ import java.io.InvalidObjectException;
  * @since 3.1.1
  */
 @AtomicSerial
+@Stateless
 public class VerdictRegistryProxy
         extends AbstractSmartProxy
         implements VerdictRegistry {
@@ -201,6 +203,7 @@ public class VerdictRegistryProxy
      * @since 3.1.1
      */
     @AtomicSerial
+    @Stateless
     public static final class ConstrainableVerdictRegistryProxy
             extends AbstractSmartProxy.ConstrainableSmartProxy
             implements VerdictRegistry {

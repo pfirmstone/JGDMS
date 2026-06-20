@@ -28,6 +28,7 @@ import au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 import java.io.InvalidObjectException;
 
@@ -53,6 +54,7 @@ import java.io.InvalidObjectException;
  * @since 3.1.1
  */
 @AtomicSerial
+@Stateless
 public class BytecodeAnalysisEngineProxy
         extends AbstractSmartProxy
         implements BytecodeAnalysisEngine {
@@ -132,6 +134,7 @@ public class BytecodeAnalysisEngineProxy
      * @since 3.1.1
      */
     @AtomicSerial
+    @Stateless
     public static final class ConstrainableBytecodeAnalysisEngineProxy
             extends AbstractSmartProxy.ConstrainableSmartProxy
             implements BytecodeAnalysisEngine {

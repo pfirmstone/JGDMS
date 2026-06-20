@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 /**
  * Trivial class (struct) that simply holds the current read count
  * and the associated (next unread) read position. U?sed as the client-side
@@ -33,6 +35,24 @@ public class RemoteEventDataCursor implements Serializable {
 
     private final long readCount;
     private final long readPosition;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("readCount", long.class),
+            new SerialForm("readPosition", long.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, RemoteEventDataCursor o) throws IOException {
+        arg.put("readCount", o.readCount);
+        arg.put("readPosition", o.readPosition);
+        arg.writeArgs();
+    }
 
     public RemoteEventDataCursor(long count, long cursor) {
         readCount = count;

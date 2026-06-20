@@ -22,6 +22,8 @@ import java.rmi.RemoteException;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -58,7 +60,23 @@ public class ThrowThis extends AtomicException {
      * @serial
      */
     final private RemoteException toThrow;
-    
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the field read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("toThrow", RemoteException.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, ThrowThis o) throws IOException {
+        arg.put("toThrow", o.toThrow);
+        arg.writeArgs();
+    }
+
     /**
      * AtomicSerial
      * @param arg

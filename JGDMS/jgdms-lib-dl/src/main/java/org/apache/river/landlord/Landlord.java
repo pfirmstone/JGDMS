@@ -27,6 +27,8 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /** 
@@ -146,6 +148,24 @@ public interface Landlord extends Remote {
 	 * @serial
 	 */
 	private final Exception[] denied;
+
+	/**
+	 * Serial form for the atomic/DER codecs. Mirrors the fields read by
+	 * the {@code (GetArg)} constructor.
+	 */
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("granted", long[].class),
+		new SerialForm("denied", Exception[].class)
+	    };
+	}
+
+	/** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+	public static void serialize(PutArg arg, RenewResults o) throws IOException {
+	    arg.put("granted", o.granted);
+	    arg.put("denied", o.denied);
+	    arg.writeArgs();
+	}
 
 	/**
 	 * Create a <code>RenewResults</code> object setting the field

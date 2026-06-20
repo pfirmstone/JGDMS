@@ -22,6 +22,8 @@ import java.io.IOException;
 import net.jini.core.lookup.ServiceItem;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * The <code>ServiceDiscoveryEvent</code> class encapsulates the
@@ -52,6 +54,25 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      *  @serial
      */
     private final ServiceItem postEventItem;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor; {@code source} is transient (set to
+     * {@code null} on deserialization) and is not part of the serial form.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("preEventItem", ServiceItem.class),
+            new SerialForm("postEventItem", ServiceItem.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, ServiceDiscoveryEvent o) throws IOException {
+        arg.put("preEventItem", o.preEventItem);
+        arg.put("postEventItem", o.postEventItem);
+        arg.writeArgs();
+    }
 
     /**
      * <p>

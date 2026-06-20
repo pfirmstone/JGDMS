@@ -24,6 +24,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A <code>LogRecord</code> which encapsulates a generic
@@ -49,6 +51,24 @@ class ParticipantModRecord implements TxnLogRecord {
      * @serial
      */
     private final int result;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("part", ParticipantHandle.class),
+            new SerialForm("result", int.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, ParticipantModRecord o) throws IOException {
+        arg.put("part", o.part);
+        arg.put("result", o.result);
+        arg.writeArgs();
+    }
 
     ParticipantModRecord(ParticipantHandle part, int result) {
 	this(check(part, result), part, result);

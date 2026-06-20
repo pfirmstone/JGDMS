@@ -23,6 +23,8 @@ import java.io.Serializable;
 import java.util.Map;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * An implementation of the <code>java.util.Map.Entry</code> interface that has
@@ -59,6 +61,24 @@ final class ConsistentMapEntry<K,V> implements Map.Entry<K,V>, Serializable {
      * @serial An <code>Object</code> value, or <code>null</code>
      */
     private final V value;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("key", Object.class),
+            new SerialForm("value", Object.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, ConsistentMapEntry o) throws IOException {
+        arg.put("key", o.key);
+        arg.put("value", o.value);
+        arg.writeArgs();
+    }
 
     /**
      * {@link AtomicSerial} constructor.
