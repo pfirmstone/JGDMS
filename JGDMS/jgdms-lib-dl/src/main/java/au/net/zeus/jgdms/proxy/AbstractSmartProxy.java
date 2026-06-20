@@ -39,6 +39,9 @@ import org.apache.river.admin.DestroyAdmin;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * Abstract base class for Jini/JGDMS smart proxy implementations.
@@ -156,6 +159,24 @@ public abstract class AbstractSmartProxy
      * @serial
      */
     private final Uuid proxyID;
+
+    /**
+     * {@code @AtomicSerial} serial form for this abstract level. The write engine
+     * resolves {@code serialize}/{@code (GetArg)} per class level, so this base must
+     * supply its own (its {@code @Stateless}/own-field subclasses contribute their levels).
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("server", Object.class),
+            new SerialForm("proxyID", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, AbstractSmartProxy o) throws IOException {
+        arg.put("server", o.server);
+        arg.put("proxyID", o.proxyID);
+        arg.writeArgs();
+    }
 
     // -------------------------------------------------------------------------
     // Constructors
@@ -452,6 +473,7 @@ public abstract class AbstractSmartProxy
      * @since 3.1.1
      */
     @AtomicSerial
+    @Stateless
     public static abstract class ConstrainableSmartProxy
             extends AbstractSmartProxy
             implements RemoteMethodControl {
