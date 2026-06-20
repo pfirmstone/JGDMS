@@ -26,6 +26,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.thread.NamedThreadFactory;
 import org.apache.river.thread.wakeup.WakeupManager;
 
@@ -61,8 +63,19 @@ public class EventTypeGenerator implements Serializable {
      */
     private transient WakeupManager wakeupManager;
 
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("nextEvID", Long.TYPE)
+        };
+    }
+
+    public static void serialize(PutArg arg, EventTypeGenerator o) throws IOException {
+        arg.put("nextEvID", o.nextEvID);
+        arg.writeArgs();
+    }
+
     /**
-     * Create a new <code>EventType</code> object specify the 
+     * Create a new <code>EventType</code> object specify the
      * event id it should have.
      *
      * @param eventID  the event ID of this type

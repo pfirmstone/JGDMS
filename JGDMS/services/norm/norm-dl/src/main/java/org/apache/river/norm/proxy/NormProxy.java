@@ -32,6 +32,7 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * Defines a client-side proxy for a Norm server.
@@ -40,6 +41,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @since 2.0
  */
 @AtomicSerial
+@Stateless
 public class NormProxy extends AbstractProxy
     implements LeaseRenewalService, Administrable
 {
@@ -93,6 +95,7 @@ public class NormProxy extends AbstractProxy
 
     /** Defines a subclass of NormProxy that implements RemoteMethodControl. */
     @AtomicSerial
+    @Stateless
     static final class ConstrainableNormProxy extends NormProxy
 	implements RemoteMethodControl
     {

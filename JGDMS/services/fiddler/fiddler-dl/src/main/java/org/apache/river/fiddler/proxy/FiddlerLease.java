@@ -34,6 +34,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.lease.AbstractLease;
 import org.apache.river.lease.ID;
 import org.apache.river.proxy.ConstrainableProxyUtil;
@@ -85,8 +87,25 @@ public class FiddlerLease extends AbstractLease
      */
     final Uuid leaseID;
 
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("server", Fiddler.class),
+            new SerialForm("serverID", Uuid.class),
+            new SerialForm("registrationID", Uuid.class),
+            new SerialForm("leaseID", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, FiddlerLease o) throws IOException {
+        arg.put("server", o.server);
+        arg.put("serverID", o.serverID);
+        arg.put("registrationID", o.registrationID);
+        arg.put("leaseID", o.leaseID);
+        arg.writeArgs();
+    }
+
     /**
-     * Public static factory method that creates and returns an instance of 
+     * Public static factory method that creates and returns an instance of
      * <code>FiddlerLease</code>. If the server associated with this proxy
      * implements <code>RemoteMethodControl</code>, then the object returned by
      * this method will also implement <code>RemoteMethodControl</code>.
@@ -585,6 +604,17 @@ public class FiddlerLease extends AbstractLease
          * @serial
          */
         private MethodConstraints methodConstraints;
+
+        public static SerialForm[] serialForm() {
+            return new SerialForm[] {
+                new SerialForm("methodConstraints", MethodConstraints.class)
+            };
+        }
+
+        public static void serialize(PutArg arg, ConstrainableFiddlerLease o) throws IOException {
+            arg.put("methodConstraints", o.methodConstraints);
+            arg.writeArgs();
+        }
 
         /** Constructs a new <code>ConstrainableFiddlerLease</code> instance.
          *  <p>

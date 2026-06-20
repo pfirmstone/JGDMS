@@ -28,6 +28,8 @@ import net.jini.lease.LeaseRenewalSet;
 import net.jini.lease.RenewalFailureEvent;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Basic implementation of <code>RenewalFailureEvent</code> that
@@ -58,6 +60,19 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
      * @serial 
      */
     private final MarshalledInstance marshalledLease;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("marshalledThrowable", MarshalledInstance.class),
+            new SerialForm("marshalledLease", MarshalledInstance.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, BasicRenewalFailureEvent o) throws IOException {
+        arg.put("marshalledThrowable", o.marshalledThrowable);
+        arg.put("marshalledLease", o.marshalledLease);
+        arg.writeArgs();
+    }
 
     private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	MarshalledInstance marshalledThrowable = 

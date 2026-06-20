@@ -32,6 +32,8 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /** Defines a trust verifier for the smart proxies of a Norm server. */
 @AtomicSerial
@@ -51,6 +53,19 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
      * @serial
      */
     private final Uuid serverUuid;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("serverProxy", RemoteMethodControl.class),
+            new SerialForm("serverUuid", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ProxyVerifier o) throws IOException {
+        arg.put("serverProxy", o.serverProxy);
+        arg.put("serverUuid", o.serverUuid);
+        arg.writeArgs();
+    }
 
     /**
      * Returns a verifier for the smart proxies of a Norm server with the

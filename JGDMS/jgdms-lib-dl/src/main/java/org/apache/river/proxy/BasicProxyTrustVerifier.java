@@ -30,6 +30,8 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A basic trust verifier for proxies.  This trust verifier is used to
@@ -56,8 +58,19 @@ public final class BasicProxyTrustVerifier
      */
     private final RemoteMethodControl proxy;
 
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("proxy", RemoteMethodControl.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, BasicProxyTrustVerifier o) throws IOException {
+        arg.put("proxy", o.proxy);
+        arg.writeArgs();
+    }
+
     /**
-     * Creates a trust verifier containing the specified trusted proxy. 
+     * Creates a trust verifier containing the specified trusted proxy.
      *
      * @param proxy the trusted proxy
      * @throws IllegalArgumentException if the specified proxy is

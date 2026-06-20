@@ -32,6 +32,8 @@ import net.jini.id.Uuid;
 import net.jini.space.JavaSpace;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.admin.JavaSpaceAdmin;
 import org.apache.river.admin.AdminIterator;
 
@@ -51,7 +53,20 @@ public class AdminProxy implements JavaSpaceAdmin, ReferentUuid, Serializable {
 
     /** The <code>Uuid</code> that identifies the space this proxy is for */
     final Uuid spaceUuid;
- 
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("admin", OutriggerAdmin.class),
+            new SerialForm("spaceUuid", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, AdminProxy o) throws IOException {
+        arg.put("admin", o.admin);
+        arg.put("spaceUuid", o.spaceUuid);
+        arg.writeArgs();
+    }
+
     private static final boolean DEBUG = false;
 
     /**

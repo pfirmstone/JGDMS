@@ -35,9 +35,12 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
- * A <tt>MailboxAdminProxy</tt> is a client-side proxy for a mailbox service. 
+ * A <tt>MailboxAdminProxy</tt> is a client-side proxy for a mailbox service.
  * This interface provides access to the administrative functions 
  * of the mailbox service as defined by the <tt>MailboxAdmin</tt> interface.
  *
@@ -64,6 +67,19 @@ public class MailboxAdminProxy implements MailboxAdmin, Serializable,
      * @serial
      */
     final Uuid proxyID;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("server", MailboxBackEnd.class),
+            new SerialForm("proxyID", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, MailboxAdminProxy o) throws IOException {
+        arg.put("server", o.server);
+        arg.put("proxyID", o.proxyID);
+        arg.writeArgs();
+    }
 
     /**
      * Creates a mailbox proxy, returning an instance
@@ -245,6 +261,7 @@ public class MailboxAdminProxy implements MailboxAdmin, Serializable,
     }
     
     @AtomicSerial
+    @Stateless
     static final class ConstrainableMailboxAdminProxy extends MailboxAdminProxy
                                                implements RemoteMethodControl
     {

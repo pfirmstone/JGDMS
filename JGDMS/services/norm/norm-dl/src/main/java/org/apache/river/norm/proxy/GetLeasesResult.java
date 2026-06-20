@@ -26,6 +26,8 @@ import java.io.Serializable;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.proxy.MarshalledWrapper;
 
 /**
@@ -52,8 +54,19 @@ public final class GetLeasesResult implements Serializable {
     /** The marshalled leases. */
     final MarshalledInstance[] marshalledLeases;
 
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("marshalledLeases", MarshalledInstance[].class, true)
+        };
+    }
+
+    public static void serialize(PutArg arg, GetLeasesResult o) throws IOException {
+        arg.put("marshalledLeases", o.marshalledLeases);
+        arg.writeArgs();
+    }
+
     /**
-     * Creates an object that holds the results of a call to 
+     * Creates an object that holds the results of a call to
      * <code>org.apache.river.norm.NormServerBaseImpl.getLeases</code>.
      *
      * @param marshalledLeases the leases being returned by the call

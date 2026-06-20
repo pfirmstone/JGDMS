@@ -41,6 +41,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Client side proxy for Norm's lease renewal sets.  Uses an object of
@@ -57,7 +59,18 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
      * @serial
      */
     final Lease ourLease;
-     
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("ourLease", Lease.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, SetProxy o) throws IOException {
+        arg.put("ourLease", o.ourLease);
+        arg.writeArgs();
+    }
+
     /**
      * Creates a lease set proxy, returning an instance that implements
      * RemoteMethodControl if the server does.
@@ -393,6 +406,17 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 	 * clearRenewalFailureListener methods.
 	 */
 	private transient NormServer server2;
+
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("methodConstraints", MethodConstraints.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, ConstrainableSetProxy o) throws IOException {
+	    arg.put("methodConstraints", o.methodConstraints);
+	    arg.writeArgs();
+	}
 
 	/** Creates an instance of this class. */
 	ConstrainableSetProxy(NormServer server,

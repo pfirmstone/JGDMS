@@ -28,6 +28,8 @@ import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Defines an abstract class that supplies basic referent UUID and
@@ -53,6 +55,19 @@ abstract class AbstractProxy implements ReferentUuid, Serializable, ProxyAccesso
      * @serial
      */
     final Uuid uuid;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("server", NormServer.class),
+            new SerialForm("uuid", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, AbstractProxy o) throws IOException {
+        arg.put("server", o.server);
+        arg.put("uuid", o.uuid);
+        arg.writeArgs();
+    }
 
     /** Creates an instance of this class. */
     AbstractProxy(NormServer server, Uuid uuid) {

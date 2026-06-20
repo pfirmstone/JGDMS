@@ -39,6 +39,8 @@ import net.jini.space.JavaSpace;
 import net.jini.space.JavaSpace05;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Constrainable subclass of <code>SpaceProxy2</code>
@@ -162,7 +164,18 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
      * @serial
      */
     private final MethodConstraints methodConstraints;
-    
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("methodConstraints", MethodConstraints.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ConstrainableSpaceProxy2 o) throws IOException {
+        arg.put("methodConstraints", o.methodConstraints);
+        arg.writeArgs();
+    }
+
     /**
      * Create a new <code>ConstrainableSpaceProxy2</code>.
      * @param space The <code>OutriggerServer</code> for the 

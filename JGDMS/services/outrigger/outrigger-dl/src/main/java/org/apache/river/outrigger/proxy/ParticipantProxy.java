@@ -32,6 +32,8 @@ import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Object Outrigger hands to transaction managers on join.
@@ -60,6 +62,19 @@ public class ParticipantProxy implements TransactionParticipant, ReferentUuid,
      * @serial
      */
     final Uuid spaceUuid;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("space", TransactionParticipant.class),
+            new SerialForm("spaceUuid", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ParticipantProxy o) throws IOException {
+        arg.put("space", o.space);
+        arg.put("spaceUuid", o.spaceUuid);
+        arg.writeArgs();
+    }
 
     /**
      * Create a new <code>ParticipantProxy</code> for the given space.

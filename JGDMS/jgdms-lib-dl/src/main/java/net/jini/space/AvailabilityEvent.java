@@ -28,6 +28,8 @@ import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A <code>RemoteEvent</code> marking the transition of an
@@ -56,7 +58,18 @@ public abstract class AvailabilityEvent extends RemoteEvent {
      */
     private final boolean visibilityTransition;
 
-    private static boolean check(GetArg arg) 
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("visibilityTransition", Boolean.TYPE)
+        };
+    }
+
+    public static void serialize(PutArg arg, AvailabilityEvent o) throws IOException {
+        arg.put("visibilityTransition", o.visibilityTransition);
+        arg.writeArgs();
+    }
+
+    private static boolean check(GetArg arg)
 	    throws IOException, ClassNotFoundException{
 	// If this class is not in the heirarchy of classes the stream
 	// may have been tampered with, see the Serialization Specification

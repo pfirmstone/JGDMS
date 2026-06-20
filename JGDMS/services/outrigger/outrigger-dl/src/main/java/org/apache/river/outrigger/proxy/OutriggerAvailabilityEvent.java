@@ -29,6 +29,8 @@ import net.jini.space.AvailabilityEvent;
 import net.jini.space.JavaSpace;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Outrigger's implementation of <code>AvailabilityEvent</code>
@@ -40,7 +42,18 @@ public class OutriggerAvailabilityEvent extends AvailabilityEvent implements Pro
     /** The entry that triggered the event */
     final private EntryRep rep;
 
-    private static GetArg check(GetArg arg) 
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("rep", EntryRep.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, OutriggerAvailabilityEvent o) throws IOException {
+        arg.put("rep", o.rep);
+        arg.writeArgs();
+    }
+
+    private static GetArg check(GetArg arg)
 	    throws IOException, ClassNotFoundException{
 	EntryRep rep = arg.get("rep", null, EntryRep.class);
 	if (rep == null)

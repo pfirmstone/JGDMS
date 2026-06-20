@@ -30,6 +30,8 @@ import net.jini.core.entry.UnusableEntryException;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -58,6 +60,19 @@ public class UnusableEntriesException extends AtomicException {
      * @serial
      */
     private final Collection<UnusableEntryException> exceptions;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("entries", Collection.class),
+            new SerialForm("exceptions", Collection.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, UnusableEntriesException o) throws IOException {
+        arg.put("entries", o.entries);
+        arg.put("exceptions", o.exceptions);
+        arg.writeArgs();
+    }
 
     /**
      * Constructs an <code>UnusableEntriesException</code> with

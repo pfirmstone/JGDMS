@@ -47,6 +47,8 @@ import net.jini.lease.LeaseRenewalSet;
 import net.jini.security.ProxyPreparer;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Norm's internal representation of LeaseRenewalSets.  Unless otherwise
@@ -122,6 +124,29 @@ class LeaseSet implements Serializable, LeasedResource {
      * The <code>NormServerBaseImpl</code> are attached to
      */
     private transient NormServerBaseImpl normServerBaseImpl;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("expiration", Long.TYPE),
+            new SerialForm("ID", Uuid.class),
+            new SerialForm("leases", Set.class),
+            new SerialForm("minWarning", Long.TYPE),
+            new SerialForm("warningEventType", EventType.class),
+            new SerialForm("warningSeqNum", Long.TYPE),
+            new SerialForm("failureEventType", EventType.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, LeaseSet o) throws IOException {
+        arg.put("expiration", o.expiration);
+        arg.put("ID", o.ID);
+        arg.put("leases", o.leases);
+        arg.put("minWarning", o.minWarning);
+        arg.put("warningEventType", o.warningEventType);
+        arg.put("warningSeqNum", o.warningSeqNum);
+        arg.put("failureEventType", o.failureEventType);
+        arg.writeArgs();
+    }
 
     // Constructors and state restoration
     /**

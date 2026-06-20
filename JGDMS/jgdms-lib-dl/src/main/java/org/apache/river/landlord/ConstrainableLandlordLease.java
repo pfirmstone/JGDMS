@@ -31,6 +31,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Constrainable sub-class of <code>LandlordLease</code>.
@@ -174,8 +176,19 @@ final public class ConstrainableLandlordLease extends LandlordLease
      * @serial
      */
     private final MethodConstraints methodConstraints;
-    
-    /** 
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("methodConstraints", MethodConstraints.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ConstrainableLandlordLease o) throws IOException {
+        arg.put("methodConstraints", o.methodConstraints);
+        arg.writeArgs();
+    }
+
+    /**
      * Create a new <code>ConstrainableLandlordLease</code>.
      * @param cookie a <code>Uuid</code> that universally and uniquely
      *                 identifies the lease this object is to be a proxy for

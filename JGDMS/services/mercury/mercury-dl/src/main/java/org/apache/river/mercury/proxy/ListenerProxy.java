@@ -43,6 +43,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -74,7 +76,20 @@ public class ListenerProxy implements RemoteEventListener, Serializable,
      * @serial
      */
     final Uuid registrationID;
-    
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("server", MailboxBackEnd.class),
+            new SerialForm("registrationID", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ListenerProxy o) throws IOException {
+        arg.put("server", o.server);
+        arg.put("registrationID", o.registrationID);
+        arg.writeArgs();
+    }
+
     /**
      * Creates a mailbox listener proxy, returning an instance
      * that implements RemoteMethodControl if the server does too.
@@ -218,8 +233,19 @@ public class ListenerProxy implements RemoteEventListener, Serializable,
          */
         private MethodConstraints methodConstraints;
 
+        public static SerialForm[] serialForm() {
+            return new SerialForm[] {
+                new SerialForm("methodConstraints", MethodConstraints.class)
+            };
+        }
+
+        public static void serialize(PutArg arg, ConstrainableListenerProxy o) throws IOException {
+            arg.put("methodConstraints", o.methodConstraints);
+            arg.writeArgs();
+        }
+
         /** Creates an instance of this class. */
-        private ConstrainableListenerProxy(MailboxBackEnd server, Uuid id, 
+        private ConstrainableListenerProxy(MailboxBackEnd server, Uuid id,
             MethodConstraints methodConstraints)
         {
             super(constrainServer(server, methodConstraints), id);

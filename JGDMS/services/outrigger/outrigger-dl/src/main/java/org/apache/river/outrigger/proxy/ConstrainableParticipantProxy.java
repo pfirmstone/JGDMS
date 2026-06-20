@@ -28,6 +28,7 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * Subclass of <code>ParticipantProxy</code> that implements
@@ -36,6 +37,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @author Sun Microsystems, Inc.
  */
 @AtomicSerial
+@Stateless
 public final class ConstrainableParticipantProxy extends ParticipantProxy
     implements RemoteMethodControl
 {
