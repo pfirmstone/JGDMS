@@ -1,0 +1,51 @@
+/*
+ * Security policy — Hello World Service
+ *
+ * This is a restrictive example policy.  In production, tighten each grant
+ * to the minimal set of permissions the service actually needs.
+ *
+ * Adjust the codebase URLs to match your deployment layout.
+ */
+
+/* -------------------------------------------------------------------------
+ * Service implementation codebase
+ * (hello-world-service.jar + hello-world-dl.jar)
+ * Requires permissions to: accept inbound connections, export itself,
+ * join lookup services, and read configuration.
+ * ------------------------------------------------------------------------- */
+grant codebase "file:${hello.service.codebase}/-" {
+
+    /* Allow the service to listen for and accept inbound JERI connections. */
+    permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
+
+    /* Allow reading the service configuration file. */
+    permission java.io.FilePermission "${hello.config.dir}/-", "read";
+
+    /* Allow multicast discovery (lookup group join). */
+    permission java.net.SocketPermission "224.0.1.85:4160", "connect,accept";
+    permission java.net.MulticastSocketPermission "224.0.1.85:4160", "connect,accept";
+
+    /* Allow the service to read system properties. */
+    permission java.util.PropertyPermission "*", "read";
+
+    /* Allow loading the downloaded proxy class. */
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "createClassLoader";
+
+    /* Allow access to the JGDMS platform classes. */
+    permission net.jini.export.ExportPermission "exportRemoteInterface.au.net.zeus.jgdms.api.hello.HelloService";
+};
+
+/* -------------------------------------------------------------------------
+ * Jini lookup service (Reggie) codebase — allow the service to register.
+ * ------------------------------------------------------------------------- */
+grant codebase "file:${reggie.codebase}/-" {
+    permission java.security.AllPermission;
+};
+
+/* -------------------------------------------------------------------------
+ * JGDMS platform and infrastructure — grant full trust.
+ * ------------------------------------------------------------------------- */
+grant codebase "file:${jgdms.lib.dir}/-" {
+    permission java.security.AllPermission;
+};

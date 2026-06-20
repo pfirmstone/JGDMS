@@ -18,15 +18,29 @@
 
 package org.apache.river.qa.harness;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * The messages which can be sent to a <code>SlaveTest.</code>
  */
+@AtomicSerial
+@Stateless
 public class ServiceListRequest implements InboundAutotRequest {
 
-    public Object doRequest(QAConfig config, AdminManager manager) 
+    private static final long serialVersionUID = 1L;
+
+    /** Normal construction. */
+    public ServiceListRequest() { }
+
+    /** {@code @AtomicSerial} deserialization constructor (stateless: no fields). */
+    public ServiceListRequest(GetArg arg) throws IOException, ClassNotFoundException { }
+
+    public Object doRequest(QAConfig config, AdminManager manager)
 	throws Exception
     {
 	if (manager == null) { // manager is null till setup is complete

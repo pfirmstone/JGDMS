@@ -1,0 +1,29 @@
+/*
+ * Security policy — ${serviceName}Service Client
+ */
+
+grant codebase "file:${dollar}{client.codebase}/-" {
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+    permission java.net.SocketPermission "224.0.1.85:4160", "connect,accept";
+    permission java.net.MulticastSocketPermission "224.0.1.85:4160", "connect,accept";
+    permission java.io.FilePermission "${dollar}{config.dir}/-", "read";
+    permission java.util.PropertyPermission "*", "read";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "createClassLoader";
+};
+
+/* Downloaded proxy classes — minimal permissions. */
+grant codebase "file:${dollar}{dl.codebase}/-" {
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+    permission java.util.PropertyPermission "*", "read";
+};
+
+/* Jini lookup service download classes — full trust. */
+grant codebase "file:${dollar}{reggie.dl.codebase}/-" {
+    permission java.security.AllPermission;
+};
+
+/* JGDMS platform and infrastructure — full trust. */
+grant codebase "file:${dollar}{jgdms.lib.dir}/-" {
+    permission java.security.AllPermission;
+};

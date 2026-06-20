@@ -143,8 +143,10 @@ import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.util.Startable;
 import org.apache.river.config.Config;
 import org.apache.river.config.LocalHostLookup;
@@ -743,6 +745,26 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 * @serial
 	 */
 	public volatile long leaseExpiration;
+
+	/**
+	 * Serial form for the atomic/DER codecs. Mirrors the fields read by
+	 * the {@code (GetArg)} constructor.
+	 */
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("item", Item.class),
+		new SerialForm("leaseID", Uuid.class),
+		new SerialForm("leaseExpiration", long.class)
+	    };
+	}
+
+	/** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+	public static void serialize(PutArg arg, SvcReg o) throws IOException {
+	    arg.put("item", o.item);
+	    arg.put("leaseID", o.leaseID);
+	    arg.put("leaseExpiration", o.leaseExpiration);
+	    arg.writeArgs();
+	}
 
 	public SvcReg(GetArg arg) throws IOException, ClassNotFoundException {
 	    this( arg.get("item", null, Item.class),

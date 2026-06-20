@@ -43,6 +43,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * The <tt>Registration</tt> class is the client-side proxy
@@ -71,9 +73,26 @@ public class Registration implements MailboxPullRegistration,
     /** Reference to service provided RemoteEventListener implementation */
     final ListenerProxy listener;
 
-    /** The service's registration lease */ 
+    /** The service's registration lease */
     final Lease lease;
- 
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("registrationID", Uuid.class),
+            new SerialForm("mailbox", MailboxBackEnd.class),
+            new SerialForm("listener", ListenerProxy.class),
+            new SerialForm("lease", Lease.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, Registration o) throws IOException {
+        arg.put("registrationID", o.registrationID);
+        arg.put("mailbox", o.mailbox);
+        arg.put("listener", o.listener);
+        arg.put("lease", o.lease);
+        arg.writeArgs();
+    }
+
     /**
      * Creates a mailbox registration proxy, returning an instance 
      * that implements RemoteMethodControl if the server does too.
@@ -325,6 +344,17 @@ public class Registration implements MailboxPullRegistration,
 	 * @serial
 	 */
 	private MethodConstraints methodConstraints;
+
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("methodConstraints", MethodConstraints.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, ConstrainableRegistration o) throws IOException {
+	    arg.put("methodConstraints", o.methodConstraints);
+	    arg.writeArgs();
+	}
 
 	/** Creates an instance of this class. */
 	private ConstrainableRegistration(Uuid id, MailboxBackEnd server,

@@ -47,6 +47,8 @@ import net.jini.io.MarshalledInstance;
 import net.jini.lookup.entry.ServiceType;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
@@ -93,6 +95,25 @@ public class QATestUtils {
     public static class SrvcAttrTuple implements Serializable
     {
         static final long serialVersionUID = -8254953323094761933L;
+
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("srvcObj", Object.class),
+		new SerialForm("attrObj", Object.class),
+		new SerialForm("transition", int.class),
+		new SerialForm("srvcItems", ServiceItem[].class),
+		new SerialForm("attrs", Entry[][].class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, SrvcAttrTuple o) throws IOException {
+	    arg.put("srvcObj", o.srvcObj);
+	    arg.put("attrObj", o.attrObj);
+	    arg.put("transition", o.transition);
+	    arg.put("srvcItems", o.srvcItems);
+	    arg.put("attrs", o.attrs);
+	    arg.writeArgs();
+	}
 
         /** @serial */
         private Object srvcObj;

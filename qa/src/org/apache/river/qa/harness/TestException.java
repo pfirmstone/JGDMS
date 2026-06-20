@@ -22,14 +22,16 @@ import java.io.IOException;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 
-/** 
+/**
  * An exception which may be thrown at any time during test setup
  * and execution. May be used to wrap other unexpected exceptions
  * which occur.
  */
 @AtomicSerial
+@Stateless
 public class TestException extends AtomicException {
 
     /** 

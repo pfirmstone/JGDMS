@@ -37,6 +37,8 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 
 /**
@@ -100,6 +102,25 @@ public class AdminProxy
      * Transient — re-initialised in every constructor path.
      */
     transient final DestroyAdmin destroyAdmin;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor; the {@code joinAdmin}/{@code destroyAdmin}
+     * views are transient and rebuilt from {@code server}.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("server", Remote.class),
+            new SerialForm("proxyID", Uuid.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, AdminProxy o) throws IOException {
+        arg.put("server", o.server);
+        arg.put("proxyID", o.proxyID);
+        arg.writeArgs();
+    }
 
     // -------------------------------------------------------------------------
     // Package-private helper: reflectively obtain a Method, throwing Error if absent

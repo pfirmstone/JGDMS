@@ -39,9 +39,12 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
- * A MailboxProxy is a proxy for the event mailbox service.  
+ * A MailboxProxy is a proxy for the event mailbox service.
  * This is the object passed to clients of this service.
  * It implements the <code>PullEventMailbox</code> and the 
  * <code>Administrable</code> interfaces.
@@ -70,6 +73,19 @@ public class MailboxProxy implements PullEventMailbox,
      * @serial
      */
     final Uuid proxyID;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("mailbox", MailboxBackEnd.class),
+            new SerialForm("proxyID", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, MailboxProxy o) throws IOException {
+        arg.put("mailbox", o.mailbox);
+        arg.put("proxyID", o.proxyID);
+        arg.writeArgs();
+    }
 
     /**
      * Creates a mailbox proxy, returning an instance
@@ -220,6 +236,7 @@ public class MailboxProxy implements PullEventMailbox,
     
     /** A subclass of MailboxProxy that implements RemoteMethodControl. */
     @AtomicSerial
+    @Stateless
     final static class ConstrainableMailboxProxy extends MailboxProxy
         implements RemoteMethodControl
     {

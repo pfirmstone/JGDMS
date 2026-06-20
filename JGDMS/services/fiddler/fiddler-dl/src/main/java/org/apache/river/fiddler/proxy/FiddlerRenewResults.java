@@ -20,6 +20,8 @@ package org.apache.river.fiddler.proxy;
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /*
  * This class acts as a data structure in which the results of renewal 
@@ -56,6 +58,24 @@ public class FiddlerRenewResults implements java.io.Serializable {
      * @serial
      */
     public Exception[] exceptions;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("durations", long[].class),
+            new SerialForm("exceptions", Exception[].class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, FiddlerRenewResults o) throws IOException {
+        arg.put("durations", o.durations);
+        arg.put("exceptions", o.exceptions);
+        arg.writeArgs();
+    }
 
     /**
      * Constructs a new instance of FiddlerRenewResults.

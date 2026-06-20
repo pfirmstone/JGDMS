@@ -26,6 +26,8 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.security.proxytrust.ProxyTrust;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Interface that grators of test leases implement so the test lease proxy
@@ -91,6 +93,21 @@ public interface LeaseBackEnd extends Remote, ProxyTrust {
 
     @AtomicSerial
     class RenewResults implements java.io.Serializable {
+
+	private static final long serialVersionUID = 1L;
+
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("granted", long[].class),
+		new SerialForm("denied", Exception[].class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, RenewResults o) throws IOException {
+	    arg.put("granted", o.granted);
+	    arg.put("denied", o.denied);
+	    arg.writeArgs();
+	}
 
 	/**
 	 * For each id passed to <code>renewAll</code>,

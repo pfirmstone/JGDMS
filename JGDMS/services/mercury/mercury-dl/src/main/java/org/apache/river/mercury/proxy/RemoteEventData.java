@@ -26,9 +26,11 @@ import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
- * Simple struct to hold a <code>RemoteEvent</code> and its associated 
+ * Simple struct to hold a <code>RemoteEvent</code> and its associated
  * <code>Object</code> (cookie) obtained from an <code>EventLog</code>.
  */
 @AtomicSerial
@@ -51,6 +53,19 @@ public class RemoteEventData implements Serializable {
      * integrity was being enforced, <code>false</code> otherwise.
      */
     private transient boolean integrity;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("mi", MarshalledInstance.class),
+            new SerialForm("cookie", Object.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, RemoteEventData o) throws IOException {
+        arg.put("mi", o.mi);
+        arg.put("cookie", o.cookie);
+        arg.writeArgs();
+    }
 
     /**
      * Creates a new RemoteEventData instance.

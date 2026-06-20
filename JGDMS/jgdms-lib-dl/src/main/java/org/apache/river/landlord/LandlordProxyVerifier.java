@@ -30,6 +30,8 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /** 
  * This class defines a trust verifier for the proxies defined
@@ -60,6 +62,19 @@ final public class LandlordProxyVerifier
      * @serial
      */
     private final Uuid landlordUuid;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("landlord", RemoteMethodControl.class),
+            new SerialForm("landlordUuid", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, LandlordProxyVerifier o) throws IOException {
+        arg.put("landlord", o.landlord);
+        arg.put("landlordUuid", o.landlordUuid);
+        arg.writeArgs();
+    }
 
     /**
      * Returns a verifier for the proxies defined in the landlord

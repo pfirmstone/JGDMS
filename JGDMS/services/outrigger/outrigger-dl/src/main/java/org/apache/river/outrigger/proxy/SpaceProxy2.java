@@ -53,6 +53,8 @@ import net.jini.space.MatchSet;
 import net.jini.space.TupleSpace;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.landlord.LandlordLease;
 
 /**
@@ -98,6 +100,21 @@ public class SpaceProxy2 implements TupleSpace, Administrable, ReferentUuid,
      * @serial
      */
     final long serverMaxServerQueryTimeout;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("space", OutriggerServer.class),
+            new SerialForm("spaceUuid", Uuid.class),
+            new SerialForm("serverMaxServerQueryTimeout", Long.TYPE)
+        };
+    }
+
+    public static void serialize(PutArg arg, SpaceProxy2 o) throws IOException {
+        arg.put("space", o.space);
+        arg.put("spaceUuid", o.spaceUuid);
+        arg.put("serverMaxServerQueryTimeout", o.serverMaxServerQueryTimeout);
+        arg.writeArgs();
+    }
 
     /**
      * Maximum time any sub-query should be allowed to run for.

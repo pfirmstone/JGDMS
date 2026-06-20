@@ -44,6 +44,9 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * A <code>TxnMgrProxy</code> is a proxy for the 
@@ -76,6 +79,19 @@ public class TxnMgrProxy implements TransactionManager, Administrable, Serializa
      * @serial
      */
     final Uuid proxyID;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("backend", TxnManager.class),
+            new SerialForm("proxyID", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, TxnMgrProxy o) throws IOException {
+        arg.put("backend", o.backend);
+        arg.put("proxyID", o.proxyID);
+        arg.writeArgs();
+    }
 
     /**
      * Creates a transaction manager proxy, returning an instance
@@ -254,6 +270,7 @@ public class TxnMgrProxy implements TransactionManager, Administrable, Serializa
    
     /** A subclass of TxnMgrProxy that implements RemoteMethodControl. */
     @AtomicSerial
+    @Stateless
     final static class ConstrainableTxnMgrProxy extends TxnMgrProxy
         implements RemoteMethodControl
     {

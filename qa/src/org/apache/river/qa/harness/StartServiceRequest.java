@@ -23,12 +23,29 @@ import java.io.IOException;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A <code>SlaveRequest</code> to start a service.
  */
 @AtomicSerial
 class StartServiceRequest implements SlaveRequest {
+
+    private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("serviceName", String.class),
+	    new SerialForm("count", int.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, StartServiceRequest o) throws IOException {
+	arg.put("serviceName", o.serviceName);
+	arg.put("count", o.count);
+	arg.writeArgs();
+    }
 
     /** the service name */
     private String serviceName;

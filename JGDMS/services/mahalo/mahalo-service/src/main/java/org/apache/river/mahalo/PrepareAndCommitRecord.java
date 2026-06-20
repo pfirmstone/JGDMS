@@ -21,6 +21,7 @@ package org.apache.river.mahalo;
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * A <code>LogRecord</code> which encapsulates a participant
@@ -30,6 +31,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  */
 @AtomicSerial
+@Stateless
 class PrepareAndCommitRecord extends ParticipantModRecord {
     static final long serialVersionUID = -4355088085028784921L;
 

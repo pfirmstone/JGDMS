@@ -26,6 +26,8 @@ import net.jini.core.transaction.server.TransactionParticipant;
 
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.mahalo.proxy.InternalManagerException;
 
 /**
@@ -51,6 +53,22 @@ class CommitRecord implements TxnLogRecord {
 			       //      to guarantee that each thing is a
 			       //      ParticipantHandle rather than checking
 			       //      explicitly.	
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the field read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("parts", ParticipantHandle[].class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, CommitRecord o) throws IOException {
+        arg.put("parts", o.parts);
+        arg.writeArgs();
+    }
 
     /**
      * Constructs an <code>CommitRecord</code> which  represents a

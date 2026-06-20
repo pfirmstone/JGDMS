@@ -39,6 +39,9 @@ import org.apache.river.admin.DestroyAdmin;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * Abstract base class for Jini/JGDMS smart proxy implementations.
@@ -158,6 +161,46 @@ public abstract class AbstractSmartProxy
     private final Uuid proxyID;
 
     // -------------------------------------------------------------------------
+    // AtomicSerial output contract
+    // -------------------------------------------------------------------------
+
+    /**
+     * Declares the serialized fields for the AtomicSerial codec, mirrored by
+     * {@link #serialize(PutArg, AbstractSmartProxy)} and read back by name in
+     * {@link #AbstractSmartProxy(GetArg)}.
+     *
+     * <p>Required because the AtomicSerial output path
+     * ({@code ObjOutputStream}) marshals each non-{@code @Stateless}
+     * {@code @AtomicSerial} class in the hierarchy via a static
+     * {@code serialize(PutArg, &lt;type&gt;)} method — exactly as
+     * {@code RegistrarProxy} does.  Subclasses that add no serialized state are
+     * annotated {@code @Stateless} instead of repeating this.
+     *
+     * @return the serial-field descriptors for this class
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[]{
+            new SerialForm("server", Object.class),
+            new SerialForm("proxyID", Uuid.class)
+        };
+    }
+
+    /**
+     * AtomicSerial output method: writes the {@code server} and {@code proxyID}
+     * fields declared by {@link #serialForm()}.
+     *
+     * @param arg the put-arg sink supplied by the codec
+     * @param obj the proxy being serialized
+     * @throws IOException if writing the fields fails
+     */
+    public static void serialize(PutArg arg, AbstractSmartProxy obj)
+            throws IOException {
+        arg.put("server", obj.server);
+        arg.put("proxyID", obj.proxyID);
+        arg.writeArgs();
+    }
+
+    // -------------------------------------------------------------------------
     // Constructors
     // -------------------------------------------------------------------------
 
@@ -261,23 +304,19 @@ public abstract class AbstractSmartProxy
             throw new InvalidObjectException(
                     "proxyID field is null");
         }
-        // Verify the server stub implements each service interface declared
-        // directly on the concrete proxy class.
-        Class<?>[] classes = arg.serialClasses();
-        if (classes != null && classes.length > 0) {
-            Class<?> concreteClass = classes[classes.length - 1];
-            for (Class<?> iface : concreteClass.getInterfaces()) {
-                if (!iface.isInstance(server)) {
-                    throw new InvalidObjectException(
-                            "deserialized server does not implement "
-                            + iface.getName()
-                            + "; actual type: " + server.getClass().getName());
-                }
-            }
-        }
-        // Verify the server stub implements the Remote infrastructure
-        // interfaces that every JGDMS service (built on AbstractJiniService)
-        // exports.
+        // Verify the server stub implements the infrastructure interfaces that
+        // every JGDMS service backend exposes.  By convention the service's
+        // single backend remote interface aggregates these (see Reggie's
+        // Registrar and the Hello World HelloServiceBackend), so a real
+        // exported stub satisfies them all; the service-specific interface is
+        // guaranteed by that same convention and enforced by the concrete
+        // proxy's delegation casts.
+        //
+        // We deliberately do NOT introspect the proxy class's own interfaces
+        // here: serialClasses() does not reliably yield the leaf proxy class
+        // (@Stateless leaves are elided), and a proxy class's interfaces
+        // include proxy-side types (ProxyAccessor, ReferentUuid, ...) that the
+        // server stub legitimately does not implement.
         checkInfrastructureInterface(server, Administrable.class);
         checkInfrastructureInterface(server, CodebaseAccessor.class);
         checkInfrastructureInterface(server, ServiceProxyAccessor.class);
@@ -452,6 +491,7 @@ public abstract class AbstractSmartProxy
      * @since 3.1.1
      */
     @AtomicSerial
+    @Stateless  // constraints live on the server stub, not in a field
     public static abstract class ConstrainableSmartProxy
             extends AbstractSmartProxy
             implements RemoteMethodControl {
@@ -603,5 +643,30 @@ public abstract class AbstractSmartProxy
         @Override
         public abstract RemoteMethodControl setConstraints(
                 MethodConstraints constraints);
+
+        /**
+         * Supplies the bootstrap step for JGDMS proxy-trust verification.
+         *
+         * <p>A downloaded smart proxy is not trusted by its mere type; the
+         * client's {@code ProxyTrustVerifier} must reach a trusted
+         * {@code ServerProxyTrust} to verify it.  Returning a
+         * {@link SingletonProxyTrustIterator} over the (constrained) server
+         * stub gives the verifier that path: it iterates to the stub, whose
+         * {@code getProxyVerifier} (via the server's {@code ServerProxyTrust})
+         * yields a {@code TrustVerifier} for this proxy.
+         *
+         * <p>This method is discovered reflectively by
+         * {@code ProxyTrustInvocationHandler} and must therefore remain
+         * {@code private} with exactly this name and signature.  Without it,
+         * trust verification of a downloaded constrainable proxy cannot
+         * bootstrap — which is why the {@link ProxyTrustIterator} /
+         * {@link SingletonProxyTrustIterator} imports exist on this class.
+         *
+         * @return a single-element trust iterator over the server stub
+         */
+        @SuppressWarnings("unused")
+        private ProxyTrustIterator getProxyTrustIterator() {
+            return new SingletonProxyTrustIterator(server);
+        }
     }
 }

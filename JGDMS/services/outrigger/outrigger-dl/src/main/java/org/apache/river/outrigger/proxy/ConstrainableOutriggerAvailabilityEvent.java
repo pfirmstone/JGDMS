@@ -23,14 +23,16 @@ import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
 import net.jini.space.JavaSpace;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * TODO: Apply constraints to EntryRep
- * 
+ *
  * @author peter
  */
 @AtomicSerial
-public class ConstrainableOutriggerAvailabilityEvent 
+@Stateless
+public class ConstrainableOutriggerAvailabilityEvent
 	extends OutriggerAvailabilityEvent implements RemoteMethodControl 
 {
 

@@ -34,6 +34,8 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /** Defines a trust verifier for the smart proxies of a Mercury server. */
 @AtomicSerial
@@ -59,6 +61,24 @@ public final class ProxyVerifier implements TrustVerifier, Serializable {
      * @serial
      */
     private final Uuid proxyID;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("serverProxy", RemoteMethodControl.class),
+            new SerialForm("proxyID", Uuid.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, ProxyVerifier o) throws IOException {
+        arg.put("serverProxy", o.serverProxy);
+        arg.put("proxyID", o.proxyID);
+        arg.writeArgs();
+    }
 
     public ProxyVerifier(MailboxBackEnd serverProxy, Uuid proxyID){
 	this(serverProxy, proxyID, check(serverProxy, proxyID));

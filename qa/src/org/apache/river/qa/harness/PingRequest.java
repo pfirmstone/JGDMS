@@ -18,11 +18,26 @@
 
 package org.apache.river.qa.harness;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
+
 /**
- * A <code>SlaveRequest</code> which probes for liveness of a 
+ * A <code>SlaveRequest</code> which probes for liveness of a
  * <code>SlaveTest</code>.
  */
+@AtomicSerial
+@Stateless
 class PingRequest implements SlaveRequest {
+
+    private static final long serialVersionUID = 1L;
+
+    /** Normal construction. */
+    PingRequest() { }
+
+    /** {@code @AtomicSerial} deserialization constructor (stateless: no fields). */
+    PingRequest(GetArg arg) throws IOException, ClassNotFoundException { }
 
     /**
      * Perform no action, and return null.

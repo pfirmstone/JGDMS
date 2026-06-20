@@ -35,6 +35,8 @@ import net.jini.loader.ClassLoading;
 import org.apache.river.config.LocalHostLookup;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * The <code>TestDescription</code> is an object which describes a test;
@@ -130,6 +132,31 @@ public class TestDescription implements Serializable {
 
     /** The test provided by this descriptor */
     TestEnvironment test;
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor; {@code config} is transient (rebuilt via
+     * {@link #setConfig}) and is not part of the serial form.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("name", String.class),
+            new SerialForm("properties", Properties.class),
+            new SerialForm("nextConf", boolean.class),
+            new SerialForm("test", TestEnvironment.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, TestDescription o) throws IOException {
+        arg.put("name", o.name);
+        arg.put("properties", o.properties);
+        arg.put("nextConf", o.nextConf);
+        arg.put("test", o.test);
+        arg.writeArgs();
+    }
 
     /**
      * Construct a test description for a test with the given <code>name</code>.

@@ -22,6 +22,8 @@ import java.io.IOException;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A <code>SlaveRequest</code> to stop a service previously started
@@ -29,6 +31,19 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 class StopServiceRequest implements SlaveRequest {
+
+    private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("marshalledServiceRef", MarshalledInstance.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, StopServiceRequest o) throws IOException {
+	arg.put("marshalledServiceRef", o.marshalledServiceRef);
+	arg.writeArgs();
+    }
 
     /** the service proxy wrapped in a <code>MarshalledInstance</code> */
     final MarshalledInstance marshalledServiceRef;

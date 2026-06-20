@@ -21,6 +21,8 @@ package org.apache.river.qa.harness;
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A <code>SlaveTestRequest</code> which sets a dynamic parameter
@@ -28,6 +30,21 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 class SetDynamicParameterRequest implements SlaveRequest {
+
+    private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("name", String.class),
+	    new SerialForm("value", String.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, SetDynamicParameterRequest o) throws IOException {
+	arg.put("name", o.name);
+	arg.put("value", o.value);
+	arg.writeArgs();
+    }
 
     /** the name of the parameter */
     String name;

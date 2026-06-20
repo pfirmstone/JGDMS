@@ -31,6 +31,8 @@ import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.lease.AbstractLease;
 import org.apache.river.lease.ID;
 
@@ -67,6 +69,21 @@ public class LandlordLease extends AbstractLease
      * @serial
      */
     final private Uuid landlordUuid;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("cookie", Uuid.class),
+            new SerialForm("landlord", Landlord.class),
+            new SerialForm("landlordUuid", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, LandlordLease o) throws IOException {
+        arg.put("cookie", o.cookie);
+        arg.put("landlord", o.landlord);
+        arg.put("landlordUuid", o.landlordUuid);
+        arg.writeArgs();
+    }
 
     /**
      * Create a new <code>LandlordLease</code>.

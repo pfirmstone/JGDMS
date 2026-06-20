@@ -22,15 +22,30 @@ import java.io.IOException;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
- * A <code>SlaveTestRequest</code> used to kill the activation group of a 
+ * A <code>SlaveTestRequest</code> used to kill the activation group of a
  * service.
  */
 @AtomicSerial
 class KillVMRequest implements SlaveRequest {
 
-    /** 
+    private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("marshalledProxy", MarshalledInstance.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, KillVMRequest o) throws IOException {
+	arg.put("marshalledProxy", o.marshalledProxy);
+	arg.writeArgs();
+    }
+
+    /**
      * A MarshalledObject wrapping the proxy of the service to kill.
      * The proxy identifies to the slave the service whose activation
      * group is to be killed. The proxy must be wrapped in a MarshalledObject

@@ -31,6 +31,8 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.security.AdvisoryDynamicPermissions;
 
@@ -124,6 +126,23 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * should be granted. The value is always non-<code>null</code>.
      */
     private final Permission[] permissions;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("verify", Boolean.TYPE),
+            new SerialForm("methodConstraintsSpecified", Boolean.TYPE),
+            new SerialForm("methodConstraints", MethodConstraints.class),
+            new SerialForm("permissions", Permission[].class)
+        };
+    }
+
+    public static void serialize(PutArg arg, BasicProxyPreparer o) throws IOException {
+        arg.put("verify", o.verify);
+        arg.put("methodConstraintsSpecified", o.methodConstraintsSpecified);
+        arg.put("methodConstraints", o.methodConstraints);
+        arg.put("permissions", o.permissions);
+        arg.writeArgs();
+    }
 
     /**
      * Creates a proxy preparer that specifies not to verify proxies, grant

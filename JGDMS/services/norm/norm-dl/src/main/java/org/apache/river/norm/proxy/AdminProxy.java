@@ -32,6 +32,7 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * Defines a proxy for a Norm server's admin object.
@@ -40,6 +41,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @since 2.0
  */
 @AtomicSerial
+@Stateless
 public class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin {
     private static final long serialVersionUID = 1;
 
@@ -145,6 +147,7 @@ public class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin
 
     /** Defines a subclass that implements RemoteMethodControl. */
     @AtomicSerial
+    @Stateless
     static final class ConstrainableAdminProxy extends AdminProxy
 	implements RemoteMethodControl
     {

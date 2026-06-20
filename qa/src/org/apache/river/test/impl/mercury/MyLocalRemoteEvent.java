@@ -22,11 +22,13 @@ import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEvent;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /*
  * Dummy class used to induce class not found exceptions on the client-side.
- */ 
+ */
 @AtomicSerial
+@Stateless
 public class MyLocalRemoteEvent extends RemoteEvent
 {
     public MyLocalRemoteEvent(

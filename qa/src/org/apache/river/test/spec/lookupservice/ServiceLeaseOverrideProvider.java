@@ -17,22 +17,49 @@
  */
 package org.apache.river.test.spec.lookupservice;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.qa.harness.OverrideProvider;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.TestException;
 
+@AtomicSerial
 public class ServiceLeaseOverrideProvider implements OverrideProvider {
+
+    private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("serviceLeaseDuration", long.class),
+            new SerialForm("eventLeaseDuration", long.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ServiceLeaseOverrideProvider o) throws IOException {
+        arg.put("serviceLeaseDuration", o.serviceLeaseDuration);
+        arg.put("eventLeaseDuration", o.eventLeaseDuration);
+        arg.writeArgs();
+    }
 
     private long serviceLeaseDuration;
     private long eventLeaseDuration;
 
-    public ServiceLeaseOverrideProvider(QAConfig sysConfig, 
-        long serviceLeaseDuration, long eventLeaseDuration) 
+    public ServiceLeaseOverrideProvider(QAConfig sysConfig,
+        long serviceLeaseDuration, long eventLeaseDuration)
     {
         this.serviceLeaseDuration = serviceLeaseDuration;
         this.eventLeaseDuration = eventLeaseDuration;
+    }
+
+    /** {@code @AtomicSerial} deserialization constructor. */
+    public ServiceLeaseOverrideProvider(GetArg arg) throws IOException, ClassNotFoundException {
+        this.serviceLeaseDuration = arg.get("serviceLeaseDuration", 0L);
+        this.eventLeaseDuration = arg.get("eventLeaseDuration", 0L);
     }
     
     public String[] getOverrides(QAConfig config, String servicePrefix, int index) throws TestException {

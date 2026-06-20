@@ -18,17 +18,41 @@
 
 package org.apache.river.qa.harness;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * The messages which can be sent to a <code>SlaveTest.</code>
  */
+@AtomicSerial
 public class InboundCallsEnabledRequest implements OutboundAutotRequest {
+
+    private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("enabled", boolean.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, InboundCallsEnabledRequest o) throws IOException {
+	arg.put("enabled", o.enabled);
+	arg.writeArgs();
+    }
 
     boolean enabled;
 
     InboundCallsEnabledRequest(boolean enabled) {
 	this.enabled = enabled;
+    }
+
+    /** {@code @AtomicSerial} deserialization constructor. */
+    InboundCallsEnabledRequest(GetArg arg) throws IOException, ClassNotFoundException {
+	this(arg.get("enabled", false));
     }
 
     public Object doRequest(AutotHost host) throws Exception {

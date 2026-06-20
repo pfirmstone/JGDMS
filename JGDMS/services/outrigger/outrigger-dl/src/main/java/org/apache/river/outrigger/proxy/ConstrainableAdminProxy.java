@@ -36,6 +36,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.admin.AdminIterator;
 import org.apache.river.admin.JavaSpaceAdmin;
 
@@ -155,7 +157,18 @@ public final class ConstrainableAdminProxy extends AdminProxy
      * @serial
      */
     private final MethodConstraints methodConstraints;
-    
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("methodConstraints", MethodConstraints.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ConstrainableAdminProxy o) throws IOException {
+        arg.put("methodConstraints", o.methodConstraints);
+        arg.writeArgs();
+    }
+
     /**
      * Create a new <code>ConstrainableAdminProxy</code>.
      * @param admin reference to remote server for the space.

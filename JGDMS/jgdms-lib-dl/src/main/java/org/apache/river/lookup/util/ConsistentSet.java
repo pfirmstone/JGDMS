@@ -29,6 +29,8 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * An implementation of the <code>java.util.Set</code> interface that has
@@ -61,6 +63,22 @@ public class ConsistentSet<T> extends AbstractSet<T> implements Serializable {
      *     this <code>ConsistentSet</code>.
      */
     private final T[] elements;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the field read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("elements", Object[].class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, ConsistentSet o) throws IOException {
+        arg.put("elements", o.elements);
+        arg.writeArgs();
+    }
 
     /**
      * Constructs a new, empty <code>ConsistentSet</code>. All instances

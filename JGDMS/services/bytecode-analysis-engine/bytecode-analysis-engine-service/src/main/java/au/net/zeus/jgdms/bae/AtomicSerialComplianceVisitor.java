@@ -252,8 +252,14 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
             return AtomicSerialVerdict.MISSING_CONSTRUCTOR;
         }
 
-        // GetArg constructor exists — check validation ordering
-        if (hasGetArgConstructor && !getArgCtorValidationOk) {
+        // GetArg constructor exists — check validation ordering.  A @Stateless
+        // class declares no own serialized fields, so there is nothing to
+        // assign before validation (no finalizer-attack surface); the
+        // validation-order rule is vacuously satisfied, exactly as the
+        // serialForm() requirement below is skipped for @Stateless.  Such a
+        // subclass legitimately delegates validation to its (validated)
+        // superclass via super(arg).
+        if (hasGetArgConstructor && !hasStatelessAnnotation && !getArgCtorValidationOk) {
             return AtomicSerialVerdict.VALIDATION_ORDER;
         }
 

@@ -44,6 +44,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * This class is an implementation of the LookupDiscoveryRegistration
@@ -101,8 +103,23 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
      */
     final EventRegistration eventReg;
 
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("server", Fiddler.class),
+            new SerialForm("registrationID", Uuid.class),
+            new SerialForm("eventReg", EventRegistration.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, FiddlerRegistration o) throws IOException {
+        arg.put("server", o.server);
+        arg.put("registrationID", o.registrationID);
+        arg.put("eventReg", o.eventReg);
+        arg.writeArgs();
+    }
+
     /**
-     * Public static factory method that creates and returns an instance of 
+     * Public static factory method that creates and returns an instance of
      * <code>FiddlerRegistration</code>. If the server associated with
      * this registration implements <code>RemoteMethodControl</code>, then the
      * object returned by this method will also implement
@@ -1248,6 +1265,17 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
          * @serial
          */
         private MethodConstraints methodConstraints;
+
+        public static SerialForm[] serialForm() {
+            return new SerialForm[] {
+                new SerialForm("methodConstraints", MethodConstraints.class)
+            };
+        }
+
+        public static void serialize(PutArg arg, ConstrainableFiddlerRegistration o) throws IOException {
+            arg.put("methodConstraints", o.methodConstraints);
+            arg.writeArgs();
+        }
 
         /** Constructs a new <code>ConstrainableFiddlerRegistration</code>
          *  instance.

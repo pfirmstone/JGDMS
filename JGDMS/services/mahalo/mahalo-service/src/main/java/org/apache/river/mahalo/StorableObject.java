@@ -25,6 +25,8 @@ import java.rmi.RemoteException;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 
 /**
@@ -49,6 +51,17 @@ public class StorableObject implements java.io.Serializable {
 
     private static final boolean DEBUG = false;
     private static final long serialVersionUID = -3793675220968988873L;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("bytes", MarshalledObject.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, StorableObject o) throws IOException {
+        arg.put("bytes", o.bytes);
+        arg.writeArgs();
+    }
 
     /**
      * Create a <code>StorableObject</code> that will hold <code>obj</code>

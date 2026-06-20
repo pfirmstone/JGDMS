@@ -27,6 +27,7 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
@@ -41,7 +42,17 @@ public class ConstrainableRegistrarEvent extends RegistrarEvent implements Remot
     public static SerialForm [] serialForm(){
         return new SerialForm[]{};
     }
-    
+
+    /**
+     * {@code @AtomicSerial} write contract (required by the atomic write
+     * engine). This class level has no own serial fields: {@code constraints}
+     * is derived from the (super-serialized) event source on deserialization,
+     * mirroring the empty {@link #serialForm()}.
+     */
+    public static void serialize(PutArg arg, ConstrainableRegistrarEvent o) throws IOException {
+        arg.writeArgs();
+    }
+
     private final MethodConstraints constraints;
 
     public ConstrainableRegistrarEvent(

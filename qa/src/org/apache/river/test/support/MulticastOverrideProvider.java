@@ -18,6 +18,10 @@
 
 package org.apache.river.test.support;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 import org.apache.river.qa.harness.OverrideProvider;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.TestException;
@@ -33,7 +37,17 @@ import java.util.ArrayList;
  * <li><code>multicast.ttl</code> is the test run is non-distributed
  * </ul>
  */
+@AtomicSerial
+@Stateless
 public class MulticastOverrideProvider implements OverrideProvider {
+
+    private static final long serialVersionUID = 1L;
+
+    /** Normal construction. */
+    public MulticastOverrideProvider() { }
+
+    /** {@code @AtomicSerial} deserialization constructor (stateless: no fields). */
+    public MulticastOverrideProvider(GetArg arg) throws IOException, ClassNotFoundException { }
 
     /**
      * If the test property <code>"net.jini.discovery.announce"</code> is

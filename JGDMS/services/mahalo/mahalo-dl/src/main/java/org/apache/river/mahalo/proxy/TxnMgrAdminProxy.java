@@ -37,9 +37,12 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
- * A <tt>TxnMgrAdminProxy</tt> is a client-side proxy for a mailbox service. 
+ * A <tt>TxnMgrAdminProxy</tt> is a client-side proxy for a mailbox service.
  * This interface provides access to the administrative functions 
  * of the mailbox service as defined by the <tt>TxnMgrAdmin</tt> interface.
  *
@@ -68,8 +71,21 @@ public class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
      */
     final Uuid proxyID;
 
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("server", TxnManager.class),
+            new SerialForm("proxyID", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, TxnMgrAdminProxy o) throws IOException {
+        arg.put("server", o.server);
+        arg.put("proxyID", o.proxyID);
+        arg.writeArgs();
+    }
+
     /**
-     * Creates an administrable transaction manager proxy, 
+     * Creates an administrable transaction manager proxy,
      * returning an instance
      * that implements RemoteMethodControl if the server does too.
      *
@@ -253,6 +269,7 @@ public class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
     }//end readObjectNoData
 
     @AtomicSerial
+    @Stateless
     static final class ConstrainableTxnMgrAdminProxy extends TxnMgrAdminProxy
                                                implements RemoteMethodControl
     {

@@ -18,13 +18,27 @@
 
 package org.apache.river.qa.harness;
 
+import java.io.IOException;
 import java.util.Random;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * An <code>OverrideProvider</code> which supplies the value for
  * the <code>org.apache.river.outrigger.store</code> configuration entry.
  */
+@AtomicSerial
+@Stateless
 public class StoreOverrideProvider implements OverrideProvider {
+
+    private static final long serialVersionUID = 1L;
+
+    /** Normal construction. */
+    public StoreOverrideProvider() { }
+
+    /** {@code @AtomicSerial} deserialization constructor (stateless: no fields). */
+    public StoreOverrideProvider(GetArg arg) throws IOException, ClassNotFoundException { }
 
     /**
      * Return a constructor for snaplogstore

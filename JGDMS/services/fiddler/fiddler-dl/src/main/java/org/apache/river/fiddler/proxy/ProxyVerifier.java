@@ -28,8 +28,10 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
-/** This class defines a trust verifier for the proxies related to the 
+/** This class defines a trust verifier for the proxies related to the
  *  Fiddler implementation of the lookup discovery service.
  *
  * @see net.jini.security.TrustVerifier
@@ -59,6 +61,24 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
      * @serial
      */
     private final Uuid proxyID;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("innerProxy", RemoteMethodControl.class),
+            new SerialForm("proxyID", Uuid.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, ProxyVerifier o) throws IOException {
+        arg.put("innerProxy", o.innerProxy);
+        arg.put("proxyID", o.proxyID);
+        arg.writeArgs();
+    }
 
     /** Constructs an instance of <code>TrustVerifier</code> that can be
      *  used to determine whether or not a given proxy is equivalent in

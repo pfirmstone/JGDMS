@@ -18,12 +18,35 @@
 
 package org.apache.river.qa.harness;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * The messages which can be sent to a <code>SlaveTest.</code>
  */
+@AtomicSerial
 public class TestStatusRequest implements OutboundAutotRequest {
+
+    private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("msg", String.class),
+	    new SerialForm("updateSuspended", boolean.class),
+	    new SerialForm("suspended", boolean.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, TestStatusRequest o) throws IOException {
+	arg.put("msg", o.msg);
+	arg.put("updateSuspended", o.updateSuspended);
+	arg.put("suspended", o.suspended);
+	arg.writeArgs();
+    }
 
     private String msg;
     private boolean updateSuspended = false;
@@ -37,6 +60,13 @@ public class TestStatusRequest implements OutboundAutotRequest {
 	this.msg = msg;
 	this.suspended = suspended;
 	updateSuspended = true;
+    }
+
+    /** {@code @AtomicSerial} deserialization constructor. */
+    TestStatusRequest(GetArg arg) throws IOException, ClassNotFoundException {
+	this.msg = arg.get("msg", null, String.class);
+	this.updateSuspended = arg.get("updateSuspended", false);
+	this.suspended = arg.get("suspended", false);
     }
 
     public Object doRequest(AutotHost host) throws Exception {

@@ -24,6 +24,8 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Event generated when a <code>LeaseRenewalManager</code> cannot renew
@@ -103,7 +105,28 @@ public class LeaseRenewalEvent extends EventObject {
      */
     private final Throwable ex;
 
-    /** 
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor; {@code source} is transient (passed as
+     * {@code null} on deserialization) and is not part of the serial form.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("lease", Lease.class),
+            new SerialForm("expiration", long.class),
+            new SerialForm("ex", Throwable.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, LeaseRenewalEvent o) throws IOException {
+        arg.put("lease", o.lease);
+        arg.put("expiration", o.expiration);
+        arg.put("ex", o.ex);
+        arg.writeArgs();
+    }
+
+    /**
      * Constructs an instance of this class with the specified state.
      *
      * @param source reference to the instance of the

@@ -29,6 +29,7 @@ import net.jini.config.ConfigurationProvider;
 import net.jini.id.Uuid;
 import au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
+import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineBackend;
 import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy;
 import org.apache.river.config.Config;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
@@ -85,7 +86,7 @@ import org.apache.river.start.lifecycle.LifeCycle;
  */
 public class ActivatableBytecodeAnalysisEngineImpl
         extends AbstractJiniService
-        implements BytecodeAnalysisEngine {
+        implements BytecodeAnalysisEngineBackend {
 
     /** Configuration component name for this service. */
     static final String COMPONENT = "au.net.zeus.jgdms.bae";

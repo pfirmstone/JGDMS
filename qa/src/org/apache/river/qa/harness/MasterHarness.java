@@ -57,6 +57,9 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 //Should there be an 'AbortTestRequest' ?
 
@@ -1412,7 +1415,15 @@ class MasterHarness {
 	return seconds * 1000; // convert to milliseconds
     }
 
+    @AtomicSerial
+    @Stateless
     private static class SlaveThreadDumpRequest implements SlaveRequest {
+
+	private static final long serialVersionUID = 1L;
+
+	SlaveThreadDumpRequest() { }
+
+	SlaveThreadDumpRequest(GetArg arg) throws IOException, ClassNotFoundException { }
 
 	public Object doSlaveRequest(SlaveTest slaveTest) throws Exception {
 	    AdminManager manager = slaveTest.getAdminManager();
@@ -1433,9 +1444,17 @@ class MasterHarness {
 	}
     }
 
+    @AtomicSerial
+    @Stateless
     private static class MasterThreadDumpRequest
-	implements MasterTest.MasterTestRequest 
+	implements MasterTest.MasterTestRequest
     {
+
+	private static final long serialVersionUID = 1L;
+
+	MasterThreadDumpRequest() { }
+
+	MasterThreadDumpRequest(GetArg arg) throws IOException, ClassNotFoundException { }
 
 	public void doRequest(TestEnvironment test) throws Exception {
 	    if (test instanceof QATestEnvironment) {

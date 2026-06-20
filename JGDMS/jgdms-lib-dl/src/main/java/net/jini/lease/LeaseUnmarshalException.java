@@ -24,6 +24,8 @@ import net.jini.core.lease.Lease;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -109,9 +111,29 @@ public class LeaseUnmarshalException extends AtomicException {
      * while attempting to unmarshal the element at index i of
      * <code>stillMarshalledLeases</code>.
      *
-     * @serial 
+     * @serial
      */
     final private Throwable[] exceptions;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the fields read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("unmarshalledLeases", Lease[].class),
+            new SerialForm("stillMarshalledLeases", MarshalledObject[].class),
+            new SerialForm("exceptions", Throwable[].class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, LeaseUnmarshalException o) throws IOException {
+        arg.put("unmarshalledLeases", o.unmarshalledLeases);
+        arg.put("stillMarshalledLeases", o.stillMarshalledLeases);
+        arg.put("exceptions", o.exceptions);
+        arg.writeArgs();
+    }
 
     /**
      * Constructs a new instance of <code>LeaseUnmarshalException</code>

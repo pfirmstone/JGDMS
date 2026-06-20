@@ -21,15 +21,17 @@ package net.jini.core.lease;
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
-/** 
- * An exception generated when a lease request or renewal is denied. 
+/**
+ * An exception generated when a lease request or renewal is denied.
  *
  * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */
 @AtomicSerial
+@Stateless
 public class LeaseDeniedException extends LeaseException {
 
     private static final long serialVersionUID = 5704943735577343495L;

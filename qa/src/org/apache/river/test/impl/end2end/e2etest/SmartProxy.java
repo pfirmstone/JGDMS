@@ -40,6 +40,8 @@ import net.jini.security.proxytrust.TrustEquivalence;
 import net.jini.jeri.BasicInvocationHandler;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 
 import org.apache.river.test.impl.end2end.jssewrapper.Bridge;
@@ -53,6 +55,17 @@ final class SmartProxy implements SmartInterface,
                                   Serializable,
                                   Constants
 {
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("remoteProxy", Remote.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, SmartProxy o) throws IOException {
+        arg.put("remoteProxy", o.remoteProxy);
+        arg.writeArgs();
+    }
+
     /** The methodConstraints which should be assigned to this proxy */
     private static MethodConstraints methodConstraints;
 
@@ -284,6 +297,18 @@ final class SmartProxy implements SmartInterface,
     @AtomicSerial
     static class Verifier implements TrustVerifier, Serializable {
         private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("remoteProxy", RemoteMethodControl.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, Verifier o) throws IOException {
+        arg.put("remoteProxy", o.remoteProxy);
+        arg.writeArgs();
+    }
+
     private RemoteMethodControl remoteProxy;
 
     Verifier(SmartInterface smartProxy) {

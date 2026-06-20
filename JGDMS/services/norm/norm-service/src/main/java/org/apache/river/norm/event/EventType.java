@@ -35,6 +35,8 @@ import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.constants.ThrowableConstants;
 import org.apache.river.logging.Levels;
 import org.apache.river.thread.wakeup.RetryTask;
@@ -122,6 +124,25 @@ public class EventType implements Serializable {
     private transient EventTypeGenerator generator;
     
     private transient AccessControlContext context;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("marshalledListener", MarshalledObject.class),
+            new SerialForm("handback", MarshalledObject.class),
+            new SerialForm("registrationNumber", Long.TYPE),
+            new SerialForm("lastSeqNum", Long.TYPE),
+            new SerialForm("evID", Long.TYPE)
+        };
+    }
+
+    public static void serialize(PutArg arg, EventType o) throws IOException {
+        arg.put("marshalledListener", o.marshalledListener);
+        arg.put("handback", o.handback);
+        arg.put("registrationNumber", o.registrationNumber);
+        arg.put("lastSeqNum", o.lastSeqNum);
+        arg.put("evID", o.evID);
+        arg.writeArgs();
+    }
 
     /**
      * Simple constructor.  Initially the last sequence number is set to 0.

@@ -20,8 +20,10 @@ package org.apache.river.test.spec.lookupservice.service;
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 @AtomicSerial
+@Stateless
 public class Service07 extends    Service06
                         implements Interface00,
                                    Interface01,

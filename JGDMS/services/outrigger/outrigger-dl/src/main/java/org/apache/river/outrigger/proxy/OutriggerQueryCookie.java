@@ -20,6 +20,8 @@ package org.apache.river.outrigger.proxy;
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Object <code>OutriggerServerImpl</code> uses to pass context between
@@ -35,6 +37,22 @@ public class OutriggerQueryCookie
      * The time the first sub-query in a given series was started
      */
     public final long startTime;
+
+    /**
+     * Serial form for the atomic/DER codecs. Mirrors the field read by the
+     * {@code (GetArg)} constructor.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("startTime", long.class)
+        };
+    }
+
+    /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+    public static void serialize(PutArg arg, OutriggerQueryCookie o) throws IOException {
+        arg.put("startTime", o.startTime);
+        arg.writeArgs();
+    }
 
     /**
      * Create a new <code>OutriggerQueryCookie</code> with
