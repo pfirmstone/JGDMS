@@ -23,6 +23,8 @@ import java.lang.reflect.Method;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A <code>SlaveRequest</code> which calls an admin accessor method
@@ -30,6 +32,21 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 class AdminAccessorRequest implements SlaveRequest {
+
+    private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("methodName", String.class),
+            new SerialForm("marshalledServiceRef", MarshalledInstance.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, AdminAccessorRequest o) throws IOException {
+        arg.put("methodName", o.methodName);
+        arg.put("marshalledServiceRef", o.marshalledServiceRef);
+        arg.writeArgs();
+    }
 
     /** the service proxy who's admin is to be access */
     MarshalledInstance marshalledServiceRef;

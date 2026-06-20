@@ -35,17 +35,32 @@ import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * This class is a proxy to backend servers for simulations of activatable
  * lookup services that implement the LookupSimulator interface.
  */
 @AtomicSerial
-public class TesterTransactionManagerProxy implements TransactionManager, 
-						      Serializable, ProxyAccessor 
+public class TesterTransactionManagerProxy implements TransactionManager,
+						      Serializable, ProxyAccessor
 {
     private static final long serialVersionUID = 7327572992370001498L;
-    
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("server", TransactionManager.class),
+	    new SerialForm("sid", int.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, TesterTransactionManagerProxy o) throws IOException {
+	arg.put("server", o.server);
+	arg.put("sid", o.sid);
+	arg.writeArgs();
+    }
+
     final TransactionManager server;
     int sid;
 

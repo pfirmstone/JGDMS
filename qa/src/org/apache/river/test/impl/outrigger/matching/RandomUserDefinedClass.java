@@ -20,6 +20,8 @@ package org.apache.river.test.impl.outrigger.matching;
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 
 /**
@@ -30,6 +32,24 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 class RandomUserDefinedClass implements java.io.Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("aInt", int.class),
+	    new SerialForm("aFloat", float.class),
+	    new SerialForm("aString", String.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, RandomUserDefinedClass o) throws IOException {
+	arg.put("aInt", o.aInt);
+	arg.put("aFloat", o.aFloat);
+	arg.put("aString", o.aString);
+	arg.writeArgs();
+    }
+
     private final int aInt;
     private final float aFloat;
     private final String aString;

@@ -43,6 +43,8 @@ import net.jini.lookup.ServiceIDListener;
 import net.jini.lookup.entry.ServiceControlled;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
@@ -90,6 +92,18 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
      */
     @AtomicSerial
     public static class TestService implements Serializable {
+
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("i", int.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, TestService o) throws IOException {
+	    arg.put("i", o.i);
+	    arg.writeArgs();
+	}
+
         public int i;
         public TestService(int i) {
             this.i = i;

@@ -33,6 +33,8 @@ import net.jini.jeri.OutboundRequestIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 
 /**
@@ -41,6 +43,19 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 @AtomicSerial
 public class EndpointWrapper implements Endpoint, Serializable, TrustEquivalence {
     private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("endpoint", Endpoint.class),
+            new SerialForm("className", String.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, EndpointWrapper o) throws IOException {
+        arg.put("endpoint", o.endpoint);
+        arg.put("className", o.className);
+        arg.writeArgs();
+    }
 
     Endpoint endpoint;
     String className;

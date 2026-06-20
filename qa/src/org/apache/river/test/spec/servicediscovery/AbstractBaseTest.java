@@ -50,6 +50,9 @@ import net.jini.lookup.ServiceDiscoveryManager;
 import net.jini.lookup.ServiceItemFilter;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
@@ -121,6 +124,19 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
                                                TestServiceInterface, ProxyAccessor,
 					       ServiceRegInitializer
     {
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("i", int.class),
+		new SerialForm("proxy", java.lang.reflect.Proxy.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, TestService o) throws IOException {
+	    arg.put("i", o.i);
+	    arg.put("proxy", o.proxy);
+	    arg.writeArgs();
+	}
+
         public final int i;
 	public final Object proxy;
 	private transient BootStrapService bootStrapService;
@@ -186,6 +202,7 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
      *  "good" equals() method and multiple lookup services are used.
      */
     @AtomicSerial
+    @Stateless
     public static class TestServiceBadEquals extends TestService {
         public TestServiceBadEquals(int i, Configuration config) {
             super(i, config);

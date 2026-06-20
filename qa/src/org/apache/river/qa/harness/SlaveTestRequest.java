@@ -21,12 +21,27 @@ package org.apache.river.qa.harness;
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A <code>HarnessRequest</code> to start the <code>SlaveTest</code>.
  */
 @AtomicSerial
 class SlaveTestRequest implements HarnessRequest {
+
+    private static final long serialVersionUID = 1L;
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("config", QAConfig.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, SlaveTestRequest o) throws IOException {
+	arg.put("config", o.config);
+	arg.writeArgs();
+    }
 
     /** the <code>QAConfig</code> object to supply to the slave test */
     private QAConfig config;
