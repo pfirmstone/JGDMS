@@ -30,7 +30,6 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.Stateless;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
-import java.io.InvalidObjectException;
 
 /**
  * Client-side smart proxy for the {@link BytecodeAnalysisEngine} service.
@@ -54,7 +53,7 @@ import java.io.InvalidObjectException;
  * @since 3.1.1
  */
 @AtomicSerial
-@Stateless
+@Stateless  // no own serialized state; server + proxyID live on AbstractSmartProxy
 public class BytecodeAnalysisEngineProxy
         extends AbstractSmartProxy
         implements BytecodeAnalysisEngine {
@@ -73,7 +72,12 @@ public class BytecodeAnalysisEngineProxy
     public static AbstractSmartProxy create(BytecodeAnalysisEngine server,
                                             Uuid proxyID) {
         if (server instanceof RemoteMethodControl) {
-            return new ConstrainableBytecodeAnalysisEngineProxy(server, proxyID, null);
+            // Preserve the constraints already configured on the exported stub;
+            // passing null would call setConstraints(null) and discard them.
+            MethodConstraints serverConstraints =
+                    ((RemoteMethodControl) server).getConstraints();
+            return new ConstrainableBytecodeAnalysisEngineProxy(
+                    server, proxyID, serverConstraints);
         }
         return new BytecodeAnalysisEngineProxy(server, proxyID);
     }
@@ -99,18 +103,7 @@ public class BytecodeAnalysisEngineProxy
      * @throws IOException if deserialization validation fails
      */
     public BytecodeAnalysisEngineProxy(GetArg arg) throws IOException, ClassNotFoundException {
-         this(arg, check(arg));
-    }
-    
-    private BytecodeAnalysisEngineProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
         super(arg);
-    }
-    
-    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
-        BytecodeAnalysisEngineProxy sup = new BytecodeAnalysisEngineProxy(arg, true);
-        if (sup.server instanceof BytecodeAnalysisEngine && 
-                BytecodeAnalysisEngine.class.equals(sup.server.getClass())) return true;
-        throw new InvalidObjectException("Server not an instance of BytecodeAnalysisEngine");
     }
 
     @Override
@@ -134,7 +127,7 @@ public class BytecodeAnalysisEngineProxy
      * @since 3.1.1
      */
     @AtomicSerial
-    @Stateless
+    @Stateless  // no own serialized state
     public static final class ConstrainableBytecodeAnalysisEngineProxy
             extends AbstractSmartProxy.ConstrainableSmartProxy
             implements BytecodeAnalysisEngine {
@@ -161,18 +154,7 @@ public class BytecodeAnalysisEngineProxy
          * @throws IOException if deserialization validation fails
          */
         public ConstrainableBytecodeAnalysisEngineProxy(GetArg arg) throws IOException, ClassNotFoundException  {
-            this(arg, check(arg));
-        }
-        
-        private ConstrainableBytecodeAnalysisEngineProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException  {
             super(arg);
-        }
-        
-        private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
-            ConstrainableBytecodeAnalysisEngineProxy sup = new ConstrainableBytecodeAnalysisEngineProxy(arg, true);
-            if (sup.server instanceof BytecodeAnalysisEngine && 
-                    BytecodeAnalysisEngine.class.equals(sup.server.getClass())) return true;
-            throw new InvalidObjectException("Server not an instance of BytecodeAnalysisEngine");
         }
 
         @Override

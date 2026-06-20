@@ -1,3 +1,7 @@
+# Maven build output — covers all modules (the explicit per-module
+# target/ entries below are now redundant but kept for history).
+**/target/
+
 /nbproject/private/
 /build/
 /lib-ext/

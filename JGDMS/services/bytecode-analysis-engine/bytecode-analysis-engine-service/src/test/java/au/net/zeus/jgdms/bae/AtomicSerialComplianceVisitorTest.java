@@ -146,11 +146,13 @@ public class AtomicSerialComplianceVisitorTest {
      * which also implements {@code @AtomicSerial} and has a protected
      * {@code Object server} field.
      *
-     * <p>The child class's static {@code check(GetArg)} method uses the
-     * correct pattern: it constructs a private copy via the bridge constructor
-     * (which calls {@code super(arg)}), then verifies the superclass field
-     * with {@code instanceof BytecodeAnalysisEngine} before accepting the
-     * object.  This must yield {@link AtomicSerialVerdict#COMPLIANT}.
+     * <p>The child class is {@code @Stateless}: it declares no own serialized
+     * fields and its {@code (GetArg)} constructor simply delegates to
+     * {@code super(arg)}, where {@code AbstractSmartProxy} validates the
+     * inherited {@code server}/{@code proxyID} (via {@code checkServer}) before
+     * any field is assigned.  Because a {@code @Stateless} class has no fields
+     * of its own to assign, the validation-order rule is vacuously satisfied,
+     * so this must yield {@link AtomicSerialVerdict#COMPLIANT}.
      */
     @Test
     public void testRealClass_BytecodeAnalysisEngineProxy_isCompliant() throws Exception {

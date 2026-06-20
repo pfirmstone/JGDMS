@@ -50,7 +50,7 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  * @author GitHub Copilot
  */
 @AtomicSerial
-@Stateless
+@Stateless  // no own serialized state; server + proxyID live on AbstractSmartProxy
 public class JfrTelemetryServiceProxy
         extends AbstractSmartProxy
         implements JfrTelemetryService {
@@ -69,7 +69,12 @@ public class JfrTelemetryServiceProxy
     public static AbstractSmartProxy create(JfrTelemetryService server,
                                             Uuid proxyID) {
         if (server instanceof RemoteMethodControl) {
-            return new ConstrainableJfrTelemetryServiceProxy(server, proxyID, null);
+            // Preserve the constraints already configured on the exported stub;
+            // passing null would call setConstraints(null) and discard them.
+            MethodConstraints serverConstraints =
+                    ((RemoteMethodControl) server).getConstraints();
+            return new ConstrainableJfrTelemetryServiceProxy(
+                    server, proxyID, serverConstraints);
         }
         return new JfrTelemetryServiceProxy(server, proxyID);
     }
@@ -125,7 +130,7 @@ public class JfrTelemetryServiceProxy
      * @since 3.1.1
      */
     @AtomicSerial
-    @Stateless
+    @Stateless  // no own serialized state
     public static final class ConstrainableJfrTelemetryServiceProxy
             extends AbstractSmartProxy.ConstrainableSmartProxy
             implements JfrTelemetryService {

@@ -30,6 +30,7 @@ import org.apache.river.config.Config;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.telemetry.JfrTelemetryService;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
+import au.net.zeus.jgdms.jfr.proxy.JfrTelemetryServiceBackend;
 import au.net.zeus.jgdms.jfr.proxy.JfrTelemetryServiceProxy;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import au.net.zeus.jgdms.service.support.JiniServiceParameters;
@@ -98,7 +99,7 @@ import org.apache.river.start.lifecycle.LifeCycle;
  */
 public class ActivatableJfrTelemetryServiceImpl
         extends AbstractJiniService
-        implements JfrTelemetryService {
+        implements JfrTelemetryServiceBackend {
 
     /** Configuration component name for this service. */
     static final String COMPONENT = "au.net.zeus.jgdms.jfr";

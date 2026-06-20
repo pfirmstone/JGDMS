@@ -47,7 +47,7 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  * @since 3.1.1
  */
 @AtomicSerial
-@Stateless
+@Stateless  // no own serialized state; server + proxyID live on AbstractSmartProxy
 public class RemotePolicyServiceProxy
         extends AbstractSmartProxy
         implements RemotePolicyService {
@@ -65,7 +65,12 @@ public class RemotePolicyServiceProxy
      */
     public static AbstractSmartProxy create(RemotePolicyService server, Uuid proxyID) {
         if (server instanceof RemoteMethodControl) {
-            return new ConstrainableRemotePolicyServiceProxy(server, proxyID, null);
+            // Preserve the constraints already configured on the exported stub;
+            // passing null would call setConstraints(null) and discard them.
+            MethodConstraints serverConstraints =
+                    ((RemoteMethodControl) server).getConstraints();
+            return new ConstrainableRemotePolicyServiceProxy(
+                    server, proxyID, serverConstraints);
         }
         return new RemotePolicyServiceProxy(server, proxyID);
     }
@@ -141,7 +146,7 @@ public class RemotePolicyServiceProxy
      * @since 3.1.1
      */
     @AtomicSerial
-    @Stateless
+    @Stateless  // no own serialized state
     public static final class ConstrainableRemotePolicyServiceProxy
             extends AbstractSmartProxy.ConstrainableSmartProxy
             implements RemotePolicyService {

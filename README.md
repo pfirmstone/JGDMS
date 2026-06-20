@@ -1,4 +1,9 @@
 # JGDMS - Java/Jini Global Distributed Micro Services.
+
+## Getting Started
+
+New to JGDMS? See **[GETTING_STARTED.md](GETTING_STARTED.md)** for a step-by-step guide covering prerequisites, building from source, running the Hello World example, and creating your first service.
+
 ## Build instructions
 From command or shell prompt:
 

@@ -38,7 +38,6 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.Stateless;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
-import java.io.InvalidObjectException;
 
 /**
  * Client-side smart proxy for the {@link VerdictRegistry} service.
@@ -62,7 +61,7 @@ import java.io.InvalidObjectException;
  * @since 3.1.1
  */
 @AtomicSerial
-@Stateless
+@Stateless  // no own serialized state; server + proxyID live on AbstractSmartProxy
 public class VerdictRegistryProxy
         extends AbstractSmartProxy
         implements VerdictRegistry {
@@ -80,7 +79,12 @@ public class VerdictRegistryProxy
      */
     public static AbstractSmartProxy create(VerdictRegistry server, Uuid proxyID) {
         if (server instanceof RemoteMethodControl) {
-            return new ConstrainableVerdictRegistryProxy(server, proxyID, null);
+            // Preserve the constraints already configured on the exported stub;
+            // passing null would call setConstraints(null) and discard them.
+            MethodConstraints serverConstraints =
+                    ((RemoteMethodControl) server).getConstraints();
+            return new ConstrainableVerdictRegistryProxy(
+                    server, proxyID, serverConstraints);
         }
         return new VerdictRegistryProxy(server, proxyID);
     }
@@ -106,18 +110,7 @@ public class VerdictRegistryProxy
      * @throws IOException if deserialization validation fails
      */
     public VerdictRegistryProxy(GetArg arg) throws IOException, ClassNotFoundException {
-        this(arg, check(arg));
-    }
-    
-    private VerdictRegistryProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
         super(arg);
-    }
-    
-    private static boolean check(GetArg arg)throws IOException, ClassNotFoundException {
-        VerdictRegistryProxy sup = new VerdictRegistryProxy(arg, true);
-        if (sup.server instanceof VerdictRegistryProxy && VerdictRegistryProxy.class.equals(sup.server.getClass()))
-            return true;
-        throw new InvalidObjectException("server not VerdictRegistryProxy");
     }
 
     @Override
@@ -203,7 +196,7 @@ public class VerdictRegistryProxy
      * @since 3.1.1
      */
     @AtomicSerial
-    @Stateless
+    @Stateless  // no own serialized state
     public static final class ConstrainableVerdictRegistryProxy
             extends AbstractSmartProxy.ConstrainableSmartProxy
             implements VerdictRegistry {
@@ -231,17 +224,6 @@ public class VerdictRegistryProxy
          */
         public ConstrainableVerdictRegistryProxy(GetArg arg) throws IOException, ClassNotFoundException {
             super(arg);
-        }
-        
-        private ConstrainableVerdictRegistryProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
-            super(arg);
-        }
-        
-        private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
-            ConstrainableVerdictRegistryProxy sup = new ConstrainableVerdictRegistryProxy(arg, true);
-            if (sup.server instanceof ConstrainableVerdictRegistryProxy && ConstrainableVerdictRegistryProxy.class.equals(sup.server.getClass()))
-                return true;
-            throw new InvalidObjectException("server not ConstrainableVerdictRegistryProxy");
         }
 
         @Override

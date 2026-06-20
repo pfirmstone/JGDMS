@@ -41,6 +41,7 @@ import org.apache.river.config.Config;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import au.net.zeus.jgdms.service.support.JiniServiceParameters;
 import org.apache.river.start.lifecycle.LifeCycle;
+import au.net.zeus.jgdms.vr.proxy.VerdictRegistryBackend;
 import au.net.zeus.jgdms.vr.proxy.VerdictRegistryProxy;
 
 /**
@@ -99,7 +100,7 @@ import au.net.zeus.jgdms.vr.proxy.VerdictRegistryProxy;
  */
 public class ActivatableVerdictRegistryImpl
         extends AbstractJiniService
-        implements VerdictRegistry {
+        implements VerdictRegistryBackend {
 
     /** Configuration component name for this service. */
     static final String COMPONENT = "au.net.zeus.jgdms.vr";
