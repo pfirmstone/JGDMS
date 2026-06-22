@@ -31,6 +31,7 @@ import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -64,6 +65,7 @@ import javax.tools.StandardLocation;
  * {@code META-INF/services/org.apache.river.api.io.MarshalDelegate}.
  */
 @SupportedAnnotationTypes("org.apache.river.api.io.AtomicSerial")
+@SupportedOptions("marshaldelegate.validateOnly")
 public final class MarshalDelegateProcessor extends AbstractProcessor {
 
     private static final String ATOMIC_SERIAL = "org.apache.river.api.io.AtomicSerial";
@@ -79,6 +81,7 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
     private Elements elements;
     private Messager messager;
     private Filer filer;
+    private boolean validateOnly;
     private final Set<String> generated = new LinkedHashSet<>();
 
     @Override
@@ -92,6 +95,7 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
         elements = env.getElementUtils();
         messager = env.getMessager();
         filer = env.getFiler();
+        validateOnly = env.getOptions().containsKey("marshaldelegate.validateOnly");
     }
 
     @Override
@@ -115,7 +119,7 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
                 }
             }
         }
-        if (round.processingOver() && !generated.isEmpty()) {
+        if (round.processingOver() && !validateOnly && !generated.isEmpty()) {
             writeServiceFile();
         }
         return false; // do not claim the annotation; allow other processors
@@ -126,7 +130,7 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
     private static final class Info {
         TypeElement element;
         String relName;       // name relative to the package (Foo or Outer.Inner)
-        boolean isPublic, isAbstract, isStateless;
+        boolean isPublic, isAbstract, isStateless, isPrivate;
         boolean hasGetArgCtor, ctorPrivate, ctorPublic;
         boolean hasSerialForm, hasSerialize;
         boolean needsDelegate;
@@ -140,6 +144,7 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
         Set<Modifier> mods = t.getModifiers();
         i.isPublic = mods.contains(Modifier.PUBLIC);
         i.isAbstract = mods.contains(Modifier.ABSTRACT);
+        i.isPrivate = mods.contains(Modifier.PRIVATE);
         i.isStateless = hasAnnotation(t, STATELESS);
         for (Element e : t.getEnclosedElements()) {
             if (e.getKind() == ElementKind.CONSTRUCTOR) {
@@ -167,6 +172,11 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
     /** Emits contract warnings; never modifies the class. */
     private void validate(Info i) {
         TypeElement t = i.element;
+        if (i.isPrivate) {
+            messager.printMessage(Kind.WARNING,
+                "@AtomicSerial: PRIVATE (nested) class cannot be served by a MarshalDelegate; "
+                + "make it package-private to allow removing the setAccessible fallback (4.0.0).", t);
+        }
         if (i.hasGetArgCtor && i.ctorPrivate) {
             messager.printMessage(Kind.WARNING,
                 "@AtomicSerial: PRIVATE (GetArg) constructor cannot be called by a MarshalDelegate; "
@@ -190,6 +200,9 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
         if (!i.needsDelegate) {
             return false;
         }
+        if (i.isPrivate) {
+            return false; // a private (nested) class cannot be named by a separate delegate
+        }
         if (i.ctorPrivate) {
             return false;
         }
@@ -206,18 +219,16 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
     }
 
     private void generatePackage(String pkg, List<TypeElement> classes) throws IOException {
-        if (handWrittenDelegateExists(pkg)) {
-            return;
-        }
+        boolean skip = handWrittenDelegateExists(pkg);
         List<Info> served = new ArrayList<>();
         for (TypeElement t : classes) {
             Info i = analyze(t, pkg);
-            validate(i);
-            if (dispatchable(i)) {
+            validate(i); // always validate, even for skipped or validate-only packages
+            if (!skip && dispatchable(i)) {
                 served.add(i);
             }
         }
-        if (!served.isEmpty()) {
+        if (!validateOnly && !skip && !served.isEmpty()) {
             writeDelegate(pkg, served);
         }
     }
