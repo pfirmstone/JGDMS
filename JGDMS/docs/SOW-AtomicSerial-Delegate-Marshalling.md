@@ -122,17 +122,26 @@ caller would then be the wrong runtime package).
 
 ## 4. Discovery and resolution
 
-- **Discovery:** JGDMS's own `ServiceLoader` (the one that also bridges providers into the OSGi
-  service registry), via the **`ClassLoader`-argument overload**, passing the marshalled class's
-  defining loader: `load(MarshalDelegate.class, c.getClassLoader())`. Select the provider whose
-  `packageName()` equals `c.getPackageName()`. Cache per `(loader, package)`.
-  - The `ClassLoader` overload is essential, not cosmetic: it scopes discovery to the exact
-    codebase/bundle loader, which is also the **version boundary** (see §5).
-  - JDK `java.util.ServiceLoader` is insufficient because it would not see OSGi-registered
-    delegates; JGDMS's ServiceLoader does, and works uniformly across classpath, JPMS `provides`,
-    and OSGi.
-  - `provides`/`META-INF/services` registration lets a delegate be instantiated **without
-    `exports`/`opens` of its package** — so the package-private classes stay encapsulated.
+- **Discovery:** JGDMS's own service lookup, `org.apache.river.resource.Service.providers(
+  MarshalDelegate.class, c.getClassLoader())` — the explicit-`ClassLoader` overload (predates
+  `java.util.ServiceLoader`; `@since` Jini 2.0). It returns an `Iterator<MarshalDelegate>` of
+  instantiated providers (public zero-arg ctor; classes resolved via `net.jini.loader.LoadClass.
+  forName(cn, true, loader)` from `META-INF/services/<MarshalDelegate FQN>`). `Service` already
+  carries an OSGi bridge (a static `osgi` flag flips lookup to `OSGiServiceIterator.providers(
+  service)`, the OSGi registry) and its own TODO declares it the intended indirection layer over
+  both `java.util.ServiceLoader` and OSGi — so routing through `Service` is forward-compatible and
+  works uniformly on classpath, JPMS, and OSGi. (Plain `java.util.ServiceLoader` would not see the
+  OSGi-registered delegates.)
+  - **Selection by defining loader, not just package name.** The classpath path is loader-scoped,
+    but the OSGi `OSGiServiceIterator` path is registry-wide and **ignores the loader argument** —
+    and in OSGi the same delegate package may be registered by several bundles (several versions).
+    So select the provider `d` with `d.getClass().getClassLoader() == c.getClassLoader()` (i.e. the
+    delegate defined in the target's own runtime package). This single predicate gives correct
+    access (same runtime package, §3.1), the correct **version** (same defining loader, §5), and is
+    robust to parent-loader visibility (a config named in a parent but defined elsewhere is filtered
+    out). Cache per `(loader)` → delegate, or per `Class`.
+  - `META-INF/services` (classpath) / OSGi `provides` registration lets a delegate be instantiated
+    **without `exports`/`opens` of its package** — so the package-private classes stay encapsulated.
 - **Resolution ownership:** each JERI `Endpoint` has an assigned `ClassLoader` that is *solely*
   responsible for resolving classes unmarshalled from its stream (handling codebase annotations,
   preferred classes, and boomerangs via `PreferredClassProvider`). By the time the engine holds
@@ -255,3 +264,7 @@ and contract validation are generated/enforced; nothing touches a field reflecti
   engine; `AtomicExternal.Factory.instantiate` already does `getDeclaredConstructor` +
   `setAccessible` for the `(GetArg)` ctor (the pattern the delegate replaces for the static
   members).
+- `org.apache.river.resource.Service` — JGDMS's service lookup (pre-`java.util.ServiceLoader`);
+  `providers(Class, ClassLoader)` + the built-in OSGi bridge (`osgi` flag → `OSGiServiceIterator`).
+  This is the discovery mechanism for `MarshalDelegate` (§4); its standing TODO is to become the
+  indirection layer over `java.util.ServiceLoader` + OSGi, which this design relies on.
