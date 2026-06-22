@@ -1187,6 +1187,14 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
     }
 
     private ObjectStreamField [] fields(Class clz) throws IOException{
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(clz);
+        if (delegate != null){
+            // In-package dispatch: the class's own serialForm() describes the
+            // local wire form; reflection below is the fallback.
+            SerialForm[] serialForms = delegate.serialForm(clz);
+            Arrays.sort(serialForms);
+            return toOSF(serialForms);
+        }
         try {
             // getDeclaredMethod (not getMethod): only the class's OWN serialForm, never inherited.
             Method m = clz.getDeclaredMethod("serialForm", EMPTY_CONSTRUCTOR_PARAM_TYPES);
@@ -2823,11 +2831,17 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 	    }
 	}
 	GetArg arg = new GetArgImpl(fields, readers, this);
-	Object result = discard ? 
-		Reference.DISCARDED : 
-		Factory.instantiate(classDesc.forClass(),
-		    arg
-		);
+	Object result;
+	if (discard){
+	    result = Reference.DISCARDED;
+	} else {
+	    Class<?> leaf = classDesc.forClass();
+	    MarshalDelegate delegate = MarshalDelegates.delegateFor(leaf);
+	    // In-package construction via the class's own (GetArg) constructor when
+	    // a delegate serves leaf's package; otherwise the reflective Factory path.
+	    result = (delegate != null) ? delegate.create(leaf, arg)
+		    : Factory.instantiate(leaf, arg);
+	}
 	return result;
     }
 

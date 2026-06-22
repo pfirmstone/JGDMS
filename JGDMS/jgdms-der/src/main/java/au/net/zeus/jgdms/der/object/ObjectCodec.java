@@ -27,6 +27,8 @@ import au.net.zeus.jgdms.der.schema.SchemaChain;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.DeSerializationPermission;
+import org.apache.river.api.io.MarshalDelegate;
+import org.apache.river.api.io.MarshalDelegates;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -234,6 +236,14 @@ public final class ObjectCodec {
 
         // 3. Per-class DeSerializationPermission("ATOMIC") gate, then construct
         checkAtomicDeSerializationPermitted(map.keySet());
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(clazz);
+        if (delegate != null) {
+            // In-package construction via the class's own (GetArg) constructor;
+            // exceptions propagate with their natural type (no reflective wrapping).
+            @SuppressWarnings("unchecked")
+            T created = (T) delegate.create(clazz, arg);
+            return created;
+        }
         Constructor<T> ctor = findGetArgConstructor(clazz);
         try {
             return ctor.newInstance(arg);
@@ -498,6 +508,13 @@ public final class ObjectCodec {
         // For all-@AtomicSerial hierarchies (Phase 4.3) this is the same as the old leafClass.
         // For non-@AtomicSerial subclass dropped to its @AtomicSerial superclass, this is the
         // @AtomicSerial superclass (e.g. Foo, not Bar).
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(constructClass);
+        if (delegate != null) {
+            // In-package construction; the (GetArg) ctor chains up via super(check(arg)).
+            @SuppressWarnings("unchecked")
+            T created = (T) delegate.create(constructClass, arg);
+            return created;
+        }
         @SuppressWarnings("unchecked")
         Constructor<? extends T> ctor = (Constructor<? extends T>)
                 findGetArgConstructor(constructClass);
@@ -610,6 +627,23 @@ public final class ObjectCodec {
      */
     private static Map<String, Object> invokeSerialize(Object instance, Class<?> declaringClass)
             throws DerException {
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(declaringClass);
+        if (delegate != null) {
+            // In-package dispatch: invoke the class's own serialize(PutArg, T) with
+            // no reflection into its package-private members; reflection is the fallback.
+            DerPutArg putArg = new DerPutArg();
+            try {
+                delegate.serialize(declaringClass, putArg, instance);
+            } catch (DerException de) {
+                throw de;
+            } catch (IOException ex) {
+                DerException de = new DerException(
+                        "serialize(PutArg) of " + declaringClass.getName() + " failed: " + ex);
+                de.initCause(ex);
+                throw de;
+            }
+            return putArg.captured();
+        }
         Method serialize;
         try {
             serialize = declaringClass.getDeclaredMethod(
@@ -1289,6 +1323,13 @@ public final class ObjectCodec {
         // Per-class DeSerializationPermission("ATOMIC") gate (nested decode path too).
         checkAtomicDeSerializationPermitted(storeMap.keySet());
 
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(constructClass);
+        if (delegate != null) {
+            // In-package construction; the (GetArg) ctor chains up via super(check(arg)).
+            @SuppressWarnings("unchecked")
+            T created = (T) delegate.create(constructClass, arg);
+            return created;
+        }
         @SuppressWarnings("unchecked")
         Constructor<? extends T> ctor = (Constructor<? extends T>)
                 findGetArgConstructor(constructClass);

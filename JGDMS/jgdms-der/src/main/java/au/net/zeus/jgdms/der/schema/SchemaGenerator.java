@@ -19,6 +19,8 @@ package au.net.zeus.jgdms.der.schema;
 
 import au.net.zeus.jgdms.der.DerException;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.MarshalDelegate;
+import org.apache.river.api.io.MarshalDelegates;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -198,6 +200,18 @@ public final class SchemaGenerator {
      */
     private static AtomicSerial.SerialForm[] invokeSerialForm(Class<?> clazz)
             throws DerException {
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(clazz);
+        if (delegate != null) {
+            // In-package dispatch: the class's own serialForm() with no reflection
+            // into its package-private members; reflection below is the fallback.
+            AtomicSerial.SerialForm[] forms = delegate.serialForm(clazz);
+            if (forms == null) {
+                throw new DerException(
+                        "SchemaGenerator: serialForm() on " + clazz.getName()
+                        + " returned null");
+            }
+            return forms;
+        }
         Method method;
         try {
             method = clazz.getMethod("serialForm");

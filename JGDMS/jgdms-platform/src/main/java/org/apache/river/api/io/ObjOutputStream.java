@@ -377,6 +377,14 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
                 new SerialForm("h", InvocationHandler.class)
             });
         }
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(clz);
+        if (delegate != null){
+            // In-package dispatch: invoke the class's own serialForm() with no
+            // reflection into its package-private members; reflection is the fallback.
+            SerialForm [] serialForms = delegate.serialForm(clz);
+            Arrays.sort(serialForms);
+            return toOSF(serialForms);
+        }
         try {
             // getDeclaredMethod (not getMethod): each class level must declare its OWN
             // serialForm; an inherited static would silently describe the superclass's
@@ -1234,6 +1242,23 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
             if (theClass.isAnnotationPresent(AtomicSerial.class)
                     && !theClass.isAnnotationPresent(Stateless.class))
             {
+            MarshalDelegate delegate = MarshalDelegates.delegateFor(theClass);
+            if (delegate != null){
+                // In-package dispatch: invoke the class's own serialize(PutArg, T)
+                // with no reflection into its package-private members; the reflective
+                // path below is the fallback when no delegate serves this package.
+                PutArg args = putFields();
+                delegate.serialize(theClass, args, object);
+                if (((EmulatedFieldsForDumping)args).fields != 0) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(theClass)
+                      .append(" puts ")
+                      .append(((EmulatedFieldsForDumping)args).fields)
+                      .append(" arguments but doesn't call PutArg::writeArgs in serialize method");
+                    throw new IOException(sb.toString());
+                }
+                executed = true;
+            } else {
             try {
                 Method m = theClass.getMethod("serialize", new Class []{PutArg.class, theClass});
                 int mods = m.getModifiers();
@@ -1291,6 +1316,7 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
                     }
                     throw (IOException) ex;
                 }
+            }
             }
 
             if (executed) {
