@@ -132,14 +132,20 @@ caller would then be the wrong runtime package).
   both `java.util.ServiceLoader` and OSGi — so routing through `Service` is forward-compatible and
   works uniformly on classpath, JPMS, and OSGi. (Plain `java.util.ServiceLoader` would not see the
   OSGi-registered delegates.)
-  - **Selection by defining loader, not just package name.** The classpath path is loader-scoped,
-    but the OSGi `OSGiServiceIterator` path is registry-wide and **ignores the loader argument** —
-    and in OSGi the same delegate package may be registered by several bundles (several versions).
-    So select the provider `d` with `d.getClass().getClassLoader() == c.getClassLoader()` (i.e. the
-    delegate defined in the target's own runtime package). This single predicate gives correct
-    access (same runtime package, §3.1), the correct **version** (same defining loader, §5), and is
-    robust to parent-loader visibility (a config named in a parent but defined elsewhere is filtered
-    out). Cache per `(loader)` → delegate, or per `Class`.
+  - **Loader-scoped discovery (and the OSGi fix).** Today `Service` routes *all* lookups to a global
+    `osgi` flag: when set, `OSGiServiceIterator` uses one global `BundleContext` (the activator's) and
+    **ignores the loader**; when unset, `LazyIterator` is correctly loader-scoped. That global flag is
+    wrong for the mixed reality (non-bundle codebase loaders coexist with bundle-defined classes), so
+    the proper fix is **per-loader dispatch**: if the marshalled class's defining loader is an
+    `org.osgi.framework.BundleReference`, resolve its `Bundle` (`((BundleReference) loader).getBundle()`
+    / `FrameworkUtil.getBundle(c)`) and scope the service lookup to **that bundle's** `BundleContext`;
+    otherwise use the loader-scoped classpath `LazyIterator(service, loader)`. (Also fix
+    `OSGiServiceIterator.ServiceIterator`, which currently treats `getServiceReferences()` results as
+    instances instead of `bc.getService(ref)`.) With that, discovery is loader-correct in both modes.
+  - **Selection predicate** (belt-and-braces once the above lands): pick the provider `d` with
+    `d.getClass().getClassLoader() == c.getClassLoader()` (the delegate defined in the target's own
+    runtime package) — correct access (§3.1), correct version (§5), robust to parent-loader
+    visibility. Cache per `(loader)` → delegate, or per `Class`.
   - `META-INF/services` (classpath) / OSGi `provides` registration lets a delegate be instantiated
     **without `exports`/`opens` of its package** — so the package-private classes stay encapsulated.
 - **Resolution ownership:** each JERI `Endpoint` has an assigned `ClassLoader` that is *solely*
@@ -310,6 +316,10 @@ forks are decided: wire framing = DER schema chain (§6); discovery = `Service` 
   `d.getClass().getClassLoader() == c.getClassLoader()` (§4 predicate), cache in a
   `ClassValue<MarshalDelegate>` (loader-correct, GC-friendly). Returns `null` when none (caller
   falls back / the class is public).
+- **Make `Service` discovery loader-correct in OSGi (§4):** replace the global `osgi`-flag dispatch
+  with per-loader dispatch — `loader instanceof BundleReference` → scope the lookup to
+  `((BundleReference) loader).getBundle().getBundleContext()`; else `LazyIterator(service, loader)`.
+  Fix `OSGiServiceIterator.ServiceIterator` to resolve instances via `bc.getService(ref)`.
 
 **A2 — JOSS dispatch** (`jgdms-platform`):
 - `ObjOutputStream.fields()` (serialForm, ~L381) and the serialize site (~L1234): when
