@@ -4,6 +4,16 @@
 agent run code it didn't write, and act on your behalf, without handing it your keys — and without
 just sandboxing arbitrary code and hoping?*
 
+**Abstract.** AI agents increasingly run code they didn't write and act on a user's behalf — but the
+platforms beneath them abandoned the one model that makes that safe, in‑runtime code‑origin least
+privilege (removed from the JVM in JEP 411), leaving the field with sandbox‑and‑contain and
+per‑action human approval. JGDMS + DirtyChai is a hardened, ~25‑year‑old stack that kept solving it:
+foreign code is admitted only if a static **bytecode audit** proves it follows the rules (rejected,
+not sandboxed), then runs under **bounded, downward‑attenuating, auto‑revoking (leased)** authority.
+For agents the payoff is structural — it replaces continual human approval (a crutch for the absence
+of enforced bounds) with verified admission plus enforced, revocable capability, which is what makes
+**unsupervised agency** practical.
+
 ---
 
 ## The problem
