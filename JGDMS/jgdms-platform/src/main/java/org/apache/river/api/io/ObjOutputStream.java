@@ -393,7 +393,9 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
             int modifiers = m.getModifiers();
             if (Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers) && m.getReturnType() == SerialForm [].class){
 //                System.out.println("Invoking serialForm method on " + clz);
-                m.setAccessible(true); // public method may be declared on a non-public @AtomicSerial class
+                String sv = MarshalDelegates.strictBlockClass(clz, "serialForm()");
+                if (sv != null) throw new InvalidClassException(clz.getName(), sv);
+                if (!MarshalDelegates.isStrict()) m.setAccessible(true); // strict skips this; a non-public class is blocked above
                 SerialForm [] serialForms = (SerialForm[]) m.invoke(null, (Object []) null);
                 Arrays.sort(serialForms);
                 return toOSF(serialForms);
@@ -1265,7 +1267,9 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
                 if (Modifier.isStatic(mods) && Modifier.isPublic(mods)){
                     PutArg args = putFields();
 //                    System.out.println("Invoking serialize method on " + theClass);
-                    m.setAccessible(true); // public method may be declared on a non-public @AtomicSerial class
+                    String sv = MarshalDelegates.strictBlockClass(theClass, "serialize(PutArg, T)");
+                    if (sv != null) throw new InvalidClassException(theClass.getName(), sv);
+                    if (!MarshalDelegates.isStrict()) m.setAccessible(true); // strict skips this; a non-public class is blocked above
                     m.invoke(null, new Object [] {args, object});
                     if (((EmulatedFieldsForDumping)args).fields != 0) {
                         StringBuilder sb = new StringBuilder();

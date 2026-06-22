@@ -1200,7 +1200,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
             Method m = clz.getDeclaredMethod("serialForm", EMPTY_CONSTRUCTOR_PARAM_TYPES);
             int modifiers = m.getModifiers();
             if (Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers) && m.getReturnType() == SerialForm [].class){
-                m.setAccessible(true); // public method may be declared on a non-public @AtomicSerial class
+                String sv = MarshalDelegates.strictBlockClass(clz, "serialForm()");
+                if (sv != null) throw new InvalidClassException(clz.getName(), sv);
+                if (!MarshalDelegates.isStrict()) m.setAccessible(true); // strict skips this; a non-public class is blocked above
                 SerialForm[] serialForms = (SerialForm[]) m.invoke(null, (Object []) null);
                 Arrays.sort(serialForms);
                 return toOSF(serialForms);

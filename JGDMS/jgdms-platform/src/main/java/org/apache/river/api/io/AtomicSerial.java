@@ -266,8 +266,12 @@ public @interface AtomicSerial {
 			    int mods = c.getModifiers();
 			    switch (mods){
 				case Modifier.PUBLIC:
-				    c.setAccessible(true); //In case constructor is public but class not.
-				    return c;
+				    {
+					String sv = MarshalDelegates.strictBlockCtor(type, mods);
+					if (sv != null) throw new InvalidClassException(type.getName(), sv);
+					if (!MarshalDelegates.isStrict()) c.setAccessible(true); //strict skips; non-public class blocked above
+					return c;
+				    }
 				case Modifier.PROTECTED:
 				    throw new InvalidClassException( type.getCanonicalName(),
 					"protected constructor cannot be called by de-serializer");
@@ -275,8 +279,12 @@ public @interface AtomicSerial {
 				    throw new InvalidClassException( type.getCanonicalName(),
 					"private constructor cannot be called by de-serializer");
 				default: // Package private
-				    c.setAccessible(true);
-				    return c;
+				    {
+					String sv = MarshalDelegates.strictBlockCtor(type, mods);
+					if (sv != null) throw new InvalidClassException(type.getName(), sv);
+					if (!MarshalDelegates.isStrict()) c.setAccessible(true); //strict skips; non-public ctor blocked above
+					return c;
+				    }
 			    }
 			}
 
