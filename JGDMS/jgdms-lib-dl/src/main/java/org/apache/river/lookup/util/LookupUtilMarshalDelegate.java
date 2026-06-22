@@ -15,7 +15,7 @@
  *  limitations under the License.
  */
 
-package org.apache.river.norm;
+package org.apache.river.lookup.util;
 
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -24,26 +24,24 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.MarshalDelegate;
 
 /**
- * {@link MarshalDelegate} for {@code org.apache.river.norm} (the norm service's
- * package-private {@code @AtomicSerial} state classes).
+ * {@link MarshalDelegate} for {@code org.apache.river.lookup.util}.
  *
- * <p>Serves all three {@code @AtomicSerial} classes of this package -- all
- * package-private, concrete, and stateful (none {@code @Stateless}) -- by
- * dispatching their {@code serialForm}/{@code serialize}/{@code (GetArg)} members
- * in-package, with no reflection.  {@code CreateLeaseSet}'s {@code (GetArg)}
- * constructor is {@code protected}; it is reachable here because the delegate is
- * in the same package.
+ * <p>This package mixes public and non-public {@code @AtomicSerial} classes, so
+ * the delegate serves <em>only</em> the one that needs in-package dispatch:
+ * {@code ConsistentMapEntry}, a package-private final class.  The public
+ * {@code ConsistentSet} (public class, public {@code (GetArg)} constructor) needs
+ * no delegate and is reached by ordinary reflection; {@code ConsistentMap} is a
+ * public class still missing its {@code serialForm}/{@code serialize} contract and
+ * is likewise left to the reflective path until it is brought up to spec.
  *
  * @see MarshalDelegate
  */
-public final class NormMarshalDelegate implements MarshalDelegate {
+public final class LookupUtilMarshalDelegate implements MarshalDelegate {
 
     /** Public no-arg constructor required by the service-provider discovery. */
-    public NormMarshalDelegate() { }
+    public LookupUtilMarshalDelegate() { }
 
-    private static final Class<?>[] SERVED = {
-        ClientLeaseWrapper.class, CreateLeaseSet.class, LeaseSet.class
-    };
+    private static final Class<?>[] SERVED = { ConsistentMapEntry.class };
 
     @Override
     public Class<?>[] servedClasses() {
@@ -52,30 +50,26 @@ public final class NormMarshalDelegate implements MarshalDelegate {
 
     @Override
     public SerialForm[] serialForm(Class<?> c) {
-        if (c == ClientLeaseWrapper.class) return ClientLeaseWrapper.serialForm();
-        if (c == CreateLeaseSet.class)     return CreateLeaseSet.serialForm();
-        if (c == LeaseSet.class)           return LeaseSet.serialForm();
+        if (c == ConsistentMapEntry.class) return ConsistentMapEntry.serialForm();
         throw new IllegalArgumentException(unhandled(c));
     }
 
     @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void serialize(Class<?> c, PutArg arg, Object o) throws IOException {
-        if (c == ClientLeaseWrapper.class) { ClientLeaseWrapper.serialize(arg, (ClientLeaseWrapper) o); return; }
-        if (c == CreateLeaseSet.class)     { CreateLeaseSet.serialize(arg, (CreateLeaseSet) o); return; }
-        if (c == LeaseSet.class)           { LeaseSet.serialize(arg, (LeaseSet) o); return; }
+        if (c == ConsistentMapEntry.class) { ConsistentMapEntry.serialize(arg, (ConsistentMapEntry) o); return; }
         throw new IllegalArgumentException(unhandled(c));
     }
 
     @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public Object create(Class<?> c, GetArg arg) throws IOException, ClassNotFoundException {
-        if (c == ClientLeaseWrapper.class) return new ClientLeaseWrapper(arg);
-        if (c == CreateLeaseSet.class)     return new CreateLeaseSet(arg);
-        if (c == LeaseSet.class)           return new LeaseSet(arg);
+        if (c == ConsistentMapEntry.class) return new ConsistentMapEntry(arg);
         throw new IllegalArgumentException(unhandled(c));
     }
 
     private static String unhandled(Class<?> c) {
-        return "NormMarshalDelegate does not serve " + c.getName()
-                + "; it serves only the @AtomicSerial classes of org.apache.river.norm";
+        return "LookupUtilMarshalDelegate does not serve " + c.getName()
+                + "; it serves only org.apache.river.lookup.util.ConsistentMapEntry";
     }
 }

@@ -38,11 +38,12 @@ import org.apache.river.resource.ServiceConfigurationError;
  * (package&nbsp;name, defining class loader).  In JGDMS the same package may be
  * present under several loaders (per-codebase / preferred loaders) and, under
  * OSGi, several bundles.  Selecting the delegate whose
- * {@code getClass().getClassLoader()} equals the target's defining loader — and
- * whose {@link MarshalDelegate#packageName()} equals the target's package, since
- * one loader may host delegates for several packages — gives, in one predicate:
- * correct package-private access (same runtime package), the correct
- * <em>version</em> (same defining loader), and robustness to parent-loader
+ * {@code getClass().getClassLoader()} equals the target's defining loader and
+ * that {@linkplain MarshalDelegate#serves(Class) serves} the target class gives,
+ * in one predicate: correct package-private access (same runtime package), the
+ * correct <em>version</em> (same defining loader), per-class scoping (a delegate
+ * serves only the classes it lists, so fully-public or incomplete classes in the
+ * same package fall back to reflection), and robustness to parent-loader
  * visibility.  It is also necessary because the OSGi path of
  * {@link Service} ignores the {@code ClassLoader} argument and returns
  * registry-wide providers; the post-filter here is what re-imposes loader
@@ -86,6 +87,11 @@ public final class MarshalDelegates {
 
         @Override
         public Object create(Class<?> c, AtomicSerial.GetArg arg) {
+            throw new AssertionError("NONE MarshalDelegate must never be invoked");
+        }
+
+        @Override
+        public Class<?>[] servedClasses() {
             throw new AssertionError("NONE MarshalDelegate must never be invoked");
         }
     };
@@ -191,18 +197,18 @@ public final class MarshalDelegates {
      */
     private static MarshalDelegate resolve(Class<?> c) {
         final ClassLoader loader = c.getClassLoader();
-        final String pkg = c.getPackageName();
         try {
             Iterator<MarshalDelegate> it =
                     Service.providers(MarshalDelegate.class, loader);
             while (it.hasNext()) {
                 MarshalDelegate d = it.next();
-                // Match BOTH the defining loader (same runtime package, hence
-                // correct package-private access and correct version) AND the
-                // package name, so a single loader hosting delegates for several
-                // packages routes each class to the delegate for ITS own package.
-                if (d.getClass().getClassLoader() == loader
-                        && pkg.equals(d.packageName())) {
+                // Defining-loader filter (only a co-loaded delegate can serve c,
+                // and co-loading gives correct package-private access and the
+                // correct version) plus the delegate's own served-class set.
+                // Classes no delegate serves -- fully-public classes, or classes
+                // in not-yet-delegated or mixed packages -- resolve to null and
+                // use the reflective path.
+                if (d.getClass().getClassLoader() == loader && d.serves(c)) {
                     return d;
                 }
             }

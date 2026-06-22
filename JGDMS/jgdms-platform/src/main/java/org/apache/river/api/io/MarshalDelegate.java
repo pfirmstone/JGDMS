@@ -127,6 +127,40 @@ public interface MarshalDelegate {
             throws IOException, ClassNotFoundException;
 
     /**
+     * The concrete {@code @AtomicSerial} classes this delegate serves: the classes
+     * of its package whose marshalling it handles in-package.  A class that needs
+     * no {@code setAccessible} -- a fully public {@code @AtomicSerial} class with a
+     * public {@code (GetArg)} constructor -- need not be served; the engine reaches
+     * it by ordinary reflection.  {@link MarshalDelegates#delegateFor(Class)}
+     * returns this delegate only for the classes it {@linkplain #serves(Class)
+     * serves}, so unserved classes -- including incomplete ones that share the
+     * package -- fall back to the reflective path rather than being forced here.
+     *
+     * <p>The returned array must not be modified.
+     *
+     * @return the served classes (never {@code null})
+     */
+    Class<?>[] servedClasses();
+
+    /**
+     * Whether this delegate serves {@code c}.  The default scans
+     * {@link #servedClasses()} by identity ({@code ==}); since a delegate's served
+     * classes are co-loaded with it, identity matching also enforces that {@code c}
+     * is in the delegate's own runtime package.
+     *
+     * @param c the candidate class
+     * @return {@code true} if this delegate handles {@code c}
+     */
+    default boolean serves(Class<?> c) {
+        for (Class<?> s : servedClasses()) {
+            if (s == c) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * The package this delegate serves.  Defaults to the delegate's own package,
      * which (by the co-loaded-delegate rule) is also the runtime package of the
      * classes it serves.

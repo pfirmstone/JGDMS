@@ -57,6 +57,19 @@ public final class FiddlerProxyMarshalDelegate implements MarshalDelegate {
     /** Public no-arg constructor required by the service-provider discovery. */
     public FiddlerProxyMarshalDelegate() { }
 
+    private static final Class<?>[] SERVED = {
+        FiddlerProxy.class, ConstrainableFiddlerProxy.class,
+        FiddlerAdminProxy.class, ConstrainableFiddlerAdminProxy.class,
+        FiddlerRegistration.class, ConstrainableFiddlerRegistration.class,
+        FiddlerLease.class, ConstrainableFiddlerLease.class,
+        FiddlerRenewResults.class, ProxyVerifier.class
+    };
+
+    @Override
+    public Class<?>[] servedClasses() {
+        return SERVED.clone();
+    }
+
     @Override
     public SerialForm[] serialForm(Class<?> c) {
         if (c == FiddlerProxy.class)                     return FiddlerProxy.serialForm();

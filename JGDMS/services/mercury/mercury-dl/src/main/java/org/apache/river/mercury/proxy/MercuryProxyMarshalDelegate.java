@@ -48,6 +48,19 @@ public final class MercuryProxyMarshalDelegate implements MarshalDelegate {
     /** Public no-arg constructor required by the service-provider discovery. */
     public MercuryProxyMarshalDelegate() { }
 
+    private static final Class<?>[] SERVED = {
+        ListenerProxy.class, ConstrainableListenerProxy.class,
+        MailboxAdminProxy.class, ConstrainableMailboxAdminProxy.class,
+        MailboxProxy.class, ConstrainableMailboxProxy.class,
+        ProxyVerifier.class, Registration.class, ConstrainableRegistration.class,
+        RemoteEventDataCursor.class, RemoteEventData.class, RemoteEventIteratorData.class
+    };
+
+    @Override
+    public Class<?>[] servedClasses() {
+        return SERVED.clone();
+    }
+
     @Override
     public SerialForm[] serialForm(Class<?> c) {
         if (c == ListenerProxy.class)               return ListenerProxy.serialForm();

@@ -56,6 +56,18 @@ public final class NormProxyMarshalDelegate implements MarshalDelegate {
     /** Public no-arg constructor required by the service-provider discovery. */
     public NormProxyMarshalDelegate() { }
 
+    private static final Class<?>[] SERVED = {
+        AbstractProxy.class, SetProxy.class, ConstrainableSetProxy.class,
+        GetLeasesResult.class, ProxyVerifier.class,
+        AdminProxy.class, ConstrainableAdminProxy.class,
+        NormProxy.class, ConstrainableNormProxy.class
+    };
+
+    @Override
+    public Class<?>[] servedClasses() {
+        return SERVED.clone();
+    }
+
     @Override
     public SerialForm[] serialForm(Class<?> c) {
         if (c == AbstractProxy.class)         return AbstractProxy.serialForm();
