@@ -53,6 +53,7 @@
   </contributors>
 
   <modules>
+    <module>jgdms-marshal-delegate-processor</module>
     <module>jgdms-collections</module>
     <module>jgdms-pref-class-loader</module>
     <module>jgdms-activation-parameters</module>
@@ -358,7 +359,17 @@
           <maxmem>1024m</maxmem>
           <compilerArgs>
             <arg>-Xlint:-options</arg>
+            <!-- @AtomicSerial contract gate: warns on incomplete classes / private nested
+                 classes / private (GetArg) ctors. validateOnly = check only, generate nothing. -->
+            <arg>-Amarshaldelegate.validateOnly=true</arg>
           </compilerArgs>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>au.net.zeus.jgdms.tools</groupId>
+              <artifactId>marshal-delegate-processor</artifactId>
+              <version>3.1.1-SNAPSHOT</version>
+            </path>
+          </annotationProcessorPaths>
         </configuration>
       </plugin>
       <plugin>

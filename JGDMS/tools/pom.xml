@@ -43,6 +43,5 @@
         <module>security-policy-debug</module>
         <module>policy-condenser</module>
         <module>preferred-list-analyzer</module>
-        <module>marshal-delegate-processor</module>
     </modules>
 </project>

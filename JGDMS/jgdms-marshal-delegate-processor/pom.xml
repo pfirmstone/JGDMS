@@ -19,8 +19,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>au.net.zeus.jgdms</groupId>
-        <artifactId>tools</artifactId>
+        <groupId>au.net.zeus</groupId>
+        <artifactId>jgdms</artifactId>
         <version>3.1.1-SNAPSHOT</version>
     </parent>
 
@@ -44,6 +44,8 @@
                     <release>21</release>
                     <!-- this module IS an annotation processor; do not run processors on it -->
                     <proc>none</proc>
+                    <!-- do not inherit the parent's processor path: it points back at this module -->
+                    <annotationProcessorPaths combine.self="override"/>
                 </configuration>
             </plugin>
         </plugins>
