@@ -34,6 +34,8 @@ import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.landlord.AbstractLeasedResource;
 
@@ -116,18 +118,38 @@ class ServiceRegistration extends AbstractLeasedResource
     
     private transient volatile Condition iteratorCondition;
 
-    public ServiceRegistration(GetArg arg) throws IOException, ClassNotFoundException{
-	this(arg.get("cookie", null, Uuid.class),
-	    arg.get("eventIterator", null, EventLogIterator.class),
-	    arg.get("iteratorCondition", null, Condition.class),
-	    Valid.copyMap(
-		arg.get("unknownEvents", null, Map.class),
-		new ConcurrentHashMap<EventID,UnknownEventException>(),
-		EventID.class, 
-		UnknownEventException.class
-	    ),
-	    arg.get("marshalledEventType", null, MarshalledObject.class)
-	);
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("cookie", Uuid.class),
+            new SerialForm("expiration", long.class),
+            new SerialForm("marshalledEventTarget", MarshalledObject.class),
+            new SerialForm("unknownEvents", Map.class),
+            new SerialForm("remoteEventIteratorID", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ServiceRegistration o) throws IOException {
+        arg.put("cookie", o.cookie);
+        arg.put("expiration", o.expiration);
+        arg.put("marshalledEventTarget", o.marshalledEventTarget);
+        arg.put("unknownEvents", o.unknownEvents);
+        arg.put("remoteEventIteratorID", o.remoteEventIteratorID);
+        arg.writeArgs();
+    }
+
+    public ServiceRegistration(GetArg arg) throws IOException, ClassNotFoundException {
+        this(arg.get("cookie", null, Uuid.class),
+             null, // eventIterator: transient, rebuilt later via setIterator()
+             null, // iteratorCondition: transient, set later via setCondition()
+             Valid.copyMap(
+                 arg.get("unknownEvents", null, Map.class),
+                 new ConcurrentHashMap<EventID,UnknownEventException>(),
+                 EventID.class,
+                 UnknownEventException.class
+             ),
+             arg.get("marshalledEventTarget", null, MarshalledObject.class));
+        this.expiration = arg.get("expiration", 0L);
+        this.remoteEventIteratorID = arg.get("remoteEventIteratorID", null, Uuid.class);
     }
 
     /** Convenience constructor */
