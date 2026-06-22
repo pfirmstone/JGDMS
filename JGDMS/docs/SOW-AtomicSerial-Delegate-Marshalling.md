@@ -285,12 +285,67 @@ and contract validation are generated/enforced; nothing touches a field reflecti
 
 - ~~Per-level vs flat wire framing~~ — **resolved by §6**: follow DER's separable, content-addressed
   per-level schema chain (`SchemaGenerator`/`SchemaChain`/`schemaDigest`); the delegate feeds it.
-- Reconcile `MarshalDelegate` discovery with the two existing patterns — `Service.providers` (§4)
-  and `DerReplacer`'s `META-INF/jgdms/der-serializers` (§6) — into one convention rather than a
-  third.
+- ~~Reconcile delegate discovery~~ — **resolved: use `org.apache.river.resource.Service`** as the
+  single convention (`Service.providers(MarshalDelegate.class, c.getClassLoader())`, §4); do not add
+  a new `META-INF/jgdms/*` listing. `Service` instantiates providers (which `MarshalDelegate` wants)
+  and already bridges OSGi. `DerReplacer`'s by-name listing serves a different shape (a
+  type→serializer-*class* substitution map, not instantiated providers), so it stays as-is;
+  re-expressing it over `Service` is an optional follow-on, not part of this design.
 - Hand-written vs processor-generated delegates (processor preferred once available).
 - Whether to ship the `Trees`-based contract checker (javac-coupled) or stop at declaration-level
   checks.
+
+## 11. Phase A implementation plan (agent-ready)
+
+**Goal:** introduce `MarshalDelegate` + `Service`-based resolution + per-package delegates for the
+already-migrated packages, route **both codecs** through it, and retire the `setAccessible` stopgap
+for non-public `@AtomicSerial` classes. Bounded and verifiable against the green qa tests. All design
+forks are decided: wire framing = DER schema chain (§6); discovery = `Service` (§4/§10).
+
+**A1 — SPI + resolver** (`jgdms-platform`, `org.apache.river.api.io` or a new `…io.delegate`):
+- `public interface MarshalDelegate` as in §3 — `serialForm(Class)`, `serialize(Class, PutArg,
+  Object)`, `create(Class, GetArg)`, `default String packageName()`.
+- `final class MarshalDelegates` resolver: `delegateFor(Class c)` =
+  `Service.providers(MarshalDelegate.class, c.getClassLoader())`, select the provider with
+  `d.getClass().getClassLoader() == c.getClassLoader()` (§4 predicate), cache in a
+  `ClassValue<MarshalDelegate>` (loader-correct, GC-friendly). Returns `null` when none (caller
+  falls back / the class is public).
+
+**A2 — JOSS dispatch** (`jgdms-platform`):
+- `ObjOutputStream.fields()` (serialForm, ~L381) and the serialize site (~L1234): when
+  `delegateFor(clz) != null`, call `delegate.serialForm(clz)` / `delegate.serialize(clz, arg, o)`
+  instead of `getDeclaredMethod(...).invoke`. Keep the reflective path (with the committed
+  `setAccessible`/`getDeclaredMethod`) as fallback.
+- Read construction: route `AtomicExternal.Factory.instantiate` (the `getDeclaredConstructor`+
+  `setAccessible` ctor path) through `delegate.create(clz, getArg)` when a delegate exists.
+
+**A3 — DER dispatch** (`jgdms-der`):
+- `SchemaGenerator.invokeSerialForm` → `delegate.serialForm(clz)`.
+- `ObjectCodec`: the encode `serialize` invocation → `delegate.serialize`; `findGetArgConstructor`/
+  construct → `delegate.create`. Preserve the per-level StackWalker dispatch in `DerGetArg` (the
+  delegate is invoked per class level, exactly as the current per-level reflection is).
+
+**A4 — Per-package delegates** for the #12-Phase-0 packages that contain **non-public**
+`@AtomicSerial` classes (the ones that needed `setAccessible`): `org.apache.river.norm.proxy`
+(`AbstractProxy` + the `@Stateless` subclasses) and the packages with package-private `Constrainable*`
+nested proxies across mercury/fiddler/outrigger/mahalo. Hand-written for Phase A (direct dispatch,
+§3); one `META-INF/services/…MarshalDelegate` entry per jar. Public `@AtomicSerial` classes need no
+delegate.
+
+**A5 — Retire the stopgap:** once delegates cover the non-public classes, disable the `setAccessible`
+fallback for delegated packages (leave it only for any not-yet-delegated package, or remove it and
+make a delegate mandatory for non-public `@AtomicSerial`).
+
+**Verification:** rebuild `jgdms-platform`, `jgdms-der`, and the affected `-dl`/service modules
+(Zulu 21), restage into `JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib`; re-run the green qa tests —
+`mahalo PrepareAndCommitExceptionTest`, `norm renewalservice/EqualsTest`,
+`mercury MercuryProxyEqualityTest` (`ant -Drun.tests=… policy-update-tests` from `qa/`, DirtyChai
+JDK) — plus the platform + der unit suites. The run must stay green **with the `setAccessible`
+fallback disabled for the delegated packages**, proving the delegate path carries it, not the
+fallback.
+
+**Out of scope (Phase B):** the annotation processor + `Trees` contract checker (generates delegates
++ registration + compile-time checks); optionally re-expressing `DerReplacer` over `Service`.
 
 ## References
 
