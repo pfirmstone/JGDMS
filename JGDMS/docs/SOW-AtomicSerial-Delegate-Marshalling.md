@@ -21,7 +21,7 @@ Technology*, SMLI TR-2006-149 (`jgdms-platform/.../net/jini/loader/smli_tr-2006-
 - Resolution is correct under JGDMS's real class-loading: codebase/preferred loaders,
   per-codebase version coexistence, and OSGi bundles.
 
-**Non-goals (things we deliberately do NOT do — see §6)**
+**Non-goals (things we deliberately do NOT do — see §7)**
 - No reflective field read or write; no field-injection deserialization (Java serialization's
   core mistake).
 - No `opens` of any package; no broad `suppressAccessChecks` grant under POLP.
@@ -173,7 +173,43 @@ In JGDMS, coexistence is **classloader-based** (codebase/preferred loaders) and,
 
 ---
 
-## 6. Non-goals, grounded in TR-2006-149 and the failed bundle provider
+## 6. DER alignment — the primary wire format
+
+The DER codec (`jgdms-der`, STD-006/008) is the wire format these decisions must serve first;
+JOSS is legacy. DER's model resolves and reframes several points above:
+
+- **Schema is first-class and separable.** `serialForm()` feeds `SchemaGenerator` → one
+  `AtomicSerialSchemaRecord` per `@AtomicSerial` level → `SchemaChain` links them root-to-leaf by
+  **parent SHA-256 digest** (a Merkle chain; the leaf `schemaDigest` commits the whole hierarchy).
+  The schema travels separately from the payload (`MarshalledInstance`'s `schemaBytes` /
+  `schemaDigest` / `payloadBytes`) and is resolvable/cacheable via `SchemaRegistry` /
+  `SchemaResolver`. This **answers the §10 wire-framing question**: not "inline per-level (JOSS)"
+  vs "flat", but DER's separable, content-addressed, per-level digest chain. The delegate's
+  `serialForm`/`serialize`/`(GetArg)` feed this; the framing is DER's.
+- **`schemaDigest` is the wire-schema version; the defining loader is the code version.**
+  Complementary: the defining loader (§3.1/§5) selects the right *code* (hence the right
+  `serialForm`/ctor); the `schemaDigest` on the wire identifies which *schema* version the sender
+  used, resolved via the registry. Cross-version interop rides on `GetArg`-by-name-with-defaults
+  over a resolved schema.
+- **The delegate must be codec-agnostic.** DER reflects the same three members with `setAccessible`
+  — `SchemaGenerator.invokeSerialForm` (serialForm → schema) and `ObjectCodec` /
+  `findGetArgConstructor` (`serialize` on encode, `(GetArg)` ctor on decode, with StackWalker
+  per-level dispatch in `DerGetArg`). So `MarshalDelegate` must be the dispatch point for **both**
+  the JOSS engine *and* the DER codec; each replaces its reflective sites with delegate calls.
+- **`DerReplacer` is the existing precedent for the SPI.** A non-`@AtomicSerial` type can be
+  substituted by a public `@Serializer(replaceObType=X)` class (itself `@AtomicSerial`), enumerated
+  via the classpath resource **`META-INF/jgdms/der-serializers`** (loaded by name), chosen
+  explicitly for **"no visibility or permission obstacle."** That is the same discovery style the
+  delegate needs; `MarshalDelegate` discovery should reconcile with it and with `Service` (§4)
+  rather than add a third pattern. `DerReplacer` (substitution of non-`@AtomicSerial` types) and
+  `MarshalDelegate` (in-package dispatch for `@AtomicSerial` types) are complementary.
+- **Interface/abstract field = polymorphic slot.** DER encodes an interface/abstract-typed field as
+  the marker `"@AtomicSerial"`; the concrete runtime class travels in the embedded schema, the
+  declared type only gates the ctor's assignability check (how a live `BasicObjectEndpoint` whose
+  `ep` is the `Endpoint` interface travels the wire). The delegate dispatches on the **concrete
+  runtime class's** defining loader, consistent with this.
+
+## 7. Non-goals, grounded in TR-2006-149 and the failed bundle provider
 
 The design must not re-introduce the documented failure modes:
 
@@ -203,7 +239,7 @@ The design must not re-introduce the documented failure modes:
 
 ---
 
-## 7. Annotation processor — minimise developer boilerplate
+## 8. Annotation processor — minimise developer boilerplate
 
 An annotation processor keyed on `@AtomicSerial` can generate the **mechanical, semantics-free**
 layer, and *check* (not write) the contract:
@@ -227,7 +263,7 @@ and contract validation are generated/enforced; nothing touches a field reflecti
 
 ---
 
-## 8. Relationship to current code / migration path
+## 9. Relationship to current code / migration path
 
 - The SOW #12 Phase 0 migration added the three contract members to the production `@AtomicSerial`
   classes (hand-written; this is the per-class contract that stays).
@@ -245,10 +281,13 @@ and contract validation are generated/enforced; nothing touches a field reflecti
 
 ---
 
-## 9. Open decisions
+## 10. Open decisions
 
-- Per-level wire framing (current: per-class descriptors on the wire) vs a flatter name-keyed
-  schema — kept as-is unless a deliberate format change is undertaken.
+- ~~Per-level vs flat wire framing~~ — **resolved by §6**: follow DER's separable, content-addressed
+  per-level schema chain (`SchemaGenerator`/`SchemaChain`/`schemaDigest`); the delegate feeds it.
+- Reconcile `MarshalDelegate` discovery with the two existing patterns — `Service.providers` (§4)
+  and `DerReplacer`'s `META-INF/jgdms/der-serializers` (§6) — into one convention rather than a
+  third.
 - Hand-written vs processor-generated delegates (processor preferred once available).
 - Whether to ship the `Trees`-based contract checker (javac-coupled) or stop at declaration-level
   checks.
@@ -268,3 +307,9 @@ and contract validation are generated/enforced; nothing touches a field reflecti
   `providers(Class, ClassLoader)` + the built-in OSGi bridge (`osgi` flag → `OSGiServiceIterator`).
   This is the discovery mechanism for `MarshalDelegate` (§4); its standing TODO is to become the
   indirection layer over `java.util.ServiceLoader` + OSGi, which this design relies on.
+- `jgdms-der` (STD-006/008) — the primary wire format (§6): `schema/{SchemaGenerator,
+  AtomicSerialSchemaRecord, AtomicSerialFieldDef, SchemaChain}` (per-level digest-chained schema),
+  `registry/{SchemaRegistry, SchemaResolver}`, `object/{ObjectCodec, DerGetArg, DerPutArg}`
+  (the codec's reflective `serialForm`/`serialize`/`(GetArg)` sites the delegate must serve), and
+  `serial/DerReplacer` + `@Serializer(replaceObType=…)` enumerated via
+  `META-INF/jgdms/der-serializers` (the existing "no visibility/permission obstacle" SPI precedent).
