@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -59,13 +60,13 @@ class EventID implements Serializable {
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
             new SerialForm("id", long.class),
-            new SerialForm("source", MarshalledObject.class)
+            new SerialForm("source", MarshalledInstance.class)
         };
     }
 
     public static void serialize(PutArg arg, EventID o) throws IOException {
         arg.put("id", o.id);
-        arg.put("source", new MarshalledInstance(o.source).convertToMarshalledObject());
+        arg.put("source", new AtomicMarshalledInstance(o.source));
         arg.writeArgs();
     }
 
@@ -79,12 +80,12 @@ class EventID implements Serializable {
      * source null rather than failing the whole deserialization).
      */
     private static Object readSource(GetArg arg) throws IOException, ClassNotFoundException {
-        MarshalledObject mo = arg.get("source", null, MarshalledObject.class);
-        if (mo == null) {
+        MarshalledInstance mi = arg.get("source", null, MarshalledInstance.class);
+        if (mi == null) {
             return null;
         }
         try {
-            return new MarshalledInstance(mo).get(false);
+            return mi.get(false);
         } catch (Throwable e) {
             if (e instanceof Error
                     && !(e instanceof LinkageError
