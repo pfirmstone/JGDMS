@@ -723,7 +723,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     /** A service item registration record. */
     @AtomicSerial
-    private final static class SvcReg implements Comparable, Serializable {
+    final static class SvcReg implements Comparable, Serializable {
 
 	private static final long serialVersionUID = 2L;
 
@@ -813,7 +813,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     /** An event registration record. */
     @AtomicSerial
-    private final static class EventReg implements Comparable, Serializable {
+    final static class EventReg implements Comparable, Serializable {
 
 	private static final long serialVersionUID = 2L;
 
@@ -866,12 +866,37 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 */
 	transient boolean newNotify;
 	
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("eventID", long.class),
+		new SerialForm("leaseID", Uuid.class),
+		new SerialForm("tmpl", Template.class),
+		new SerialForm("transitions", int.class),
+		new SerialForm("seqNo", long.class),
+		new SerialForm("handback", Object.class),
+		new SerialForm("leaseExpiration", long.class),
+		new SerialForm("listener", MarshalledInstance.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, EventReg o) throws IOException {
+	    arg.put("eventID", o.eventID);
+	    arg.put("leaseID", o.leaseID);
+	    arg.put("tmpl", o.tmpl);
+	    arg.put("transitions", o.transitions);
+	    arg.put("seqNo", o.seqNo);
+	    arg.put("handback", o.handback);
+	    arg.put("leaseExpiration", o.leaseExpiration);
+	    arg.put("listener", o.listener == null ? null : new AtomicMarshalledInstance(o.listener));
+	    arg.writeArgs();
+	}
+
 	public EventReg(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg.get("eventID", 0L),
 		    arg.get("leaseID", null, Uuid.class),
 		    arg.get("tmpl", null, Template.class),
 		    arg.get("transitions", 0),
-		    ((RO)arg.getReader()).listener,
+		    readListener(arg),
 		    arg.get("handback", null),
 		    arg.get("leaseExpiration", 0L),
 		    true
@@ -879,38 +904,20 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    seqNo = arg.get("seqNo", 0L);
 	}
 	
-	@ReadInput
-	static ReadObject getReader(){
-	    return new RO();
-	}
-	
-	private static class RO implements ReadObject {
-	    
-	    RemoteEventListener listener;
-
-	    @Override
-	    public void read(AtomicObjectInput input) throws IOException, ClassNotFoundException {
-		
-		MarshalledInstance mi = input.readObject(MarshalledInstance.class);
-		try {
-		    listener = (RemoteEventListener) mi.get(false);
-		} catch (Throwable e) {
-		    if (e instanceof Error &&
-			ThrowableConstants.retryable(e) ==
-			    ThrowableConstants.BAD_OBJECT)
-		    {
-			throw (Error) e;
-		    }
-		    EVENT_LOGGER.log(Level.WARNING,
-			       "failed to recover event listener", e);
+	private static RemoteEventListener readListener(GetArg arg) throws IOException, ClassNotFoundException {
+	    MarshalledInstance mi = arg.get("listener", null, MarshalledInstance.class);
+	    if (mi == null) return null;
+	    try {
+		return (RemoteEventListener) mi.get(false);
+	    } catch (Throwable e) {
+		if (e instanceof Error &&
+		    ThrowableConstants.retryable(e) == ThrowableConstants.BAD_OBJECT)
+		{
+		    throw (Error) e;
 		}
+		EVENT_LOGGER.log(Level.WARNING, "failed to recover event listener", e);
+		return null;
 	    }
-
-            @Override
-            public void read(ObjectInput input) throws IOException, ClassNotFoundException {
-                throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
-            }
-	    
 	}
 	
 
