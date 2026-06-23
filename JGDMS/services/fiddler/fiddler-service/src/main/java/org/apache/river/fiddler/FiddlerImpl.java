@@ -100,11 +100,10 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicMarshalledInstance;
-import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.util.Startable;
 import org.apache.river.config.Config;
 import org.apache.river.constants.ThrowableConstants;
@@ -649,7 +648,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
      *  registration.
      */
     @AtomicSerial
-    private final static class RegistrationInfo
+    static final class RegistrationInfo
                                           implements Comparable, Serializable
     {
         private static final long serialVersionUID = 2L;
@@ -734,6 +733,37 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
          */
          public transient RemoteEventListener listener;
          
+        public static SerialForm[] serialForm() {
+            return new SerialForm[]{
+                new SerialForm("registrationID", Uuid.class),
+                new SerialForm("discoveredRegsMap", Map.class),
+                new SerialForm("groups", Set.class),
+                new SerialForm("locators", Set.class),
+                new SerialForm("leaseID", Uuid.class),
+                new SerialForm("leaseExpiration", Long.TYPE),
+                new SerialForm("eventID", Long.TYPE),
+                new SerialForm("seqNum", Long.TYPE),
+                new SerialForm("handback", MarshalledObject.class),
+                new SerialForm("discardFlag", Boolean.TYPE),
+                new SerialForm("listener", MarshalledInstance.class)
+            };
+        }
+
+        public static void serialize(PutArg arg, RegistrationInfo r) throws IOException {
+            arg.put("registrationID", r.registrationID);
+            arg.put("discoveredRegsMap", r.discoveredRegsMap);
+            arg.put("groups", r.groups);
+            arg.put("locators", r.locators);
+            arg.put("leaseID", r.leaseID);
+            arg.put("leaseExpiration", r.leaseExpiration);
+            arg.put("eventID", r.eventID);
+            arg.put("seqNum", r.seqNum);
+            arg.put("handback", r.handback);
+            arg.put("discardFlag", r.discardFlag);
+            arg.put("listener", r.listener == null ? null : new AtomicMarshalledInstance(r.listener));
+            arg.writeArgs();
+        }
+
 	 @SuppressWarnings("unchecked")
 	 private static RemoteEventListener check(GetArg arg) throws IOException, ClassNotFoundException {
 	    Object registrationID = arg.get("registrationID", null, Object.class);
@@ -769,7 +799,21 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
 		throw new InvalidObjectException(
 		    "handback, if non null, must be an instance of MarshalledObject");
 	    arg.get("discardFlag", false); // Checks existance
-	    return ((RO)arg.getReader()).listener;
+	    // listener is a named MarshalledInstance field (was transient + block data via @ReadInput);
+	    // unmarshal it here, tolerating recovery failure as the legacy readObject/RO did.
+	    MarshalledInstance mi = arg.get("listener", null, MarshalledInstance.class);
+	    RemoteEventListener l = null;
+	    if (mi != null) {
+		try {
+		    l = (RemoteEventListener) mi.get(false);
+		} catch (Throwable e) {
+		    problemLogger.log(Level.INFO, "problem recovering listener "
+				      +"for recovered registration", e);
+		    if ((e instanceof Error) && (ThrowableConstants.retryable(e)
+						 == ThrowableConstants.BAD_OBJECT)) throw (Error) e;
+		}
+	    }
+	    return l;
 	 }
 	 
 	 RegistrationInfo(GetArg arg) throws IOException, ClassNotFoundException {
@@ -948,37 +992,6 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
             }
         }//end readObject
         
-	@ReadInput
-	private static ReadObject getRO(){
-	    return new RO();
-	}
-	
-	private static class RO implements ReadObject {
-	    
-	    RemoteEventListener listener;
-
-	    @Override
-	    public void read(AtomicObjectInput stream) throws IOException, ClassNotFoundException { 
-		MarshalledObject mo = stream.readObject(MarshalledObject.class);
-		try {
-		    listener = new AtomicMarshalledInstance(mo).get(false, RemoteEventListener.class);
-		} catch (Throwable e) {
-		    problemLogger.log(Level.INFO, "problem recovering listener "
-				      +"for recovered registration", e);
-		    if((e instanceof Error) && (ThrowableConstants.retryable(e)
-						 == ThrowableConstants.BAD_OBJECT))
-		    {
-		       throw (Error)e;
-		    }//endif
-		}
-	    }
-
-            @Override
-            public void read(ObjectInput input) throws IOException, ClassNotFoundException {
-                throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
-            }
-	    
-	}
         
         /**
          * Must be called immediately after de-serialization to prepare
