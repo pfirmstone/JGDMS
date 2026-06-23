@@ -53,6 +53,8 @@ import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.net.Uri;
 import org.apache.river.api.util.Startable;
@@ -244,6 +246,25 @@ public class ActivateWrapper implements Remote, Serializable {
 	 */
         private String[] configurationArguments;
 	
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("className", String.class),
+		new SerialForm("importLocation", String[].class),
+		new SerialForm("exportLocation", String[].class),
+		new SerialForm("policy", String.class),
+		new SerialForm("configurationArguments", String[].class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, ActivateDesc d) throws IOException {
+	    arg.put("className", d.className);
+	    arg.put("importLocation", d.importLocation);
+	    arg.put("exportLocation", d.exportLocation);
+	    arg.put("policy", d.policy);
+	    arg.put("configurationArguments", d.configurationArguments);
+	    arg.writeArgs();
+	}
+
 	public ActivateDesc(GetArg arg) throws IOException, ClassNotFoundException
 	{
 	    this(arg.get("className", null, String.class),

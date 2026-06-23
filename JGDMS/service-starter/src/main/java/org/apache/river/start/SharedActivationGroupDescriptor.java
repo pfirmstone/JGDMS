@@ -45,6 +45,8 @@ import net.jini.config.Configuration;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -190,6 +192,48 @@ public class SharedActivationGroupDescriptor
 	}
     }
     
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("policy", String.class),
+            new SerialForm("classpath", String.class),
+            new SerialForm("log", String.class),
+            new SerialForm("serverCommand", String.class),
+            new SerialForm("serverOptions", String[].class),
+            new SerialForm("serverProperties", String[].class),
+            new SerialForm("host", String.class),
+            new SerialForm("port", Integer.TYPE)
+        };
+    }
+
+    public static void serialize(PutArg arg, SharedActivationGroupDescriptor d) throws IOException {
+        arg.put("policy", d.policy);
+        arg.put("classpath", d.classpath);
+        arg.put("log", d.log);
+        arg.put("serverCommand", d.serverCommand);
+        arg.put("serverOptions", d.serverOptions);
+        arg.put("serverProperties", propertiesToArray(d.serverProperties));
+        arg.put("host", d.host);
+        arg.put("port", d.port);
+        arg.writeArgs();
+    }
+
+    /**
+     * Inverse of convertToProperties: flatten Properties to a deterministic
+     * (key-sorted) [key, value, ...] array so the atomic/DER wire form is stable
+     * (Properties/Hashtable iteration order is not).
+     */
+    private static String[] propertiesToArray(Properties p) {
+        if (p == null) return null;
+        String[] keys = p.stringPropertyNames().toArray(new String[0]);
+        Arrays.sort(keys);
+        String[] arr = new String[keys.length * 2];
+        for (int i = 0; i < keys.length; i++) {
+            arr[2 * i] = keys[i];
+            arr[2 * i + 1] = p.getProperty(keys[i]);
+        }
+        return arr;
+    }
+
     SharedActivationGroupDescriptor(GetArg arg) 
 	    throws IOException, ClassNotFoundException{
 	this(
