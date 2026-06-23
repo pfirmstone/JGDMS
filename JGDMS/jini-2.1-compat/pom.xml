@@ -91,19 +91,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <!-- Slimming cluster (com.sun.jini.* River 2.1 compat): @AtomicSerial classes
-                         here are not yet complete; stay on the validate-only gate (generation would
-                         emit non-compiling dispatch for an incomplete class). See parent pom.
-                         annotationProcessorPaths/release are inherited from the parent. -->
-                    <compilerArgs combine.self="override">
-                        <arg>-Xlint:-options</arg>
-                        <arg>-Amarshaldelegate.validateOnly=true</arg>
-                    </compilerArgs>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 </project>
