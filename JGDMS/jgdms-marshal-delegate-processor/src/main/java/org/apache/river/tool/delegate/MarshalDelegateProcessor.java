@@ -17,6 +17,7 @@
 
 package org.apache.river.tool.delegate;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -293,10 +294,31 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
     }
 
     private void writeServiceFile() {
+        // Merge, don't overwrite: a module may register a hand-written MarshalDelegate
+        // (e.g. MercuryProxyMarshalDelegate) in a committed META-INF/services file that
+        // the resources plugin has already copied to CLASS_OUTPUT. Preserve those entries
+        // and add the generated ones, so generation composes with hand-written delegates
+        // instead of clobbering their registration.
+        Set<String> entries = new LinkedHashSet<>();
+        try {
+            FileObject existing = filer.getResource(StandardLocation.CLASS_OUTPUT, "", SERVICE);
+            try (BufferedReader r = new BufferedReader(existing.openReader(true))) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    String e = line.trim();
+                    if (!e.isEmpty() && !e.startsWith("#")) {
+                        entries.add(e);
+                    }
+                }
+            }
+        } catch (IOException absent) {
+            // No committed service file in this module -- fine, generation provides all entries.
+        }
+        entries.addAll(generated);
         try {
             FileObject fo = filer.createResource(StandardLocation.CLASS_OUTPUT, "", SERVICE);
             try (PrintWriter pw = new PrintWriter(fo.openWriter())) {
-                for (String f : generated) {
+                for (String f : entries) {
                     pw.println(f);
                 }
             }

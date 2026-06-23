@@ -125,18 +125,6 @@
                         <encoding>UTF-8</encoding>
                         <meminitial>128m</meminitial>
                         <maxmem>1024m</maxmem>
-                        <!-- Generation mode for the platform: override (do not append to)
-                             the parent's compilerArgs to DROP -Amarshaldelegate.validateOnly,
-                             so the MarshalDelegateProcessor generates and registers a
-                             per-package MarshalDelegate for the platform's built-in
-                             @AtomicSerial serializer helpers (org.apache.river.api.io
-                             MapSerializer.Ent, ProxySerializer, etc.). Required for
-                             strict-mode marshalling without the setAccessible fallback.
-                             The annotationProcessorPaths (the processor itself) are still
-                             inherited from the parent. -->
-                        <compilerArgs combine.self="override">
-                            <arg>-Xlint:-options</arg>
-                        </compilerArgs>
                     </configuration>
             </plugin>
             <plugin>

@@ -359,9 +359,13 @@
           <maxmem>1024m</maxmem>
           <compilerArgs>
             <arg>-Xlint:-options</arg>
-            <!-- @AtomicSerial contract gate: warns on incomplete classes / private nested
-                 classes / private (GetArg) ctors. validateOnly = check only, generate nothing. -->
-            <arg>-Amarshaldelegate.validateOnly=true</arg>
+            <!-- @AtomicSerial MarshalDelegate processor: generation mode by default.
+                 Generates + registers a per-package MarshalDelegate for classes that need
+                 in-package dispatch, and validates the contract (warnings) for the rest.
+                 Modules whose @AtomicSerial classes are not yet complete (the slimming
+                 clusters: jgdms-activation, jini-2.1-compat, service-starter, phoenix-*)
+                 pin -Amarshaldelegate.validateOnly=true in their own pom to stay check-only
+                 (generation would emit non-compiling dispatch for an incomplete class). -->
           </compilerArgs>
           <annotationProcessorPaths>
             <path>

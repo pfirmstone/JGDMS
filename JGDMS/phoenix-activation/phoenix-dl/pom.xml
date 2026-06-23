@@ -67,6 +67,13 @@
                         <encoding>UTF-8</encoding>
                         <meminitial>128m</meminitial>
                         <maxmem>1024m</maxmem>
+                        <!-- Slimming cluster: @AtomicSerial classes here are not yet
+                             complete; stay on the validate-only gate (generation would emit
+                             non-compiling dispatch for an incomplete class). See parent pom. -->
+                        <compilerArgs combine.self="override">
+                            <arg>-Xlint:-options</arg>
+                            <arg>-Amarshaldelegate.validateOnly=true</arg>
+                        </compilerArgs>
                     </configuration>
             </plugin>
             <!-- pack200-normalize: stamp META-INF/CONTENT-HASH so the published
