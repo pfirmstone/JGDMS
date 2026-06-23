@@ -98,10 +98,10 @@ import net.jini.io.ObjectStreamContext;
  * to access to Object state for serialization and construction during deserialization,
  * without breaking Object encapsulation.
  * <p> 
- * AtomicSerial provides backward compatibility with 
- * Serializable classes that implement writeObject and write other Objects
- * or primitives to the stream when {@link ReadObject} and {@link ReadInput}
- * are implemented by the class.
+ * AtomicSerial provides backward compatibility with Serializable classes; a
+ * constructor that needs stream state (such as whether codebase integrity is
+ * being enforced) obtains it from the {@link GetArg#getObjectStreamContext()
+ * stream context} rather than by reading directly from the stream.
  * <p>
  * An {@link ObjectStreamField} represents a serializable field of an AtomicSerial class.
  * While serializable fields of a class can be retrieved from the {@link ObjectStreamClass},
@@ -163,8 +163,6 @@ import net.jini.io.ObjectStreamContext;
  * </code>
  * 
  * @author Peter Firmstone.
- * @see ReadObject
- * @see ReadInput
  * @see GetArg
  * @see PutArg
  */
@@ -180,41 +178,6 @@ public @interface AtomicSerial {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.TYPE)
     public @interface Stateless {}
-    /**
-     * ReadObject that can be used to read in data and Objects written
-     * to the stream by writeObject() methods.
-     * 
-     * @see  ReadInput
-     */
-    public interface ReadObject {
-
-        /**
-         * This method by default calls {@link ReadObject#read(java.io.ObjectInput)} ,
-         * it should be overridden, when the client needs to ensure the type
-         * correctness of objects read from the stream.  Serialization framework
-         * decorator implementations should only call this method.
-         * 
-         * @param input
-         * @throws IOException
-         * @throws ClassNotFoundException
-         */
-        default void read(AtomicObjectInput input) throws IOException, ClassNotFoundException{
-            read((ObjectInput) input);
-        }
-        
-        /**
-         * This method must be implemented by clients wishing to read in Objects
-         * or primitive data directly from the stream.
-         * 
-         * Serialization framework implementations should not call this method
-         * directly.
-         * 
-         * @param input
-         * @throws IOException
-         * @throws ClassNotFoundException
-         */
-        void read(ObjectInput input) throws IOException, ClassNotFoundException ;
-    }
     
     /**
      * Factory to test AtomicSerial instantiation compliance.
@@ -317,67 +280,8 @@ public @interface AtomicSerial {
 	    }
 	}
 	
-	/**
-	 * Convenience method to test retrieval of a new ReadObject instance from
-	 * a class static method annotated with @ReadInput
-	 * 
-	 * @see ReadInput
-	 * @param streamClass
-	 * @return
-	 * @throws IOException 
-	 */
-	public static ReadObject streamReader( final Class<?> streamClass) throws IOException {
-	    if (streamClass == null) throw new NullPointerException();
-	    try {
-		Method readerMethod = AccessController.doPrivileged(
-		    new PrivilegedExceptionAction<Method>(){
-			@Override
-			public Method run() throws Exception {
-			    for (Method m : streamClass.getDeclaredMethods()){
-				if (m.isAnnotationPresent(ReadInput.class)){
-				    m.setAccessible(true);
-				    return m;
-				}
-			    }
-			    return null;
-			}
-		    }
-		);
-		if (readerMethod != null){
-		    ReadObject result = (ReadObject) readerMethod.invoke(null, (Object []) null);
-		    return result;
-		}
-	    } catch (PrivilegedActionException ex) {
-		Exception e = ex.getException();
-		if (e instanceof SecurityException ) throw (SecurityException) e;
-		InvalidClassException ice = new InvalidClassException("Unexpected exception while attempting to obtain Reader");
-		ice.initCause(ex);
-		throw ice;
-	    } catch (IllegalAccessException ex) {
-		throw new AssertionError("This shouldn't happen ", ex);
-	    } catch (IllegalArgumentException ex) {
-		throw new AssertionError("This shouldn't happen ", ex);
-	    } catch (InvocationTargetException ex) {
-		InvalidClassException ice = new InvalidClassException("Unexpected exception while attempting to obtain Reader");
-		ice.initCause(ex);
-		throw ice;
-	    }
-	    return null;
-	}
     }
 
-    /**
-     * If an object wishes to read from the stream during construction
-     * it must provide a class static method with the following annotation.
-     * <p>
-     * The Serializer will use this static method to obtain a ReadObject instance
-     * that will be invoked at the time of the streams choosing.
-     * @see ReadObject
-     */
-    @Retention(value = RetentionPolicy.RUNTIME)
-    @Target(value = ElementType.METHOD)
-    public static @interface ReadInput {
-    }
 
     /**
      * GetArg is the single argument to AtomicSerial's constructor
@@ -697,21 +601,8 @@ public @interface AtomicSerial {
 	 */
 	public abstract Class[] serialClasses();
 
-	/**
-	 * If an AtomicSerial implementation annotates a static method that returns
-	 * a Reader instance, with {@link ReadInput}, then the stream will provide
-	 * the ReadObject access to the stream at a time that suits the stream, 
-         * prior to Object instantiation.
-	 * This method provides a way for an object under construction to
-	 * retrieve information read directly from the stream by a {@link ReadInput}
-	 * annotated reader method, prior to Object instantiation.
-	 *
-	 * @return ReadObject instance provided by static class method after it has
-	 * read from the stream, or null.
-	 */
-	public abstract ReadObject getReader();
-	
-	
+
+
 	/**
          * Get the value of the named Object field from the persistent field.
 	 * Convenience method to avoid type casts, that also performs a type check.

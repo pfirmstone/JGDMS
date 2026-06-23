@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
@@ -85,11 +84,6 @@ public class GetArgIdempotencyTest {
         @Override
         public Class[] serialClasses() {
             return new Class[]{ caller };
-        }
-
-        @Override
-        public ReadObject getReader() {
-            return null;
         }
 
         @Override

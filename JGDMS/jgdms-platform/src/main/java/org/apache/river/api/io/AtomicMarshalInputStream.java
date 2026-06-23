@@ -64,6 +64,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -72,9 +73,9 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalInputStream;
+import net.jini.io.context.DeserializationCompletion;
 import org.apache.river.api.io.AtomicSerial.Factory;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.impl.Messages;
 
 
@@ -2810,7 +2811,6 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
         }
 	int size = streamClassList.size();
 	Map<Class,GetField> fields = new HashMap<Class,GetField>(size);
-	Map<Class,ReadObject> readers = new HashMap<Class,ReadObject>(size);
 	for (ObjectStreamClassContainer streamClass : streamClassList) {
             Class c = streamClass.forClass();
 	    GetField field = readFields(streamClass.getDeserializedClass(), c);
@@ -2820,11 +2820,6 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 	    // so we do our best to retrieve it.
 	    
 	    if (c != null) {
-		ReadObject reader = AtomicSerial.Factory.streamReader(c);
-		if (reader != null){
-		    reader.read(this);
-		    readers.put(c, reader);
-		} 
 		if (streamClass.hasWriteObjectData()) discardData(false);
 		fields.put(c, field);
 	    } else {
@@ -2832,7 +2827,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 		throw new ClassNotFoundException(streamClass.getOsci().getFullyQualifiedClassName());
 	    }
 	}
-	GetArg arg = new GetArgImpl(fields, readers, this);
+	GetArg arg = new GetArgImpl(fields, this);
 	Object result;
 	if (discard){
 	    result = Reference.DISCARDED;
@@ -3303,6 +3298,58 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 		    - i);
 	    validations[i] = desc;
 	}
+    }
+
+    /*
+     * Explicit, wire-format-independent stream-state context (4.0.0). The
+     * augmented getObjectStreamContext() below surfaces a single
+     * DeserializationCompletion so an @AtomicSerial constructor can schedule
+     * post-graph work through the context channel alone, never by reaching into
+     * this stream via a @ReadInput/ReadObject back-door. Exactly one exists per
+     * stream (one decode unit), so a batching consumer (e.g. client DGC) may key
+     * on it; it is the JOSS analogue of the DER path's completion element,
+     * adapting this stream's registerValidation.
+     *
+     * Class loaders are deliberately NOT surfaced here: they are security-
+     * sensitive capabilities and must not be broadcast to every object in the
+     * graph via the shared context. ProxySerializer, the one in-package consumer
+     * that needs them, reaches them through the package-private GetArgImpl.
+     */
+    private final DeserializationCompletion completion = new DeserializationCompletion() {
+        @Override
+        public void registerCompletion(ObjectInputValidation action, int priority)
+                throws NotActiveException, InvalidObjectException {
+            registerValidation(action, priority);
+        }
+    };
+
+    private volatile Collection augmentedContext;
+
+    /**
+     * Returns the caller-supplied stream context augmented with a
+     * {@link DeserializationCompletion} (adapting this stream's
+     * {@link #registerValidation registerValidation}) -- the JOSS analogue of the
+     * DER path's completion element, letting an {@code @AtomicSerial} constructor
+     * schedule post-graph work (e.g. client DGC batching) through the context
+     * channel instead of the removed {@code @ReadInput}/{@code ReadObject}
+     * stream-sampling back-door. The stream's class loaders are intentionally not
+     * exposed here (see field comment above).
+     */
+    @Override
+    public Collection getObjectStreamContext() {
+        // Guard against a super-constructor invoking this overridable method
+        // before the completion element is initialized.
+        if (completion == null) {
+            return super.getObjectStreamContext();
+        }
+        Collection result = augmentedContext;
+        if (result == null) {
+            List augmented = new ArrayList(super.getObjectStreamContext());
+            augmented.add(completion);
+            result = Collections.unmodifiableList(augmented);
+            augmentedContext = result;
+        }
+        return result;
     }
 
     /**

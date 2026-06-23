@@ -36,7 +36,6 @@ import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.resource.Service;
 
@@ -181,23 +180,29 @@ class ProxySerializer {
     private final CodebaseAccessor bootstrapProxy;
     private final MarshalledInstance serviceProxy;
     private final /*transient*/ Collection context;
-    private final /*transient*/ RO read;
+    private final /*transient*/ ClassLoader defaultLoader;
+    private final /*transient*/ ClassLoader verifierLoader;
     
     ProxySerializer(CodebaseAccessor p, DynamicProxyCodebaseAccessor a, Collection context) throws IOException{
-	this(p, new AtomicMarshalledInstance(a, context, false), null, null);
+	this(p, new AtomicMarshalledInstance(a, context, false), null, null, null);
 	
     }
     
     ProxySerializer(CodebaseAccessor p, ProxyAccessor a, Collection context) throws IOException{
-	this(p, new AtomicMarshalledInstance(a, context, false), null, null);
+	this(p, new AtomicMarshalledInstance(a, context, false), null, null, null);
 	
     }
     
-    ProxySerializer(CodebaseAccessor p, MarshalledInstance m, Collection context, RO read){
+    ProxySerializer(CodebaseAccessor p, MarshalledInstance m, Collection context, ClassLoader defaultLoader, ClassLoader verifierLoader){
 	bootstrapProxy = p;
 	serviceProxy = m;
 	this.context = context;
-	this.read = read;
+	this.defaultLoader = defaultLoader;
+	this.verifierLoader = verifierLoader;
+    }
+
+    private ProxySerializer(CodebaseAccessor p, MarshalledInstance m, Collection context, ClassLoader[] loaders){
+	this(p, m, context, loaders[0], loaders[1]);
     }
 
     private static CodebaseAccessor check(CodebaseAccessor c) throws InvalidObjectException{
@@ -214,39 +219,35 @@ class ProxySerializer {
 		    arg.get(SERVICE_PROXY, null, MarshalledInstance.class),
 		    "serviceProxy cannot be null"),
 	    arg.getObjectStreamContext(),
-	    (RO) arg.getReader()
+	    streamLoaders(arg)
 	);
     }
     
     Object readResolve() throws IOException, ClassNotFoundException {
-	return getProvider(read.defaultLoader).resolve(bootstrapProxy, serviceProxy, read.defaultLoader,
-		read.verifierLoader, context);
+	return getProvider(defaultLoader).resolve(bootstrapProxy, serviceProxy, defaultLoader,
+		verifierLoader, context);
     }
 
-    @AtomicSerial.ReadInput
-    static ReadObject getReader(){
-	return new RO();
-    }
-    
-    private static class RO implements ReadObject {
-	
-	private ClassLoader defaultLoader = null;
-	private ClassLoader verifierLoader = null;
-
-	public void read(final ObjectInput input) throws IOException, ClassNotFoundException {
-	    if (input instanceof MarshalInputStream){
-		defaultLoader = AccessController.doPrivileged(new PrivilegedAction<ClassLoader>(){
-		    public ClassLoader run() {
-			return ((MarshalInputStream) input).getDefaultClassLoader();
-		    }
-		});
-		verifierLoader = AccessController.doPrivileged(new PrivilegedAction<ClassLoader>(){
-		    public ClassLoader run() {
-			return ((MarshalInputStream) input).getVerifierClassLoader();
+    /**
+     * Extracts the unmarshalling stream's {default, verifier} class loaders from
+     * the package-private {@link GetArgImpl}, under doPrivileged. Kept in this
+     * trusted platform class -- and reached through GetArgImpl rather than
+     * broadcast via getObjectStreamContext() -- because class loaders are
+     * security-sensitive capabilities that must not be exposed to every object
+     * in the graph. Returns {null, null} on any non-JOSS path (e.g. DER).
+     */
+    private static ClassLoader[] streamLoaders(GetArg arg){
+	if (arg instanceof GetArgImpl){
+	    final ObjectInput in = ((GetArgImpl) arg).in;
+	    if (in instanceof MarshalInputStream){
+		return AccessController.doPrivileged(new PrivilegedAction<ClassLoader[]>(){
+		    public ClassLoader[] run(){
+			MarshalInputStream mis = (MarshalInputStream) in;
+			return new ClassLoader[]{ mis.getDefaultClassLoader(), mis.getVerifierClassLoader() };
 		    }
 		});
 	    }
 	}
-	
+	return new ClassLoader[]{ null, null };
     }
 }

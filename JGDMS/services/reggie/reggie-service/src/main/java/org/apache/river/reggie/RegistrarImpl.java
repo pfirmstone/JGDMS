@@ -144,8 +144,6 @@ import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.util.Startable;
 import org.apache.river.config.Config;

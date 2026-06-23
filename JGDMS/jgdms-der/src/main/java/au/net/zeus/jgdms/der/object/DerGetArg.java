@@ -49,8 +49,8 @@ import java.util.Objects;
  *       HERE (so the cumulative {@code MAX_NESTING} depth guard is threaded), and
  *       the decoded value is then memoized by the base (decode-once);</li>
  *   <li>{@link #isDefaulted(Class, String)} -- the decode-free presence hook;</li>
- *   <li>{@code serialClasses()}, {@code getReader()} (returns {@code null}) and
- *       {@code getObjectStreamContext()} (returns an empty list).</li>
+ *   <li>{@code serialClasses()} and {@code getObjectStreamContext()} (returns the
+ *       decode-unit context, or an empty list).</li>
  * </ul>
  * Because the base memoizes the first value returned per field, a hostile or
  * replayed {@code GetArg} cannot return one value to a class's
@@ -244,15 +244,6 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     @Override
     public Class[] serialClasses() {
         return storeMap.keySet().toArray(new Class[0]);
-    }
-
-    /**
-     * Returns {@code null} -- there is no {@link AtomicSerial.ReadObject} in the DER
-     * path. DER-path classes do not use {@code @ReadInput}.
-     */
-    @Override
-    public AtomicSerial.ReadObject getReader() {
-        return null;
     }
 
     /**
