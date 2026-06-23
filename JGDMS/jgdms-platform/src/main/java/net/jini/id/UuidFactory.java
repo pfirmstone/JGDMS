@@ -243,7 +243,7 @@ public final class UuidFactory {
      **/
     @Stateless
     @AtomicSerial
-    private static class Impl extends Uuid {
+    static class Impl extends Uuid {
 
 	private static final long serialVersionUID = 1089722863511468966L;
 
