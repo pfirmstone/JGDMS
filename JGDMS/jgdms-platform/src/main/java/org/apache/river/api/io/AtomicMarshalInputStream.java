@@ -1175,48 +1175,6 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 //        return fields.toArray(new ObjectStreamField[fields.size()]);
     }
     
-    /**
-     * Converts a {@link SerialForm} array to an {@link ObjectStreamField} array.
-     * JOSS-bridge adapter: SerialForm no longer extends ObjectStreamField (sec4.1).
-     */
-    static ObjectStreamField[] toOSF(SerialForm[] sf) {
-        ObjectStreamField[] osf = new ObjectStreamField[sf.length];
-        for (int i = 0; i < sf.length; i++) {
-            osf[i] = new ObjectStreamField(sf[i].getName(), sf[i].getType(), sf[i].isUnshared());
-        }
-        return osf;
-    }
-
-    private ObjectStreamField [] fields(Class clz) throws IOException{
-        MarshalDelegate delegate = MarshalDelegates.delegateFor(clz);
-        if (delegate != null){
-            // In-package dispatch: the class's own serialForm() describes the
-            // local wire form; reflection below is the fallback.
-            SerialForm[] serialForms = delegate.serialForm(clz);
-            Arrays.sort(serialForms);
-            return toOSF(serialForms);
-        }
-        try {
-            // getDeclaredMethod (not getMethod): only the class's OWN serialForm, never inherited.
-            Method m = clz.getDeclaredMethod("serialForm", EMPTY_CONSTRUCTOR_PARAM_TYPES);
-            int modifiers = m.getModifiers();
-            if (Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers) && m.getReturnType() == SerialForm [].class){
-                String sv = MarshalDelegates.strictBlockClass(clz, "serialForm()");
-                if (sv != null) throw new InvalidClassException(clz.getName(), sv);
-                if (!MarshalDelegates.isStrict()) m.setAccessible(true); // strict skips this; a non-public class is blocked above
-                SerialForm[] serialForms = (SerialForm[]) m.invoke(null, (Object []) null);
-                Arrays.sort(serialForms);
-                return toOSF(serialForms);
-            }
-        } catch (NoSuchMethodException ex) {
-            //TODO enable logger
-//            Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, "@AtomicSerial class is missing public static method serialPersistent fields", ex);
-        } catch (Exception ex) {
-            throw new IOException("Unable to access serialForm method" , ex);
-        }
-        return new ObjectStreamField[0];
-    }
-    
     private GetField readFields(ObjectStreamClass deserializedClassDescriptor, Class cls)
 	    throws IOException, ClassNotFoundException 
     {

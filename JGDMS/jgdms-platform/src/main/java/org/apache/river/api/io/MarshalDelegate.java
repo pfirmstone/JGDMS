@@ -160,14 +160,4 @@ public interface MarshalDelegate {
         return false;
     }
 
-    /**
-     * The package this delegate serves.  Defaults to the delegate's own package,
-     * which (by the co-loaded-delegate rule) is also the runtime package of the
-     * classes it serves.
-     *
-     * @return the served package name
-     */
-    default String packageName() {
-        return getClass().getPackageName();
-    }
 }
