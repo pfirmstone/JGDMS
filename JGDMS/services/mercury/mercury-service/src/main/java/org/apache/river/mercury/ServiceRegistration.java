@@ -19,7 +19,7 @@ package org.apache.river.mercury;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.rmi.MarshalledObject;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
@@ -81,7 +81,7 @@ class ServiceRegistration extends AbstractLeasedResource
     /** The marshalled form of the client-provided notification target.
      * @serialField 
      */
-    private MarshalledObject marshalledEventTarget; 
+    private MarshalledInstance marshalledEventTarget; 
 
     /** Event log iterator. */
     // This field is transient because event state info is persisted
@@ -122,7 +122,7 @@ class ServiceRegistration extends AbstractLeasedResource
         return new SerialForm[] {
             new SerialForm("cookie", Uuid.class),
             new SerialForm("expiration", long.class),
-            new SerialForm("marshalledEventTarget", MarshalledObject.class),
+            new SerialForm("marshalledEventTarget", MarshalledInstance.class),
             new SerialForm("unknownEvents", Map.class),
             new SerialForm("remoteEventIteratorID", Uuid.class)
         };
@@ -147,7 +147,7 @@ class ServiceRegistration extends AbstractLeasedResource
                  EventID.class,
                  UnknownEventException.class
              ),
-             arg.get("marshalledEventTarget", null, MarshalledObject.class));
+             arg.get("marshalledEventTarget", null, MarshalledInstance.class));
         this.expiration = arg.get("expiration", 0L);
         this.remoteEventIteratorID = arg.get("remoteEventIteratorID", null, Uuid.class);
     }
@@ -161,7 +161,7 @@ class ServiceRegistration extends AbstractLeasedResource
 	    EventLogIterator eventIterator, 
 	    Condition iteratorCondition,
 	    Map<EventID,UnknownEventException> unknownEvents,
-	    MarshalledObject marshalledEventTarget)
+	    MarshalledInstance marshalledEventTarget)
     {
 	this.marshalledEventTarget = marshalledEventTarget;
 	this.unknownEvents = unknownEvents;
@@ -230,7 +230,7 @@ class ServiceRegistration extends AbstractLeasedResource
 	} else {
 	    preparedEventTarget = preparedTarget;
 	    marshalledEventTarget = 
-                new MarshalledInstance(preparedTarget).convertToMarshalledObject();
+                new AtomicMarshalledInstance(preparedTarget);
 	}
     }
     
@@ -270,7 +270,7 @@ class ServiceRegistration extends AbstractLeasedResource
         synchronized (this){
             if (marshalledEventTarget != null) {
                 RemoteEventListener unprepared = 
-                    (RemoteEventListener) new MarshalledInstance(marshalledEventTarget).get(false);
+                    (RemoteEventListener) marshalledEventTarget.get(false);
                 preparedEventTarget = (RemoteEventListener)
                     targetPreparer.prepareProxy(unprepared);
             }
