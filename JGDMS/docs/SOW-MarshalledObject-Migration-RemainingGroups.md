@@ -110,10 +110,40 @@ mercury, norm, the matching proxies) to store the MI and deliver it via
   `discoveredRegsMap`/`getRegistrars` (protocol decision) → `UIDescriptor` →
   Group B (largest; touches every event-producing service).
 
-## Decisions needed from Peter
+## Decisions (resolved 2026-06-24)
 
-1. `getRegistrars()` / `RemoteDiscoveryEvent`: MI variant + deprecate, or
-   change in place (4.0.0 breaking)?
-2. `UIDescriptor.factory`: dual MO/MI field, or break to MI (Entry wire form)?
-3. Group B: full MI-through (impl changes across all event services) now, or
-   defer until the QA harness is free?
+1. **`getRegistrars()` / `RemoteDiscoveryEvent`** → **MI variant + deprecate**,
+   landed *with Group B* (it is a public discovery SPI on the event-delivery
+   path: `LookupDiscoveryRegistration.getRegistrars()`). Add
+   `getRegistrarInstances()` → `MarshalledInstance[]`, deprecate
+   `getRegistrars()`, migrate `discoveredRegsMap` behind it.
+2. **`UIDescriptor.factory`** → **leave as `java.rmi.MarshalledObject`.** It is
+   a brittle, spec-published `Entry`; mutating a field changes its serial form /
+   matching. ClassLoader provisioning already works via the codebase annotation
+   that survives `convertToMarshalledObject()`; only the (low-value, code-present)
+   schema is lost. The schema-preserving ServiceUI path is a **new
+   MarshalledInstance-native Entry** delivered with the JavaFX track — see
+   `docs/DESIGN-ServiceUI-MarshalledInstance-Entry.md`. Out of scope for this SOW.
+3. **Group B** → **proceed now.** The reviewing agent runs the QA harness during
+   review, so the cross-service handback change is validated there rather than
+   blocked on local harness availability.
+
+## Group B execution plan (in progress)
+
+Per service, the handback must travel as `MarshalledInstance` end-to-end
+(client → proxy → server backend → persisted registration → `RemoteEvent`).
+`RemoteEvent` already dual-carries (`handback` MO + `miHandback` MI +
+`getRegistrationInstance()`), so the work per interface is:
+
+1. Interface: add a `notify(..., MarshalledInstance handback, ...)` overload as a
+   `default` (so third-party implementors stay source-compatible) + `@Deprecated`
+   the `MarshalledObject` overload.
+2. Proxy (Registrar/Space/Set proxies): override the MI overload to carry the MI
+   to the server backend (no down-convert).
+3. Server backend interface + impl: accept and **store** the MI handback
+   (persisted registration record gets a dual MO/MI serial slot, StorableObject
+   style) and construct the event via `RemoteEvent`'s MI path.
+
+Order: `ServiceRegistrar`/reggie (reference) → `JavaSpace`/`JavaSpace05`/
+outrigger → `LeaseRenewalSet`/norm. `getRegistrars()`/`discoveredRegsMap` rides
+with the fiddler/discovery portion.
