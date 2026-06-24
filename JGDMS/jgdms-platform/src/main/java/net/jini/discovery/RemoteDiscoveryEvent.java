@@ -340,7 +340,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      * @throws java.lang.IllegalArgumentException this exception occurs
      *         when an empty set of registrars is input.
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public RemoteDiscoveryEvent(Object source,
                                 long eventID,
                                 long seqNum,

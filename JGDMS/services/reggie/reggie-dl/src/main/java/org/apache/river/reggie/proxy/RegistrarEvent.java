@@ -112,6 +112,7 @@ public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
      * @param serviceID the serviceID of the serviceItem that triggered the event
      * @param transition the transition that triggered the event
      * @param item the new state of the serviceItem, or null if deleted
+     * @deprecated To be removed; use the MarshalledInstance-handback constructor (java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries).
      */
     @Deprecated
     public RegistrarEvent(Object source,
