@@ -211,7 +211,12 @@ public interface JavaSpace {
      *         is not Lease.ANY and is negative
      * @see #read
      * @see net.jini.core.event.EventRegistration
+     * @deprecated Use {@link TupleSpace#notify(Entry, Transaction,
+     * RemoteEventListener, long, net.jini.io.MarshalledInstance)}; a
+     * {@link MarshalledObject} handback drops the DER schema that a
+     * {@link net.jini.io.MarshalledInstance} preserves.
      */
+    @Deprecated
     EventRegistration
 	notify(Entry tmpl, Transaction txn, RemoteEventListener listener,
 	       long lease, MarshalledObject handback)
