@@ -35,6 +35,10 @@ that happens to be reconstructable into an object. That single inversion settles
 all three problems at once — and the rest of this post is about how, and what it
 costs.
 
+![The DER Rosetta Stone: decorative illustration of a self-describing data artifact, legible across many languages and to a future archaeologist, beside the crumbled remains of the Java class that wrote it](images/der-rosetta-stone.svg)
+
+*Self-describing. Schema included. Class file not required.*
+
 ## The contract is authored, not derived
 
 [Part 4](blog-post-4-authorization.md) described the `@AtomicSerial` constructor
@@ -228,6 +232,8 @@ decades ago in Sun's *Class Loading Issues in Java RMI and Jini* (TR-2006-149):
 RMI and serialization kept treating "the class" as if its name alone identified
 it, and so leaked across namespaces *and* across domains in the same stroke,
 because the two failures share a root — a missing loader distinction.
+
+> **See also:** [Diagram 6 — one object, three domains: per-level @AtomicSerial + DER marshalling](<Big picture security architecture/diagram6_der_per_level_domains.svg>)
 
 ## Versioning without version numbers
 
