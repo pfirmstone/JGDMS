@@ -61,9 +61,6 @@ public abstract class MultiIPDiscovery {
             disco = Discovery.getUnicastHttps(null);
         } else {
             switch (pv) {
-                case Discovery.PROTOCOL_VERSION_1:
-                    disco = Discovery.getProtocol1();
-                    break;
                 case Discovery.PROTOCOL_VERSION_2:
                     disco = Discovery.getProtocol2(null);
                     break;

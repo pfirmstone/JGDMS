@@ -5053,8 +5053,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	throws DiscoveryProtocolException
     {
 	switch (version) {
-	    case Discovery.PROTOCOL_VERSION_1:
-		return Discovery.getProtocol1();
 	    case Discovery.PROTOCOL_VERSION_2:
 		return protocol2;
 	    default:
