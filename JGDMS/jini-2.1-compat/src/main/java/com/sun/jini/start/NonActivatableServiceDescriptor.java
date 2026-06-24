@@ -31,6 +31,7 @@ import org.apache.river.start.lifecycle.LifeCycle;
  */
 @Deprecated
 @AtomicSerial
+@AtomicSerial.Stateless
 public class NonActivatableServiceDescriptor extends org.apache.river.start.NonActivatableServiceDescriptor {
 
     public NonActivatableServiceDescriptor(String exportCodebase, String policy, String importCodebase, String implClassName, String[] serverConfigArgs, LifeCycle lifeCycle, ProxyPreparer preparer) {
