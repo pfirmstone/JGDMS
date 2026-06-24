@@ -49,6 +49,7 @@ import org.apache.river.logging.Levels;
 import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * Utility class that combines <code>JoinManager</code> with persistence.
@@ -409,8 +410,9 @@ public class JoinState extends LogHandler implements SubStore {
 	
 	out.writeInt(attributes.length);
 	for (int i=0; i<attributes.length; i++) {
-	    out.writeObject(
-                new MarshalledInstance(attributes[i]).convertToMarshalledObject());
+	    // Dual-read upgrade: always write the canonical MarshalledInstance
+	    // (AtomicMarshalledInstance = DER form; carries the schema).
+	    out.writeObject(new AtomicMarshalledInstance(attributes[i]));
 	}
     }
 
@@ -431,8 +433,13 @@ public class JoinState extends LogHandler implements SubStore {
 	final int objectCount = in.readInt();
 	for (int i=0; i<objectCount; i++) {
 	    try {
-		MarshalledObject mo = (MarshalledObject) in.readObject();
-		entries.add(new MarshalledInstance(mo).get(false));
+		// Dual-read: accept a legacy java.rmi.MarshalledObject or a new
+		// MarshalledInstance; normalize to the canonical instance.
+		Object o = in.readObject();
+		MarshalledInstance mi = (o instanceof MarshalledInstance)
+			? (MarshalledInstance) o
+			: new MarshalledInstance((MarshalledObject) o);
+		entries.add(mi.get(false));
 	    } catch (IOException e) {
 		logger.log(Level.INFO,
 			   "Problem recovering attribute -- discarding",
