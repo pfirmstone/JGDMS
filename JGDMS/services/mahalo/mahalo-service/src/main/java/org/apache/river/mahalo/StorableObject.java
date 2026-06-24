@@ -20,9 +20,12 @@ package org.apache.river.mahalo;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -44,23 +47,41 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 @AtomicSerial
 public class StorableObject implements java.io.Serializable {
     /**
-     * @serial
+     * The marshalled object, in canonical MarshalledInstance form. Non-final so a
+     * legacy (java.rmi.MarshalledObject "bytes") record can be normalized into it on
+     * read. Always written as the new "instance" slot; "bytes" is a read-only legacy
+     * slot retained for in-place upgrade from pre-4.0.0 logs.
      */
-    private final MarshalledObject	bytes;	// the serialized bytes
+    private MarshalledInstance instance;
     private volatile transient Object	obj;	// the cached object reference
 
     private static final boolean DEBUG = false;
     private static final long serialVersionUID = -3793675220968988873L;
 
+    // JOSS dual-read: legacy "bytes" (java.rmi.MarshalledObject) OR new "instance".
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("bytes", MarshalledObject.class),
+        new ObjectStreamField("instance", MarshalledInstance.class)
+    };
+
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
-            new SerialForm("bytes", MarshalledObject.class)
+            new SerialForm("bytes", MarshalledObject.class, true),       // legacy, optional
+            new SerialForm("instance", MarshalledInstance.class, true)   // canonical, optional
         };
     }
 
     public static void serialize(PutArg arg, StorableObject o) throws IOException {
-        arg.put("bytes", o.bytes);
+        arg.put("bytes", null);            // legacy slot retired on write
+        arg.put("instance", o.instance);
         arg.writeArgs();
+    }
+
+    /** Read the canonical instance, accepting either the new or the legacy slot. */
+    private static MarshalledInstance readInstance(MarshalledInstance instance,
+	    MarshalledObject bytes) {
+	if (instance != null) return instance;
+	return (bytes == null) ? null : new MarshalledInstance(bytes);
     }
 
     /**
@@ -68,20 +89,18 @@ public class StorableObject implements java.io.Serializable {
      * in a <code>MarshalledObject</code>.
      */
     public StorableObject(Object obj) throws RemoteException {
-	this(obj, toMO(obj));
+	this(obj, toMI(obj));
     }
-    
-    private static MarshalledObject check(GetArg arg) throws IOException, ClassNotFoundException {
-	return arg.get("bytes", null, MarshalledObject.class);
-    }
-    // TODO: static check
+
     StorableObject(GetArg arg) throws IOException, ClassNotFoundException {
-	this(null, check(arg));
+	this(null, readInstance(
+		arg.get("instance", null, MarshalledInstance.class),
+		arg.get("bytes", null, MarshalledObject.class)));
     }
-    
-    private static MarshalledObject toMO(Object obj) throws RemoteException{
+
+    private static MarshalledInstance toMI(Object obj) throws RemoteException{
 	try {
-            return new MarshalledInstance(obj).convertToMarshalledObject();
+            return new AtomicMarshalledInstance(obj);   // DER form carries the schema
         } catch (RemoteException e){
 	    throw e;
         } catch (IOException e){
@@ -90,8 +109,8 @@ public class StorableObject implements java.io.Serializable {
         return null; //Unreachable.
     }
 
-    private StorableObject (Object obj, MarshalledObject mo){
-        bytes = mo;
+    private StorableObject (Object obj, MarshalledInstance instance){
+        this.instance = instance;
         this.obj = obj;
     }
     
@@ -99,7 +118,7 @@ public class StorableObject implements java.io.Serializable {
      * Return the <code>hashCode</code> of the <code>MarshalledObject</code>.
      */
     public int hashCode() {
-	return bytes.hashCode(); // value of obj.hashCode()
+	return instance.hashCode(); // value of obj.hashCode()
     }
 
     public boolean equals(Object that) {
@@ -123,7 +142,7 @@ public class StorableObject implements java.io.Serializable {
     public Object get() throws RemoteException {
 	try {
 	    if (obj == null)
-		obj = new MarshalledInstance(bytes).get(false);
+		obj = instance.get(false);
 	    return obj;
 	} catch (RemoteException e) {
 	    if (DEBUG)
@@ -138,10 +157,20 @@ public class StorableObject implements java.io.Serializable {
 	return null;	// not reached, but compiler doesn't know
     }
 
+    private void writeObject(ObjectOutputStream s) throws IOException {
+	ObjectOutputStream.PutField pf = s.putFields();
+	pf.put("bytes", null);            // legacy slot retired on write
+	pf.put("instance", instance);
+	s.writeFields();
+    }
+
     private void readObject(ObjectInputStream s)
                                    throws IOException, ClassNotFoundException
         {
-            s.defaultReadObject(); // Just in case we change serial form later.
+	    ObjectInputStream.GetField gf = s.readFields();
+	    instance = readInstance(
+		    (MarshalledInstance) gf.get("instance", null),
+		    (MarshalledObject) gf.get("bytes", null));
         }
 
     /**
