@@ -187,7 +187,9 @@ class EventID implements Serializable {
         throws IOException
     {
         stream.defaultWriteObject();
-        stream.writeObject(new MarshalledInstance(source).convertToMarshalledObject());
+        // Dual-read upgrade: write the canonical MarshalledInstance (DER form,
+        // carries the schema) instead of a lossy java.rmi.MarshalledObject.
+        stream.writeObject(new AtomicMarshalledInstance(source));
     }
 
     /**
@@ -203,10 +205,15 @@ class EventID implements Serializable {
         throws IOException, ClassNotFoundException
     {
         stream.defaultReadObject();
-        MarshalledObject mo = (MarshalledObject)stream.readObject();
+        // Dual-read: accept a legacy java.rmi.MarshalledObject or a new
+        // MarshalledInstance; normalize to the canonical instance.
+        Object o = stream.readObject();
+        MarshalledInstance mi = (o instanceof MarshalledInstance)
+                ? (MarshalledInstance) o
+                : new MarshalledInstance((MarshalledObject) o);
 
         try {
-            source = new MarshalledInstance(mo).get(false);
+            source = mi.get(false);
         } catch (Throwable e) {
             if (e instanceof Error &&
                 !(e instanceof LinkageError ||
