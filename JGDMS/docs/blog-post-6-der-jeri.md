@@ -65,6 +65,51 @@ author-written `serialize` and returns through an invariant-enforcing
 constructor. A level with no wire state declares `@AtomicSerial.Stateless` and is
 done.
 
+## Package-private access without a backdoor
+
+The authored contract creates an immediate problem. A class's `serialForm`,
+`serialize`, and `(GetArg)` constructor should be *package-private* — they are
+implementation, not public API — yet the marshalling engine lives in another
+package, and another module, and cannot call package-private members. The two
+usual escapes each demolish something the rest of this design is trying to
+protect:
+
+- **Make them public.** Now the serialization machinery is permanent public
+  surface. The fields stay private, but the methods that read and rebuild them are
+  exposed and frozen as API — encapsulation lost by another door.
+- **`setAccessible(true)` or `opens`.** Now you have asked the JVM to *suspend an
+  access check*, or opened the package to deep reflection. That reflective
+  backdoor is not a neutral convenience: it is the exact capability that
+  deserialization gadgets and module-boundary escapes depend on. You bought your
+  access by lowering the wall for everyone.
+
+JGDMS takes neither. The access broker is a `MarshalDelegate`: a **public class
+compiled into the same package** as the `@AtomicSerial` classes it serves. Being a
+genuine package-mate — same runtime package, `(package name, defining loader)` —
+it has ordinary, language-level package-private access to its neighbours, and it
+dispatches by **direct calls** (`Foo.serialForm()`, `new Foo(arg)`), no reflection
+anywhere. The engine never touches a private member; it speaks only to the
+delegate, and only through the narrow public `MarshalDelegate` interface. Nothing
+is made public, nothing is opened, `setAccessible` is never called. The wall stays
+up; one small, intentional door is built *inside* the package by something already
+entitled to be there.
+
+What keeps this from becoming per-package boilerplate is that the delegate is
+**generated**. An annotation processor keyed on `@AtomicSerial` emits the
+per-package delegate and its registration at compile time — and it generates only
+the *dispatch*, the forwarding to each class's authored `serialForm` /
+`serialize` / `(GetArg)`. It never generates the contract — that needs human
+judgement — and never any field access, which is the thing being refused in the
+first place. The part that requires a person stays authored; the part that is pure
+mechanism is machine-written, identically every time. (When no delegate can serve
+a non-public member, that is a compile-time error pointing at the gap — not a
+silent fall back to `setAccessible`.)
+
+`setAccessible` asks the JVM to *pretend* a barrier isn't there; the delegate
+never needs the pretence, because it genuinely has the right. That is the whole
+difference between a backdoor and a door — and removing the *need* for the
+backdoor is what removes the surface the attacks were aiming at.
+
 ## Why DER, a standard from the 1980s
 
 Given an authored contract, you still need an encoding for it, and JGDMS chose
@@ -161,11 +206,11 @@ otherwise have to reconcile separately:
 
 - **Namespace.** In the JVM a type's identity is `(name, defining loader)`. The
   same class name under a different loader is a genuinely different type. The
-  *runtime package* — `(package name, defining loader)` — is the unit of
-  package-private access, and the reason JGDMS resolves a per-package
-  `MarshalDelegate` by the marshalled class's own loader (no `opens`, no
-  `setAccessible`): co-loading with the class is what makes in-package dispatch
-  legal and correct.
+  *runtime package* — `(package name, defining loader)` — is also the unit of
+  package-private access, which is exactly why the generated `MarshalDelegate`
+  (above) is resolved by the marshalled class's *own* defining loader: co-loaded
+  with the class it is a true package-mate; loaded by anyone else it would be a
+  different runtime package, with no such access.
 - **Domain.** That same loader carries a `CodeSource`, and therefore a
   `ProtectionDomain` — the permissions and provenance of the code.
 
