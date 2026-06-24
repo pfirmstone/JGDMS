@@ -246,10 +246,36 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
     }
 
     // Inherit java doc from super type
+    public EventRegistration setExpirationWarningListener(
+		                 RemoteEventListener listener,
+				 long                minWarning,
+				 MarshalledInstance  handback)
+	throws RemoteException
+    {
+	// Do some client side error checking
+	if (listener == null) {
+	    throw new NullPointerException(
+	        "LeaseRenewalSet.setExpirationWarningListener:Must " +
+		"pass a non-null listener");
+	}
+
+	try {
+	    return server.setExpirationWarningListener(uuid,
+	        listener, minWarning, handback);
+	} catch (ThrowThis e) {
+	    // The server wants to throw some remote exception
+	    e.throwRemoteException();
+	    // Need this because compiler does not know that
+	    // throwRemoteException is not going to return
+	    return null;
+	}
+    }
+
+    // Inherit java doc from super type
     public void clearExpirationWarningListener() throws RemoteException {
 	try {
 	    server2().setExpirationWarningListener(
-		uuid, null, NormServer.NO_LISTENER, null);
+		uuid, null, NormServer.NO_LISTENER, (MarshalledObject) null);
 	} catch (ThrowThis e) {
 	    // The server wants to throw some remote exception
 	    e.throwRemoteException();
@@ -280,11 +306,35 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 	}
     }
 
+    // Inherit java doc from super type
+    public EventRegistration setRenewalFailureListener(
+				 RemoteEventListener listener,
+				 MarshalledInstance  handback)
+	throws RemoteException
+    {
+	// Do some client side error checking
+	if (listener == null) {
+	    throw new NullPointerException(
+	        "LeaseRenewalSet.setRenewalFailureListener:Must " +
+		"pass a non-null listener");
+	}
+
+	try {
+	    return server.setRenewalFailureListener(uuid, listener, handback);
+	} catch (ThrowThis e) {
+	    // The server wants to throw some remote exception
+	    e.throwRemoteException();
+	    // Need this because compiler does not know that
+	    // throwRemoteException is not going to return
+	    return null;
+	}
+    }
+
 
     // Inherit java doc from super type
     public void clearRenewalFailureListener() throws RemoteException {
 	try {
-	    server2().setRenewalFailureListener(uuid, null, null);
+	    server2().setRenewalFailureListener(uuid, null, (MarshalledObject) null);
 	} catch (ThrowThis e) {
 	    // The server wants to throw some remote exception
 	    e.throwRemoteException();
@@ -347,13 +397,29 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 			new Class[] { Uuid.class, RemoteEventListener.class,
 				      long.class, MarshalledObject.class }),
 		    LeaseRenewalSet.class.getMethod(
+			"setExpirationWarningListener",
+			new Class[] { RemoteEventListener.class,
+				      long.class, MarshalledInstance.class }),
+		    NormServer.class.getMethod(
+			"setExpirationWarningListener",
+			new Class[] { Uuid.class, RemoteEventListener.class,
+				      long.class, MarshalledInstance.class }),
+		    LeaseRenewalSet.class.getMethod(
 			"setRenewalFailureListener",
 			new Class[] { RemoteEventListener.class,
 				      MarshalledObject.class }),
 		    NormServer.class.getMethod(
 			"setRenewalFailureListener",
 			new Class[] { Uuid.class, RemoteEventListener.class,
-				      MarshalledObject.class })
+				      MarshalledObject.class }),
+		    LeaseRenewalSet.class.getMethod(
+			"setRenewalFailureListener",
+			new Class[] { RemoteEventListener.class,
+				      MarshalledInstance.class }),
+		    NormServer.class.getMethod(
+			"setRenewalFailureListener",
+			new Class[] { Uuid.class, RemoteEventListener.class,
+				      MarshalledInstance.class })
 		};
 	    } catch (NoSuchMethodException e) {
 		throw new NoSuchMethodError(e.getMessage());

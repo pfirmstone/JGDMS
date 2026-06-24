@@ -86,10 +86,13 @@ public class EventType implements Serializable {
     private transient ProxyPreparer recoveredListenerPreparer;
 
     /**
-     * Handback object associated with current listener.
+     * Handback object associated with current listener.  Polymorphic: holds
+     * either a legacy {@link MarshalledObject} or a new
+     * {@link MarshalledInstance} (which preserves the DER schema that
+     * <code>MarshalledObject</code> drops).
      * @serial
      */
-    private MarshalledObject handback;
+    private Object handback;
 
     /** 
      * Sequence number of the current listener/handback pair, incremented
@@ -129,7 +132,7 @@ public class EventType implements Serializable {
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
             new SerialForm("marshalledListener", MarshalledInstance.class),
-            new SerialForm("handback", MarshalledObject.class),
+            new SerialForm("handback", Object.class),
             new SerialForm("registrationNumber", Long.TYPE),
             new SerialForm("lastSeqNum", Long.TYPE),
             new SerialForm("evID", Long.TYPE)
@@ -160,7 +163,7 @@ public class EventType implements Serializable {
 	      SendMonitor monitor,
 	      long evID,
 	      RemoteEventListener listener,
-	      MarshalledObject handback,
+	      Object handback,
 	      AccessControlContext context) throws IOException
     {
 	if (generator == null) {
@@ -188,14 +191,14 @@ public class EventType implements Serializable {
      */
     public EventType(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("marshalledListener", null, MarshalledInstance.class),
-	     arg.get("handback", null, MarshalledObject.class),
+	     arg.get("handback", null, Object.class),
 	     arg.get("registrationNumber", 0L),
 	     arg.get("lastSeqNum", 0L),
 	     arg.get("evID", 0L)
 	);
     }
-    
-    private EventType(MarshalledInstance marshalledListener, MarshalledObject handback,
+
+    private EventType(MarshalledInstance marshalledListener, Object handback,
 	    long registrationNumber, long lastSeqNum, long evID)
     {
 	this.marshalledListener = marshalledListener;
@@ -228,8 +231,8 @@ public class EventType implements Serializable {
      *        as part of the event
      * @throws IOException if listener cannot be serialized
      */
-    public final synchronized void setListener(RemoteEventListener listener, 
-					 MarshalledObject    handback)
+    public final synchronized void setListener(RemoteEventListener listener,
+					 Object              handback)
         throws IOException
     {
 	registrationNumber++;
@@ -496,7 +499,7 @@ public class EventType implements Serializable {
 	    // Local copies of listener and handback so they won't
 	    // be clobbered by setListener calls
 	    RemoteEventListener listener;
-	    MarshalledObject handback;
+	    Object handback;
 	    long registrationNumber;
 	    boolean createEvent;
 	    RemoteEvent event;

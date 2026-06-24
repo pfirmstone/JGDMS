@@ -17,7 +17,6 @@
  */
 package org.apache.river.norm.event;
 
-import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEvent;
 
 /**
@@ -47,10 +46,12 @@ public interface EventFactory {
      * The caller will own no locks when calling this method.
      * @param eventID the event ID the new event should have
      * @param seqNum  the sequence number the new event object should have
-     * @param handback the handback the new event object should have
+     * @param handback the handback the new event object should have; a legacy
+     *        {@link java.rmi.MarshalledObject} or a new
+     *        {@link net.jini.io.MarshalledInstance}
      * @return the new event object
      */
-    public RemoteEvent createEvent(long             eventID, 
-				   long             seqNum, 
-				   MarshalledObject handback);
+    public RemoteEvent createEvent(long             eventID,
+				   long             seqNum,
+				   Object           handback);
 }
