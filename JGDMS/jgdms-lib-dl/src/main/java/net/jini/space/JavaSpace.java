@@ -216,7 +216,7 @@ public interface JavaSpace {
      * {@link MarshalledObject} handback drops the DER schema that a
      * {@link net.jini.io.MarshalledInstance} preserves.
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     EventRegistration
 	notify(Entry tmpl, Transaction txn, RemoteEventListener listener,
 	       long lease, MarshalledObject handback)
