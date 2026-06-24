@@ -966,7 +966,9 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
          */
         private void writeObject(ObjectOutputStream stream) throws IOException{
             stream.defaultWriteObject();
-            stream.writeObject(new MarshalledInstance(listener).convertToMarshalledObject());
+            // Dual-read upgrade: write the canonical MarshalledInstance (DER
+            // form, carries the schema) rather than a java.rmi.MarshalledObject.
+            stream.writeObject(new AtomicMarshalledInstance(listener));
         }//end writeObject
 
         /** When this class is deserialized, this method is invoked. This
@@ -978,9 +980,14 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
                                     throws IOException, ClassNotFoundException
         {
             stream.defaultReadObject();
-            MarshalledObject mo = (MarshalledObject)stream.readObject();
+            // Dual-read: accept a legacy java.rmi.MarshalledObject or a new
+            // MarshalledInstance; normalize to the canonical instance.
+            Object o = stream.readObject();
+            MarshalledInstance mi = (o instanceof MarshalledInstance)
+                    ? (MarshalledInstance) o
+                    : new MarshalledInstance((MarshalledObject) o);
             try {
-                listener = (RemoteEventListener) new MarshalledInstance(mo).get(false);
+                listener = (RemoteEventListener) mi.get(false);
             } catch (Throwable e) {
                 problemLogger.log(Level.INFO, "problem recovering listener "
                                   +"for recovered registration", e);

@@ -43,6 +43,7 @@ import net.jini.activation.ActivationGroupDescImpl;
 import net.jini.activation.ActivationGroupDescImpl.CommandEnvironmentImpl;
 import net.jini.config.Configuration;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -465,7 +466,9 @@ public class SharedActivationGroupDescriptor
             oos = new ObjectOutputStream(
                 new BufferedOutputStream(
                     new FileOutputStream(cookieFile)));
-            oos.writeObject(new MarshalledInstance(obj).convertToMarshalledObject());
+            // Dual-read upgrade: write the canonical MarshalledInstance (DER
+            // form, carries the schema) rather than a java.rmi.MarshalledObject.
+            oos.writeObject(new AtomicMarshalledInstance(obj));
             oos.flush();
 //TODO - file sync?
 	} catch (IOException e) {
@@ -498,8 +501,13 @@ public class SharedActivationGroupDescriptor
             ois = new ObjectInputStream(
                       new BufferedInputStream(
                          new FileInputStream(cookieFile)));
-            MarshalledObject mo = (MarshalledObject)ois.readObject();
-	    obj = (ActivationGroupID) new MarshalledInstance(mo).get(false);
+            // Dual-read: accept a legacy java.rmi.MarshalledObject or a new
+            // MarshalledInstance; normalize to the canonical instance.
+            Object o = ois.readObject();
+            MarshalledInstance mi = (o instanceof MarshalledInstance)
+                    ? (MarshalledInstance) o
+                    : new MarshalledInstance((MarshalledObject) o);
+	    obj = (ActivationGroupID) mi.get(false);
         } finally {
             if (ois != null) ois.close();
         }
