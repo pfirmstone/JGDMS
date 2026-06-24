@@ -126,6 +126,7 @@ import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.thread.NamedThreadFactory;
 import org.apache.river.mercury.proxy.*;
 import org.apache.river.proxy.CodebaseProvider;
@@ -3748,7 +3749,9 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    throws IOException
 	{
 	    stream.defaultWriteObject();
-	    stream.writeObject(new MarshalledInstance(target).convertToMarshalledObject());
+	    // Dual-read upgrade: write the canonical MarshalledInstance (DER form,
+	    // carries the schema) rather than a lossy java.rmi.MarshalledObject.
+	    stream.writeObject(new AtomicMarshalledInstance(target));
 	}
 
 	/**
@@ -3758,9 +3761,14 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    throws IOException, ClassNotFoundException
 	{
 	    stream.defaultReadObject();
-	    MarshalledObject mo = (MarshalledObject)stream.readObject();
+	    // Dual-read: accept a legacy java.rmi.MarshalledObject or a new
+	    // MarshalledInstance; normalize to the canonical instance.
+	    Object o = stream.readObject();
+	    MarshalledInstance mi = (o instanceof MarshalledInstance)
+		    ? (MarshalledInstance) o
+		    : new MarshalledInstance((MarshalledObject) o);
 	    try {
-		target = (RemoteEventListener) new MarshalledInstance(mo).get(false);
+		target = (RemoteEventListener) mi.get(false);
 	    } catch (Throwable e) {
 		if (e instanceof Error &&
 		    !(e instanceof LinkageError ||
@@ -4016,7 +4024,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
          *
          * @serial
          */
-        private MarshalledObject[] marshalledAttrs;
+        private Object[] marshalledAttrs;
 
         /** Constructs this class and stores the attributes that were added */
         public AttrsAddedLogObj(Entry[] attrs) {
@@ -4067,7 +4075,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
          * 
 	 * @serial
 	 */
-        private MarshalledObject[] marshalledAttrTmpls;
+        private Object[] marshalledAttrTmpls;
 
         /** 
          * The attributes with which this service's existing attributes 
@@ -4075,7 +4083,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
          *
          *  @serial
          */
-        private MarshalledObject[] marshalledModAttrs;
+        private Object[] marshalledModAttrs;
 
         /** 
          * Constructs this class and stores the modified attributes 
@@ -4301,31 +4309,31 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * @return array of <code>MarshalledObject[]</code>, where each element
      *         corresponds to an attribute in marshalled form 
      */
-    private static MarshalledObject[] marshalAttributes(Entry[] attrs) {
-        if(attrs == null) 
-            return new MarshalledObject[0];
+    private static MarshalledInstance[] marshalAttributes(Entry[] attrs) {
+        if(attrs == null)
+            return new MarshalledInstance[0];
 
         ArrayList marshalledAttrs = new ArrayList();
         for(int i=0; i<attrs.length; i++) {
-            /* 
+            /*
              * Marshalling errors should not prevent the service from
              * working, so just ignore them.
              */
             try {
                 marshalledAttrs.add(
-                    new MarshalledInstance(attrs[i]).convertToMarshalledObject());
+                    new AtomicMarshalledInstance(attrs[i]));
             } catch(Throwable e) {
 	        if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
-                    RECOVERY_LOGGER.log(Levels.HANDLED, 
+                    RECOVERY_LOGGER.log(Levels.HANDLED,
                         "Error while marshalling attribute[{0}]: {1}",
 			new Object[] {Integer.valueOf(i), attrs[i]});
-                    RECOVERY_LOGGER.log(Levels.HANDLED, 
+                    RECOVERY_LOGGER.log(Levels.HANDLED,
                         "Marshalling exception",e);
 	        }
             }
         }
-        return ((MarshalledObject[])(marshalledAttrs.toArray
-                             (new MarshalledObject[marshalledAttrs.size()])));
+        return ((MarshalledInstance[])(marshalledAttrs.toArray
+                             (new MarshalledInstance[marshalledAttrs.size()])));
     }
 
     /**
@@ -4339,20 +4347,24 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * @return array of <code>Entry[]</code>, where each element corresponds
      *         to an attribute that was successfully unmarshalled
      */
-    private static Entry[] unmarshalAttributes( 
-	MarshalledObject[] marshalledAttrs)
+    private static Entry[] unmarshalAttributes(
+	Object[] marshalledAttrs)
     {
-        if(marshalledAttrs == null) 
+        if(marshalledAttrs == null)
             return new Entry[0];
 
         ArrayList attrs = new ArrayList();
         for(int i=0; i<marshalledAttrs.length; i++) {
-            /* 
+            /*
              * Unmarshalling errors should not prevent the service from
              * working, so just ignore them.
              */
             try {
-                attrs.add( (Entry)( new MarshalledInstance(marshalledAttrs[i]).get(false) ) );
+                Object el = marshalledAttrs[i];
+                MarshalledInstance mi = (el instanceof MarshalledInstance)
+                    ? (MarshalledInstance) el
+                    : new MarshalledInstance((MarshalledObject) el);
+                attrs.add( (Entry)( mi.get(false) ) );
             } catch(Throwable e) {
 	        if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
                     RECOVERY_LOGGER.log(Levels.HANDLED, 
@@ -4527,8 +4539,8 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	serviceID = (Uuid)stream.readObject();
 	lookupGroups = (String[])stream.readObject();
 	lookupLocators = (LookupLocator[])stream.readObject();
-        MarshalledObject[] marshalledAttrs
-                                    = (MarshalledObject[])stream.readObject();
+        Object[] marshalledAttrs
+                                    = (Object[])stream.readObject();
 	lookupAttrs = unmarshalAttributes(marshalledAttrs);
 	Map<Uuid, ServiceRegistration> regByID = (HashMap<Uuid, ServiceRegistration>)stream.readObject();
         Iterator<ServiceRegistration> it = regByID.values().iterator();

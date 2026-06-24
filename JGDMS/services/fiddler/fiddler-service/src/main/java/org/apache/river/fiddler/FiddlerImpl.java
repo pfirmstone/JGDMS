@@ -4882,19 +4882,19 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
      * @return array of <code>MarshalledObject[]</code>, where each element
      *         corresponds to an attribute in marshalled form 
      */
-    private static MarshalledObject[] marshalAttributes
+    private static MarshalledInstance[] marshalAttributes
                                                    (FiddlerImpl fiddlerImpl,
                                                     Entry[] attrs)
     {
-        if(attrs == null) return new MarshalledObject[0];
-        List<MarshalledObject> marshalledAttrs = new ArrayList<MarshalledObject>();
+        if(attrs == null) return new MarshalledInstance[0];
+        List<MarshalledInstance> marshalledAttrs = new ArrayList<MarshalledInstance>();
         for(int i=0;i<attrs.length;i++) {
             /* Do not let an attribute problem prevent the service from
              * continuing to operate
              */
             try {
                 marshalledAttrs.add(
-                    new MarshalledInstance(attrs[i]).convertToMarshalledObject());
+                    new AtomicMarshalledInstance(attrs[i]));
             } catch(Throwable e) {
                 if( problemLogger.isLoggable(Level.INFO) ) {
                     problemLogger.log(Level.INFO,
@@ -4903,8 +4903,8 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
                 }//endif
             }
         }//end loop
-        return ((MarshalledObject[])(marshalledAttrs.toArray
-                             (new MarshalledObject[marshalledAttrs.size()])));
+        return ((MarshalledInstance[])(marshalledAttrs.toArray
+                             (new MarshalledInstance[marshalledAttrs.size()])));
     }//end marshalAttributes
 
     /**
@@ -4921,7 +4921,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
      */
     private static Entry[] unmarshalAttributes
                                           (FiddlerImpl fiddlerImpl,
-                                           MarshalledObject[] marshalledAttrs)
+                                           Object[] marshalledAttrs)
     {
         if(marshalledAttrs == null) return new Entry[0];
         ArrayList attrs = new ArrayList();
@@ -4930,7 +4930,11 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
              * continuing to operate
              */
             try {
-                attrs.add( (Entry)( new MarshalledInstance(marshalledAttrs[i]).get(false) ) );
+                Object el = marshalledAttrs[i];
+                MarshalledInstance mi = (el instanceof MarshalledInstance)
+                    ? (MarshalledInstance) el
+                    : new MarshalledInstance((MarshalledObject) el);
+                attrs.add( (Entry)( mi.get(false) ) );
             } catch(Throwable e) {
                 if( problemLogger.isLoggable(Level.INFO) ) {
                     problemLogger.log(Level.INFO,
@@ -6949,8 +6953,8 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
                                      ( recoveredLocatorToJoinPreparer,
                                        (LookupLocator[])stream.readObject() );
         /* Retrieve the attributes to register with each lookup service. */
-        MarshalledObject[] marshalledAttrs
-                                    = (MarshalledObject[])stream.readObject();
+        Object[] marshalledAttrs
+                                    = (Object[])stream.readObject();
         thisServicesAttrs = unmarshalAttributes(this, marshalledAttrs);
         /* Retrieve the current configuration parameters of this service */
         leaseBound     = stream.readLong();
@@ -7075,7 +7079,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
          *  this service is registered, written out in marshalled form.
          *  @serial
          */
-        private MarshalledObject[] marshalledAttrs;
+        private Object[] marshalledAttrs;
         /** Constructs this class and stores the attributes that were added */
         public LookupAttrsAddedLogObj(FiddlerImpl fiddlerImpl, Entry[] attrs) {
             this.marshalledAttrs = marshalAttributes(fiddlerImpl,attrs);
@@ -7107,12 +7111,12 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
          *  written out in marshalled form.
 	 *  @serial
 	 */
-        private MarshalledObject[] marshalledAttrTmpls;
+        private Object[] marshalledAttrTmpls;
         /** The attributes with which this service's existing attributes 
          *  were modified, written out in marshalled form.
          *  @serial
          */
-        private MarshalledObject[] marshalledModAttrs;
+        private Object[] marshalledModAttrs;
         /** Constructs this class and stores the modified attributes */
         public LookupAttrsModifiedLogObj(FiddlerImpl fiddlerImpl,
                                          Entry[] attrTmpls,
