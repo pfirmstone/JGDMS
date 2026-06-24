@@ -671,7 +671,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
          *  currently discovered lookup service(s).
          *  @serial
          */
-        public final Map<ServiceRegistrar, MarshalledObject> discoveredRegsMap;
+        public final Map<ServiceRegistrar, MarshalledInstance> discoveredRegsMap;
         /** The managed set containing the names of the groups whose
          *  members are the lookup services the lookup discovery service
          *  should attempt to discover for the current registration.
@@ -770,14 +770,22 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
 	    if (!(registrationID instanceof Uuid)) 
 		throw new InvalidObjectException(
 		    "registrationID must be instanceof Uuid and non null");
-	    Map<ServiceRegistrar, MarshalledObject> discoveredRegsMap 
-		= (Map<ServiceRegistrar, MarshalledObject>)
+	    Map<ServiceRegistrar, ?> discoveredRegsMap
+		= (Map<ServiceRegistrar, ?>)
 		    arg.get("discoveredRegsMap", null, Map.class);
-	    Map<ServiceRegistrar, MarshalledObject> checkedRegsMap =
+	    // Dual-read: old logs map registrars to java.rmi.MarshalledObject;
+	    // normalise every value to the canonical MarshalledInstance form.
+	    Map<ServiceRegistrar, MarshalledInstance> checkedRegsMap =
 		Collections.checkedMap(
 		    new HashMap(discoveredRegsMap.size()),
-			ServiceRegistrar.class, MarshalledObject.class);
-	    checkedRegsMap.putAll(discoveredRegsMap);
+			ServiceRegistrar.class, MarshalledInstance.class);
+	    for (Map.Entry<ServiceRegistrar, ?> e : discoveredRegsMap.entrySet()) {
+		Object v = e.getValue();
+		checkedRegsMap.put(e.getKey(),
+			v instanceof MarshalledInstance
+				? (MarshalledInstance) v
+				: new MarshalledInstance((MarshalledObject) v));
+	    }
 	    Set<String> groups = (Set<String>) arg.get("groups", null, Set.class);
 	    Set<String> checkedGroups = 
 		    Collections.checkedSet(new TreeSet<String>(), String.class);
@@ -824,9 +832,20 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
 	private RegistrationInfo(GetArg arg, RemoteEventListener listener) throws IOException, ClassNotFoundException {
 	    this.listener = listener;
 	    registrationID = (Uuid) arg.get("registrationID", null, Object.class);
-	    discoveredRegsMap = new HashMap<ServiceRegistrar, MarshalledObject>(
-		    (Map<ServiceRegistrar, MarshalledObject>)
-		arg.get("discoveredRegsMap", null, Map.class));
+	    // Dual-read: old logs map registrars to java.rmi.MarshalledObject;
+	    // normalise every value to the canonical MarshalledInstance form.
+	    Map<ServiceRegistrar, ?> recoveredRegsMap =
+		    (Map<ServiceRegistrar, ?>)
+		arg.get("discoveredRegsMap", null, Map.class);
+	    discoveredRegsMap =
+		    new HashMap<ServiceRegistrar, MarshalledInstance>(recoveredRegsMap.size());
+	    for (Map.Entry<ServiceRegistrar, ?> e : recoveredRegsMap.entrySet()) {
+		Object v = e.getValue();
+		discoveredRegsMap.put(e.getKey(),
+			v instanceof MarshalledInstance
+				? (MarshalledInstance) v
+				: new MarshalledInstance((MarshalledObject) v));
+	    }
 	    groups = new HashSet<String>((Set<String>) arg.get("groups", null, Set.class));
 	    locators = new HashSet<LookupLocator>(
 		    (Set<LookupLocator>) arg.get("locators", null, Set.class));
@@ -868,7 +887,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
                     this.locators.add(locators[i]);
                 }
             }
-            this.discoveredRegsMap = new HashMap<ServiceRegistrar, MarshalledObject>(11);
+            this.discoveredRegsMap = new HashMap<ServiceRegistrar, MarshalledInstance>(11);
             this.leaseID = leaseID;
             this.leaseExpiration = leaseExpiration;
 
@@ -911,9 +930,9 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
                 /* If reg is already in map, go to next registrar */
                 if( discoveredRegsMap.containsKey(reg) ) continue nextReg;
                 /* It doesn't contain it, try to marshal it */
-                MarshalledObject mReg = null;
+                MarshalledInstance mReg = null;
                 try {
-                    mReg = new MarshalledInstance(reg).convertToMarshalledObject();
+                    mReg = new AtomicMarshalledInstance(reg);
                 } catch(IOException e) { continue nextReg; } //failed, next reg
                 /* Succeeded, map registrar to its marshalled form */
                 discoveredRegsMap.put(reg,mReg);
@@ -3538,7 +3557,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
      *                       from which the set of registrars is being 
      *                       retrieved
      * 
-     * @return an array of MarshalledObject objects where each element is
+     * @return an array of MarshalledInstance objects where each element is
      *         is a marshalled instance of ServiceRegistrar.
      * 
      * @throws java.rmi.NoSuchObjectException if this method is called during
@@ -3574,7 +3593,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
      * @see org.apache.river.fiddler.proxy.FiddlerRegistration#getRegistrars
      * @see net.jini.discovery.LookupDiscoveryRegistration#getRegistrars
      */
-    public MarshalledObject[] getRegistrars(Uuid registrationID)
+    public MarshalledInstance[] getRegistrars(Uuid registrationID)
                        throws NoSuchObjectException, RemoteException, ThrowThis
     {
 	readyState.check();
@@ -3587,9 +3606,9 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
                         (new NoSuchObjectException(
 		"Invalid registration ID on call to getRegistrars() method"));
             }//endif
-            Collection mVals = (regInfo.discoveredRegsMap).values(); 
-            return ( (MarshalledObject[])(mVals).toArray
-                                        (new MarshalledObject[mVals.size()]) );
+            Collection mVals = (regInfo.discoveredRegsMap).values();
+            return ( (MarshalledInstance[])(mVals).toArray
+                                        (new MarshalledInstance[mVals.size()]) );
         } finally {
             concurrentObj.readUnlock();
         }
@@ -6767,10 +6786,18 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
         RemoteDiscoveryEvent newEvent = null;
         if(groupsMap.size() > 0) {
             try {
+                /* Use the non-deprecated MarshalledInstance path so the
+                 * registrar proxies are marshalled fresh as MarshalledInstance
+                 * (DER schema preserved). The handback is unchanged; up-convert
+                 * the legacy MarshalledObject to a MarshalledInstance so the
+                 * non-deprecated constructor is selected (null stays null).
+                 */
+                MarshalledInstance hb = (regInfo.handback == null)
+                        ? null : new MarshalledInstance(regInfo.handback);
                 newEvent = new RemoteDiscoveryEvent(outerProxy,
                                                     regInfo.eventID,
                                                     ++regInfo.seqNum,
-                                                    regInfo.handback,
+                                                    hb,
                                                     discarded,
                                                     groupsMap);
                 logInfoEvents(groupsMap,regInfo.eventID,regInfo.seqNum,

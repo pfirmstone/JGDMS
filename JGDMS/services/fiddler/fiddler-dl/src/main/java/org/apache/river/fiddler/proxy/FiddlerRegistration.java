@@ -24,7 +24,6 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.lang.reflect.Method;
-import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -297,7 +296,7 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
     public ServiceRegistrar[] getRegistrars() throws LookupUnmarshalException,
                                                      RemoteException
     {
-	MarshalledObject[] mRegs = null; 
+	MarshalledInstance[] mRegs = null;
         try {
             mRegs = server.getRegistrars(registrationID);
         } catch (ThrowThis e) {
@@ -318,8 +317,8 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
                 throw(new LookupUnmarshalException
                       ( (ServiceRegistrar[])(unmarshalledRegs.toArray
                               (new ServiceRegistrar[unmarshalledRegs.size()])),
-                        (MarshalledObject[])(marshalledRegs.toArray
-                               (new MarshalledObject[marshalledRegs.size()])),
+                        (MarshalledInstance[])(marshalledRegs.toArray
+                               (new MarshalledInstance[marshalledRegs.size()])),
                         (Throwable[])(exceptions.toArray
                                (new Throwable[exceptions.size()])),
                         "failed to unmarshal at least one ServiceRegistrar") );
@@ -815,10 +814,10 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
                  * Thus, the 'next' element to unmarshal is actually at
                  * the same index as the last element that was unmarshalled.
                  */
-                MarshalledObject marshalledObj
-                                 = (MarshalledObject)(marshalledRegs.get(i));
+                MarshalledInstance marshalledInst
+                                 = (MarshalledInstance)(marshalledRegs.get(i));
                 ServiceRegistrar reg = (ServiceRegistrar)(
-                        new MarshalledInstance(marshalledObj).get(false));
+                        marshalledInst.get(false));
                 /* Success: record the un-marshalled element
                  *          delete the corresponding un-marshalled element
                  */
