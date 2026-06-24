@@ -187,7 +187,9 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 		    l = (Lease) ml.get(result.verifyCodebaseIntegrity());
 		    leases.add(l);
 		} catch (Throwable t) {
-		    if (ml != null) problems.add(ml.convertToMarshalledObject());
+		    // Keep the canonical MarshalledInstance (carries the DER
+		    // schema) -- no downgrade to java.rmi.MarshalledObject.
+		    if (ml != null) problems.add(ml);
 		    exceptions.add(t);
 		}		
 	    }
@@ -198,9 +200,9 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 	    if (problems.isEmpty())
 		return rslt;
 	    
-	    final MarshalledObject sml[] =
-		(MarshalledObject[]) problems.toArray(
-                    new MarshalledObject[problems.size()]);
+	    final MarshalledInstance sml[] =
+		(MarshalledInstance[]) problems.toArray(
+                    new MarshalledInstance[problems.size()]);
 	    final Throwable es[] =
 		(Throwable[]) exceptions.toArray(
 		    new Throwable[exceptions.size()]);

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.rmi.MarshalledObject;
 import net.jini.core.lease.Lease;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -91,12 +92,13 @@ public class LeaseUnmarshalException extends AtomicException {
 
     /**
      * Array containing the set of <code>Lease</code> instances that
-     * could not be unmarshalled. This set should contain at least one
+     * could not be unmarshalled, in canonical {@link MarshalledInstance} form
+     * (preserving the DER schema). This set should contain at least one
      * element.
      *
      * @serial
      */
-    final private MarshalledObject[] stillMarshalledLeases;
+    final private MarshalledInstance[] stillMarshalledLeases;
 
     /**
      * Array containing the set of exceptions that occurred during the
@@ -122,7 +124,7 @@ public class LeaseUnmarshalException extends AtomicException {
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
             new SerialForm("unmarshalledLeases", Lease[].class),
-            new SerialForm("stillMarshalledLeases", MarshalledObject[].class),
+            new SerialForm("stillMarshalledLeases", MarshalledInstance[].class),
             new SerialForm("exceptions", Throwable[].class)
         };
     }
@@ -165,7 +167,7 @@ public class LeaseUnmarshalException extends AtomicException {
      */
     public LeaseUnmarshalException(String  message,
 				   Lease[] leases,
-				   MarshalledObject[] marshalledLeases,
+				   MarshalledInstance[] marshalledLeases,
 				   Throwable[] exceptions)
     {
 	this(message,
@@ -203,18 +205,83 @@ public class LeaseUnmarshalException extends AtomicException {
      *	       argument
      */
     public LeaseUnmarshalException(Lease[] leases,
-				   MarshalledObject[] marshalledLeases,
+				   MarshalledInstance[] marshalledLeases,
 				   Throwable[] exceptions)
     {
 	this(leases,
 	     marshalledLeases,
-	     exceptions, 
+	     exceptions,
 	     validate(marshalledLeases, exceptions)
 	);
     }
-    
+
+    /**
+     * Constructs a new instance from leases still in legacy
+     * {@link MarshalledObject} form, with a specified message.
+     *
+     * @param message the detail message
+     * @param leases array of successfully unmarshalled <code>Lease</code>s
+     * @param marshalledLeases array of marshalled <code>Lease</code>s that
+     *	      could not be unmarshalled
+     * @param exceptions array of the exceptions that occurred, one per
+     *	      unmarshalled element
+     * @throws IllegalArgumentException when the number of elements in the
+     *	       <code>exceptions</code> argument is not equal to the number of
+     *	       elements in the <code>marshalledLeases</code> argument
+     * @deprecated Use {@link #LeaseUnmarshalException(String, Lease[],
+     * MarshalledInstance[], Throwable[])}; {@link MarshalledInstance} preserves
+     * the DER schema that {@link MarshalledObject} drops. To be removed in a
+     * future release.
+     */
+    @Deprecated(forRemoval = true)
+    public LeaseUnmarshalException(String  message,
+				   Lease[] leases,
+				   MarshalledObject[] marshalledLeases,
+				   Throwable[] exceptions)
+    {
+	this(message, leases, toInstances(marshalledLeases), exceptions);
+    }
+
+    /**
+     * Constructs a new instance from leases still in legacy
+     * {@link MarshalledObject} form.
+     *
+     * @param leases array of successfully unmarshalled <code>Lease</code>s
+     * @param marshalledLeases array of marshalled <code>Lease</code>s that
+     *	      could not be unmarshalled
+     * @param exceptions array of the exceptions that occurred, one per
+     *	      unmarshalled element
+     * @throws IllegalArgumentException when the number of elements in the
+     *	       <code>exceptions</code> argument is not equal to the number of
+     *	       elements in the <code>marshalledLeases</code> argument
+     * @deprecated Use {@link #LeaseUnmarshalException(Lease[],
+     * MarshalledInstance[], Throwable[])}; {@link MarshalledInstance} preserves
+     * the DER schema that {@link MarshalledObject} drops. To be removed in a
+     * future release.
+     */
+    @Deprecated(forRemoval = true)
+    public LeaseUnmarshalException(Lease[] leases,
+				   MarshalledObject[] marshalledLeases,
+				   Throwable[] exceptions)
+    {
+	this(leases, toInstances(marshalledLeases), exceptions);
+    }
+
+    /** Wraps each legacy {@link MarshalledObject} in a {@link MarshalledInstance}. */
+    private static MarshalledInstance[] toInstances(MarshalledObject[] marshalledLeases) {
+	if (marshalledLeases == null) {
+	    return null;
+	}
+	MarshalledInstance[] instances = new MarshalledInstance[marshalledLeases.length];
+	for (int i = 0; i < instances.length; i++) {
+	    instances[i] = (marshalledLeases[i] == null)
+		    ? null : new MarshalledInstance(marshalledLeases[i]);
+	}
+	return instances;
+    }
+
     private LeaseUnmarshalException(Lease[] leases,
-				    MarshalledObject[] marshalledLeases,
+				    MarshalledInstance[] marshalledLeases,
 				    Throwable[] exceptions,
 				    boolean check)
     {
@@ -225,7 +292,7 @@ public class LeaseUnmarshalException extends AtomicException {
     
     private LeaseUnmarshalException(String message,
 				    Lease[] leases,
-				    MarshalledObject[] marshalledLeases,
+				    MarshalledInstance[] marshalledLeases,
 				    Throwable[] exceptions,
 				    boolean check)
     {
@@ -241,14 +308,14 @@ public class LeaseUnmarshalException extends AtomicException {
 	unmarshalledLeases 
 	    = Valid.copy(arg.get("unmarshalledLeases", null, Lease[].class));
 	stillMarshalledLeases 
-	    = Valid.copy(arg.get("stillMarshalledLeases", null, MarshalledObject[].class));
+	    = Valid.copy(arg.get("stillMarshalledLeases", null, MarshalledInstance[].class));
 	exceptions 
 	    = Valid.copy(arg.get("exceptions", null, Throwable[].class));
     }
     
     private static GetArg validateSerial(GetArg arg) throws IOException, ClassNotFoundException{
-	MarshalledObject[] marshalledLeases 
-	    = arg.get("stillMarshalledLeases", null, MarshalledObject[].class);
+	MarshalledInstance[] marshalledLeases 
+	    = arg.get("stillMarshalledLeases", null, MarshalledInstance[].class);
 	Throwable[] exceptions = arg.get("exceptions", null, Throwable[].class);
 	try {
 	    validate(marshalledLeases, exceptions);
@@ -270,7 +337,7 @@ public class LeaseUnmarshalException extends AtomicException {
      * <code>marshalledLeases</code> does not match the length of
      * <code>exceptions</code>.
      */
-    private static boolean validate(MarshalledObject[] marshalledLeases,
+    private static boolean validate(MarshalledInstance[] marshalledLeases,
 			  Throwable[] exceptions)
     {
 	/*
@@ -301,6 +368,21 @@ public class LeaseUnmarshalException extends AtomicException {
 
     /**
      * Accessor method that returns an array consisting of instances of
+     * {@link MarshalledInstance}, in canonical form (preserving the DER
+     * schema), where each element corresponds to a <code>Lease</code> that
+     * could not be successfully unmarshalled. Note that a copy is returned on
+     * each invocation of this method.
+     *
+     * @return array of marshalled instances of <code>Lease</code>, where each
+     *	       element corresponds to an object in which failure occurred while
+     *	       attempting to unmarshal the object
+     */
+    public MarshalledInstance[] getMarshalledInstances() {
+	return stillMarshalledLeases.clone();
+    }
+
+    /**
+     * Accessor method that returns an array consisting of instances of
      * <code>MarshalledObject</code>, where each element of the array is
      * a marshalled instance of the <code>Lease</code> interface, and
      * corresponds to an object that could not be successfully
@@ -310,9 +392,20 @@ public class LeaseUnmarshalException extends AtomicException {
      * @return array of marshalled instances of <code>Lease</code>,
      *	       where each element corresponds to an object in which
      *	       failure occurred while attempting to unmarshal the object
+     * @deprecated Use {@link #getMarshalledInstances()}. A
+     * {@link MarshalledInstance} carrying a non-JOSS (DER) payload cannot be
+     * represented as a {@link MarshalledObject}, in which case this method
+     * fails. To be removed in a future release.
      */
+    @Deprecated(forRemoval = true)
     public MarshalledObject[] getMarshalledLeases() {
-	return stillMarshalledLeases.clone();
+	MarshalledObject[] marshalledLeases =
+		new MarshalledObject[stillMarshalledLeases.length];
+	for (int i = 0; i < marshalledLeases.length; i++) {
+	    marshalledLeases[i] = (stillMarshalledLeases[i] == null)
+		    ? null : stillMarshalledLeases[i].convertToMarshalledObject();
+	}
+	return marshalledLeases;
     }
 
     /**
