@@ -122,69 +122,53 @@ public final class MarshalDelegates {
         return d == NONE ? null : d;
     }
 
-    // ---- strict mode: forbid the setAccessible reflective fallback ----
-
-    private static volatile boolean strict =
-            Boolean.getBoolean("org.apache.river.api.io.marshalDelegate.strict");
-
-    /**
-     * Whether strict mode is enabled. In strict mode the marshalling engines must
-     * not use {@code setAccessible} to reach a non-public {@code @AtomicSerial}
-     * class, member, or constructor on the reflective fallback path; such a class
-     * must instead be served by a {@link MarshalDelegate}. Off by default; enable
-     * with the system property {@code org.apache.river.api.io.marshalDelegate.strict}
-     * or {@link #setStrict(boolean)}.
-     */
-    public static boolean isStrict() {
-        return strict;
-    }
-
-    /** Sets strict mode at runtime (primarily for tests and tooling). */
-    public static void setStrict(boolean strictMode) {
-        strict = strictMode;
-    }
+    // ---- forbid the setAccessible reflective fallback (4.0.0: always enforced) ----
+    //
+    // A non-public @AtomicSerial class, member, or (GetArg) constructor that is reached
+    // on the reflective fallback path -- i.e. no MarshalDelegate serves it -- is rejected:
+    // it must be served by a MarshalDelegate (generated or hand-written), or be made
+    // public. The setAccessible fallback and its opt-out toggle have been removed; this
+    // is now unconditional.
 
     /**
-     * Strict-mode gate for a static contract member ({@code serialForm} /
-     * {@code serialize}) reached on the reflective fallback (no delegate).
-     * Returns a diagnostic message when the member is unreachable without
-     * {@code setAccessible} -- i.e. strict mode is on and {@code c} is not public
-     * -- otherwise {@code null}. A {@code null} return in strict mode means a
-     * public member of a public class, which is reachable without
-     * {@code setAccessible}, so the caller must NOT apply it.
+     * Gate for a static contract member ({@code serialForm} / {@code serialize})
+     * reached on the reflective fallback (no delegate). Returns a diagnostic message
+     * when {@code c} is not public -- and therefore unreachable without
+     * {@code setAccessible}, which is no longer permitted -- otherwise {@code null}.
+     * A {@code null} return means a public member of a public class, reachable
+     * reflectively without {@code setAccessible}.
      *
      * @param c      the {@code @AtomicSerial} class whose member is being invoked
      * @param member a human label for the member, e.g. {@code "serialForm()"}
      * @return a violation message, or {@code null} if permitted
      */
     public static String strictBlockClass(Class<?> c, String member) {
-        if (strict && !Modifier.isPublic(c.getModifiers())) {
+        if (!Modifier.isPublic(c.getModifiers())) {
             return strictMessage(c, member);
         }
         return null;
     }
 
     /**
-     * Strict-mode gate for the {@code (GetArg)} constructor reached on the
-     * reflective fallback. Blocks when strict mode is on and the constructor or
-     * its declaring class is not public (so reflective construction would need
-     * {@code setAccessible}).
+     * Gate for the {@code (GetArg)} constructor reached on the reflective fallback.
+     * Blocks when the constructor or its declaring class is not public (so reflective
+     * construction would need {@code setAccessible}, which is no longer permitted).
      *
      * @param c             the {@code @AtomicSerial} class being constructed
      * @param ctorModifiers the modifiers of its {@code (GetArg)} constructor
      * @return a violation message, or {@code null} if permitted
      */
     public static String strictBlockCtor(Class<?> c, int ctorModifiers) {
-        if (strict && !(Modifier.isPublic(ctorModifiers) && Modifier.isPublic(c.getModifiers()))) {
+        if (!(Modifier.isPublic(ctorModifiers) && Modifier.isPublic(c.getModifiers()))) {
             return strictMessage(c, "(GetArg) constructor");
         }
         return null;
     }
 
     private static String strictMessage(Class<?> c, String member) {
-        return "strict MarshalDelegate mode: " + member + " of @AtomicSerial class "
-                + c.getName() + " is not reachable without setAccessible, and no "
-                + "MarshalDelegate is registered for package " + c.getPackageName()
+        return member + " of @AtomicSerial class " + c.getName()
+                + " is not reachable without setAccessible, and no MarshalDelegate is "
+                + "registered for package " + c.getPackageName()
                 + "; add a MarshalDelegate for this package (or make the class and "
                 + "member public). See " + MarshalDelegate.class.getName() + ".";
     }

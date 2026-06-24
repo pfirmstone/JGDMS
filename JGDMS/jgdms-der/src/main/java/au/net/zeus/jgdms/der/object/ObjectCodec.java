@@ -663,7 +663,6 @@ public final class ObjectCodec {
         }
         String sv = MarshalDelegates.strictBlockClass(declaringClass, "serialize(PutArg, T)");
         if (sv != null) throw new DerException(sv);
-        if (!MarshalDelegates.isStrict()) serialize.setAccessible(true);
         DerPutArg putArg = new DerPutArg();
         try {
             serialize.invoke(null, putArg, instance);
@@ -785,7 +784,6 @@ public final class ObjectCodec {
             Constructor<T> ctor = clazz.getDeclaredConstructor(AtomicSerial.GetArg.class);
             String sv = MarshalDelegates.strictBlockCtor(clazz, ctor.getModifiers());
             if (sv != null) throw new DerException(sv);
-            if (!MarshalDelegates.isStrict()) ctor.setAccessible(true);
             return ctor;
         } catch (NoSuchMethodException ex) {
             throw new DerException(

@@ -232,7 +232,6 @@ public @interface AtomicSerial {
 				    {
 					String sv = MarshalDelegates.strictBlockCtor(type, mods);
 					if (sv != null) throw new InvalidClassException(type.getName(), sv);
-					if (!MarshalDelegates.isStrict()) c.setAccessible(true); //strict skips; non-public class blocked above
 					return c;
 				    }
 				case Modifier.PROTECTED:
@@ -245,7 +244,6 @@ public @interface AtomicSerial {
 				    {
 					String sv = MarshalDelegates.strictBlockCtor(type, mods);
 					if (sv != null) throw new InvalidClassException(type.getName(), sv);
-					if (!MarshalDelegates.isStrict()) c.setAccessible(true); //strict skips; non-public ctor blocked above
 					return c;
 				    }
 			    }

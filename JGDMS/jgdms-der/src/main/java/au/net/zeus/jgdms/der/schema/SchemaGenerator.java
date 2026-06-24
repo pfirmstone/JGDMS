@@ -222,7 +222,6 @@ public final class SchemaGenerator {
         }
         String sv = MarshalDelegates.strictBlockClass(clazz, "serialForm()");
         if (sv != null) throw new DerException(sv);
-        if (!MarshalDelegates.isStrict()) method.setAccessible(true);
         try {
             Object result = method.invoke(null);
             if (result == null) {
