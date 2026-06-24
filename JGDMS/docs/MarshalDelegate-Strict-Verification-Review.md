@@ -18,6 +18,34 @@ package `org.apache.river.api.io` has no `MarshalDelegate` for its built-in seri
 strict marshalling fails on the first `Map`/collection/throwable in any object graph. That gap is the
 #1 remaining task to reach the strict-green acceptance.
 
+> **UPDATE 2026-06-24 — the gap is RESOLVED.** Verified at tip `d28afdf26` (branch has since continued).
+> The agent enabled MarshalDelegate **generation for jgdms-platform** (`026f66e41`), producing
+> `org.apache.river.api.io.GeneratedMarshalDelegate` (+ `net.jini.id` / `net.jini.security` /
+> `net.jini.core.constraint` / `org.apache.river.discovery` / `org.apache.river.logging`), registered in
+> `META-INF/services`, guarded by a regression test (`GeneratedMarshalDelegateTest`, 4/4 — it cites
+> "the review's exact failure case"). The setAccessible fallback is **removed entirely** (`f1fe9d21b`):
+> the delegate path is now the only path, so there is no longer a "strict" toggle. My two minor notes
+> were also addressed (dead code `c1fa42d25`; `@AtomicExternal` documented as JOSS-only/outside the model
+> `a5e3527ab`), and the `@ReadInput`/`getReader()` back-door was removed (`ad25b4e67`).
+>
+> **Independent verification (delegate-only dist, Zulu-21 build):** green — **platform 301 · der 388 ·
+> jeri 96**, BUILD SUCCESS, 0 fail; the io `GeneratedMarshalDelegate` is in the platform jar and
+> registered; and qa runs of mercury/norm show **0 `MapSerializer$Ent` hits** — the block this review
+> reported is gone.
+>
+> **New remaining blocker for the qa end-to-end pass (separate from the delegate work).** mercury
+> `MercuryProxyEqualityTest` and norm `renewalservice/EqualsTest` now get *past* marshalling but fail in
+> the **harness itself**: `ClassNotFoundException: net.jini.activation.arg.MarshalledObject`, thrown by the
+> harness master VM while atomic-marshalling the test object to the child VM
+> (`MasterHarness.runTestOtherVM:893` → `AtomicMarshalOutputStream` → `ObjOutputStream.writeNewClassDesc`),
+> then a hang to the timeout. The class **exists** in `jgdms-activation-parameters.jar` and **is on the
+> harness classpath**, so this is a classloader-resolution issue during class-descriptor writing — not a
+> missing jar — and it coincides with the in-flight `MarshalledObject`→`MarshalledInstance` migration.
+> Strong suspicion: the **qa harness jars are stale** vs the new API (the qa ant build is migrated
+> separately and lags). **To get real mercury/norm/mahalo pass-fail:** rebuild the qa harness against the
+> new dist, then re-run. Until then the delegate-only qa pass is unconfirmed end-to-end (the unit-level
+> `GeneratedMarshalDelegateTest` does cover the io delegate).
+
 ---
 
 ## What is correct (code review)
@@ -123,7 +151,7 @@ Then re-run the strict tests below.
 | Phase B processor (generate + validate, validate-only gate) | ✅ correct |
 | Contract completions (reggie/mercury/outrigger/mahalo/norm/lookup.util) | ✅ correct |
 | Normal-mode build (platform/der/jeri) | ✅ 297 / 388 / 96 green |
-| **Strict-mode qa (delegate path, not fallback)** | ❌ **fails — `org.apache.river.api.io` delegate missing** |
+| **Strict-mode qa (delegate path, not fallback)** | ✅ io gap **RESOLVED 2026-06-24** (see Update); ⚠️ qa end-to-end blocked by a *separate* harness CNFE (`net.jini.activation.arg.MarshalledObject`) |
 
 **Bottom line:** ship-quality code, but the migration is incomplete at the foundation. Add the
 `org.apache.river.api.io` delegate, re-run the strict tests, and this clears.
