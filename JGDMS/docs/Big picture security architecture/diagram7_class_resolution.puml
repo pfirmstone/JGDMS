@@ -1,0 +1,38 @@
+@startuml diagram7_class_resolution
+' Part 7 — resolving a class name from the wire: the ambient stack-walk
+' (standard ObjectInputStream) vs JERI's endpoint-assigned, parent-anchored loader.
+title Resolving a class name from the wire
+
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #6E6E6E
+skinparam rectangle {
+  RoundCorner 10
+  BorderColor #9A9A9A
+}
+
+' ===== ambient / standard path (broken) =====
+rectangle "**Standard** ObjectInputStream.resolveClass" as A0 #EFEFEF
+rectangle "walk the call stack →\n**latestUserDefinedLoader**  (or the TCCL)" as A1 #FBE9E7
+rectangle "a loader picked by\n//whatever happens to be on the stack//" as A2 #FBE9E7
+rectangle "**✗**  local copy / wrong loader\ntype conflict · undesired local resolution\n(and no loader to find across bundles under OSGi)" as A3 #F4B5AE
+A0 --> A1
+A1 --> A2
+A2 --> A3
+
+' ===== JERI path (correct) =====
+rectangle "**JERI** MarshalInputStream.resolveClass" as B0 #EFEFEF
+rectangle "**defaultLoader** assigned by the **endpoint**\n(BasicInvocationDispatcher) + the codebase on the wire" as B1 #E6F4EA
+rectangle "ClassLoading.loadClass(codebase, name, defaultLoader)\n→ PreferredClassLoader[codebase],\n**parent = defaultLoader**  (= client bundle under OSGi)" as B2 #E6F4EA
+rectangle "**✓**  shared API via the parent → one type identity\nimpl child-first → isolated\n= the right class, deterministically" as B3 #B7E1C4
+B0 --> B1
+B1 --> B2
+B2 --> B3
+
+A0 -[hidden]down- B0
+
+note bottom of B3
+  No call stack, no TCCL: resolution is a function of the wire
+  **codebase** and the **endpoint's loader** — nothing ambient.
+end note
+@enduml

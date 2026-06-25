@@ -29,6 +29,10 @@ JGDMS doesn't, and the reason is two design decisions that are worth stating pla
 because almost nothing else makes them: **the stream endpoint assigns the loader
 that resolves classes**, and **every proxy travels in its own stream**.
 
+![The ambient resolver, blindfolded atop a wobbly call stack, delivers an object to the wrong "LocalCopy" door and earns a ClassCastException; the JERI endpoint instead hands over the right key — defaultLoader, parent = client bundle — so the object reaches the correct codebase door](images/wrong-loader-right-key.svg)
+
+*The stack-walk delivers to whoever's home. The endpoint knows the address — and hands over the key.*
+
 ## The Warres problem: resolution by accident
 
 Standard Java serialization resolves classes with a heuristic. `ObjectInputStream.resolveClass`
@@ -102,6 +106,8 @@ resolution is correct across a bundle boundary where the ambient-loader heuristi
 fails. (`PreferredClassProvider`, the SPI behind `ClassLoading`, is itself
 OSGi-aware — it carries the `osgi.serviceloader` capability and participates in the
 bundle wiring.)
+
+> **See also:** [Diagram 7 — resolving a class name from the wire: ambient stack-walk vs endpoint-assigned loader](<Big picture security architecture/diagram7_class_resolution.svg>)
 
 ## The fix, half two: a stream per proxy
 
