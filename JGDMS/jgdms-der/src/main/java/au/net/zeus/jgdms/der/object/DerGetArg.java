@@ -98,6 +98,16 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     private final DeserializationCompletion decodeUnit;
 
     /**
+     * Stream {default, verifier} class loaders. Package-private and reached DIRECTLY by
+     * trusted same-package resolution code ({@link DerProxySerializer}) -- deliberately NOT
+     * exposed via {@link #getObjectStreamContext()}, because broadcasting a {@link ClassLoader}
+     * (a capability) to every object in the decode graph is a security leak. {@code null} when
+     * the decode carries no loaders (e.g. a standalone object decode).
+     */
+    private final ClassLoader streamDefaultLoader;
+    private final ClassLoader streamVerifierLoader;
+
+    /**
      * Constructs a {@code DerGetArg} at nesting depth 0 (top-level decode).
      *
      * @param storeMap ordered map of class -> DerFieldStore (must not be {@code null};
@@ -133,6 +143,24 @@ public final class DerGetArg extends AtomicSerial.GetArg {
      */
     public DerGetArg(Map<Class<?>, DerFieldStore> storeMap, int depth,
                      DeserializationCompletion decodeUnit) {
+        this(storeMap, depth, decodeUnit, null, null);
+    }
+
+    /**
+     * Canonical constructor, additionally carrying the stream's {default, verifier} class
+     * loaders for trusted same-package resolution ({@link DerProxySerializer}). Package-private:
+     * only {@link ObjectCodec} (same package) threads the loaders in, so objects in the decode
+     * graph cannot reach them.
+     *
+     * @param storeMap            ordered map of class -> DerFieldStore (must not be null/empty)
+     * @param depth               the nesting depth of the object being constructed
+     * @param decodeUnit          the per-decode-unit completion sink, or {@code null}
+     * @param streamDefaultLoader the stream's default class loader, or {@code null}
+     * @param streamVerifierLoader the stream's verifier class loader, or {@code null}
+     */
+    DerGetArg(Map<Class<?>, DerFieldStore> storeMap, int depth,
+              DeserializationCompletion decodeUnit,
+              ClassLoader streamDefaultLoader, ClassLoader streamVerifierLoader) {
         super(); // As of Inc2 step 6 the protected GetArg() constructor is a no-op
                  // (the SerializablePermission "enableSubclassImplementation" /
                  // Check.check() guard was dropped: idempotency of the final memoizing
@@ -147,6 +175,22 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         this.storeMap = Collections.unmodifiableMap(new LinkedHashMap<>(storeMap));
         this.depth = depth;
         this.decodeUnit = decodeUnit;
+        this.streamDefaultLoader = streamDefaultLoader;
+        this.streamVerifierLoader = streamVerifierLoader;
+    }
+
+    /**
+     * Package-private: the stream's default class loader, reached DIRECTLY by trusted
+     * same-package resolution code ({@link DerProxySerializer}). Not on the public
+     * {@code GetArg} surface and not broadcast via {@link #getObjectStreamContext()}.
+     */
+    ClassLoader streamDefaultLoader() {
+        return streamDefaultLoader;
+    }
+
+    /** Package-private: the stream's verifier class loader (see {@link #streamDefaultLoader()}). */
+    ClassLoader streamVerifierLoader() {
+        return streamVerifierLoader;
     }
 
     // =========================================================================
