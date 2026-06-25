@@ -63,6 +63,17 @@ public class OSGiServiceIterator implements BundleActivator {
 	if (bc == null) {
 	    return Collections.<S>emptyIterator();
 	}
+	return registryProviders(service, bc).iterator();
+    }
+
+    /**
+     * The provider <em>instances</em> of {@code service} registered in
+     * {@code bc}'s service registry -- the actual service objects, fetched with
+     * {@code getService}, not the {@code ServiceReference}s. Package-private so
+     * it can be exercised in tests without the {@link BundleActivator}
+     * singleton.
+     */
+    static <S> List<S> registryProviders(Class<S> service, BundleContext bc) {
 	List<S> instances = new ArrayList<S>();
 	try {
 	    // null filter is always syntactically valid; class name is the
@@ -85,7 +96,7 @@ public class OSGiServiceIterator implements BundleActivator {
 	    // A registry failure must never break provider discovery; the
 	    // loader-scoped scan in Service still runs.
 	}
-	return instances.iterator();
+	return instances;
     }
 
     /**
@@ -95,7 +106,7 @@ public class OSGiServiceIterator implements BundleActivator {
      * {@code fallback} (the platform context) when the requester is not in a
      * bundle, so a non-bundle requester still sees cross-bundle SPIs.
      */
-    private static BundleContext contextFor(ClassLoader loader, BundleContext fallback) {
+    static BundleContext contextFor(ClassLoader loader, BundleContext fallback) {
 	for (ClassLoader cl = loader; cl != null; cl = cl.getParent()) {
 	    if (cl instanceof BundleReference) {
 		Bundle b = ((BundleReference) cl).getBundle();

@@ -322,7 +322,7 @@ public final class Service {
      * scan (co-loaded providers, e.g. a per-package MarshalDelegate) with the
      * OSGi service-registry lookup (cross-bundle providers).
      */
-    private static class ChainedIterator<S> implements Iterator<S> {
+    static class ChainedIterator<S> implements Iterator<S> {
 	private final Iterator<S> first;
 	private final Iterator<S> second;
 
