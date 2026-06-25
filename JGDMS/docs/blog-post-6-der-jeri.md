@@ -250,7 +250,14 @@ ecosystems, where diamond dependencies and conflicting transitive versions are
 the normal case, not an error to eliminate. JPMS's only answer there is "flatten
 to one version" — the classpath problem it claimed to retire, with extra
 ceremony — which is why application code largely stayed on the classpath and the
-module system became, in practice, a JDK-internal mechanism.
+module system became, in practice, a JDK-internal mechanism. None of which is a
+dismissal of JPMS as a whole: its strong encapsulation was a genuine security
+advance — it shrank the platform's trusted, reflectively-reachable surface to
+`java.base` and finally walled off the internal APIs (`sun.misc.Unsafe` and kin)
+that were a perennial source of exploits and fragile upgrades. The criticism here
+is deliberately narrow: the same rigidity that makes that encapsulation a win
+makes *version* coexistence the wrong shape for the open library and application
+layer — a versioning critique, not a verdict on the module system.
 
 **OSGi** does support version coexistence, but through version *ranges* — still a
 naming scheme, asserted in metadata rather than verified, and one whose cost is
