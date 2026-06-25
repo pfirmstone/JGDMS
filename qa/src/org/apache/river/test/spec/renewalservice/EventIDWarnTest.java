@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -127,7 +128,7 @@ public class EventIDWarnTest extends AbstractLeaseRenewalServiceTest {
 	long minWarning = renewSetDur / 3;
 	logger.log(Level.FINE, "minWarning = " + minWarning + " milliseconds");
 	EventRegistration reg01 = 
-	    set01.setExpirationWarningListener(rrl, minWarning, null);
+	    set01.setExpirationWarningListener(rrl, minWarning, (MarshalledInstance) null);
 	reg01 = prepareRegistration(reg01);
 
 	// validate the registration (just for grins)
@@ -141,7 +142,7 @@ public class EventIDWarnTest extends AbstractLeaseRenewalServiceTest {
 			  "ExpirationWarngingEvents for set #2.");
 	logger.log(Level.FINE, "minWarning = " + minWarning + " milliseconds");
 	EventRegistration reg02 = 
-	    set02.setExpirationWarningListener(rrl, minWarning, null);
+	    set02.setExpirationWarningListener(rrl, minWarning, (MarshalledInstance) null);
 	reg02 = prepareRegistration(reg02);
 
 	// validate the registration (just for grins)
@@ -155,7 +156,7 @@ public class EventIDWarnTest extends AbstractLeaseRenewalServiceTest {
 			  "ExpirationWarngingEvents for set #3.");
 	logger.log(Level.FINE, "minWarning = " + minWarning + " milliseconds");
 	EventRegistration reg03 = 
-	    set03.setExpirationWarningListener(rrl, minWarning, null);
+	    set03.setExpirationWarningListener(rrl, minWarning, (MarshalledInstance) null);
 	reg03 = prepareRegistration(reg03);
 
 	// validate the registration (just for grins)

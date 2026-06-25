@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -135,7 +136,7 @@ public class LeaseRenewalTest extends AbstractLeaseRenewalServiceTest {
 	// register listener to receive events
 	logger.log(Level.FINE, "Registering listener for renewal failure" +
 			  " events.");
-	set.setRenewalFailureListener(rrl  , null);
+	set.setRenewalFailureListener(rrl  , (MarshalledInstance) null);
 
 	// create the lease to be managed
 	logger.log(Level.FINE, "Creating lease with duration of " +

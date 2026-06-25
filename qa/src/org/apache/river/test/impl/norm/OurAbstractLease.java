@@ -25,8 +25,8 @@ import java.rmi.RemoteException;
 import net.jini.core.lease.*;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Lifted from org.apache.river.lease.AbstractLease so we can have a codebase
@@ -42,6 +42,31 @@ import org.apache.river.api.io.AtomicSerial.ReadObject;
 public abstract class OurAbstractLease implements Lease, java.io.Serializable {
 
     private static final long serialVersionUID = -9067179156916102052L;
+
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("serialFormat", Integer.TYPE),
+            new SerialForm("expiration", Long.TYPE)
+        };
+    }
+
+    public static void serialize(PutArg arg, OurAbstractLease al) throws IOException{
+        int format = al.serialFormat;
+        arg.put("serialFormat", format);
+        arg.put("expiration", adjustedVal(format, al.expiration));
+        arg.writeArgs();
+    }
+
+    private static long adjustedVal(int format, long expiration){
+        long val = expiration;
+        if (format == Lease.DURATION) {
+            long exp = val;
+            val -= System.currentTimeMillis();
+            if (exp < 0 && val > 0)
+                val = Long.MIN_VALUE;
+        }
+        return val;
+    }
 
     /**
      * The lease expiration, in local absolute time.
@@ -65,7 +90,7 @@ public abstract class OurAbstractLease implements Lease, java.io.Serializable {
      * @throws IOException 
      */
     protected OurAbstractLease(GetArg arg) throws IOException{
-	this( expiration(((RO)arg.getReader()).expiration,
+	this( expiration(arg.get("expiration", 0L),
 		arg.get("serialFormat", Lease.DURATION)),
 		arg.get("serialFormat", Lease.DURATION)
 	);
@@ -170,18 +195,4 @@ public abstract class OurAbstractLease implements Lease, java.io.Serializable {
 	}
     }
     
-    @ReadInput
-    static ReadObject getRO(){
-	return new RO();
-    }
-    
-    private static class RO implements ReadObject {
-	long expiration;
-
-	@Override
-	public void read(ObjectInput stream) throws IOException, ClassNotFoundException {
-	    expiration = stream.readLong();
-	}
-	
-    }
 }
