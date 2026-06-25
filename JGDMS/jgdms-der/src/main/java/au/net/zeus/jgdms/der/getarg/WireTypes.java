@@ -113,6 +113,15 @@ final class WireTypes {
             return decodeArray(reader, wireType);
         }
 
+        // A nullable scalar reference field (boxed primitive, String, byte[]) whose value was
+        // null travels as DER NULL. A primitive field never encodes null (its captured value is
+        // autoboxed non-null), so a NULL here only ever corresponds to a nullable boxed/reference
+        // field -- return null. (Enum/array nulls are handled above by decodeEnum/decodeArray.)
+        if (peekIsNull(reader)) {
+            readNull(reader);
+            return null;
+        }
+
         return switch (wireType) {
             case "boolean", "java.lang.Boolean" -> reader.readBoolean();
 

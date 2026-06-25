@@ -826,6 +826,15 @@ public final class ObjectCodec {
             return encodeArray(value, wireType, fieldName, depth);
         }
 
+        // A nullable scalar reference field (boxed primitive, String, byte[], or a nested
+        // @AtomicSerial value) whose value is null travels as DER NULL. A primitive field is
+        // never null at encode (its captured value is autoboxed), so this only fires for a
+        // nullable reference field. (Enum/array null is handled by encodeEnum/encodeArray above;
+        // a null @AtomicSerial nested value yields the same DER NULL as encodeNested.)
+        if (value == null) {
+            return new byte[]{0x05, 0x00};
+        }
+
         return switch (wireType) {
             case "boolean", "java.lang.Boolean" -> {
                 if (!(value instanceof Boolean b)) {
@@ -1157,14 +1166,24 @@ public final class ObjectCodec {
         }
 
         Class<?> cls = value.getClass();
-        if (!cls.isAnnotationPresent(AtomicSerial.class)) {
+        // S3.10 wire-visibility: a value whose runtime class is not itself @AtomicSerial but
+        // which extends an @AtomicSerial class is encoded as that @AtomicSerial superclass (its
+        // subclass-only state is not wire-visible) -- exactly as the top-level decodeHierarchy
+        // drops a non-@AtomicSerial subclass to its @AtomicSerial superclass. This is what lets
+        // a final DerMarshalledInstance value travel as its @AtomicSerial MarshalledInstance
+        // superclass and decode as a base MarshalledInstance via ServiceLoader dispatch
+        // (@AtomicSerial is NOT @Inherited, so isAnnotationPresent on the subclass is false).
+        // Require SOME @AtomicSerial class in the hierarchy, else fail clearly (a bare
+        // java.lang.reflect.Proxy with no @AtomicSerial ancestor is rejected here -- it travels
+        // only as a top-level object-stream [8] item, never as a nested field value).
+        if (nearestAtomicSerial(cls) == null) {
             throw new DerException(
                     "ObjectCodec: nested field '" + fieldName
                     + "' has wireType @AtomicSerial but runtime type "
-                    + cls.getName() + " is not annotated @AtomicSerial");
+                    + cls.getName() + " has no @AtomicSerial class in its hierarchy");
         }
 
-        // Generate chain and encode payload
+        // Generate chain and encode payload (generateChain walks to the @AtomicSerial leaf)
         SchemaChain.Result chain = SchemaGenerator.generateChain(cls);
         byte[] payloadBytes = encodeHierarchy(value, chain, depth + 1);
 
@@ -1176,6 +1195,14 @@ public final class ObjectCodec {
         children.add(DerWriter.writeOctetString(schemaChainBytes));
         children.add(DerWriter.writeOctetString(payloadBytes));
         return DerWriter.writeSequence(children);
+    }
+
+    /** The nearest class in {@code c}'s hierarchy annotated {@code @AtomicSerial}, or null if none. */
+    private static Class<?> nearestAtomicSerial(Class<?> c) {
+        for (Class<?> k = c; k != null && k != Object.class; k = k.getSuperclass()) {
+            if (k.isAnnotationPresent(AtomicSerial.class)) return k;
+        }
+        return null;
     }
 
     /**

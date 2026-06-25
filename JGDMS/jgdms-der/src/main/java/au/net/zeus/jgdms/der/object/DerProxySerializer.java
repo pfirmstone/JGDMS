@@ -27,6 +27,7 @@ import java.lang.reflect.Proxy;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -49,11 +50,26 @@ import org.apache.river.resource.Service;
  *
  * <p>It substitutes a downloadable proxy (a {@link DynamicProxyCodebaseAccessor} — i.e. a
  * {@code java.lang.reflect.Proxy} — or a {@link ProxyAccessor} smart proxy) with a carrier
- * holding a bootstrap {@link CodebaseAccessor} proxy plus the real proxy wrapped as a
- * (DER) {@link MarshalledInstance}; on decode it {@code implements Resolve} so the DER
- * decode ({@code DerReplacer.resolve}) calls {@link #readResolve()}, which authenticates
- * and (if needed) downloads the codebase via {@link ProxyCodebaseSpi} before unmarshalling
- * the real proxy — preserving authenticate-before-download.
+ * holding the proxy's {@link InvocationHandler} plus the real proxy wrapped as a (DER)
+ * {@link MarshalledInstance}; on decode it {@code implements Resolve} so the DER decode
+ * ({@code DerReplacer.resolve}) calls {@link #readResolve()}, which rebuilds a bootstrap
+ * {@link CodebaseAccessor} proxy from the handler and (if needed) downloads the codebase via
+ * {@link ProxyCodebaseSpi} before unmarshalling the real proxy — preserving
+ * authenticate-before-download.
+ *
+ * <h2>Why the handler, not a bootstrap proxy (the DER/cross-language form)</h2>
+ * <p>The platform {@code ProxySerializer} carries the bootstrap as an actual
+ * {@code java.lang.reflect.Proxy} field, relying on Java Serialization's native proxy
+ * encoding. The DER {@code @AtomicSerial} codec has no bare-{@code Proxy} field type — a
+ * {@code Proxy} is a JVM convenience, not a wire concept — so this carrier instead holds the
+ * proxy's {@code @AtomicSerial} {@link InvocationHandler} (the portable essence: endpoint +
+ * constraints) and rebuilds the fixed-interface bootstrap {@code CodebaseAccessor} locally in
+ * {@link #readResolve()} via {@link Proxy#newProxyInstance}. This is wire-equivalent to the
+ * platform form (which serializes the bootstrap proxy as interface-list + handler anyway), it
+ * keeps the carrier a pure {@code @AtomicSerial} record that any language (e.g. a Rust JERI
+ * peer, which has no dynamic proxies) can read with its existing record machinery, and it
+ * aligns with the bare-{@code Proxy} [8] invariant that the handler MUST be
+ * {@code @AtomicSerial}.
  *
  * <p><b>Why it lives in jgdms-der, not jgdms-platform.</b> {@code ProxySerializer} is in the
  * local platform; reusing it would make DER proxy support depend on JGDMS platform 4.0,
@@ -72,15 +88,15 @@ import org.apache.river.resource.Service;
 @AtomicSerial
 public class DerProxySerializer implements Resolve {
 
-    private static final String BOOTSTRAP_PROXY = "bootstrapProxy";
-    private static final String SERVICE_PROXY   = "serviceProxy";
+    private static final String HANDLER       = "handler";
+    private static final String SERVICE_PROXY = "serviceProxy";
 
     private static final Logger LOGGER = Logger.getLogger("au.net.zeus.jgdms.der.object");
 
     /**
-     * The bootstrap proxy is limited to these interfaces so additional interfaces of the
-     * real proxy (which may not be available before the codebase is downloaded) are not
-     * required to reconstruct it.
+     * The bootstrap proxy is rebuilt with exactly these interfaces so additional interfaces
+     * of the real proxy (which may not be available before the codebase is downloaded) are
+     * not required to reconstruct it. Mirrors {@code ProxySerializer.BOOTSTRAP_PROXY_INTERFACES}.
      */
     private static final Class<?>[] BOOTSTRAP_PROXY_INTERFACES = {
         CodebaseAccessor.class, RemoteMethodControl.class
@@ -88,27 +104,33 @@ public class DerProxySerializer implements Resolve {
 
     public static SerialForm[] serialForm() {
         return new SerialForm[]{
-            new SerialForm(BOOTSTRAP_PROXY, CodebaseAccessor.class),
+            new SerialForm(HANDLER, InvocationHandler.class),
             new SerialForm(SERVICE_PROXY, MarshalledInstance.class)
         };
     }
 
     public static void serialize(PutArg arg, DerProxySerializer ps) throws IOException {
-        arg.put(BOOTSTRAP_PROXY, ps.bootstrapProxy);
+        arg.put(HANDLER, ps.handler);
         arg.put(SERVICE_PROXY, ps.serviceProxy);
         arg.writeArgs();
     }
 
-    private final CodebaseAccessor bootstrapProxy;
+    /**
+     * The real proxy's {@code @AtomicSerial} {@link InvocationHandler} (the bootstrap proxy is
+     * rebuilt from it in {@link #readResolve()}); carries the endpoint + constraints that
+     * authenticate-before-download needs.
+     */
+    private final InvocationHandler handler;
     private final MarshalledInstance serviceProxy;
     private final transient Collection<?> context;
     private final transient ClassLoader defaultLoader;
     private final transient ClassLoader verifierLoader;
 
-    DerProxySerializer(CodebaseAccessor bootstrapProxy, MarshalledInstance serviceProxy,
-                       Collection<?> context, ClassLoader defaultLoader, ClassLoader verifierLoader) {
-        this.bootstrapProxy = bootstrapProxy;
-        this.serviceProxy = serviceProxy;
+    DerProxySerializer(InvocationHandler handler, MarshalledInstance serviceProxy,
+                       Collection<?> context, ClassLoader defaultLoader, ClassLoader verifierLoader)
+            throws InvalidObjectException {
+        this.handler = checkHandler(handler);
+        this.serviceProxy = notNull(serviceProxy, SERVICE_PROXY);
         this.context = context;
         this.defaultLoader = defaultLoader;
         this.verifierLoader = verifierLoader;
@@ -123,8 +145,8 @@ public class DerProxySerializer implements Resolve {
      */
     public DerProxySerializer(GetArg arg) throws IOException, ClassNotFoundException {
         this(
-            check(notNull(arg.get(BOOTSTRAP_PROXY, null, CodebaseAccessor.class), BOOTSTRAP_PROXY)),
-            notNull(arg.get(SERVICE_PROXY, null, MarshalledInstance.class), SERVICE_PROXY),
+            arg.get(HANDLER, null, InvocationHandler.class),
+            arg.get(SERVICE_PROXY, null, MarshalledInstance.class),
             arg.getObjectStreamContext(),
             arg instanceof DerGetArg ? ((DerGetArg) arg).streamDefaultLoader() : null,
             arg instanceof DerGetArg ? ((DerGetArg) arg).streamVerifierLoader() : null
@@ -134,9 +156,15 @@ public class DerProxySerializer implements Resolve {
     @Override
     public Object readResolve() throws ObjectStreamException {
         try {
+            // serviceProxy.get(...) (via the provider) requires a non-null context; the decoded
+            // carrier's context may be null (DerGetArg.getObjectStreamContext() carries only the
+            // optional decode-unit token). Default to an empty context for the local unmarshal.
+            Collection<?> ctx = (context != null) ? context : Collections.emptyList();
+            CodebaseAccessor bootstrap = (CodebaseAccessor) Proxy.newProxyInstance(
+                    bootstrapLoader(defaultLoader), BOOTSTRAP_PROXY_INTERFACES, handler);
             return getProvider(defaultLoader)
-                    .resolve(bootstrapProxy, serviceProxy, defaultLoader, verifierLoader, context);
-        } catch (IOException | ClassNotFoundException e) {
+                    .resolve(bootstrap, serviceProxy, defaultLoader, verifierLoader, ctx);
+        } catch (IOException | ClassNotFoundException | RuntimeException e) {
             InvalidObjectException ioe = new InvalidObjectException("DER proxy resolution failed: " + e);
             ioe.initCause(e);
             throw ioe;
@@ -150,10 +178,9 @@ public class DerProxySerializer implements Resolve {
         if (proxy instanceof RemoteMethodControl
                 && Proxy.isProxyClass(proxyClass)
                 && getProvider(streamLoader).substitute(proxyClass, streamLoader)) {
-            InvocationHandler h = Proxy.getInvocationHandler(proxy);
             return new DerProxySerializer(
-                    (CodebaseAccessor) Proxy.newProxyInstance(getProxyLoader(proxyClass), BOOTSTRAP_PROXY_INTERFACES, h),
-                    new DerMarshalledInstance(proxy, asColl(context)),
+                    Proxy.getInvocationHandler(proxy),
+                    new DerMarshalledInstance(proxy, asColl(context), false),
                     context, null, null);
         }
         return proxy;
@@ -170,10 +197,9 @@ public class DerProxySerializer implements Resolve {
         if (proxy instanceof RemoteMethodControl
                 && proxy instanceof CodebaseAccessor
                 && getProvider(streamLoader).substitute(proxyClass, streamLoader)) {
-            InvocationHandler h = Proxy.getInvocationHandler(proxy);
             return new DerProxySerializer(
-                    (CodebaseAccessor) Proxy.newProxyInstance(getProxyLoader(proxyClass), BOOTSTRAP_PROXY_INTERFACES, h),
-                    new DerMarshalledInstance(svc, asColl(context)),
+                    Proxy.getInvocationHandler(proxy),
+                    new DerMarshalledInstance(svc, asColl(context), false),
                     context, null, null);
         }
         return svc;
@@ -204,8 +230,11 @@ public class DerProxySerializer implements Resolve {
         };
     }
 
-    private static ClassLoader getProxyLoader(final Class<?> proxyClass) {
-        return AccessController.doPrivileged((PrivilegedAction<ClassLoader>) proxyClass::getClassLoader);
+    /** Loader used to rebuild the bootstrap proxy; falls back to this class's loader (has the bootstrap interfaces). */
+    private static ClassLoader bootstrapLoader(final ClassLoader defaultLoader) {
+        if (defaultLoader != null) return defaultLoader;
+        return AccessController.doPrivileged(
+                (PrivilegedAction<ClassLoader>) DerProxySerializer.class::getClassLoader);
     }
 
     @SuppressWarnings("unchecked")
@@ -218,9 +247,18 @@ public class DerProxySerializer implements Resolve {
         return o;
     }
 
-    private static CodebaseAccessor check(CodebaseAccessor c) throws InvalidObjectException {
-        if (Proxy.isProxyClass(c.getClass())) return c;
-        throw new InvalidObjectException(
-                "bootstrap proxy must be a dynamically generated java.lang.reflect.Proxy");
+    /**
+     * The handler must be {@code @AtomicSerial} so it can travel on the DER wire and so the
+     * rebuilt bootstrap proxy is reconstructable on the receiver (mirrors the bare-{@code Proxy}
+     * [8] invariant). Equivalent to the platform {@code ProxySerializer}'s "InvocationHandler
+     * must be available locally" requirement (currently a {@code BasicInvocationHandler}).
+     */
+    private static InvocationHandler checkHandler(InvocationHandler h) throws InvalidObjectException {
+        if (h == null) throw new InvalidObjectException("handler cannot be null");
+        if (!h.getClass().isAnnotationPresent(AtomicSerial.class)) {
+            throw new InvalidObjectException(
+                    "bootstrap InvocationHandler " + h.getClass().getName() + " must be @AtomicSerial");
+        }
+        return h;
     }
 }

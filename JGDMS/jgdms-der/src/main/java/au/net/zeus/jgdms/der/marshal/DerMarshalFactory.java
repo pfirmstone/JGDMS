@@ -63,8 +63,25 @@ import java.util.Collection;
  */
 public final class DerMarshalFactory implements MarshalFactory {
 
-    /** No-arg constructor; this factory is stateless. */
-    public DerMarshalFactory() {}
+    /**
+     * Whether {@link DerMarshalInstanceOutput} substitutes a downloadable top-level proxy
+     * ({@link net.jini.export.DynamicProxyCodebaseAccessor} / {@link net.jini.export.ProxyAccessor})
+     * with a {@code DerProxySerializer} carrier. {@code true} for a normal MarshalledInstance;
+     * {@code false} for the carrier's inner {@code serviceProxy} MarshalledInstance, which must
+     * store the real proxy bare (mirrors the JOSS {@code AtomicMarshalledInstance(obj, ctx, replace)}
+     * guard). Encode-only state; the decode-side factory ignores it.
+     */
+    private final boolean substitute;
+
+    /** No-arg constructor (substituting); this factory is otherwise stateless. */
+    public DerMarshalFactory() {
+        this(true);
+    }
+
+    /** Constructor selecting whether to substitute a downloadable top-level proxy on encode. */
+    public DerMarshalFactory(boolean substitute) {
+        this.substitute = substitute;
+    }
 
     /**
      * Creates a {@link DerMarshalInstanceOutput} that writes the DER-encoded
@@ -82,7 +99,7 @@ public final class DerMarshalFactory implements MarshalFactory {
                                                      OutputStream locOut,
                                                      Collection   context)
             throws IOException {
-        return new DerMarshalInstanceOutput(objOut, context);
+        return new DerMarshalInstanceOutput(objOut, context, substitute);
     }
 
     /**
