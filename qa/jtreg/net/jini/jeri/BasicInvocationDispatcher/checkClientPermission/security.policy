@@ -20,7 +20,6 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=joe",
 };
 
 grant {
-    permission java.lang.RuntimePermission "setSecurityManager";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 

@@ -1,19 +1,19 @@
 grant codebase "jrt:/java.security.jgss",
 {
-    permission java.security.SecurityPermission "putProviderProperty.SunJGSS";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.security.SecurityPermission "putProviderProperty.SunJGSS";
 };
 
 grant codebase "jrt:/java.smartcardio",
 {
-    permission java.security.SecurityPermission "putProviderProperty.SunPCSC";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.security.SecurityPermission "putProviderProperty.SunPCSC";
 };
 
 grant codebase "jrt:/java.xml.crypto",
 {
-    permission java.util.PropertyPermission "java.specification.version", "read";
     permission java.security.SecurityPermission "putProviderProperty.XMLDSig";
+    permission java.util.PropertyPermission "java.specification.version", "read";
 };
 
 grant codebase "jrt:/jdk.crypto.cryptoki",
@@ -23,7 +23,6 @@ grant codebase "jrt:/jdk.crypto.cryptoki",
 
 grant codebase "jrt:/jdk.crypto.ec",
 {
-    permission java.security.SecurityPermission "putProviderProperty.SunEC";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.jca";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.pkcs";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
@@ -31,13 +30,14 @@ grant codebase "jrt:/jdk.crypto.ec",
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math.intpoly";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
     permission java.lang.RuntimePermission "loadLibrary.sunec";
+    permission java.security.SecurityPermission "putProviderProperty.SunEC";
 };
 
 grant codebase "jrt:/jdk.crypto.mscapi",
 {
-    permission java.security.SecurityPermission "putProviderProperty.SunMSCAPI";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
     permission java.lang.RuntimePermission "loadLibrary.sunmscapi";
+    permission java.security.SecurityPermission "putProviderProperty.SunMSCAPI";
 };
 
 grant codebase "jrt:/jdk.localedata",
@@ -57,24 +57,34 @@ grant codebase "jrt:/jdk.security.auth",
 
 grant codebase "jrt:/jdk.security.jgss",
 {
-    permission java.security.SecurityPermission "putProviderProperty.JdkSASL";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.security.SecurityPermission "putProviderProperty.JdkSASL";
 };
 
 grant codebase "jrt:/org.openjsse",
 {
-    permission java.util.PropertyPermission "java.specification.version", "read";
-    permission java.security.SecurityPermission "putProviderProperty.OpenJSSE";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
     permission java.lang.RuntimePermission "accessDeclaredMembers";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission java.security.SecurityPermission "putProviderProperty.OpenJSSE";
+    permission java.util.PropertyPermission "java.specification.version", "read";
 };
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Phoenix",
 {
-    permission java.io.SerializablePermission "enableSubclassImplementation";
-    permission java.io.SerializablePermission "enableSubstitution";
+    permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:1098", "listen,resolve";
+    permission java.net.SocketPermission "localhost:2000", "listen,resolve";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
+    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.util.PropertyPermission "java.home", "read";
     permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
     permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
@@ -91,24 +101,10 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Phoenix",
     permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
     permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
     permission java.util.PropertyPermission "qa.home", "read";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.io.SerializablePermission "enableSubstitution";
     permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
     permission org.apache.river.phoenix.dl.MonitorPermission "net.jini.activation.arg.ActivationMonitor.inactiveObject";
-    permission javax.security.auth.AuthPermission "getSubject";
-    permission java.lang.RuntimePermission "getProtectionDomain";
-    permission java.lang.RuntimePermission "shutdownHooks";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "read";
-    permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\-", "write";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.net.SocketPermission "*", "resolve";
-    permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
-    permission java.net.SocketPermission "*:2000", "connect,resolve";
-    permission java.net.SocketPermission "[fe80:0:0:0:9ca0:dfeb:b9a7:96fd%16]:1098", "connect,resolve";
-    permission java.net.SocketPermission "localhost:1098", "listen,resolve";
-    permission java.net.SocketPermission "localhost:2000", "listen,resolve";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
 };
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/phoenix",
@@ -117,32 +113,10 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test
 };
 
 grant {
-    permission java.io.SerializablePermission "enableSubclassImplementation";
-    permission java.io.SerializablePermission "enableSubstitution";
-    permission java.io.SerializablePermission "serialFilter";
-    permission java.util.PropertyPermission "*", "read,write";
-    permission java.util.PropertyPermission "java.rmi.server.codebase", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStorePassword", "read";
-    permission java.util.PropertyPermission "javax.net.ssl.trustStoreType", "read";
-    permission java.util.PropertyPermission "net.jini.loader.codebaseAnnotation", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.client.initialInboundRation", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.server.initialInboundRation", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.connectionTimeout", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.checkInterval", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.cleanInterval", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.leaseValue", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.minimumDuration", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.handshakeTimeout", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.server.suppressStackTraces", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jceProvider", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jsseProvider", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.secureRandomAlgorithm", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
-    permission java.util.PropertyPermission "org.apache.river.jeri.tcp.useNIO", "read";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
-    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "read";
+    permission java.net.SocketPermission "*:1024-", "accept,resolve";
+    permission net.jini.io.context.ContextPermission "net.jini.io.context.ClientSubject.getClientSubject";
+    permission java.net.NetPermission "getNetworkInformation";
+    permission java.net.NetPermission "getProxySelector";
     permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Phoenix";
     permission javax.security.auth.AuthPermission "doAsPrivileged";
     permission javax.security.auth.AuthPermission "getLoginConfiguration";
@@ -152,6 +126,41 @@ grant {
     permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
     permission javax.security.auth.AuthPermission "modifyPublicCredentials";
     permission javax.security.auth.AuthPermission "setLoginConfiguration";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.jca";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.krb5";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.pkcs";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.provider";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math.intpoly";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "accessSystemModules";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "createSecurityManager";
+    permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "loadLibrary.net";
+    permission java.lang.RuntimePermission "loadLibrary.nio";
+    permission java.lang.RuntimePermission "loadLibrary.sunec";
+    permission java.lang.RuntimePermission "loadLibrary.sunmscapi";
+    permission java.lang.RuntimePermission "localeServiceProvider";
+    permission java.lang.RuntimePermission "loggerFinder";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "readFileDescriptor";
+    permission java.lang.RuntimePermission "reflectionFactoryAccess";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission java.lang.RuntimePermission "sun.rmi.runtime.RuntimeUtil.getInstance";
+    permission java.lang.RuntimePermission "writeFileDescriptor";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "read";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
     permission java.security.SecurityPermission "createAccessControlContext";
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.security.SecurityPermission "getPolicy";
@@ -207,40 +216,7 @@ grant {
     permission java.security.SecurityPermission "putProviderProperty.SunRsaSign";
     permission java.security.SecurityPermission "putProviderProperty.SunSASL";
     permission java.security.SecurityPermission "putProviderProperty.XMLDSig";
-    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.jca";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.krb5";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.pkcs";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.provider";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math.intpoly";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
-    permission java.lang.RuntimePermission "accessDeclaredMembers";
-    permission java.lang.RuntimePermission "accessSystemModules";
-    permission java.lang.RuntimePermission "createClassLoader";
-    permission java.lang.RuntimePermission "createPlatformThread";
-    permission java.lang.RuntimePermission "createSecurityManager";
-    permission java.lang.RuntimePermission "createVirtualThread";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.RuntimePermission "getProtectionDomain";
-    permission java.lang.RuntimePermission "loadLibrary.net";
-    permission java.lang.RuntimePermission "loadLibrary.nio";
-    permission java.lang.RuntimePermission "loadLibrary.sunec";
-    permission java.lang.RuntimePermission "loadLibrary.sunmscapi";
-    permission java.lang.RuntimePermission "localeServiceProvider";
-    permission java.lang.RuntimePermission "loggerFinder";
-    permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "readFileDescriptor";
-    permission java.lang.RuntimePermission "reflectionFactoryAccess";
-    permission java.lang.RuntimePermission "setContextClassLoader";
-    permission java.lang.RuntimePermission "shutdownHooks";
-    permission java.lang.RuntimePermission "sun.rmi.runtime.RuntimeUtil.getInstance";
-    permission java.lang.RuntimePermission "writeFileDescriptor";
-    permission net.jini.io.context.ContextPermission "net.jini.io.context.ClientSubject.getClientSubject";
-    permission java.util.logging.LoggingPermission "control";
-    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
     permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\", "read";
     permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log1136979176204087132dir", "read";
     permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log12204304308659402941dir", "read";
@@ -248,10 +224,10 @@ grant {
     permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log4938968115116328085dir", "read";
     permission java.io.FilePermission "C:\\Users\\peter\\AppData\\Local\\Temp\\log870460455360335774dir", "read";
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission java.net.NetPermission "getNetworkInformation";
-    permission java.net.NetPermission "getProxySelector";
-    permission java.net.SocketPermission "*:1024-", "accept,resolve";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
-    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.io.SerializablePermission "enableSubstitution";
+    permission java.io.SerializablePermission "serialFilter";
+    permission java.util.logging.LoggingPermission "control";
 };
 

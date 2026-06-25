@@ -121,11 +121,15 @@ abstract class AuthManager extends FilterX509TrustManager
     abstract Logger getLogger();
 
     /**
-     * Returns the Subject, or null if the subject was null or if the weak
-     * reference has been cleared.
+     * Returns the Subject for local principals and credentials.  The SPIFFE
+     * subject is ambient (stamped, not logged in) and rotates, so it is fetched
+     * fresh from {@code Subject.processWorker()} on every call -- no holder, no
+     * caching.  Falls back to the constructor-supplied subject when there is no
+     * ambient worker subject (the jsse keystore config, or the vanilla build JDK).
      */
     Subject getSubject() {
-	return (Subject) subjectRef.get();
+	Subject ambient = Utilities.spiffeWorkerSubject();
+	return (ambient != null) ? ambient : (Subject) subjectRef.get();
     }
 
     /**
@@ -269,8 +273,9 @@ abstract class AuthManager extends FilterX509TrustManager
       	throws GeneralSecurityException
     {
 	X509Certificate head = Utilities.firstX509Cert(chain);
-	String certKeyType = head.getPublicKey().getAlgorithm();
-	if (!certKeyType.equals(keyType)) {
+	String certKeyType =
+	    Utilities.normalizeKeyAlgorithm(head.getPublicKey().getAlgorithm());
+	if (!certKeyType.equals(Utilities.normalizeKeyAlgorithm(keyType))) {
 	    return null;
 	}
 	Subject subject = getSubject();

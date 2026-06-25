@@ -73,6 +73,37 @@ abstract class Utilities
     /* -- Fields -- */
 
     /**
+     * {@code Subject.processWorker()} on the DirtyChai JDK -- the ambient SPIFFE
+     * {@code WorkerSubject} (stamped, not logged in).  Looked up reflectively so
+     * this compiles against the vanilla build JDK where the method is absent.
+     */
+    private static final java.lang.reflect.Method PROCESS_WORKER = findProcessWorker();
+
+    private static java.lang.reflect.Method findProcessWorker() {
+        try {
+            return Subject.class.getMethod("processWorker");
+        } catch (NoSuchMethodException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the ambient SPIFFE {@code WorkerSubject} fetched fresh from
+     * {@code Subject.processWorker()} (it rotates -- no holder, no caching), or
+     * null on the vanilla build JDK or when no SPIFFE workload identity exists.
+     * For connection credentials only; authorization uses the principal stamped
+     * into the ProtectionDomain, not this Subject.
+     */
+    static Subject spiffeWorkerSubject() {
+        if (PROCESS_WORKER == null) return null;
+        try {
+            return (Subject) PROCESS_WORKER.invoke(new Subject());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * The names of JSSE key exchange algorithms used for anonymous
      * communication.
      * 
@@ -968,6 +999,16 @@ abstract class Utilities
      *
      * The key algorithm is specified by the key exchange algorithm.
      */
+    /**
+     * Normalises a key algorithm name.  The JCA reports EC keys as {@code "EC"}
+     * (e.g. {@code EC} SPIFFE SVIDs), but the SSL key-exchange machinery and
+     * {@link #getKeyAlgorithm} name them {@code "ECDSA"}.  Mapping {@code "EC"}
+     * to {@code "ECDSA"} lets EC certificates be recognised and selected.
+     */
+    static String normalizeKeyAlgorithm(String algorithm) {
+        return "EC".equals(algorithm) ? "ECDSA" : algorithm;
+    }
+
     static String getKeyAlgorithm(String cipherSuite) {
 	String alg = getKeyExchangeAlgorithm(cipherSuite);
 	if (position(alg, RSA_KEY_EXCHANGE_ALGORITHMS) != -1) {

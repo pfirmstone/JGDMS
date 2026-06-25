@@ -9,13 +9,6 @@ grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/qa/barcb/-",
 };
 
 grant {
-    permission java.util.PropertyPermission "java.rmi.server.RMIClassLoaderSpi", "read";
-    permission java.util.PropertyPermission "test.classes", "read";
-    permission java.util.PropertyPermission "test.src", "read";
-    permission java.util.PropertyPermission "user.dir", "read";
-    permission java.lang.RuntimePermission "accessDeclaredMembers";
-    permission java.lang.RuntimePermission "createClassLoader";
-    permission java.lang.RuntimePermission "getProtectionDomain";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 

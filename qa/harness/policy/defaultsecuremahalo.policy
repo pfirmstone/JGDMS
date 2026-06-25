@@ -100,13 +100,13 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Group",
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo",
 {
-    permission net.jini.security.AccessPermission "*";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.lang.RuntimePermission "createPlatformThread";
     permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
+    permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
 };
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mercury",
@@ -140,13 +140,129 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
 };
 
 grant {
-    permission java.util.PropertyPermission "*", "read";
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
     permission java.io.FilePermission "<<ALL FILES>>", "read";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
 };
 
+
+// WIDENING-DRIVE (throwaway, reset after green)
+grant {
+    permission java.io.FilePermission "/tmp/-", "read,write,delete";
+    permission java.net.SocketPermission "localhost:1024-65535", "connect,listen,accept,resolve";
+    permission java.net.SocketPermission "ArkPC-28365281:1024-65535", "connect,listen,accept,resolve";
+    permission java.net.SocketPermission "[::1]:1024-65535", "connect,listen,accept,resolve";
+    permission java.net.SocketPermission "127.0.0.1:1024-65535", "connect,listen,accept,resolve";
+};
+
+// WIDENING-DRIVE-2 (throwaway: AccessPermission for bootstrap-proxy + service methods)
+grant {
+    permission net.jini.security.AccessPermission "*";
+};
+
+// WIDENING-DRIVE-3 (throwaway: qualified CodebaseAccessor bootstrap methods)
+grant {
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.*";
+};
+
+// WIDENING-DRIVE-4 (throwaway: per-principal bootstrap AccessPermission)
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester" {
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.*";
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Reggie" {
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.*";
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Outrigger" {
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.*";
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo" {
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.*";
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Norm" {
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.*";
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Fiddler" {
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.*";
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mercury" {
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.*";
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Phoenix" {
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.*";
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Group" {
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.*";
+    permission net.jini.security.AccessPermission "*";
+};
+
+// WIDENING-DRIVE-5 (throwaway: comma form, specific CodebaseAccessor methods)
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getBootstrapProxy";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassLoader";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Reggie",
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getBootstrapProxy";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassLoader";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Outrigger",
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getBootstrapProxy";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassLoader";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo",
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getBootstrapProxy";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassLoader";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Norm",
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getBootstrapProxy";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassLoader";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Fiddler",
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getBootstrapProxy";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassLoader";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mercury",
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getBootstrapProxy";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassLoader";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Phoenix",
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getBootstrapProxy";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassLoader";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Group",
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getBootstrapProxy";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassLoader";
+};

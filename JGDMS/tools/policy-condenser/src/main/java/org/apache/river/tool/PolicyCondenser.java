@@ -22,6 +22,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FilePermission;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -37,6 +38,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.river.api.security.DefaultPolicyParser;
@@ -130,6 +132,22 @@ public class PolicyCondenser {
 	List<Permission> kept = new ArrayList<Permission>(n);
 	for (int i = 0; i < n; i++) {
 	    Permission p = a[i];
+	    // A FilePermission whose name is not an absolute path -- a relative
+	    // path, or a malformed URL-form name such as
+	    // "file:/path/to/x.jar" (which SecureClassLoader.getProtectionDomain
+	    // records for a codebase self-read via
+	    // new FilePermission(codeSource.uri.toString(), "read")) -- has a
+	    // working-directory-dependent implies() relation: a broader file
+	    // grant can appear to imply it while condensing (run from one
+	    // directory) yet not while it is enforced (run from another). Reducing
+	    // such a permission is therefore unsound, so it is never eliminated.
+	    // Over-keeping is safe: it never narrows the granted permission set.
+	    // File.isAbsolute() defers all platform-specific path rules (Unix
+	    // root, Windows drive/UNC) to the JDK.
+	    if (p instanceof FilePermission && !new File(p.getName()).isAbsolute()) {
+		kept.add(p);
+		continue;
+	    }
 	    boolean redundant = false;
 	    for (int j = 0; j < n; j++) {
 		if (i == j) continue;
@@ -175,7 +193,18 @@ public class PolicyCondenser {
 
 	try {
 	    PolicyParser parser = new DefaultPolicyParser();
-	    Collection<PermissionGrant> grantsCol = parser.parse(parseTarget.toURI().toURL(), System.getProperties());
+	    // The "${/}" policy token must expand to the platform file separator.
+	    // DefaultPolicyParser resolves it as an ordinary "/" property rather
+	    // than special-casing it, and "/" is not a standard system property --
+	    // so without supplying it, every FilePermission whose path
+	    // SecurityPolicyWriter wrote with "${/}" separators (i.e. every captured
+	    // file permission) fails to expand and is silently dropped during
+	    // parsing, wiping the entire audited file-permission set from the
+	    // condensed policy. Map "/" -> File.separator for the expansion.
+	    Properties expandProps = new Properties();
+	    expandProps.putAll(System.getProperties());
+	    expandProps.put("/", File.separator);
+	    Collection<PermissionGrant> grantsCol = parser.parse(parseTarget.toURI().toURL(), expandProps);
 	    PermissionGrant[] grants = grantsCol.toArray(new PermissionGrant[0]);
 	    int length = grants.length;
 	    List<PermissionGrant> condensed = new ArrayList<PermissionGrant>(length);

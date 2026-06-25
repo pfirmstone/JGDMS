@@ -1,8 +1,4 @@
 grant {
-    permission java.lang.RuntimePermission "getProtectionDomain";
-    permission java.lang.RuntimePermission "setFactory";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
-    permission java.net.SocketPermission "localhost:2006", "connect,resolve";
-    permission java.net.SocketPermission "localhost:9867", "connect,resolve";
 };
 

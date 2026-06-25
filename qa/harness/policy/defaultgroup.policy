@@ -5,7 +5,5 @@ grant codebase "jrt:/jdk.localedata",
 
 grant {
     permission java.security.AllPermission "<all permissions>", "<all actions>";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
 };
 

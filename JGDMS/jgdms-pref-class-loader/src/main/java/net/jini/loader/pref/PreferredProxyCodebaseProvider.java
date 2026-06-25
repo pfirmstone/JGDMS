@@ -865,58 +865,6 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
 
     /**
-     * Attempts to make a best-effort {@link PermissionGrant} scoped to the
-     * given codebase digest, granting {@link DownloadPermission},
-     * {@link URLPermission} for each JAR URL, and an
-     * {@link UnresolvedPermission} for {@code net.jini.loader.LoadClassPermission}
-     * (the last permission only takes effect on DirtyChai JVMs that carry a
-     * {@code DigestCodeSource}).
-     *
-     * <p>If the installed policy is not a {@code RevocablePolicy} or the
-     * calling context lacks {@link net.jini.security.GrantPermission}, the
-     * grant attempt is silently skipped.
-     *
-     * @param algorithm  the digest algorithm used (e.g. {@code "SHA-256"})
-     * @param digest     the codebase digest bytes
-     * @param codebase   the JAR/directory URLs
-     */
-    private static void tryGrantDigestGrant(String algorithm,
-                                            byte[] digest,
-                                            URL[] codebase) {
-        try {
-            List<Permission> perms = new ArrayList<Permission>();
-            perms.add(new DownloadPermission());
-            for (URL url : codebase) {
-                if (!isDirectory(url)) {
-                    try {
-                        perms.add(new URLPermission(url.toString()));
-                    } catch (Exception ex) {
-                        logger.log(Level.FINE,
-                                "Could not create URLPermission for {0}", url);
-                    }
-                }
-            }
-            // LoadClassPermission lives in DirtyChai; use UnresolvedPermission
-            // so that the grant is recorded even when running on a standard JVM.
-            perms.add(new UnresolvedPermission(
-                    "net.jini.loader.LoadClassPermission", null, null, null));
-            PermissionGrant grant = PermissionGrantBuilder.newBuilder()
-                    .context(PermissionGrantBuilder.DIGEST)
-                    .digest(algorithm, digest)
-                    .permissions(perms.toArray(new Permission[0]))
-                    .build();
-            Security.grant(grant);
-        } catch (UnsupportedOperationException ex) {
-            logger.log(Level.FINE,
-                    "DigestGrant skipped: policy does not support revocable grants");
-        } catch (SecurityException ex) {
-            logger.log(Level.FINE,
-                    "DigestGrant skipped: calling context lacks GrantPermission: {0}",
-                    ex.getMessage());
-        }
-    }
-
-    /**
      * Computes the content digest of each non-directory JAR URL in the given
      * codebase, in order.
      *
@@ -1081,8 +1029,11 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * DirtyChai JVM when the JAR content still matches the server-attested
      * digest.
      *
-     * <p>No URL is included in the grant.  The grant matches any code source
-     * whose content digest equals the per-JAR digest, regardless of location.
+     * <p>The grant's <em>scope</em> remains digest-based: it matches any code
+     * source whose content digest equals the per-JAR digest, regardless of
+     * location.  Its permission set includes a {@link URLPermission} for the
+     * attested JAR URL so that digest-matched, authenticated code may retrieve
+     * its codebase.
      *
      * <p>If {@code localPrincipals} is non-null and non-empty, each grant is
      * further scoped to those principals (typically the local SPIFFE workload
@@ -1110,6 +1061,9 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * @param algorithm       the digest algorithm (e.g. {@code "SHA-256"})
      * @param perJarDigests   individual per-JAR digest bytes (in codebase order,
      *                        one per non-directory JAR)
+     * @param codebase        the codebase URLs in the same order; non-directory
+     *                        entries supply the {@link URLPermission} target for
+     *                        each per-JAR grant
      * @param localPrincipals the local client principals to scope the grant to,
      *                        or {@code null} to grant to any principal
      * @param serverPrincipals the authenticated server principals from the TLS
@@ -1120,13 +1074,30 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      */
     private static void tryGrantPerUriDigestGrants(String algorithm,
                                                    byte[][] perJarDigests,
+                                                   URL[] codebase,
                                                    Principal[] localPrincipals,
                                                    Principal[] serverPrincipals) {
         Principal[] grantPrincipals = mergePrincipals(localPrincipals, serverPrincipals);
+        // Non-directory JAR URLs align positionally with perJarDigests; both are
+        // in codebase order with directories skipped (see computeIndividualJarDigests).
+        List<URL> jarUrls = new ArrayList<URL>();
+        for (URL url : codebase) {
+            if (!isDirectory(url)) {
+                jarUrls.add(url);
+            }
+        }
         for (int i = 0; i < perJarDigests.length; i++) {
             try {
                 List<Permission> perms = new ArrayList<Permission>();
                 perms.add(new DownloadPermission());
+                if (i < jarUrls.size()) {
+                    try {
+                        perms.add(new URLPermission(jarUrls.get(i).toString()));
+                    } catch (Exception ex) {
+                        logger.log(Level.FINE,
+                                "Could not create URLPermission for {0}", jarUrls.get(i));
+                    }
+                }
                 // LoadClassPermission lives in DirtyChai; use UnresolvedPermission
                 // so that the grant is recorded even on a standard JVM.
                 perms.add(new UnresolvedPermission(
@@ -1456,7 +1427,61 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                         // the service prior to any codebase download.
                     } catch (CertificateException ex) {
                         throw new IOException("Problem creating signer certificates", ex);
-                    } 
+                    }
+                }
+
+                // The codebase has now been authenticated (server identity) and, where
+                // required, signature/integrity verified above.  Grant DownloadPermission
+                // + URLPermission (+ LoadClassPermission) per codebase URL so the
+                // PreferredClassLoader created below can fetch and define its own classes.
+                // The content digest is not known until the codebase is downloaded, so the
+                // grant is scoped to the verified codebase URI (not the digest); this
+                // replaces the removed blanket URLClassLoader auto-grant.
+                for (int gi = 0, gl = codebase.length; gi < gl; gi++) {
+                    final URL grantUrl = codebase[gi];
+                    if (isDirectory(grantUrl)) continue;
+                    // Grant each permission in its OWN Security.grant call.
+                    // GrantPermission is checked per call against this provider's
+                    // policy authority, which covers DownloadPermission and
+                    // URLPermission individually; a single combined grant would
+                    // require one GrantPermission entry implying the whole set at
+                    // once.  doPrivileged so the check is made against the trusted
+                    // provider's own domain, not the constrained unmarshalling
+                    // callers up the stack -- issuing the dynamic codebase grant is
+                    // the provider's responsibility once it has authenticated the
+                    // server and verified the codebase.
+                    final Permission[] toGrant = new Permission[] {
+                        new DownloadPermission(),
+                        new URLPermission(grantUrl.toString())
+                    };
+                    for (int pgi = 0; pgi < toGrant.length; pgi++) {
+                        final Permission perm = toGrant[pgi];
+                        try {
+                            // Security.doPrivileged (not AccessController.doPrivileged):
+                            // retains the current Subject's principals through the
+                            // privileged block, so a grant to the authenticated principal
+                            // applies to the grant facility's frames.  Plain doPrivileged
+                            // would drop the Subject (the combiner runs only in getContext).
+                            Security.doPrivileged(new PrivilegedAction<Void>() {
+                                public Void run() {
+                                    Security.grant(PermissionGrantBuilder.newBuilder()
+                                        .context(PermissionGrantBuilder.URI)
+                                        .uri(grantUrl.toString())
+                                        .permissions(new Permission[]{perm})
+                                        .build());
+                                    return null;
+                                }
+                            });
+                        } catch (UnsupportedOperationException uoe) {
+                            logger.log(Level.FINE,
+                                "Codebase download grant skipped (policy not revocable): {0}",
+                                perm);
+                        } catch (SecurityException se) {
+                            logger.log(Level.SEVERE,
+                                "DIAG codebase grant denied for {0} perm {1}: {2}",
+                                new Object[]{grantUrl, perm, se.getMessage()});
+                        }
+                    }
                 }
 
                 // ----------------------------------------------------------------
@@ -1591,7 +1616,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                             // same JAR bytes from reusing this grant (Option 1 —
                             // digest-codesource hijacking defence).
                             Principal[] localPrincipals = Security.currentPrincipals();
-                            tryGrantPerUriDigestGrants(algo, localDigests,
+                            tryGrantPerUriDigestGrants(algo, localDigests, codebase,
                                     localPrincipals, serverPrincipals);
                             logger.log(Level.INFO,
                                     "Boot window: {0} per-JAR codebase digest(s) verified"

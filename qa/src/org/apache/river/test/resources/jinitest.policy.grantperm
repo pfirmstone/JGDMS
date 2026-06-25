@@ -1,0 +1,53 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership. The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License. You may obtain a copy of the License at
+// 
+//      http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// GrantPermission ceilings synthesised by ProxyPolicyGenerator from
+//   jinitest.policy
+//
+// Each block below is the MINIMAL GrantPermission that admits exactly the
+// permissions the named proxy codebase exercised during the audited run.
+// It is the meta-capability bounding what may be dynamically granted for
+// that proxy.  The block is scoped, by default, to the proxy codebase
+// itself (per-codebase granularity).  Before deployment, ATTACH each
+// ceiling to the grant block of the domain that actually calls
+// DynamicPolicy.grant for the proxy (the service / exporter), re-scoping
+// the codebase/principal clauses as appropriate for that granting role.
+//
+
+// proxy codebase: http://*/jsk-dl.jar
+// proxy-shape permissions present: false
+grant codebase "http://*/jsk-dl.jar" {
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\";";
+};
+
+// proxy codebase: http://*/phoenix-dl.jar
+// proxy-shape permissions present: false
+grant codebase "http://*/phoenix-dl.jar" {
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\";";
+};
+
+// proxy codebase: http://*/qa1-lookup-simulator-dl.jar
+// proxy-shape permissions present: false
+grant codebase "http://*/qa1-lookup-simulator-dl.jar" {
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\";";
+};
+
+// proxy codebase: http://*/reggie-dl.jar
+// proxy-shape permissions present: false
+grant codebase "http://*/reggie-dl.jar" {
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\";";
+};
+

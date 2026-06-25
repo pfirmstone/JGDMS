@@ -1,4 +1,8 @@
 grant {
+    permission java.net.SocketPermission "*:1024-", "connect,listen,accept,resolve";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.server";
+    permission java.lang.RuntimePermission "setFactory";
+    permission java.io.FilePermission ".", "read,write,delete";
     permission java.util.PropertyPermission "java.home", "read";
     permission java.util.PropertyPermission "java.security.manager", "read";
     permission java.util.PropertyPermission "java.security.policy", "read";
@@ -6,9 +10,5 @@ grant {
     permission java.util.PropertyPermission "test.classes", "read";
     permission java.util.PropertyPermission "test.src", "read";
     permission java.util.PropertyPermission "user.dir", "read";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.server";
-    permission java.lang.RuntimePermission "setFactory";
-    permission java.io.FilePermission ".", "read,write,delete";
-    permission java.net.SocketPermission "*:1024-", "connect,listen,accept,resolve";
 };
 

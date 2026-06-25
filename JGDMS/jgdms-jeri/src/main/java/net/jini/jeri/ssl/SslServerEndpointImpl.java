@@ -289,7 +289,7 @@ class SslServerEndpointImpl extends Utilities {
 						keyTypes = new ArrayList(1);
 						serverKeyTypes.put(principal, keyTypes);
 					}
-					keyTypes.add(cert.getPublicKey().getAlgorithm());
+					keyTypes.add(Utilities.normalizeKeyAlgorithm(cert.getPublicKey().getAlgorithm()));
 				}
 			}
 		} else {
@@ -723,8 +723,8 @@ class SslServerEndpointImpl extends Utilities {
 
             // Priority 1: Process-wide SPIFFE Subject.
             // Always re-fetch: the SPIFFE SVID rotates (typically hourly) and
-            // SpiffeSubjectHolder.get() returns the current live Subject.
-            Subject spiffe = SpiffeSubjectHolder.get();
+            // Utilities.spiffeWorkerSubject() returns the current live Subject.
+            Subject spiffe = Utilities.spiffeWorkerSubject();
             if (spiffe != null) {
                 if (spiffe != serverSubject) {
                     // Subject has been refreshed — update subject state and
@@ -781,7 +781,7 @@ class SslServerEndpointImpl extends Utilities {
 								try {
 									// Re-read the latest subject inside the lock in case
 									// it rotated again between scheduling and execution.
-									Subject latest = SpiffeSubjectHolder.get();
+									Subject latest = Utilities.spiffeWorkerSubject();
 									if (latest != null && latest != serverSubject) {
 										serverSubject = latest;
 										serverPrincipals = computePrincipals(latest);

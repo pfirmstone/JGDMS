@@ -17,8 +17,8 @@
  */
 package org.apache.river.qa.harness;
 
-import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -45,11 +45,23 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
     /** the group proxy */
     private NonActivatableGroup proxy;
 
+    /**
+     * System property naming the file into which the group VM writes its
+     * serialized proxy. See {@code qa/doc/DESIGN-harness-group-ipc.md}.
+     */
+    static final String PROXY_FILE_PROPERTY = "org.apache.river.qa.harness.group.proxyFile";
+
+    /** Maximum time to wait for the group VM to publish its proxy file. */
+    private static final long PROXY_TIMEOUT_MS = 60_000L;
+
     /** the system process */
     private Process process;
 
     /** the stdout pipe, which mustn't be GC'd */
     private Pipe outPipe;
+
+    /** the stderr pipe, which mustn't be GC'd */
+    private Pipe errPipe;
 
     /** service options provided by the 5-arg constructor */
     private final String[] options;
@@ -134,6 +146,16 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 	l.add(vm + File.separator + "bin"+ File.separator+ "java");
 	l.add("-Djava.rmi.server.codebase=" + getServiceCodebase());
 	l.add("-Djava.security.policy=" + getServicePolicyFile());
+	// Reserve a unique file through which the group VM returns its proxy,
+	// replacing the old stderr handshake (qa/doc/DESIGN-harness-group-ipc.md).
+	File proxyFile;
+	try {
+	    proxyFile = File.createTempFile("nonactgrp-proxy-", ".mi");
+	    proxyFile.delete(); // reserve the name; the group VM creates it atomically
+	} catch (IOException e) {
+	    throw new TestException("Unable to create group proxy file", e);
+	}
+	l.add("-D" + PROXY_FILE_PROPERTY + "=" + proxyFile.getAbsolutePath());
 	String[] opts = getServiceOptions();
 	if (opts != null) {
 	    for (int i = 0; i < opts.length; i++) {
@@ -160,48 +182,79 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 		   "NonActivatableGroup exec command line: '" + cmdBuf + "'");
 	logServiceParameters();
 
-        ObjectInputStream proxyStream = null;
-	// exec the process, setup the pipe, and get the proxy
-        synchronized (this){
+        synchronized (this) {
             try {
                 process = Runtime.getRuntime().exec(cmdArray);
-                outPipe = new Pipe("NonActivatableGroup_system-out", 
-                                   process.getInputStream(),
-                                   System.out,
+                // Pipe BOTH stdout and stderr into the test log; the proxy is
+                // returned via proxyFile, so neither standard stream is reserved
+                // for it and group-VM start-up failures are now visible.
+                outPipe = new Pipe("NonActivatableGroup_system-out",
+                                   process.getInputStream(), System.out,
                                    null, //filter
                                    new NonActGrpAnnotator("NonActGrp-out: "));
                 outPipe.start();
-		DataInputStream es = new DataInputStream(process.getErrorStream());
-		short token = Short.MAX_VALUE - 5;
-		// Some debugging and logging output occurs during jvm loading, 
-		// so we need to read past that to our proxy.
-		while (es.readShort() != token){} // Read in token at least once.
-		proxyStream = new AtomicMarshalInputStream(es, null, false, null, null);
-                proxy = (NonActivatableGroup)
-                        ((MarshalledInstance) proxyStream.readObject()).get(false);
+                errPipe = new Pipe("NonActivatableGroup_system-err",
+                                   process.getErrorStream(), System.out,
+                                   null, //filter
+                                   new NonActGrpAnnotator("NonActGrp-err: "));
+                errPipe.start();
+                proxy = readGroupProxy(proxyFile);
             } catch (IOException e) {
-                // Clean up.
-                process.destroy();
-                try {
-                    outPipe.stop();
-                } catch (IOException ex){ }//Ignore
-                try {
-                    if (proxyStream != null) proxyStream.close();
-                } catch (IOException ex){ } // Ignore.
-                throw new TestException("NonActivatableGroupAdmin: Failed to exec "
-                                      + "the group", e);
-            } catch (ClassNotFoundException e) {
-                // Clean up.
-                process.destroy();
-                try {
-                    outPipe.stop();
-                } catch (IOException ex){ }//Ignore
-                try {
-                    if (proxyStream != null) proxyStream.close();
-                } catch (IOException ex){ } // Ignore.
+                cleanupGroup();
                 throw new TestException("NonActivatableGroupAdmin: Failed to exec "
                                       + "the group", e);
             }
+        }
+    }
+
+    /**
+     * Waits (bounded, with a liveness check) for the group VM to publish its
+     * proxy file, then deserializes and returns the group proxy. The file is
+     * deleted afterwards.
+     */
+    private NonActivatableGroup readGroupProxy(File proxyFile)
+        throws TestException
+    {
+        long deadline = System.currentTimeMillis() + PROXY_TIMEOUT_MS;
+        while (!proxyFile.exists()) {
+            if (!process.isAlive()) {
+                cleanupGroup();
+                throw new TestException("NonActivatableGroup VM exited before "
+                    + "publishing its proxy; see NonActGrp-err output above.");
+            }
+            if (System.currentTimeMillis() > deadline) {
+                cleanupGroup();
+                throw new TestException("Timed out after " + PROXY_TIMEOUT_MS
+                    + "ms waiting for NonActivatableGroup proxy " + proxyFile);
+            }
+            try {
+                Thread.sleep(50L);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw new TestException("Interrupted waiting for group proxy", ie);
+            }
+        }
+        try (InputStream fis = new FileInputStream(proxyFile)) {
+            ObjectInputStream ois =
+                new AtomicMarshalInputStream(fis, null, false, null, null);
+            return (NonActivatableGroup)
+                ((MarshalledInstance) ois.readObject()).get(false);
+        } catch (Exception e) {
+            cleanupGroup();
+            throw new TestException("Failed to read NonActivatableGroup proxy", e);
+        } finally {
+            proxyFile.delete();
+        }
+    }
+
+    /** Stops the output pipes and destroys the group process. Best-effort. */
+    private void cleanupGroup() {
+        if (process != null) process.destroy();
+        if (outPipe != null) {
+            try { outPipe.stop(); } catch (IOException ex) { /* ignore */ }
+        }
+        if (errPipe != null) {
+            try { errPipe.stop(); } catch (IOException ex) { /* ignore */ }
         }
     }
 

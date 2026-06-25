@@ -1,7 +1,4 @@
 grant {
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission net.jini.export.ExportPermission "exportRemoteInterface.ActivateMe";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
-    permission java.net.SocketPermission "*:1024-", "connect,listen,accept,resolve";
 };
 

@@ -1,9 +1,4 @@
 grant {
-    permission java.lang.RuntimePermission "createSecurityManager";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
-    permission java.lang.RuntimePermission "setSecurityManager";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
-    permission java.net.SocketPermission "localhost:1024-", "listen,resolve";
-    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
 };
 

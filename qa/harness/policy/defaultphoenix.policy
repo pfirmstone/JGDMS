@@ -74,10 +74,6 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Reggie",
 };
 
 grant {
-    permission org.apache.river.phoenix.dl.ExecOptionPermission "*";
-    permission org.apache.river.phoenix.dl.ExecPermission "/bin/javax";
-    permission org.apache.river.phoenix.dl.SystemPermission "java.rmi.activation.ActivationSystem.*";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
 };
 

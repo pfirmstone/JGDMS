@@ -4,8 +4,6 @@ grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/tools/policy-c
 };
 
 grant {
-    permission java.util.PropertyPermission "*", "read";
-    permission org.apache.river.phoenix.SystemPermission "getServerSubject";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 

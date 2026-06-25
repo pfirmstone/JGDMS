@@ -4,7 +4,6 @@ grant codebase "file:/C:/Program%20Files/DirtyChai/jdk/lib/ext/*",
 };
 
 grant {
-    permission java.lang.RuntimePermission "accessClassInPackage.*";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 

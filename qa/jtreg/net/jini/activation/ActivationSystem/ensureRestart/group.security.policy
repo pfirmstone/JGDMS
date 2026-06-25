@@ -1,7 +1,4 @@
 grant {
-    permission org.apache.river.phoenix.MonitorPermission "inactiveObject";
-    permission java.lang.RuntimePermission "getClassLoader";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
-    permission java.net.SocketPermission "*:1024-", "connect,listen,accept,resolve";
 };
 

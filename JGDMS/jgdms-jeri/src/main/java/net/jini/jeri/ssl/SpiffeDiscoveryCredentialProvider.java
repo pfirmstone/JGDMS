@@ -21,7 +21,8 @@ import javax.security.auth.Subject;
 import net.jini.discovery.DiscoveryCredentialProvider;
 
 /**
- * {@link DiscoveryCredentialProvider} backed by {@link SpiffeSubjectHolder}.
+ * {@link DiscoveryCredentialProvider} backed by the ambient SPIFFE WorkerSubject
+ * (the DirtyChai JDK's {@code Subject.processWorker()}).
  *
  * @since 3.1.1
  */
@@ -30,6 +31,6 @@ public final class SpiffeDiscoveryCredentialProvider
 
     @Override
     public Subject getSubject() {
-        return SpiffeSubjectHolder.get();
+        return Utilities.spiffeWorkerSubject();
     }
 }

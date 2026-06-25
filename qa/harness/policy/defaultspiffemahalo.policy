@@ -140,13 +140,13 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/mahalo",
 {
-    permission net.jini.security.AccessPermission "*";
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.lang.RuntimePermission "createPlatformThread";
     permission java.lang.RuntimePermission "createVirtualThread";
     permission java.lang.RuntimePermission "modifyThread";
-    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
+    permission net.jini.security.AccessPermission "*";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
 };
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/mercury",
@@ -175,13 +175,49 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test
 };
 
 grant {
-    permission java.util.PropertyPermission "*", "read";
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
     permission java.io.FilePermission "<<ALL FILES>>", "read";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
 };
 
+// --- spiffe Linux bring-up scaffold (THROWAWAY; audit-scope later, per polp-no-allpermission-scaffolding) ---
+// Broad "boring" infrastructure perms so VMs run under SM; SPIFFE auth (AuthenticationPermission),
+// AccessPermission, GrantPermission and DownloadPermission are deliberately NOT here -> stay enforced.
+grant {
+    permission java.io.FilePermission "<<ALL FILES>>", "read,write,delete";
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "*";
+    permission java.security.SecurityPermission "*";
+    permission java.lang.RuntimePermission "*";
+    permission java.lang.reflect.ReflectPermission "*";
+    permission java.net.NetPermission "*";
+    permission java.net.SocketPermission "*", "connect,accept,listen,resolve";
+    permission java.io.SerializablePermission "*";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission java.util.logging.LoggingPermission "control";
+    permission net.jini.io.context.ContextPermission "*";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+};
+// --- spiffe scaffold (cont.): remaining DirtyChai define-class + native gates ---
+grant {
+    permission au.zeus.jdk.authorization.guards.DefineClassPermission "ALLOW";
+    permission au.zeus.jdk.authorization.guards.NativeInvocationPermission "*";
+    permission au.zeus.jdk.authorization.guards.NativeMemoryPermission "*";
+};
+// --- spiffe scaffold (cont.): JAAS ServiceLoader loads platform LoginModules from jrt: ---
+grant {
+    permission java.net.URLPermission "jrt:/-", "GET:";
+};
+// --- spiffe scaffold (cont.): harness forks service VMs (exec java) ---
+grant {
+    permission java.io.FilePermission "<<ALL FILES>>", "execute";
+};
+// --- spiffe scaffold (cont.): DeSerializationPermission is BasicPermission; "*" = ATOMIC/ENTRY/MARSHALL/PROXY ---
+grant {
+    permission org.apache.river.api.io.DeSerializationPermission "*";
+};
+// --- spiffe scaffold (cont.): JAAS plumbing incl. Subject.callAs (AuthenticationPermission stays enforced) ---
+grant {
+    permission javax.security.auth.AuthPermission "*";
+};

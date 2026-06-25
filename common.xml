@@ -416,22 +416,28 @@
                     sigalg="SHA256withRSA" keyalg="RSA" storetype="pkcs12"
                     validity="3600" alias="@{target}" storepass="@{target}pw"
                     dname="CN=@{dname}" />
+            <!-- Export the (currently self-signed) cert so the keystores-available
+                 check finds it.  It is RE-exported from the keystore after CA-signing
+                 (in the truststore target) before the truststore is built. -->
+            <exportcert target="@{target}" dir="@{dir}" />
+        </sequential>
+    </macrodef>
+
+    <!-- Exports the leaf cert at alias @{target} from @{target}.keystore to
+         @{target}.cert.  After importchain has run this is the CA-signed cert the
+         service actually presents, so the truststore must be built from it. -->
+    <macrodef name="exportcert">
+        <attribute name="target" />
+        <attribute name="dir" default="trust" />
+        <sequential>
             <exec executable="keytool" failonerror="true">
-                <!--
-                <arg value="-providerpath"/>
-                <arg value="${keytool.providerpath}"/>
-                <arg value="-provider"/>
-                <arg value="${keytool.provider}"/>
-                -->
-                <arg value="-export"/>
-                <arg value="-deststoretype"/>
+                <arg value="-exportcert"/>
+                <arg value="-storetype"/>
                 <arg value="pkcs12"/>
                 <arg value="-alias" />
                 <arg value="@{target}" />
                 <arg value="-keystore" />
                 <arg value="@{dir}/@{target}.keystore" />
-                <arg value="-dname"/>
-                <arg value="@{dname}" />
                 <arg value="-storepass"/>
                 <arg value="@{target}pw" />
                 <arg value="-file"/>

@@ -4,17 +4,7 @@ grant codebase "file:/C:/Program%20Files/DirtyChai/jdk/lib/ext/*",
 };
 
 grant {
-    permission java.util.PropertyPermission "java.rmi.server.RMIClassLoaderSpi", "write";
-    permission java.util.PropertyPermission "java.security.manager", "read";
-    permission java.util.PropertyPermission "java.security.policy", "read";
-    permission java.util.PropertyPermission "test.class.path", "read";
-    permission java.util.PropertyPermission "test.classes", "read";
-    permission java.util.PropertyPermission "test.src", "read";
-    permission java.util.PropertyPermission "user.dir", "read";
-    permission java.lang.RuntimePermission "accessDeclaredMembers";
-    permission java.lang.RuntimePermission "createClassLoader";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
     permission java.io.FilePermission ".", "read,write";
-    permission java.net.SocketPermission "*:1024-", "connect,resolve";
 };
 

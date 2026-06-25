@@ -1,7 +1,4 @@
 grant {
-    permission java.util.PropertyPermission "*", "read,write";
-    permission java.lang.RuntimePermission "exitVM";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
-    permission java.net.SocketPermission "*:*", "connect,resolve";
 };
 

@@ -1,8 +1,4 @@
 grant {
-    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Server\" peer javax.security.auth.x500.X500Principal \"CN=Server\"", "connect,accept";
-    permission org.apache.river.phoenix.MonitorPermission "inactiveObject";
-    permission java.lang.RuntimePermission "getClassLoader";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
-    permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
 };
 

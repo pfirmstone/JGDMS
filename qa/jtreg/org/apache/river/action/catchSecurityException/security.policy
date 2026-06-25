@@ -1,6 +1,4 @@
 grant {
-    permission java.util.PropertyPermission "test.*", "read,write";
-    permission java.security.SecurityPermission "createAccessControlContext";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 

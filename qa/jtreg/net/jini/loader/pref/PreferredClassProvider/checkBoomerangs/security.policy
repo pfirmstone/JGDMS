@@ -1,16 +1,4 @@
 grant {
-    permission java.util.PropertyPermission "java.home", "read";
-    permission java.util.PropertyPermission "java.rmi.server.codebase", "write";
-    permission java.util.PropertyPermission "java.security.manager", "read";
-    permission java.util.PropertyPermission "java.security.policy", "read";
-    permission java.util.PropertyPermission "java.util.logging.config.file", "write";
-    permission java.util.PropertyPermission "test.class.path", "read";
-    permission java.util.PropertyPermission "test.classes", "read";
-    permission java.util.PropertyPermission "test.src", "read";
-    permission java.util.PropertyPermission "user.dir", "read";
-    permission java.lang.RuntimePermission "createClassLoader";
-    permission java.lang.RuntimePermission "getClassLoader";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
-    permission java.net.SocketPermission "*:1024-", "connect,listen,accept,resolve";
 };
 

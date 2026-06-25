@@ -2470,6 +2470,20 @@
 
     <target name="truststore">
         <delete file="${trust.dir}/truststore" quiet="true" />
+        <!-- Re-export each service cert FROM its keystore, which now holds the
+             CA-signed cert after importchain.  The .cert files first written by the
+             keystore macro are the pre-signing self-signed certs; without this
+             re-export the truststore would trust certs the services never present
+             (TLS: certificate_unknown / Remote principal is not trusted). -->
+        <exportcert target="tester" dir="${trust.dir}" />
+        <exportcert target="reggie" dir="${trust.dir}" />
+        <exportcert target="phoenix" dir="${trust.dir}" />
+        <exportcert target="mercury" dir="${trust.dir}" />
+        <exportcert target="norm" dir="${trust.dir}" />
+        <exportcert target="outrigger" dir="${trust.dir}" />
+        <exportcert target="mahalo" dir="${trust.dir}" />
+        <exportcert target="fiddler" dir="${trust.dir}" />
+        <exportcert target="group" dir="${trust.dir}" />
         <!--<truststore target="test-ca" dir="${trust.dir}" />-->
         <!-- certs required by x500 discovery provider -->
         <importcert target="tester" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Tester" />

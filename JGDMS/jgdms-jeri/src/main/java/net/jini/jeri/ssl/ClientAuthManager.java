@@ -312,6 +312,9 @@ class ClientAuthManager extends AuthManager {
     public synchronized String chooseClientAlias(
 	String[] keyTypes, Principal[] issuers, Socket socket)
     {
+	System.err.println("DIAG-CCA keyTypes=" + java.util.Arrays.toString(keyTypes)
+	    + " issuers=" + (issuers == null ? "null" : java.util.Arrays.toString(issuers))
+	    + " subjectNull=" + (getSubject() == null));
 	/*
 	 * Only choose new client credentials for the first handshake.
 	 * Otherwise, just use the previous client credentials.

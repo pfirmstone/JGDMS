@@ -45,23 +45,17 @@ grant codebase "jrt:/jdk.security.jgss",
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "DoPrivilegedExceptionTest",
 {
-    permission java.security.SecurityPermission "getDomainCombiner";
     permission java.lang.RuntimePermission "DoPrivilegedExceptionTEST1";
+    permission java.security.SecurityPermission "getDomainCombiner";
 };
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "DoPrivilegedTest",
 {
-    permission java.security.SecurityPermission "getDomainCombiner";
     permission java.lang.RuntimePermission "DoPrivilegedTEST1";
+    permission java.security.SecurityPermission "getDomainCombiner";
 };
 
 grant {
-    permission javax.security.auth.AuthPermission "modifyPrincipals";
-    permission java.security.SecurityPermission "createAccessControlContext";
-    permission java.security.SecurityPermission "getDomainCombiner";
-    permission java.lang.RuntimePermission "DoPrivilegedExceptionTEST";
-    permission java.lang.RuntimePermission "DoPrivilegedTEST";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 

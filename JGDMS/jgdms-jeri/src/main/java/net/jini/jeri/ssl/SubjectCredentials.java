@@ -247,7 +247,7 @@ class SubjectCredentials extends Utilities {
 	    for (int i = certPaths.size(); --i >= 0; ) {
 		CertPath chain = (CertPath) certPaths.get(i);
 		X509Certificate cert = firstX509Cert(chain);
-		String alg = cert.getPublicKey().getAlgorithm();
+		String alg = Utilities.normalizeKeyAlgorithm(cert.getPublicKey().getAlgorithm());
 		if (!permittedKeyAlgorithm(alg, keyAlgorithms)) {
 		    continue;
 		}

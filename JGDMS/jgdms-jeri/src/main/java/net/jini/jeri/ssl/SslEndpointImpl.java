@@ -327,7 +327,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	 * current call stack.
 	 */
 	if (clientSubject == null)
-	    clientSubject = SpiffeSubjectHolder.get();
+	    clientSubject = Utilities.spiffeWorkerSubject();
 	/*
 	 * Last resort: fall back to Subject.current() (ScopedValue) for
 	 * legacy applications that set their Subject via Subject.callAs()

@@ -768,7 +768,12 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 	    while (true) {
 		Socket socket = null;
 		try {
-		    socket = serverSocket.accept();
+		    socket = AccessController.doPrivileged(
+			new PrivilegedExceptionAction<Socket>() {
+			    public Socket run() throws IOException {
+				return serverSocket.accept();
+			    }
+			});
 		    if (logger.isLoggable(Level.FINE)) {
 			logger.log(Level.FINE,
 			    "accepted socket {0} from server socket {1}",

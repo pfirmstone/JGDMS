@@ -4,8 +4,6 @@ grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/tools/policy-c
 };
 
 grant {
-    permission org.apache.river.phoenix.ExecOptionPermission "-Djava.security.manager=default";
-    permission org.apache.river.phoenix.ExecOptionPermission "-Djava.security.policy=*";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 

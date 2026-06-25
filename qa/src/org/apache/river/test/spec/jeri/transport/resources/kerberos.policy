@@ -1,10 +1,10 @@
 grant codebase "file:/vob/qa/classes/",
 {
-    permission java.util.PropertyPermission "*", "read,write";
     permission javax.security.auth.AuthPermission "*";
     permission java.lang.RuntimePermission "createSecurityManager";
-    permission java.util.logging.LoggingPermission "control";
     permission java.io.FilePermission "<<ALL FILES>>", "read,write";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission java.util.logging.LoggingPermission "control";
 };
 
 grant codebase "jrt:/java.security.jgss",
@@ -54,15 +54,11 @@ grant codebase "jrt:/jdk.security.jgss",
 
 grant principal org.apache.river.api.security.UnresolvedPrincipal "${jeri.transport.kerberosServer}",
 {
-    permission javax.security.auth.PrivateCredentialPermission "* * \"*\"", "read";
     permission java.net.SocketPermission "*", "connect,accept,resolve";
+    permission javax.security.auth.PrivateCredentialPermission "* * \"*\"", "read";
 };
 
 grant {
-    permission java.util.PropertyPermission "*", "read,write";
-    permission javax.security.auth.AuthPermission "*";
-    permission java.lang.RuntimePermission "createSecurityManager";
-    permission java.util.logging.LoggingPermission "control";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
     permission java.io.FilePermission "<<ALL FILES>>", "read,write";
 };

@@ -56,9 +56,6 @@ grant codebase "jrt:/jdk.localedata",
 
 grant codebase "jrt:/jdk.security.auth",
 {
-    permission javax.security.auth.AuthPermission "modifyPrincipals";
-    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
-    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
@@ -79,31 +76,6 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
 };
 
 grant {
-    permission java.util.PropertyPermission "FILEPOLICY02", "read";
-    permission java.util.PropertyPermission "java.system.class.loader", "read";
-    permission java.util.PropertyPermission "org.apache.river.outrigger.maxServerQueryTimeout", "read";
-    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
-    permission net.jini.security.GrantPermission "java.security.AllPermission \"\", \"\"";
-    permission org.apache.river.phoenix.ExecOptionPermission "*";
-    permission org.apache.river.phoenix.ExecPermission "/bin/javax";
-    permission org.apache.river.start.SharedActivationPolicyPermission "/-";
-    permission org.apache.river.start.SharedActivationPolicyPermission "\\-";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:/-";
-    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:/-";
-    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:c:/-";
-    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:c:\\-";
-    permission java.security.SecurityPermission "getPolicy";
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.misc";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.action";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.ssl";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
-    permission java.lang.RuntimePermission "accessDeclaredMembers";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
     permission java.security.AllPermission "<all permissions>", "<all actions>";
-    permission javax.net.ssl.SSLPermission "getSSLSessionContext";
 };
 

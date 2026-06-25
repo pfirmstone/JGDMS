@@ -650,7 +650,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         }
         Svid svid = svidSource.fetch();
         updateSubjectCredentials(svid);
-        SpiffeSubjectHolder.set(subject);
+        // (b) retired SpiffeSubjectHolder: the SPIFFE subject is ambient (Subject.processWorker()).
         // Register this Subject as the process-wide local identity so that
         // Security.currentPrincipals() can return SPIFFE principals even when
         // no Subject.doAs() wraps the calling thread.
@@ -698,7 +698,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         if (closed.compareAndSet(false, true)) {
             scheduler.shutdownNow();
             clearSubjectCredentials();
-            SpiffeSubjectHolder.clear(subject);
+            // (b) retired SpiffeSubjectHolder: nothing to clear; the ambient subject is owned by the JDK.
             Security.registerLocalPrincipalProvider(null);
             logger.log(Level.INFO, "SpiffeCredentialManager closed");
         }

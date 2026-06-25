@@ -78,6 +78,7 @@ import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
+import net.jini.export.CodebaseAccessor;
 import net.jini.export.ServerContext;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
@@ -1323,6 +1324,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     {
 	if (impl == null || method == null || context == null) {
 	    throw new NullPointerException();
+	}
+	// CodebaseAccessor is the bootstrap protocol used to fetch and verify a
+	// proxy's codebase before trust is established.  It is governed by
+	// BootstrapPermission (client-side, in PreferredProxyCodebaseProvider),
+	// codebase digest verification, and server authentication -- not by the
+	// service's per-method AccessPermission.  Exempt it so bootstrapping needs
+	// no per-principal AccessPermission grant.
+	if (CodebaseAccessor.class.equals(method.getDeclaringClass())) {
+	    return;
 	}
 	if (permConstructor == null) {
 	    return;

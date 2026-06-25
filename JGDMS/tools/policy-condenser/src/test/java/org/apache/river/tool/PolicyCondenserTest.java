@@ -111,6 +111,90 @@ public class PolicyCondenserTest {
     }
 
     /**
+     * A codebase self-read FilePermission recorded with a URL-form (and thus
+     * relative) name -- as SecureClassLoader.getProtectionDomain produces via
+     * new FilePermission(codeSource.uri.toString(), "read") -- must survive
+     * condensing even when a broader, relative file grant in the same grant
+     * would imply() it under the condenser's working directory. Such names have
+     * a working-directory-dependent implies() relation, so reducing them is
+     * unsound; eliminateImplied must keep them verbatim.
+     */
+    @Test
+    public void testRelativeSelfReadFilePermissionNotEliminated() throws Exception {
+	File policyFile = new File(tempDir, "selfread.policy");
+	try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
+	    pw.println("grant codebase \"file:/app/lib/x.jar\" {");
+	    pw.println("    permission java.io.FilePermission \"-\", \"read\";");
+	    pw.println("    permission java.io.FilePermission \"file:/app/lib/x.jar\", \"read\";");
+	    pw.println("    permission java.lang.RuntimePermission \"marker.keep\";");
+	    pw.println("};");
+	}
+
+	PolicyCondenser.main(new String[]{policyFile.getAbsolutePath()});
+
+	File condensedFile = new File(tempDir, "selfread.policy.con");
+	assertTrue("Condensed file should exist", condensedFile.exists());
+
+	PolicyParser parser = new DefaultPolicyParser();
+	Collection<PermissionGrant> grants =
+	    parser.parse(condensedFile.toURI().toURL(), new Properties());
+
+	boolean selfReadKept = false;
+	for (PermissionGrant grant : grants) {
+	    for (Permission p : grant.getPermissions()) {
+		if (p instanceof java.io.FilePermission
+		    && "file:/app/lib/x.jar".equals(p.getName())
+		    && "read".equals(p.getActions()))
+		{
+		    selfReadKept = true;
+		}
+	    }
+	}
+	assertTrue("URL-form (relative) self-read FilePermission must survive condensing",
+		   selfReadKept);
+    }
+
+    /**
+     * SecurityPolicyWriter writes every captured file path using the "${/}"
+     * separator token. The condenser must expand "${/}" to the platform file
+     * separator when parsing; otherwise the property fails to resolve and the
+     * whole FilePermission is silently dropped -- on Linux this wipes the
+     * entire audited file-permission set from the condensed policy.
+     */
+    @Test
+    public void testSeparatorTokenFilePermissionSurvivesCondensing() throws Exception {
+	File policyFile = new File(tempDir, "septoken.policy");
+	try (PrintWriter pw = new PrintWriter(new FileWriter(policyFile))) {
+	    pw.println("grant codebase \"file:/x.jar\" {");
+	    pw.println("    permission java.io.FilePermission \"${/}opt${/}app${/}lib${/}y.jar\", \"read\";");
+	    pw.println("    permission java.lang.RuntimePermission \"marker.keep\";");
+	    pw.println("};");
+	}
+
+	PolicyCondenser.main(new String[]{policyFile.getAbsolutePath()});
+
+	File condensedFile = new File(tempDir, "septoken.policy.con");
+	assertTrue("Condensed file should exist", condensedFile.exists());
+
+	PolicyParser parser = new DefaultPolicyParser();
+	Collection<PermissionGrant> grants =
+	    parser.parse(condensedFile.toURI().toURL(), new Properties());
+
+	boolean kept = false;
+	for (PermissionGrant grant : grants) {
+	    for (Permission p : grant.getPermissions()) {
+		if (p instanceof java.io.FilePermission
+		    && p.getName().replace('\\', '/').endsWith("/y.jar")
+		    && p.getActions().contains("read"))
+		{
+		    kept = true;
+		}
+	    }
+	}
+	assertTrue("FilePermission written with ${/} separators must survive condensing", kept);
+    }
+
+    /**
      * Grants with the same principals but no codebase should be merged.
      */
     @Test
