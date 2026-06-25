@@ -304,7 +304,7 @@ final class StreamConnectionIO extends ConnectionIO {
 			} catch (Throwable t) {
 			}
 			future = mux.futureSendError(e.getMessage());
-			System.err.println("[MUXREADER-DIED-PROTO] "+e); mux.setDown("protocol violation detected: " +	
+			mux.setDown("protocol violation detected: " +
 				    e.getMessage(), null);
 		    } else {
 			try {
@@ -328,7 +328,7 @@ final class StreamConnectionIO extends ConnectionIO {
 			       "mux reader thread dying, I/O error", e);
 		} catch (Throwable t) {
 		}
-		System.err.println("[MUXREADER-DIED-IO] "+e); mux.setDown("I/O error reading from mux connection: " +
+		mux.setDown("I/O error reading from mux connection: " +
 			    e.toString(), e);
 	    } catch (Throwable t) {
 		try {
@@ -336,7 +336,7 @@ final class StreamConnectionIO extends ConnectionIO {
 			"mux reader thread dying, unexpected exception", t);
 		} catch (Throwable tt) {
 		}
-		System.err.println("[MUXREADER-DIED-OTHER] "+t); mux.setDown("unexpected exception in mux reader thread: " +
+		mux.setDown("unexpected exception in mux reader thread: " +
 			    t.toString(), t);
 	    } finally {
 		try {

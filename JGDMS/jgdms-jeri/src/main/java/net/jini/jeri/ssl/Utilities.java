@@ -104,6 +104,33 @@ abstract class Utilities
     }
 
     /**
+     * The DirtyChai {@code javax.security.auth.WorkerSubject} class, or null on
+     * the vanilla build JDK where it is absent.  Resolved reflectively so this
+     * compiles against vanilla.
+     */
+    private static final Class<?> WORKER_SUBJECT = findWorkerSubject();
+
+    private static Class<?> findWorkerSubject() {
+        try {
+            return Class.forName("javax.security.auth.WorkerSubject");
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns true if the subject is the ambient SPIFFE {@code WorkerSubject}.
+     * A {@code WorkerSubject} must never be passed to {@code Subject.callAs}/
+     * {@code doAs} (it throws) nor captured by {@code Subject.current()}; its
+     * principals are instead carried in the {@code AccessControlContext}
+     * transmitted via JERI (stamped into the ProtectionDomains) and used for
+     * {@code AuthenticationPermission} checks directly.
+     */
+    static boolean isWorkerSubject(Subject s) {
+        return WORKER_SUBJECT != null && WORKER_SUBJECT.isInstance(s);
+    }
+
+    /**
      * The names of JSSE key exchange algorithms used for anonymous
      * communication.
      * 

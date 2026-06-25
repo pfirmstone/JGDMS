@@ -1490,3 +1490,20 @@ grant {
     permission org.apache.river.thread.ThreadPoolPermission "*";
     permission net.jini.discovery.DiscoveryPermission "*";
 };
+
+// FIX-CANDIDATE (spiffe AuthenticationPermission for service codebase self-download): this is the
+// NonActivatableGroup VM policy (java.security.policy of the GroupImpl that creates each service).
+// Its many polpAudit-captured AuthenticationPermission grants miss the "CN=X peer CN=X"
+// self-connection a service uses to download its OWN codebase during creation.  No "peer" clause
+// => connect to / accept from any peer.  Blanket for the bring-up; tighten once green.
+grant {
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Outrigger\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Norm\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Fiddler\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mercury\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\"" "connect,accept";
+};

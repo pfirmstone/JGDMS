@@ -396,3 +396,20 @@ grant {
 grant {
     permission javax.security.auth.AuthPermission "*";
 };
+
+// FIX-CANDIDATE (spiffe AuthenticationPermission for the tester/test VM): polpAudit captured
+// only the "accept" direction for some CN=Tester peer pairs (e.g. CN=Tester peer CN=Reggie),
+// not "connect" — the test never reached these outbound calls before (the handleConnection
+// WorkerSubject/callAs EOF stopped it earlier).  Blanket connect/accept as each service
+// principal for the bring-up; tighten to per-peer "connect" once green.
+grant {
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Outrigger\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Norm\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Fiddler\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mercury\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"" "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\"" "connect,accept";
+};

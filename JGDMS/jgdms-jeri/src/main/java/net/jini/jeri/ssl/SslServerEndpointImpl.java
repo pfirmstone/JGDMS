@@ -1291,13 +1291,28 @@ class SslServerEndpointImpl extends Utilities {
 		void handleConnection(SslServerConnection connection,
 							  RequestDispatcher requestDispatcher)
 		{
-			final Subject svcSubject = listenEndpoint.serverSubject;
+			final Subject resolved = listenEndpoint.serverSubject;
 			try {
-				Subject.callAs(svcSubject, (Callable<Void>) () -> {
+				if (Utilities.isWorkerSubject(resolved)) {
+					// The WorkerSubject (the process SPIFFE identity) must NOT be passed
+					// to Subject.callAs/doAs (it throws) nor captured by
+					// Subject.current().  Its principals are carried in the
+					// AccessControlContext transmitted via JERI and used for the
+					// AuthenticationPermission check directly; outbound calls made during
+					// dispatch read the worker fresh via Subject.processWorker().  So
+					// handle the connection without binding a thread-scoped subject.
 					listenEndpoint.getServerConnectionManager().handleConnection(
 						connection, requestDispatcher);
-					return null;
-				});
+				} else {
+					// An explicitly-supplied (non-WorkerSubject) service Subject: bind it
+					// via callAs so its principals are Subject.current() at MuxServer
+					// construction, letting dispatch restore it for outbound calls.
+					Subject.callAs(resolved, (Callable<Void>) () -> {
+						listenEndpoint.getServerConnectionManager().handleConnection(
+							connection, requestDispatcher);
+						return null;
+					});
+				}
 			} catch (RuntimeException e) {
 				throw e;
 			} catch (Exception e) {

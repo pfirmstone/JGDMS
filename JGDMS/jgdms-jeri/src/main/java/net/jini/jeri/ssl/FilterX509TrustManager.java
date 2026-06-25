@@ -72,6 +72,9 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements 
     
     private static void check(String authType) throws CertificateException {
         if (authType == null) throw new IllegalArgumentException("Authentication key type cannot be null");
+        // TLS 1.3 reports an EC cert's auth type as the JCA key algorithm "EC", but
+        // authKeyTypes uses the SSL name "ECDSA"; normalize so EC SPIFFE SVIDs match.
+        authType = Utilities.normalizeKeyAlgorithm(authType);
         for (int i = 0, l = authKeyTypes.length; i < l; i++){
             if (authType.equals(authKeyTypes[i])) return;
         }
