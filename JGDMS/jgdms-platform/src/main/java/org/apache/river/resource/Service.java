@@ -316,6 +316,37 @@ public final class Service {
 
     }
 
+    /**
+     * Yields all elements of the first iterator, then all of the second.
+     * Used under OSGi to union the loader-scoped <tt>META-INF/services</tt>
+     * scan (co-loaded providers, e.g. a per-package MarshalDelegate) with the
+     * OSGi service-registry lookup (cross-bundle providers).
+     */
+    private static class ChainedIterator<S> implements Iterator<S> {
+	private final Iterator<S> first;
+	private final Iterator<S> second;
+
+	ChainedIterator(Iterator<S> first, Iterator<S> second) {
+	    this.first = first;
+	    this.second = second;
+	}
+
+	@Override
+	public boolean hasNext() {
+	    return first.hasNext() || second.hasNext();
+	}
+
+	@Override
+	public S next() {
+	    return first.hasNext() ? first.next() : second.next();
+	}
+
+	@Override
+	public void remove() {
+	    throw new UnsupportedOperationException();
+	}
+    }
+
 
     /**
      * Locates and incrementally instantiates the available providers of a
@@ -358,7 +389,22 @@ public final class Service {
     public static <S> Iterator<S> providers(Class<S> service, ClassLoader loader)
 	throws ServiceConfigurationError
     {
-	if (osgi) return OSGiServiceIterator.providers(service);
+	if (osgi) {
+	    // Two provider relationships must both be served under OSGi:
+	    //  * co-loaded providers (e.g. a per-package MarshalDelegate, in the
+	    //    SAME loader as the requesting class) -- found by scanning the
+	    //    given loader's META-INF/services. A *within-loader* scan (of the
+	    //    loader that holds the provider) works under OSGi and for
+	    //    non-bundle proxy codebase jars; it is not the broken consumer-side
+	    //    ServiceLoader cross-bundle scan.
+	    //  * cross-bundle SPIs (discovery providers, Configuration, ...) -- a
+	    //    consumer cannot see another bundle's META-INF/services, so these
+	    //    come from the OSGi service registry.
+	    // Union both; callers select (e.g. MarshalDelegates filters by
+	    // defining-loader identity).
+	    return new ChainedIterator<S>(new LazyIterator<S>(service, loader),
+					  OSGiServiceIterator.providers(service, loader));
+	}
 	return new LazyIterator(service, loader);
     }
 
