@@ -173,3 +173,27 @@ The 6 remaining `convertToMarshalledObject()` are all intentional:
 Total removal = (1) delete the `forRemoval` methods + their bridges, (2) drop
 `MarshalledObjectSerializer`, with phoenix and the ServiceUI Entry as their own
 efforts. None of that is in this branch.
+
+## 9. Related fix on this branch — `Service` provider discovery under OSGi (`2102f48b4`)
+
+Not part of the `MarshalledObject` migration, but it rides on the same branch and
+underpins the `MarshalDelegate` SPI, so flagging it: `org.apache.river.resource.Service`'s
+OSGi path (`OSGiServiceIterator`) was returning **zero** providers — it created a
+`ServiceTracker` it never `open()`ed (→ NPE) and tested `service.isInstance(aServiceReference)`
+(never true). Because `MarshalDelegate` discovery routes through `Service` and the
+`setAccessible` fallback is now removed, that would make marshalling a package-private
+`@AtomicSerial` class **fail outright under OSGi**.
+
+The fix unions the two provider relationships (`Service.providers` `osgi` branch):
+the loader-scoped `META-INF/services` scan for **co-loaded** providers (per-package
+`MarshalDelegate`, incl. non-bundle proxy codebase jars) + a rewritten,
+loader/bundle-scoped **registry** lookup for **cross-bundle** SPIs (discovery,
+`Configuration`). Registry scope walks the requesting loader's parent chain to its
+bundle (the proxy→client-bundle rule), with a platform-context fallback.
+
+**Reviewer ask:** this is **compile-green and unit-tested for the discovery logic,
+but not exercised under a live OSGi/SPI-Fly runtime.** The two-bug fix is
+unambiguous; the registry scoping and the SPI-Fly Mediator interaction (bundle-resident
+`META-INF/services` providers reach the registry only via the Mediator, which
+`PreferredClassProvider` already requires) want an OSGi smoke test. See the
+`jgdms-service-loader-osgi` design note for the full diagnosis.
