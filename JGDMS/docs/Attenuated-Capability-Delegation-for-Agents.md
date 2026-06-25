@@ -1,0 +1,141 @@
+# Attenuated Capability Delegation for Mobile and Agent Code
+
+*A mature, hardened answer to the question agent infrastructure keeps hitting: how do you let an
+agent run code it didn't write, and act on your behalf, without handing it your keys — and without
+just sandboxing arbitrary code and hoping?*
+
+**Abstract.** AI agents increasingly run code they didn't write and act on a user's behalf — but the
+platforms beneath them abandoned the one model that makes that safe, in‑runtime code‑origin least
+privilege (removed from the JVM in JEP 411), leaving the field with sandbox‑and‑contain and
+per‑action human approval. JGDMS + DirtyChai is a hardened, ~25‑year‑old stack that kept solving it:
+foreign code is admitted only if a static **bytecode audit** proves it follows the rules (rejected,
+not sandboxed), then runs under **bounded, downward‑attenuating, auto‑revoking (leased)** authority.
+For agents the payoff is structural — it replaces continual human approval (a crutch for the absence
+of enforced bounds) with verified admission plus enforced, revocable capability, which is what makes
+**unsupervised agency** practical.
+
+---
+
+## The problem
+
+Autonomous agents increasingly execute code they did not write — generated, downloaded, third‑party
+tools — and act on a principal's behalf across trust boundaries. That raises two distinct questions,
+and most stacks answer both coarsely:
+
+1. **Should this code run at all?** The mainstream answer is *sandbox it and contain the blast
+   radius* — assume the code is hostile, isolate it at the OS/container level, and accept the risk
+   that containment leaks.
+2. **What may it do once running?** The mainstream answer is *perimeter authority* — API keys, broad
+   OAuth scopes, network boundaries — which don't compose across trust boundaries and can't attenuate
+   per task.
+
+The authority needs four properties the perimeter model can't give: **bounded** (least privilege),
+**attenuable** (every re‑delegation narrows, never widens — no confused deputy), **revocable**
+(time‑bounded, killable), and **attributable** (tied to the code's origin, auditable).
+
+## What JGDMS + DirtyChai does differently
+
+It answers both questions precisely, with two complementary controls:
+
+- **Admission by audit, not by sandbox.** Foreign code is **statically analysed at the bytecode level
+  and admitted only if it provably follows the rules** — non‑conformant code is *rejected*, not
+  contained. What runs is verified‑conformant. (JGDMS includes a bytecode‑analysis engine, with the
+  verdicts recorded in a registry, for exactly this.) This is the *opposite* of "run untrusted code
+  in a sandbox": the trust boundary is at **admission** (provable conformance), not at runtime
+  containment.
+- **Authority by capability.** Admitted code then runs under **least‑privilege, attenuating, leased**
+  authority — bounded to a subset of the grantor's rights, narrowable only downward, auto‑revoking on
+  a lease. Defence in depth: a verified gate *and* bounded authority.
+
+The runtime substrate is **DirtyChai**, an OpenJDK fork that *retains and advances* in‑runtime
+authorization (code‑origin protection domains, fine‑grained permissions, principle‑of‑least‑privilege
+framed as **anti‑injection**) — the model the mainstream **removed** in JEP 411 as too hard to
+maintain. With it went the only mature, language‑level, in‑runtime least‑privilege model that ran at
+scale; the agent field is now rebuilding a weaker version from OS primitives, having discarded the
+strong one.
+
+**JGDMS** (Jini → Apache River → JGDMS, ~25 years hardened) adds secure **mobile code** — moving live,
+typed, versioned behavior across the network with cryptographic **codebase integrity** (signed,
+verified provenance) — and **IPv6 point‑to‑point** lets it run **directly peer‑to‑peer**: no central
+broker that must be trusted, no single point of control.
+
+## The mapping (this is the overlap)
+
+| Agent‑infrastructure need | JGDMS / DirtyChai answer |
+|---|---|
+| Should this foreign / generated code run? | **static bytecode audit** → admit only rule‑conformant code (*reject*, don't sandbox) |
+| Per‑task least privilege | code‑origin protection domains + fine‑grained permissions |
+| Downward‑only delegation (no escalation) | `GrantPermission` ceiling (*grant only what you hold*) + `containsAll` attenuation |
+| Revocation / expiry | **leased** grants — a `Lease` as a dead‑man switch (auto‑revoke) |
+| Provenance / trust‑by‑origin | signed codebase integrity; code‑origin authority |
+| Auditability | bytecode verdicts + explicit, inspectable permission grants |
+| Decentralized, no trusted broker | direct IPv6 peer‑to‑peer federation |
+
+The authority properties are *capability‑style* (permission‑based, with capability‑like
+**non‑amplification**: a delegated grant is provably a subset of the grantor's). Authority narrows as
+it flows; code is admitted only if verified.
+
+## The canonical cases: agent‑generated code, and user → agent
+
+Two scenarios fall straight out:
+
+- **"Run this agent‑generated tool"** → **audit the generated bytecode against your policy and reject
+  what doesn't conform**, *before* it executes — rather than running arbitrary generated code in a
+  sandbox and hoping the sandbox holds.
+- **"Spawn a sub‑agent with only these rights, for the next 10 minutes"** → an **attenuating, leased
+  delegation**: a `containsAll`‑bounded, `GrantPermission`‑ceilinged subset of the principal's
+  authority, wrapped in an auto‑revoking `Lease`.
+
+The enforcement primitives (the bytecode audit, attenuating grants, leased grants, code‑origin
+domains) are mature; the **user→agent attenuating‑leased‑delegation layer** built on top is the active
+frontier — which is exactly where outside attention would be most useful.
+
+## Why it matters: practical unsupervised agency
+
+Continual human approval — the "approve this action?" loop — is a **crutch for the absence of
+enforced authority bounds**. Agent tools today run at the user's *full* authority, so any single call
+could do anything; the prompt is the only thing between the agent and your whole system. That doesn't
+scale, and needing it defeats the automation.
+
+Bound the authority and the human's role inverts — from **approving every action** (a runtime
+bottleneck) to **setting the ceiling once** (a policy decision the infrastructure enforces):
+
+- **bounded + attenuated** caps the blast radius by construction — no action, and no spawned
+  sub‑agent, can exceed the grant, so per‑action approval is unnecessary *within* the bound;
+- **verified admission** gates even the agent's *generated* code before it runs;
+- **leases** make "walk away and let it run" tolerable — authority auto‑expires, so a runaway or
+  compromised agent self‑limits and is recoverable, without pre‑approving each step;
+- **auditability** means unsupervised ≠ unaccountable — review grants and bytecode verdicts after the
+  fact, not in real time.
+
+It doesn't remove *all* gates — genuinely irreversible, high‑consequence actions (move money, delete
+data, publish) can stay a small *always‑confirm* set, shrinking the surface from "approve everything"
+to "approve the consequential few." And authority bounds limit *blast radius*, not *correctness* — an
+agent can still do the wrong thing it was allowed to do. But they turn **"what might it reach?"** from
+an open question into a closed one, which is most of why continual approval exists. **That is what
+makes unsupervised agency practical: enforced, bounded, revocable capability in place of a
+human‑in‑the‑loop crutch.**
+
+## Honest framing
+
+It is JVM/Java‑centric and a different paradigm with a real learning curve — not a drop‑in for a
+Python agent loop. Two things make it worth the attention of anyone designing agent capability
+systems, in any language:
+
+1. **The model is portable.** *"Admit only code that statically passes your rules, then run it under
+   downward‑attenuating, leased, origin‑attributed authority"* is a design adoptable anywhere; the
+   contribution is the *shape of the answer*, refined over two decades.
+2. **It is proof‑by‑construction.** A working, hardened implementation of **verify‑then‑admit plus
+   bounded capability** exists today, while the field is rediscovering the problem from first
+   principles. It is ~20 years ahead on the single axis that suddenly matters.
+
+The pitch is not "it does X faster." It is: *the industry spent two decades abandoning in‑runtime
+least privilege and reaching for sandbox‑and‑contain — because verify‑then‑admit was thought too hard.
+This is the stack that kept doing the harder, stronger thing, just as agents make those problems the
+main event.*
+
+---
+
+*Pointers:* JGDMS source and design notes (incl. the AI‑Agent‑Authority SOW, the leased‑permission‑grant
+work, and the bytecode‑analysis engine + verdict registry); DirtyChai (the authorization‑retaining
+OpenJDK fork). Contact: Peter Firmstone.

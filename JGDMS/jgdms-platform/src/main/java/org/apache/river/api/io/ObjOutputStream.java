@@ -378,10 +378,14 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
             });
         }
         try {
-            Method m = clz.getMethod("serialForm", new Class [0]);
+            // getDeclaredMethod (not getMethod): each class level must declare its OWN
+            // serialForm; an inherited static would silently describe the superclass's
+            // fields for this level. Non-field levels are @Stateless and skip fields().
+            Method m = clz.getDeclaredMethod("serialForm", new Class [0]);
             int modifiers = m.getModifiers();
             if (Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers) && m.getReturnType() == SerialForm [].class){
 //                System.out.println("Invoking serialForm method on " + clz);
+                m.setAccessible(true); // public method may be declared on a non-public @AtomicSerial class
                 SerialForm [] serialForms = (SerialForm[]) m.invoke(null, (Object []) null);
                 Arrays.sort(serialForms);
                 return toOSF(serialForms);
@@ -1236,6 +1240,7 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
                 if (Modifier.isStatic(mods) && Modifier.isPublic(mods)){
                     PutArg args = putFields();
 //                    System.out.println("Invoking serialize method on " + theClass);
+                    m.setAccessible(true); // public method may be declared on a non-public @AtomicSerial class
                     m.invoke(null, new Object [] {args, object});
                     if (((EmulatedFieldsForDumping)args).fields != 0) {
                         StringBuilder sb = new StringBuilder();

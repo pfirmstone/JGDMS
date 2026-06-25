@@ -7,14 +7,14 @@
 
     <parent>
         <groupId>${groupId}</groupId>
-        <artifactId>${artifactId}</artifactId>
+        <artifactId>${rootArtifactId}</artifactId>
         <version>${version}</version>
     </parent>
 
-    <artifactId>${artifactId}-service</artifactId>
+    <artifactId>${artifactId}</artifactId>
     <packaging>jar</packaging>
 
-    <name>${artifactId}-service</name>
+    <name>${artifactId}</name>
     <description>
         Server-side implementation of ${serviceName}Service.
         Contains ${serviceName}Impl (business logic) and
@@ -25,7 +25,7 @@
     <dependencies>
         <dependency>
             <groupId>${groupId}</groupId>
-            <artifactId>${artifactId}-dl</artifactId>
+            <artifactId>${rootArtifactId}-dl</artifactId>
             <version>${version}</version>
         </dependency>
         <dependency>

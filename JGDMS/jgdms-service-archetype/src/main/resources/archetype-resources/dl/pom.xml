@@ -7,14 +7,14 @@
 
     <parent>
         <groupId>${groupId}</groupId>
-        <artifactId>${artifactId}</artifactId>
+        <artifactId>${rootArtifactId}</artifactId>
         <version>${version}</version>
     </parent>
 
-    <artifactId>${artifactId}-dl</artifactId>
+    <artifactId>${artifactId}</artifactId>
     <packaging>jar</packaging>
 
-    <name>${artifactId}-dl</name>
+    <name>${artifactId}</name>
     <description>
         Download-side (client-facing) classes for ${serviceName}Service.
         Contains the @AtomicSerial smart proxy and its constrainable variant.
@@ -24,7 +24,7 @@
     <dependencies>
         <dependency>
             <groupId>${groupId}</groupId>
-            <artifactId>${artifactId}-api</artifactId>
+            <artifactId>${rootArtifactId}-api</artifactId>
             <version>${version}</version>
         </dependency>
         <dependency>
