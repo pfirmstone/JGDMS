@@ -22,7 +22,7 @@ Under OSGi there are dozens of isolated bundle loaders and no single "the" loade
 at all. Get the resolution wrong and you do not get a security hole — you get a
 `ClassCastException` between two classes that have the same name, or a class
 silently resolved to the wrong, local copy, or an `EntryRep` that won't unmarshal.
-Sun's Jim Warres catalogued these failures two decades ago in *Class Loading Issues
+Sun's Michael Warres catalogued these failures two decades ago in *Class Loading Issues
 in Java RMI and Jini* (TR-2006-149), and most frameworks still have them.
 
 JGDMS doesn't, and the reason is two design decisions that are worth stating plainly

@@ -32,7 +32,7 @@ codebases. A proxy's implementation lives in a loader the receiver has never see
 Under OSGi there are dozens of isolated bundle loaders and no single "the" loader at
 all. Get the resolution wrong and you do not get a security hole — you get a
 `ClassCastException` between two classes that have the same name, or a class silently
-resolved to the wrong, local copy, or an `EntryRep` that won't unmarshal. Sun's Jim
+resolved to the wrong, local copy, or an `EntryRep` that won't unmarshal. Sun's Michael
 Warres catalogued these failures two decades ago in _Class Loading Issues in Java RMI
 and Jini_ (TR-2006-149), and most frameworks still have them.
 
