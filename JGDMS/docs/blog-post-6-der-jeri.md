@@ -253,7 +253,13 @@ ceremony — which is why application code largely stayed on the classpath and t
 module system became, in practice, a JDK-internal mechanism.
 
 **OSGi** does support version coexistence, but through version *ranges* — still a
-naming scheme, asserted in metadata rather than verified.
+naming scheme, asserted in metadata rather than verified, and one whose cost is
+easy to underplay: resolving a set of bundles whose ranges are *mutually*
+satisfiable (the `uses`-constraint problem) is **NP-complete**, which is why real
+OSGi resolvers are backtracking, SAT-style solvers that can grind, or fail to find
+a consistent wiring that in fact exists. Content-addressing has no such global
+solve — two versions are simply two loaders, and "compatible?" is a local
+`schemaDigest` comparison, not a satisfiability problem over the whole graph.
 
 A version number is a naming system, with all the usual failure modes: someone
 has to assign it, it needs an authority to be globally meaningful, it can lie
