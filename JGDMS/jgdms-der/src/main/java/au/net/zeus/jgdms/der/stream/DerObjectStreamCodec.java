@@ -28,14 +28,24 @@ import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
 import net.jini.io.context.DeserializationCompletion;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.DeSerializationPermission;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.Permission;
+import java.security.PrivilegedAction;
+import java.security.ProtectionDomain;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Engine for DER object-stream encoding and decoding (JGDMS-STD-008 sec.15.5,
@@ -51,9 +61,14 @@ import java.util.Objects;
  *   [1] CONSTRUCTED -- @AtomicSerial object; content = MarshalledInstanceRecord DER SEQUENCE
  *   [3] PRIMITIVE   -- java.lang.String; content = UTF8String value bytes
  *   [5] PRIMITIVE   -- byte[]; content = OCTET STRING value bytes
+ *   [7] CONSTRUCTED -- enum constant; content = UTF8String(declaringClassName) ++ UTF8String(constantName)
+ *   [8] CONSTRUCTED -- bare java.lang.reflect.Proxy; content = INTEGER ifaceCount ++ ifaceName(UTF8String)* ++ [1] @AtomicSerial InvocationHandler
  * </pre>
- * Context class = 0x80. Constructed bit = 0x20 set for [1]. Single-byte tags:
- * [0]->0x80, [1]->0xa1, [3]->0x83, [5]->0x85.
+ * Context class = 0x80. Constructed bit = 0x20 set for [1], [7], [8]. Single-byte tags:
+ * [0]->0x80, [1]->0xa1, [3]->0x83, [5]->0x85, [7]->0xa7, [8]->0xa8.
+ * (A {@code java.lang.reflect.Proxy} whose interfaces + {@code @AtomicSerial} handler are
+ * locally resolvable is transmitted bare as [8]; one that needs a codebase download is
+ * instead substituted by a {@code ProxySerializer} and rides the [1] path, per STD-008 sec.15.2.)
  *
  * <h2>No handle table -- pure value-tree, deterministic (STD-008 sec.15.3)</h2>
  * <p>
@@ -80,6 +95,16 @@ final class DerObjectStreamCodec {
     private static final Tag CTX_STRING      = new Tag(Tag.CLASS_CONTEXT, false, 3);
     /** [5] primitive context tag: byte[] (OCTET STRING content). */
     private static final Tag CTX_BYTES       = new Tag(Tag.CLASS_CONTEXT, false, 5);
+    /** [7] constructed context tag: enum; content = UTF8String(declaringClass) ++ UTF8String(name). */
+    private static final Tag CTX_ENUM        = new Tag(Tag.CLASS_CONTEXT, true,  7);
+    /** [8] constructed context tag: bare java.lang.reflect.Proxy (interface names + @AtomicSerial handler). */
+    private static final Tag CTX_PROXY       = new Tag(Tag.CLASS_CONTEXT, true,  8);
+
+    /** DoS bound on a [8] proxy's interface count (mirrors AtomicMarshalInputStream's Byte.MAX_VALUE). */
+    private static final int MAX_PROXY_INTERFACES = 127;
+
+    /** {@link DeSerializationPermission}("PROXY") required to reconstruct a [8] proxy (mirrors JOSS). */
+    private static final Permission PROXY_PERM = new DeSerializationPermission("PROXY");
 
     // =========================================================================
     // Write side state
@@ -248,6 +273,48 @@ final class DerObjectStreamCodec {
             return;
         }
 
+        // enum: STD-008 sec.15.2 [7] / sec.17.1 -- declaring class + constant name, by value.
+        // Use getDeclaringClass(), NOT getClass() (which is the constant-body subclass for
+        // constants with bodies, e.g. Op.ADD -> Op$1).
+        if (obj instanceof Enum<?> e) {
+            byte[] clsName = DerWriter.writeUtf8String(e.getDeclaringClass().getName());
+            byte[] name    = DerWriter.writeUtf8String(e.name());
+            byte[] content = new byte[clsName.length + name.length];
+            System.arraycopy(clsName, 0, content, 0, clsName.length);
+            System.arraycopy(name, 0, content, clsName.length, name.length);
+            writeBuffer.add(DerWriter.writeTlv(CTX_ENUM, content));
+            return;
+        }
+
+        // bare java.lang.reflect.Proxy -> [8]: interface names + the @AtomicSerial InvocationHandler,
+        // reconstructed via Proxy.newProxyInstance. No ProxySerializer/bootstrap/codebase -- the
+        // interfaces + handler must be locally resolvable on the receiver (sec.15.2).
+        if (Proxy.isProxyClass(obj.getClass())) {
+            Class<?>[] ifaces = obj.getClass().getInterfaces();
+            if (ifaces.length == 0 || ifaces.length > MAX_PROXY_INTERFACES) {
+                throw new IOException("DER stream [8] proxy: interface count " + ifaces.length
+                        + " out of range (1.." + MAX_PROXY_INTERFACES + ")");
+            }
+            InvocationHandler h = Proxy.getInvocationHandler(obj);
+            if (!h.getClass().isAnnotationPresent(AtomicSerial.class)) {
+                throw new UnsupportedOperationException(
+                        "DER stream [8] proxy: InvocationHandler "
+                        + h.getClass().getName() + " is not @AtomicSerial");
+            }
+            java.io.ByteArrayOutputStream content = new java.io.ByteArrayOutputStream();
+            content.writeBytes(DerWriter.writeInteger(BigInteger.valueOf(ifaces.length)));
+            for (Class<?> i : ifaces) {
+                content.writeBytes(DerWriter.writeUtf8String(i.getName()));
+            }
+            try {
+                content.writeBytes(DerWriter.writeTlv(CTX_ATOMIC, encodeAtomicRecord(h)));
+            } catch (DerException e) {
+                throw new IOException("DER stream [8] proxy: handler encode failed", e);
+            }
+            writeBuffer.add(DerWriter.writeTlv(CTX_PROXY, content.toByteArray()));
+            return;
+        }
+
         // @AtomicSerial object -> a full record, EVERY occurrence (no handle table; sec.15.3).
         // Encoded by VALUE so the stream is a deterministic (canonical-DER) function of values,
         // not object identity/order; @AtomicSerial deserialization copies + re-checks invariants
@@ -261,11 +328,7 @@ final class DerObjectStreamCodec {
         }
 
         try {
-            SchemaChain.Result chain = SchemaGenerator.generateChain(cls);
-            byte[] payload = ObjectCodec.encodeHierarchy(obj, chain);
-            MarshalledInstanceRecord rec = MarshalledInstanceRecord.fromChain(chain, payload);
-            byte[] recBytes = rec.encode();
-            writeBuffer.add(DerWriter.writeTlv(CTX_ATOMIC, recBytes));
+            writeBuffer.add(DerWriter.writeTlv(CTX_ATOMIC, encodeAtomicRecord(obj)));
         } catch (DerException e) {
             throw new IOException("DER encode failed for " + cls.getName(), e);
         }
@@ -489,44 +552,171 @@ final class DerObjectStreamCodec {
             } catch (DerException e) {
                 throw new IOException("readObject: failed to read @AtomicSerial record bytes", e);
             }
+            return decodeAtomicRecord(recBytes);
+        }
 
-            MarshalledInstanceRecord rec;
+        if (CTX_ENUM.equals(tag)) {
+            // [7] enum: content = UTF8String(declaringClassName) ++ UTF8String(constantName)
+            byte[] content;
             try {
-                rec = MarshalledInstanceRecord.decode(recBytes);
+                content = reader.readRawContent(hdr.contentLength());
             } catch (DerException e) {
-                throw new IOException("readObject: malformed MarshalledInstanceRecord", e);
+                throw new IOException("readObject: failed to read [7] enum content", e);
             }
-
-            // Resolve the concrete class from the embedded schema's leaf record
-            String leafClassName;
+            DerReader er = new DerReader(content);
+            String className;
+            String constant;
             try {
-                leafClassName = rec.decodeSchemaChain().get(0).className();
+                className = er.readUtf8String();
+                constant  = er.readUtf8String();
             } catch (DerException e) {
-                throw new IOException("readObject: failed to decode embedded schema chain", e);
+                throw new IOException("readObject: malformed [7] enum item", e);
             }
-            Class<?> leafClass;
+            if (er.hasMore()) {
+                throw new IOException("readObject: trailing bytes in [7] enum item");
+            }
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            if (cl == null) cl = ClassLoader.getSystemClassLoader();
+            Class<?> enumClass = Class.forName(className, false, cl);
+            if (!enumClass.isEnum()) {
+                throw new IOException("readObject: [7] enum class '" + className
+                        + "' is not an enum");
+            }
             try {
-                ClassLoader cl = Thread.currentThread().getContextClassLoader();
-                if (cl == null) cl = ClassLoader.getSystemClassLoader();
-                leafClass = Class.forName(leafClassName, false, cl);
-            } catch (ClassNotFoundException e) {
-                throw e;
+                return enumValueOf(enumClass, constant);
+            } catch (IllegalArgumentException e) {
+                throw new IOException("readObject: unknown enum constant '" + constant
+                        + "' in " + className, e);
             }
+        }
 
-            Object obj;
+        if (CTX_PROXY.equals(tag)) {
+            // [8] bare java.lang.reflect.Proxy: INTEGER count, count x UTF8String interface name,
+            // then a [1] @AtomicSerial InvocationHandler. Reconstruct via Proxy.newProxyInstance.
+            byte[] content;
             try {
-                MarshalledInstanceCodec.Result<?> result =
-                        MarshalledInstanceCodec.decodeMarshalledInstance(rec, leafClass, decodeUnit);
-                obj = result.object();
+                content = reader.readRawContent(hdr.contentLength());
             } catch (DerException e) {
-                throw new IOException("readObject: decode failed for " + leafClassName, e);
+                throw new IOException("readObject: failed to read [8] proxy content", e);
             }
-
-            return obj;
+            DerReader pr = new DerReader(content);
+            int count;
+            String[] names;
+            Object handler;
+            try {
+                count = pr.readInteger().intValueExact();
+                if (count <= 0 || count > MAX_PROXY_INTERFACES) {
+                    throw new IOException("readObject: [8] proxy interface count " + count
+                            + " out of range (1.." + MAX_PROXY_INTERFACES + ")");
+                }
+                names = new String[count];
+                for (int i = 0; i < count; i++) {
+                    names[i] = pr.readUtf8String();
+                }
+                DerReader.TlvHeader hh = pr.readTlvHeader();
+                if (!CTX_ATOMIC.equals(hh.tag())) {
+                    throw new IOException("readObject: [8] proxy handler must be a [1] @AtomicSerial item");
+                }
+                handler = decodeAtomicRecord(pr.readRawContent(hh.contentLength()));
+                if (pr.hasMore()) {
+                    throw new IOException("readObject: trailing bytes in [8] proxy item");
+                }
+            } catch (ArithmeticException e) {
+                throw new IOException("readObject: [8] proxy interface count overflow", e);
+            } catch (DerException e) {
+                throw new IOException("readObject: malformed [8] proxy item", e);
+            }
+            if (!(handler instanceof InvocationHandler)) {
+                throw new IOException("readObject: [8] proxy handler is not an InvocationHandler ("
+                        + (handler == null ? "null" : handler.getClass().getName()) + ")");
+            }
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            if (cl == null) cl = ClassLoader.getSystemClassLoader();
+            Class<?>[] ifaces = new Class<?>[count];
+            for (int i = 0; i < count; i++) {
+                ifaces[i] = Class.forName(names[i], false, cl);
+            }
+            // DeSerializationPermission("PROXY") gate before reconstruction -- DER counterpart of
+            // AtomicMarshalInputStream.instantiateProxy's deSerializationPermitted(PROXY). No-op w/o SM.
+            checkProxyDeSerializationPermitted(ifaces);
+            try {
+                return Proxy.newProxyInstance(cl, ifaces, (InvocationHandler) handler);
+            } catch (IllegalArgumentException e) {
+                throw new IOException("readObject: [8] proxy reconstruction failed", e);
+            }
         }
 
         throw new IOException("readObject: unexpected context tag " + tag
-                + " (expected [0],[1],[3],[5]); back-references are not supported (sec.15.3)");
+                + " (expected [0],[1],[3],[5],[7],[8]); back-references are not supported (sec.15.3)");
+    }
+
+    /** Resolves an enum constant by declaring-class + name (raw-type bridge for {@link Enum#valueOf}). */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Object enumValueOf(Class<?> enumClass, String name) {
+        return Enum.valueOf((Class<? extends Enum>) enumClass, name);
+    }
+
+    /** Encodes an {@code @AtomicSerial} object to its MarshalledInstanceRecord DER bytes (the [1] content). */
+    private static byte[] encodeAtomicRecord(Object obj) throws DerException {
+        SchemaChain.Result chain = SchemaGenerator.generateChain(obj.getClass());
+        byte[] payload = ObjectCodec.encodeHierarchy(obj, chain);
+        return MarshalledInstanceRecord.fromChain(chain, payload).encode();
+    }
+
+    /** Decodes the bytes inside a [1] {@code CTX_ATOMIC} TLV (a MarshalledInstanceRecord) into its object. */
+    private Object decodeAtomicRecord(byte[] recBytes) throws IOException, ClassNotFoundException {
+        MarshalledInstanceRecord rec;
+        try {
+            rec = MarshalledInstanceRecord.decode(recBytes);
+        } catch (DerException e) {
+            throw new IOException("readObject: malformed MarshalledInstanceRecord", e);
+        }
+        String leafClassName;
+        try {
+            leafClassName = rec.decodeSchemaChain().get(0).className();
+        } catch (DerException e) {
+            throw new IOException("readObject: failed to decode embedded schema chain", e);
+        }
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        if (cl == null) cl = ClassLoader.getSystemClassLoader();
+        Class<?> leafClass = Class.forName(leafClassName, false, cl);
+        try {
+            return MarshalledInstanceCodec.decodeMarshalledInstance(rec, leafClass, decodeUnit).object();
+        } catch (DerException e) {
+            throw new IOException("readObject: decode failed for " + leafClassName, e);
+        }
+    }
+
+    /** {@code DeSerializationPermission("PROXY")} gate for [8] reconstruction; no-op without a {@link SecurityManager}. */
+    private static void checkProxyDeSerializationPermitted(Class<?>[] interfaces) {
+        checkProxyDeSerializationPermitted(interfaces, System.getSecurityManager());
+    }
+
+    /**
+     * Testable seam for the [8] {@code DeSerializationPermission("PROXY")} gate (mirrors
+     * {@code ObjectCodec.checkAtomicDeSerializationPermitted}). The permission is checked against an
+     * {@link AccessControlContext} built from the proxy interfaces' protection domains -- the
+     * DER-path counterpart of JOSS {@code deSerializationPermitted(PROXY)} -- so a deployment can
+     * govern which interface codebases may be reconstructed as a proxy from an untrusted stream.
+     *
+     * @param interfaces the resolved proxy interfaces about to be reconstructed
+     * @param sm         the active security manager, or {@code null}
+     * @throws SecurityException if {@code sm} denies {@code DeSerializationPermission("PROXY")}
+     */
+    @SuppressWarnings("removal")
+    static void checkProxyDeSerializationPermitted(Class<?>[] interfaces, SecurityManager sm) {
+        if (sm == null) return;
+        AccessControlContext ctx = AccessController.doPrivileged(
+                (PrivilegedAction<AccessControlContext>) () -> {
+                    Set<ProtectionDomain> domains = new LinkedHashSet<>();
+                    for (Class<?> i : interfaces) {
+                        if (i == null) continue;
+                        ProtectionDomain pd = i.getProtectionDomain();
+                        if (pd != null) domains.add(pd);
+                    }
+                    return new AccessControlContext(domains.toArray(new ProtectionDomain[0]));
+                });
+        sm.checkPermission(PROXY_PERM, ctx);
     }
 
     // =========================================================================
