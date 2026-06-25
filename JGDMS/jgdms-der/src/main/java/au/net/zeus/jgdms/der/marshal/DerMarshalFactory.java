@@ -100,9 +100,13 @@ public final class DerMarshalFactory implements MarshalFactory {
      *                                 {@code MarshalledInstance.schemaBytes} field
      * @param schemaDigest             ignored (re-derived from the schema chain)
      * @param payloadFormat            ignored (routing already done by MarshalledInstance)
-     * @param defaultLoader            ignored (DER resolves classes via embedded schema)
+     * @param defaultLoader            the stream's default class loader; not used for class
+     *                                 resolution (DER resolves via the embedded schema) but
+     *                                 forwarded to the input so trusted resolution code (e.g.
+     *                                 {@code DerProxySerializer}) can reach it via the narrow
+     *                                 package-private {@code DerGetArg} channel
      * @param verifyCodebaseIntegrity  ignored (DER has no codebase URLs to verify)
-     * @param verifierLoader           ignored
+     * @param verifierLoader           the stream's verifier class loader; forwarded as above
      * @param context                  the stream context collection; forwarded to the input
      * @return a new {@link DerMarshalInstanceInput}
      * @throws IOException if reading from {@code objIn} fails during construction
@@ -118,7 +122,7 @@ public final class DerMarshalFactory implements MarshalFactory {
                                                    ClassLoader  verifierLoader,
                                                    Collection   context)
             throws IOException {
-        return new DerMarshalInstanceInput(objIn, schemaBytes, context);
+        return new DerMarshalInstanceInput(objIn, schemaBytes, context, defaultLoader, verifierLoader);
     }
 
     /**

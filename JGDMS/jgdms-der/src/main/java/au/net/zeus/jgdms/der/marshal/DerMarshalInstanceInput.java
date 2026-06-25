@@ -70,6 +70,14 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
     private final byte[]     schemaBytes;
     private final Collection context;
     private final InputStream objIn;  // kept for close()
+    /**
+     * The unmarshalling stream's {default, verifier} class loaders. Held so the decode can
+     * thread them, via a narrow package-private channel into {@code DerGetArg}, to trusted
+     * resolution code (e.g. {@code DerProxySerializer}) WITHOUT broadcasting these
+     * capabilities through {@code getObjectStreamContext()}. Either may be {@code null}.
+     */
+    private final ClassLoader defaultLoader;
+    private final ClassLoader verifierLoader;
 
     /**
      * Constructs a new input from an already-separated payload stream and schema bytes.
@@ -83,13 +91,18 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
      *                    {@code MarshalledInstance.schemaBytes} field (must not be null;
      *                    must be the output of {@link DerMarshalInstanceOutput#getSchemaBytes()})
      * @param context     the serialization context collection; may be empty, must not be null
+     * @param defaultLoader  the stream's default class loader, or {@code null}
+     * @param verifierLoader the stream's verifier class loader, or {@code null}
      * @throws IOException if reading from {@code objIn} fails
      */
-    public DerMarshalInstanceInput(InputStream objIn, byte[] schemaBytes, Collection context)
+    public DerMarshalInstanceInput(InputStream objIn, byte[] schemaBytes, Collection context,
+                                   ClassLoader defaultLoader, ClassLoader verifierLoader)
             throws IOException {
         this.objIn       = Objects.requireNonNull(objIn,       "objIn");
         this.schemaBytes = Objects.requireNonNull(schemaBytes, "schemaBytes");
         this.context     = Objects.requireNonNull(context,     "context");
+        this.defaultLoader  = defaultLoader;
+        this.verifierLoader = verifierLoader;
         this.payloadBytes = objIn.readAllBytes();
     }
 
@@ -136,7 +149,8 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
                     Optional.empty(),
                     MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
-            return MarshalledInstanceCodec.decodeMarshalledInstance(rec, type).object();
+            return MarshalledInstanceCodec.decodeMarshalledInstance(
+                    rec, type, null, defaultLoader, verifierLoader).object();
         } catch (au.net.zeus.jgdms.der.DerException e) {
             throw new IOException("DER decoding failed: " + e.getMessage(), e);
         }

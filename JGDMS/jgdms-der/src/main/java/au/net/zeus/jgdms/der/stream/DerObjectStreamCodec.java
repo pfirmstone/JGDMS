@@ -681,7 +681,7 @@ final class DerObjectStreamCodec {
         if (cl == null) cl = ClassLoader.getSystemClassLoader();
         Class<?> leafClass = Class.forName(leafClassName, false, cl);
         try {
-            return MarshalledInstanceCodec.decodeMarshalledInstance(rec, leafClass, decodeUnit).object();
+            return MarshalledInstanceCodec.decodeMarshalledInstance(rec, leafClass, decodeUnit, null, null).object();
         } catch (DerException e) {
             throw new IOException("readObject: decode failed for " + leafClassName, e);
         }

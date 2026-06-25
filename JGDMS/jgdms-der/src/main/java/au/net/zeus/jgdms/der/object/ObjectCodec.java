@@ -407,7 +407,7 @@ public final class ObjectCodec {
                                          byte[] hierarchyPayload)
             throws DerException, IOException, ClassNotFoundException {
         return decodeHierarchy(expectedSupertype, chain, hierarchyPayload,
-                               (DeserializationCompletion) null);
+                               (DeserializationCompletion) null, null, null);
     }
 
     /**
@@ -432,7 +432,9 @@ public final class ObjectCodec {
     public static <T> T decodeHierarchy(Class<T> expectedSupertype,
                                          SchemaChain.Result chain,
                                          byte[] hierarchyPayload,
-                                         DeserializationCompletion decodeUnit)
+                                         DeserializationCompletion decodeUnit,
+                                         ClassLoader streamDefaultLoader,
+                                         ClassLoader streamVerifierLoader)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         Objects.requireNonNull(chain, "chain");
@@ -498,7 +500,7 @@ public final class ObjectCodec {
         }
 
         // Assemble the multi-entry DerGetArg (superclass-first insertion order)
-        DerGetArg arg = new DerGetArg(storeMap, 0, decodeUnit);
+        DerGetArg arg = new DerGetArg(storeMap, 0, decodeUnit, streamDefaultLoader, streamVerifierLoader);
 
         // Per-class DeSerializationPermission("ATOMIC") gate: every @AtomicSerial
         // class in the hierarchy whose (GetArg) constructor will run must be permitted.

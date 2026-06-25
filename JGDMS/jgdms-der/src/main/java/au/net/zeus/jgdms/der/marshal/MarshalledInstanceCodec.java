@@ -181,7 +181,7 @@ public final class MarshalledInstanceCodec {
             MarshalledInstanceRecord rec,
             Class<T> receiverClass)
             throws DerException, IOException, ClassNotFoundException {
-        return decodeMarshalledInstance(rec, receiverClass, null);
+        return decodeMarshalledInstance(rec, receiverClass, null, null, null);
     }
 
     /**
@@ -190,10 +190,18 @@ public final class MarshalledInstanceCodec {
      * DGC live reference can register its batched {@code dirty} on the per-decode-unit
      * token (used on the JERI/DER stream path; {@code null} for a standalone decode).
      *
+     * <p>The {@code streamDefaultLoader}/{@code streamVerifierLoader} are the unmarshalling
+     * stream's class loaders, threaded into the constructed {@code DerGetArg}s through a narrow
+     * package-private channel (NOT {@code getObjectStreamContext()}) so trusted resolution code
+     * such as {@code DerProxySerializer} can reach them without broadcasting these capabilities
+     * to every object in the graph. They are {@code null} on a standalone decode.
+     *
      * @param <T>            the expected return type
      * @param rec            the {@code MarshalledInstanceRecord} to decode
      * @param receiverClass  the receiver's class
      * @param decodeUnit     the per-decode-unit completion sink, or {@code null}
+     * @param streamDefaultLoader   the stream's default class loader, or {@code null}
+     * @param streamVerifierLoader  the stream's verifier class loader, or {@code null}
      * @return a {@link Result} with the constructed object and detected schema case
      * @throws DerException           if the DER encoding is malformed
      * @throws IOException            if construction fails with an {@link IOException}
@@ -203,7 +211,9 @@ public final class MarshalledInstanceCodec {
     public static <T> Result<T> decodeMarshalledInstance(
             MarshalledInstanceRecord rec,
             Class<T> receiverClass,
-            DeserializationCompletion decodeUnit)
+            DeserializationCompletion decodeUnit,
+            ClassLoader streamDefaultLoader,
+            ClassLoader streamVerifierLoader)
             throws DerException, IOException, ClassNotFoundException {
 
         Objects.requireNonNull(rec,           "rec");
@@ -235,7 +245,9 @@ public final class MarshalledInstanceCodec {
                 receiverClass,
                 embeddedChain,
                 rec.payloadBytes(),
-                decodeUnit);
+                decodeUnit,
+                streamDefaultLoader,
+                streamVerifierLoader);
 
         return new Result<>(object, schemaCase);
     }
