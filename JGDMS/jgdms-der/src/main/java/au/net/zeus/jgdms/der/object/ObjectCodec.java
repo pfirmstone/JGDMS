@@ -646,25 +646,7 @@ public final class ObjectCodec {
             }
             return putArg.captured();
         }
-        Method serialize;
-        try {
-            serialize = declaringClass.getDeclaredMethod(
-                    "serialize", AtomicSerial.PutArg.class, declaringClass);
-        } catch (NoSuchMethodException ex) {
-            throw new DerException(
-                    "Class " + declaringClass.getName()
-                    + " has no 'public static void serialize(AtomicSerial.PutArg, "
-                    + declaringClass.getSimpleName() + ")' method. Every @AtomicSerial class"
-                    + " MUST implement the serialize(PutArg) write contract; the DER codec"
-                    + " does not read fields by reflection.");
-        }
-        if (!Modifier.isStatic(serialize.getModifiers())) {
-            throw new DerException(
-                    "Class " + declaringClass.getName()
-                    + " serialize(PutArg, " + declaringClass.getSimpleName() + ") must be static");
-        }
-        String sv = MarshalDelegates.strictBlockClass(declaringClass, "serialize(PutArg, T)");
-        if (sv != null) throw new DerException(sv);
+        Method serialize = serializeMethod(declaringClass); // cached + validated reflective fallback
         DerPutArg putArg = new DerPutArg();
         try {
             serialize.invoke(null, putArg, instance);
@@ -782,16 +764,67 @@ public final class ObjectCodec {
     @SuppressWarnings("unchecked")
     private static <T> Constructor<T> findGetArgConstructor(Class<T> clazz)
             throws DerException {
-        try {
-            Constructor<T> ctor = clazz.getDeclaredConstructor(AtomicSerial.GetArg.class);
-            String sv = MarshalDelegates.strictBlockCtor(clazz, ctor.getModifiers());
-            if (sv != null) throw new DerException(sv);
-            return ctor;
-        } catch (NoSuchMethodException ex) {
-            throw new DerException(
-                    "Class " + clazz.getName()
-                    + " has no (AtomicSerial.GetArg) deserialization constructor");
+        Object v = GETARG_CTOR.get(clazz);
+        if (v instanceof Constructor<?> ctor) {
+            return (Constructor<T>) ctor;
         }
+        throw new DerException((String) v);
+    }
+
+    // -------------------------------------------------------------------------
+    // Per-class reflection caches for the delegate-less fallback path (the common case uses a
+    // MarshalDelegate -- no reflection). Memoised in ClassValue: the resolved (validated) member on
+    // success, the failure message otherwise. ClassValue is keyed by the defining class and GC-tied
+    // to its lifetime, so there is no leak and no per-object getDeclared* lookup on the hot path.
+    // (Accessibility is unchanged from the prior inline lookups -- no setAccessible is added here.)
+    // -------------------------------------------------------------------------
+
+    /** Cached {@code (AtomicSerial.GetArg)} constructor (or a failure message) per class. */
+    private static final ClassValue<Object> GETARG_CTOR = new ClassValue<Object>() {
+        @Override
+        protected Object computeValue(Class<?> clazz) {
+            try {
+                Constructor<?> ctor = clazz.getDeclaredConstructor(AtomicSerial.GetArg.class);
+                String sv = MarshalDelegates.strictBlockCtor(clazz, ctor.getModifiers());
+                if (sv != null) return sv;
+                return ctor;
+            } catch (NoSuchMethodException ex) {
+                return "Class " + clazz.getName()
+                        + " has no (AtomicSerial.GetArg) deserialization constructor";
+            }
+        }
+    };
+
+    /** Cached {@code static serialize(PutArg, T)} method (or a failure message) per class. */
+    private static final ClassValue<Object> SERIALIZE_METHOD = new ClassValue<Object>() {
+        @Override
+        protected Object computeValue(Class<?> clazz) {
+            Method m;
+            try {
+                m = clazz.getDeclaredMethod("serialize", AtomicSerial.PutArg.class, clazz);
+            } catch (NoSuchMethodException ex) {
+                return "Class " + clazz.getName()
+                        + " has no 'public static void serialize(AtomicSerial.PutArg, "
+                        + clazz.getSimpleName() + ")' method. Every @AtomicSerial class"
+                        + " MUST implement the serialize(PutArg) write contract; the DER codec"
+                        + " does not read fields by reflection.";
+            }
+            if (!Modifier.isStatic(m.getModifiers())) {
+                return "Class " + clazz.getName()
+                        + " serialize(PutArg, " + clazz.getSimpleName() + ") must be static";
+            }
+            String sv = MarshalDelegates.strictBlockClass(clazz, "serialize(PutArg, T)");
+            if (sv != null) return sv;
+            return m;
+        }
+    };
+
+    private static Method serializeMethod(Class<?> declaringClass) throws DerException {
+        Object v = SERIALIZE_METHOD.get(declaringClass);
+        if (v instanceof Method m) {
+            return m;
+        }
+        throw new DerException((String) v);
     }
 
     /**

@@ -380,12 +380,30 @@ public final class AtomicSerialSchemaRecord {
      * @return a fresh 32-byte digest
      * @throws IllegalStateException if SHA-256 is not available (should never happen on JDK 21)
      */
+    /**
+     * A pristine SHA-256 instance, never updated; {@link #sha256} clones it per call. Cloning copies
+     * the (un-updated) initial state and is far cheaper than {@link MessageDigest#getInstance}'s
+     * synchronized provider lookup -- and gives a fresh, thread-confined digest per call.
+     */
+    private static final MessageDigest SHA256_PROTOTYPE;
+    static {
+        try {
+            SHA256_PROTOTYPE = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
     static byte[] sha256(byte[] data) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            return md.digest(data);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 not available", e);
+            return ((MessageDigest) SHA256_PROTOTYPE.clone()).digest(data);
+        } catch (CloneNotSupportedException notCloneable) {
+            // Rare: a provider whose SHA-256 MessageDigest is not Cloneable -- fall back to a fresh one.
+            try {
+                return MessageDigest.getInstance("SHA-256").digest(data);
+            } catch (NoSuchAlgorithmException e) {
+                throw new IllegalStateException("SHA-256 not available", e);
+            }
         }
     }
 

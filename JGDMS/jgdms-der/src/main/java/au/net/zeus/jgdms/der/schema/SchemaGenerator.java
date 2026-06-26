@@ -166,7 +166,30 @@ public final class SchemaGenerator {
      */
     public static SchemaChain.Result generateChain(Class<?> leafClass) throws DerException {
         Objects.requireNonNull(leafClass, "leafClass");
+        // The schema chain is a pure, immutable function of the class (its hierarchy + each class's
+        // static serialForm()), so memoise it per class: this removes the per-object reflection
+        // (serialForm) and SHA-256 (schema digests) cost from the marshalling hot path. Failures
+        // are deterministic per class and are cached too (as the message) and re-thrown fresh.
+        Object v = CHAIN_CACHE.get(leafClass);
+        if (v instanceof SchemaChain.Result r) {
+            return r;
+        }
+        throw new DerException((String) v);
+    }
 
+    /** Memoised {@link #generateChain}: a {@link SchemaChain.Result} on success, the failure message otherwise. */
+    private static final ClassValue<Object> CHAIN_CACHE = new ClassValue<Object>() {
+        @Override
+        protected Object computeValue(Class<?> type) {
+            try {
+                return generateChainUncached(type);
+            } catch (DerException e) {
+                return e.getMessage() != null ? e.getMessage() : e.toString();
+            }
+        }
+    };
+
+    private static SchemaChain.Result generateChainUncached(Class<?> leafClass) throws DerException {
         // Walk from leaf up to Object, collecting @AtomicSerial classes (leaf-first)
         List<AtomicSerialSchemaRecord> rawRecords = new ArrayList<>();
         Class<?> current = leafClass;
