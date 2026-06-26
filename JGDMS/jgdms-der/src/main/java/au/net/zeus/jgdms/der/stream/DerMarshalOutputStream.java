@@ -48,12 +48,13 @@ import java.util.Objects;
  * These are POSITIONAL: the reader must call the matching typed read in the same order.
  * They carry no item tag beyond the natural DER universal tag.
  *
- * <h2>Deferred types</h2>
+ * <h2>Float / double / char and unsupported legacy writes</h2>
  * <p>
- * {@link #writeFloat}, {@link #writeDouble}, and {@link #writeChar} throw
- * {@link UnsupportedOperationException} per STD-006 sec.7.6. {@link #writeBytes(String)}
- * and {@link #writeChars(String)} also throw (ambiguous legacy encoding, not used by
- * JERI marshalling).
+ * {@link #writeFloat}, {@link #writeDouble}, and {@link #writeChar} are <em>implemented</em>
+ * with strict canonicalization (STD-008 sec.17.3 lifted the STD-006 sec.7.6 deferral): IEEE-754
+ * with canonical NaN / {@code +0.0}, and a Unicode-codepoint INTEGER for {@code char}. Only
+ * {@link #writeBytes(String)} and {@link #writeChars(String)} throw
+ * {@link UnsupportedOperationException} (ambiguous legacy encoding, not used by JERI marshalling).
  *
  * <h2>Buffering and flush</h2>
  * <p>
