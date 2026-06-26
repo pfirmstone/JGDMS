@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.marshal;
 
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 import net.jini.io.MarshalInstanceInput;
 import org.apache.river.api.io.AtomicObjectInput;
@@ -73,13 +74,14 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
     private final Collection context;
     private final InputStream objIn;  // kept for close()
     /**
-     * The unmarshalling stream's {default, verifier} class loaders. Held so the decode can
-     * thread them, via a narrow package-private channel into {@code DerGetArg}, to trusted
-     * resolution code (e.g. {@code DerProxySerializer}) WITHOUT broadcasting these
-     * capabilities through {@code getObjectStreamContext()}. Either may be {@code null}.
+     * The endpoint-assigned {@link ResolutionContext} (the unmarshalling stream's
+     * {default, verifier} loaders + integrity setting). Class names resolve against the
+     * endpoint loader, not the thread-context loader (the Warres failure). A {@code ClassLoader}
+     * is a capability: this is threaded into the decode via trusted channels only (a narrow
+     * package-private {@code DerGetArg} accessor for {@code DerProxySerializer}, and the
+     * object-stream codec), and is NEVER broadcast through {@code getObjectStreamContext()}.
      */
-    private final ClassLoader defaultLoader;
-    private final ClassLoader verifierLoader;
+    private final ResolutionContext resolution;
 
     /**
      * Constructs a new input from an already-separated payload stream and schema bytes.
@@ -93,18 +95,20 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
      *                    {@code MarshalledInstance.schemaBytes} field (must not be null;
      *                    must be the output of {@link DerMarshalInstanceOutput#getSchemaBytes()})
      * @param context     the serialization context collection; may be empty, must not be null
-     * @param defaultLoader  the stream's default class loader, or {@code null}
-     * @param verifierLoader the stream's verifier class loader, or {@code null}
+     * @param defaultLoader           the endpoint's default class loader, or {@code null}
+     * @param verifyCodebaseIntegrity whether codebase integrity is verified (moot for DER's
+     *                                no-annotation class resolution, carried for fidelity)
+     * @param verifierLoader          the endpoint's verifier class loader, or {@code null}
      * @throws IOException if reading from {@code objIn} fails
      */
     public DerMarshalInstanceInput(InputStream objIn, byte[] schemaBytes, Collection context,
-                                   ClassLoader defaultLoader, ClassLoader verifierLoader)
+                                   ClassLoader defaultLoader, boolean verifyCodebaseIntegrity,
+                                   ClassLoader verifierLoader)
             throws IOException {
         this.objIn       = Objects.requireNonNull(objIn,       "objIn");
         this.schemaBytes = Objects.requireNonNull(schemaBytes, "schemaBytes");
         this.context     = Objects.requireNonNull(context,     "context");
-        this.defaultLoader  = defaultLoader;
-        this.verifierLoader = verifierLoader;
+        this.resolution  = new ResolutionContext(defaultLoader, verifyCodebaseIntegrity, verifierLoader);
         this.payloadBytes = objIn.readAllBytes();
     }
 
@@ -139,7 +143,8 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
         // loader; threading defaultLoader/verifierLoader into the object-stream path is a
         // follow-up -- the @AtomicSerial path already carries them via DerGetArg.)
         if (schemaBytes == null || schemaBytes.length == 0) {
-            DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(payloadBytes));
+            DerMarshalInputStream in = new DerMarshalInputStream(
+                    new ByteArrayInputStream(payloadBytes), resolution);
             return in.readObject(type);
         }
         try {
@@ -163,7 +168,7 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
                     MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
             Object obj = MarshalledInstanceCodec.decodeMarshalledInstance(
-                    rec, type, null, defaultLoader, verifierLoader).object();
+                    rec, type, null, resolution).object();
             // JOSS parity: apply readResolve to the ROOT object so a DerProxySerializer carrier
             // resolves to the real (downloaded/unmarshalled) proxy. Plain @AtomicSerial values
             // (not Resolve) pass through unchanged; nested fields are already resolved by

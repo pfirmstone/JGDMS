@@ -197,8 +197,22 @@ public final class DerFieldStore {
      */
     public DerFieldStore(AtomicSerialSchemaRecord schema, byte[] payloadSequence)
             throws DerException {
+        this(schema, payloadSequence, ResolutionContext.NONE);
+    }
+
+    /**
+     * As {@link #DerFieldStore(AtomicSerialSchemaRecord, byte[])}, resolving any enum/array field
+     * component classes against the endpoint-assigned {@link ResolutionContext} rather than the
+     * thread-context loader.
+     *
+     * @param res the endpoint-assigned resolution context (must not be {@code null}; use
+     *            {@link ResolutionContext#NONE} for a standalone decode)
+     */
+    public DerFieldStore(AtomicSerialSchemaRecord schema, byte[] payloadSequence, ResolutionContext res)
+            throws DerException {
         Objects.requireNonNull(schema, "schema");
         Objects.requireNonNull(payloadSequence, "payloadSequence");
+        Objects.requireNonNull(res, "res");
         this.schema = schema;
         DerReader outer = new DerReader(payloadSequence);
         DerReader seq = outer.readSequence();
@@ -206,7 +220,7 @@ public final class DerFieldStore {
         if (outer.hasMore()) {
             throw new DerException("DerFieldStore: trailing bytes after payload SEQUENCE");
         }
-        DecodeResult r = decodeAllFields(schema, seq);
+        DecodeResult r = decodeAllFields(schema, seq, res);
         this.fields = r.fields;
         this.trailingDiscarded = r.trailingDiscarded;
     }
@@ -227,11 +241,23 @@ public final class DerFieldStore {
      */
     public DerFieldStore(AtomicSerialSchemaRecord schema, DerReader reader)
             throws DerException {
+        this(schema, reader, ResolutionContext.NONE);
+    }
+
+    /**
+     * As {@link #DerFieldStore(AtomicSerialSchemaRecord, DerReader)}, resolving any enum/array
+     * field component classes against the endpoint-assigned {@link ResolutionContext}.
+     *
+     * @param res the endpoint-assigned resolution context (must not be {@code null})
+     */
+    public DerFieldStore(AtomicSerialSchemaRecord schema, DerReader reader, ResolutionContext res)
+            throws DerException {
         Objects.requireNonNull(schema, "schema");
         Objects.requireNonNull(reader, "reader");
+        Objects.requireNonNull(res, "res");
         this.schema = schema;
         DerReader seq = reader.readSequence();
-        DecodeResult r = decodeAllFields(schema, seq);
+        DecodeResult r = decodeAllFields(schema, seq, res);
         this.fields = r.fields;
         this.trailingDiscarded = r.trailingDiscarded;
     }
@@ -259,7 +285,7 @@ public final class DerFieldStore {
      * @return decoded field map and trailing discard count
      */
     private static DecodeResult decodeAllFields(AtomicSerialSchemaRecord schema,
-                                                 DerReader seq) throws DerException {
+                                                 DerReader seq, ResolutionContext res) throws DerException {
         List<AtomicSerialFieldDef> fieldDefs = schema.fields();
         // LinkedHashMap preserves schema insertion order
         Map<String, Object> map = new LinkedHashMap<>(fieldDefs.size() * 2);
@@ -286,7 +312,7 @@ public final class DerFieldStore {
                 String componentClassName = def.wireType().substring("array:@AtomicSerial:".length());
                 value = readNestedArrayRawTlv(seq, componentClassName);
             } else {
-                value = WireTypes.decode(seq, def.wireType());
+                value = WireTypes.decode(seq, def.wireType(), res);
             }
             map.put(def.wireName(), value);
             schemaIdx++;

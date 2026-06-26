@@ -21,6 +21,7 @@ import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
@@ -333,7 +334,7 @@ public final class ObjectCodec {
         // For each class in root-first order, load the class and encode its SEQUENCE.
         List<byte[]> perClassSequences = new ArrayList<>(rootFirst.size());
         for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
-            Class<?> cls = loadClass(schemaRecord.className());
+            Class<?> cls = loadClass(schemaRecord.className(), ResolutionContext.NONE);
             byte[] classSeq = encode(instance, cls, schemaRecord, depth);
             perClassSequences.add(classSeq);
         }
@@ -407,7 +408,7 @@ public final class ObjectCodec {
                                          byte[] hierarchyPayload)
             throws DerException, IOException, ClassNotFoundException {
         return decodeHierarchy(expectedSupertype, chain, hierarchyPayload,
-                               (DeserializationCompletion) null, null, null);
+                               (DeserializationCompletion) null, ResolutionContext.NONE);
     }
 
     /**
@@ -433,8 +434,7 @@ public final class ObjectCodec {
                                          SchemaChain.Result chain,
                                          byte[] hierarchyPayload,
                                          DeserializationCompletion decodeUnit,
-                                         ClassLoader streamDefaultLoader,
-                                         ClassLoader streamVerifierLoader)
+                                         ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         Objects.requireNonNull(chain, "chain");
@@ -445,7 +445,7 @@ public final class ObjectCodec {
         // passed to generateChain (S3.10, first rule: non-@AtomicSerial subclass is dropped).
         List<AtomicSerialSchemaRecord> leafFirst = chain.chain();
         String constructClassName = leafFirst.get(0).className();
-        Class<?> constructClass = loadClass(constructClassName);
+        Class<?> constructClass = loadClass(constructClassName, resolution);
 
         // Assignability check: the constructed type must be a subtype of expectedSupertype.
         // When Bar extends Foo (Bar plain, Foo @AtomicSerial), constructClass = Foo,
@@ -475,8 +475,8 @@ public final class ObjectCodec {
         // Build a DerFieldStore for each class, inserting superclass-first into the map
         Map<Class<?>, DerFieldStore> storeMap = new LinkedHashMap<>();
         for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
-            Class<?> cls = loadClass(schemaRecord.className());
-            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq);
+            Class<?> cls = loadClass(schemaRecord.className(), resolution);
+            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq, resolution);
             storeMap.put(cls, store);
         }
         if (outerSeq.hasMore()) {
@@ -500,7 +500,7 @@ public final class ObjectCodec {
         }
 
         // Assemble the multi-entry DerGetArg (superclass-first insertion order)
-        DerGetArg arg = new DerGetArg(storeMap, 0, decodeUnit, streamDefaultLoader, streamVerifierLoader);
+        DerGetArg arg = new DerGetArg(storeMap, 0, decodeUnit, resolution);
 
         // Per-class DeSerializationPermission("ATOMIC") gate: every @AtomicSerial
         // class in the hierarchy whose (GetArg) constructor will run must be permitted.
@@ -1009,7 +1009,7 @@ public final class ObjectCodec {
         }
         // Type-check: runtime class must match the declared enum class in the wireType.
         String className = wireType.substring(5); // strip "enum:"
-        Class<?> declaredClass = loadClass(className);
+        Class<?> declaredClass = loadClass(className, ResolutionContext.NONE);
         if (!declaredClass.isInstance(value)) {
             throw new DerException(
                     "ObjectCodec: enum field '" + fieldName
@@ -1089,11 +1089,14 @@ public final class ObjectCodec {
      * @return the loaded class
      * @throws DerException if the class cannot be found
      */
-    private static Class<?> loadClass(String className) throws DerException {
+    private static Class<?> loadClass(String className, ResolutionContext res) throws DerException {
         try {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            if (cl == null) cl = ClassLoader.getSystemClassLoader();
-            return Class.forName(className, false, cl);
+            // Endpoint-assigned resolution via ClassLoading -- NEVER the thread-context loader
+            // (the Warres ambient-resolution failure: wrong local copy, same-name type conflicts,
+            // broken under OSGi). DER carries no codebase, so the name resolves against the
+            // endpoint's defaultLoader through the preferred/OSGi-aware SPI. The ENCODE path,
+            // whose classes are already loaded (ancestors of the live instance), passes NONE.
+            return res.loadClass(className);
         } catch (ClassNotFoundException ex) {
             throw new DerException(
                     "ObjectCodec: cannot load class '" + className + "'", ex);
@@ -1223,6 +1226,13 @@ public final class ObjectCodec {
         return decodeNested(nestedRecordBytes, depth, null);
     }
 
+    /** As {@link #decodeNested(byte[], int, DeserializationCompletion, ResolutionContext)} with no endpoint resolution context ({@link ResolutionContext#NONE}). */
+    public static Object decodeNested(byte[] nestedRecordBytes, int depth,
+                                      DeserializationCompletion decodeUnit)
+            throws DerException, IOException, ClassNotFoundException {
+        return decodeNested(nestedRecordBytes, depth, decodeUnit, ResolutionContext.NONE);
+    }
+
     /**
      * Token-threading variant of {@link #decodeNested(byte[], int)}: the decode-unit
      * completion token is propagated to the nested object's {@code DerGetArg} so that a
@@ -1237,7 +1247,8 @@ public final class ObjectCodec {
      * @throws ClassNotFoundException if a class named in the schema cannot be loaded
      */
     public static Object decodeNested(byte[] nestedRecordBytes, int depth,
-                                      DeserializationCompletion decodeUnit)
+                                      DeserializationCompletion decodeUnit,
+                                      ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(nestedRecordBytes, "nestedRecordBytes");
         if (depth > MAX_NESTING) {
@@ -1284,7 +1295,7 @@ public final class ObjectCodec {
 
         // The declared field type is Object (checked by caller via cast); the chain drives
         // the actual runtime class. decodeHierarchy does assignability checking.
-        Object decoded = decodeHierarchy(Object.class, chain, payloadBytes, depth + 1, decodeUnit);
+        Object decoded = decodeHierarchy(Object.class, chain, payloadBytes, depth + 1, decodeUnit, resolution);
         // DER replacement: if the decoded value is a serializer (implements Resolve),
         // rebuild the original object via readResolve(); otherwise pass it through.
         return au.net.zeus.jgdms.der.serial.DerReplacer.resolve(decoded);
@@ -1299,7 +1310,8 @@ public final class ObjectCodec {
                                           SchemaChain.Result chain,
                                           byte[] hierarchyPayload,
                                           int depth,
-                                          DeserializationCompletion decodeUnit)
+                                          DeserializationCompletion decodeUnit,
+                                          ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         Objects.requireNonNull(chain, "chain");
@@ -1312,7 +1324,7 @@ public final class ObjectCodec {
 
         List<AtomicSerialSchemaRecord> leafFirst = chain.chain();
         String constructClassName = leafFirst.get(0).className();
-        Class<?> constructClass = loadClass(constructClassName);
+        Class<?> constructClass = loadClass(constructClassName, resolution);
 
         if (!expectedSupertype.isAssignableFrom(constructClass)) {
             throw new DerException(
@@ -1334,8 +1346,8 @@ public final class ObjectCodec {
 
         Map<Class<?>, DerFieldStore> storeMap = new LinkedHashMap<>();
         for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
-            Class<?> cls = loadClass(schemaRecord.className());
-            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq);
+            Class<?> cls = loadClass(schemaRecord.className(), resolution);
+            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq, resolution);
             storeMap.put(cls, store);
         }
         if (outerSeq.hasMore()) {
@@ -1349,7 +1361,7 @@ public final class ObjectCodec {
             }
         }
 
-        DerGetArg arg = new DerGetArg(storeMap, depth, decodeUnit);
+        DerGetArg arg = new DerGetArg(storeMap, depth, decodeUnit, resolution);
 
         // Per-class DeSerializationPermission("ATOMIC") gate (nested decode path too).
         checkAtomicDeSerializationPermitted(storeMap.keySet());
@@ -1414,6 +1426,15 @@ public final class ObjectCodec {
         return decodeNestedArray(rawBytes, componentClassName, depth, null);
     }
 
+    /** As {@link #decodeNestedArray(byte[], String, int, DeserializationCompletion, ResolutionContext)} with no endpoint resolution context ({@link ResolutionContext#NONE}). */
+    public static Object decodeNestedArray(byte[] rawBytes,
+                                            String componentClassName,
+                                            int depth,
+                                            DeserializationCompletion decodeUnit)
+            throws DerException, IOException, ClassNotFoundException {
+        return decodeNestedArray(rawBytes, componentClassName, depth, decodeUnit, ResolutionContext.NONE);
+    }
+
     /**
      * Token-threading variant of {@link #decodeNestedArray(byte[], String, int)}: the
      * decode-unit completion token is propagated to each element's nested decode so a
@@ -1432,7 +1453,8 @@ public final class ObjectCodec {
     public static Object decodeNestedArray(byte[] rawBytes,
                                             String componentClassName,
                                             int depth,
-                                            DeserializationCompletion decodeUnit)
+                                            DeserializationCompletion decodeUnit,
+                                            ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(rawBytes, "rawBytes");
         Objects.requireNonNull(componentClassName, "componentClassName");
@@ -1476,13 +1498,13 @@ public final class ObjectCodec {
         }
 
         // Load component class and allocate a typed array
-        Class<?> componentClass = loadClass(componentClassName);
+        Class<?> componentClass = loadClass(componentClassName, resolution);
         Object result = Array.newInstance(componentClass, elementRaws.size());
 
         for (int i = 0; i < elementRaws.size(); i++) {
             // Each element is decoded with the THREADED depth (not 0!).
             // This is the critical invariant for the cumulative depth guard.
-            Object element = decodeNested(elementRaws.get(i), depth, decodeUnit);
+            Object element = decodeNested(elementRaws.get(i), depth, decodeUnit, resolution);
             Array.set(result, i, element); // null element is fine (nullable elements)
         }
 

@@ -21,6 +21,7 @@ import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.marshal.MarshalledInstanceCodec;
 import au.net.zeus.jgdms.der.marshal.MarshalledInstanceRecord;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
@@ -128,6 +129,15 @@ final class DerObjectStreamCodec {
      */
     private DeserializationCompletion decodeUnit;
 
+    /**
+     * Endpoint-assigned resolution context for class names in the stream ([7] enum, [8] proxy,
+     * [1] {@code @AtomicSerial}). Defaults to {@link ResolutionContext#NONE}; the
+     * MarshalledInstance/JERI entry points set the real endpoint loaders via
+     * {@link #initReader(byte[], DeserializationCompletion, ResolutionContext)}. Holds a
+     * capability (the loader) and is therefore never exposed beyond this trusted codec.
+     */
+    private ResolutionContext resolution = ResolutionContext.NONE;
+
     // =========================================================================
     // Construction
     // =========================================================================
@@ -148,9 +158,23 @@ final class DerObjectStreamCodec {
      * @param decodeUnit the per-decode-unit completion sink, or {@code null}
      */
     void initReader(byte[] buf, DeserializationCompletion decodeUnit) {
+        initReader(buf, decodeUnit, ResolutionContext.NONE);
+    }
+
+    /**
+     * Initialises the read side, additionally carrying the endpoint-assigned
+     * {@link ResolutionContext} used to resolve class names against the endpoint's loader (NOT
+     * the thread-context loader -- the Warres ambient-resolution failure).
+     *
+     * @param buf        the complete DER byte array (must not be {@code null})
+     * @param decodeUnit the per-decode-unit completion sink, or {@code null}
+     * @param resolution the endpoint-assigned resolution context (must not be {@code null})
+     */
+    void initReader(byte[] buf, DeserializationCompletion decodeUnit, ResolutionContext resolution) {
         Objects.requireNonNull(buf, "buf");
         this.reader = new DerReader(buf);
         this.decodeUnit = decodeUnit;
+        this.resolution = Objects.requireNonNull(resolution, "resolution");
     }
 
     // =========================================================================
@@ -575,9 +599,8 @@ final class DerObjectStreamCodec {
             if (er.hasMore()) {
                 throw new IOException("readObject: trailing bytes in [7] enum item");
             }
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            if (cl == null) cl = ClassLoader.getSystemClassLoader();
-            Class<?> enumClass = Class.forName(className, false, cl);
+            // Endpoint-assigned resolution (NEVER the thread-context loader -- Warres).
+            Class<?> enumClass = resolution.loadClass(className);
             if (!enumClass.isEnum()) {
                 throw new IOException("readObject: [7] enum class '" + className
                         + "' is not an enum");
@@ -630,17 +653,17 @@ final class DerObjectStreamCodec {
                 throw new IOException("readObject: [8] proxy handler is not an InvocationHandler ("
                         + (handler == null ? "null" : handler.getClass().getName()) + ")");
             }
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            if (cl == null) cl = ClassLoader.getSystemClassLoader();
-            Class<?>[] ifaces = new Class<?>[count];
-            for (int i = 0; i < count; i++) {
-                ifaces[i] = Class.forName(names[i], false, cl);
-            }
+            // Endpoint-assigned resolution of the proxy class (NEVER the thread-context loader --
+            // Warres): ClassLoading.loadProxyClass picks the right preferred/OSGi-aware loader,
+            // with the endpoint's defaultLoader anchoring the parent so the shared interfaces
+            // resolve to the receiver's types. The raw loader stays inside the ResolutionContext.
+            Class<?> proxyClass = resolution.loadProxyClass(names);
+            Class<?>[] ifaces = proxyClass.getInterfaces();
             // DeSerializationPermission("PROXY") gate before reconstruction -- DER counterpart of
             // AtomicMarshalInputStream.instantiateProxy's deSerializationPermitted(PROXY). No-op w/o SM.
             checkProxyDeSerializationPermitted(ifaces);
             try {
-                return Proxy.newProxyInstance(cl, ifaces, (InvocationHandler) handler);
+                return Proxy.newProxyInstance(proxyClass.getClassLoader(), ifaces, (InvocationHandler) handler);
             } catch (IllegalArgumentException e) {
                 throw new IOException("readObject: [8] proxy reconstruction failed", e);
             }
@@ -677,11 +700,10 @@ final class DerObjectStreamCodec {
         } catch (DerException e) {
             throw new IOException("readObject: failed to decode embedded schema chain", e);
         }
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        if (cl == null) cl = ClassLoader.getSystemClassLoader();
-        Class<?> leafClass = Class.forName(leafClassName, false, cl);
+        // Endpoint-assigned resolution (NEVER the thread-context loader -- Warres).
+        Class<?> leafClass = resolution.loadClass(leafClassName);
         try {
-            return MarshalledInstanceCodec.decodeMarshalledInstance(rec, leafClass, decodeUnit, null, null).object();
+            return MarshalledInstanceCodec.decodeMarshalledInstance(rec, leafClass, decodeUnit, resolution).object();
         } catch (DerException e) {
             throw new IOException("readObject: decode failed for " + leafClassName, e);
         }

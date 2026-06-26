@@ -139,7 +139,8 @@ public final class DerMarshalFactory implements MarshalFactory {
                                                    ClassLoader  verifierLoader,
                                                    Collection   context)
             throws IOException {
-        return new DerMarshalInstanceInput(objIn, schemaBytes, context, defaultLoader, verifierLoader);
+        return new DerMarshalInstanceInput(objIn, schemaBytes, context,
+                defaultLoader, verifyCodebaseIntegrity, verifierLoader);
     }
 
     /**

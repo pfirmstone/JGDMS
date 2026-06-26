@@ -152,6 +152,37 @@ public class DerProxyMarshalledInstanceTest {
         assertEquals("hello", ((Greeter) resolved).greet());
     }
 
+    /**
+     * Class resolution uses the endpoint-assigned {@code defaultLoader}, NOT the thread-context
+     * loader (the Warres discipline -- blog post 7). A recording endpoint loader must be consulted
+     * to resolve both the proxy interface ([8]) and the {@code @AtomicSerial} handler ([1]); the
+     * old thread-context-loader code (the endpoint loader's parent here) would never touch it.
+     */
+    @Test
+    public void resolvesAgainstEndpointLoaderNotThreadContext() throws Exception {
+        java.util.List<String> asked = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        ClassLoader endpoint = new ClassLoader(getClass().getClassLoader()) {
+            @Override
+            protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+                if (name.startsWith(DerProxyMarshalledInstanceTest.class.getName())) {
+                    asked.add(name);
+                }
+                return super.loadClass(name, resolve);
+            }
+        };
+        Greeter real = newProxy("endpoint");
+        MarshalledInstance mi = new DerMarshalledInstance(real, Collections.emptyList(), false);
+
+        // Pass the recording loader as the endpoint defaultLoader; resolution must go through it.
+        Greeter back = mi.get(endpoint, false, endpoint, Collections.emptyList(), Greeter.class);
+        assertEquals("endpoint", back.greet());
+
+        assertTrue(asked.stream().anyMatch(n -> n.contains("Greeter")),
+                "endpoint loader must resolve the proxy interface (not the TCCL); asked=" + asked);
+        assertTrue(asked.stream().anyMatch(n -> n.contains("FixedHandler")),
+                "endpoint loader must resolve the @AtomicSerial handler (not the TCCL); asked=" + asked);
+    }
+
     /** The handler must be @AtomicSerial: a carrier built from a non-@AtomicSerial handler is rejected. */
     @Test
     public void nonAtomicHandlerRejected() throws Exception {
