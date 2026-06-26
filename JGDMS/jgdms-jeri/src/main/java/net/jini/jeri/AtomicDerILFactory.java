@@ -15,6 +15,7 @@
  */
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.DerInputLimitControl;
 import au.net.zeus.jgdms.der.DerInputLimits;
 import java.lang.reflect.InvocationHandler;
 import java.rmi.Remote;
@@ -118,6 +119,23 @@ public class AtomicDerILFactory extends BasicILFactory {
     private static <T> T notNull(T obj) {
         if (obj == null) throw new NullPointerException();
         return obj;
+    }
+
+    /**
+     * Adds {@link DerInputLimitControl} to the proxy's interfaces (beyond the
+     * {@code RemoteMethodControl} and {@code TrustEquivalence} added by the superclass), so a client
+     * can set its own per-deployment return-value DoS cap on a received proxy via the standard
+     * proxy-control idiom.
+     *
+     * @throws NullPointerException {@inheritDoc}
+     */
+    @Override
+    protected Class[] getExtraProxyInterfaces(Remote impl) {
+        Class[] base = super.getExtraProxyInterfaces(impl); // {RemoteMethodControl, TrustEquivalence}
+        Class[] out = new Class[base.length + 1];
+        System.arraycopy(base, 0, out, 0, base.length);
+        out[base.length] = DerInputLimitControl.class;
+        return out;
     }
 
     /**

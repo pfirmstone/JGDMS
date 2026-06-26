@@ -15,6 +15,7 @@
  */
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.DerInputLimitControl;
 import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
@@ -203,7 +204,37 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args)
             throws Throwable {
+        // Intercept DerInputLimitControl locally (the proxy implements it, but the superclass would
+        // otherwise route its methods as remote calls) -- mirrors RemoteMethodControl handling.
+        if (method.getDeclaringClass() == DerInputLimitControl.class) {
+            return invokeInputLimitControlMethod(proxy, method, args);
+        }
         return super.invoke(proxy, method, args);
+    }
+
+    /** Handles {@link DerInputLimitControl} methods locally (no remote call). */
+    private Object invokeInputLimitControlMethod(Object proxy, Method method, Object[] args) {
+        String name = method.getName();
+        if (name.equals("getInputLimits")) {
+            return limits;
+        } else if (name.equals("setInputLimits")) {
+            if (Proxy.getInvocationHandler(proxy) != this) {
+                throw new IllegalArgumentException("not proxy for this");
+            }
+            DerInputLimits newLimits = (DerInputLimits) args[0];
+            if (newLimits == null) {
+                throw new NullPointerException("limits");
+            }
+            // New proxy, same interfaces, with a handler carrying the client's chosen cap
+            // (the (other, DerInputLimits) ctor preserves the endpoint and client constraints).
+            Class<?> proxyClass = proxy.getClass();
+            return Proxy.newProxyInstance(
+                    getProxyLoader(proxyClass),
+                    proxyClass.getInterfaces(),
+                    new AtomicDerInvocationHandler(this, newLimits));
+        } else {
+            throw new AssertionError(method);
+        }
     }
 
     /**
