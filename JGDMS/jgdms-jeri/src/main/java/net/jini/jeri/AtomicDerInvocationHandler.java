@@ -15,6 +15,7 @@
  */
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
@@ -50,7 +51,15 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
 
     private static final long serialVersionUID = 1L;
 
-    // No new fields beyond BasicInvocationHandler.
+    /**
+     * The CLIENT's per-deployment DoS limits for reading invocation return values. {@code transient}
+     * and absent from {@link #serialForm()}: it is NEVER serialized, so the server (whence this
+     * handler arrives) cannot impose it -- the client uses its own. Defaults to the JVM-wide
+     * {@link DerInputLimits#DEFAULT} (system-property configurable); a client overrides it by
+     * re-wrapping the received handler via
+     * {@link #AtomicDerInvocationHandler(AtomicDerInvocationHandler, DerInputLimits)}.
+     */
+    private final transient DerInputLimits limits;
 
     public static SerialForm[] serialForm() {
         return new SerialForm[0];
@@ -67,6 +76,8 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
     public AtomicDerInvocationHandler(AtomicSerial.GetArg arg)
             throws IOException, ClassNotFoundException {
         super(arg);
+        // limits is the client's own concern, not carried on the wire; default it here.
+        this.limits = DerInputLimits.DEFAULT;
     }
 
     /**
@@ -79,6 +90,7 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
     public AtomicDerInvocationHandler(ObjectEndpoint oe,
                                 MethodConstraints serverConstraints) {
         super(oe, serverConstraints);
+        this.limits = DerInputLimits.DEFAULT;
     }
 
     /**
@@ -90,6 +102,24 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
     public AtomicDerInvocationHandler(AtomicDerInvocationHandler other,
                                 MethodConstraints clientConstraints) {
         super(other, clientConstraints);
+        this.limits = other.limits; // preserve the client's chosen cap across setConstraints
+    }
+
+    /**
+     * Creates a copy of {@code other} that reads invocation return values under the given
+     * per-deployment {@link DerInputLimits} -- the CLIENT's own cap (never serialized, so a server
+     * cannot impose it). A client applies its cap by re-wrapping a received proxy's handler, e.g. in
+     * a {@code ProxyPreparer}:
+     * {@code Proxy.newProxyInstance(loader, ifaces, new AtomicDerInvocationHandler(h, limits))}; the
+     * JVM-wide {@link DerInputLimits#DEFAULT} (system-property configurable) applies otherwise.
+     *
+     * @param other  the existing handler (its endpoint and client constraints are preserved)
+     * @param limits the client's DoS limits for the return-value stream (must not be {@code null})
+     */
+    public AtomicDerInvocationHandler(AtomicDerInvocationHandler other,
+                                DerInputLimits limits) {
+        super(other, other.getClientConstraints());
+        this.limits = java.util.Objects.requireNonNull(limits, "limits");
     }
 
     /**
@@ -144,7 +174,7 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
         }
         ClassLoader proxyLoader = getProxyLoader(proxy.getClass());
         return new DerMarshalInputStream(request.getResponseInputStream(),
-                new ResolutionContext(proxyLoader, integrity, proxyLoader));
+                new ResolutionContext(proxyLoader, integrity, proxyLoader), limits);
     }
 
     /**
