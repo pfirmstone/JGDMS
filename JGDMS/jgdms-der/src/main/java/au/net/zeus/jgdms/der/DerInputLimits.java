@@ -28,40 +28,85 @@ import java.io.InputStream;
  * unmarshals its {@code serviceProxy}), so decoding can recurse across streams. These limits cap
  * both.
  *
- * <p>Both are overridable via system property (read defensively -- a {@link SecurityException} or
- * malformed value falls back to the default):
+ * <h2>Per-deployment configuration</h2>
+ * <p>This is an immutable value object so a deployment can set its own limits and hand them to the
+ * JERI invocation layer through {@link net.jini.jeri.AtomicDerILFactory} (which a service's
+ * {@code net.jini.config.Configuration} instantiates) -- e.g. in a configuration file:
+ * <pre>
+ *   exporter = new BasicJeriExporter(endpoint,
+ *       new AtomicDerILFactory(null, MyService.class,
+ *           au.net.zeus.jgdms.der.DerInputLimits.maxBytes(64 * 1024 * 1024)));
+ * </pre>
+ * The cap applies to that endpoint's invocation arg/return streams (the attacker-controlled input);
+ * a {@code MarshalledInstance} nested in those args is transitively bounded by the same cap.
+ *
+ * <p>{@link #DEFAULT} is the JVM-wide fallback. Its two values come from system properties
+ * (read defensively -- a {@link SecurityException} or malformed value falls back to the built-in
+ * default):
  * <ul>
- *   <li>{@code au.net.zeus.jgdms.der.maxInputBytes} -- max bytes buffered from one DER input
- *       stream (default 16 MiB);</li>
- *   <li>{@code au.net.zeus.jgdms.der.maxMarshalledInstanceNesting} -- max
- *       {@code MarshalledInstance}-in-{@code MarshalledInstance} decode recursion (default 16).</li>
+ *   <li>{@code au.net.zeus.jgdms.der.maxInputBytes} (default 16 MiB);</li>
+ *   <li>{@code au.net.zeus.jgdms.der.maxMarshalledInstanceNesting} (default 16).</li>
  * </ul>
- * (These bound a single object graph / invocation; legitimate proxies and nested carriers are far
- * below them -- a real downloadable proxy nests exactly one {@code MarshalledInstance} deep.)
+ * (These bound a single object graph / invocation; a real downloadable proxy nests exactly one
+ * {@code MarshalledInstance} deep, far below the nesting bound.)
  */
 public final class DerInputLimits {
 
-    /** Maximum bytes buffered from a single DER input stream. */
-    public static final int MAX_INPUT_BYTES =
+    private static final int DEFAULT_MAX_INPUT_BYTES =
             readIntProp("au.net.zeus.jgdms.der.maxInputBytes", 16 * 1024 * 1024);
-
-    /** Maximum {@code MarshalledInstance}-in-{@code MarshalledInstance} decode recursion depth. */
-    public static final int MAX_MARSHALLED_INSTANCE_NESTING =
+    private static final int DEFAULT_MAX_NESTING =
             readIntProp("au.net.zeus.jgdms.der.maxMarshalledInstanceNesting", 16);
 
-    private DerInputLimits() {}
+    /** The JVM-wide default limits (system-property configurable); used when none are supplied. */
+    public static final DerInputLimits DEFAULT =
+            new DerInputLimits(DEFAULT_MAX_INPUT_BYTES, DEFAULT_MAX_NESTING);
+
+    private final int maxInputBytes;
+    private final int maxMarshalledInstanceNesting;
 
     /**
-     * Reads the stream fully but refuses to buffer more than {@link #MAX_INPUT_BYTES} -- the bounded
+     * @param maxInputBytes               max bytes buffered from one DER input stream (must be &gt; 0)
+     * @param maxMarshalledInstanceNesting max MarshalledInstance-in-MarshalledInstance decode
+     *                                     recursion (must be &gt; 0)
+     */
+    public DerInputLimits(int maxInputBytes, int maxMarshalledInstanceNesting) {
+        if (maxInputBytes <= 0) {
+            throw new IllegalArgumentException("maxInputBytes must be > 0: " + maxInputBytes);
+        }
+        if (maxMarshalledInstanceNesting <= 0) {
+            throw new IllegalArgumentException(
+                    "maxMarshalledInstanceNesting must be > 0: " + maxMarshalledInstanceNesting);
+        }
+        this.maxInputBytes = maxInputBytes;
+        this.maxMarshalledInstanceNesting = maxMarshalledInstanceNesting;
+    }
+
+    /** Limits with the given input-byte cap and the {@link #DEFAULT} nesting bound (config convenience). */
+    public static DerInputLimits maxBytes(int maxInputBytes) {
+        return new DerInputLimits(maxInputBytes, DEFAULT.maxMarshalledInstanceNesting);
+    }
+
+    /** Max bytes buffered from a single DER input stream. */
+    public int maxInputBytes() {
+        return maxInputBytes;
+    }
+
+    /** Max {@code MarshalledInstance}-in-{@code MarshalledInstance} decode recursion depth. */
+    public int maxMarshalledInstanceNesting() {
+        return maxMarshalledInstanceNesting;
+    }
+
+    /**
+     * Reads the stream fully but refuses to buffer more than {@link #maxInputBytes()} -- the bounded
      * counterpart of {@link InputStream#readAllBytes()} (which is unbounded and a memory-exhaustion
      * DoS on an attacker-controlled stream).
      *
      * @param in the stream (must not be null)
-     * @return the buffered bytes (at most {@link #MAX_INPUT_BYTES})
+     * @return the buffered bytes (at most {@link #maxInputBytes()})
      * @throws IOException if reading fails, or if the stream holds more than the limit
      */
-    public static byte[] readAllBytesBounded(InputStream in) throws IOException {
-        return readAllBytesBounded(in, MAX_INPUT_BYTES);
+    public byte[] readAllBytesBounded(InputStream in) throws IOException {
+        return readAllBytesBounded(in, maxInputBytes);
     }
 
     /** As {@link #readAllBytesBounded(InputStream)} with an explicit limit (package-private; for tests). */
@@ -75,9 +120,15 @@ public final class DerInputLimits {
         byte[] data = in.readNBytes(max + 1);
         if (data.length > max) {
             throw new IOException("DER input exceeds the maximum permitted size of " + max
-                    + " bytes (au.net.zeus.jgdms.der.maxInputBytes); refusing to buffer a larger stream");
+                    + " bytes; refusing to buffer a larger stream");
         }
         return data;
+    }
+
+    @Override
+    public String toString() {
+        return "DerInputLimits[maxInputBytes=" + maxInputBytes
+                + ", maxMarshalledInstanceNesting=" + maxMarshalledInstanceNesting + "]";
     }
 
     private static int readIntProp(String name, int def) {

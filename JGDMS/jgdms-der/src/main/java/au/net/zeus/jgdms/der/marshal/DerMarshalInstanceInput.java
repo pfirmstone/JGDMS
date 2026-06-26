@@ -118,7 +118,7 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
         this.schemaBytes = Objects.requireNonNull(schemaBytes, "schemaBytes");
         this.context     = Objects.requireNonNull(context,     "context");
         this.resolution  = new ResolutionContext(defaultLoader, verifyCodebaseIntegrity, verifierLoader);
-        this.payloadBytes = DerInputLimits.readAllBytesBounded(objIn); // bounded: refuse oversize input (DoS)
+        this.payloadBytes = DerInputLimits.DEFAULT.readAllBytesBounded(objIn); // bounded: refuse oversize input (DoS)
     }
 
     // -------------------------------------------------------------------------
@@ -151,10 +151,10 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
         // threads); it propagates down the synchronous get() call stack -- so a deeply nested chain of
         // carriers fails with a clean exception rather than a StackOverflowError.
         int depth = DECODE_DEPTH.orElse(0);
-        if (depth >= DerInputLimits.MAX_MARSHALLED_INSTANCE_NESTING) {
+        int maxNesting = DerInputLimits.DEFAULT.maxMarshalledInstanceNesting();
+        if (depth >= maxNesting) {
             throw new InvalidObjectException(
-                    "DER MarshalledInstance decode recursion reached the limit of "
-                    + DerInputLimits.MAX_MARSHALLED_INSTANCE_NESTING
+                    "DER MarshalledInstance decode recursion reached the limit of " + maxNesting
                     + " (au.net.zeus.jgdms.der.maxMarshalledInstanceNesting); possible nested-serializer DoS");
         }
         try {

@@ -239,7 +239,7 @@ public class DerProxyMarshalledInstanceTest {
     public void deeplyNestedCarriersFailCleanlyNotStackOverflow() throws Exception {
         ClassLoader cl = getClass().getClassLoader();
         Object content = newProxy("deep"); // innermost real proxy
-        int levels = DerInputLimits.MAX_MARSHALLED_INSTANCE_NESTING + 8;
+        int levels = DerInputLimits.DEFAULT.maxMarshalledInstanceNesting() + 8;
         for (int i = 0; i < levels; i++) {
             MarshalledInstance svc = new DerMarshalledInstance(content, Collections.emptyList(), false);
             content = new DerProxySerializer(new FixedHandler("h" + i), svc, Collections.emptyList(), null, null);

@@ -114,9 +114,24 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      * @throws IOException if reading from {@code in} fails
      */
     public DerMarshalInputStream(InputStream in, ResolutionContext resolution) throws IOException {
+        this(in, resolution, DerInputLimits.DEFAULT);
+    }
+
+    /**
+     * As {@link #DerMarshalInputStream(InputStream, ResolutionContext)} with explicit DoS limits --
+     * the per-deployment input cap the JERI invocation layer obtained from its configuration.
+     *
+     * @param in         the source of DER-encoded data (must not be null)
+     * @param resolution the endpoint-assigned resolution context (must not be null)
+     * @param limits     the DoS limits (must not be null; {@link DerInputLimits#DEFAULT} for the JVM default)
+     * @throws IOException if reading from {@code in} fails or it exceeds the byte cap
+     */
+    public DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits)
+            throws IOException {
         this.underlying = Objects.requireNonNull(in, "in");
         Objects.requireNonNull(resolution, "resolution");
-        byte[] buf = DerInputLimits.readAllBytesBounded(in); // bounded: refuse oversize input (DoS)
+        Objects.requireNonNull(limits, "limits");
+        byte[] buf = limits.readAllBytesBounded(in); // bounded: refuse oversize input (DoS)
         this.codec = new DerObjectStreamCodec();
         this.codec.initReader(buf, decodeUnit, resolution);
     }
