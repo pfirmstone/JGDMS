@@ -24,9 +24,12 @@ import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.marshal.MarshalledInstanceCodec;
 import au.net.zeus.jgdms.der.marshal.MarshalledInstanceRecord;
+import au.net.zeus.jgdms.der.object.DerProxySerializer;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
+import net.jini.export.DynamicProxyCodebaseAccessor;
+import net.jini.export.ProxyAccessor;
 import net.jini.io.context.DeserializationCompletion;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.DeSerializationPermission;
@@ -43,6 +46,8 @@ import java.security.Permission;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -114,6 +119,20 @@ final class DerObjectStreamCodec {
     /** Output accumulator for the write side. */
     private final List<byte[]> writeBuffer = new ArrayList<>();
 
+    /**
+     * Write-side proxy-substitution config. When {@code substituteProxies} is set (via
+     * {@link #initWriter}), a downloadable proxy ({@link DynamicProxyCodebaseAccessor} /
+     * {@link ProxyAccessor}) written through {@link #writeObject} is substituted with a
+     * {@code DerProxySerializer} carrier (the object-stream counterpart of
+     * {@code AtomicMarshalOutputStream.defaultReplaceObject}, used on the JERI invocation
+     * arg/return path). Default OFF -- a plain object stream (e.g. the bare serviceProxy inside
+     * a carrier) must NOT re-substitute. {@code writeStreamLoader} gates {@code create()}'s
+     * {@code ProxyCodebaseSpi.substitute()} check; it is held only here on the trusted write side.
+     */
+    private boolean substituteProxies = false;
+    private ClassLoader writeStreamLoader = null;
+    private Collection<?> writeContext = Collections.emptyList();
+
     // =========================================================================
     // Read side state
     // =========================================================================
@@ -144,6 +163,22 @@ final class DerObjectStreamCodec {
 
     /** Creates a fresh codec ready for writing; initialise read side later via {@link #initReader}. */
     DerObjectStreamCodec() {}
+
+    /**
+     * Enables write-side substitution of a downloadable top-level proxy ({@link
+     * DynamicProxyCodebaseAccessor} / {@link ProxyAccessor}) with a {@code DerProxySerializer}
+     * carrier (the JERI invocation arg/return path). Without this, a proxy travels bare ([8]) and
+     * must be locally resolvable.
+     *
+     * @param context     the stream context collection (must not be {@code null})
+     * @param streamLoader the stream loader gating the {@code ProxyCodebaseSpi.substitute()} check
+     *                     (the client proxy loader, or the dispatcher's stream loader); may be {@code null}
+     */
+    void initWriter(Collection<?> context, ClassLoader streamLoader) {
+        this.writeContext = Objects.requireNonNull(context, "context");
+        this.writeStreamLoader = streamLoader;
+        this.substituteProxies = true;
+    }
 
     /** Initialises the read side over a complete DER byte array (no decode-unit token). */
     void initReader(byte[] buf) {
@@ -279,6 +314,19 @@ final class DerObjectStreamCodec {
      * </ul>
      */
     void writeObject(Object obj) throws IOException {
+        // Write seam (JERI invocation arg/return path): substitute a downloadable proxy
+        // (DynamicProxyCodebaseAccessor / ProxyAccessor) with a DerProxySerializer carrier so it
+        // carries its bootstrap + codebase for download, riding the [1] @AtomicSerial path -- the
+        // object-stream counterpart of AtomicMarshalOutputStream.defaultReplaceObject. With no
+        // registered ProxyCodebaseSpi, create() returns the proxy unchanged and it travels bare
+        // ([8]) below. OFF by default (a bare serviceProxy inside a carrier must NOT re-substitute).
+        if (substituteProxies && obj != null) {
+            if (obj instanceof DynamicProxyCodebaseAccessor dpca) {
+                obj = DerProxySerializer.create(dpca, writeStreamLoader, writeContext);
+            } else if (obj instanceof ProxyAccessor pa) {
+                obj = DerProxySerializer.create(pa, writeStreamLoader, writeContext);
+            }
+        }
         if (obj == null) {
             writeBuffer.add(DerWriter.writeTlv(CTX_NULL, new byte[0]));
             return;

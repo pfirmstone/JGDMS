@@ -81,6 +81,23 @@ public final class DerMarshalOutputStream implements ObjectOutput {
         this.codec = new DerObjectStreamCodec();
     }
 
+    /**
+     * Constructs a DER object-stream writer that SUBSTITUTES a downloadable top-level proxy
+     * ({@code DynamicProxyCodebaseAccessor} / {@code ProxyAccessor}) with a {@code DerProxySerializer}
+     * carrier -- the JERI invocation arg/return path (the object-stream counterpart of
+     * {@code AtomicMarshalOutputStream.defaultReplaceObject}).
+     *
+     * @param out          the underlying output stream (must not be null)
+     * @param context      the stream context collection (must not be null)
+     * @param streamLoader the loader gating the {@code ProxyCodebaseSpi.substitute()} check (the
+     *                     client proxy loader / the dispatcher's stream loader; may be null)
+     */
+    public DerMarshalOutputStream(OutputStream out, java.util.Collection<?> context, ClassLoader streamLoader) {
+        this.out   = Objects.requireNonNull(out, "out");
+        this.codec = new DerObjectStreamCodec();
+        this.codec.initWriter(context, streamLoader);
+    }
+
     // =========================================================================
     // Object writing (self-describing, sec.15.2)
     // =========================================================================

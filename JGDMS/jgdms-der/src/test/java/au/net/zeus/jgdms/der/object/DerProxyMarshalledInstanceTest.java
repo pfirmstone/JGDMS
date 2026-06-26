@@ -19,7 +19,10 @@
 // build a carrier directly (production builds one via the substitution seam + a ProxyCodebaseSpi).
 package au.net.zeus.jgdms.der.object;
 
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.marshal.DerMarshalledInstance;
+import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
+import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -153,6 +156,25 @@ public class DerProxyMarshalledInstanceTest {
     }
 
     /**
+     * A TYPED {@code get(ServiceInterface.class)} of a carrier resolves to the proxy and returns it
+     * as that interface -- the carrier's own class ({@code DerProxySerializer}) is not assignable to
+     * the interface, so this exercises the polymorphic-receiver path (decode-then-resolve-then-check).
+     */
+    @Test
+    public void carrierTypedGetResolvesToProxyInterface() throws Exception {
+        ClassLoader cl = getClass().getClassLoader();
+        Greeter real = newProxy("typed");
+        MarshalledInstance serviceProxy = new DerMarshalledInstance(real, Collections.emptyList(), false);
+        DerProxySerializer carrier = new DerProxySerializer(
+                new FixedHandler("bootstrap"), serviceProxy, Collections.emptyList(), null, null);
+        MarshalledInstance outer = new DerMarshalledInstance(carrier, Collections.emptyList());
+
+        // Typed get naming the RESOLVED interface (Greeter), not Object.class.
+        Greeter back = outer.get(cl, false, cl, Collections.emptyList(), Greeter.class);
+        assertEquals("typed", back.greet());
+    }
+
+    /**
      * Class resolution uses the endpoint-assigned {@code defaultLoader}, NOT the thread-context
      * loader (the Warres discipline -- blog post 7). A recording endpoint loader must be consulted
      * to resolve both the proxy interface ([8]) and the {@code @AtomicSerial} handler ([1]); the
@@ -181,6 +203,29 @@ public class DerProxyMarshalledInstanceTest {
                 "endpoint loader must resolve the proxy interface (not the TCCL); asked=" + asked);
         assertTrue(asked.stream().anyMatch(n -> n.contains("FixedHandler")),
                 "endpoint loader must resolve the @AtomicSerial handler (not the TCCL); asked=" + asked);
+    }
+
+    /**
+     * The JERI invocation-arg path: a proxy written through the SUBSTITUTING DerMarshalOutputStream
+     * (the object-stream codec's write seam) round-trips and resolves against the endpoint loader.
+     * With no registered ProxyCodebaseSpi that substitutes, the proxy travels bare ([8]); the
+     * substitution wiring (substituting ctor + endpoint-loader read) is exercised end-to-end.
+     */
+    @Test
+    public void proxyRoundTripsThroughSubstitutingObjectStream() throws Exception {
+        ClassLoader cl = getClass().getClassLoader();
+        Greeter real = newProxy("argstream");
+
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+        DerMarshalOutputStream out = new DerMarshalOutputStream(bos, Collections.emptyList(), cl);
+        out.writeObject(real);
+        out.flush();
+
+        DerMarshalInputStream in = new DerMarshalInputStream(
+                new java.io.ByteArrayInputStream(bos.toByteArray()), ResolutionContext.of(cl));
+        Object back = in.readObject();
+        assertTrue(back instanceof Greeter, "expected Greeter proxy, got " + (back == null ? "null" : back.getClass()));
+        assertEquals("argstream", ((Greeter) back).greet());
     }
 
     /** The handler must be @AtomicSerial: a carrier built from a non-@AtomicSerial handler is rejected. */

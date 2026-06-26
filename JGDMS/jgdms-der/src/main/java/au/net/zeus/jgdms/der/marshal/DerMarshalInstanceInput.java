@@ -138,10 +138,9 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
         // Empty schemaBytes is the sentinel for the OBJECT-STREAM form (e.g. a bare
         // java.lang.reflect.Proxy [8] item) written by DerMarshalInstanceOutput when the
         // marshalled object had no separable @AtomicSerial schema. Decode it via the DER
-        // object-stream codec rather than reconstructing a MarshalledInstanceRecord.
-        // (NOTE: the [8] interface/handler resolution currently uses the thread-context
-        // loader; threading defaultLoader/verifierLoader into the object-stream path is a
-        // follow-up -- the @AtomicSerial path already carries them via DerGetArg.)
+        // object-stream codec rather than reconstructing a MarshalledInstanceRecord. The
+        // endpoint resolution context is threaded through so [8] interface/handler classes
+        // resolve against the endpoint loader (NOT the thread-context loader).
         if (schemaBytes == null || schemaBytes.length == 0) {
             DerMarshalInputStream in = new DerMarshalInputStream(
                     new ByteArrayInputStream(payloadBytes), resolution);
@@ -167,17 +166,25 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
                     Optional.empty(),
                     MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
+            // Decode at Object.class, NOT `type`: a @AtomicSerial SERIALIZER whose own class is not
+            // assignable to `type` -- a DerProxySerializer carrier that resolves to a proxy of
+            // `type` -- must not be rejected by the pre-construction assignability check before
+            // readResolve runs. JOSS parity: apply readResolve to the ROOT object so the carrier
+            // resolves to the real (downloaded/unmarshalled) proxy; plain @AtomicSerial values (not
+            // Resolve) pass through unchanged (nested fields are already resolved by decodeNested).
             Object obj = MarshalledInstanceCodec.decodeMarshalledInstance(
-                    rec, type, null, resolution).object();
-            // JOSS parity: apply readResolve to the ROOT object so a DerProxySerializer carrier
-            // resolves to the real (downloaded/unmarshalled) proxy. Plain @AtomicSerial values
-            // (not Resolve) pass through unchanged; nested fields are already resolved by
-            // ObjectCodec.decodeNested. (A typed get() that names the RESOLVED interface still
-            // requires the polymorphic-receiver refinement; the no-type get() / Object.class
-            // path works today.)
+                    rec, Object.class, null, resolution).object();
+            Object resolved = au.net.zeus.jgdms.der.serial.DerReplacer.resolve(obj);
+            // Enforce the requested type against the RESOLVED value (the same type guarantee as the
+            // pre-construction check, applied to what the caller actually receives).
+            if (resolved != null && type != null && !type.isAssignableFrom(resolved.getClass())) {
+                throw new InvalidObjectException(
+                        "DER MarshalledInstance: resolved object of type " + resolved.getClass().getName()
+                        + " is not assignable to the requested type " + type.getName());
+            }
             @SuppressWarnings("unchecked")
-            T resolved = (T) au.net.zeus.jgdms.der.serial.DerReplacer.resolve(obj);
-            return resolved;
+            T result = (T) resolved;
+            return result;
         } catch (au.net.zeus.jgdms.der.DerException e) {
             throw new IOException("DER decoding failed: " + e.getMessage(), e);
         }

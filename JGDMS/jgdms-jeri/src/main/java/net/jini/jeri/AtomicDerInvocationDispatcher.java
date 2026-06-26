@@ -15,6 +15,7 @@
  */
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
 import java.io.IOException;
@@ -68,8 +69,10 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
      * Returns a {@link DerMarshalInputStream} reading from the request input
      * stream of {@code request}.
      *
-     * <p>Override return type is {@link ObjectInput} (the base interface).
-     * Integrity and loader are ignored -- DER carries the schema.
+     * <p>Override return type is {@link ObjectInput} (the base interface). DER carries no codebase
+     * annotation, so class names resolve against the dispatcher's stream loader
+     * ({@code getStreamLoader(impl)}) -- the endpoint-assigned loader, NOT the thread-context
+     * loader (the Warres discipline) -- carried in a {@link ResolutionContext}.
      */
     @Override
     protected ObjectInput createMarshalInputStream(Object impl,
@@ -77,7 +80,9 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
                                                    boolean integrity,
                                                    Collection context)
             throws IOException {
-        return new DerMarshalInputStream(request.getRequestInputStream());
+        ClassLoader streamLoader = getStreamLoader(impl);
+        return new DerMarshalInputStream(request.getRequestInputStream(),
+                new ResolutionContext(streamLoader, integrity, streamLoader));
     }
 
     /**
@@ -97,7 +102,10 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
         if (impl == null) {
             throw new NullPointerException();
         }
-        return new DerMarshalOutputStream(request.getResponseOutputStream());
+        // Substitute a downloadable proxy return value with a DerProxySerializer carrier; the
+        // dispatcher's stream loader gates the ProxyCodebaseSpi.substitute() check.
+        return new DerMarshalOutputStream(request.getResponseOutputStream(),
+                context, getStreamLoader(impl));
     }
 
     // Visible in stack traces.

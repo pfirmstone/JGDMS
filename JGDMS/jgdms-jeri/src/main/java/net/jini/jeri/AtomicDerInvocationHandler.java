@@ -15,6 +15,7 @@
  */
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
 import java.io.IOException;
@@ -110,16 +111,20 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
         if (proxy == null || method == null) {
             throw new NullPointerException();
         }
-        return new DerMarshalOutputStream(request.getRequestOutputStream());
+        // Substitute a downloadable proxy argument with a DerProxySerializer carrier; the proxy's
+        // own loader gates the ProxyCodebaseSpi.substitute() check (mirrors AtomicInvocationHandler).
+        return new DerMarshalOutputStream(request.getRequestOutputStream(),
+                context, getProxyLoader(proxy.getClass()));
     }
 
     /**
      * Returns a {@link DerMarshalInputStream} reading from the response input
      * stream of {@code request}.
      *
-     * <p>Override return type is {@link ObjectInput} (the base interface).
-     * Integrity and loader are ignored -- DER carries the schema, not codebase
-     * annotations.
+     * <p>Override return type is {@link ObjectInput} (the base interface). DER carries no codebase
+     * annotation, so the returned object's class names resolve against the proxy's own loader
+     * ({@code getProxyLoader(proxy.getClass())}) -- the endpoint-assigned loader, NOT the
+     * thread-context loader (the Warres discipline) -- carried in a {@link ResolutionContext}.
      *
      * @throws IllegalArgumentException if {@code proxy}'s invocation handler
      *         is not this handler
@@ -137,7 +142,9 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
         if (Proxy.getInvocationHandler(proxy) != this) {
             throw new IllegalArgumentException("not proxy for this");
         }
-        return new DerMarshalInputStream(request.getResponseInputStream());
+        ClassLoader proxyLoader = getProxyLoader(proxy.getClass());
+        return new DerMarshalInputStream(request.getResponseInputStream(),
+                new ResolutionContext(proxyLoader, integrity, proxyLoader));
     }
 
     /**
