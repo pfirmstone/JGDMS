@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.marshal;
 
+import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 import net.jini.io.MarshalInstanceInput;
@@ -69,6 +70,14 @@ import java.util.Optional;
  */
 public final class DerMarshalInstanceInput implements MarshalInstanceInput, AtomicObjectInput {
 
+    /**
+     * Per-thread decode-recursion depth for the cross-stream MarshalledInstance-in-MarshalledInstance
+     * guard (see {@link #readObject(Class)}). A {@link ScopedValue} (not a {@code ThreadLocal} --
+     * virtual threads) bound around each decode and read by any nested decode reached via
+     * {@code serviceProxy.get()} on the same call stack.
+     */
+    private static final ScopedValue<Integer> DECODE_DEPTH = ScopedValue.newInstance();
+
     private final byte[]     payloadBytes;
     private final byte[]     schemaBytes;
     private final Collection context;
@@ -109,7 +118,7 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
         this.schemaBytes = Objects.requireNonNull(schemaBytes, "schemaBytes");
         this.context     = Objects.requireNonNull(context,     "context");
         this.resolution  = new ResolutionContext(defaultLoader, verifyCodebaseIntegrity, verifierLoader);
-        this.payloadBytes = objIn.readAllBytes();
+        this.payloadBytes = DerInputLimits.readAllBytesBounded(objIn); // bounded: refuse oversize input (DoS)
     }
 
     // -------------------------------------------------------------------------
@@ -135,6 +144,31 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
      */
     @Override
     public <T> T readObject(Class<T> type) throws IOException, ClassNotFoundException {
+        // Cross-stream recursion guard: a MarshalledInstance can contain another (a DerProxySerializer
+        // carrier's readResolve unmarshals its serviceProxy via get() -> a fresh DerMarshalInstanceInput),
+        // and that recursion is NOT bounded by ObjectCodec.MAX_NESTING (each get() is a fresh depth-0
+        // decode). Bound it with a ScopedValue depth counter -- ScopedValue, not ThreadLocal (virtual
+        // threads); it propagates down the synchronous get() call stack -- so a deeply nested chain of
+        // carriers fails with a clean exception rather than a StackOverflowError.
+        int depth = DECODE_DEPTH.orElse(0);
+        if (depth >= DerInputLimits.MAX_MARSHALLED_INSTANCE_NESTING) {
+            throw new InvalidObjectException(
+                    "DER MarshalledInstance decode recursion reached the limit of "
+                    + DerInputLimits.MAX_MARSHALLED_INSTANCE_NESTING
+                    + " (au.net.zeus.jgdms.der.maxMarshalledInstanceNesting); possible nested-serializer DoS");
+        }
+        try {
+            return ScopedValue.where(DECODE_DEPTH, depth + 1).call(() -> readObjectImpl(type));
+        } catch (IOException | ClassNotFoundException | RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            // CallableOp's checked LUB is Exception; readObjectImpl only throws IOException/CNFE,
+            // so this is unreachable -- wrap defensively rather than swallow.
+            throw new IOException("DER MarshalledInstance decode failed", e);
+        }
+    }
+
+    private <T> T readObjectImpl(Class<T> type) throws IOException, ClassNotFoundException {
         // Empty schemaBytes is the sentinel for the OBJECT-STREAM form (e.g. a bare
         // java.lang.reflect.Proxy [8] item) written by DerMarshalInstanceOutput when the
         // marshalled object had no separable @AtomicSerial schema. Decode it via the DER

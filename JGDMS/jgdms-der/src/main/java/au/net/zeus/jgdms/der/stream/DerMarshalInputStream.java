@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.stream;
 
+import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import java.io.IOException;
 import java.io.InputStream;
@@ -115,7 +116,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     public DerMarshalInputStream(InputStream in, ResolutionContext resolution) throws IOException {
         this.underlying = Objects.requireNonNull(in, "in");
         Objects.requireNonNull(resolution, "resolution");
-        byte[] buf = in.readAllBytes();
+        byte[] buf = DerInputLimits.readAllBytesBounded(in); // bounded: refuse oversize input (DoS)
         this.codec = new DerObjectStreamCodec();
         this.codec.initReader(buf, decodeUnit, resolution);
     }

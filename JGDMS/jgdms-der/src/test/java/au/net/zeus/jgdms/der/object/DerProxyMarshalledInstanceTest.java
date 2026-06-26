@@ -19,6 +19,7 @@
 // build a carrier directly (production builds one via the substitution seam + a ProxyCodebaseSpi).
 package au.net.zeus.jgdms.der.object;
 
+import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.marshal.DerMarshalledInstance;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
@@ -38,6 +39,7 @@ import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -226,6 +228,27 @@ public class DerProxyMarshalledInstanceTest {
         Object back = in.readObject();
         assertTrue(back instanceof Greeter, "expected Greeter proxy, got " + (back == null ? "null" : back.getClass()));
         assertEquals("argstream", ((Greeter) back).greet());
+    }
+
+    /**
+     * DoS guard: a deeply nested chain of carriers (each {@code DerProxySerializer}'s serviceProxy is
+     * a MarshalledInstance whose content is the next carrier, so readResolve -> serviceProxy.get()
+     * recurses across streams) must fail with a bounded exception, NOT a {@code StackOverflowError}.
+     */
+    @Test
+    public void deeplyNestedCarriersFailCleanlyNotStackOverflow() throws Exception {
+        ClassLoader cl = getClass().getClassLoader();
+        Object content = newProxy("deep"); // innermost real proxy
+        int levels = DerInputLimits.MAX_MARSHALLED_INSTANCE_NESTING + 8;
+        for (int i = 0; i < levels; i++) {
+            MarshalledInstance svc = new DerMarshalledInstance(content, Collections.emptyList(), false);
+            content = new DerProxySerializer(new FixedHandler("h" + i), svc, Collections.emptyList(), null, null);
+        }
+        MarshalledInstance outer = new DerMarshalledInstance(content, Collections.emptyList());
+
+        // The depth-limit InvalidObjectException (an IOException), re-wrapped up the readResolve chain;
+        // assertThrows(IOException) fails if a StackOverflowError (an Error) escapes instead.
+        assertThrows(java.io.IOException.class, () -> outer.get(cl, false, cl, Collections.emptyList()));
     }
 
     /** The handler must be @AtomicSerial: a carrier built from a non-@AtomicSerial handler is rejected. */
