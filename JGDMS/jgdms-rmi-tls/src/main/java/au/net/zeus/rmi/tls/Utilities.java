@@ -153,20 +153,14 @@ class Utilities {
 
 	// Reflection support for SPIFFE types from jgdms-jeri (optional dependency)
 	private static final Class<?> SPIFFE_PRINCIPAL_CLASS;
-	private static final Class<?> SPIFFE_SUBJECT_HOLDER_CLASS;
-	private static final Method SPIFFE_SUBJECT_HOLDER_GET;
 	private static final Method SUBJECT_CURRENT;
 
 	static {
 		Class<?> spiffePrincipalClass = null;
-		Class<?> spiffeSubjectHolderClass = null;
-		Method spiffeSubjectHolderGet = null;
 		Method subjectCurrent = null;
 		try {
 			spiffePrincipalClass = Class.forName("net.jini.jeri.ssl.SpiffePrincipal");
-			spiffeSubjectHolderClass = Class.forName("net.jini.jeri.ssl.SpiffeSubjectHolder");
-			spiffeSubjectHolderGet = spiffeSubjectHolderClass.getMethod("get");
-		} catch (ClassNotFoundException | NoSuchMethodException e) {
+		} catch (ClassNotFoundException e) {
 			// SPIFFE support not available - will fall back to X500 only
 			if (INIT_LOGGER.isLoggable(Level.FINE)) {
 				INIT_LOGGER.log(Level.FINE, "SPIFFE support not available", e);
@@ -182,8 +176,6 @@ class Utilities {
 			}
 		}
 		SPIFFE_PRINCIPAL_CLASS = spiffePrincipalClass;
-		SPIFFE_SUBJECT_HOLDER_CLASS = spiffeSubjectHolderClass;
-		SPIFFE_SUBJECT_HOLDER_GET = spiffeSubjectHolderGet;
 		SUBJECT_CURRENT = subjectCurrent;
 	}
     
@@ -562,33 +554,17 @@ class Utilities {
 	}
 
 	/**
-	 * Resolves the TLS identity Subject using DirtyChai's SPIFFE-first policy:
-	 * 1. Try ACC-derived Subject (from Subject.doAs) if it has TLS identity
-	 * 2. Try process-wide SPIFFE Subject (from SpiffeSubjectHolder)
-	 * 3. Try Subject.current() (from Subject.callAs) if it has TLS identity
-	 * 
-	 * This ensures the process-level SPIFFE identity is preferred before
-	 * legacy user Subject sources.
-	 * 
+	 * Resolves the TLS identity Subject:
+	 * 1. Try Subject.current() (the ambient SPIFFE / Subject.callAs subject) if TLS-capable
+	 * 2. Try ACC-derived Subject (from Subject.doAs/doAsPrivileged) if TLS-capable
+	 *
+	 * The ambient process SPIFFE identity is carried by Subject.current(), so it is
+	 * preferred before legacy ACC-derived user Subject sources.
+	 *
 	 * @return the resolved Subject, or null if no TLS-capable Subject found
 	 */
 	static Subject getTlsSubject() {
-		// Priority 1: Process-wide SPIFFE Subject (if available)
-		if (SPIFFE_SUBJECT_HOLDER_GET != null) {
-			try {
-				Subject spiffeSubject = (Subject) SPIFFE_SUBJECT_HOLDER_GET.invoke(null);
-				if (spiffeSubject != null) {
-					return spiffeSubject;
-				}
-			} catch (Exception e) {
-				if (INIT_LOGGER.isLoggable(Level.FINE)) {
-					INIT_LOGGER.log(Level.FINE, 
-						"Failed to get SPIFFE process subject", e);
-				}
-			}
-		}
-
-		// Priority 2: Subject.current() for Subject.callAs() and
+		// Priority 1: Subject.current() for Subject.callAs() and
 		// Subject.doAsPrivileged() compatibility (only if TLS-capable).
 		// Subject.doAsPrivileged(subject, action, null) sets the Subject
 		// on the current thread but not in the AccessControlContext,
@@ -604,7 +580,7 @@ class Utilities {
 			}
 		}
 
-		// Priority 3: ACC-derived Subject (from Subject.doAs/doAsPrivileged).
+		// Priority 2: ACC-derived Subject (from Subject.doAs/doAsPrivileged).
 		// Do NOT wrap in doPrivileged/doPrivilegedWithCombiner — that creates a
 		// fresh privileged context and severs the SubjectDomainCombiner installed
 		// by the outer Subject.doAsPrivileged call.  Call getContext() directly
