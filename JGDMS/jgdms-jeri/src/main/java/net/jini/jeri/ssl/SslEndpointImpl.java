@@ -279,9 +279,12 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	throws UnsupportedConstraintException
     {
 	/*
-	 * For SSL endpoints, the SPIFFE workload Subject (from the ACC or the
-	 * ambient process subject) is preferred because it carries the
-	 * TLS client certificate credentials.  Other Subjects that may be
+	 * For SSL endpoints, the SPIFFE workload Subject (from the ACC, or the
+	 * process-ambient identity reached via Subject.processWorker() and the
+	 * principals registered via Security.registerLocalPrincipalProvider) is
+	 * preferred because it carries the TLS client certificate credentials.
+	 * (The former process-wide SpiffeSubjectHolder has been retired.)
+	 * Other Subjects that may be
 	 * present in Subject.current() — e.g. a Kerberos user Subject placed
 	 * there by Subject.callAs() during dispatch — cannot be used to
 	 * establish SSL/TLS connections and must not take priority.
