@@ -814,6 +814,13 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                 cs = new CodeSource(jarUrl, (java.security.cert.Certificate[]) null);
             }
 
+            // Boot-window trust check, through the SecurityManager
+            // (net.jini.security.Security.checkPermission -> sm.checkPermission).  The
+            // synthetic digest domain is checked in isolation: AccessControlContext.create
+            // returns a clean [digestPd] context for an authorised caller (this provider /
+            // net.jini.security.Security hold SecurityPermission "createAccessControlContext"),
+            // so the codebase's own DigestGrant decides it -- the constrained unmarshalling
+            // callers on the stack are not folded in.
             ProtectionDomain digestPd = new ProtectionDomain(cs, null, null, principals);
             boolean granted;
             try {
@@ -825,13 +832,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                 granted = false;
             }
             if (!granted) {
-                // Honour a non-digest BootstrapPermission grant.  The installed
-                // policy may grant BootstrapPermission by URL or unconditionally
-                // rather than by JAR digest; a digest-bearing DigestCodeSource
-                // domain does not pick up such grants.  Re-check against a plain
-                // CodeSource so the policy is honoured rather than silently
-                // overridden into a breakage.  Running without digest-scoped
-                // grants is weaker and not recommended, hence the WARNING.
+                // Honour a non-digest BootstrapPermission grant (the policy may grant
+                // by URL or unconditionally rather than by JAR digest).
                 ProtectionDomain plainPd = new ProtectionDomain(
                         new CodeSource(jarUrl, (java.security.cert.Certificate[]) null),
                         null, null, principals);

@@ -413,3 +413,71 @@ grant {
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"" "connect,accept";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\"" "connect,accept";
 };
+
+// FIX-CANDIDATE (spiffe GrantPermission for AuthenticationPermission): BasicProxyPreparer.prepareProxy
+// dynamically Security.grant()s each prepared proxy the AuthenticationPermission it needs to
+// authenticate (e.g. "CN=Tester peer CN=Reggie" "connect"); that grant is GrantPermission-gated and
+// polpAudit never captured it (the test never reached proxy preparation before).  A no-peer
+// GrantPermission ("CN=X" "connect,accept") implies granting any with-peer "CN=X peer CN=Y" form
+// (validated).  Blanket for bring-up; tighten to per-(local,peer) once green.
+grant {
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\"\", \"connect,accept\";";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect,accept\";";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Outrigger\\\"\", \"connect,accept\";";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Mahalo\\\"\", \"connect,accept\";";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Norm\\\"\", \"connect,accept\";";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Fiddler\\\"\", \"connect,accept\";";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Mercury\\\"\", \"connect,accept\";";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Phoenix\\\"\", \"connect,accept\";";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Group\\\"\", \"connect,accept\";";
+};
+
+// =====================================================================================
+// Codebase-download bring-up (config-agnostic; the original topic of this work).
+// Three layers gate a remote proxy codebase JAR download under the DirtyChai SM, all
+// resolved in net.jini.loader.pref.PreferredProxyCodebaseProvider.resolve():
+//   (1) boot-window BootstrapPermission  (checkBootstrapPermissionByDigest, DirtyChai-only),
+//   (2) the dynamic per-URL DownloadPermission + URLPermission grant, gated by GrantPermission,
+//   (3) (effective at fetch time) the granted DownloadPermission/URLPermission themselves.
+// BootstrapPermission + GrantPermission are deliberately SCOPED (not blanket) so the
+// boot-window trust decision and the grant authority stay enforced.
+// =====================================================================================
+
+// (1) Boot-window: trust the remote proxy codebases to be bootstrap-loaded, by CONTENT DIGEST.
+// With no TLS-level server principal in the resolve context, checkBootstrapPermissionByDigest
+// checks BootstrapPermission against a java.security.DigestCodeSource (SHA-256 of the downloaded
+// JAR).  A DigestGrant (DirtyChai-native, "grant digest ...") matches that by content hash.
+//
+// Why not "grant codebase \"httpmd://...\"": httpmd URLs REQUIRE a ;<alg>=<digest> component to
+// construct as a java.net.URL, and DirtyChai's policy parser validates every codebase via RFC 3986
+// URL construction (HC-7) -- so a wildcard httpmd codebase (no digest) raises MalformedURLException
+// and the grant never loads.  The digest IS the trust anchor here, so DigestGrant is the right form.
+//
+// CAVEAT (bring-up): these SHA-256 hashes pin the *current* dl-jar bytes; they change whenever the
+// service dl jars are rebuilt -> regenerate from `sha256sum <dl-jar>` if the codebase download starts
+// failing BootstrapPermission again.  reggie-dl/jgdms-lib-dl serve on :9080; qa1-*-dl on :9082.
+grant digest "SHA-256:cd1cac908bb4b0e111bcc3968b92bf220321140116b76e013da8a5109fdbc0c9" {   // reggie-dl
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+grant digest "SHA-256:a8e68d3b9bbdcfc3b04d1e40f4d157be688beb3454e7143fd81c086e43c35b34" {   // jgdms-lib-dl
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+grant digest "SHA-256:c9cf08b997ed31cb0e6681892321da80575c0410c830ca01d738709665141712" {   // qa1-outrigger-dl
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+grant digest "SHA-256:4d250cafe0099cede3050114a1f4b3abb7f7e73bd3303180ac125f4c322d63e6" {   // qa1-share-dl
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+
+// (2) The granting frames need GrantPermission to issue the dynamic URI-scoped codebase grant.
+// resolve() runs Security.doPrivileged(Security.grant({DownloadPermission | URLPermission})) per
+// codebase URL; under doPrivileged the GrantPermission check falls on the action's frames =
+// jgdms-platform (Security.grant) + jgdms-pref-class-loader (the provider) -> BOTH need it.
+// delim=| switches GrantPermission's nested-string delimiter to | so the URLPermission urls
+// don't need quote-escaping; the http/httpmd wildcards imply the per-jar httpmd grant urls.
+grant codebase "file:${jsk.home}/lib/jgdms-platform-3.1.1-SNAPSHOT.jar" {
+    permission net.jini.security.GrantPermission "delim=| net.jini.loader.DownloadPermission; java.net.URLPermission |http://*:*/-|, |*:*|; java.net.URLPermission |httpmd://*:*/-|, |*:*|";
+};
+grant codebase "file:${jsk.home}/lib/jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar" {
+    permission net.jini.security.GrantPermission "delim=| net.jini.loader.DownloadPermission; java.net.URLPermission |http://*:*/-|, |*:*|; java.net.URLPermission |httpmd://*:*/-|, |*:*|";
+};

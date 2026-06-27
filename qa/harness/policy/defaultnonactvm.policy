@@ -1507,3 +1507,67 @@ grant {
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"" "connect,accept";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\"" "connect,accept";
 };
+
+// =====================================================================================
+// Codebase-download bring-up (group / non-activatable VMs).  Same three-layer chain as
+// the test VM (see defaultspiffetest.policy): boot-window BootstrapPermission, the dynamic
+// per-URL DownloadPermission+URLPermission grant (GrantPermission-gated), and the granted
+// perms at fetch time.  The jgdms-pref-class-loader GrantPermission is already granted above
+// (its codebase block); the boot-window BootstrapPermission for the remote codebases and the
+// jgdms-platform GrantPermission (the second granting frame under doPrivileged) are added here.
+// =====================================================================================
+
+// Boot-window: trust the remote proxy codebases to be bootstrap-loaded, by CONTENT DIGEST.
+// checkBootstrapPermissionByDigest checks BootstrapPermission against a DigestCodeSource (SHA-256
+// of the downloaded JAR); a DigestGrant matches by content hash.  A "grant codebase \"httpmd://...\""
+// cannot be used: httpmd URLs need a ;<alg>=<digest> to construct as a URL, and DirtyChai's parser
+// validates codebases via RFC 3986 URL construction (HC-7) -> a wildcard httpmd codebase never loads.
+// CAVEAT (bring-up): SHA-256 pins the current dl-jar bytes; regenerate via `sha256sum <dl-jar>` after
+// any rebuild of the service dl jars.
+grant digest "SHA-256:cd1cac908bb4b0e111bcc3968b92bf220321140116b76e013da8a5109fdbc0c9" {   // reggie-dl
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+grant digest "SHA-256:a8e68d3b9bbdcfc3b04d1e40f4d157be688beb3454e7143fd81c086e43c35b34" {   // jgdms-lib-dl
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+grant digest "SHA-256:c9cf08b997ed31cb0e6681892321da80575c0410c830ca01d738709665141712" {   // qa1-outrigger-dl
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+grant digest "SHA-256:4d250cafe0099cede3050114a1f4b3abb7f7e73bd3303180ac125f4c322d63e6" {   // qa1-share-dl
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+
+// The second granting frame (Security.grant lives in jgdms-platform) needs GrantPermission too;
+// under doPrivileged BOTH the provider (pref-class-loader, granted above) and platform are checked.
+grant codebase "file:${jsk.home}/lib/jgdms-platform-3.1.1-SNAPSHOT.jar" {
+    permission net.jini.security.GrantPermission "delim=| net.jini.loader.DownloadPermission; java.net.URLPermission |http://*:*/-|, |*:*|; java.net.URLPermission |httpmd://*:*/-|, |*:*|";
+};
+
+// FIX-CANDIDATE (spiffe per-method AccessPermission for the service VMs): services run under
+// defaultnonactvm.policy (the spiffe configSet does not override the nonact-group VM policy), so
+// the authenticated CLIENT principal seen by BasicInvocationDispatcher.checkClientPermission is a
+// net.jini.jeri.ssl.SpiffePrincipal "spiffe://.../<role>" -- for which this policy had NO
+// AccessPermission grants (only the X500 "CN=<role>" form, which the SVID does not present here).
+// Grant AccessPermission to the spiffe service+client principals so server-side method access
+// control passes.  Blanket "*" for bring-up; tighten to per-method (polpAudit) once green.
+grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/tester" {
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/reggie" {
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/outrigger" {
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/mahalo" {
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/norm" {
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/fiddler" {
+    permission net.jini.security.AccessPermission "*";
+};
+grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/mercury" {
+    permission net.jini.security.AccessPermission "*";
+};
