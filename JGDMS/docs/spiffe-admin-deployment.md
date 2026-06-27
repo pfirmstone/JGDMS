@@ -15,11 +15,12 @@ JGDMS uses [SPIFFE](https://spiffe.io/) X.509-SVID certificates as the identity 
 │  SpiffeCredentialManager                                        │
 │    │ reads svid.pem / svid_key.pem (written by SPIRE agent)    │
 │    │ populates Subject (CertPath + X500PrivateCredential)       │
-│    │ registers Subject in SpiffeSubjectHolder (process-wide)    │
+│    │ registers it as the process-wide ambient identity          │
+│    │   (Security.registerLocalPrincipalProvider — no doAs)       │
 │    └─ schedules background renewal before SVID expiry           │
 │                                                                 │
 │  SslEndpointImpl / SslServerEndpointImpl                        │
-│    └─ consults SpiffeSubjectHolder when no Subject.doAs() frame │
+│    └─ uses the ambient process identity (no Subject.doAs frame) │
 └─────────────────────────────────────────────────────────────────┘
         ↑ writes PEM files every ~1 h
 ┌───────────────────────────────┐
@@ -198,8 +199,10 @@ try (SpiffeCredentialManager mgr = new SpiffeCredentialManager(subject, spireDir
     mgr.start();   // blocks until first SVID load; starts background renewal
     
     // Start JGDMS service endpoints here.
-    // SslServerEndpointImpl and SslEndpointImpl will automatically use
-    // the Subject registered in SpiffeSubjectHolder — no Subject.doAs() required.
+    // SslServerEndpointImpl and SslEndpointImpl automatically use the managed
+    // Subject as the process-wide *ambient* workload identity — no Subject.doAs()
+    // frame is required (or wanted: the SPIFFE workload is ambient, never a doAs
+    // subject). start() registers it via Security.registerLocalPrincipalProvider.
     
     runServiceEventLoop();
 } // mgr.close() called automatically; clears Subject credentials
@@ -222,9 +225,20 @@ SpiffeCredentialManager.SvidSource workloadApi = () -> {
 new SpiffeCredentialManager(subject, workloadApi, SpiffeCredentialManager.DEFAULT_RENEWAL_LEAD_SECONDS);
 ```
 
-### Subject.doAs() (optional)
+### `Subject.doAs()` is for *users*, not the workload
 
-If your service wraps requests in `Subject.doAs()`, the `SpiffeSubjectHolder` fallback is bypassed and the explicitly provided Subject is used instead.  Both paths are supported simultaneously.
+The SPIFFE workload identity is **ambient** — it is the process's own identity, established once
+at `start()` and reached by the endpoints without any `Subject.doAs()`/`callAs()` frame.  Do **not**
+attempt to carry the workload Subject through `Subject.doAs()`/`callAs()`; those APIs are reserved
+for *user* subjects (authenticated humans), and on DirtyChai a worker subject is rejected by them
+outright.  The two identities are deliberately distinct: the mTLS/SVID peer authenticates the
+*workload*, while a human is a separate (e.g. JWT) *user* subject that authorization may check on its
+own gate.  See `JGDMS-STD-003` §10.5 (two-gate authorization) and
+`docs/DESIGN-spiffe-authorization-acc-transmission-2026-06-27.md`.
+
+A request handler may still legitimately enter `Subject.doAs(userSubject, …)` to run **user** work
+under a validated user identity; that is orthogonal to — and layered on top of — the ambient
+workload identity, which remains in effect throughout.
 
 ---
 
@@ -250,7 +264,7 @@ Rotation is fully automatic.  The background thread (`SpiffeCredentialManager-re
 |---|---|
 | Successful renewal | `Subject` credentials replaced atomically; new expiry scheduled |
 | Fetch/parse failure | Warning logged; retry every 30 seconds |
-| `close()` called | Scheduler shut down; Subject credentials cleared; `SpiffeSubjectHolder` cleared |
+| `close()` called | Scheduler shut down; Subject credentials cleared; ambient principal provider deregistered (`Security.registerLocalPrincipalProvider(null)`) |
 
 Active TLS connections are not interrupted during rotation — they complete using the credentials that were established at handshake time.  New connections pick up the new credentials immediately after the `Subject` is updated.
 

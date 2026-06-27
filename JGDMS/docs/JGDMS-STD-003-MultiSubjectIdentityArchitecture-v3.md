@@ -1,13 +1,54 @@
 # JGDMS-STD-003: Multi-Subject Identity Architecture
 
 **Status:** Draft  
-**Version:** 3.1  
+**Version:** 3.2  
 **Applies to:** DirtyChai (JDK fork), JGDMS  
-**Supersedes:** JGDMS-STD-003 v3.0  
+**Supersedes:** JGDMS-STD-003 v3.1  
 
 ---
 
 ## Change Log
+
+### v3.2 changes from v3.1
+
+Aligns the standard with the pinned authorization design
+(`docs/DESIGN-spiffe-authorization-acc-transmission-2026-06-27.md`; both open decisions
+resolved). Identity model and the sealed `Subject` hierarchy are unchanged; the changes
+concern how a received ACC is scored and how `AccessPermission` is gated.
+
+- **Receiver keeps every transmitted domain as a reducer — never strips (D1).** §3.4 and
+  §10.4 rewritten: removing a domain drops an AND-constraint and therefore *elevates*
+  privilege (fail-open), so an unverifiable/digest-less domain is retained and simply
+  reduces (fail-closed). Only domain *principals* are filtered to those the connection
+  authenticated. A *failed* digest verification (claimed digest ≠ content) is an attack
+  signal → **reject the call**, never strip-and-proceed.
+
+- **Digest = risk discriminator against a static-policy ceiling.** §10.4: the receiver's
+  **static** policy is the hard ceiling; transmission can only reduce *within* it, never
+  raise authority. Trusting the worker makes the codebase list *authentic*, not *authorized*.
+  Digest read from a `DigestCodeSource` field **or** an `httpmd:` URL parameter; digest-less
+  domains get URL-scoped operational permissions only (no `DigestGrant` authority) and are
+  assumed worst-case.
+
+- **Two-gate authorization (new §10.5).** `AccessPermission` is evaluated over two separate
+  anchors, never one merged ACC: **Gate 1** workload `AccessPermission` over the remote
+  connection ACC (always), **Gate 2** user `AccessPermission` over the validated user subject
+  via `Subject.doAs` (opt-in). Admin/sensitive methods require **both**. The ambient
+  `WorkerSubject` is never passed to `doAs`/`callAs` — Gate 2 carries the user subject only.
+
+- **Per-receiver JWT validation (new §10.6, D2).** User JWTs are validated per receiver on
+  every hop (sig/iss/aud/exp + PoP), forwarded unchanged, never re-minted at ingress;
+  multi-hop reach via IdP token issuance, not intermediary minting. Delegation is
+  attenuation-only, leased/revocable, audited.
+
+- **§10.5 `DomainCombiner` Retention Rationale renumbered to §10.7** (unchanged content).
+
+- **`SpiffeSubjectHolder` retired.** The static bridge documented in v3.1 no longer
+  exists in the code. `Subject.processWorker()` reads the DirtyChai bootstrap
+  `SpiffeCredentialManager` singleton directly (`getInstance().getSubject()`), and the
+  JGDMS application `SpiffeCredentialManager` exposes its `Subject`'s principals as the
+  process-ambient identity via `Security.registerLocalPrincipalProvider(...)`. §3.3, §14.0
+  and the glossary updated; the worker is still never passed through `callAs`/`doAs`.
 
 ### v3.1 changes from v3.0
 
@@ -16,7 +57,9 @@
   `SpiffeSubject extends WorkerSubject` for use by `SecureClassLoader`. The JGDMS
   application implementation (`net.jini.jeri.ssl`) constructs a vanilla `Subject` with
   `X500Principal` + `SpiffePrincipal` using standard Java APIs for TLS credential
-  management. `Subject.processWorker()` bridges both via `SpiffeSubjectHolder`.
+  management. (As of v3.2 the `SpiffeSubjectHolder` bridge is retired —
+  `Subject.processWorker()` reads the bootstrap `SpiffeCredentialManager` singleton
+  directly; see the v3.2 change log.)
 
 - **`Thread.scopedSubjects` field is `Subject[]`** — mirrors `SCOPED_SUBJECT
   ScopedValue<Subject[]>`; the full array is captured at thread construction and
@@ -262,7 +305,8 @@ implementations that serve different purposes:
 | JGDMS application | `net.jini.jeri.ssl` | Vanilla `Subject` with `X500Principal` + `SpiffePrincipal` | TLS credential management; standard Java APIs; `AutoCloseable`; `ScheduledExecutorService` for SVID rotation |
 
 `Subject.processWorker()` provides a standard API to retrieve the current
-`WorkerSubject`, bridging both implementations via `SpiffeSubjectHolder`:
+`WorkerSubject` from the DirtyChai bootstrap `SpiffeCredentialManager` singleton
+(`getInstance()`) — there is no separate holder class:
 
 ```java
 public Subject processWorker() {
@@ -278,6 +322,15 @@ in the DirtyChai JDK and is not part of the standard Java platform. Policy grant
 that match against `SpiffePrincipal` work correctly with both Subject types since
 principal matching is by principal type and name, not by Subject subtype.
 
+The earlier `SpiffeSubjectHolder` static bridge has been **retired**. Each
+implementation now exposes its subject as the process-wide *ambient* identity
+directly: the DirtyChai bootstrap manager via the `SpiffeCredentialManager`
+singleton that `Subject.processWorker()` reads, and the JGDMS application manager
+by registering its `Subject`'s principals through
+`Security.registerLocalPrincipalProvider(...)` (so `Security.currentPrincipals()`
+returns the SPIFFE principals even when no `Subject.callAs`/`doAs` frame wraps the
+calling thread). Neither route passes the worker through `callAs`/`doAs`.
+
 ### 3.4 Remote Process Identity
 
 Remote process identity is not a separate `Subject` subtype. It is represented by
@@ -290,8 +343,14 @@ domains.
 - Travels as `ProtectionDomain`s in a serialized ACC — not via `SCOPED_SUBJECT`
 - Shed at `doPrivileged` boundaries on the receiving JVM (not in `privilegedContext`)
 - `httpmd:` URLs carry SHA-256 signatures — code identity verified without loading
-- A `DomainCombiner` on the receiving side strips unverifiable domains before the ACC
-  is placed on the call stack
+- The receiving side **keeps every transmitted domain as a reducer** — it does **not**
+  strip "unverifiable" domains. Removing a domain drops a constraint and therefore
+  *elevates* privilege (fail-open); an unverifiable (digest-less) domain is retained and
+  simply *reduces* (fail-closed), scored against the receiver's static policy. Only the
+  domain *principals* are filtered to those the connection authenticated; a domain whose
+  baked-in principal is not connection-authenticated keeps its (reducing) codebase but
+  contributes no principal. A *failed* digest verification (a claimed digest that does not
+  match content) is an attack signal — reject the call, never strip-and-proceed. See §10.4.
 
 **`RemotePolicy` grant example:**
 ```
@@ -712,11 +771,91 @@ is not serialized — it is local infrastructure on the receiving JVM.
 
 ### 10.4 Receiving Side Verification
 
-A `DomainCombiner` on the receiving JVM strips any domain whose `httpmd:` SHA-256
-does not verify, or whose `SpiffePrincipal` is outside the trusted SPIFFE trust domain.
-The verified domains participate in `RemotePolicy` checks directly.
+The receiving JVM **keeps every transmitted domain** and folds it into the call's
+evaluation context as a *reducer*. It must **not** strip domains — removing a domain drops
+a constraint and so *elevates* privilege (fail-open). Transmitted domains are subtractive:
+in the AND-across-domains check, adding a domain can only hold-or-reduce authority, so an
+unverifiable one is safe to keep and unsafe to drop.
 
-### 10.5 `DomainCombiner` Retention Rationale
+Per-domain handling (all retained, scored against the receiver's **static** policy — the
+hard ceiling; transmission can only reduce *within* it, never raise authority):
+
+- **Digest present and verified** (a `DigestCodeSource`, or an `httpmd:` SHA-256 that
+  matches) — identified by content; may carry the authority the static policy grants that
+  digest (a `DigestGrant`), and may be risk-scored (grant known-good, refuse/blocklist
+  known-vulnerable).
+- **Digest absent** (off-DirtyChai local `file:`/plain-`http:` code) — kept as a reducer;
+  receives only the URL-scoped *operational* permissions the static policy allows for that
+  URL (e.g. `URLPermission` to its own codebase URL), no `DigestGrant` authority, and is
+  assumed worst-case for vulnerability purposes (fail-closed). It is **not** stripped.
+- **Digest present but does NOT verify** (claimed `httpmd:`/digest that does not match the
+  content) — this is tampering/MITM, an attack signal: **reject the call**. Do not
+  "strip-and-proceed."
+- **Principals** — only principals the *connection* authenticated are honored. A domain
+  whose baked-in `SpiffePrincipal` is not the connection-authenticated identity keeps its
+  (reducing) codebase but contributes **no principal** to grant matching; it is not a reason
+  to strip the domain.
+
+`DigestCodeSource`-stamping is universal on DirtyChai (every domain identifiable); off
+DirtyChai only `httpmd:` codebases carry a digest (in the URL) — so the receiver reads the
+digest from *either* a `DigestCodeSource` field *or* an httpmd URL parameter, and the rest
+reduce. All retained domains participate in `RemotePolicy` checks. (See
+`docs/DESIGN-spiffe-authorization-acc-transmission-2026-06-27.md` §3 for the full rationale.)
+
+### 10.5 Two-Gate Authorization on Receipt
+
+`AccessPermission` checks on the receiving JVM are evaluated against **two separate
+contexts with two separate anchors — never one merged ACC**:
+
+- **Gate 1 — workload.** The authenticated peer is a *workload* (the mTLS/SPIFFE SVID —
+  cert subject DN *and* URI SAN, both surfaced as `SpiffePrincipal`), not the human. Gate 1
+  tests the method's `AccessPermission` against the **remote connection ACC** built in §10.4
+  (connection-authenticated principals + the complete set of reducing domains). This gate
+  always runs; it answers "is this workload, over this connection, permitted to invoke this
+  method on the mesh."
+- **Gate 2 — user.** Opt-in per method/interface. Tests the method's `AccessPermission`
+  against the **validated user subject** (`Subject.doAs(userSubject, … checkPermission(…))`),
+  where `userSubject` is a JWT identity validated per §10.6. This gate answers "is this
+  *human/principal* permitted to perform this operation."
+- **Admin / sensitive methods require BOTH** — a trusted workload **and** an authorized
+  admin user. Neither gate alone authorizes an administrative call: a trusted workload with
+  no admin user is denied, and an admin JWT arriving over an untrusted workload is denied.
+
+The two gates are evaluated over two distinct anchors precisely so that the workload's
+authority and the user's authority cannot silently merge into a single elevated context.
+Identity is **additive** (a principal must be authenticated to count); codebases are
+**subtractive** (they only reduce — see §10.4). Mixing them in one ACC would let an
+authenticated workload's principals satisfy a check that should have required the user, or
+vice-versa.
+
+> **Constraint.** The ambient process `WorkerSubject` is **never** passed to
+> `Subject.doAs` / `Subject.callAs` (it is not a `UserSubject`; the varargs overload rejects
+> it and the legacy overload throws). The worker is reached only as the ambient identity via
+> `Subject.processWorker()` (§7.3). Gate 2's `doAs` carries the **user** subject only.
+
+### 10.6 Per-Receiver JWT Validation
+
+User identities are carried as **JWTs**, transmitted across the JERI connection alongside
+the workload SVID. They are validated **per receiver, on every hop** — a forwarded token is
+re-validated by each process that relies on it; **trust is in the token, not the conduit**:
+
+- **Validate, don't infer.** Each receiver independently checks the token signature against
+  the trusted IdP/issuer key, and checks `iss` / `aud` (this receiver's own audience) /
+  `exp` / proof-of-possession. A token that does not validate is **dropped**, not honored —
+  the call proceeds (if at all) with no user subject, i.e. Gate 2 fails closed.
+- **No ingress minting.** A receiving process does **not** mint or re-sign a new token to
+  represent the caller for downstream calls. Tokens are forwarded unchanged and re-validated
+  at the next hop. Multi-hop reach is obtained by the IdP **issuing** appropriately-scoped
+  tokens (audience / per-service), never by an intermediary re-minting.
+- **Bounded delegation.** Where one workload acts on behalf of another, delegation is
+  **attenuation-only**, governed by per-worker delegation policy, leased/TTL-bounded and
+  revocable (see [[jgdms-leased-permission-grant]]), and audited. This bounds the
+  confused-deputy surface: a relied-upon token cannot widen authority as it crosses hops.
+
+This is decision **D2** (resolved 2026-06-27): per-receiver validation, not validate-once-at-
+ingress. See `docs/DESIGN-spiffe-authorization-acc-transmission-2026-06-27.md` §4–§6.
+
+### 10.7 `DomainCombiner` Retention Rationale
 
 `DomainCombiner` is retained as a Java API compatibility layer:
 - The ACC serializer uses it for receiving-side domain verification
@@ -871,7 +1010,10 @@ The DirtyChai `SpiffeCredentialManager` (bootstrap, `WorkerSubject`) and the JGD
   into `ProtectionDomain`s by `SecureClassLoader` before JGDMS code loads.
 - JGDMS's implementation manages TLS credentials for JERI transport using standard
   Java APIs, independent of the sealed hierarchy.
-- `SpiffeSubjectHolder` provides the shared reference point between them.
+- There is no shared `SpiffeSubjectHolder` bridge (retired). Each exposes its subject
+  as the process-ambient identity independently — DirtyChai via the
+  `SpiffeCredentialManager` singleton read by `Subject.processWorker()`, JGDMS via
+  `Security.registerLocalPrincipalProvider(...)`.
 - When JGDMS eventually runs on a non-DirtyChai JDK, only the JGDMS implementation
   is active; the `WorkerSubject` type is absent but `SpiffePrincipal` matching in
   policy grants continues to work correctly via the vanilla `Subject`.
@@ -1019,6 +1161,6 @@ Non-SPIFFE deployments are unaffected.
 | `DomainCombiner` | Retained as Java API compatibility layer for ACC serializer; `SubjectDomainCombiner` deprecated |
 | DirtyChai `SpiffeCredentialManager` | Bootstrap JDK implementation in `au.zeus.jdk.authorization.spire`; constructs sealed `SpiffeSubject extends WorkerSubject`; used by `SecureClassLoader` |
 | JGDMS `SpiffeCredentialManager` | Application implementation in `net.jini.jeri.ssl`; constructs vanilla `Subject` with `X500Principal` + `SpiffePrincipal`; manages TLS credentials; `AutoCloseable` |
-| `SpiffeSubjectHolder` | Static bridge between the two `SpiffeCredentialManager` implementations; `Subject.processWorker()` delegates here |
+| `SpiffeSubjectHolder` | **Retired.** Was a static bridge between the two `SpiffeCredentialManager` implementations. Replaced by direct ambient exposure: the bootstrap `SpiffeCredentialManager` singleton (read by `Subject.processWorker()`) and `Security.registerLocalPrincipalProvider(...)` on the application side |
 | `SCOPED_SUBJECT` | `ScopedValue<Subject[]>` carrying all active `UserSubject` instances for the current thread; empty array when no `callAs` scope is active |
-| `Subject.processWorker()` | Standard API method returning the current `WorkerSubject`; guarded by `AuthPermission("getSubject")`; bridges both implementations |
+| `Subject.processWorker()` | Standard API method returning the current `WorkerSubject` from the DirtyChai bootstrap `SpiffeCredentialManager` singleton (`getInstance().getSubject()`); guarded by `AuthPermission("getSubject")` |

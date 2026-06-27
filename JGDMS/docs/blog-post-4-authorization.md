@@ -68,6 +68,17 @@ grant simply does not apply. `DigestGrant` is integrated with `PermissionGrantBu
 `DefaultPolicyScanner`/`DefaultPolicyParser` so the full `SecurityPolicyWriter` → policy-file
 round-trip works transparently.
 
+> **The digest is a risk discriminator, not merely a grant key.** Because the hash names the
+> *exact bytes*, it cuts both ways: a known-good digest can be granted authority, and a
+> known-**vulnerable** digest can be refused or blocklisted regardless of who serves it. The
+> corollary is the fail-closed default: **code with no identifiable digest is assumed
+> worst-case** until proven otherwise. On DirtyChai every domain is identifiable (the
+> `SecureClassLoader` stamps a `DigestCodeSource` into *every* `ProtectionDomain`); on a stock
+> JVM, only `httpmd:` codebases carry an in-band digest — so serving *all* code, even "local"
+> code, via `httpmd:` is what buys you full fidelity. Domains that arrive with no digest are
+> never trusted on faith; they reduce, they do not elevate (see the receiving-side discussion
+> below).
+
 ---
 
 ## Three-Layer Authorization Stack
@@ -142,31 +153,80 @@ principal scope permits. No single party controls the outcome unilaterally.
 > narrows" is true at the clause level. (See `docs/agent-authority-code-review-2026-06-14.md`
 > §2 claim 2, §5.)
 
-### The Three-Principal Grant: Defending Against a Compromised Axis
+> **Scope clarification: this stack governs *proxy loading*, not inbound call authorization.**
+> The three-layer stack and the three-way intersection above describe **dynamic grants issued
+> while preparing a downloaded proxy** — `Security.grant(DownloadPermission + URLPermission)`
+> at proxy-preparation time, scoped to a specific authenticated endpoint, dying when the proxy
+> is garbage-collected. That is the *proxy-loading* path, and it happens on whichever side
+> downloads a proxy (client **or** server). It is a **different mechanism** from authorizing an
+> **inbound dispatched call** (an `AccessPermission` on a method a remote peer invokes on you).
+> The inbound path makes **no dynamic grants at all** — the receiver's **static** policy is a
+> hard ceiling, and an inbound call can only ever be *reduced within* that ceiling, never raise
+> it. The next section is about that inbound path. (Design:
+> `docs/DESIGN-spiffe-authorization-acc-transmission-2026-06-27.md` §3.)
 
-Now layer in `DigestGrant` and `UserSubject`. A grant targeting a SPIFFE workload principal, a
-human JWT principal, *and* a SHA-256 JAR hash means an attacker who controls exactly one axis
-cannot escalate privileges:
+### Authorizing an Inbound Call: Two Gates, Not One Merged Context
+
+SPIFFE splits two things classic River conflated. The authenticated mTLS peer is a **workload**
+(a SPIFFE SVID — the service process), *not* the human. The human is a separate **JWT** identity.
+So an inbound `AccessPermission` is evaluated over **two separate gates, anchored on two separate
+contexts — never one merged ACC**:
+
+- **Gate 1 — workload.** The method's `AccessPermission` is tested against the **remote
+  connection context**: the principals the mTLS connection actually authenticated (the
+  `SpiffePrincipal`), plus the caller's transmitted codebase domains, which only ever *reduce*
+  authority (an unidentifiable domain is kept as a reducer, never dropped — dropping it would
+  *elevate*). This gate always runs; it answers *"may this workload, over this connection, reach
+  this method at all?"*
+- **Gate 2 — user.** Opt-in per method/interface. The method's `AccessPermission` is tested
+  against the **validated user subject** (`Subject.doAs(userSubject, …)`). It answers *"is this
+  human authorized for this operation?"*
+- **Admin / sensitive methods require BOTH** — a trusted workload **and** an authorized user.
+  A trusted workload with no admin user is denied; an admin JWT arriving over an untrusted
+  workload is denied.
+
+The point of two anchors is that the workload's identity and the user's identity must **not**
+silently merge into one elevated context: identity is *additive* (a principal only counts if it
+was authenticated), whereas codebases are *subtractive* (they only reduce). Merging them would let
+an authenticated workload's principals satisfy a check that should have required the user.
+
+The static policy expresses both halves — a workload-scoped clause (matched in Gate 1) and a
+user-scoped clause (matched in Gate 2), each optionally conditioned on the JAR digest:
 
 ```
-// JWT/OIDC — preferred user identity
+// Gate 1 — workload reachability (matched against the authenticated connection)
 grant codeBase "httpmd://repo.example.org/order-processor.jar#SHA256:abc123"
-      principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org"
       principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://.../svc/order-processor" {
+    permission net.jini.security.AccessPermission "submitOrder";
+};
+
+// Gate 2 — user authorization (matched against the validated JWT subject under doAs)
+grant principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org" {
     permission net.jini.security.AccessPermission "submitOrder";
 };
 ```
 
-What can an attacker do with exactly one axis compromised?
+> **The JWT is trusted as a *token*, not because of the *conduit*.** A user JWT is validated
+> **per receiver, on every hop** — signature against the trusted issuer, plus `iss` / `aud`
+> (this receiver's own audience) / `exp` / proof-of-possession — *before* it becomes the Gate-2
+> subject. A token that does not validate is dropped, and Gate 2 fails closed. A receiver never
+> re-mints a token at ingress to speak for the caller downstream; tokens are forwarded unchanged
+> and re-validated at the next hop, and multi-hop reach comes from the IdP **issuing**
+> appropriately-scoped tokens, not from an intermediary minting them. (The ambient workload
+> `WorkerSubject`, by contrast, is *never* passed through `Subject.doAs`/`callAs` — it is reached
+> only as the process's ambient identity.)
+
+What can an attacker do with exactly one axis compromised? The combination still requires breaching
+three independent systems — but now via two gates plus a digest condition, not one merged grant:
 
 | Compromised axis | What the attacker can do | What they cannot do |
 |---|---|---|
-| JAR replaced at the URL (different SHA-256) | Serve a new JAR | Acquire `submitOrder` permission (hash mismatch) |
-| SPIFFE workload credential stolen | Impersonate the service process | Gain `submitOrder` without also being Alice |
-| JWT credential stolen (Alice's token) | Impersonate Alice | Gain `submitOrder` from a different workload or with a different JAR |
+| JAR replaced at the URL (different SHA-256) | Serve a new JAR | Acquire `submitOrder` (hash mismatch; and a *known-bad* digest can be blocklisted outright) |
+| SPIFFE workload credential stolen | Pass Gate 1 as the service process | Pass Gate 2 — `submitOrder` on an admin method still needs Alice's validated JWT |
+| JWT credential stolen (Alice's token) | Present Alice's token | Pass Gate 1 from a different workload, or past per-receiver validation if the token is expired / wrong-audience / lacks PoP |
 
-All three axes must be simultaneously compromised for the grant to apply. That combination requires
-a breach of three independent security systems.
+All axes must hold simultaneously for an administrative call to authorize — and because the gates
+are separate, compromising the *workload* does not buy you the *user*, and vice-versa.
 
 ![The Permission Burger: decorative illustration of the three-layer authorization stack as a stacked burger](images/permission-burger.svg)
 
