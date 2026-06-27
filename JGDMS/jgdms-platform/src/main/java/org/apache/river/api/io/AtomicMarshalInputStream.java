@@ -730,7 +730,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
      */
     private byte[] readBlockDataLong() throws IOException {
 	int length = input.readInt();
-	if (length > arrayLenAllowedRemain){
+	if (length < 0 || length > arrayLenAllowedRemain){
 	    try {
 		close();
 	    } catch (IOException e){} // Ignore
@@ -1899,11 +1899,11 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 	int size = input.readInt();
 //	System.out.println("array size: " + size);
 	
-	if (size > arrayLenAllowedRemain) {
+	if (size < 0 || size > arrayLenAllowedRemain) {
 	    try {
 		close();
 	    } catch (IOException e){} // Ignore
-	    throw new IOException("Attempt to deserialize an array with length exceeding 65535, length requested: " + size);
+	    throw new IOException("Attempt to deserialize an array with an invalid or excessive length: " + size);
 	}
 	arrayLenAllowedRemain = arrayLenAllowedRemain - size;
         Class<?> arrayClass = classDesc.forClass();
@@ -2250,8 +2250,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 		= new ObjectStreamClassContainer(null, null, null, handle, true );
 	registerObjectRead(streamClassContainer, handle, false);
         int count = input.readInt();
-	if (count > Byte.MAX_VALUE) throw new ClassNotFoundException(
-	    "Smells like a denial of service attack, requesting to create a proxy with many interfaces: "
+	if (count < 0 || count > Byte.MAX_VALUE) throw new ClassNotFoundException(
+	    "Smells like a denial of service attack, invalid or excessive proxy interface count: "
 	+ count);
         String[] interfaceNames = new String[count];
         for (int i = 0; i < count; i++) {
@@ -2832,11 +2832,11 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
      */
     Object readNewLongString(boolean unshared) throws IOException {
         long length = input.readLong();
-	if (length > arrayLenAllowedRemain) {
+	if (length < 0 || length > arrayLenAllowedRemain) {
 	    try {
 		close();
 	    } catch (IOException e){} // Ignore
-	    throw new IOException("Combined length of arrays too long to allow read of long UTF string");
+	    throw new IOException("Invalid or excessive length for a long UTF string: " + length);
 	}
 	arrayLenAllowedRemain = arrayLenAllowedRemain - length;
         Object result 
