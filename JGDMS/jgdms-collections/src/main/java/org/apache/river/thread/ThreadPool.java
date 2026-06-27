@@ -60,10 +60,10 @@ import java.util.logging.Logger;
  *       therefore inherits that subject in its ACC.  The explicit
  *       {@code Subject.callAs(null, ...)} wrapper ensures that the ScopedValue
  *       is cleared on the worker thread, neutralising any injected subject.</li>
- *   <li>SPIFFE workload identity is always available via process-wide
- *       {@code SpiffeSubjectHolder} and is never carried through the
- *       ScopedValue mechanism.  Clearing the ScopedValue subject does not
- *       affect SPIFFE identity resolution.</li>
+ *   <li>SPIFFE workload identity is always available process-wide (resolved
+ *       from the ambient process subject, not the per-thread ScopedValue), so
+ *       clearing the ScopedValue subject does not affect SPIFFE identity
+ *       resolution.</li>
  * </ul>
  *
  * <p>For short-lived tasks that need subject propagation (RPC dispatch, JWT
