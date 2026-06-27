@@ -29,7 +29,6 @@ import java.net.URL;
 import java.rmi.MarshalledObject;
 import java.rmi.server.UID;
 import java.security.AccessControlContext;
-import java.security.Permission;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -384,7 +383,10 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    else if (obj instanceof Map) obj = new MapSerializer((Map) obj);
 	    else if (obj instanceof Set) obj = new SetSerializer((Set) obj);
 	    else if (obj instanceof Collection) obj = new ListSerializer((Collection) obj);
-	    else if (obj instanceof Permission) obj = new PermissionSerializer((Permission) obj);
+	    // Permission is intentionally NOT replaced/serialized: in DirtyChai
+	    // java.security.Permission is no longer Serializable, so a Permission
+	    // reaching the stream now fails loudly (NotSerializableException) rather
+	    // than being silently round-tripped via a reflective construction gadget.
 	    else if (obj instanceof Throwable) obj = new ThrowableSerializer((Throwable) obj);
 	    logger.log(Level.FINEST, "Returning object in stream instance of: {0}", obj.getClass());
 	    return obj;

@@ -104,8 +104,9 @@ import java.io.ObjectInputStream;
  * @since 2.0
  */
 public class AccessPermission extends Permission {
-    //@AtomicSerial is not implemented because PermissionSerializer will use
-    // the single arg constructor.
+    // No @AtomicSerial: Permissions are not Serializable under DirtyChai and are
+    // intentionally never marshalled (constructed locally from method names on
+    // the receiving side, never transmitted as objects).
     private static final long serialVersionUID = 7269818741475881138L;
 
     /**

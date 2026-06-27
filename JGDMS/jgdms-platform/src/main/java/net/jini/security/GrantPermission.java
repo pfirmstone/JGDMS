@@ -157,7 +157,9 @@ import net.jini.security.policy.DynamicPolicy;
  * @since 2.0
  */
 public final class GrantPermission extends Permission {
-    //@AtomicSerial is not necessary, PermissionSerializer is ok.
+    // No @AtomicSerial: Permissions are not Serializable under DirtyChai. The
+    // transient grants[] are never marshalled; grants are transmitted as policy
+    // text (String[]) and reconstructed locally, not as serialized objects.
     private static final long serialVersionUID = 4668259055340724280L;
     
     private static final Class[] PARAMS0 = {};
