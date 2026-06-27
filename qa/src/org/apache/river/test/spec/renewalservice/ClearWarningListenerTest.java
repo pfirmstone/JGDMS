@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -112,7 +113,7 @@ public class ClearWarningListenerTest extends AbstractLeaseRenewalServiceTest {
 	// register listener #1 to receive events
 	logger.log(Level.FINE, "Registering listener for warning events.");
 	logger.log(Level.FINE, "minWarning = " + minWarning + ".");
-	set.setExpirationWarningListener(rrl, minWarning, null);
+	set.setExpirationWarningListener(rrl, minWarning, (MarshalledInstance) null);
 
 	// sleep the length of the lease duration
 	rstUtil.waitForLeaseExpiration(prepareLease(set.getRenewalSetLease()), 
@@ -148,7 +149,7 @@ public class ClearWarningListenerTest extends AbstractLeaseRenewalServiceTest {
 	
 	// lease should now be expired, prove it ...
 	try {
-	    set.setExpirationWarningListener(rrl, minWarning, null);
+	    set.setExpirationWarningListener(rrl, minWarning, (MarshalledInstance) null);
 	    String message = "The set's lease did not expire as expected.";
 	    throw new TestException(message);
 	    // we should not get to this place

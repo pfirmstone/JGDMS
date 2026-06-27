@@ -62,9 +62,10 @@ public class DiscoveryConstraints {
 	}
     }
 
-    private static final Set<DiscoveryProtocolVersion> supportedProtocols = new HashSet<DiscoveryProtocolVersion>(2);
+    // Discovery protocol version 1 was removed in 4.0.0 (insecure: plaintext
+    // multicast and JOSS unicast deserialization), so only version 2 is supported.
+    private static final Set<DiscoveryProtocolVersion> supportedProtocols = new HashSet<DiscoveryProtocolVersion>(1);
     static {
-	supportedProtocols.add(DiscoveryProtocolVersion.ONE);
 	supportedProtocols.add(DiscoveryProtocolVersion.TWO);
     }
 

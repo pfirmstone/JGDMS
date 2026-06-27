@@ -21,9 +21,9 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.SyncFailedException;
-import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * This class provides the interface for writing <tt>RemoteEvent</tt>s to 
@@ -154,15 +154,15 @@ class EventWriter {
         // Set stream target
 	sout.setOutputStream(out);
 	try {
-	    // Wrap the event as a MarshalledObject so that
-	    // we can ensure a successful read later on (i.e.
-	    // should always be able to read MarshalledObject
-	    // but we might not be able to reconstruct a 
-	    // RemoteEvent object because of codebase problems).
-	    MarshalledObject mo = 
-                    new MarshalledInstance(ev).convertToMarshalledObject();
+	    // Wrap the event in a MarshalledInstance so that we can ensure a
+	    // successful read later on (i.e. should always be able to read the
+	    // MarshalledInstance but we might not be able to reconstruct a
+	    // RemoteEvent object because of codebase problems). Dual-read upgrade:
+	    // write the canonical MarshalledInstance (AtomicMarshalledInstance =
+	    // DER form, carries the schema) rather than a java.rmi.MarshalledObject.
+	    MarshalledInstance mi = new AtomicMarshalledInstance(ev);
 	    eout.reset();
-	    eout.writeObject(mo);
+	    eout.writeObject(mi);
 	    eout.flush();
 	    out.sync();
 	} finally {

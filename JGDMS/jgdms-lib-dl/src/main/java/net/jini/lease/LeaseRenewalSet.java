@@ -22,6 +22,7 @@ import java.rmi.RemoteException;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.Lease;
+import net.jini.io.MarshalledInstance;
 
 /**
  * A collection of leases being managed by a lease renewal service.
@@ -382,12 +383,50 @@ public interface LeaseRenewalSet {
      *	       <code>null</code>
      * @throws RemoteException if a communication-related exception
      *	       occurs
+     * @deprecated Use {@link #setExpirationWarningListener(RemoteEventListener, long, MarshalledInstance)};
+     *             java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries.
      */
+    @Deprecated(forRemoval = true)
     public EventRegistration setExpirationWarningListener(
-	                         RemoteEventListener listener, 
-				 long                minWarning, 
+	                         RemoteEventListener listener,
+				 long                minWarning,
 				 MarshalledObject    handback)
 	throws RemoteException;
+
+    /**
+     * Register for the expiration warning event associated with this
+     * set, passing a {@link MarshalledInstance} handback that preserves the
+     * DER schema dropped by {@link java.rmi.MarshalledObject}.
+     * <p>
+     * Behaves exactly like
+     * {@link #setExpirationWarningListener(RemoteEventListener, long, MarshalledObject)}
+     * except the handback is supplied as a <code>MarshalledInstance</code>.
+     *
+     * @param listener the listener to be notified when this event
+     *	      occurs
+     * @param minWarning how long before the lease on the set expires
+     *	      should the event be sent
+     * @param handback an object to be handed back to the listener when
+     *	      the warning event occurs
+     * @return an <code>EventRegistration</code> describing the event
+     *	       registration
+     * @throws IllegalArgumentException if <code>minWarning</code> is
+     *	       negative
+     * @throws NullPointerException if <code>listener</code> is
+     *	       <code>null</code>
+     * @throws RemoteException if a communication-related exception
+     *	       occurs
+     */
+    @SuppressWarnings({"deprecation", "removal"})
+    public default EventRegistration setExpirationWarningListener(
+	                         RemoteEventListener listener,
+				 long                minWarning,
+				 MarshalledInstance  handback)
+	throws RemoteException
+    {
+	return setExpirationWarningListener(listener, minWarning,
+	    handback == null ? null : handback.convertToMarshalledObject());
+    }
 
     /**
      * Remove the listener currently registered for expiration warning
@@ -447,11 +486,44 @@ public interface LeaseRenewalSet {
      *	       <code>null</code>
      * @throws RemoteException if a communication-related exception
      *	       occurs
+     * @deprecated Use {@link #setRenewalFailureListener(RemoteEventListener, MarshalledInstance)};
+     *             java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries.
      */
+    @Deprecated(forRemoval = true)
     public EventRegistration setRenewalFailureListener(
-				 RemoteEventListener listener, 
+				 RemoteEventListener listener,
 				 MarshalledObject    handback)
 	throws RemoteException;
+
+    /**
+     * Register for the renewal failure event associated with this set,
+     * passing a {@link MarshalledInstance} handback that preserves the DER
+     * schema dropped by {@link java.rmi.MarshalledObject}.
+     * <p>
+     * Behaves exactly like
+     * {@link #setRenewalFailureListener(RemoteEventListener, MarshalledObject)}
+     * except the handback is supplied as a <code>MarshalledInstance</code>.
+     *
+     * @param listener the listener to be notified when this event
+     *	      occurs
+     * @param handback an object to be handed back to the listener when
+     *	      the warning event occurs
+     * @return an <code>EventRegistration</code> describing the event
+     *	      registration
+     * @throws NullPointerException if <code>listener</code> is
+     *	       <code>null</code>
+     * @throws RemoteException if a communication-related exception
+     *	       occurs
+     */
+    @SuppressWarnings({"deprecation", "removal"})
+    public default EventRegistration setRenewalFailureListener(
+				 RemoteEventListener listener,
+				 MarshalledInstance  handback)
+	throws RemoteException
+    {
+	return setRenewalFailureListener(listener,
+	    handback == null ? null : handback.convertToMarshalledObject());
+    }
 
     /**
      * Remove the listener currently registered for renewal failure

@@ -29,6 +29,8 @@ import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.security.ProxyPreparer;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 
 /**
@@ -75,11 +77,36 @@ class ParticipantHandle implements Serializable, TransactionConstants {
         this(check(preparedPart), preparedPart, crashcount, ACTIVE);
     }
     
+    /**
+     * {@code @AtomicSerial} wire form: the persisted participant (a
+     * {@code StorableObject}), the crash count, and the prepare state. The live
+     * {@code preparedPart} is transient and is restored later by
+     * {@link #restoreTransientState}, exactly as on the legacy serialization path.
+     */
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("storedpart", StorableObject.class),
+            new SerialForm("crashcount", long.class),
+            new SerialForm("prepstate", int.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ParticipantHandle o) throws IOException {
+        arg.put("storedpart", o.storedpart);
+        arg.put("crashcount", o.crashcount);
+        arg.put("prepstate", o.prepstate);
+        arg.writeArgs();
+    }
+
     ParticipantHandle(GetArg arg) throws IOException, ClassNotFoundException {
-	this(check(arg), 
-		arg.get("preparedPart", null, TransactionParticipant.class),
-		arg.get("crashcount", 0),
-		arg.get("prepstate", 0));
+        StorableObject sp = arg.get("storedpart", null, StorableObject.class);
+        if (sp == null) {
+            throw new InvalidObjectException("ParticipantHandle: null storedpart");
+        }
+        this.preparedPart = null; // transient; restored later via restoreTransientState
+        this.storedpart = sp;
+        this.crashcount = arg.get("crashcount", 0L);
+        this.prepstate = arg.get("prepstate", 0);
     }
     
     /**
@@ -118,16 +145,6 @@ class ParticipantHandle implements Serializable, TransactionConstants {
 	this.prepstate = prepstate;
     }
 
-    private static boolean check(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-	try {
-	    return check(arg.get("preparedPart", null, Object.class));
-	} catch (IllegalArgumentException ex){
-	    InvalidObjectException e = new InvalidObjectException("Invariants unsatisfied");
-	    e.initCause(ex);
-	    throw e;
-	}
-    }
-    
     private static boolean check(Object preparedPart){
 	 if (preparedPart == null) 
 	    throw new NullPointerException(

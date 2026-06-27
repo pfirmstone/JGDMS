@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -135,7 +136,7 @@ public class NewListenerEventTest extends AbstractLeaseRenewalServiceTest {
 	set = prepareSet(set);
 
 	// register the listeners to receive renewal failure events
-	set.setRenewalFailureListener(failingListener, null);
+	set.setRenewalFailureListener(failingListener, (MarshalledInstance) null);
 
 	// create 3 leases that will fail during renewal attempts
 	logger.log(Level.FINE, "Creating failing lease #1 with duration of " +
@@ -177,7 +178,7 @@ public class NewListenerEventTest extends AbstractLeaseRenewalServiceTest {
 	// Replace the failing listener with a normal one
 	logger.log(Level.FINE, "Replacing failing listener with a" +
 			  " succeeding one.");
-	set.setRenewalFailureListener(normalListener, null);
+	set.setRenewalFailureListener(normalListener, (MarshalledInstance) null);
 
 	// wait for events to get forwarded
 	rstUtil.waitForRemoteEvents(normalListener, 3, renewGrant * 2);

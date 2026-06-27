@@ -129,7 +129,7 @@ public class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,
     }
     
     @AtomicSerial
-    private static class Ent<K,V> implements Entry<K,V>, Serializable {
+    static class Ent<K,V> implements Entry<K,V>, Serializable {
 	
 	private static final long serialVersionUID = 1L;
         

@@ -15,6 +15,8 @@
  */
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.DerInputLimits;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
 import java.io.IOException;
@@ -41,6 +43,9 @@ import net.jini.core.constraint.MethodConstraints;
  */
 public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
 
+    /** Per-deployment DoS limits for the client-argument input stream (see {@link DerInputLimits}). */
+    private final DerInputLimits limits;
+
     /**
      * Creates a dispatcher for the given set of remote methods.
      *
@@ -58,18 +63,41 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
                                    Class permissionClass,
                                    ClassLoader loader)
             throws ExportException {
+        this(methods, caps, serverConstraints, permissionClass, loader, DerInputLimits.DEFAULT);
+    }
+
+    /**
+     * As {@link #AtomicDerInvocationDispatcher(Collection, ServerCapabilities, MethodConstraints,
+     * Class, ClassLoader)}, with explicit DoS limits for reading client invocation arguments -- the
+     * per-deployment input cap supplied by {@link AtomicDerILFactory} from the service's
+     * {@code net.jini.config.Configuration}.
+     *
+     * @param limits the DoS limits for the argument stream (must not be {@code null};
+     *               {@link DerInputLimits#DEFAULT} for the JVM-wide default)
+     * @throws ExportException if the dispatcher cannot be created
+     */
+    public AtomicDerInvocationDispatcher(Collection methods,
+                                   ServerCapabilities caps,
+                                   MethodConstraints serverConstraints,
+                                   Class permissionClass,
+                                   ClassLoader loader,
+                                   DerInputLimits limits)
+            throws ExportException {
         // Pass the DER payload format so the superclass verifies/strips a
         // MarshallingFormat.DER requirement at export + dispatch (STD-008 sec.18.3).
         super(methods, caps, serverConstraints, permissionClass, loader,
                 net.jini.core.constraint.MarshallingFormat.DER.getFormat());
+        this.limits = java.util.Objects.requireNonNull(limits, "limits");
     }
 
     /**
      * Returns a {@link DerMarshalInputStream} reading from the request input
      * stream of {@code request}.
      *
-     * <p>Override return type is {@link ObjectInput} (the base interface).
-     * Integrity and loader are ignored -- DER carries the schema.
+     * <p>Override return type is {@link ObjectInput} (the base interface). DER carries no codebase
+     * annotation, so class names resolve against the dispatcher's stream loader
+     * ({@code getStreamLoader(impl)}) -- the endpoint-assigned loader, NOT the thread-context
+     * loader (the Warres discipline) -- carried in a {@link ResolutionContext}.
      */
     @Override
     protected ObjectInput createMarshalInputStream(Object impl,
@@ -77,7 +105,9 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
                                                    boolean integrity,
                                                    Collection context)
             throws IOException {
-        return new DerMarshalInputStream(request.getRequestInputStream());
+        ClassLoader streamLoader = getStreamLoader(impl);
+        return new DerMarshalInputStream(request.getRequestInputStream(),
+                new ResolutionContext(streamLoader, integrity, streamLoader), limits);
     }
 
     /**
@@ -97,7 +127,10 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
         if (impl == null) {
             throw new NullPointerException();
         }
-        return new DerMarshalOutputStream(request.getResponseOutputStream());
+        // Substitute a downloadable proxy return value with a DerProxySerializer carrier; the
+        // dispatcher's stream loader gates the ProxyCodebaseSpi.substitute() check.
+        return new DerMarshalOutputStream(request.getResponseOutputStream(),
+                context, getStreamLoader(impl));
     }
 
     // Visible in stack traces.

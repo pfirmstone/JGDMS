@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -130,7 +131,7 @@ public class ClearFailureListenerTest extends AbstractLeaseRenewalServiceTest {
 	// register listener to receive events
 	logger.log(Level.FINE, "Registering listener for renewal failure" +
 			  " events.");
-	set.setRenewalFailureListener(rrl  , null);
+	set.setRenewalFailureListener(rrl  , (MarshalledInstance) null);
 
 	/* create 6 test leases which will throw definite exceptions
 	   and add then to the renewal set. Three lease's expiration

@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -131,7 +132,7 @@ public class EventIDFailTest extends AbstractLeaseRenewalServiceTest {
 	// register a listener to receive renewal failure events
 	logger.log(Level.FINE, "Registering listener to receive " +
 			  "RenewalFailureEvents.");
-	EventRegistration reg = set.setRenewalFailureListener(rrl, null);
+	EventRegistration reg = set.setRenewalFailureListener(rrl, (MarshalledInstance) null);
 	reg = prepareRegistration(reg);
 
 	// validate the registration (just for grins)

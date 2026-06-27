@@ -101,16 +101,25 @@ final class WireTypes {
      *                      is malformed, or if the decoded integer value overflows
      *                      the declared type
      */
-    static Object decode(DerReader reader, String wireType) throws DerException {
+    static Object decode(DerReader reader, String wireType, ResolutionContext res) throws DerException {
         // Enum fields: "enum:<className>" (STD-008 sec.17.1)
         if (wireType.startsWith("enum:")) {
-            return decodeEnum(reader, wireType);
+            return decodeEnum(reader, wireType, res);
         }
         // Array fields: "array:<componentWireType>" (STD-008 sec.17.2)
         // Note: "array:@AtomicSerial:<class>" is NEVER decoded here; DerFieldStore
         // intercepts it and stores a NestedArrayRaw for DerGetArg to handle.
         if (wireType.startsWith("array:")) {
-            return decodeArray(reader, wireType);
+            return decodeArray(reader, wireType, res);
+        }
+
+        // A nullable scalar reference field (boxed primitive, String, byte[]) whose value was
+        // null travels as DER NULL. A primitive field never encodes null (its captured value is
+        // autoboxed non-null), so a NULL here only ever corresponds to a nullable boxed/reference
+        // field -- return null. (Enum/array nulls are handled above by decodeEnum/decodeArray.)
+        if (peekIsNull(reader)) {
+            readNull(reader);
+            return null;
         }
 
         return switch (wireType) {
@@ -277,14 +286,14 @@ final class WireTypes {
      *                      or the TLV is malformed
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    static Object decodeEnum(DerReader reader, String wireType) throws DerException {
+    static Object decodeEnum(DerReader reader, String wireType, ResolutionContext res) throws DerException {
         String className = wireType.substring(5); // strip "enum:"
         if (peekIsNull(reader)) {
             readNull(reader);
             return null;
         }
         String name = reader.readUtf8String();
-        Class<?> enumClass = loadClass(className);
+        Class<?> enumClass = loadClass(className, res);
         if (!enumClass.isEnum()) {
             throw new DerException(
                     "WireTypes.decodeEnum: class '" + className + "' is not an enum");
@@ -319,7 +328,7 @@ final class WireTypes {
      * @throws DerException if the component type is unsupported, multi-dim, or the
      *                      encoding is malformed
      */
-    static Object decodeArray(DerReader reader, String wireType) throws DerException {
+    static Object decodeArray(DerReader reader, String wireType, ResolutionContext res) throws DerException {
         if (peekIsNull(reader)) {
             readNull(reader);
             return null;
@@ -347,10 +356,10 @@ final class WireTypes {
         DerReader seq = reader.readSequence();
         List<Object> elements = new ArrayList<>();
         while (seq.hasMore()) {
-            elements.add(decodeArrayElement(seq, componentWT));
+            elements.add(decodeArrayElement(seq, componentWT, res));
         }
 
-        return buildArray(elements, componentWT);
+        return buildArray(elements, componentWT, res);
     }
 
     /**
@@ -366,7 +375,7 @@ final class WireTypes {
      * @return the decoded element value (may be {@code null} for nullable types)
      * @throws DerException if the element encoding is malformed or invalid
      */
-    private static Object decodeArrayElement(DerReader seq, String componentWT)
+    private static Object decodeArrayElement(DerReader seq, String componentWT, ResolutionContext res)
             throws DerException {
         // Nullable element types: String and enum support per-element DER NULL.
         if (componentWT.equals("java.lang.String")) {
@@ -377,10 +386,10 @@ final class WireTypes {
             return seq.readUtf8String();
         }
         if (componentWT.startsWith("enum:")) {
-            return decodeEnum(seq, componentWT);
+            return decodeEnum(seq, componentWT, res);
         }
         // Primitive types: decode normally (DER NULL is an error for primitives)
-        return decode(seq, componentWT);
+        return decode(seq, componentWT, res);
     }
 
     /**
@@ -392,7 +401,7 @@ final class WireTypes {
      * @throws DerException if the component class cannot be loaded or elements have
      *                      unexpected null values for primitive component types
      */
-    private static Object buildArray(List<Object> elements, String componentWT)
+    private static Object buildArray(List<Object> elements, String componentWT, ResolutionContext res)
             throws DerException {
         int n = elements.size();
         switch (componentWT) {
@@ -428,7 +437,7 @@ final class WireTypes {
                 // Enum array: "enum:<className>"
                 if (componentWT.startsWith("enum:")) {
                     String enumClassName = componentWT.substring(5);
-                    Class<?> enumClass = loadClass(enumClassName);
+                    Class<?> enumClass = loadClass(enumClassName, res);
                     Object arr = Array.newInstance(enumClass, n);
                     for (int i = 0; i < n; i++) {
                         Array.set(arr, i, elements.get(i)); // element may be null
@@ -477,17 +486,20 @@ final class WireTypes {
     }
 
     /**
-     * Loads a class by name using the thread-context class loader.
+     * Loads a class by name against the endpoint-assigned {@link ResolutionContext} (NOT the
+     * thread-context loader -- see {@link ResolutionContext}).
      *
      * @param className the fully-qualified class name
+     * @param res       the endpoint-assigned resolution context
      * @return the loaded class
      * @throws DerException if the class cannot be found
      */
-    private static Class<?> loadClass(String className) throws DerException {
+    private static Class<?> loadClass(String className, ResolutionContext res) throws DerException {
         try {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            if (cl == null) cl = ClassLoader.getSystemClassLoader();
-            return Class.forName(className, false, cl);
+            // Endpoint-assigned resolution via ClassLoading -- NEVER the thread-context loader
+            // (the Warres ambient-resolution failure). DER carries no codebase, so the name
+            // resolves against the endpoint's defaultLoader through the preferred/OSGi-aware SPI.
+            return res.loadClass(className);
         } catch (ClassNotFoundException ex) {
             DerException de = new DerException(
                     "WireTypes: cannot load class '" + className + "'");

@@ -71,6 +71,8 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Replace;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 import org.apache.river.thread.Executor;
@@ -214,6 +216,7 @@ import org.apache.river.phoenix.common.ActivationGroupData;
  * @since 2.0
  **/
 @AtomicSerial
+@AtomicSerial.Stateless
 abstract class AbstractActivationGroup extends ActivationGroup
     implements ServerProxyTrust, Replace
 {
@@ -457,7 +460,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * proxy), that writeReplaces itself to the original.
      */
     @AtomicSerial
-    private static class WrappedGID extends ActivationGroupIDImpl {
+    static class WrappedGID extends ActivationGroupIDImpl {
 	/** Original gid */
 	private final ActivationGroupID id;
 	/** Prepared system proxy */
@@ -469,6 +472,19 @@ abstract class AbstractActivationGroup extends ActivationGroup
 	    this.sys = sys;
 	}
 	
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("id", ActivationGroupID.class),
+		new SerialForm("sys", ActivationSystem.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, WrappedGID w) throws IOException {
+	    arg.put("id", w.id);
+	    arg.put("sys", w.sys);
+	    arg.writeArgs();
+	}
+
 	public WrappedGID(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg.get("id", null, ActivationGroupID.class),
 		    arg.get("sys", null, ActivationSystem.class));

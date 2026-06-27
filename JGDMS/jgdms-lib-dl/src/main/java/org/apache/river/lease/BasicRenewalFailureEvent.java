@@ -121,9 +121,35 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
      *        <code>null</code> in which case <code>getThrowable</code> will
      *        return <code>null</code>.
      */
+    /**
+     * @deprecated Use the MarshalledInstance-handback constructor;
+     *             java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries.
+     */
+    @Deprecated(forRemoval = true)
     public BasicRenewalFailureEvent(LeaseRenewalSet source, 
 				    long seqNum,
 				    MarshalledObject handback,
+				    MarshalledInstance marshalledLease,
+				    MarshalledInstance marshalledThrowable) 
+    {
+	super(source, seqNum, handback);
+	this.marshalledThrowable = marshalledThrowable;
+	this.marshalledLease = marshalledLease;
+    }
+
+    /**
+     * Constructor taking a MarshalledInstance handback (preserves DER schema fields).
+     *
+     * @param source the LeaseRenewalSet that generated the event
+     * @param seqNum the sequence number of this event
+     * @param handback the client handback
+     * @param marshalledLease the lease which could not be renewed, marshalled
+     * @param marshalledThrowable the first exception thrown in the last chain of
+     *        renewal failures, marshalled; may be null
+     */
+    public BasicRenewalFailureEvent(LeaseRenewalSet source, 
+				    long seqNum,
+				    MarshalledInstance handback,
 				    MarshalledInstance marshalledLease,
 				    MarshalledInstance marshalledThrowable) 
     {

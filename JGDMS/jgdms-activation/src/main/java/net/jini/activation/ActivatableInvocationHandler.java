@@ -57,6 +57,8 @@ import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Resolve;
 import org.apache.river.api.io.Valid;
 import org.apache.river.jeri.internal.runtime.Util;
@@ -184,6 +186,21 @@ public final class ActivatableInvocationHandler
 	}
     }
     
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("id", Object.class),
+	    new SerialForm("uproxy", Remote.class),
+	    new SerialForm("clientConstraints", MethodConstraints.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, ActivatableInvocationHandler o) throws IOException {
+	arg.put("id", o.id);
+	arg.put("uproxy", o.uproxy);
+	arg.put("clientConstraints", o.clientConstraints);
+	arg.writeArgs();
+    }
+
     public ActivatableInvocationHandler(GetArg arg) throws IOException, ClassNotFoundException {
 	this(Valid.notNull(arg.get("id", null, ActivationID.class), "id is null"),
 	     arg.get("uproxy",null, Remote.class),

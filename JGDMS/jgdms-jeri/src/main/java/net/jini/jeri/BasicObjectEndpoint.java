@@ -51,8 +51,6 @@ import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.jeri.internal.runtime.DgcClient;
@@ -289,14 +287,6 @@ public final class BasicObjectEndpoint
 	return true;
     }
     
-    /**
-     * {@link AtomicSerial} to maintain backward compatibility with existing serial form. 
-     * @return 
-     */
-    @ReadInput
-    private static ReadObject getRO(){
-	return new RO();
-    }
     
     /**
      * {@link AtomicSerial} constructor.
@@ -317,57 +307,41 @@ public final class BasicObjectEndpoint
 	 * deserialized can be registered in one batch.
 	 */
 	if (dgc) {
-	    RO r = (RO) arg.getReader();
 	    DgcBatchContext batchContext;
 	    /*
-	     * Resolve the per-decode-unit token. On the JOSS/atomic path the RO reader
-	     * is present and its backing ObjectInputStream is the token (registered
-	     * validations run automatically on outermost-readObject completion). On the
-	     * DER (or any non-JOSS) path there is no reader and no automatic trigger, so
-	     * the token is the DeserializationCompletion context element, whose callbacks
-	     * the deserializer fires when the decode unit completes -- after the value
-	     * sequence is read and BEFORE the stream/ack closes (SRC RR-116 dirty-before-ack).
+	     * Resolve the per-decode-unit token: the DeserializationCompletion context
+	     * element (exactly one per decode unit), present on both the JOSS/atomic and
+	     * DER paths -- the JOSS stream now surfaces one adapting registerValidation.
+	     * Its callbacks fire when the decode unit completes, after the value sequence
+	     * is read and BEFORE the stream/ack closes (SRC RR-116 dirty-before-ack), so
+	     * the batched client DGC dirty call is issued at the right time.
 	     */
-	    final boolean joss = (r != null);
-	    final Object token;
-	    if (joss) {
-		token = r.in;
-	    } else {
-		DeserializationCompletion completion = null;
-		for (Object next : arg.getObjectStreamContext()) {
-		    if (next instanceof DeserializationCompletion) {
-			completion = (DeserializationCompletion) next;
-			break;
-		    }
+	    DeserializationCompletion completion = null;
+	    for (Object next : arg.getObjectStreamContext()) {
+		if (next instanceof DeserializationCompletion) {
+		    completion = (DeserializationCompletion) next;
+		    break;
 		}
-		if (completion == null) {
-		    throw new InvalidObjectException(
-			"DGC-enabled BasicObjectEndpoint deserialized on a stream providing"
-			+ " neither a ReadObject reader nor a DeserializationCompletion"
-			+ " context element; cannot register the batched client DGC dirty call");
-		}
-		token = completion;
 	    }
+	    if (completion == null) {
+		throw new InvalidObjectException(
+		    "DGC-enabled BasicObjectEndpoint deserialized on a stream providing no"
+		    + " DeserializationCompletion context element; cannot register the"
+		    + " batched client DGC dirty call");
+	    }
+	    final Object token = completion;
 	    /*
-	     * REMIND: short circuit lookup with thread local,
-	     * to avoid synchronization overhead in the common case?
-	     *
-	     * Peter Firmstone, 13th December 2014: This synchronization
-	     * appears to be uncontended in stress tests; there is no 
-	     * need to optimise at this time.
+	     * Peter Firmstone, 13th December 2014: This synchronization appears to be
+	     * uncontended in stress tests; there is no need to optimise at this time.
 	     */
 	    synchronized (streamBatches) {
 		batchContext = streamBatches.get(token);
 		if (batchContext == null) {
 		    batchContext = new DgcBatchContext();
-		    try {				// REMIND: priority??
-			if (joss) {
-			    ((ObjectInputStream) r.in).registerValidation(batchContext, 0);
-			} else {
-			    // NotActiveException (an IOException) propagates as a decode failure.
-			    ((DeserializationCompletion) token).registerCompletion(batchContext, 0);
-			}
-		    } catch (InvalidObjectException e) { // should be NPE
+		    try {
+			// NotActiveException (an IOException) propagates as a decode failure.
+			completion.registerCompletion(batchContext, 0);
+		    } catch (InvalidObjectException e) { // batchContext non-null, so unreachable
 			throw new AssertionError();
 		    }
 		    streamBatches.put(token, batchContext);
@@ -827,17 +801,6 @@ public final class BasicObjectEndpoint
 	}
     }
 
-    private static final class RO implements ReadObject{
-	
-//	DgcBatchContext batchContext;
-	private ObjectInput in;
-
-	@Override
-	public void read(ObjectInput in) throws IOException, ClassNotFoundException {
-	    this.in = in;
-	}
-	
-    }
 
     /**
      * Collects live references to be registered with the local

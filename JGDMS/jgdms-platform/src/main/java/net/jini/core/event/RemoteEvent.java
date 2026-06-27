@@ -222,11 +222,14 @@ public class RemoteEvent extends java.util.EventObject {
      * @param source    an <tt>Object</tt> representing the event source
      * @param eventID   a <tt>long</tt> containing the event identifier
      * @param seqNum    a <tt>long</tt> containing the event sequence number
-     * @param handback  a <tt>MarshalledObject</tt> that was passed in 
+     * @param handback  a <tt>MarshalledObject</tt> that was passed in
      *                  as part of the original event registration.
      * @since 1.0
+     * @deprecated Use {@link #RemoteEvent(Object, long, long, MarshalledInstance)}
+     *             instead; java.rmi.MarshalledObject drops the DER schema fields that
+     *             a MarshalledInstance carries.
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public RemoteEvent(Object source, long eventID, long seqNum,
 		       MarshalledObject handback) {
 	super(source);
@@ -293,10 +296,12 @@ public class RemoteEvent extends java.util.EventObject {
      * 
      * @return the MarshalledObject that was provided as a parameter to
      *         the event interest registration method, if any. 
-     * @deprecated Use {@link #getRegistrationInstance() } instead.
+     * @deprecated Use {@link #getRegistrationInstance() } instead;
+     *             java.rmi.MarshalledObject drops the DER schema fields that a
+     *             MarshalledInstance carries (and conversion fails for a DER instance).
      * @since 1.0
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public MarshalledObject getRegistrationObject() {
 	if (handback == null && miHandback != null) return miHandback.convertToMarshalledObject();
 	return handback;

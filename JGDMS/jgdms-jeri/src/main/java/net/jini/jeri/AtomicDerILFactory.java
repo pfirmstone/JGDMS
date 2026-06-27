@@ -15,6 +15,8 @@
  */
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.DerInputLimitControl;
+import au.net.zeus.jgdms.der.DerInputLimits;
 import java.lang.reflect.InvocationHandler;
 import java.rmi.Remote;
 import java.rmi.server.ExportException;
@@ -43,6 +45,9 @@ import net.jini.core.constraint.MethodConstraints;
  */
 public class AtomicDerILFactory extends BasicILFactory {
 
+    /** Per-deployment DoS limits for reading client invocation arguments (see {@link DerInputLimits}). */
+    private final DerInputLimits limits;
+
     /**
      * Creates a {@code AtomicDerILFactory} with the specified server constraints,
      * permission class, and class loader.
@@ -56,6 +61,7 @@ public class AtomicDerILFactory extends BasicILFactory {
                         Class permissionClass,
                         ClassLoader loader) {
         super(serverConstraints, permissionClass, notNull(loader));
+        this.limits = DerInputLimits.DEFAULT;
     }
 
     /**
@@ -71,6 +77,25 @@ public class AtomicDerILFactory extends BasicILFactory {
     public AtomicDerILFactory(MethodConstraints serverConstraints,
                         Class proxyOrServiceImplClass) {
         super(serverConstraints, null, proxyOrServiceImplClass.getClassLoader());
+        this.limits = DerInputLimits.DEFAULT;
+    }
+
+    /**
+     * Creates a {@code AtomicDerILFactory} with the specified server constraints, proxy-or-service
+     * class, and per-deployment {@link DerInputLimits} for reading client invocation arguments.
+     * A service sets its own input cap from its {@code net.jini.config.Configuration}, e.g.
+     * {@code new AtomicDerILFactory(null, MyService.class, DerInputLimits.maxBytes(64 * 1024 * 1024))}.
+     *
+     * @param serverConstraints the server constraints, or {@code null}
+     * @param proxyOrServiceImplClass the smart-proxy class or service interface (must not be null)
+     * @param limits the DoS limits for the argument stream (must not be {@code null})
+     * @throws NullPointerException if {@code proxyOrServiceImplClass} or {@code limits} is null
+     */
+    public AtomicDerILFactory(MethodConstraints serverConstraints,
+                        Class proxyOrServiceImplClass,
+                        DerInputLimits limits) {
+        super(serverConstraints, null, proxyOrServiceImplClass.getClassLoader());
+        this.limits = notNull(limits);
     }
 
     /**
@@ -88,11 +113,29 @@ public class AtomicDerILFactory extends BasicILFactory {
                         Class proxyOrServiceImplClass) {
         super(serverConstraints, permissionClass,
               proxyOrServiceImplClass.getClassLoader());
+        this.limits = DerInputLimits.DEFAULT;
     }
 
     private static <T> T notNull(T obj) {
         if (obj == null) throw new NullPointerException();
         return obj;
+    }
+
+    /**
+     * Adds {@link DerInputLimitControl} to the proxy's interfaces (beyond the
+     * {@code RemoteMethodControl} and {@code TrustEquivalence} added by the superclass), so a client
+     * can set its own per-deployment return-value DoS cap on a received proxy via the standard
+     * proxy-control idiom.
+     *
+     * @throws NullPointerException {@inheritDoc}
+     */
+    @Override
+    protected Class[] getExtraProxyInterfaces(Remote impl) {
+        Class[] base = super.getExtraProxyInterfaces(impl); // {RemoteMethodControl, TrustEquivalence}
+        Class[] out = new Class[base.length + 1];
+        System.arraycopy(base, 0, out, 0, base.length);
+        out[base.length] = DerInputLimitControl.class;
+        return out;
     }
 
     /**
@@ -135,7 +178,8 @@ public class AtomicDerILFactory extends BasicILFactory {
         return new AtomicDerInvocationDispatcher(methods, caps,
                                            getServerConstraints(),
                                            getPermissionClass(),
-                                           getClassLoader());
+                                           getClassLoader(),
+                                           limits);
     }
 
     @Override

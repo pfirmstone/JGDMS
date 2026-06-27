@@ -152,8 +152,13 @@ class EventReader {
 	try {
 	    // Retrieve next event which was stored as a 
 	    // MarshalledObject and return its contents.
-	    MarshalledObject mo = (MarshalledObject)ein.readObject();
-	    return (RemoteEvent) new MarshalledInstance(mo).get(false);
+	    // Dual-read: accept a legacy java.rmi.MarshalledObject or a new
+	    // MarshalledInstance; normalize to the canonical instance.
+	    Object o = ein.readObject();
+	    MarshalledInstance mi = (o instanceof MarshalledInstance)
+		    ? (MarshalledInstance) o
+		    : new MarshalledInstance((MarshalledObject) o);
+	    return (RemoteEvent) mi.get(false);
 	} finally {
 	    // Reset target stream to null
 	    sin.setInputStream(null);

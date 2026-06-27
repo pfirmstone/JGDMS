@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Initialization data for <code> ActivationGroupImpl</code>, to control the
@@ -53,6 +55,17 @@ public class ActivationGroupData implements Serializable {
 	this.config = (config == null ? null : (String[]) config.clone());
     }
     
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("config", String[].class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ActivationGroupData d) throws IOException {
+        arg.put("config", d.config);
+        arg.writeArgs();
+    }
+
     ActivationGroupData(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("config", null, String[].class));
     }

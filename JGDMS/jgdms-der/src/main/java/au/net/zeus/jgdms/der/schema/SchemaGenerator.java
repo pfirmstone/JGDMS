@@ -19,6 +19,8 @@ package au.net.zeus.jgdms.der.schema;
 
 import au.net.zeus.jgdms.der.DerException;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.MarshalDelegate;
+import org.apache.river.api.io.MarshalDelegates;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -164,7 +166,30 @@ public final class SchemaGenerator {
      */
     public static SchemaChain.Result generateChain(Class<?> leafClass) throws DerException {
         Objects.requireNonNull(leafClass, "leafClass");
+        // The schema chain is a pure, immutable function of the class (its hierarchy + each class's
+        // static serialForm()), so memoise it per class: this removes the per-object reflection
+        // (serialForm) and SHA-256 (schema digests) cost from the marshalling hot path. Failures
+        // are deterministic per class and are cached too (as the message) and re-thrown fresh.
+        Object v = CHAIN_CACHE.get(leafClass);
+        if (v instanceof SchemaChain.Result r) {
+            return r;
+        }
+        throw new DerException((String) v);
+    }
 
+    /** Memoised {@link #generateChain}: a {@link SchemaChain.Result} on success, the failure message otherwise. */
+    private static final ClassValue<Object> CHAIN_CACHE = new ClassValue<Object>() {
+        @Override
+        protected Object computeValue(Class<?> type) {
+            try {
+                return generateChainUncached(type);
+            } catch (DerException e) {
+                return e.getMessage() != null ? e.getMessage() : e.toString();
+            }
+        }
+    };
+
+    private static SchemaChain.Result generateChainUncached(Class<?> leafClass) throws DerException {
         // Walk from leaf up to Object, collecting @AtomicSerial classes (leaf-first)
         List<AtomicSerialSchemaRecord> rawRecords = new ArrayList<>();
         Class<?> current = leafClass;
@@ -198,6 +223,18 @@ public final class SchemaGenerator {
      */
     private static AtomicSerial.SerialForm[] invokeSerialForm(Class<?> clazz)
             throws DerException {
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(clazz);
+        if (delegate != null) {
+            // In-package dispatch: the class's own serialForm() with no reflection
+            // into its package-private members; reflection below is the fallback.
+            AtomicSerial.SerialForm[] forms = delegate.serialForm(clazz);
+            if (forms == null) {
+                throw new DerException(
+                        "SchemaGenerator: serialForm() on " + clazz.getName()
+                        + " returned null");
+            }
+            return forms;
+        }
         Method method;
         try {
             method = clazz.getMethod("serialForm");
@@ -206,7 +243,8 @@ public final class SchemaGenerator {
                     "SchemaGenerator: class " + clazz.getName()
                     + " has no public static serialForm() method");
         }
-        method.setAccessible(true);
+        String sv = MarshalDelegates.strictBlockClass(clazz, "serialForm()");
+        if (sv != null) throw new DerException(sv);
         try {
             Object result = method.invoke(null);
             if (result == null) {

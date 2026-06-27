@@ -165,7 +165,7 @@ public interface ServiceRegistrar {
      *         specified remote listener
      * @throws java.rmi.RemoteException if a connection problem occurs.
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     EventRegistration notify(ServiceTemplate tmpl,
 			     int transitions,
 			     RemoteEventListener listener,

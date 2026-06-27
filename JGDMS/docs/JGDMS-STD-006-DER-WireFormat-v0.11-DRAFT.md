@@ -254,6 +254,23 @@ intrinsic to the value; it is neither asserted nor relied upon on the wire where
 is an imposed behavioural contract; all other behaviour belongs in the constructor.*
 Order-significant fields are annotated as such in their ASN.1 module (§7).
 
+**Opaque-octet carve-out.** Where a field value is an externally-produced DER
+structure — an X.509 `Certificate`, an X.501 `Name` (`X500Principal`), the output of
+`java.security.Signature` — the value is carried as **opaque octets, preserved
+byte-for-byte** (an `OCTET STRING` holding exactly the source's `getEncoded()` bytes),
+and is **never parsed, re-encoded, sorted, or re-canonicalised** by this format. Such
+structures are produced and validated by an external authority (a CA, the JDK
+certificate factory, a signing key), and their bytes are frequently *not* strict DER —
+BER-permissive length forms and legacy `TeletexString` attribute values are common in
+the wild. Because these values typically sit under a signature or digest, any
+re-encoding pass would change their bytes and break the very signature that
+authenticates them. The acceptability of the *inner* bytes is the external authority's
+contract (PKIX path validation, the signature check), never this codec's; this codec's
+only obligations are the outer TLV framing and the schema `SIZE` bound. An implementer
+who re-encodes an embedded certificate or `Name` — even to "normalise" it — corrupts a
+signed value. This carve-out is referenced normatively by §7.3, §7.4.1, §7.6, and
+§7.7.7.
+
 ---
 
 ### 3.9 Private Namespace Invariant
@@ -447,46 +464,145 @@ ENUMERATED is more compact. Recommendation leans OID for forward-compatibility.]
 
 ---
 
-## 5. Version Negotiation and Coexistence
+## 5. Wire-Format Selection and Coexistence
 
-### 5.1 Wire Format as a Method Constraint **[PROPOSED]**
+JGDMS 4.0 carries two marshalling formats — DER (this standard) and legacy Java Object
+Serialization (JOSS) — which must coexist during migration from the 3.X series. The
+selection mechanism is **built** (JGDMS-STD-008 §18.3); this section documents it and
+supersedes the earlier `WireFormat`/protocol-version-byte sketch.
 
-DER and legacy Java-serialization encodings coexist during migration. The selected
-encoding is expressed through the existing JERI `MethodConstraints` mechanism, the
-same way `AtomicInputValidation.YES`, `Confidentiality.YES`, etc. are expressed
-today. A proposed constraint:
+### 5.1 `MarshallingFormat` — selection as an `InvocationConstraint`
 
-```
-WireFormat.DER        — this endpoint requires DER encoding
-WireFormat.JAVA       — legacy Java serialization (default during transition)
-WireFormat.ANY        — negotiable; highest mutually-supported wins
-```
+The marshalling format is named by a first-class `InvocationConstraint`,
+`net.jini.core.constraint.MarshallingFormat`, resolved by the existing JERI constraint
+machinery exactly as `Integrity`, `Confidentiality`, and `AtomicInputValidation` are:
 
-Because constraints are enforced *before bytes leave the client*
-(`UnsupportedConstraintException` is thrown at constraint resolution time), an
-endpoint can require `WireFormat.DER` and have that requirement enforced with the
-same fail-before-transmission property already guaranteed for authentication and
-confidentiality. Security-sensitive endpoints migrate first; the rest follow
-incrementally.
+- `MarshallingFormat.DER` — identifier `"JGDMS-STD-006/DER"`.
+- `MarshallingFormat.JOSS` — identifier `"JOSS"`.
 
-### 5.2 Protocol Version Marker
+The constraint carries the format **identifier string** rather than being an
+enumeration, so further formats (e.g. CBOR) can be added without a wire change; the
+identifier is the same self-describing `payloadFormat` that `MarshalledInstance` carries
+as first-class state (§7.8, STD-008 §13). There is deliberately **no `ANY` value** — the
+*absence* of a `MarshallingFormat` requirement is the negotiable case.
 
-The JERI wire protocol version byte (currently `0x02` for the multi-Subject block)
-gains a successor value for the DER framing. **[OPEN: choose value, e.g. `0x03`;
-confirm there is no collision with any in-use value and that the dispatcher can
-branch on it cleanly.]**
+A `MarshallingFormat` requirement is a **policy assertion checked fail-fast**, not a
+per-call negotiation: the codec is fixed at export time by the proxy's
+`InvocationLayerFactory`. A DER service exports with `AtomicDerILFactory` (yielding an
+`AtomicDerInvocationHandler`/`Dispatcher` pair); a JOSS service exports with the basic
+factory. On the client, `BasicInvocationHandler.requireMarshallingFormat` throws
+`UnsupportedConstraintException` *before bytes leave the client* if a required format
+does not match the proxy's configured codec; on the server,
+`BasicInvocationDispatcher.verifyAndStripMarshallingFormat` rejects a mismatched
+requirement and strips the constraint before the transport sees it. So requiring
+`MarshallingFormat.DER` carries the same fail-before-transmission guarantee already given
+for authentication and confidentiality.
 
-### 5.3 Migration End-State
+The constraint is decode *policy*; the proxy's configured codec is decode *mechanism*. A
+receiver always needs the mechanism (it must know how to decode an inbound request) — but
+it needs the `MarshallingFormat` *class* only to express or enforce a *requirement*. A
+client that simply uses whatever codec its proxy was built with never references the class.
 
-Once a DER implementation exists and is deployed, `WireFormat.JAVA` is deprecated:
+### 5.2 No protocol-version-byte successor
 
-- New deployments default to `WireFormat.DER`.
-- The SCAP `AtomicSerialComplianceVisitor` already flags non-`@AtomicSerial`
-  classes as `DANGEROUS`; those are precisely the classes that cannot ride the DER
-  path cleanly, so the deprecation pressure and the existing safety pipeline point
-  the same direction.
-- Java serialization support is retained only as a read-path compatibility shim for
-  a defined deprecation window, then removed (mirrors STD-003 §14 phased approach).
+DER is **not** a new value of the `BasicInvocationDispatcher` request version byte. That
+byte (`0x00` `PREVIOUS_VERSION`; `0x01` `VERSION` — shipped in 3.X; `0x02`
+`VERSION_WITH_PRINCIPALS_AND_ACC` — unreleased) remains private to the JOSS invocation
+layer. DER is a **separate invocation layer** — the `AtomicDer*` handler/dispatcher pair
+selected per-proxy by the `InvocationLayerFactory` as in §5.1 — not a discriminator octet
+in the JOSS dispatcher's stream. The earlier "version byte gains a `0x03` successor"
+sketch is withdrawn.
+
+> **[NOTE — envelope vs payload]** `AtomicDerInvocationDispatcher` inherits
+> `BasicInvocationDispatcher.dispatch()` and overrides only the arg/return marshal
+> streams. The call *envelope* (the request preamble — integrity/atomic flags, user
+> `Subject`s, and the serialized `AccessControlContext`) is therefore still JOSS-marshalled
+> even on DER calls. DER-ising the envelope is tracked as a migration item (STD-008 §18.3);
+> see §5.4 Tier 0.
+
+### 5.3 Coexistence: the proxy carries its codec; DER rides as downloaded code
+
+Coexistence uses the standard Jini property that **a proxy carries its own invocation
+layer**. A client "discovers" a service's format by the proxy it receives from the lookup
+service — there is no separate format-negotiation protocol. Consequently:
+
+- The **DER codec is mobile code.** `jgdms-der` and the `AtomicDer*` JERI classes ship in
+  the downloadable `-dl` codebase, and the DER object stream carries no codebase annotation
+  (§8). A 4.0 service proxy's codebase is provisioned over the **authenticated** bootstrap
+  path (`CodebaseAccessor` / `ProxyCodebaseSpi`): the bootstrap proxy is reconstructed from
+  local classes, authenticated (SPIFFE/TLS server principals), and only *then* are
+  `DownloadPermission`/`DeSerializationPermission` granted and the JARs fetched —
+  **authentication strictly precedes download** (no in-stream-annotation fallback; §8). A
+  client need not have the DER codec pre-installed.
+- A client therefore needs, **locally**, only: the Atomic-JOSS engine for the
+  discovery/bootstrap layer, and a thin **DER-awareness shim** — the 4.0 `MarshalledInstance`
+  (to recognise `payloadFormat` and route an inbound DER payload to the codec) plus the
+  uncoupled `AtomicSerial` engine. `MarshallingFormat` is **not** required locally to *use* a
+  DER proxy; it is needed only to *require* DER (§5.1).
+- Deserialization is **CNFE-tolerant** across the version gap. A proxy whose constrained
+  method signatures reference types the client lacks does not fault on deserialization:
+  `net.jini.constraint.StringMethodConstraints` conveys method names and parameter **types by
+  name** (string), expressly "to avoid `ClassNotFoundException`s … when classes don't exist."
+  (Verified: a `StringMethodConstraints` naming a non-existent parameter type round-trips with
+  no CNFE — `StringMethodConstraintsCnfeTest`.) Combined with format-as-string conveyance and
+  `@AtomicSerial` schema tolerance (a newer `MarshalledInstance`'s extra fields are dropped,
+  not faulted), an older client receives and uses a newer proxy without crashing.
+
+The two directions of a 3.X ↔ 4.0 mixed deployment:
+
+- **3.X client → 4.0 service:** works iff the 4.0 service offers a JOSS-capable endpoint for
+  it (the 4.0 JOSS dispatcher still accepts `0x00`/`0x01`).
+- **4.0 client → 3.X service:** the 3.X service offers only a JOSS proxy; the client uses
+  JOSS unless it *requires* `MarshallingFormat.DER`, in which case the call correctly fails
+  fast.
+
+> **[OPEN — dual-export]** A no-full-shutdown 3.X→4.0 upgrade needs a single 4.0 service to
+> offer a JOSS proxy *and* a DER proxy concurrently, so old and new clients both reach it
+> during the window. Whether the export path supports concurrent dual-export is unconfirmed;
+> the `InvocationLayerFactory` is one-per-export.
+>
+> **[TO CONFIRM]** That no `AtomicDer` export path bakes a `MarshallingFormat` object into a
+> transmitted proxy's constraints. If none does, `MarshallingFormat` never travels and is
+> purely a client-side opt-in (consistent with §5.1).
+
+### 5.4 Migration order (threat-model driven)
+
+`@AtomicSerial`-over-JOSS removes post-parse gadget execution but retains the JOSS
+stream-grammar parser (handle/back-reference graph, allocate-before-validate, in-stream
+class resolution) as residual attack surface. Severity is dominated by *who can deliver the
+bytes*, so migrate the least-trusted edges first:
+
+- **Tier 0 — the invocation envelope.** Even DER calls still JOSS-deserialise the request
+  preamble (user `Subject`s + `AccessControlContext`, §5.2). One fix removes a JOSS
+  deserialisation from *every* call path; do it first (STD-008 §18.3).
+- **Tier 1 — discovery.** Multicast announcement/request and the unicast response
+  deserialise a proxy from the least-authenticated position.
+- **Tier 2 — broad-aperture servers** ingesting untrusted marshalled content from many
+  authenticated clients: the lookup service, JavaSpaces (entries), the transaction manager
+  (participants), the event mailbox.
+- **Tier 3 — clients** deserialising proxies and return values from semi-trusted peers.
+- **Tier 4 — local persistence** read (JOSS retained read-only; see §5.5) — last, off the
+  network.
+
+Requiring `MarshallingFormat.DER` on an endpoint is the **firewall**: it fail-fast rejects
+any call that would otherwise ride JOSS, so a security-sensitive endpoint is never silently
+downgraded. On a transport without confidentiality+integrity, DER-requiring endpoints MUST
+require `MarshallingFormat.DER` (no negotiable fallback), since a plaintext format selection
+is downgrade-attackable.
+
+### 5.5 End state
+
+After the migration window, JOSS is removed from the wire entirely:
+
+- New and migrated deployments are DER-only; there is no `WireFormat.JAVA` negotiation to
+  attack.
+- The SCAP `AtomicSerialComplianceVisitor` already flags non-`@AtomicSerial` classes as
+  `DANGEROUS` — precisely the classes that cannot ride the DER path — so the deprecation
+  pressure and the safety pipeline point the same way.
+- The Atomic-JOSS engine is retained **read-only** solely to migrate 3.X-persisted state
+  (JOSS-atomic streams, recognised by their `0xAC 0xED` magic vs DER's `0x30`). It belongs in
+  a **one-shot offline migrator**, not the network-facing runtime, so the JOSS grammar parser
+  leaves the long-running TCB at cutover (mirrors STD-003 §14 phased approach).
 
 ---
 
@@ -608,7 +724,7 @@ DigestValue ::= SEQUENCE {
 ```asn1
 DigestCodeSourceRecord ::= SEQUENCE {
     locationUri     UTF8String,          -- RFC 3986; locator, not trust anchor
-    certificates    SEQUENCE SIZE(0..100) OF Certificate OPTIONAL,  -- MAX_CERT_COUNT
+    certificates    SEQUENCE SIZE(0..100) OF OCTET STRING OPTIONAL,  -- MAX_CERT_COUNT; each = X509Certificate.getEncoded(), opaque & verbatim (§3.8), SIZE(1..65536)
     digest          DigestValue
     -- equality/identity is (uri, certs, algorithm, digestBytes) per DigestCodeSource
     -- a plain CodeSource (no digest) is a DISTINCT identity and MUST NOT be
@@ -617,7 +733,13 @@ DigestCodeSourceRecord ::= SEQUENCE {
 ```
 
 **[OPEN]** Confirm against `DigestCodeSource.java`:
-- Certificate encoding (X.509 DER `Certificate` reused — consistency win).
+- Certificate encoding (**NORMATIVE**): each certificate is an opaque `OCTET STRING`
+  holding the exact bytes of `X509Certificate.getEncoded()`, preserved verbatim and
+  never parsed-and-re-encoded (§3.8 opaque-octet carve-out). The earlier
+  `OF Certificate` (inline X.509 type) form is **withdrawn**: it would invite a
+  conforming decoder to parse and re-encode the certificate, and a non-strict-DER
+  certificate would then fail its own digest. Order within the `SEQUENCE` is the
+  certificate-path order and is order-significant (§3.8) — never sorted or deduplicated.
 - The DOS bounds (MAX_CERT_COUNT=100, MAX_CERT_BYTES=64KiB, MAX_DIGEST_BYTES=512)
   become schema `SIZE` constraints so a non-JVM decoder enforces them identically.
 - Whether the `httpmd:` URL form is represented as `locationUri` with the digest in
@@ -653,15 +775,32 @@ SignedObject ::= SEQUENCE {
 -- Phoenix key) and the verification rules are unchanged from STD-002.
 ```
 
-**[OPEN]** The critical correctness point: the *signature input* must be the DER
-encoding of the `tbs`, computed identically on signer and verifier. Today the signed
-bytes are the Java-serialized form; under DER the signed bytes become the canonical
-DER of the `tbs`. This is a **breaking change to signature computation** and must be
-versioned carefully — a verdict signed under Java serialization cannot be verified
-against its DER re-encoding. The verdict cache (keyed by content hash, STD-002) is
-unaffected since the JAR content hash is independent of verdict encoding, but the
-verdict *signature* path needs a clear cutover. **This deserves its own subsection
-before implementation.**
+The *signature input* must be the canonical DER of the `tbs`, computed identically on
+signer and verifier — specified normatively in §7.4.1 below. Under Java serialization
+the signed bytes were the Java-serialized form; under DER they are the canonical DER of
+the `tbs`. **SCAP is unreleased, so this is a clean break, not a compatibility
+problem:** there are no deployed Java-serialized verdicts that must remain verifiable,
+so no dual-format cutover and no signature-format versioning are required — the DER
+signature input is simply *the* format from first release. (The verdict cache, keyed by
+the JAR content hash per STD-002, is independent of verdict encoding and is unaffected
+regardless.)
+
+#### 7.4.1 Signature input (NORMATIVE)
+
+The signed octets are the bytes of the `tbs` `OCTET STRING` exactly as they appear in
+the `SignedObject`. The signer encodes the to-be-signed content to canonical DER
+**once**, places those bytes in `tbs`, and signs them. The verifier reads the `tbs`
+`OCTET STRING` off the wire and verifies the signature against the received bytes
+**without re-encoding them** — it MUST NOT decode `tbs` into its fields and
+re-serialise before verifying. Any certificate, `Name`, or nested signature inside
+`tbs` is itself opaque octets (§3.8) and is likewise never re-encoded. Carrying `tbs`
+as an explicit `OCTET STRING` (rather than an inline `SEQUENCE` the verifier must
+rebuild) is what guarantees byte agreement between signer and verifier: a single
+non-strict-DER embedded value cannot change the signed bytes, so it cannot break an
+otherwise-valid signature. The same rule governs record-level signatures that carry no
+`tbs` wrapper (§7.7.7): the signature input is `DER(preceding-fields-as-a-SEQUENCE)`,
+computed once by the signer and verified against the SEQUENCE reconstructed from the
+received fields.
 
 ### 7.5 Policy: PermissionGrant / DigestGrant  **[OPEN]**
 
@@ -702,8 +841,8 @@ The irreducible substituted types requiring their own DER form:
 | Type | Current serializer | Proposed DER form | Status |
 |---|---|---|---|
 | `Byte`/`Short`/`Integer`/`Long` | boxed-primitive serializers | `INTEGER` (value-bounded) | [PROPOSED] |
-| `Float`/`Double` | boxed-primitive serializers | `REAL`, or `OCTET STRING` of IEEE-754 bits | **[OPEN: REAL is awkward; IEEE-754 bits is deterministic and cross-language safe — recommend the latter]** |
-| `Character` | `CharSerializer` | `INTEGER (0..65535)` | [PROPOSED] |
+| `Float`/`Double` | boxed-primitive serializers | `OCTET STRING` of IEEE-754 bits (4/8 bytes, big-endian), strict-canonical | **[RESOLVED — STD-008 §17.3.1]** |
+| `Character` | `CharSerializer` | `INTEGER` (Unicode codepoint; BMP non-surrogate) | **[RESOLVED — STD-008 §17.3.2]** |
 | `Boolean` | `BooleanSerializer` | `BOOLEAN` | [PROPOSED] |
 | `Properties` | `PropertiesSerializer` | `SEQUENCE OF SEQUENCE { key UTF8String, value UTF8String }` (behavioural; unordered) | **[OPEN: confirm Properties values are always String]** |
 | `URL` | `URLSerializer` | `UTF8String` (RFC 3986; locator, no DNS) | **[OPEN: URL vs URI normalisation]** |
@@ -712,11 +851,31 @@ The irreducible substituted types requiring their own DER form:
 | `File` | `FileSerializer` | `UTF8String` path **[OPEN: platform path semantics — is File even sent across runtimes? May be JVM-internal only]** | **[OPEN]** |
 | `MarshalledObject` | `MarshalledObjectSerializer` | nested frame: `SEQUENCE { objectBytes OCTET STRING, locationBytes OCTET STRING, codebaseAnnotation ... }` | **[OPEN: this is itself a serialized-object container — define carefully; it nests the wire format inside itself]** |
 | `StackTraceElement` | `StackTraceElementSerializer` | `SEQUENCE { declaringClass UTF8String, methodName UTF8String, fileName UTF8String OPTIONAL, lineNumber INTEGER }` | [PROPOSED] |
-| `X500Principal` | `X500PrincipalSerializer` | DER `Name` (X.501) — **already DER-native**; reuse X.509 `Name` encoding directly | **[PROPOSED — consistency win; confirm getEncoded() round-trips]** |
+| `X500Principal` | `X500PrincipalSerializer` | `OCTET STRING` = `X500Principal.getEncoded()` — opaque & verbatim (§3.8), never re-encoded | **[RESOLVED — opaque octets; see note below]** |
 | `Date` | `DateSerializer` | `INTEGER` epoch-millis | **[OPEN: epoch-millis INTEGER vs GeneralizedTime — recommend epoch-millis for exact round-trip and no timezone ambiguity]** |
 | `Permission` | `PermissionSerializer` | `SEQUENCE { className UTF8String, name UTF8String OPTIONAL, actions UTF8String OPTIONAL }` | **[OPEN: confirm the safe shape — class + target/name + actions]** |
 | `Throwable` | `ThrowableSerializer` | see below | **[OPEN]** |
 | `AccessControlContext` | `AccessControlContextSerializer` | §7.2 `AccessControlContextRecord` | drafted §7.2 |
+
+**`Float` / `Double` / `Character` (strict-canonical, per STD-008 §17.3).** The boxed
+wrappers use the same canonical wire form as the primitive `float` / `double` / `char`
+types: `Float`/`Double` as a fixed-width IEEE-754 `OCTET STRING` (4 / 8 bytes,
+big-endian) and `Character` as a DER `INTEGER` Unicode codepoint. Canonicalisation is
+symmetric — the encoder emits the canonical quiet-NaN (`0x7FC00000` /
+`0x7FF8000000000000`) and `+0.0`, and the decoder *rejects* non-canonical NaN, `-0.0`
+bits, wrong length, and surrogate / supplementary-plane codepoints fail-secure
+(STD-008 §17.3.1–.2). ASN.1 `REAL` is not used.
+
+**`X500Principal` (verbatim, not re-encoded).** Although an X.501 `Name` is DER-native,
+it MUST be carried as opaque octets — the exact bytes of `X500Principal.getEncoded()` —
+not parsed into RDNs and re-encoded. X.500 attribute values carry a choice of string
+type (`PrintableString` / `UTF8String` / the legacy `TeletexString`), and a re-encoding
+pass can legitimately alter both the chosen tag and the bytes (e.g. normalising
+`TeletexString` to `UTF8String`). When the `Name` sits inside a signed structure — a
+SPIFFE/X.509 principal chain (§7.1), a multicast signer principal (§7.7.7), a SCAP
+verdict (§7.4) — any such change breaks the signature. `getEncoded()` round-trips its
+own bytes by construction; §9 requires a conformance test proving a `Name` with a
+`TeletexString` AVA survives encode→decode byte-for-byte.
 
 **`Throwable` (security-sensitive).** `Throwable` is a classic gadget vector under
 ordinary Java serialization; routing it through `ThrowableSerializer` rather than
@@ -1037,12 +1196,15 @@ MulticastRequestRecord ::= SEQUENCE {
 }
 ```
 
-**TBS (to-be-signed) content.** The signature covers all fields of the record
-preceding `signature`, in the order declared. Both encoder and verifier must
-produce byte-identical DER of those fields. **[OPEN]** Confirm whether the
-signature input is `DER(all-preceding-fields-as-a-SEQUENCE)` or the concatenated
-raw DER octets of each field individually. The former is preferred (canonical,
-unambiguous, requires only one DER encoding pass).
+**TBS (to-be-signed) content (NORMATIVE).** The signature covers all fields of the
+record preceding `signature`, in the order declared, encoded as
+`DER(all-preceding-fields-as-a-SEQUENCE)` — one canonical DER `SEQUENCE` containing
+those fields, **not** the concatenated raw DER octets of each field individually
+(canonical, unambiguous, one encoding pass). The signer computes that `SEQUENCE` once
+and signs its octets; the verifier reconstructs the identical `SEQUENCE` from the
+received fields and verifies. The embedded `signerCert` is opaque octets (§3.8) and
+contributes its verbatim bytes, so a non-strict-DER leaf certificate cannot break an
+otherwise-valid announcement signature. (Same rule as the SCAP signature input, §7.4.1.)
 
 **[OPEN] MTU constraint.** The existing Jini multicast datagram is tuned for
 ~512–1500 byte UDP payloads. Including a DER-encoded leaf certificate (typically
@@ -1313,10 +1475,18 @@ A conforming implementation:
    uniqueness, and null-policy after validation.
 6. Preserves `SEQUENCE OF` ordering where ordering is semantically required (§7.1
    Subject order and principal-chain order, ACC domain order, §7.6 stack-trace order).
-7. Computes signatures over the canonical DER of the `tbs` (§7.4).
-8. Runs the STD-001 `check()` validation contract on decoded values before treating
+7. **Carries externally-produced DER structures — X.509 `Certificate`, X.501 `Name`
+   (`X500Principal`), nested signatures — as opaque `OCTET STRING` octets captured
+   verbatim from `getEncoded()`, and never parses, re-encodes, sorts, or
+   re-canonicalises them (§3.8 opaque-octet carve-out).** A conformance suite MUST
+   demonstrate byte-for-byte survival of a non-strict-DER ("BER-ish") certificate and
+   of a `Name` bearing a `TeletexString` attribute value.
+8. Computes signatures over the canonical DER of the `tbs` (§7.4.1), and over
+   `DER(preceding-fields-as-a-SEQUENCE)` for record-level signatures (§7.7.7),
+   verifying against the received octets without re-encoding them.
+9. Runs the STD-001 `check()` validation contract on decoded values before treating
    any object as constructed.
-9. Replicates the encoder obligations documented as **[OPEN]** here (e.g. the
+10. Replicates the encoder obligations documented as **[OPEN]** here (e.g. the
    `jrt:/java.base` `anonCount` exclusion) so that JVM and non-JVM encoders produce
    byte-identical output for identical logical content (required for any
    signature-bearing type).
@@ -1336,16 +1506,16 @@ Consolidated list of every **[OPEN]** above, for the next working session:
    schema constraints). Note: `DigestCodeSourceRecord` represents ACC *domain
    identity* only — not a stream annotation and carries no URL-locator role.
    The `httpmd:` fragment normalisation into an explicit `digest` field still applies.
-6. §7.4 — Full SCAP object field lists from STD-002; **signature-input cutover**
-   design (Java-serialized-bytes → canonical-DER-bytes is breaking; requires
-   explicit versioning).
+6. §7.4 — Full SCAP object field lists from STD-002. (Signature-input form RESOLVED in
+   §7.4.1: canonical DER of `tbs`. No cutover or signature-format versioning needed —
+   SCAP is unreleased, so the DER signature input is the format from first release.)
 7. §7.5 — Whether/how `PermissionGrant`/`DigestGrant` travel the wire; STD-004
    field layout.
 8. §7.6 — Confirm the complete substituted-type set against the live `serializers`
-   map and `defaultReplaceObject` fallbacks; settle `Float`/`Double` (IEEE-754 bits
-   vs REAL), `Date` (epoch-millis vs GeneralizedTime), `MarshalledObject`
-   nested-frame structure and bounds, `Throwable` cause-chain depth / stack-trace
-   bounds, `File` cross-runtime applicability.
+   map and `defaultReplaceObject` fallbacks; settle `Date` (epoch-millis vs
+   GeneralizedTime), `MarshalledObject` nested-frame structure and bounds, `Throwable`
+   cause-chain depth / stack-trace bounds, `File` cross-runtime applicability.
+   (`Float`/`Double`/`Character` RESOLVED — STD-008 §17.3.)
 9. §7.7.1 — **Hash algorithm migration** (most consequential): settle Option A/B/C
    for coexistence of RULE-7 legacy hash with DER `SHA-256(DER(...))`. Recommendation:
    Option B (version tag in `EntryRecord`). Confirm before implementation.
@@ -1718,7 +1888,7 @@ is not needed and must not be assumed available.
 | Standard | Relationship |
 |---|---|
 | JGDMS-STD-001 (@AtomicSerial) | STD-006 is the canonical *encoding* for `@AtomicSerial` objects; STD-001 remains the *validation* contract, unchanged. STD-001 should reference STD-006 as its default wire encoding once DRAFT is promoted. |
-| JGDMS-STD-002 (SCAP) | SCAP data objects (§7.4) get ASN.1 modules here; the signature-input cutover (§7.4 [OPEN]) is a coordination point with STD-002. |
+| JGDMS-STD-002 (SCAP) | SCAP data objects (§7.4) get ASN.1 modules here; signature input is the canonical DER of `tbs` (§7.4.1) — clean break, no cutover (SCAP unreleased). |
 | JGDMS-STD-003 (Multi-Subject Identity) | The `UserSubjectBlock` (§7.1) and `AccessControlContextRecord` (§7.2) are the wire encodings of the STD-003 identity model. The `WorkerSubject` is never on the wire (ambient via ProtectionDomain); only `UserSubject` principals and the ACC domain records travel. |
 | JGDMS-STD-004 (Policy File Syntax) | If grants travel the wire (§7.5), their DER form is defined here; the policy *file* syntax in STD-004 is unaffected. |
 | JGDMS-STD-005 (SerialEntry Compliance) | `@SerialEntry` classes follow STD-005's validation contract. The DER encoding of `entryForm()` → `EntrySchemaRecord` (§7.7.1) is the canonical encoding for cross-runtime use. STD-005 Appendix B records this relationship and the hash migration note. `PutEntryArg`/`GetEntryArg` are encoding-neutral interfaces; the DER implementation plugs in without modifying any `@SerialEntry` class. |

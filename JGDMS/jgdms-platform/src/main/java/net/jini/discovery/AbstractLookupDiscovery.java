@@ -1072,7 +1072,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 
 	/** Returns <code>true</code> if currentNum is a new sequence number 
 	 * that needs to be inspected. A -1 occurs if the announcement had no
-	 * sequence number (for e.g. DiscoveryV1) or the service had been
+	 * sequence number or the service had been
 	 * discovered through unicast discovery. REMIND: Ideally the
 	 * message should have a flag which indicates no sequence number instead
 	 * of overloading the -1 value
@@ -2958,8 +2958,6 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	throws DiscoveryProtocolException
     {
 	switch (version) {
-	    case Discovery.PROTOCOL_VERSION_1:
-		return Discovery.getProtocol1();
 	    case Discovery.PROTOCOL_VERSION_2:
 		return protocol2;
 	    default:

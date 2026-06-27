@@ -35,6 +35,8 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.config.Config;
 
 /**
@@ -303,6 +305,23 @@ public class SharedActivatableServiceDescriptor
             this.proxy = proxy;
         }//end constructor
     }//end class Created
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("sharedGroupLog", String.class),
+            new SerialForm("restart", Boolean.TYPE),
+            new SerialForm("host", String.class),
+            new SerialForm("port", Integer.TYPE)
+        };
+    }
+
+    public static void serialize(PutArg arg, SharedActivatableServiceDescriptor d) throws IOException {
+        arg.put("sharedGroupLog", d.sharedGroupLog);
+        arg.put("restart", d.restart);
+        arg.put("host", d.host);
+        arg.put("port", d.port);
+        arg.writeArgs();
+    }
 
     public SharedActivatableServiceDescriptor(GetArg arg) 
 	    throws IOException, ClassNotFoundException{

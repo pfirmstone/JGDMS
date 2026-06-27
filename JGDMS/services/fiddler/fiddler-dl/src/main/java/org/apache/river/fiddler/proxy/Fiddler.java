@@ -32,6 +32,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import net.jini.io.MarshalledInstance;
 
 /**
  * This interface defines the private protocol between the client-side
@@ -128,7 +129,7 @@ public interface Fiddler extends Remote, Administrable, FiddlerAdmin,
      *                       from which the set of registrars is being 
      *                       retrieved
      * 
-     * @return an array of MarshalledObject objects where each element is
+     * @return an array of MarshalledInstance objects where each element is
      *         is a marshalled instance of ServiceRegistrar.
      * 
      * @throws java.rmi.RemoteException typically, this exception occurs when
@@ -160,7 +161,7 @@ public interface Fiddler extends Remote, Administrable, FiddlerAdmin,
      *
      * @see net.jini.discovery.LookupDiscoveryRegistration#getRegistrars
      */
-    MarshalledObject[] getRegistrars(Uuid registrationID)
+    MarshalledInstance[] getRegistrars(Uuid registrationID)
                                              throws RemoteException, ThrowThis;
     /**
      * Returns an array consisting of the names of the groups whose members

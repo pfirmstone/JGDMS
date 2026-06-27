@@ -25,8 +25,8 @@ import net.jini.io.MarshalledInstance;
 import net.jini.space.JavaSpace;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.landlord.LeasedResource;
 import org.apache.river.logging.Levels;
 import org.apache.river.proxy.CodebaseProvider;
@@ -456,7 +456,30 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 	Object	id = arg.get("id", null); // space-relative stor
 	if (id != null && !((id instanceof Uuid))) throw 
 		new InvalidObjectException("id must be an instance of Uuid");
-	return ((RO) arg.getReader()).integrity;
+	return MarshalledWrapper.integrityEnforced(arg);
+    }
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("values", MarshalledInstance[].class),
+            new SerialForm("superclasses", String[].class),
+            new SerialForm("hashes", long[].class),
+            new SerialForm("hash", long.class),
+            new SerialForm("className", String.class),
+            new SerialForm("codebase", String.class),
+            new SerialForm("id", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, EntryRep o) throws IOException {
+        arg.put("values", o.values);
+        arg.put("superclasses", o.superclasses);
+        arg.put("hashes", o.hashes);
+        arg.put("hash", o.hash);
+        arg.put("className", o.className);
+        arg.put("codebase", o.codebase);
+        arg.put("id", o.id);
+        arg.writeArgs();
     }
 
     private EntryRep(GetArg arg, boolean integrity) throws IOException, ClassNotFoundException {
@@ -478,22 +501,6 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     /** Used in recovery */
     public EntryRep() { }
 
-    @ReadInput
-    private static ReadObject getRO() {
-	return new RO();
-    }
-    
-    private static class RO implements ReadObject {
-
-	boolean integrity;
-	
-	@Override
-	public void read(ObjectInput input) throws IOException, ClassNotFoundException {
-	    // get value for integrity flag
-	    integrity = MarshalledWrapper.integrityEnforced((ObjectInputStream)input);
-	}
-    
-    }
 
 
     /** Used to look up no-arg constructors.  */

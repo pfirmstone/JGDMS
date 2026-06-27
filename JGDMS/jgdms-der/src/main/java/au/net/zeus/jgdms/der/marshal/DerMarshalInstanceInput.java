@@ -17,9 +17,13 @@
 
 package au.net.zeus.jgdms.der.marshal;
 
+import au.net.zeus.jgdms.der.DerInputLimits;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
+import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 import net.jini.io.MarshalInstanceInput;
 import org.apache.river.api.io.AtomicObjectInput;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidObjectException;
@@ -66,10 +70,27 @@ import java.util.Optional;
  */
 public final class DerMarshalInstanceInput implements MarshalInstanceInput, AtomicObjectInput {
 
+    /**
+     * Per-thread decode-recursion depth for the cross-stream MarshalledInstance-in-MarshalledInstance
+     * guard (see {@link #readObject(Class)}). A {@link ScopedValue} (not a {@code ThreadLocal} --
+     * virtual threads) bound around each decode and read by any nested decode reached via
+     * {@code serviceProxy.get()} on the same call stack.
+     */
+    private static final ScopedValue<Integer> DECODE_DEPTH = ScopedValue.newInstance();
+
     private final byte[]     payloadBytes;
     private final byte[]     schemaBytes;
     private final Collection context;
     private final InputStream objIn;  // kept for close()
+    /**
+     * The endpoint-assigned {@link ResolutionContext} (the unmarshalling stream's
+     * {default, verifier} loaders + integrity setting). Class names resolve against the
+     * endpoint loader, not the thread-context loader (the Warres failure). A {@code ClassLoader}
+     * is a capability: this is threaded into the decode via trusted channels only (a narrow
+     * package-private {@code DerGetArg} accessor for {@code DerProxySerializer}, and the
+     * object-stream codec), and is NEVER broadcast through {@code getObjectStreamContext()}.
+     */
+    private final ResolutionContext resolution;
 
     /**
      * Constructs a new input from an already-separated payload stream and schema bytes.
@@ -83,14 +104,21 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
      *                    {@code MarshalledInstance.schemaBytes} field (must not be null;
      *                    must be the output of {@link DerMarshalInstanceOutput#getSchemaBytes()})
      * @param context     the serialization context collection; may be empty, must not be null
+     * @param defaultLoader           the endpoint's default class loader, or {@code null}
+     * @param verifyCodebaseIntegrity whether codebase integrity is verified (moot for DER's
+     *                                no-annotation class resolution, carried for fidelity)
+     * @param verifierLoader          the endpoint's verifier class loader, or {@code null}
      * @throws IOException if reading from {@code objIn} fails
      */
-    public DerMarshalInstanceInput(InputStream objIn, byte[] schemaBytes, Collection context)
+    public DerMarshalInstanceInput(InputStream objIn, byte[] schemaBytes, Collection context,
+                                   ClassLoader defaultLoader, boolean verifyCodebaseIntegrity,
+                                   ClassLoader verifierLoader)
             throws IOException {
         this.objIn       = Objects.requireNonNull(objIn,       "objIn");
         this.schemaBytes = Objects.requireNonNull(schemaBytes, "schemaBytes");
         this.context     = Objects.requireNonNull(context,     "context");
-        this.payloadBytes = objIn.readAllBytes();
+        this.resolution  = new ResolutionContext(defaultLoader, verifyCodebaseIntegrity, verifierLoader);
+        this.payloadBytes = DerInputLimits.DEFAULT.readAllBytesBounded(objIn); // bounded: refuse oversize input (DoS)
     }
 
     // -------------------------------------------------------------------------
@@ -116,6 +144,42 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
      */
     @Override
     public <T> T readObject(Class<T> type) throws IOException, ClassNotFoundException {
+        // Cross-stream recursion guard: a MarshalledInstance can contain another (a DerProxySerializer
+        // carrier's readResolve unmarshals its serviceProxy via get() -> a fresh DerMarshalInstanceInput),
+        // and that recursion is NOT bounded by ObjectCodec.MAX_NESTING (each get() is a fresh depth-0
+        // decode). Bound it with a ScopedValue depth counter -- ScopedValue, not ThreadLocal (virtual
+        // threads); it propagates down the synchronous get() call stack -- so a deeply nested chain of
+        // carriers fails with a clean exception rather than a StackOverflowError.
+        int depth = DECODE_DEPTH.orElse(0);
+        int maxNesting = DerInputLimits.DEFAULT.maxMarshalledInstanceNesting();
+        if (depth >= maxNesting) {
+            throw new InvalidObjectException(
+                    "DER MarshalledInstance decode recursion reached the limit of " + maxNesting
+                    + " (au.net.zeus.jgdms.der.maxMarshalledInstanceNesting); possible nested-serializer DoS");
+        }
+        try {
+            return ScopedValue.where(DECODE_DEPTH, depth + 1).call(() -> readObjectImpl(type));
+        } catch (IOException | ClassNotFoundException | RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            // CallableOp's checked LUB is Exception; readObjectImpl only throws IOException/CNFE,
+            // so this is unreachable -- wrap defensively rather than swallow.
+            throw new IOException("DER MarshalledInstance decode failed", e);
+        }
+    }
+
+    private <T> T readObjectImpl(Class<T> type) throws IOException, ClassNotFoundException {
+        // Empty schemaBytes is the sentinel for the OBJECT-STREAM form (e.g. a bare
+        // java.lang.reflect.Proxy [8] item) written by DerMarshalInstanceOutput when the
+        // marshalled object had no separable @AtomicSerial schema. Decode it via the DER
+        // object-stream codec rather than reconstructing a MarshalledInstanceRecord. The
+        // endpoint resolution context is threaded through so [8] interface/handler classes
+        // resolve against the endpoint loader (NOT the thread-context loader).
+        if (schemaBytes == null || schemaBytes.length == 0) {
+            DerMarshalInputStream in = new DerMarshalInputStream(
+                    new ByteArrayInputStream(payloadBytes), resolution);
+            return in.readObject(type);
+        }
         try {
             // Reconstruct MarshalledInstanceRecord from the two separate first-class fields.
             // Parse the schema chain to derive the leaf digest (needed by the canonical
@@ -136,7 +200,25 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
                     Optional.empty(),
                     MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
-            return MarshalledInstanceCodec.decodeMarshalledInstance(rec, type).object();
+            // Decode at Object.class, NOT `type`: a @AtomicSerial SERIALIZER whose own class is not
+            // assignable to `type` -- a DerProxySerializer carrier that resolves to a proxy of
+            // `type` -- must not be rejected by the pre-construction assignability check before
+            // readResolve runs. JOSS parity: apply readResolve to the ROOT object so the carrier
+            // resolves to the real (downloaded/unmarshalled) proxy; plain @AtomicSerial values (not
+            // Resolve) pass through unchanged (nested fields are already resolved by decodeNested).
+            Object obj = MarshalledInstanceCodec.decodeMarshalledInstance(
+                    rec, Object.class, null, resolution).object();
+            Object resolved = au.net.zeus.jgdms.der.serial.DerReplacer.resolve(obj);
+            // Enforce the requested type against the RESOLVED value (the same type guarantee as the
+            // pre-construction check, applied to what the caller actually receives).
+            if (resolved != null && type != null && !type.isAssignableFrom(resolved.getClass())) {
+                throw new InvalidObjectException(
+                        "DER MarshalledInstance: resolved object of type " + resolved.getClass().getName()
+                        + " is not assignable to the requested type " + type.getName());
+            }
+            @SuppressWarnings("unchecked")
+            T result = (T) resolved;
+            return result;
         } catch (au.net.zeus.jgdms.der.DerException e) {
             throw new IOException("DER decoding failed: " + e.getMessage(), e);
         }

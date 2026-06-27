@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -151,25 +152,23 @@ public class ClearEventRegistrationTest extends AbstractLeaseRenewalServiceTest 
 	logger.log(Level.FINE, "Registering failing listener #1 with set #1" +
 			  " for\n" + "expiration warning events : " +
 			  "minWarning = " + minWarning);
-	set01.setExpirationWarningListener(failingListener01, minWarning,
-					   null);
+	set01.setExpirationWarningListener(failingListener01, minWarning, (MarshalledInstance) null);
 
 	// register a normal listener for expiration warning events
 	logger.log(Level.FINE, "Registering normal listener #1 with set #2" +
 			  " for\n" + "expiration warning events : " +
 			  "minWarning = " + minWarning);
-	set02.setExpirationWarningListener(normalListener01, minWarning,
-					   null);
+	set02.setExpirationWarningListener(normalListener01, minWarning, (MarshalledInstance) null);
 
 	// register a failing listener for renewal failure events
 	logger.log(Level.FINE, "Registering failing listener #2 with set #2" +
 			  " for renewal failure events");
-	set02.setRenewalFailureListener(failingListener02, null);
+	set02.setRenewalFailureListener(failingListener02, (MarshalledInstance) null);
 
 	// register a normal listener for renewal failure events
 	logger.log(Level.FINE, "Registering normal listener #2 with set #1" +
 			  " for renewal failure events");
-	set01.setRenewalFailureListener(normalListener02, null);
+	set01.setRenewalFailureListener(normalListener02, (MarshalledInstance) null);
 
 	// create a 2 leases that will fail on renewal
 	long renewGrant = renewSetDur * 5 / 10;

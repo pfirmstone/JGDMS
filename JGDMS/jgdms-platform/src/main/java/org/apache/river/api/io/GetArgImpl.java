@@ -19,7 +19,6 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
-import java.io.InvalidObjectException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.util.Collection;
@@ -40,8 +39,8 @@ import net.jini.io.ObjectStreamContext;
  *       per field, called at most once by the memoizing base;</li>
  *   <li>the {@link #isDefaulted(Class, String)} presence hook -- decode-free,
  *       so {@code defaulted()} stays side-effect free;</li>
- *   <li>the impl-specific metadata methods {@code serialClasses()},
- *       {@code getReader()} and {@code getObjectStreamContext()}.</li>
+ *   <li>the impl-specific metadata methods {@code serialClasses()} and
+ *       {@code getObjectStreamContext()}.</li>
  * </ul>
  *
  * <p>The old per-call caller resolution (a {@code SecurityManager} subclass
@@ -53,13 +52,11 @@ import net.jini.io.ObjectStreamContext;
 class GetArgImpl extends AtomicSerial.GetArg {
 
     final Map<Class, ObjectInputStream.GetField> classFields;
-    final Map<Class, AtomicSerial.ReadObject> readers;
     final ObjectInput in;
 
-    GetArgImpl(Map<Class, ObjectInputStream.GetField> args, Map<Class, AtomicSerial.ReadObject> readers, ObjectInput in) {
+    GetArgImpl(Map<Class, ObjectInputStream.GetField> args, ObjectInput in) {
 	super(); // protected GetArg() is a no-op since the 4.0.0 guard drop.
 	classFields = args;
-	this.readers = readers;
 	this.in = in;
     }
 
@@ -96,15 +93,5 @@ class GetArgImpl extends AtomicSerial.GetArg {
     @Override
     public Class[] serialClasses() {
 	return classFields.keySet().toArray(new Class[classFields.size()]);
-    }
-
-    @Override
-    public AtomicSerial.ReadObject getReader() {
-	try {
-	    return readers.get(callerClass());
-	} catch (InvalidObjectException e) {
-	    // Caller class not resolvable -> no @ReadInput reader for it.
-	    return null;
-	}
     }
 }

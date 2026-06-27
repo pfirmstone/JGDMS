@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -139,8 +140,7 @@ public class EventRegistrationTest extends AbstractLeaseRenewalServiceTest {
 
 	// register first listener for ExpirationWarningEvents
 	EventRegistration evReg = 
-	    renewalSet[0].setExpirationWarningListener(listener[0], 1, 
-						       null);
+	    renewalSet[0].setExpirationWarningListener(listener[0], 1, (MarshalledInstance) null);
 	evReg = prepareRegistration(evReg);
 	
 	/* ASSERTION #1
@@ -154,7 +154,7 @@ public class EventRegistrationTest extends AbstractLeaseRenewalServiceTest {
 	}
 
 	// register for RenewalFailureEvents
-	evReg = renewalSet[0].setRenewalFailureListener(listener[0], null);
+	evReg = renewalSet[0].setRenewalFailureListener(listener[0], (MarshalledInstance) null);
 	evReg = prepareRegistration(evReg);
 	
 	/* ASSERTION #1 cont'd
@@ -171,12 +171,11 @@ public class EventRegistrationTest extends AbstractLeaseRenewalServiceTest {
 	// register all twenty remote listeners
 	for (int i = 0; i < NUMBER_OF_RENEWAL_SETS; ++i) {
 	    evReg = 
-		renewalSet[i].setExpirationWarningListener(listener[i], 1, 
-							   null);
+		renewalSet[i].setExpirationWarningListener(listener[i], 1, (MarshalledInstance) null);
 	    evReg = prepareRegistration(evReg);
 	    warnReg[i] = evReg;
 	    evReg = 
-		renewalSet[i].setRenewalFailureListener(listener[i], null);
+		renewalSet[i].setRenewalFailureListener(listener[i], (MarshalledInstance) null);
 	    evReg = prepareRegistration(evReg);
 	    failReg[i] = evReg;
 	}
@@ -206,7 +205,7 @@ public class EventRegistrationTest extends AbstractLeaseRenewalServiceTest {
 		new RememberingRemoteListener(getExporter());
 	    evReg = 
 		renewalSet[0].setExpirationWarningListener(newListener,
-							   1, null);
+							   1, (MarshalledInstance) null);
 	    evReg = prepareRegistration(evReg);
 
 	    /* ASSERTION #3
@@ -229,8 +228,7 @@ public class EventRegistrationTest extends AbstractLeaseRenewalServiceTest {
 	       When a listener is replaced the event registration has
 	       the same event id */
 	    evReg = 
-		renewalSet[0].setRenewalFailureListener(newListener,
-							null);
+		renewalSet[0].setRenewalFailureListener(newListener, (MarshalledInstance) null);
 	    evReg = prepareRegistration(evReg);
 	    if (! (evReg.getID() == failReg[0].getID())) {
 		String message = "When a failure registration is " +

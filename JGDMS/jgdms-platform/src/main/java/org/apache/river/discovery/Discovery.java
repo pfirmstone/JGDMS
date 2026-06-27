@@ -33,31 +33,15 @@ import net.jini.io.UnsupportedConstraintException;
 
 /**
  * <p>
- * Class providing methods for participating in versions 1 and 2 of the
+ * Class providing methods for participating in version 2 of the
  * discovery protocol. </p>
  *
  * <b>Logging</b>
  * <p>
  *
- * This implementation uses the {@link java.util.logging.Logger}s named
- * <code>org.apache.river.discovery.DiscoveryV1</code> and
+ * This implementation uses the {@link java.util.logging.Logger} named
  * <code>org.apache.river.discovery.DiscoveryV2</code> to log information at the
  * following logging levels: </p>
- *
- * <table border="1" cellpadding="5"
- *	  summary="Describes logging performed by the
- *		   Discovery class to the DiscoveryV1 logger at various
- *		   logging levels">
- *
- * <caption><b><code>org.apache.river.discovery.DiscoveryV1</code></b></caption>
- *
- * <tr> <th scope="col"> Level <th scope="col"> Description
- *
- * <tr> <td> {@link java.util.logging.Level#FINEST FINEST}
- *	<td> Encoding and decoding of discovery protocol version 1 multicast
- *	     requests, multicast announcements, and unicast responses
- *
- * </table>
  *
  * <table border="1" cellpadding="5"
  *	  summary="Describes logging performed by the
@@ -90,23 +74,12 @@ import net.jini.io.UnsupportedConstraintException;
  */
 public abstract class Discovery {
 
-    /** The version number for discovery protocol version 1. */
-    public static final int PROTOCOL_VERSION_1 = 1;
-
     /** The version number for discovery protocol version 2. */
     public static final int PROTOCOL_VERSION_2 = 2;
 
     static final int MIN_MAX_PACKET_SIZE = 512;
    
     private static Logger logger = Logger.getLogger(Discovery.class.getCanonicalName());
-    /**
-     * Returns an instance implementing protocol version 1.
-     *
-     * @return an instance implementing protocol version 1
-     */
-    public static Discovery getProtocol1() {
-	return DiscoveryV1.getInstance();
-    }
 
     /**
      * Returns an instance implementing protocol version 2 which uses providers

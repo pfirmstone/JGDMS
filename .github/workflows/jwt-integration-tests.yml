@@ -154,14 +154,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # -----------------------------------------------------------------------
-      # Build jgdms-platform (required by jgdms-security-jwt at compile time)
+      # Build jgdms-platform (required by jgdms-security-jwt at compile time).
+      # jgdms-marshal-delegate-processor is the @AtomicSerial MarshalDelegate
+      # annotation processor wired into every module's annotationProcessorPaths;
+      # --also-make does not pull it in (it is not a normal dependency), so it
+      # must be listed explicitly or the scoped reactor cannot resolve the
+      # 3.1.1-SNAPSHOT and jgdms-collections fails at compile.
       # -----------------------------------------------------------------------
       - name: Build dependencies (jgdms-platform)
         if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
         working-directory: JGDMS
         run: |
           mvn install -DskipTests \
-            -pl jgdms-platform --also-make \
+            -pl jgdms-marshal-delegate-processor,jgdms-platform --also-make \
             --no-transfer-progress -q
         env:
           JAVA_HOME: ${{ env.JAVA_HOME }}

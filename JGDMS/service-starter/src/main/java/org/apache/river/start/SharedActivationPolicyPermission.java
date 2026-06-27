@@ -36,6 +36,8 @@ import java.util.Collections;
 import java.util.Enumeration;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.net.Uri;
 
@@ -126,6 +128,17 @@ public final class SharedActivationPolicyPermission extends Permission
 	this.policyPermission = policyPermission;
     }
     
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("policy", String.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, SharedActivationPolicyPermission p) throws IOException {
+        arg.put("policy", p.getName());
+        arg.writeArgs();
+    }
+
     public SharedActivationPolicyPermission(GetArg arg) 
 	    throws IOException, ClassNotFoundException{
 	this(

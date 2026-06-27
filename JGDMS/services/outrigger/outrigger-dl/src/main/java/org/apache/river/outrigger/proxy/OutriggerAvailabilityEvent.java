@@ -80,7 +80,7 @@ public class OutriggerAvailabilityEvent extends AvailabilityEvent implements Pro
      *                  must also signal a transition from
      *                  invisible to visible
      * @param rep       the entry that triggered the event
-     * @deprecated
+     * @deprecated To be removed; use the MarshalledInstance-handback constructor (java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries).
      */
     @Deprecated
     public OutriggerAvailabilityEvent(JavaSpace source, long eventID, 

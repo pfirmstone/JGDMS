@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -194,12 +195,12 @@ public class EventLeaseTest extends AbstractLeaseRenewalServiceTest {
 	logger.log(Level.FINE, "Registering listener for expiration" +
 			  " warning events.");
 	logger.log(Level.FINE, "minWarning = " + minWarning + " milliseconds.");
-	set.setExpirationWarningListener(warnListener, minWarning, null);
+	set.setExpirationWarningListener(warnListener, minWarning, (MarshalledInstance) null);
 
 	// register listener to receive renewal failure events
 	logger.log(Level.FINE, "Registering listener for renewal" +
 			  " failure events.");
-	set.setRenewalFailureListener(failListener, null);
+	set.setRenewalFailureListener(failListener, (MarshalledInstance) null);
 
 	/* wait for the events to get arrive. We do this by creating
 	   two threads that wait for the events to arrive and then

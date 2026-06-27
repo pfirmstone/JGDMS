@@ -25,6 +25,7 @@ import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * This class holds a proxy for some remote resource. When
@@ -38,8 +39,8 @@ import net.jini.security.ProxyPreparer;
  *
  */
 class StorableReference implements Externalizable {
-    /** The proxy in marshalled form */
-    private MarshalledObject bytes;
+    /** The proxy in marshalled form (canonical MarshalledInstance; carries the DER schema) */
+    private MarshalledInstance instance;
 
     /** A cached copy of the unmarshalled proxy */
     private transient Object obj;
@@ -100,7 +101,7 @@ class StorableReference implements Externalizable {
 	 */
 
 	if (obj == null)
-	    obj = new MarshalledInstance(bytes).get(false);
+	    obj = instance.get(false);
 
 	if (!prepared) {
 	    if (preparer != null)
@@ -117,18 +118,22 @@ class StorableReference implements Externalizable {
     // inherit doc comment
     public void writeExternal(ObjectOutput out) throws IOException {
 	synchronized (this) {
-	    if (bytes == null)
-		bytes = new MarshalledInstance(obj).convertToMarshalledObject();
-            out.writeObject(bytes);
+	    if (instance == null)
+		instance = new AtomicMarshalledInstance(obj);   // DER form carries the schema
+            out.writeObject(instance);
 	}
     }
 
     // inherit doc comment
     public void readExternal(ObjectInput in)
-	throws IOException, ClassNotFoundException 
+	throws IOException, ClassNotFoundException
     {
         synchronized (this){
-            bytes = (MarshalledObject)in.readObject();
+            // Dual-read: legacy records hold a java.rmi.MarshalledObject, new ones a
+            // MarshalledInstance; normalize to the canonical MarshalledInstance.
+            Object o = in.readObject();
+            instance = (o instanceof MarshalledInstance) ? (MarshalledInstance) o
+                    : (o == null ? null : new MarshalledInstance((MarshalledObject) o));
         }
     }
 }

@@ -43,6 +43,7 @@ import org.apache.river.config.Config;
 import org.apache.river.logging.Levels;
 import org.apache.river.outrigger.proxy.StorableObject;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages
@@ -547,8 +548,9 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
          
         out.writeInt(attributes.length);
         for (int i=0; i<attributes.length; i++) {
-            out.writeObject(
-                new MarshalledInstance(attributes[i]).convertToMarshalledObject());
+            // Dual-read upgrade: always write the canonical MarshalledInstance
+            // (AtomicMarshalledInstance = DER form; carries the schema).
+            out.writeObject(new AtomicMarshalledInstance(attributes[i]));
 	}
     }
  
@@ -570,8 +572,13 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
         final int objectCount = in.readInt();
         for (int i=0; i<objectCount; i++) {
             try {
-                MarshalledObject mo = (MarshalledObject)in.readObject();
-                entries.add( new MarshalledInstance(mo).get(false));
+                // Dual-read: accept a legacy java.rmi.MarshalledObject or a new
+                // MarshalledInstance; normalize to the canonical instance.
+                Object o = in.readObject();
+                MarshalledInstance mi = (o instanceof MarshalledInstance)
+                        ? (MarshalledInstance) o
+                        : new MarshalledInstance((MarshalledObject) o);
+                entries.add(mi.get(false));
             } catch (IOException e) {
 		logger.log(Level.INFO, "Encountered IOException recovering " +
                     "attribute, dropping attribute", e);

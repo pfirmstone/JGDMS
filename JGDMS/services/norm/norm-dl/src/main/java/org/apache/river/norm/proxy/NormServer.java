@@ -112,13 +112,41 @@ public interface NormServer extends Landlord, LeaseRenewalService,
      */
     public EventRegistration setExpirationWarningListener(
 			         Uuid                id,
-	                         RemoteEventListener listener, 
-				 long                minWarning, 
+	                         RemoteEventListener listener,
+				 long                minWarning,
 				 MarshalledObject    handback)
 	throws RemoteException, ThrowThis;
 
     /**
-     * Set the renewal failure listener for a set.  Also used to 
+     * Set the expiration warning listener for a set, passing a
+     * {@link MarshalledInstance} handback that preserves the DER schema
+     * dropped by {@link MarshalledObject}.  Also used to cancel a
+     * registration.
+     *
+     * @param id of set being operated on
+     * @param listener listener to be notified when this event occurs.
+     *        Pass <code>null</code> to clear the registration.
+     * @param minWarning how long be for the lease on the set expires
+     *        should the event be sent. Ignored if <code>listener</code>
+     *        is <code>null</code>.
+     * @param handback an object to be handed back to the listener when
+     *        the warning event occurs. Ignored if <code>listener</code>
+     *        is <code>null</code>.
+     * @return an <code>EventRegistration</code> object for the new
+     *	       registration if <code>listener</code> is
+     *	       non-<code>null</code> and <code>null</code> otherwise
+     * @throws ThrowThis when another exception has to be thrown by the proxy
+     * @throws RemoteException if a communication-related exception occurs
+     */
+    public EventRegistration setExpirationWarningListener(
+			         Uuid                id,
+	                         RemoteEventListener listener,
+				 long                minWarning,
+				 MarshalledInstance  handback)
+	throws RemoteException, ThrowThis;
+
+    /**
+     * Set the renewal failure listener for a set.  Also used to
      * cancel a registration.
      * @param id of set being operated on
      * @param listener listener to be notified when this event occurs.
@@ -134,7 +162,31 @@ public interface NormServer extends Landlord, LeaseRenewalService,
      */
     public EventRegistration setRenewalFailureListener(
 			         Uuid                id,
-	                         RemoteEventListener listener, 
+	                         RemoteEventListener listener,
 				 MarshalledObject    handback)
+	throws RemoteException, ThrowThis;
+
+    /**
+     * Set the renewal failure listener for a set, passing a
+     * {@link MarshalledInstance} handback that preserves the DER schema
+     * dropped by {@link MarshalledObject}.  Also used to cancel a
+     * registration.
+     *
+     * @param id of set being operated on
+     * @param listener listener to be notified when this event occurs.
+     *        Pass <code>null</code> to clear the registration.
+     * @param handback an object to be handed back to the listener when
+     *        the failure event occurs.  Ignored if
+     *        <code>listener</code> is <code>null</code>.
+     * @return an <code>EventRegistration</code> object for the new
+     *	       registration if <code>listener</code> is
+     *	       non-<code>null</code> and <code>null</code> otherwise.
+     * @throws ThrowThis when another exception has to be thrown by the proxy
+     * @throws RemoteException if a communication-related exception occurs
+     */
+    public EventRegistration setRenewalFailureListener(
+			         Uuid                id,
+	                         RemoteEventListener listener,
+				 MarshalledInstance  handback)
 	throws RemoteException, ThrowThis;
 }

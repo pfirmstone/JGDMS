@@ -24,6 +24,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -82,11 +83,11 @@ public class LookupUnmarshalException extends AtomicException {
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("registrars", ServiceRegistrar[].class),
-            new SerialForm("marshalledRegistrars", MarshalledObject[].class),
+            new SerialForm("marshalledRegistrars", MarshalledInstance[].class),
             new SerialForm("exceptions", Throwable[].class)
         };
     }
-    
+
     public static void serialize(PutArg arg, LookupUnmarshalException e) throws IOException{
         arg.put("registrars", e.registrars);
         arg.put("marshalledRegistrars", e.marshalledRegistrars);
@@ -106,12 +107,13 @@ public class LookupUnmarshalException extends AtomicException {
 
     /**
      * Array containing the set of <code>ServiceRegistrar</code> instances
-     * that could not be unmarshalled. This set should not be <code>null</code>
-     * and should contain at least one element.
+     * that could not be unmarshalled, in canonical {@link MarshalledInstance}
+     * form (preserving the DER schema). This set should not be
+     * <code>null</code> and should contain at least one element.
      *
      * @serial
      */
-    private final MarshalledObject[] marshalledRegistrars;
+    private final MarshalledInstance[] marshalledRegistrars;
 
     /**
      * Array containing the set of exceptions that occurred during the
@@ -169,15 +171,40 @@ public class LookupUnmarshalException extends AtomicException {
      *         lengths of those two parameters are not equal.
      */
     public LookupUnmarshalException(ServiceRegistrar[] registrars,
-                                    MarshalledObject[] marshalledRegistrars,
-                                    Throwable[]        exceptions) 
+                                    MarshalledInstance[] marshalledRegistrars,
+                                    Throwable[]        exceptions)
     {
         this(registrars, marshalledRegistrars, exceptions,
 	     check(registrars, marshalledRegistrars, exceptions));
     }//end constructor
-    
+
+    /**
+     * Constructs a new instance from registrars still in legacy
+     * {@link MarshalledObject} form.
+     *
+     * @param registrars           Array containing the set of instances of
+     *                             <code>ServiceRegistrar</code> that were
+     *                             successfully unmarshalled.
+     * @param marshalledRegistrars Array containing the set of marshalled
+     *                             <code>ServiceRegistrar</code> instances
+     *                             that could not be unmarshalled.
+     * @param exceptions           Array containing the set of exceptions that
+     *                             occurred during the unmarshalling process.
+     * @deprecated Use {@link #LookupUnmarshalException(ServiceRegistrar[],
+     * MarshalledInstance[], Throwable[])}; {@link MarshalledInstance} preserves
+     * the DER schema that {@link MarshalledObject} drops. To be removed in a
+     * future release.
+     */
+    @Deprecated(forRemoval = true)
+    public LookupUnmarshalException(ServiceRegistrar[] registrars,
+                                    MarshalledObject[] marshalledRegistrars,
+                                    Throwable[]        exceptions)
+    {
+        this(registrars, toInstances(marshalledRegistrars), exceptions);
+    }//end constructor
+
     private LookupUnmarshalException(ServiceRegistrar[] registrars,
-                                    MarshalledObject[]  marshalledRegistrars,
+                                    MarshalledInstance[]  marshalledRegistrars,
                                     Throwable[]         exceptions,
 				    boolean		check)
     {
@@ -229,17 +256,45 @@ public class LookupUnmarshalException extends AtomicException {
      *         lengths of those two parameters are not equal.
      */
     public LookupUnmarshalException(ServiceRegistrar[] registrars,
-                                    MarshalledObject[] marshalledRegistrars,
-                                    Throwable[]        exceptions, 
-                                    String             message) 
+                                    MarshalledInstance[] marshalledRegistrars,
+                                    Throwable[]        exceptions,
+                                    String             message)
     {
 	this(registrars, marshalledRegistrars, exceptions, message,
 	    check(registrars,marshalledRegistrars,exceptions));
     }//end constructor
-    
-    private LookupUnmarshalException(ServiceRegistrar[] registrars,
+
+    /**
+     * Constructs a new instance from registrars still in legacy
+     * {@link MarshalledObject} form, with a specified message.
+     *
+     * @param registrars           Array containing the set of instances of
+     *                             <code>ServiceRegistrar</code> that were
+     *                             successfully unmarshalled.
+     * @param marshalledRegistrars Array containing the set of marshalled
+     *                             <code>ServiceRegistrar</code> instances
+     *                             that could not be unmarshalled.
+     * @param exceptions           Array containing the set of exceptions that
+     *                             occurred during the unmarshalling process.
+     * @param message              <code>String</code> describing the nature
+     *                             of the exception
+     * @deprecated Use {@link #LookupUnmarshalException(ServiceRegistrar[],
+     * MarshalledInstance[], Throwable[], String)}; {@link MarshalledInstance}
+     * preserves the DER schema that {@link MarshalledObject} drops. To be
+     * removed in a future release.
+     */
+    @Deprecated(forRemoval = true)
+    public LookupUnmarshalException(ServiceRegistrar[] registrars,
                                     MarshalledObject[] marshalledRegistrars,
-                                    Throwable[]        exceptions, 
+                                    Throwable[]        exceptions,
+                                    String             message)
+    {
+	this(registrars, toInstances(marshalledRegistrars), exceptions, message);
+    }//end constructor
+
+    private LookupUnmarshalException(ServiceRegistrar[] registrars,
+                                    MarshalledInstance[] marshalledRegistrars,
+                                    Throwable[]        exceptions,
                                     String             message,
 				    boolean		check)
     {
@@ -247,7 +302,21 @@ public class LookupUnmarshalException extends AtomicException {
 	this.registrars = registrars != null ? registrars.clone() : null;
 	this.marshalledRegistrars = marshalledRegistrars.clone();
 	this.exceptions = exceptions.clone();
-	
+
+    }
+
+    /** Wraps each legacy {@link MarshalledObject} in a {@link MarshalledInstance}. */
+    private static MarshalledInstance[] toInstances(MarshalledObject[] marshalledRegistrars) {
+	if (marshalledRegistrars == null) {
+	    return null;
+	}
+	MarshalledInstance[] instances =
+		new MarshalledInstance[marshalledRegistrars.length];
+	for (int i = 0; i < instances.length; i++) {
+	    instances[i] = (marshalledRegistrars[i] == null)
+		    ? null : new MarshalledInstance(marshalledRegistrars[i]);
+	}
+	return instances;
     }
 
     /**
@@ -260,9 +329,9 @@ public class LookupUnmarshalException extends AtomicException {
      *         stream cannot be resolved.
      */
     public LookupUnmarshalException(GetArg arg) throws IOException, ClassNotFoundException{
-	this(arg, 
+	this(arg,
 	     Valid.copy(arg.get("registrars", null, ServiceRegistrar[].class)),
-	     Valid.copy(arg.get("marshalledRegistrars", null, MarshalledObject[].class)),
+	     Valid.copy(arg.get("marshalledRegistrars", null, MarshalledInstance[].class)),
 	     Valid.copy(arg.get("exceptions", null, Throwable[].class))
 	);
     }
@@ -277,8 +346,8 @@ public class LookupUnmarshalException extends AtomicException {
      */
     private LookupUnmarshalException(GetArg arg,
 				    ServiceRegistrar[] registrars,
-                                    MarshalledObject[] marshalledRegistrars,
-                                    Throwable[]        exceptions) 
+                                    MarshalledInstance[] marshalledRegistrars,
+                                    Throwable[]        exceptions)
 	    throws IOException, ClassNotFoundException
     {
 	this(arg, registrars, marshalledRegistrars, exceptions,
@@ -296,9 +365,9 @@ public class LookupUnmarshalException extends AtomicException {
      */
     private LookupUnmarshalException(GetArg arg,
 				    ServiceRegistrar[] registrars,
-                                    MarshalledObject[] marshalledRegistrars,
+                                    MarshalledInstance[] marshalledRegistrars,
                                     Throwable[]        exceptions,
-				    boolean	       check) 
+				    boolean	       check)
 	    throws IOException, ClassNotFoundException
     {
 	super(arg); // Super has to check it's invariants.
@@ -316,7 +385,7 @@ public class LookupUnmarshalException extends AtomicException {
      * @throws InvalidObjectException 
      */
     private static boolean validate(ServiceRegistrar[] registrars,
-                                    MarshalledObject[] marshalledRegistrars,
+                                    MarshalledInstance[] marshalledRegistrars,
                                     Throwable[]        exceptions) throws InvalidObjectException
     {
     
@@ -359,7 +428,23 @@ public class LookupUnmarshalException extends AtomicException {
     }//end getRegistrars
 
     /**
-     * Accessor method that returns an array consisting of instances of 
+     * Accessor method that returns an array consisting of instances of
+     * {@link MarshalledInstance}, in canonical form (preserving the DER
+     * schema), where each element of the array is a marshalled instance of
+     * the <code>ServiceRegistrar</code> interface, and corresponds to an
+     * object that could not be successfully unmarshalled. Note that a copy is
+     * returned on each invocation of this method.
+     *
+     * @return array of marshalled instances of <code>ServiceRegistrar</code>,
+     *         where each element corresponds to an object in which failure
+     *         occurred while attempting to unmarshal the object.
+     */
+    public MarshalledInstance[] getMarshalledInstances() {
+        return marshalledRegistrars.clone();
+    }//end getMarshalledInstances
+
+    /**
+     * Accessor method that returns an array consisting of instances of
      * <code>MarshalledObject</code>, where each element of the array is a
      * marshalled instance of the <code>ServiceRegistrar</code> interface,
      * and corresponds to an object that could not be successfully
@@ -369,9 +454,20 @@ public class LookupUnmarshalException extends AtomicException {
      * @return array of marshalled instances of <code>ServiceRegistrar</code>,
      *         where each element corresponds to an object in which failure
      *         occurred while attempting to unmarshal the object.
+     * @deprecated Use {@link #getMarshalledInstances()}. A
+     * {@link MarshalledInstance} carrying a non-JOSS (DER) payload cannot be
+     * represented as a {@link MarshalledObject}, in which case this method
+     * fails. To be removed in a future release.
      */
+    @Deprecated(forRemoval = true)
     public MarshalledObject[] getMarshalledRegistrars() {
-        return marshalledRegistrars.clone();
+        MarshalledObject[] marshalled =
+                new MarshalledObject[marshalledRegistrars.length];
+        for (int i = 0; i < marshalled.length; i++) {
+            marshalled[i] = (marshalledRegistrars[i] == null)
+                    ? null : marshalledRegistrars[i].convertToMarshalledObject();
+        }
+        return marshalled;
     }//end getMarshalledRegistrars
 
     /**
@@ -423,7 +519,7 @@ public class LookupUnmarshalException extends AtomicException {
      *         lengths of those two parameters are not equal.
      */
     private static boolean check(ServiceRegistrar[] registrars,
-                      MarshalledObject[] marshalledRegistrars,
+                      MarshalledInstance[] marshalledRegistrars,
                       Throwable[]        exceptions) {
         /* Verify the input arguments */
         if(marshalledRegistrars == null) {

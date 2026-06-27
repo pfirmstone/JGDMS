@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -132,7 +133,7 @@ public class RenewalFailureIndefiniteTest
 			  "Lease.FOREVER.");
 
 	// register listener to receive events
-	EventRegistration evReg = set.setRenewalFailureListener(rrl, null);
+	EventRegistration evReg = set.setRenewalFailureListener(rrl, (MarshalledInstance) null);
 	evReg = prepareRegistration(evReg);
 
 	// check event registration (not formally part of this test)

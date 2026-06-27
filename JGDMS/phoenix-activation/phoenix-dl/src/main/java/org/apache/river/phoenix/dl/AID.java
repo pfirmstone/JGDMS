@@ -32,6 +32,8 @@ import org.apache.river.api.io.Resolve;
 import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Replace;
 import org.apache.river.proxy.MarshalledWrapper;
 
@@ -58,6 +60,19 @@ public class AID implements Serializable, Replace, ActivationID {
 	    this.uid = uid;
 	}
 	
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("activator", Activator.class),
+		new SerialForm("uid", UID.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, State s) throws IOException {
+	    arg.put("activator", s.activator);
+	    arg.put("uid", s.uid);
+	    arg.writeArgs();
+	}
+
 	public State(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("activator", null, Activator.class),
 		 arg.get("uid", null, UID.class));

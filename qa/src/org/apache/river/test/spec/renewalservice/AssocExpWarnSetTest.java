@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -122,9 +123,9 @@ public class AssocExpWarnSetTest extends AbstractLeaseRenewalServiceTest {
 	logger.log(Level.FINE, "Registering listener for expiration" +
 			  " warning events.");
 	logger.log(Level.FINE, "minWarning = " + minWarning + " milliseconds");
-	set01.setExpirationWarningListener(rrl, minWarning, null);
-	set02.setExpirationWarningListener(rrl, minWarning, null);
-	set03.setExpirationWarningListener(rrl, minWarning, null);
+	set01.setExpirationWarningListener(rrl, minWarning, (MarshalledInstance) null);
+	set02.setExpirationWarningListener(rrl, minWarning, (MarshalledInstance) null);
+	set03.setExpirationWarningListener(rrl, minWarning, (MarshalledInstance) null);
 
 	// wait for the lease on set03 to expire
 	rstUtil.waitForRemoteEvents(rrl, 1, renewSetDur);

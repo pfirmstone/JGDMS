@@ -68,6 +68,10 @@ public class ConstrainableRegistrarEvent extends RegistrarEvent implements Remot
 	this.constraints = source.getConstraints();
     }
     
+    /**
+     * @deprecated To be removed; use the MarshalledInstance-handback constructor (java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries).
+     */
+    @Deprecated
     public ConstrainableRegistrarEvent(
 	    RemoteMethodControl source,
 	    long eventID,

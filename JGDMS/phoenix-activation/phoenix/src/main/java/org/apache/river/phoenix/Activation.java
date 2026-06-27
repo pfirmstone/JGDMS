@@ -102,6 +102,8 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.config.Config;
 import org.apache.river.phoenix.common.AccessAtomicILFactory;
@@ -271,6 +273,19 @@ class Activation implements Serializable {
         unexported = writeLock.newCondition();
     }
     
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("idTable", Map.class),
+            new SerialForm("groupTable", Map.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, Activation a) throws IOException {
+        arg.put("idTable", a.idTable);
+        arg.put("groupTable", a.groupTable);
+        arg.writeArgs();
+    }
+
     Activation(GetArg arg) throws IOException, ClassNotFoundException{
 	this(
 	    Valid.copyMap(
@@ -1065,7 +1080,7 @@ class Activation implements Serializable {
      * point of having updates is nullified.  
      */
     @AtomicSerial
-    private static class GroupEntry implements Serializable {
+    static class GroupEntry implements Serializable {
 	
 	private static final long serialVersionUID = 7222464070032993304L;
 	private static final int MAX_TRIES = 2;
@@ -1107,6 +1122,27 @@ class Activation implements Serializable {
 	    this.activation = activation;
 	}
 	
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("desc", ActivationGroupDesc.class),
+		new SerialForm("groupID", ActivationGroupID.class),
+		new SerialForm("incarnation", Long.TYPE),
+		new SerialForm("objects", Map.class),
+		new SerialForm("restartSet", Set.class),
+		new SerialForm("activation", Activation.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, GroupEntry e) throws IOException {
+	    arg.put("desc", e.desc);
+	    arg.put("groupID", e.groupID);
+	    arg.put("incarnation", e.incarnation);
+	    arg.put("objects", e.objects);
+	    arg.put("restartSet", e.restartSet);
+	    arg.put("activation", e.activation);
+	    arg.writeArgs();
+	}
+
 	GroupEntry(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(
 		    arg.get("desc", null, ActivationGroupDesc.class),
@@ -1799,7 +1835,7 @@ class Activation implements Serializable {
     }
 
     @AtomicSerial
-    private static class ObjectEntry implements Serializable {
+    static class ObjectEntry implements Serializable {
 	private static final long serialVersionUID = -808474359039620126L;
 	
 	private final Activation activation;
@@ -1814,6 +1850,19 @@ class Activation implements Serializable {
 	    this.activation = activation;
 	}
 	
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("desc", ActivationDesc.class),
+		new SerialForm("activation", Activation.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, ObjectEntry e) throws IOException {
+	    arg.put("desc", e.desc);
+	    arg.put("activation", e.activation);
+	    arg.writeArgs();
+	}
+
 	ObjectEntry(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("desc", null, ActivationDesc.class),
 		 arg.get("activation", null, Activation.class));
