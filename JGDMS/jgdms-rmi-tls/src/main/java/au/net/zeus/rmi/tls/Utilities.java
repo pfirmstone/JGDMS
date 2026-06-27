@@ -154,10 +154,14 @@ class Utilities {
 	// Reflection support for SPIFFE types from jgdms-jeri (optional dependency)
 	private static final Class<?> SPIFFE_PRINCIPAL_CLASS;
 	private static final Method SUBJECT_CURRENT;
+	// Subject.processWorker() on the DirtyChai JDK -- the ambient SPIFFE
+	// WorkerSubject; absent on the vanilla build JDK (looked up reflectively).
+	private static final Method PROCESS_WORKER;
 
 	static {
 		Class<?> spiffePrincipalClass = null;
 		Method subjectCurrent = null;
+		Method processWorker = null;
 		try {
 			spiffePrincipalClass = Class.forName("net.jini.jeri.ssl.SpiffePrincipal");
 		} catch (ClassNotFoundException e) {
@@ -175,8 +179,18 @@ class Utilities {
 				INIT_LOGGER.log(Level.FINE, "Subject.current() not available", e);
 			}
 		}
+		try {
+			// Subject.processWorker() — the ambient SPIFFE WorkerSubject on DirtyChai
+			processWorker = Subject.class.getMethod("processWorker");
+		} catch (NoSuchMethodException e) {
+			// SPIFFE WorkerSubject not available - vanilla build JDK
+			if (INIT_LOGGER.isLoggable(Level.FINE)) {
+				INIT_LOGGER.log(Level.FINE, "Subject.processWorker() not available", e);
+			}
+		}
 		SPIFFE_PRINCIPAL_CLASS = spiffePrincipalClass;
 		SUBJECT_CURRENT = subjectCurrent;
+		PROCESS_WORKER = processWorker;
 	}
     
     private static final ConcurrentMap<Subject,ClientSubjectKeyManager> CLIENT_TLS_MANAGER_MAP = 
@@ -554,17 +568,43 @@ class Utilities {
 	}
 
 	/**
+	 * Returns the ambient SPIFFE {@code WorkerSubject} from {@code Subject.processWorker()}
+	 * on the DirtyChai JDK (fetched fresh -- it rotates), or null on the vanilla build JDK
+	 * or when no SPIFFE workload identity exists.  The {@code WorkerSubject} must NOT be
+	 * passed to {@code Subject.callAs}/{@code doAs} (it throws) nor obtained via
+	 * {@code Subject.current()}; {@code Subject.processWorker()} is its only accessor.
+	 */
+	private static Subject spiffeWorkerSubject() {
+		if (PROCESS_WORKER == null) return null;
+		try {
+			return (Subject) PROCESS_WORKER.invoke(new Subject());
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	/**
 	 * Resolves the TLS identity Subject:
-	 * 1. Try Subject.current() (the ambient SPIFFE / Subject.callAs subject) if TLS-capable
-	 * 2. Try ACC-derived Subject (from Subject.doAs/doAsPrivileged) if TLS-capable
+	 * 1. Ambient SPIFFE WorkerSubject from Subject.processWorker() (DirtyChai) -- preferred;
+	 *    it carries the TLS client-certificate credentials.
+	 * 2. Subject.current() (a Subject.callAs user subject) if TLS-capable.
+	 * 3. ACC-derived Subject (from Subject.doAs/doAsPrivileged) if TLS-capable.
 	 *
-	 * The ambient process SPIFFE identity is carried by Subject.current(), so it is
-	 * preferred before legacy ACC-derived user Subject sources.
+	 * The SPIFFE WorkerSubject is process-ambient and must NOT be obtained via
+	 * Subject.current()/callAs/doAs (a WorkerSubject throws there); Subject.processWorker()
+	 * is its only accessor.  Subject.getSubject(acc) currently always throws on DirtyChai
+	 * (BUG-001), so the ACC path is a best-effort last resort only.
 	 *
 	 * @return the resolved Subject, or null if no TLS-capable Subject found
 	 */
 	static Subject getTlsSubject() {
-		// Priority 1: Subject.current() for Subject.callAs() and
+		// Priority 1: ambient SPIFFE WorkerSubject (Subject.processWorker()) -- preferred.
+		Subject worker = spiffeWorkerSubject();
+		if (worker != null) {
+			return worker;
+		}
+
+		// Priority 2: Subject.current() for Subject.callAs() and
 		// Subject.doAsPrivileged() compatibility (only if TLS-capable).
 		// Subject.doAsPrivileged(subject, action, null) sets the Subject
 		// on the current thread but not in the AccessControlContext,
@@ -580,7 +620,7 @@ class Utilities {
 			}
 		}
 
-		// Priority 2: ACC-derived Subject (from Subject.doAs/doAsPrivileged).
+		// Priority 3: ACC-derived Subject (from Subject.doAs/doAsPrivileged).
 		// Do NOT wrap in doPrivileged/doPrivilegedWithCombiner — that creates a
 		// fresh privileged context and severs the SubjectDomainCombiner installed
 		// by the outer Subject.doAsPrivileged call.  Call getContext() directly
