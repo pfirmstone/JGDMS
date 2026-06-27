@@ -21,6 +21,7 @@ import java.lang.reflect.Modifier;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.loader.LoadClass;
 import org.apache.river.resource.Service;
 import org.apache.river.resource.ServiceConfigurationError;
 
@@ -181,28 +182,53 @@ public final class MarshalDelegates {
      */
     private static MarshalDelegate resolve(Class<?> c) {
         final ClassLoader loader = c.getClassLoader();
+        final String pkg = c.getPackageName();
         try {
-            Iterator<MarshalDelegate> it =
-                    Service.providers(MarshalDelegate.class, loader);
-            while (it.hasNext()) {
-                MarshalDelegate d = it.next();
-                // Defining-loader filter (only a co-loaded delegate can serve c,
-                // and co-loading gives correct package-private access and the
-                // correct version) plus the delegate's own served-class set.
-                // Classes no delegate serves -- fully-public classes, or classes
-                // in not-yet-delegated or mixed packages -- resolve to null and
-                // use the reflective path.
-                if (d.getClass().getClassLoader() == loader && d.serves(c)) {
-                    return d;
+            // Discover BY NAME and package-filter BEFORE loading: a co-loaded delegate
+            // lives in its served classes' own package, so only a provider whose package
+            // equals c's can serve c.  Skipping the rest means we never load /
+            // static-initialise / instantiate an unrelated delegate -- whose static init
+            // might reference a class this loader cannot resolve, which would otherwise
+            // turn discovery for c into a failure too (a single poisoned provider must
+            // not break marshalling of every class).
+            Iterator<String> names = Service.providerNames(MarshalDelegate.class, loader);
+            while (names.hasNext()) {
+                final String cn = names.next();
+                if (!pkg.equals(packageOf(cn))) {
+                    continue;
+                }
+                try {
+                    Class<?> pc = LoadClass.forName(cn, false, loader); // load; defer <clinit>
+                    if (!MarshalDelegate.class.isAssignableFrom(pc)
+                            || pc.getClassLoader() != loader) {
+                        continue; // wrong type, or not co-loaded (different runtime package)
+                    }
+                    MarshalDelegate d = (MarshalDelegate)
+                            pc.getDeclaredConstructor().newInstance();
+                    if (d.serves(c)) {
+                        return d;
+                    }
+                } catch (Throwable t) {
+                    // A single provider that cannot be loaded or instantiated must not
+                    // break resolution of c (there is no reflective fallback in 4.0.0).
+                    if (logger.isLoggable(Level.FINE)) {
+                        logger.log(Level.FINE, "skipping unusable MarshalDelegate "
+                                + cn + " while resolving " + c.getName(), t);
+                    }
                 }
             }
         } catch (ServiceConfigurationError e) {
             if (logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE,
-                        "MarshalDelegate discovery failed for " + c.getName()
-                        + "; using reflective fallback", e);
+                        "MarshalDelegate discovery failed for " + c.getName(), e);
             }
         }
         return null;
+    }
+
+    /** The package of a binary class name (everything before the last dot). */
+    private static String packageOf(String binaryName) {
+        int i = binaryName.lastIndexOf('.');
+        return (i < 0) ? "" : binaryName.substring(0, i);
     }
 }

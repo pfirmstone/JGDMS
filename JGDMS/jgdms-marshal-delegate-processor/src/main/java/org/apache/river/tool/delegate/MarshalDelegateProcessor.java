@@ -243,31 +243,53 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
          .append(" implements ").append(MARSHAL_DELEGATE).append(" {\n\n");
         b.append("    private static final ").append(SF).append("[] EMPTY = new ").append(SF).append("[0];\n\n");
         b.append("    public ").append(GEN).append("() { }\n\n");
-        b.append("    private static final Class<?>[] SERVED = {\n");
+        // Served classes are referenced BY NAME (binary names), never as Class literals.
+        // A delegate is therefore discovered and selected (serves) without LINKING its
+        // served set, so a served class that references a type the current loader cannot
+        // resolve does not turn delegate discovery into a ClassNotFoundException for
+        // unrelated classes. A served class is linked only when actually dispatched
+        // (serialForm/serialize/create) -- at which point it is the class being
+        // marshalled and is therefore already loaded.
+        b.append("    private static final String[] SERVED_NAMES = {\n");
         for (Info i : served) {
-            b.append("        ").append(i.relName).append(".class,\n");
+            b.append("        \"").append(binName(pkg, i.relName)).append("\",\n");
         }
         b.append("    };\n\n");
-        b.append("    @Override public Class<?>[] servedClasses() { return SERVED.clone(); }\n\n");
+
+        b.append("    @Override\n    public boolean serves(Class<?> c) {\n");
+        b.append("        String n = c.getName();\n");
+        b.append("        for (String s : SERVED_NAMES) { if (s.equals(n)) return true; }\n");
+        b.append("        return false;\n    }\n\n");
+
+        // Not used on the discovery/selection path (serves() above is name-based); resolves
+        // the served Class objects lazily and only if a caller explicitly asks for them.
+        b.append("    @Override\n    public Class<?>[] servedClasses() {\n");
+        b.append("        Class<?>[] r = new Class<?>[SERVED_NAMES.length];\n");
+        b.append("        ClassLoader l = ").append(GEN).append(".class.getClassLoader();\n");
+        b.append("        try { for (int i = 0; i < r.length; i++) r[i] = Class.forName(SERVED_NAMES[i], false, l); }\n");
+        b.append("        catch (ClassNotFoundException e) { throw new IllegalStateException(e); }\n");
+        b.append("        return r;\n    }\n\n");
 
         b.append("    @Override\n    @SuppressWarnings({\"unchecked\",\"rawtypes\"})\n");
         b.append("    public ").append(SF).append("[] serialForm(Class<?> c) {\n");
+        b.append("        String n = c.getName();\n");
         for (Info i : served) {
             if (i.isStateless) {
-                b.append("        if (c == ").append(i.relName).append(".class) return EMPTY;\n");
+                b.append("        if (n.equals(\"").append(binName(pkg, i.relName)).append("\")) return EMPTY;\n");
             } else {
-                b.append("        if (c == ").append(i.relName).append(".class) return ").append(i.relName).append(".serialForm();\n");
+                b.append("        if (n.equals(\"").append(binName(pkg, i.relName)).append("\")) return ").append(i.relName).append(".serialForm();\n");
             }
         }
         b.append("        throw new IllegalArgumentException(unhandled(c));\n    }\n\n");
 
         b.append("    @Override\n    @SuppressWarnings({\"unchecked\",\"rawtypes\"})\n");
         b.append("    public void serialize(Class<?> c, ").append(PA).append(" arg, Object o) throws java.io.IOException {\n");
+        b.append("        String n = c.getName();\n");
         for (Info i : served) {
             if (i.isStateless) {
-                b.append("        if (c == ").append(i.relName).append(".class) return;\n");
+                b.append("        if (n.equals(\"").append(binName(pkg, i.relName)).append("\")) return;\n");
             } else {
-                b.append("        if (c == ").append(i.relName).append(".class) { ").append(i.relName)
+                b.append("        if (n.equals(\"").append(binName(pkg, i.relName)).append("\")) { ").append(i.relName)
                  .append(".serialize(arg, (").append(i.relName).append(") o); return; }\n");
             }
         }
@@ -275,9 +297,10 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
 
         b.append("    @Override\n    @SuppressWarnings({\"unchecked\",\"rawtypes\"})\n");
         b.append("    public Object create(Class<?> c, ").append(GA).append(" arg) throws java.io.IOException, ClassNotFoundException {\n");
+        b.append("        String n = c.getName();\n");
         for (Info i : served) {
             if (!i.isAbstract) {
-                b.append("        if (c == ").append(i.relName).append(".class) return new ").append(i.relName).append("(arg);\n");
+                b.append("        if (n.equals(\"").append(binName(pkg, i.relName)).append("\")) return new ").append(i.relName).append("(arg);\n");
             }
         }
         b.append("        throw new IllegalArgumentException(unhandled(c));\n    }\n\n");
@@ -291,6 +314,12 @@ public final class MarshalDelegateProcessor extends AbstractProcessor {
             pw.print(b);
         }
         generated.add(fqn);
+    }
+
+    /** Binary name of a served class: the package plus the relative name with nested
+     *  separators ('.') turned into '$', so it matches {@link Class#getName()}. */
+    private static String binName(String pkg, String relName) {
+        return pkg + "." + relName.replace('.', '$');
     }
 
     private void writeServiceFile() {

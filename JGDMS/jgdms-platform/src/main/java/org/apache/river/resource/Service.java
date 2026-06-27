@@ -410,6 +410,87 @@ public final class Service {
 
 
     /**
+     * Yields the provider class NAMES declared in {@code loader}'s
+     * {@code META-INF/services} for {@code service}, WITHOUT loading or
+     * instantiating them.  This lets a caller filter candidates (for example by
+     * package) <em>before</em> paying the load + static-initialisation +
+     * instantiate cost -- and before a provider whose static initialiser
+     * references an unresolvable class can turn discovery into a failure for an
+     * unrelated request.  Within-loader scan only (the OSGi cross-bundle
+     * registry holds providers in <em>other</em> loaders, which a co-loaded
+     * lookup never selects anyway).
+     *
+     * @param <S>     the service type
+     * @param service the service interface
+     * @param loader  the loader whose service files to scan (system loader if {@code null})
+     * @return an iterator over provider class names
+     */
+    public static <S> Iterator<String> providerNames(Class<S> service, ClassLoader loader) {
+	return new LazyNameIterator<S>(service, loader);
+    }
+
+    /**
+     * Name-only counterpart of {@link LazyIterator}: parses the service files and
+     * yields provider class names without loading, linking, initialising, or
+     * instantiating them.
+     */
+    private static class LazyNameIterator<S> implements Iterator<String> {
+
+	Class<S> service;
+	ClassLoader loader;
+	Enumeration configs = null;
+	Iterator pending = null;
+	Set returned = new LinkedHashSet();
+	String nextName = null;
+
+	private LazyNameIterator(Class<S> service, ClassLoader loader) {
+	    this.service = service;
+	    this.loader = loader;
+	}
+
+	@Override
+	public boolean hasNext() throws ServiceConfigurationError {
+	    if (nextName != null) {
+		return true;
+	    }
+	    if (configs == null) {
+		try {
+		    String fullName = prefix + service.getName();
+		    if (loader == null)
+			configs = ClassLoader.getSystemResources(fullName);
+		    else
+			configs = loader.getResources(fullName);
+		} catch (IOException x) {
+		    fail(service, ": " + x);
+		}
+	    }
+	    while ((pending == null) || !pending.hasNext()) {
+		if (!configs.hasMoreElements()) {
+		    return false;
+		}
+		pending = parse(service, (URL)configs.nextElement(), returned);
+	    }
+	    nextName = (String)pending.next();
+	    return true;
+	}
+
+	@Override
+	public String next() throws ServiceConfigurationError {
+	    if (!hasNext()) {
+		throw new NoSuchElementException();
+	    }
+	    String cn = nextName;
+	    nextName = null;
+	    return cn;
+	}
+
+	@Override
+	public void remove() {
+	    throw new UnsupportedOperationException();
+	}
+    }
+
+    /**
      * Locates and incrementally instantiates the available providers of a
      * given service using the context class loader.  This convenience method
      * is equivalent to
