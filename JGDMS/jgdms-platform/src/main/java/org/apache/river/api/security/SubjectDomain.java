@@ -43,7 +43,7 @@ import javax.security.auth.Subject;
  * When using these methods, the security Policy needs to be written to grant
  * Permission to code signer certificates and Principals separately.
  * <p>
- * For example, a RemotePolicy service is updated by an Administrator client
+ * For example, a remote policy service is updated by an Administrator client
  * using PermissionGrant's, however one of these grants is not signed by a 
  * trusted Certificate.  Ordinarily this PermissionGrant would run with the
  * privileges of the administrator, but because code trust and user trust

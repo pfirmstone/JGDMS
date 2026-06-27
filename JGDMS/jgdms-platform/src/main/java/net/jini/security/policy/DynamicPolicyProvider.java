@@ -53,7 +53,6 @@ import java.util.logging.Logger;
 import net.jini.security.GrantPermission;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
-import org.apache.river.api.security.RemotePolicy;
 import org.apache.river.api.security.RevocablePolicy;
 
 /**
@@ -136,7 +135,6 @@ import org.apache.river.api.security.RevocablePolicy;
  * @see ConcurrentPolicyFile
  * @see net.jini.security.policy.PolicyFileProvider
  * @see CachingSecurityManager
- * @see RemotePolicy
  */
 
 public class DynamicPolicyProvider extends AbstractPolicy implements 
