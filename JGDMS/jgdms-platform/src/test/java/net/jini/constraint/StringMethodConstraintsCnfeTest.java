@@ -19,7 +19,7 @@ package net.jini.constraint;
 
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraints;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -27,10 +27,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Empirical proof that {@link StringMethodConstraints} conveys a method's parameter
@@ -49,16 +47,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code StringMethodDesc(String, String[], InvocationConstraints)} descriptor
  * constructor, which is the only way to name a parameter type that has no local class.
  */
-class StringMethodConstraintsCnfeTest {
+public class StringMethodConstraintsCnfeTest {
 
     /** A class name that exists nowhere on any classpath (keeps the test non-vacuous). */
     private static final String ABSENT_TYPE = "com.example.does.not.Exist$ParamType42";
 
     @Test
-    void absentParameterTypeClass_roundTripsWithoutCNFE() throws Exception {
+    public void absentParameterTypeClass_roundTripsWithoutCNFE() throws Exception {
         // Precondition: the named parameter type genuinely cannot be loaded locally.
-        assertThrows(ClassNotFoundException.class, () -> Class.forName(ABSENT_TYPE),
-                "precondition: the parameter type must not exist locally");
+        assertThrows("precondition: the parameter type must not exist locally",
+                ClassNotFoundException.class, () -> Class.forName(ABSENT_TYPE));
 
         InvocationConstraints ic = new InvocationConstraints(Integrity.YES, null);
         // Method "doStuff(com.example.does.not.Exist$ParamType42)" -- parameter type by NAME.
@@ -71,21 +69,25 @@ class StringMethodConstraintsCnfeTest {
         byte[] bytes = serialize(smc);
 
         // The absent type name travels verbatim as a STRING (by value), not as a Class.
-        assertTrue(contains(bytes, ABSENT_TYPE.getBytes(StandardCharsets.UTF_8)),
-                "parameter type must be serialized by name (string), not as a Class instance");
+        assertTrue("parameter type must be serialized by name (string), not as a Class instance",
+                contains(bytes, ABSENT_TYPE.getBytes(StandardCharsets.UTF_8)));
 
         // The headline: deserialization MUST NOT resolve the absent parameter-type class.
-        Object back = assertDoesNotThrow(() -> {
-            try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
-                return ois.readObject();
-            }
-        }, "deserialization must not throw ClassNotFoundException for the absent parameter type");
+        Object back;
+        try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
+            back = ois.readObject();
+        } catch (ClassNotFoundException cnfe) {
+            throw new AssertionError(
+                    "deserialization must not throw ClassNotFoundException for the absent parameter type", cnfe);
+        }
 
-        StringMethodConstraints recovered = assertInstanceOf(StringMethodConstraints.class, back);
+        assertTrue("recovered object must be a StringMethodConstraints",
+                back instanceof StringMethodConstraints);
+        StringMethodConstraints recovered = (StringMethodConstraints) back;
 
         // Round-trip preserved the type by value: re-serializing still carries the name.
-        assertTrue(contains(serialize(recovered), ABSENT_TYPE.getBytes(StandardCharsets.UTF_8)),
-                "the absent parameter-type name must survive the round-trip by value");
+        assertTrue("the absent parameter-type name must survive the round-trip by value",
+                contains(serialize(recovered), ABSENT_TYPE.getBytes(StandardCharsets.UTF_8)));
     }
 
     private static byte[] serialize(Object o) throws Exception {

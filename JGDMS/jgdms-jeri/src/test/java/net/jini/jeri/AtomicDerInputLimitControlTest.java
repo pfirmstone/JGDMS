@@ -20,16 +20,16 @@ package net.jini.jeri;
 import au.net.zeus.jgdms.der.DerInputLimitControl;
 import au.net.zeus.jgdms.der.DerInputLimits;
 import net.jini.core.constraint.InvocationConstraints;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
 
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /**
  * The RemoteMethodControl-style {@link DerInputLimitControl} on a DER proxy: getInputLimits /
@@ -70,11 +70,11 @@ public class AtomicDerInputLimitControlTest {
 
         Object proxy2 = ((DerInputLimitControl) proxy).setInputLimits(custom);
 
-        assertNotSame(proxy, proxy2, "setInputLimits must return a NEW proxy");
-        assertSame(custom, ((DerInputLimitControl) proxy2).getInputLimits(), "new proxy carries the cap");
-        assertSame(DerInputLimits.DEFAULT, ((DerInputLimitControl) proxy).getInputLimits(),
-                "original proxy is unchanged");
-        assertTrue(proxy2 instanceof Greeter, "new proxy still implements the service interface");
+        assertNotSame("setInputLimits must return a NEW proxy", proxy, proxy2);
+        assertSame("new proxy carries the cap", custom, ((DerInputLimitControl) proxy2).getInputLimits());
+        assertSame("original proxy is unchanged",
+                DerInputLimits.DEFAULT, ((DerInputLimitControl) proxy).getInputLimits());
+        assertTrue("new proxy still implements the service interface", proxy2 instanceof Greeter);
     }
 
     @Test
