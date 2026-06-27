@@ -1430,8 +1430,19 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
             logger.log(Level.FINEST, "SecurityManager: " + sm + "\nPolicy: " + p +
                     "\nProtectionDomain: " + pd);
         }
-	AccessControlContext acc = Security.create(new ProtectionDomain []{pd});
-	sm.checkPermission(permission, acc);
+	/*
+	 * Gate 1 (workload): evaluate the permission against an ACC of the client
+	 * ProtectionDomain ALONE.  Route through Security.checkPermission, which
+	 * builds that ACC inside a doPrivileged so the "createAccessControlContext"
+	 * authorization is satisfied by this library's frame only.  Calling
+	 * AccessControlContext.create() off the bare dispatch stack instead would
+	 * make createAccessControlContext go viral -- every caller up the stack
+	 * would need it, forcing a global grant -- and would merge the dispatch
+	 * stack domains into the context, which is what previously denied a
+	 * legitimately-authorized client (e.g. getAdmin) because an unrelated stack
+	 * domain lacked the grant.
+	 */
+	Security.checkPermission(permission, pd);
     }
 
     /**

@@ -1612,9 +1612,20 @@ class SslServerEndpointImpl extends Utilities {
 					&& certificateChain[0] instanceof X509Certificate)
 				{
 					X509Certificate cert = (X509Certificate) certificateChain[0];
+					/*
+					 * Gate-1 (workload) authorization keys on the SPIFFE identity,
+					 * so carry both the X.500 subject DN and any spiffe:// SAN
+					 * principals -- not just the DN, which would drop the SPIFFE
+					 * identity before authorization.  SpiffePrincipal.fromCertificate
+					 * returns an empty list for a non-SPIFFE X.509 client, leaving
+					 * the prior X.500-only behaviour unchanged in that case.
+					 */
+					Set<Principal> principals = new HashSet<Principal>();
+					principals.add(cert.getSubjectX500Principal());
+					principals.addAll(SpiffePrincipal.fromCertificate(cert));
 					return new Subject(
 						true,
-						Collections.singleton(cert.getSubjectX500Principal()),
+						principals,
 						Collections.singleton(getCertFactory().generateCertPath(Arrays.asList(certificateChain))),
 						Collections.EMPTY_SET
 					);
