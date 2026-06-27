@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -137,7 +138,7 @@ public class EventSequenceFailTest extends AbstractLeaseRenewalServiceTest {
 	// register listener #1 to receive events
 	logger.log(Level.FINE, "Registering listener #1 for renewal failure" +
 			  " events.");
-	set.setRenewalFailureListener(rrl01, null);
+	set.setRenewalFailureListener(rrl01, (MarshalledInstance) null);
 
 	/* create 8 test leases which will throw definite exceptions
 	   and add then to the renewal set. Each lease's expriation
@@ -167,7 +168,7 @@ public class EventSequenceFailTest extends AbstractLeaseRenewalServiceTest {
 	// assign the other listener to receive events
 	logger.log(Level.FINE, "Replacing listener #1 with listener #2 to" +
 			  " receive renewal failure events.");
-	set.setRenewalFailureListener(rrl02, null);
+	set.setRenewalFailureListener(rrl02, (MarshalledInstance) null);
 
 	// wait for the other listener to receive four events.
 	rstUtil.waitForRemoteEvents(rrl02, 4, timeOut);

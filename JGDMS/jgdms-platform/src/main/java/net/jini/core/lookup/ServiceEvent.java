@@ -131,7 +131,7 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * @param serviceID the serviceID of the item that triggered the event
      * @param transition the transition that triggered the event
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public ServiceEvent(Object source,
 			long eventID,
 			long seqNo,

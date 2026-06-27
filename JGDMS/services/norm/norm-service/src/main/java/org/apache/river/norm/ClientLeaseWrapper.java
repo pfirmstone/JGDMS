@@ -736,12 +736,20 @@ class ClientLeaseWrapper implements Lease, Serializable {
 	}
 
 	// Inherit java doc from super type
-	public RemoteEvent createEvent(long             eventID, 
-				       long             seqNum, 
-				       MarshalledObject handback) 
+	@SuppressWarnings("deprecation")
+	public RemoteEvent createEvent(long             eventID,
+				       long             seqNum,
+				       Object           handback)
 	{
-	    return new BasicRenewalFailureEvent(source, seqNum,
-	        handback, marshalledLease, marshalledThrowable);
+	    // The handback is polymorphic: a new MarshalledInstance (DER
+	    // schema preserved) or a legacy MarshalledObject.
+	    return (handback instanceof MarshalledInstance)
+		? new BasicRenewalFailureEvent(source, seqNum,
+		      (MarshalledInstance) handback, marshalledLease,
+		      marshalledThrowable)
+		: new BasicRenewalFailureEvent(source, seqNum,
+		      (MarshalledObject) handback, marshalledLease,
+		      marshalledThrowable);
 	}
     }
 }

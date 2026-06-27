@@ -316,6 +316,37 @@ public final class Service {
 
     }
 
+    /**
+     * Yields all elements of the first iterator, then all of the second.
+     * Used under OSGi to union the loader-scoped <tt>META-INF/services</tt>
+     * scan (co-loaded providers, e.g. a per-package MarshalDelegate) with the
+     * OSGi service-registry lookup (cross-bundle providers).
+     */
+    static class ChainedIterator<S> implements Iterator<S> {
+	private final Iterator<S> first;
+	private final Iterator<S> second;
+
+	ChainedIterator(Iterator<S> first, Iterator<S> second) {
+	    this.first = first;
+	    this.second = second;
+	}
+
+	@Override
+	public boolean hasNext() {
+	    return first.hasNext() || second.hasNext();
+	}
+
+	@Override
+	public S next() {
+	    return first.hasNext() ? first.next() : second.next();
+	}
+
+	@Override
+	public void remove() {
+	    throw new UnsupportedOperationException();
+	}
+    }
+
 
     /**
      * Locates and incrementally instantiates the available providers of a
@@ -358,10 +389,106 @@ public final class Service {
     public static <S> Iterator<S> providers(Class<S> service, ClassLoader loader)
 	throws ServiceConfigurationError
     {
-	if (osgi) return OSGiServiceIterator.providers(service);
+	if (osgi) {
+	    // Two provider relationships must both be served under OSGi:
+	    //  * co-loaded providers (e.g. a per-package MarshalDelegate, in the
+	    //    SAME loader as the requesting class) -- found by scanning the
+	    //    given loader's META-INF/services. A *within-loader* scan (of the
+	    //    loader that holds the provider) works under OSGi and for
+	    //    non-bundle proxy codebase jars; it is not the broken consumer-side
+	    //    ServiceLoader cross-bundle scan.
+	    //  * cross-bundle SPIs (discovery providers, Configuration, ...) -- a
+	    //    consumer cannot see another bundle's META-INF/services, so these
+	    //    come from the OSGi service registry.
+	    // Union both; callers select (e.g. MarshalDelegates filters by
+	    // defining-loader identity).
+	    return new ChainedIterator<S>(new LazyIterator<S>(service, loader),
+					  OSGiServiceIterator.providers(service, loader));
+	}
 	return new LazyIterator(service, loader);
     }
 
+
+    /**
+     * Yields the provider class NAMES declared in {@code loader}'s
+     * {@code META-INF/services} for {@code service}, WITHOUT loading or
+     * instantiating them.  This lets a caller filter candidates (for example by
+     * package) <em>before</em> paying the load + static-initialisation +
+     * instantiate cost -- and before a provider whose static initialiser
+     * references an unresolvable class can turn discovery into a failure for an
+     * unrelated request.  Within-loader scan only (the OSGi cross-bundle
+     * registry holds providers in <em>other</em> loaders, which a co-loaded
+     * lookup never selects anyway).
+     *
+     * @param <S>     the service type
+     * @param service the service interface
+     * @param loader  the loader whose service files to scan (system loader if {@code null})
+     * @return an iterator over provider class names
+     */
+    public static <S> Iterator<String> providerNames(Class<S> service, ClassLoader loader) {
+	return new LazyNameIterator<S>(service, loader);
+    }
+
+    /**
+     * Name-only counterpart of {@link LazyIterator}: parses the service files and
+     * yields provider class names without loading, linking, initialising, or
+     * instantiating them.
+     */
+    private static class LazyNameIterator<S> implements Iterator<String> {
+
+	Class<S> service;
+	ClassLoader loader;
+	Enumeration configs = null;
+	Iterator pending = null;
+	Set returned = new LinkedHashSet();
+	String nextName = null;
+
+	private LazyNameIterator(Class<S> service, ClassLoader loader) {
+	    this.service = service;
+	    this.loader = loader;
+	}
+
+	@Override
+	public boolean hasNext() throws ServiceConfigurationError {
+	    if (nextName != null) {
+		return true;
+	    }
+	    if (configs == null) {
+		try {
+		    String fullName = prefix + service.getName();
+		    if (loader == null)
+			configs = ClassLoader.getSystemResources(fullName);
+		    else
+			configs = loader.getResources(fullName);
+		} catch (IOException x) {
+		    fail(service, ": " + x);
+		}
+	    }
+	    while ((pending == null) || !pending.hasNext()) {
+		if (!configs.hasMoreElements()) {
+		    return false;
+		}
+		pending = parse(service, (URL)configs.nextElement(), returned);
+	    }
+	    nextName = (String)pending.next();
+	    return true;
+	}
+
+	@Override
+	public String next() throws ServiceConfigurationError {
+	    if (!hasNext()) {
+		throw new NoSuchElementException();
+	    }
+	    String cn = nextName;
+	    nextName = null;
+	    return cn;
+	}
+
+	@Override
+	public void remove() {
+	    throw new UnsupportedOperationException();
+	}
+    }
 
     /**
      * Locates and incrementally instantiates the available providers of a

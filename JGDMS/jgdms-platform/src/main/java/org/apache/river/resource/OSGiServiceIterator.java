@@ -17,68 +17,127 @@
 package org.apache.river.resource;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
+import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
-import org.osgi.util.tracker.ServiceTracker;
+import org.osgi.framework.BundleReference;
+import org.osgi.framework.InvalidSyntaxException;
+import org.osgi.framework.ServiceReference;
 
 /**
+ * Finds {@link Service} providers in the OSGi service registry, for the
+ * cross-bundle SPIs (discovery providers, {@code Configuration}, marshal
+ * factories, ...) that classpath {@code META-INF/services} scanning cannot
+ * reach across bundle boundaries. Activated as a {@link BundleActivator},
+ * which records the platform bundle's context and flips {@link Service} into
+ * OSGi mode.
+ *
+ * <p>This serves only the <em>cross-bundle</em> relationship. Providers that
+ * are <em>co-loaded</em> with the requesting class (a per-package
+ * {@code MarshalDelegate} in the same loader, including non-bundle proxy
+ * codebase jars) are found by {@code Service}'s loader-scoped
+ * {@code META-INF/services} scan instead, and the two are unioned.
  *
  * @author peter
  */
 public class OSGiServiceIterator implements BundleActivator {
-    
-    private static OSGiServiceIterator osi;
-    
-    static <S> Iterator<S> providers(Class<S> service){
-	return new ServiceIterator(service, osi.bundleContext);
+
+    private static volatile OSGiServiceIterator osi;
+
+    /**
+     * Cross-bundle SPI providers of {@code service} from the OSGi service
+     * registry, scoped to {@code loader}'s bundle. The scope is the nearest
+     * bundle in {@code loader}'s parent chain (so a proxy codebase loader
+     * resolves to its client bundle parent), falling back to the platform
+     * bundle context when the requester is not in a bundle.
+     */
+    static <S> Iterator<S> providers(Class<S> service, ClassLoader loader) {
+	OSGiServiceIterator activator = osi;
+	if (activator == null) {
+	    return Collections.<S>emptyIterator();
+	}
+	BundleContext bc = contextFor(loader, activator.bundleContext);
+	if (bc == null) {
+	    return Collections.<S>emptyIterator();
+	}
+	return registryProviders(service, bc).iterator();
     }
-    
-    private BundleContext bundleContext;
-    
-    public OSGiServiceIterator(){}
+
+    /**
+     * The provider <em>instances</em> of {@code service} registered in
+     * {@code bc}'s service registry -- the actual service objects, fetched with
+     * {@code getService}, not the {@code ServiceReference}s. Package-private so
+     * it can be exercised in tests without the {@link BundleActivator}
+     * singleton.
+     */
+    static <S> List<S> registryProviders(Class<S> service, BundleContext bc) {
+	List<S> instances = new ArrayList<S>();
+	try {
+	    // null filter is always syntactically valid; class name is the
+	    // binary name services are registered under.
+	    ServiceReference<?>[] refs =
+		    bc.getServiceReferences(service.getName(), null);
+	    if (refs != null) {
+		for (ServiceReference<?> ref : refs) {
+		    Object svc = bc.getService(ref);
+		    // The service is held for the provider's lifetime -- these
+		    // SPIs are long-lived singletons -- so it is not ungot here.
+		    if (service.isInstance(svc)) {
+			instances.add(service.cast(svc));
+		    }
+		}
+	    }
+	} catch (InvalidSyntaxException impossible) {
+	    // unreachable with a null filter
+	} catch (RuntimeException e) {
+	    // A registry failure must never break provider discovery; the
+	    // loader-scoped scan in Service still runs.
+	}
+	return instances;
+    }
+
+    /**
+     * The bundle context to scope the registry lookup to: the nearest bundle
+     * in {@code loader}'s parent chain (the parent-loader rule -- a proxy
+     * codebase loader resolves to its client bundle parent), or
+     * {@code fallback} (the platform context) when the requester is not in a
+     * bundle, so a non-bundle requester still sees cross-bundle SPIs.
+     */
+    static BundleContext contextFor(ClassLoader loader, BundleContext fallback) {
+	for (ClassLoader cl = loader; cl != null; cl = cl.getParent()) {
+	    if (cl instanceof BundleReference) {
+		Bundle b = ((BundleReference) cl).getBundle();
+		if (b != null) {
+		    BundleContext c = b.getBundleContext();
+		    if (c != null) {
+			return c;
+		    }
+		}
+	    }
+	}
+	return fallback;
+    }
+
+    private volatile BundleContext bundleContext;
+
+    public OSGiServiceIterator() {}
 
     @Override
     public void start(BundleContext bc) throws Exception {
-	if (osi != null) throw new IllegalArgumentException("start may only be called once");
-	Service.setOsgi();
+	if (osi != null) {
+	    throw new IllegalStateException("start may only be called once");
+	}
 	bundleContext = bc;
 	osi = this;
+	Service.setOsgi();
     }
 
     @Override
     public void stop(BundleContext bc) throws Exception {
-	bundleContext = null;
 	osi = null;
-    }
-    
-    private static class ServiceIterator<S> implements Iterator<S> {
-	private final S[] instances;
-	private int index;
-	
-	ServiceIterator(Class<S> service, BundleContext bc){
-	    ServiceTracker st = new ServiceTracker(bc, service.getCanonicalName(), null);
-	    Object[] services = st.getServiceReferences();
-	    List<S> matches = new ArrayList<S>(services.length);
-	    for(int i=0, l=services.length; i<l; i++){
-		if (service.isInstance(services[i])) matches.add((S) services[i]);
-	    }
-	    instances = (S[]) matches.toArray();
-	    index = 0;
-	}
-
-        @Override
-	public boolean hasNext() {
-	    return index < instances.length;
-	}
-
-        @Override
-	public S next() {
-	    if (!hasNext()) throw new NoSuchElementException("End reached");
-	    return instances[index++];
-	}
-	
+	bundleContext = null;
     }
 }

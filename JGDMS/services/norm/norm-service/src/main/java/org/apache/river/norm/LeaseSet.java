@@ -437,10 +437,10 @@ class LeaseSet implements Serializable, LeasedResource {
      * @throws IOException if listener cannot be serialized 
      */
     EventRegistration setExpirationWarningListener(
-	RemoteEventListener listener, 
+	RemoteEventListener listener,
 	long                minWarning,
 	MarshalledObject    handback)
-        throws IOException     					       
+        throws IOException
     {
 	synchronized (this){
 	    this.minWarning = minWarning;
@@ -450,15 +450,53 @@ class LeaseSet implements Serializable, LeasedResource {
 	final Object u = new WarningEventRegistration(this);
 	store.update(u);
 
-	if (listener == null) 
+	if (listener == null)
 	    return null;
-	
+
 	final SetProxy proxy = newSetProxy();
 
 	return new EventRegistration(
 	    warningEventType.getEventID(),
-	    proxy, 
-	    proxy.getRenewalSetLease(), 
+	    proxy,
+	    proxy.getRenewalSetLease(),
+	    warningEventType.getLastSequenceNumber());
+    }
+
+    /**
+     * Set/update/clear the expiration warning listener, with a
+     * {@link MarshalledInstance} handback that preserves the DER schema
+     * dropped by {@link MarshalledObject}.
+     * @param listener the new listener
+     * @param minWarning how long before the lease on the set expires should
+     *        the event be sent
+     * @param handback the new handback
+     * @return if <code>listener</code> is non-<code>null</code> return
+     * an <code>EventRegistration</code> otherwise return <code>null</code>
+     * @throws IOException if listener cannot be serialized
+     */
+    EventRegistration setExpirationWarningListener(
+	RemoteEventListener listener,
+	long                minWarning,
+	MarshalledInstance  handback)
+        throws IOException
+    {
+	synchronized (this){
+	    this.minWarning = minWarning;
+	}
+	warningEventType.setListener(listener, handback);
+
+	final Object u = new WarningEventRegistration(this);
+	store.update(u);
+
+	if (listener == null)
+	    return null;
+
+	final SetProxy proxy = newSetProxy();
+
+	return new EventRegistration(
+	    warningEventType.getEventID(),
+	    proxy,
+	    proxy.getRenewalSetLease(),
 	    warningEventType.getLastSequenceNumber());
     }
 
@@ -471,24 +509,56 @@ class LeaseSet implements Serializable, LeasedResource {
      * @throws IOException if listener can not be serialized 
      */
     EventRegistration setRenewalFailureListener(
-	RemoteEventListener listener, 
+	RemoteEventListener listener,
 	MarshalledObject    handback)
-        throws IOException     					       
+        throws IOException
     {
 	failureEventType.setListener(listener, handback);
 
 	final Object u = new FailureEventRegistration(this);
 	store.update(u);
 
-	if (listener == null) 
+	if (listener == null)
 	    return null;
 
 	final SetProxy proxy = newSetProxy();
 
 	return new EventRegistration(
 	    failureEventType.getEventID(),
-	    proxy, 
-	    proxy.getRenewalSetLease(), 
+	    proxy,
+	    proxy.getRenewalSetLease(),
+	    failureEventType.getLastSequenceNumber());
+    }
+
+    /**
+     * Set/update/clear the renewal failure listener, with a
+     * {@link MarshalledInstance} handback that preserves the DER schema
+     * dropped by {@link MarshalledObject}.
+     * @param listener the new listener
+     * @param handback the new handback
+     * @return if <code>listener</code> is non-<code>null</code> return
+     * an <code>EventRegistration</code> otherwise return <code>null</code>
+     * @throws IOException if listener can not be serialized
+     */
+    EventRegistration setRenewalFailureListener(
+	RemoteEventListener listener,
+	MarshalledInstance  handback)
+        throws IOException
+    {
+	failureEventType.setListener(listener, handback);
+
+	final Object u = new FailureEventRegistration(this);
+	store.update(u);
+
+	if (listener == null)
+	    return null;
+
+	final SetProxy proxy = newSetProxy();
+
+	return new EventRegistration(
+	    failureEventType.getEventID(),
+	    proxy,
+	    proxy.getRenewalSetLease(),
 	    failureEventType.getLastSequenceNumber());
     }
 
@@ -554,12 +624,19 @@ class LeaseSet implements Serializable, LeasedResource {
 	}
 
 	// Inherit java doc from super type
-	public RemoteEvent createEvent(long             eventID, 
-				       long             seqNum, 
-				       MarshalledObject handback) 
+	@SuppressWarnings("deprecation")
+	public RemoteEvent createEvent(long             eventID,
+				       long             seqNum,
+				       Object           handback)
 	{
-	    return new ExpirationWarningEvent(proxy, seqNum, handback);
-	}	
+	    // The handback is polymorphic: a new MarshalledInstance (DER
+	    // schema preserved) or a legacy MarshalledObject.
+	    return (handback instanceof MarshalledInstance)
+		? new ExpirationWarningEvent(proxy, seqNum,
+					     (MarshalledInstance) handback)
+		: new ExpirationWarningEvent(proxy, seqNum,
+					     (MarshalledObject) handback);
+	}
     }
 
     /**

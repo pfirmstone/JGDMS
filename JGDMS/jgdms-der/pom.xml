@@ -64,7 +64,12 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <release>21</release>
+                    <!-- jgdms-der uses java.lang.ScopedValue (the nested-carrier DoS depth guard in
+                         DerMarshalInstanceInput), which is a PREVIEW API in JDK 21 through 24 and only
+                         finalised in JDK 25 (JEP 506). Targeting release 25 lets it compile without the
+                         enable-preview flag (which would pin der bytecode to a single JDK). Consequence:
+                         jgdms-der requires a JDK 25+ runtime (DirtyChai) and will not run on Java 21. -->
+                    <release>25</release>
                     <debug>true</debug>
                     <encoding>UTF-8</encoding>
                     <meminitial>128m</meminitial>

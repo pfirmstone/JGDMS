@@ -17,6 +17,8 @@
 
 package au.net.zeus.jgdms.der.stream;
 
+import au.net.zeus.jgdms.der.DerInputLimits;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidObjectException;
@@ -98,10 +100,40 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      * @throws IOException if reading from {@code in} fails
      */
     public DerMarshalInputStream(InputStream in) throws IOException {
+        this(in, ResolutionContext.NONE);
+    }
+
+    /**
+     * Constructs a DER object-stream reader over {@code in}, resolving class names against the
+     * endpoint-assigned {@link ResolutionContext} (the receiving endpoint's loader) rather than
+     * the thread-context loader -- the JGDMS class-resolution discipline (see
+     * {@link ResolutionContext}).
+     *
+     * @param in         the source of DER-encoded data (must not be null)
+     * @param resolution the endpoint-assigned resolution context (must not be null)
+     * @throws IOException if reading from {@code in} fails
+     */
+    public DerMarshalInputStream(InputStream in, ResolutionContext resolution) throws IOException {
+        this(in, resolution, DerInputLimits.DEFAULT);
+    }
+
+    /**
+     * As {@link #DerMarshalInputStream(InputStream, ResolutionContext)} with explicit DoS limits --
+     * the per-deployment input cap the JERI invocation layer obtained from its configuration.
+     *
+     * @param in         the source of DER-encoded data (must not be null)
+     * @param resolution the endpoint-assigned resolution context (must not be null)
+     * @param limits     the DoS limits (must not be null; {@link DerInputLimits#DEFAULT} for the JVM default)
+     * @throws IOException if reading from {@code in} fails or it exceeds the byte cap
+     */
+    public DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits)
+            throws IOException {
         this.underlying = Objects.requireNonNull(in, "in");
-        byte[] buf = in.readAllBytes();
+        Objects.requireNonNull(resolution, "resolution");
+        Objects.requireNonNull(limits, "limits");
+        byte[] buf = limits.readAllBytesBounded(in); // bounded: refuse oversize input (DoS)
         this.codec = new DerObjectStreamCodec();
-        this.codec.initReader(buf, decodeUnit);
+        this.codec.initReader(buf, decodeUnit, resolution);
     }
 
     // =========================================================================

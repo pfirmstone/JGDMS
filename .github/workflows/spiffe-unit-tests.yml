@@ -11,14 +11,14 @@ name: "SPIFFE Unit Tests"
 #   (SpiffeLoginModuleTest is in qa/jtreg/net/jini/jeri/ssl/SpiffeLoginModule/)
 #   (SpiffeEndpointTest is in qa/jtreg/net/jini/jeri/ssl/SpiffeEndpointTest/)
 #
-# Two Java variants are exercised:
-#   1. Temurin 21 (via actions/setup-java) — always runs.
-#      jgdms-platform and jgdms-jeri require --release 21, so JDK 21 is the
-#      minimum version needed to compile the project.
-#   2. DirtyChai JDK — runs only when the dirty-chai-latest release is
-#      available at pfirmstone/DirtyChai.
-#      DirtyChai is a community OpenJDK fork that re-enables SecurityManager /
-#      AccessController, which is required for full JGDMS security testing.
+# Java variant exercised:
+#   DirtyChai JDK (JDK 25+) — runs when the dirty-chai-latest release is
+#   available at pfirmstone/DirtyChai. DirtyChai is a community OpenJDK fork that
+#   re-enables SecurityManager / AccessController, required for full JGDMS
+#   security testing.
+#   There is NO Temurin-21 leg: SPIFFE exercises jgdms-jeri, which depends on
+#   jgdms-der. jgdms-der targets release 25 (the finalised java.lang.ScopedValue,
+#   JEP 506), so the jeri+der stack no longer compiles or runs on JDK 21.
 
 on:
   workflow_dispatch:
@@ -54,9 +54,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - jdk-label: "Temurin-21"
-            use-dirtychai: false
-            java-version: '21'
+          # DirtyChai (JDK 25+) only — the jeri+der stack requires release 25
+          # (finalised ScopedValue) and cannot be built or run on JDK 21.
           - jdk-label: "DirtyChai (if available)"
             use-dirtychai: true
 
@@ -169,13 +168,18 @@ jobs:
 
       # -----------------------------------------------------------------------
       # Build dependencies (jgdms-platform + jgdms-jeri) — skip tests here.
+      # jgdms-marshal-delegate-processor is the @AtomicSerial MarshalDelegate
+      # annotation processor wired into every module's annotationProcessorPaths;
+      # --also-make does not pull it in (it is not a normal dependency), so it
+      # must be listed explicitly or the scoped reactor cannot resolve the
+      # 3.1.1-SNAPSHOT and jgdms-collections fails at compile.
       # -----------------------------------------------------------------------
       - name: Build dependencies
         if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
         working-directory: JGDMS
         run: |
           mvn install -DskipTests \
-            -pl jgdms-platform,jgdms-jeri --also-make \
+            -pl jgdms-marshal-delegate-processor,jgdms-platform,jgdms-jeri --also-make \
             --no-transfer-progress -q
         env:
           JAVA_HOME: ${{ env.JAVA_HOME }}

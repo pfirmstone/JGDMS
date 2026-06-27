@@ -95,31 +95,35 @@ class ObjectStreamClassContainer {
 	    sm.checkPermission(perm, context);
 	}
 	if (!hasReadObjectNoData() && !hasReadObject()) {
-	    //Ok if there's no data.
-	    // Check all classes in heirarchy for absence of data (stateless object)
-	    // Not worried about primitive fields, might as well be stateless.
-	    ObjectStreamClassInformation osc = osci;
-	    ObjectStreamClassContainer superClass = this.superClass;
+	    // Stateless-object fast path: the permission check may be skipped only when
+	    // the RESOLVED LOCAL class hierarchy genuinely has no deserialization
+	    // behaviour (readObject/readObjectNoData) and no object state (non-primitive
+	    // serialisable fields). This decision must NOT trust the stream-supplied
+	    // descriptor (osci): an attacker controls those flags and could claim
+	    // "stateless" (numObjFields==0, no write method) to bypass the gate while the
+	    // local class is in fact stateful. Walk the LOCAL class hierarchy instead.
+	    ObjectStreamClassContainer c = this;
 	    CHECK_SAFE:
-	    while (osc != null && osc.hasWriteObjectData == false && osc.hasBlockExternalData == false && osc.numObjFields == 0) {
-		// Double check all fields are primitives.
-		ObjectStreamField[] fields = osc.fields;
-		if (fields != null) {
-		    for (int i = 0, l = fields.length; i < l; i++) {
-			if (!fields[i].isPrimitive()) {
-			    break CHECK_SAFE;
+	    while (c != null) {
+		if (c.hasReadObject() || c.hasReadObjectNoData()) {
+		    break CHECK_SAFE; // local class has deserialization behaviour
+		}
+		ObjectStreamClass local = c.localClass;
+		if (local == null) {
+		    break CHECK_SAFE; // cannot prove statelessness -> require the gate
+		}
+		ObjectStreamField[] localFields = local.getFields();
+		if (localFields != null) {
+		    for (int i = 0, l = localFields.length; i < l; i++) {
+			if (!localFields[i].isPrimitive()) {
+			    break CHECK_SAFE; // local class has object state
 			}
 		    }
 		}
-		if (superClass != null) {
-		    if (superClass.hasReadObjectNoData() || superClass.hasReadObject()) {
-			break CHECK_SAFE;
-		    }
-		    osc = superClass.osci;
-		    superClass = superClass.superClass;
-		} else {
-		    return; // If there's no data and no object fields therefore safe.
-		}
+		c = c.superClass;
+	    }
+	    if (c == null) {
+		return; // whole local hierarchy is stateless -> safe to skip the gate
 	    }
 	}
 	if (perm == null) {

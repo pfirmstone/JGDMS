@@ -35,6 +35,8 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Replace;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 
@@ -87,6 +89,21 @@ public final class ConstrainableAID extends AID
 	    this.constraints = constraints;
 	}
 	
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("activator", Activator.class),
+		new SerialForm("uid", UID.class),
+		new SerialForm("constraints", MethodConstraints.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, State s) throws IOException {
+	    arg.put("activator", s.activator);
+	    arg.put("uid", s.uid);
+	    arg.put("constraints", s.constraints);
+	    arg.writeArgs();
+	}
+
 	public State(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("activator", null, Activator.class),
 		 arg.get("uid", null, UID.class),
@@ -159,6 +176,17 @@ public final class ConstrainableAID extends AID
 	    this.activator = activator;
 	}
 	
+	public static SerialForm[] serialForm() {
+	    return new SerialForm[] {
+		new SerialForm("activator", RemoteMethodControl.class)
+	    };
+	}
+
+	public static void serialize(PutArg arg, Verifier v) throws IOException {
+	    arg.put("activator", v.activator);
+	    arg.writeArgs();
+	}
+
 	Verifier(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(validate(arg.get("activator", null, RemoteMethodControl.class)));
 	}

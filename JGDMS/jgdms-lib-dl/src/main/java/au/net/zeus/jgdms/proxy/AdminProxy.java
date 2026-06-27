@@ -330,6 +330,7 @@ public class AdminProxy
      * </ul>
      */
     @AtomicSerial
+    @AtomicSerial.Stateless // methodConstraints is derived from server.getConstraints(), not a wire field
     static final class ConstrainableAdminProxy extends AdminProxy
             implements RemoteMethodControl {
 

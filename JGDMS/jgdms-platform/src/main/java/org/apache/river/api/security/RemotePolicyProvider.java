@@ -43,13 +43,17 @@ import net.jini.security.GrantPermission;
 import org.apache.river.api.common.Beta;
 
 /**
- * An implementation of RemotePolicy.
+ * A local dynamic {@link java.security.Policy} that applies administrator-supplied
+ * {@link PermissionGrant}s via {@link #replace(PermissionGrant[])}, gated by
+ * {@code PolicyPermission("Remote")}. Grants are distributed as policy-file text by
+ * {@link RemotePolicyService} and parsed locally before being applied here; this class
+ * no longer exposes a remote interface (the former {@code RemotePolicy} was removed in
+ * 4.0 to avoid deserialising {@code Permission}s off the wire).
  * @author Peter Firmstone
  * @since 3.0.0
  */
 @Beta
-public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy,
-        ScalableNestedPolicy{
+public class RemotePolicyProvider extends AbstractPolicy implements ScalableNestedPolicy{
     
     private static final ProtectionDomain policyDomain = 
             AccessController.doPrivileged(new PrivilegedAction<ProtectionDomain>(){
@@ -74,7 +78,6 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
     private final Object grantLock;
     private final Permission remotePolicyPermission;
     private final Policy basePolicy; // refresh protected by transactionWriteLock
-    private final boolean basePolicyIsRemote;
     private final boolean basePolicyIsConcurrent;
     private final PermissionCollection policyPermissions;
     
@@ -101,7 +104,6 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
 	remotePolicyGrants = new PermissionGrant[0];
 	grantLock = new Object();
         remotePolicyPermission = new PolicyPermission("Remote");
-        basePolicyIsRemote = basePolicy instanceof RemotePolicy;
         basePolicyIsConcurrent = basePolicy instanceof ScalableNestedPolicy ;
         policyPermissions = col;
         policyPermissions.setReadOnly();
@@ -202,9 +204,6 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
     @Override
     public boolean implies(ProtectionDomain domain, Permission permission) {
         if (domain == policyDomain) return policyPermissions.implies(permission);
-        if (basePolicyIsRemote){
-            if (basePolicy.implies(domain, permission)) return true;
-        }
 	if (permission == null) throw new NullPointerException("permission not allowed to be null");
         /* If com.sun.security.provider.PolicyFile:
          * Do not call implies on the base Policy, if

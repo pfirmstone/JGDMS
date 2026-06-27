@@ -60,6 +60,7 @@ import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.io.MarshalledInstance;
 import net.jini.lease.LeaseRenewalEvent;
 import net.jini.lease.LeaseRenewalManager;
 import net.jini.lease.LeaseRenewalService;
@@ -657,7 +658,68 @@ abstract class NormServerBaseImpl
 	    }
 	} finally {
 	    store.releaseMutatorLock();
-	}    
+	}
+    }
+
+    // Inherit java doc from super type
+    @Override
+    public EventRegistration setExpirationWarningListener(
+				 Uuid		     id,
+				 RemoteEventListener listener,
+				 long		     minWarning,
+				 MarshalledInstance  handback)
+	throws RemoteException, ThrowThis
+    {
+	ready.check();
+	final LeaseSet set = getSet(id);
+
+	if (listener == null) {
+	    minWarning = NO_LISTENER;
+	    handback = null;
+	} else if (minWarning < 0) {
+	    throw new IllegalArgumentException(
+	        "LeaseRenewalSet.setExpirationWarningListener:minWarning " +
+		"must be positive");
+	} else {
+	    listener = (RemoteEventListener) listenerPreparer.prepareProxy(
+		listener);
+	}
+
+	try {
+	    store.acquireMutatorLock();
+	    synchronized (set) {
+		ensureCurrent(set);
+
+		try {
+		    final boolean haveBefore = set.haveWarningRegistration();
+		    final EventRegistration rslt =
+			set.setExpirationWarningListener(
+			    listener, minWarning, handback);
+		    final boolean haveAfter = set.haveWarningRegistration();
+
+		    if (haveAfter || (haveBefore != haveAfter)) {
+			// Either we had a registration before and we
+			// don't now, we do now and not before, or we
+			// had one before and we still do.  In the
+			// first two cases we have to wack the
+			// expiration manager so it can schedule the
+			// right task.  In the last case wack the
+			// expiration manager so it can reschedule in case
+			// minWarning has changed.
+			expMgr.reschedule(set);
+		    }
+
+		    return rslt;
+		} catch (IOException e) {
+		    // This means the listener could not be serialized,
+		    // re-throw as an IllegalArgumentException
+		    throw new IllegalArgumentException("Passed a listener " +
+			      "that could not be serialized");
+		}
+	    }
+	} finally {
+	    store.releaseMutatorLock();
+	}
     }
 
     /**
@@ -719,7 +781,7 @@ abstract class NormServerBaseImpl
 	}
 
 	try {
-	    store.acquireMutatorLock();	    
+	    store.acquireMutatorLock();
 	    synchronized (set) {
 		ensureCurrent(set);
 
@@ -728,14 +790,52 @@ abstract class NormServerBaseImpl
 			listener, handback);
 		} catch (IOException e) {
 		    // This means the listener could not be serialized,
-		    // re-throw as an IllegalArgumentException 
+		    // re-throw as an IllegalArgumentException
 		    throw new IllegalArgumentException("Passed a listener " +
 			      "that could not be serialized");
 		}
 	    }
 	} finally {
 	    store.releaseMutatorLock();
-	}    
+	}
+    }
+
+    // Inherit java doc from super type
+    @Override
+    public EventRegistration setRenewalFailureListener(
+				 Uuid		     id,
+				 RemoteEventListener listener,
+				 MarshalledInstance  handback)
+	throws RemoteException, ThrowThis
+    {
+	ready.check();
+	final LeaseSet set = getSet(id);
+
+	if (listener == null) {
+	    handback = null;
+	} else {
+	    listener = (RemoteEventListener) listenerPreparer.prepareProxy(
+		listener);
+	}
+
+	try {
+	    store.acquireMutatorLock();
+	    synchronized (set) {
+		ensureCurrent(set);
+
+		try {
+		    return set.setRenewalFailureListener(
+			listener, handback);
+		} catch (IOException e) {
+		    // This means the listener could not be serialized,
+		    // re-throw as an IllegalArgumentException
+		    throw new IllegalArgumentException("Passed a listener " +
+			      "that could not be serialized");
+		}
+	    }
+	} finally {
+	    store.releaseMutatorLock();
+	}
     }
 
     /**

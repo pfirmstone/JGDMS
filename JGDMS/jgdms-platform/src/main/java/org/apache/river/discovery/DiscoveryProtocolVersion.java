@@ -44,10 +44,6 @@ public final class DiscoveryProtocolVersion
 {
     private static final long serialVersionUID = 1781016120938012150L;
 
-    /** Use discovery protocol version 1. */
-    public static final DiscoveryProtocolVersion ONE =
-	new DiscoveryProtocolVersion(Discovery.PROTOCOL_VERSION_1);
-
     /** Use discovery protocol version 2. */
     public static final DiscoveryProtocolVersion TWO =
 	new DiscoveryProtocolVersion(Discovery.PROTOCOL_VERSION_2);
@@ -80,8 +76,6 @@ public final class DiscoveryProtocolVersion
      */
     public static DiscoveryProtocolVersion getInstance(int version) {
 	switch (version) {
-	    case Discovery.PROTOCOL_VERSION_1:
-		return ONE;
 	    case Discovery.PROTOCOL_VERSION_2:
 		return TWO;
 	    default:

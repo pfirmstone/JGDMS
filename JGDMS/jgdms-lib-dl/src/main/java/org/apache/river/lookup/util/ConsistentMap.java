@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * An implementation of the <code>java.util.Map</code> interface that has
@@ -82,8 +84,21 @@ public class ConsistentMap<K,V> extends AbstractMap<K,V> implements Serializable
 	this(entrySet(init));
     }
 
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("entrySet", Set.class)
+        };
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static void serialize(PutArg arg, ConsistentMap o) throws IOException {
+        arg.put("entrySet", o.entrySet);
+        arg.writeArgs();
+    }
+
+    @SuppressWarnings("unchecked")
     public ConsistentMap(GetArg arg) throws IOException, ClassNotFoundException {
-	this(entrySet((Map<K, V>) arg.get("entrySet", null)));
+        this((Set<Map.Entry<K,V>>) arg.get("entrySet", null, Set.class));
     }
     
     private static <K,V> Set<Map.Entry<K,V>> entrySet(Map<K,V> init){

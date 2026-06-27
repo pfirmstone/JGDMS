@@ -41,6 +41,8 @@ import net.jini.security.policy.DynamicPolicyProvider;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.util.Startable;
 import org.apache.river.config.Config;
@@ -338,6 +340,25 @@ public class NonActivatableServiceDescriptor
         this.servicePreparer = preparer;    
     }
     
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("codebase", String.class),
+            new SerialForm("policy", String.class),
+            new SerialForm("classpath", String.class),
+            new SerialForm("implClassName", String.class),
+            new SerialForm("serverConfigArgs", String[].class)
+        };
+    }
+
+    public static void serialize(PutArg arg, NonActivatableServiceDescriptor d) throws IOException {
+        arg.put("codebase", d.codebase);
+        arg.put("policy", d.policy);
+        arg.put("classpath", d.classpath);
+        arg.put("implClassName", d.implClassName);
+        arg.put("serverConfigArgs", d.serverConfigArgs);
+        arg.writeArgs();
+    }
+
     public NonActivatableServiceDescriptor(GetArg arg) 
 	    throws IOException, ClassNotFoundException{
 	this(arg.get("codebase", null, String.class),

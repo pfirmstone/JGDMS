@@ -129,7 +129,7 @@ public class UnicastDelay extends QATestEnvironment implements Test {
 	
 	MulticastSocket mcSocket = new MulticastSocket(DISCOVERYPORT);
 	mcSocket.setTimeToLive(1);
-	Discovery d = Discovery.getProtocol1();
+	Discovery d = Discovery.getProtocol2(null);
 	ServiceID sid = new ServiceID(5555, 4444);
 	MulticastAnnouncement ma = new MulticastAnnouncement(
 				    2222,

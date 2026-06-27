@@ -64,6 +64,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -72,9 +73,9 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalInputStream;
+import net.jini.io.context.DeserializationCompletion;
 import org.apache.river.api.io.AtomicSerial.Factory;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.impl.Messages;
 
 
@@ -729,7 +730,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
      */
     private byte[] readBlockDataLong() throws IOException {
 	int length = input.readInt();
-	if (length > arrayLenAllowedRemain){
+	if (length < 0 || length > arrayLenAllowedRemain){
 	    try {
 		close();
 	    } catch (IOException e){} // Ignore
@@ -1172,38 +1173,6 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
          * Maybe this should be configurable?
          */
 //        return fields.toArray(new ObjectStreamField[fields.size()]);
-    }
-    
-    /**
-     * Converts a {@link SerialForm} array to an {@link ObjectStreamField} array.
-     * JOSS-bridge adapter: SerialForm no longer extends ObjectStreamField (sec4.1).
-     */
-    static ObjectStreamField[] toOSF(SerialForm[] sf) {
-        ObjectStreamField[] osf = new ObjectStreamField[sf.length];
-        for (int i = 0; i < sf.length; i++) {
-            osf[i] = new ObjectStreamField(sf[i].getName(), sf[i].getType(), sf[i].isUnshared());
-        }
-        return osf;
-    }
-
-    private ObjectStreamField [] fields(Class clz) throws IOException{
-        try {
-            // getDeclaredMethod (not getMethod): only the class's OWN serialForm, never inherited.
-            Method m = clz.getDeclaredMethod("serialForm", EMPTY_CONSTRUCTOR_PARAM_TYPES);
-            int modifiers = m.getModifiers();
-            if (Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers) && m.getReturnType() == SerialForm [].class){
-                m.setAccessible(true); // public method may be declared on a non-public @AtomicSerial class
-                SerialForm[] serialForms = (SerialForm[]) m.invoke(null, (Object []) null);
-                Arrays.sort(serialForms);
-                return toOSF(serialForms);
-            }
-        } catch (NoSuchMethodException ex) {
-            //TODO enable logger
-//            Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, "@AtomicSerial class is missing public static method serialPersistent fields", ex);
-        } catch (Exception ex) {
-            throw new IOException("Unable to access serialForm method" , ex);
-        }
-        return new ObjectStreamField[0];
     }
     
     private GetField readFields(ObjectStreamClass deserializedClassDescriptor, Class cls)
@@ -1930,11 +1899,11 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 	int size = input.readInt();
 //	System.out.println("array size: " + size);
 	
-	if (size > arrayLenAllowedRemain) {
+	if (size < 0 || size > arrayLenAllowedRemain) {
 	    try {
 		close();
 	    } catch (IOException e){} // Ignore
-	    throw new IOException("Attempt to deserialize an array with length exceeding 65535, length requested: " + size);
+	    throw new IOException("Attempt to deserialize an array with an invalid or excessive length: " + size);
 	}
 	arrayLenAllowedRemain = arrayLenAllowedRemain - size;
         Class<?> arrayClass = classDesc.forClass();
@@ -2281,8 +2250,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 		= new ObjectStreamClassContainer(null, null, null, handle, true );
 	registerObjectRead(streamClassContainer, handle, false);
         int count = input.readInt();
-	if (count > Byte.MAX_VALUE) throw new ClassNotFoundException(
-	    "Smells like a denial of service attack, requesting to create a proxy with many interfaces: "
+	if (count < 0 || count > Byte.MAX_VALUE) throw new ClassNotFoundException(
+	    "Smells like a denial of service attack, invalid or excessive proxy interface count: "
 	+ count);
         String[] interfaceNames = new String[count];
         for (int i = 0; i < count; i++) {
@@ -2800,7 +2769,6 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
         }
 	int size = streamClassList.size();
 	Map<Class,GetField> fields = new HashMap<Class,GetField>(size);
-	Map<Class,ReadObject> readers = new HashMap<Class,ReadObject>(size);
 	for (ObjectStreamClassContainer streamClass : streamClassList) {
             Class c = streamClass.forClass();
 	    GetField field = readFields(streamClass.getDeserializedClass(), c);
@@ -2810,11 +2778,6 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 	    // so we do our best to retrieve it.
 	    
 	    if (c != null) {
-		ReadObject reader = AtomicSerial.Factory.streamReader(c);
-		if (reader != null){
-		    reader.read(this);
-		    readers.put(c, reader);
-		} 
 		if (streamClass.hasWriteObjectData()) discardData(false);
 		fields.put(c, field);
 	    } else {
@@ -2822,12 +2785,18 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 		throw new ClassNotFoundException(streamClass.getOsci().getFullyQualifiedClassName());
 	    }
 	}
-	GetArg arg = new GetArgImpl(fields, readers, this);
-	Object result = discard ? 
-		Reference.DISCARDED : 
-		Factory.instantiate(classDesc.forClass(),
-		    arg
-		);
+	GetArg arg = new GetArgImpl(fields, this);
+	Object result;
+	if (discard){
+	    result = Reference.DISCARDED;
+	} else {
+	    Class<?> leaf = classDesc.forClass();
+	    MarshalDelegate delegate = MarshalDelegates.delegateFor(leaf);
+	    // In-package construction via the class's own (GetArg) constructor when
+	    // a delegate serves leaf's package; otherwise the reflective Factory path.
+	    result = (delegate != null) ? delegate.create(leaf, arg)
+		    : Factory.instantiate(leaf, arg);
+	}
 	return result;
     }
 
@@ -2863,11 +2832,11 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
      */
     Object readNewLongString(boolean unshared) throws IOException {
         long length = input.readLong();
-	if (length > arrayLenAllowedRemain) {
+	if (length < 0 || length > arrayLenAllowedRemain) {
 	    try {
 		close();
 	    } catch (IOException e){} // Ignore
-	    throw new IOException("Combined length of arrays too long to allow read of long UTF string");
+	    throw new IOException("Invalid or excessive length for a long UTF string: " + length);
 	}
 	arrayLenAllowedRemain = arrayLenAllowedRemain - length;
         Object result 
@@ -3287,6 +3256,58 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 		    - i);
 	    validations[i] = desc;
 	}
+    }
+
+    /*
+     * Explicit, wire-format-independent stream-state context (4.0.0). The
+     * augmented getObjectStreamContext() below surfaces a single
+     * DeserializationCompletion so an @AtomicSerial constructor can schedule
+     * post-graph work through the context channel alone, never by reaching into
+     * this stream via a @ReadInput/ReadObject back-door. Exactly one exists per
+     * stream (one decode unit), so a batching consumer (e.g. client DGC) may key
+     * on it; it is the JOSS analogue of the DER path's completion element,
+     * adapting this stream's registerValidation.
+     *
+     * Class loaders are deliberately NOT surfaced here: they are security-
+     * sensitive capabilities and must not be broadcast to every object in the
+     * graph via the shared context. ProxySerializer, the one in-package consumer
+     * that needs them, reaches them through the package-private GetArgImpl.
+     */
+    private final DeserializationCompletion completion = new DeserializationCompletion() {
+        @Override
+        public void registerCompletion(ObjectInputValidation action, int priority)
+                throws NotActiveException, InvalidObjectException {
+            registerValidation(action, priority);
+        }
+    };
+
+    private volatile Collection augmentedContext;
+
+    /**
+     * Returns the caller-supplied stream context augmented with a
+     * {@link DeserializationCompletion} (adapting this stream's
+     * {@link #registerValidation registerValidation}) -- the JOSS analogue of the
+     * DER path's completion element, letting an {@code @AtomicSerial} constructor
+     * schedule post-graph work (e.g. client DGC batching) through the context
+     * channel instead of the removed {@code @ReadInput}/{@code ReadObject}
+     * stream-sampling back-door. The stream's class loaders are intentionally not
+     * exposed here (see field comment above).
+     */
+    @Override
+    public Collection getObjectStreamContext() {
+        // Guard against a super-constructor invoking this overridable method
+        // before the completion element is initialized.
+        if (completion == null) {
+            return super.getObjectStreamContext();
+        }
+        Collection result = augmentedContext;
+        if (result == null) {
+            List augmented = new ArrayList(super.getObjectStreamContext());
+            augmented.add(completion);
+            result = Collections.unmodifiableList(augmented);
+            augmentedContext = result;
+        }
+        return result;
     }
 
     /**

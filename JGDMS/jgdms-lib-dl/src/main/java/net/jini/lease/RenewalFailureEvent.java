@@ -19,6 +19,7 @@ package net.jini.lease;
 
 import java.io.IOException;
 import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.lease.Lease;
 import org.apache.river.api.io.AtomicSerial;
@@ -56,11 +57,32 @@ public abstract class RenewalFailureEvent extends RemoteEvent {
      * @param seqNum the sequence number of this event
      * @param handback the client handback
      */
+    /**
+     * @deprecated Use {@link #RenewalFailureEvent(LeaseRenewalSet, long, MarshalledInstance)};
+     *             java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries.
+     */
+    @Deprecated(forRemoval = true)
     public RenewalFailureEvent(LeaseRenewalSet  source, 
 			       long             seqNum,
 			       MarshalledObject handback)
     {
 	super(source, LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID, seqNum, 
+	      handback);
+    }
+
+    /**
+     * Simple constructor taking a MarshalledInstance handback (preserves DER schema
+     * fields). Event id is fixed to LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID.
+     *
+     * @param source the LeaseRenewalSet that generated the event
+     * @param seqNum the sequence number of this event
+     * @param handback the client handback
+     */
+    public RenewalFailureEvent(LeaseRenewalSet    source,
+			       long               seqNum,
+			       MarshalledInstance handback)
+    {
+	super(source, LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID, seqNum,
 	      handback);
     }
 

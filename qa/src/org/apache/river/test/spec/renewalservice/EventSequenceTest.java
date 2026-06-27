@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -188,8 +189,7 @@ public class EventSequenceTest extends AbstractLeaseRenewalServiceTest {
 	    // register listener to receive events
 	    logger.log(Level.FINE, "Registering listener for warning events.");
 	    logger.log(Level.FINE, "minWarning = " + minWarning + ".");
-	    renewalSet[i].setExpirationWarningListener(rrl, minWarning, 
-						       null);
+	    renewalSet[i].setExpirationWarningListener(rrl, minWarning, (MarshalledInstance) null);
 
 	}
 
@@ -250,7 +250,7 @@ public class EventSequenceTest extends AbstractLeaseRenewalServiceTest {
 	// register listener to receive events
 	logger.log(Level.FINE, "Registering listener for renewal failure " +
 			  "events.");
-	set.setRenewalFailureListener(rrl, null);
+	set.setRenewalFailureListener(rrl, (MarshalledInstance) null);
 	
 	/* create 10 test leases which will throw definite exceptions
 	   and add each to the renewal set. */

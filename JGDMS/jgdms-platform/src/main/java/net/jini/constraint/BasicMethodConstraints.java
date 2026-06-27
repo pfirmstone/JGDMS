@@ -116,6 +116,21 @@ public final class BasicMethodConstraints
 	    new ObjectStreamField("constraints", InvocationConstraints.class)
 	};
 
+	public static AtomicSerial.SerialForm[] serialForm(){
+	    return new AtomicSerial.SerialForm[]{
+		new AtomicSerial.SerialForm("name", String.class),
+		new AtomicSerial.SerialForm("types", Class[].class, true),
+		new AtomicSerial.SerialForm("constraints", InvocationConstraints.class)
+	    };
+	}
+
+	public static void serialize(AtomicSerial.PutArg arg, MethodDesc smc) throws IOException{
+	    arg.put("name", smc.name);
+	    arg.put("types", smc.types);
+	    arg.put("constraints", smc.constraints);
+	    arg.writeArgs();
+	}
+
 	/**
 	 * The name of the method, with prefix or suffix '*' permitted
 	 * if <code>types</code> is <code>null</code>, or <code>null</code>

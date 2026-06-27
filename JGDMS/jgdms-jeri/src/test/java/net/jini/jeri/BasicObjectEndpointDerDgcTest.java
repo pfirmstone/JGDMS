@@ -30,7 +30,6 @@ import net.jini.id.UuidFactory;
 import net.jini.io.context.DeserializationCompletion;
 import net.jini.jeri.tcp.TcpEndpoint;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -38,16 +37,16 @@ import org.junit.Test;
  * Unit test for the client-DGC-over-DER fix in {@link BasicObjectEndpoint}'s
  * {@code @AtomicSerial} constructor (JGDMS-STD-008 sec.6).
  *
- * <p>On the JOSS/atomic path the constructor obtains a {@code ReadObject} reader and
- * registers its batched {@code dirty} on the reader's {@code ObjectInputStream}. On the
- * DER path {@code getReader()} returns {@code null}; the old code dereferenced it and
- * threw {@link NullPointerException}. The fix branches on the reader: when it is
- * {@code null} the live reference registers on the {@link DeserializationCompletion}
- * context element instead.
+ * <p>The constructor registers its batched {@code dirty} on the
+ * {@link DeserializationCompletion} context element of the stream -- the single,
+ * wire-format-independent mechanism the JOSS/atomic and DER paths now share (the JOSS
+ * stream surfaces a completion that adapts {@code registerValidation}). A DGC-enabled
+ * endpoint decoded from a stream that provides no completion element fails-secure with
+ * {@link InvalidObjectException}.
  *
  * <p>The first three tests drive the constructor with a fake {@code GetArg} that models the
- * DER path (no reader; a recording {@code DeserializationCompletion} in the object-stream
- * context); the last does a real DER encode/decode round-trip of a DGC-enabled
+ * DER path (a recording {@code DeserializationCompletion} in the object-stream context);
+ * the last does a real DER encode/decode round-trip of a DGC-enabled
  * {@code BasicObjectEndpoint} (now possible: its interface-typed {@code ep} field travels by
  * runtime concrete type, and its {@code @Stateless} {@code Uuid} encodes as an empty leaf).
  * None fire the batched dirty ({@code endDecodeUnit}/{@code close}), which would attempt a
@@ -64,7 +63,7 @@ public class BasicObjectEndpointDerDgcTest {
         RecordingCompletion completion = new RecordingCompletion();
         GetArg arg = new FakeDerGetArg(EP, ID, true, completion);
 
-        // Previously threw NullPointerException on the DER path (getReader() == null).
+        // Registers the batched dirty on the DeserializationCompletion context element.
         BasicObjectEndpoint boe = new BasicObjectEndpoint(arg);
 
         Assert.assertEquals(EP, boe.getEndpoint());
@@ -141,8 +140,8 @@ public class BasicObjectEndpointDerDgcTest {
 
     /**
      * Minimal {@code GetArg} modelling the DER decode path: returns the endpoint/uuid/dgc
-     * fields by name, {@code null} from {@code getReader()}, and a context holding the
-     * (optional) {@link DeserializationCompletion}. All other accessors are unused here.
+     * fields by name and a context holding the (optional) {@link DeserializationCompletion}.
+     * All other accessors are unused here.
      */
     private static final class FakeDerGetArg extends GetArg {
         private final Endpoint ep;
@@ -180,11 +179,6 @@ public class BasicObjectEndpointDerDgcTest {
         public Class[] serialClasses() {
             // The base resolves the caller against this set (single class -> safe fallback).
             return new Class[] { BasicObjectEndpoint.class };
-        }
-
-        @Override
-        public ReadObject getReader() {
-            return null; // DER path: no @ReadInput reader
         }
 
         @Override

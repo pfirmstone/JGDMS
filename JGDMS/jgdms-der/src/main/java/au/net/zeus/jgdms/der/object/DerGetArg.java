@@ -19,6 +19,7 @@ package au.net.zeus.jgdms.der.object;
 
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import net.jini.io.context.DeserializationCompletion;
 import org.apache.river.api.io.AtomicSerial;
 
@@ -49,8 +50,8 @@ import java.util.Objects;
  *       HERE (so the cumulative {@code MAX_NESTING} depth guard is threaded), and
  *       the decoded value is then memoized by the base (decode-once);</li>
  *   <li>{@link #isDefaulted(Class, String)} -- the decode-free presence hook;</li>
- *   <li>{@code serialClasses()}, {@code getReader()} (returns {@code null}) and
- *       {@code getObjectStreamContext()} (returns an empty list).</li>
+ *   <li>{@code serialClasses()} and {@code getObjectStreamContext()} (returns the
+ *       decode-unit context, or an empty list).</li>
  * </ul>
  * Because the base memoizes the first value returned per field, a hostile or
  * replayed {@code GetArg} cannot return one value to a class's
@@ -98,6 +99,18 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     private final DeserializationCompletion decodeUnit;
 
     /**
+     * The endpoint-assigned {@link ResolutionContext} (default/verifier loaders + integrity
+     * settings) used to resolve nested classes against the receiving endpoint's loader rather
+     * than the thread-context loader (the Warres failure). A {@code ClassLoader} is a capability:
+     * this field is {@code private}, reached only through the PACKAGE-PRIVATE accessors below by
+     * trusted same-package resolution code ({@link ObjectCodec}, {@link DerProxySerializer}), and
+     * is deliberately NEVER exposed via {@link #getObjectStreamContext()} -- broadcasting it to
+     * every object in the decode graph would let a hostile object grab the loader and escalate.
+     * Never {@code null} ({@link ResolutionContext#NONE} for a standalone decode).
+     */
+    private final ResolutionContext resolution;
+
+    /**
      * Constructs a {@code DerGetArg} at nesting depth 0 (top-level decode).
      *
      * @param storeMap ordered map of class -> DerFieldStore (must not be {@code null};
@@ -133,6 +146,24 @@ public final class DerGetArg extends AtomicSerial.GetArg {
      */
     public DerGetArg(Map<Class<?>, DerFieldStore> storeMap, int depth,
                      DeserializationCompletion decodeUnit) {
+        this(storeMap, depth, decodeUnit, ResolutionContext.NONE);
+    }
+
+    /**
+     * Canonical constructor, additionally carrying the endpoint-assigned {@link ResolutionContext}
+     * for trusted same-package class resolution ({@link ObjectCodec} nested decode,
+     * {@link DerProxySerializer}). Package-private: only {@link ObjectCodec} (same package) threads
+     * it in, so objects in the decode graph cannot reach the loaders it holds.
+     *
+     * @param storeMap   ordered map of class -> DerFieldStore (must not be null/empty)
+     * @param depth      the nesting depth of the object being constructed
+     * @param decodeUnit the per-decode-unit completion sink, or {@code null}
+     * @param resolution the endpoint-assigned resolution context (must not be {@code null};
+     *                   {@link ResolutionContext#NONE} for a standalone decode)
+     */
+    DerGetArg(Map<Class<?>, DerFieldStore> storeMap, int depth,
+              DeserializationCompletion decodeUnit,
+              ResolutionContext resolution) {
         super(); // As of Inc2 step 6 the protected GetArg() constructor is a no-op
                  // (the SerializablePermission "enableSubclassImplementation" /
                  // Check.check() guard was dropped: idempotency of the final memoizing
@@ -147,6 +178,30 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         this.storeMap = Collections.unmodifiableMap(new LinkedHashMap<>(storeMap));
         this.depth = depth;
         this.decodeUnit = decodeUnit;
+        this.resolution = Objects.requireNonNull(resolution, "resolution");
+    }
+
+    /**
+     * Package-private: the endpoint-assigned resolution context, reached DIRECTLY by trusted
+     * same-package code ({@link ObjectCodec} for nested decode). Not on the public {@code GetArg}
+     * surface and not broadcast via {@link #getObjectStreamContext()} -- it holds capabilities.
+     */
+    ResolutionContext resolution() {
+        return resolution;
+    }
+
+    /**
+     * Package-private: the stream's default class loader, reached DIRECTLY by trusted same-package
+     * resolution code ({@link DerProxySerializer}, which hands it to {@code ProxyCodebaseSpi.resolve}).
+     * Not on the public {@code GetArg} surface and not broadcast via {@link #getObjectStreamContext()}.
+     */
+    ClassLoader streamDefaultLoader() {
+        return resolution.defaultLoader();
+    }
+
+    /** Package-private: the stream's verifier class loader (see {@link #streamDefaultLoader()}). */
+    ClassLoader streamVerifierLoader() {
+        return resolution.verifierLoader();
     }
 
     // =========================================================================
@@ -187,7 +242,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                 return ObjectCodec.decodeNestedArray(
                         store.rawNestedArray(name),
                         store.nestedArrayComponentClassName(name),
-                        depth, decodeUnit);
+                        depth, decodeUnit, resolution);
             } catch (DerException e) {
                 throw nested("failed to decode nested @AtomicSerial[] field", name, e);
             } catch (ClassNotFoundException e) {
@@ -199,7 +254,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         // here in der.object so that der.getarg stays cycle-free.
         if (store.isNested(name)) {
             try {
-                return ObjectCodec.decodeNested(store.rawNested(name), depth, decodeUnit);
+                return ObjectCodec.decodeNested(store.rawNested(name), depth, decodeUnit, resolution);
             } catch (DerException e) {
                 throw nested("failed to decode nested @AtomicSerial field", name, e);
             } catch (ClassNotFoundException e) {
@@ -244,15 +299,6 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     @Override
     public Class[] serialClasses() {
         return storeMap.keySet().toArray(new Class[0]);
-    }
-
-    /**
-     * Returns {@code null} -- there is no {@link AtomicSerial.ReadObject} in the DER
-     * path. DER-path classes do not use {@code @ReadInput}.
-     */
-    @Override
-    public AtomicSerial.ReadObject getReader() {
-        return null;
     }
 
     /**

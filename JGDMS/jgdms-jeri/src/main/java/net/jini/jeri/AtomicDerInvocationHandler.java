@@ -15,6 +15,9 @@
  */
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.DerInputLimitControl;
+import au.net.zeus.jgdms.der.DerInputLimits;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
 import java.io.IOException;
@@ -49,7 +52,15 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
 
     private static final long serialVersionUID = 1L;
 
-    // No new fields beyond BasicInvocationHandler.
+    /**
+     * The CLIENT's per-deployment DoS limits for reading invocation return values. {@code transient}
+     * and absent from {@link #serialForm()}: it is NEVER serialized, so the server (whence this
+     * handler arrives) cannot impose it -- the client uses its own. Defaults to the JVM-wide
+     * {@link DerInputLimits#DEFAULT} (system-property configurable); a client overrides it by
+     * re-wrapping the received handler via
+     * {@link #AtomicDerInvocationHandler(AtomicDerInvocationHandler, DerInputLimits)}.
+     */
+    private final transient DerInputLimits limits;
 
     public static SerialForm[] serialForm() {
         return new SerialForm[0];
@@ -66,6 +77,8 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
     public AtomicDerInvocationHandler(AtomicSerial.GetArg arg)
             throws IOException, ClassNotFoundException {
         super(arg);
+        // limits is the client's own concern, not carried on the wire; default it here.
+        this.limits = DerInputLimits.DEFAULT;
     }
 
     /**
@@ -78,6 +91,7 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
     public AtomicDerInvocationHandler(ObjectEndpoint oe,
                                 MethodConstraints serverConstraints) {
         super(oe, serverConstraints);
+        this.limits = DerInputLimits.DEFAULT;
     }
 
     /**
@@ -89,6 +103,24 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
     public AtomicDerInvocationHandler(AtomicDerInvocationHandler other,
                                 MethodConstraints clientConstraints) {
         super(other, clientConstraints);
+        this.limits = other.limits; // preserve the client's chosen cap across setConstraints
+    }
+
+    /**
+     * Creates a copy of {@code other} that reads invocation return values under the given
+     * per-deployment {@link DerInputLimits} -- the CLIENT's own cap (never serialized, so a server
+     * cannot impose it). A client applies its cap by re-wrapping a received proxy's handler, e.g. in
+     * a {@code ProxyPreparer}:
+     * {@code Proxy.newProxyInstance(loader, ifaces, new AtomicDerInvocationHandler(h, limits))}; the
+     * JVM-wide {@link DerInputLimits#DEFAULT} (system-property configurable) applies otherwise.
+     *
+     * @param other  the existing handler (its endpoint and client constraints are preserved)
+     * @param limits the client's DoS limits for the return-value stream (must not be {@code null})
+     */
+    public AtomicDerInvocationHandler(AtomicDerInvocationHandler other,
+                                DerInputLimits limits) {
+        super(other, other.getClientConstraints());
+        this.limits = java.util.Objects.requireNonNull(limits, "limits");
     }
 
     /**
@@ -110,16 +142,20 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
         if (proxy == null || method == null) {
             throw new NullPointerException();
         }
-        return new DerMarshalOutputStream(request.getRequestOutputStream());
+        // Substitute a downloadable proxy argument with a DerProxySerializer carrier; the proxy's
+        // own loader gates the ProxyCodebaseSpi.substitute() check (mirrors AtomicInvocationHandler).
+        return new DerMarshalOutputStream(request.getRequestOutputStream(),
+                context, getProxyLoader(proxy.getClass()));
     }
 
     /**
      * Returns a {@link DerMarshalInputStream} reading from the response input
      * stream of {@code request}.
      *
-     * <p>Override return type is {@link ObjectInput} (the base interface).
-     * Integrity and loader are ignored -- DER carries the schema, not codebase
-     * annotations.
+     * <p>Override return type is {@link ObjectInput} (the base interface). DER carries no codebase
+     * annotation, so the returned object's class names resolve against the proxy's own loader
+     * ({@code getProxyLoader(proxy.getClass())}) -- the endpoint-assigned loader, NOT the
+     * thread-context loader (the Warres discipline) -- carried in a {@link ResolutionContext}.
      *
      * @throws IllegalArgumentException if {@code proxy}'s invocation handler
      *         is not this handler
@@ -137,7 +173,9 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
         if (Proxy.getInvocationHandler(proxy) != this) {
             throw new IllegalArgumentException("not proxy for this");
         }
-        return new DerMarshalInputStream(request.getResponseInputStream());
+        ClassLoader proxyLoader = getProxyLoader(proxy.getClass());
+        return new DerMarshalInputStream(request.getResponseInputStream(),
+                new ResolutionContext(proxyLoader, integrity, proxyLoader), limits);
     }
 
     /**
@@ -166,7 +204,37 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args)
             throws Throwable {
+        // Intercept DerInputLimitControl locally (the proxy implements it, but the superclass would
+        // otherwise route its methods as remote calls) -- mirrors RemoteMethodControl handling.
+        if (method.getDeclaringClass() == DerInputLimitControl.class) {
+            return invokeInputLimitControlMethod(proxy, method, args);
+        }
         return super.invoke(proxy, method, args);
+    }
+
+    /** Handles {@link DerInputLimitControl} methods locally (no remote call). */
+    private Object invokeInputLimitControlMethod(Object proxy, Method method, Object[] args) {
+        String name = method.getName();
+        if (name.equals("getInputLimits")) {
+            return limits;
+        } else if (name.equals("setInputLimits")) {
+            if (Proxy.getInvocationHandler(proxy) != this) {
+                throw new IllegalArgumentException("not proxy for this");
+            }
+            DerInputLimits newLimits = (DerInputLimits) args[0];
+            if (newLimits == null) {
+                throw new NullPointerException("limits");
+            }
+            // New proxy, same interfaces, with a handler carrying the client's chosen cap
+            // (the (other, DerInputLimits) ctor preserves the endpoint and client constraints).
+            Class<?> proxyClass = proxy.getClass();
+            return Proxy.newProxyInstance(
+                    getProxyLoader(proxyClass),
+                    proxyClass.getInterfaces(),
+                    new AtomicDerInvocationHandler(this, newLimits));
+        } else {
+            throw new AssertionError(method);
+        }
     }
 
     /**

@@ -18,17 +18,17 @@
 package org.apache.river.mercury;
 
 import java.io.IOException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.io.AtomicObjectInput;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * The <code>EventID</code> class is used to represent a unique event
@@ -57,11 +57,44 @@ class EventID implements Serializable {
      */
     private final long id;
 
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("id", long.class),
+            new SerialForm("source", MarshalledInstance.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, EventID o) throws IOException {
+        arg.put("id", o.id);
+        arg.put("source", new AtomicMarshalledInstance(o.source));
+        arg.writeArgs();
+    }
+
     public EventID(GetArg arg) throws IOException, ClassNotFoundException {
-	this(null,
-	    arg.get("id", 0L),
-	    check(((RO)arg.getReader()).source, "Null source read from stream")
-	);
+        this(null, arg.get("id", 0L), readSource(arg));
+    }
+
+    /**
+     * Reconstructs the event source from its marshalled form, tolerating an
+     * unavailable codebase exactly as the legacy readObject did (leaves the
+     * source null rather than failing the whole deserialization).
+     */
+    private static Object readSource(GetArg arg) throws IOException, ClassNotFoundException {
+        MarshalledInstance mi = arg.get("source", null, MarshalledInstance.class);
+        if (mi == null) {
+            return null;
+        }
+        try {
+            return mi.get(false);
+        } catch (Throwable e) {
+            if (e instanceof Error
+                    && !(e instanceof LinkageError
+                      || e instanceof OutOfMemoryError
+                      || e instanceof StackOverflowError)) {
+                throw (Error) e;
+            }
+            return null;
+        }
     }
 
     /** 
@@ -154,7 +187,9 @@ class EventID implements Serializable {
         throws IOException
     {
         stream.defaultWriteObject();
-        stream.writeObject(new MarshalledInstance(source).convertToMarshalledObject());
+        // Dual-read upgrade: write the canonical MarshalledInstance (DER form,
+        // carries the schema) instead of a lossy java.rmi.MarshalledObject.
+        stream.writeObject(new AtomicMarshalledInstance(source));
     }
 
     /**
@@ -170,10 +205,15 @@ class EventID implements Serializable {
         throws IOException, ClassNotFoundException
     {
         stream.defaultReadObject();
-        MarshalledObject mo = (MarshalledObject)stream.readObject();
+        // Dual-read: accept a legacy java.rmi.MarshalledObject or a new
+        // MarshalledInstance; normalize to the canonical instance.
+        Object o = stream.readObject();
+        MarshalledInstance mi = (o instanceof MarshalledInstance)
+                ? (MarshalledInstance) o
+                : new MarshalledInstance((MarshalledObject) o);
 
         try {
-            source = new MarshalledInstance(mo).get(false);
+            source = mi.get(false);
         } catch (Throwable e) {
             if (e instanceof Error &&
                 !(e instanceof LinkageError ||
@@ -184,29 +224,4 @@ class EventID implements Serializable {
         }
     }
     
-    private static class RO implements ReadObject {
-	
-	Object source;
-
-	@Override
-	public void read(AtomicObjectInput stream) throws IOException, ClassNotFoundException {
-	    MarshalledObject mo = (MarshalledObject)stream.readObject(MarshalledObject.class);
-	    try {
-		source = new MarshalledInstance(mo).get(false);
-	    } catch (Throwable e) {
-		if (e instanceof Error &&
-		    !(e instanceof LinkageError ||
-		      e instanceof OutOfMemoryError ||
-		      e instanceof StackOverflowError)) {
-		    throw (Error)e;
-}
-	    }
-	}
-
-        @Override
-        public void read(ObjectInput input) throws IOException, ClassNotFoundException {
-            throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
-        }
-	
-    }
 }

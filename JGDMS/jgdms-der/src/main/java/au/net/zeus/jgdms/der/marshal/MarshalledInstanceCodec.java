@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.der.marshal;
 
 import au.net.zeus.jgdms.der.DerException;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
@@ -181,7 +182,7 @@ public final class MarshalledInstanceCodec {
             MarshalledInstanceRecord rec,
             Class<T> receiverClass)
             throws DerException, IOException, ClassNotFoundException {
-        return decodeMarshalledInstance(rec, receiverClass, null);
+        return decodeMarshalledInstance(rec, receiverClass, null, ResolutionContext.NONE);
     }
 
     /**
@@ -190,10 +191,19 @@ public final class MarshalledInstanceCodec {
      * DGC live reference can register its batched {@code dirty} on the per-decode-unit
      * token (used on the JERI/DER stream path; {@code null} for a standalone decode).
      *
+     * <p>The {@code resolution} is the endpoint-assigned {@link ResolutionContext} (the
+     * unmarshalling stream's loaders + integrity settings), threaded into the constructed
+     * {@code DerGetArg}s so nested classes resolve against the endpoint loader -- NOT the
+     * thread-context loader (the Warres failure) -- and so trusted resolution code such as
+     * {@code DerProxySerializer} can reach the loaders through a narrow package-private channel
+     * (NOT {@code getObjectStreamContext()}), without broadcasting these capabilities to every
+     * object in the graph. Use {@link ResolutionContext#NONE} for a standalone decode.
+     *
      * @param <T>            the expected return type
      * @param rec            the {@code MarshalledInstanceRecord} to decode
      * @param receiverClass  the receiver's class
      * @param decodeUnit     the per-decode-unit completion sink, or {@code null}
+     * @param resolution     the endpoint-assigned resolution context (must not be {@code null})
      * @return a {@link Result} with the constructed object and detected schema case
      * @throws DerException           if the DER encoding is malformed
      * @throws IOException            if construction fails with an {@link IOException}
@@ -203,7 +213,8 @@ public final class MarshalledInstanceCodec {
     public static <T> Result<T> decodeMarshalledInstance(
             MarshalledInstanceRecord rec,
             Class<T> receiverClass,
-            DeserializationCompletion decodeUnit)
+            DeserializationCompletion decodeUnit,
+            ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
 
         Objects.requireNonNull(rec,           "rec");
@@ -235,7 +246,8 @@ public final class MarshalledInstanceCodec {
                 receiverClass,
                 embeddedChain,
                 rec.payloadBytes(),
-                decodeUnit);
+                decodeUnit,
+                resolution);
 
         return new Result<>(object, schemaCase);
     }

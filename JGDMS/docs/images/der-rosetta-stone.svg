@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 470" font-family="Helvetica, Arial, sans-serif">
+  <!-- DRAFT placeholder cartoon for blog-post-6 (Part 6). The DER Rosetta Stone:
+       a self-describing data artifact, legible across languages and to a future
+       archaeologist, beside the crumbled remains of the Java class that wrote it.
+       Intended to be replaced by finished illustration. -->
+  <rect width="880" height="470" fill="#ffffff"/>
+
+  <!-- dig ground -->
+  <path d="M0,402 Q440,356 880,402 L880,470 L0,470 Z" fill="#efe6ce"/>
+  <ellipse cx="440" cy="404" rx="310" ry="24" fill="#e6dbbc"/>
+
+  <!-- ===== crumbled class (the code that died) ===== -->
+  <g>
+    <polygon points="116,396 146,362 174,396" fill="#c4c4c4" stroke="#a0a0a0" stroke-width="1.5"/>
+    <polygon points="150,398 186,374 210,398" fill="#b6b6b6" stroke="#9a9a9a" stroke-width="1.5"/>
+    <rect x="120" y="394" width="98" height="9" rx="3" fill="#adadad"/>
+    <path d="M150,392 V334 a26,26 0 0 1 52,0 V392 Z" fill="#b7bcc2" stroke="#828a91" stroke-width="2"/>
+    <text x="176" y="350" text-anchor="middle" font-size="11" fill="#586069">Original</text>
+    <text x="176" y="364" text-anchor="middle" font-size="11" fill="#586069">Service.class</text>
+    <text x="176" y="382" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#c0392b">ClassNotFound</text>
+  </g>
+
+  <!-- ===== the DER Rosetta stone ===== -->
+  <g>
+    <rect x="332" y="60" width="216" height="334" rx="18" fill="#d2c49e" stroke="#9c8a57" stroke-width="3"/>
+    <rect x="344" y="72" width="192" height="310" rx="12" fill="none" stroke="#b9a876" stroke-width="1.5"/>
+    <text x="440" y="104" text-anchor="middle" font-size="25" font-weight="bold" fill="#7a6b3f" font-family="Georgia, serif" letter-spacing="3">DER</text>
+    <line x1="360" y1="115" x2="520" y2="115" stroke="#b9a876" stroke-width="1.5"/>
+
+    <!-- three script columns (same record, three scripts) -->
+    <line x1="404" y1="123" x2="404" y2="338" stroke="#bca974" stroke-width="1"/>
+    <line x1="476" y1="123" x2="476" y2="338" stroke="#bca974" stroke-width="1"/>
+    <!-- column emblems -->
+    <polygon points="377,127 372,135 382,135" fill="#6e5f38"/>
+    <circle cx="441" cy="131" r="4" fill="none" stroke="#5e6e4e" stroke-width="1.6"/>
+    <rect x="501" y="127" width="8" height="8" fill="none" stroke="#4e5e6e" stroke-width="1.6"/>
+
+    <!-- glyph rows -->
+    <g stroke-width="2.4" stroke-linecap="round">
+      <g stroke="#6e5f38">
+        <line x1="356" y1="150" x2="396" y2="150"/><line x1="356" y1="168" x2="390" y2="168"/>
+        <line x1="356" y1="186" x2="398" y2="186"/><line x1="356" y1="204" x2="384" y2="204"/>
+        <line x1="356" y1="222" x2="396" y2="222"/><line x1="356" y1="240" x2="388" y2="240"/>
+        <line x1="356" y1="258" x2="394" y2="258"/><line x1="356" y1="276" x2="380" y2="276"/>
+        <line x1="356" y1="294" x2="396" y2="294"/><line x1="356" y1="312" x2="386" y2="312"/>
+      </g>
+      <g stroke="#5e6e4e">
+        <line x1="412" y1="150" x2="468" y2="150"/><line x1="412" y1="168" x2="460" y2="168"/>
+        <line x1="412" y1="186" x2="470" y2="186"/><line x1="412" y1="204" x2="456" y2="204"/>
+        <line x1="412" y1="222" x2="466" y2="222"/><line x1="412" y1="240" x2="471" y2="240"/>
+        <line x1="412" y1="258" x2="458" y2="258"/><line x1="412" y1="276" x2="464" y2="276"/>
+        <line x1="412" y1="294" x2="470" y2="294"/><line x1="412" y1="312" x2="455" y2="312"/>
+      </g>
+      <g stroke="#4e5e6e">
+        <line x1="482" y1="150" x2="522" y2="150"/><line x1="482" y1="168" x2="514" y2="168"/>
+        <line x1="482" y1="186" x2="526" y2="186"/><line x1="482" y1="204" x2="510" y2="204"/>
+        <line x1="482" y1="222" x2="524" y2="222"/><line x1="482" y1="240" x2="518" y2="240"/>
+        <line x1="482" y1="258" x2="527" y2="258"/><line x1="482" y1="276" x2="512" y2="276"/>
+        <line x1="482" y1="294" x2="523" y2="294"/><line x1="482" y1="312" x2="509" y2="312"/>
+      </g>
+    </g>
+
+    <!-- schema seal -->
+    <circle cx="440" cy="360" r="19" fill="#efe7cc" stroke="#9c8a57" stroke-width="2"/>
+    <circle cx="435" cy="358" r="4.5" fill="none" stroke="#7a6b3f" stroke-width="1.6"/>
+    <circle cx="444" cy="358" r="4.5" fill="none" stroke="#7a6b3f" stroke-width="1.6"/>
+    <text x="440" y="374" text-anchor="middle" font-size="7.5" fill="#7a6b3f" letter-spacing="0.5">schema</text>
+  </g>
+
+  <!-- ===== readers (polyglot + archaeology), each with a sight-line and a tick ===== -->
+  <!-- sight lines -->
+  <g stroke="#c9bd92" stroke-width="1.4" stroke-dasharray="3 4">
+    <line x1="186" y1="150" x2="332" y2="170"/>
+    <line x1="694" y1="150" x2="548" y2="170"/>
+    <line x1="700" y1="330" x2="548" y2="300"/>
+  </g>
+
+  <!-- Rust -->
+  <g>
+    <rect x="64" y="118" width="120" height="40" rx="9" fill="#ffffff" stroke="#ce5a2b" stroke-width="2"/>
+    <circle cx="86" cy="138" r="11" fill="#ce5a2b"/>
+    <text x="106" y="135" font-size="12.5" font-weight="bold" fill="#3a3a3a">Rust</text>
+    <text x="106" y="149" font-size="9" fill="#777">reads it</text>
+    <polyline points="160,138 167,145 178,131" fill="none" stroke="#2e9e5b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- Python -->
+  <g>
+    <rect x="696" y="118" width="120" height="40" rx="9" fill="#ffffff" stroke="#3a6ea5" stroke-width="2"/>
+    <circle cx="718" cy="138" r="11" fill="#3a6ea5"/>
+    <text x="738" y="135" font-size="12.5" font-weight="bold" fill="#3a3a3a">Python</text>
+    <text x="738" y="149" font-size="9" fill="#777">reads it</text>
+    <polyline points="792,138 799,145 810,131" fill="none" stroke="#2e9e5b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- future archaeologist -->
+  <g>
+    <rect x="688" y="300" width="150" height="44" rx="9" fill="#ffffff" stroke="#8a6d3b" stroke-width="2"/>
+    <circle cx="712" cy="322" r="12" fill="#efe7cc" stroke="#8a6d3b" stroke-width="1.6"/>
+    <path d="M703,318 a9,9 0 0 1 18,0 Z" fill="#8a6d3b"/>
+    <text x="732" y="319" font-size="11.5" font-weight="bold" fill="#3a3a3a">archaeologist</text>
+    <text x="732" y="333" font-size="9.5" fill="#777">2387 CE — reads it</text>
+    <polyline points="816,322 823,329 834,315" fill="none" stroke="#2e9e5b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

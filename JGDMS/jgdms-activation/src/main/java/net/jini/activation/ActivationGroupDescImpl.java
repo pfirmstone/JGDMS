@@ -176,7 +176,7 @@ public final class ActivationGroupDescImpl implements Serializable, ActivationGr
             };
         }
         
-        public void serialize(PutArg arg, CommandEnvironmentImpl c) throws IOException{
+        public static void serialize(PutArg arg, CommandEnvironmentImpl c) throws IOException{
             arg.put("command", c.command);
             arg.put("options", c.options == null? null : c.options.clone());
             arg.writeArgs();

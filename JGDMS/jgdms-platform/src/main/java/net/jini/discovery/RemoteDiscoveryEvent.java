@@ -230,7 +230,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      *
      * @serial
      */
-    private final List<MarshalledObject> marshalledRegs;
+    private final List<MarshalledInstance> marshalledRegs;
 
     /**
      * Array containing a subset of the set of proxies to the lookup
@@ -261,14 +261,20 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
             throw new InvalidObjectException("RemoteDiscoveryEvent.readObject "
                                             +"failure - source field is null");
 	try {
-	    List<MarshalledObject> marshalledRegs 
-		    = (List<MarshalledObject>) arg.get("marshalledRegs", null);
+	    List marshalledRegs
+		    = (List) arg.get("marshalledRegs", null);
 
-	    List<MarshalledObject> checked = Collections.checkedList(
-		new ArrayList<MarshalledObject>(marshalledRegs.size()),
-		MarshalledObject.class
+	    List<MarshalledInstance> checked = Collections.checkedList(
+		new ArrayList<MarshalledInstance>(marshalledRegs.size()),
+		MarshalledInstance.class
 	    );
-	    checked.addAll(marshalledRegs);
+	    // Dual-read: old events carry java.rmi.MarshalledObject elements;
+	    // normalise every element to the canonical MarshalledInstance form.
+	    for (Object el : marshalledRegs) {
+		checked.add(el instanceof MarshalledInstance
+			? (MarshalledInstance) el
+			: new MarshalledInstance((MarshalledObject) el));
+	    }
 
 	    // Also handles null case.
 	    if (!(arg.get("regs", null) instanceof ServiceRegistrar [])) 
@@ -294,8 +300,17 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
     public RemoteDiscoveryEvent(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
 	discarded = arg.get("discarded", false);
-	marshalledRegs = new ArrayList<MarshalledObject>(
-		(List<MarshalledObject>) arg.get("marshalledRegs", null));
+	// Dual-read: old events carry java.rmi.MarshalledObject elements;
+	// normalise every element to the canonical MarshalledInstance form.
+	List read = (List) arg.get("marshalledRegs", null);
+	List<MarshalledInstance> normalised
+		= new ArrayList<MarshalledInstance>(read.size());
+	for (Object el : read) {
+	    normalised.add(el instanceof MarshalledInstance
+		    ? (MarshalledInstance) el
+		    : new MarshalledInstance((MarshalledObject) el));
+	}
+	marshalledRegs = normalised;
 	regs = ((ServiceRegistrar[]) arg.get("regs", null)).clone();
 	groups = new HashMap<ServiceID, String[]>(
 		(Map<ServiceID, String[]>) arg.get("groups", null));
@@ -340,7 +355,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      * @throws java.lang.IllegalArgumentException this exception occurs
      *         when an empty set of registrars is input.
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public RemoteDiscoveryEvent(Object source,
                                 long eventID,
                                 long seqNum,
@@ -374,11 +389,11 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
              * Drop any element that can't be serialized.
              */
             this.groups = new HashMap<ServiceID,String[]>(groups.size());
-            this.marshalledRegs = new ArrayList(groups.size());
+            this.marshalledRegs = new ArrayList<MarshalledInstance>(groups.size());
             int l = registrars.length;
             for(int i=0;i<l;i++) {
                 try {
-                    marshalledRegs.add(new MarshalledInstance(registrars[i]).convertToMarshalledObject());
+                    marshalledRegs.add(new AtomicMarshalledInstance(registrars[i]));
                     (this.groups).put((registrars[i]).getServiceID(),
                                        groups.get(registrars[i]) );
 		} catch(IOException e) { /* drop if can't serialize */ }
@@ -454,11 +469,11 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
              * Drop any element that can't be serialized.
              */
             this.groups = new HashMap<ServiceID,String[]>(groups.size());
-            this.marshalledRegs = new ArrayList(groups.size());
+            this.marshalledRegs = new ArrayList<MarshalledInstance>(groups.size());
             int l = registrars.length;
             for(int i=0;i<l;i++) {
                 try {
-                    marshalledRegs.add(new AtomicMarshalledInstance(registrars[i]).convertToMarshalledObject());
+                    marshalledRegs.add(new AtomicMarshalledInstance(registrars[i]));
                     (this.groups).put((registrars[i]).getServiceID(),
                                        groups.get(registrars[i]) );
 		} catch(IOException e) { /* drop if can't serialize */ }
@@ -557,8 +572,8 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
                 if( exceptions.size() > 0 ) {
                     throw(new LookupUnmarshalException
                       ( clipNullsFromEnd(regs),
-                        (MarshalledObject[])(marshalledRegs.toArray
-                               (new MarshalledObject[marshalledRegs.size()])),
+                        (MarshalledInstance[])(marshalledRegs.toArray
+                               (new MarshalledInstance[marshalledRegs.size()])),
                         (Throwable[])(exceptions.toArray
                                (new Throwable[exceptions.size()])),
                         "failed to unmarshal at least one ServiceRegistrar") );
@@ -621,7 +636,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      *         result of attempts to unmarshal each element of the first
      *         argument to this method.
      */
-    private List<Throwable> unmarshalRegistrars(List<MarshalledObject> marshalledRegs,
+    private List<Throwable> unmarshalRegistrars(List<MarshalledInstance> marshalledRegs,
                                           List<ServiceRegistrar> unmarshalledRegs)
     {
         ArrayList<Throwable> exceptions = new ArrayList<Throwable>();
@@ -648,9 +663,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
         int i = 0;
         int nMarshalledRegs = marshalledRegs.size();
         for(int n=0;n<nMarshalledRegs;n++) {
-            MarshalledInstance marshalledInstance = atomic ?
-		        new AtomicMarshalledInstance(marshalledRegs.get(i)):
-			new MarshalledInstance(marshalledRegs.get(i));
+            MarshalledInstance marshalledInstance = marshalledRegs.get(i);
             try {
                 /* Success: record the un-marshalled element
                  *          delete the corresponding un-marshalled element

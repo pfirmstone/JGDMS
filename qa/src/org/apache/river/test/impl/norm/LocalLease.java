@@ -49,8 +49,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.config.Config;
 import org.apache.river.proxy.CodebaseProvider;
 
@@ -93,6 +93,38 @@ class LocalLease implements Lease, Serializable, ProxyAccessor {
     
     
     private Object proxy;
+
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("renewLimit", Long.TYPE),
+            new SerialForm("bundle", Long.TYPE),
+            new SerialForm("serialFormat", Integer.TYPE),
+            new SerialForm("id", Long.TYPE),
+            new SerialForm("proxy", Object.class),
+            new SerialForm("expiration", Long.TYPE)
+        };
+    }
+
+    public static void serialize(PutArg arg, LocalLease ll) throws IOException{
+        arg.put("renewLimit", ll.renewLimit);
+        arg.put("bundle", ll.bundle);
+        arg.put("serialFormat", ll.serialFormat);
+        arg.put("id", ll.id);
+        arg.put("proxy", ll.proxy);
+        arg.put("expiration", adjustedVal(ll.serialFormat, ll.expiration));
+        arg.writeArgs();
+    }
+
+    private static long adjustedVal(int format, long expiration){
+        long val = expiration;
+        if (format == Lease.DURATION) {
+            long exp = val;
+            val -= System.currentTimeMillis();
+            if (exp < 0 && val > 0)
+                val = Long.MIN_VALUE;
+        }
+        return val;
+    }
 
     private static ProxyTrustImpl getProxyTrust() {
         ProxyTrustImpl proxy = new ProxyTrustImpl();
@@ -200,7 +232,7 @@ class LocalLease implements Lease, Serializable, ProxyAccessor {
 	    arg.get("serialFormat", 0),
 	    arg.get("id", 0L),
 	    arg.get("proxy", null),
-	    ((RO)arg.getReader()).expiration);
+	    arg.get("expiration", 0L));
     }
 
     // Inherit java doc from super type
@@ -305,26 +337,12 @@ class LocalLease implements Lease, Serializable, ProxyAccessor {
 	}
     }
 
-    @ReadInput
-    private static ReadObject getRO(){
-	return new RO();
-    }
 
     @Override
     public Object getProxy() {
 	return proxy;
     }
 
-    private static class RO implements ReadObject {
-
-	long expiration;
-	
-	@Override
-	public void read(ObjectInput stream) throws IOException, ClassNotFoundException {
-	    expiration = stream.readLong();
-	}
-	
-    }
 
 
     // purposefully inherit doc comment from supertype

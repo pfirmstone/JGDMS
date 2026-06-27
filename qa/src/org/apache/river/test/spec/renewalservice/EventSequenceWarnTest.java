@@ -17,6 +17,7 @@
  */
 
 package org.apache.river.test.spec.renewalservice;
+import net.jini.io.MarshalledInstance;
 
 import java.util.logging.Level;
 
@@ -124,7 +125,7 @@ public class EventSequenceWarnTest extends AbstractLeaseRenewalServiceTest {
 	// register listener #1 to receive events
 	logger.log(Level.FINE, "Registering listener #1 for warning events.");
 	logger.log(Level.FINE, "minWarning = " + minWarning + ".");
-	set.setExpirationWarningListener(rrl01, minWarning, null);
+	set.setExpirationWarningListener(rrl01, minWarning, (MarshalledInstance) null);
 
 	/* We want to wait for three renewals (or more)
 	   before switching listeners. Some implementations that refuse
@@ -137,7 +138,7 @@ public class EventSequenceWarnTest extends AbstractLeaseRenewalServiceTest {
 	// start listening immediately with listener #2
 	logger.log(Level.FINE, "Registering listener #2 for warning events.");
 	logger.log(Level.FINE, "minWarning = " + minWarning + ".");
-	set.setExpirationWarningListener(rrl02, minWarning, null);
+	set.setExpirationWarningListener(rrl02, minWarning, (MarshalledInstance) null);
 
 	// now lets wait for 3 more events to arrive
 	rstUtil.waitForRemoteEvents(rrl02, 3, timeOut);

@@ -33,8 +33,6 @@ import net.jini.io.context.IntegrityEnforcement;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
@@ -51,19 +49,6 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 @AtomicSerial
 public class MarshalledWrapper implements Serializable {
     
-    private static class RO implements ReadObject{
-	boolean integrity;
-	@Override
-	public void read(ObjectInput input) throws IOException, ClassNotFoundException {
-	    integrity = integrityEnforced(input);
-	}
-	
-    }
-    
-    @ReadInput
-    static ReadObject read(){
-	return new RO();
-    }
 
     private static final long serialVersionUID = 2L;
     
@@ -177,7 +162,7 @@ public class MarshalledWrapper implements Serializable {
     
     public MarshalledWrapper(GetArg arg) throws IOException, ClassNotFoundException {
 	this(validate(arg.get("instance", null, MarshalledObject.class)),
-		((RO) arg.getReader()).integrity);
+		integrityEnforced(arg));
     }
     
     private MarshalledWrapper(MarshalledObject instance, boolean integrity){

@@ -108,6 +108,27 @@ public final class DerMarshalledInstance extends MarshalledInstance {
         super(obj, context, new DerMarshalFactory());
     }
 
+    /**
+     * Creates a {@code DerMarshalledInstance} selecting whether a downloadable top-level proxy
+     * is substituted with a {@code DerProxySerializer} carrier on encode.
+     *
+     * <p>{@code substitute == false} is the special case called by {@code DerProxySerializer}
+     * when wrapping the real proxy as its {@code serviceProxy}: the proxy must be stored
+     * <em>bare</em> (interfaces + {@code @AtomicSerial} handler) rather than re-substituted,
+     * else resolution would recurse. This mirrors the JOSS
+     * {@code AtomicMarshalledInstance(Object, Collection, boolean replace)} guard.
+     *
+     * @param obj        the object to marshal; may be {@code null}
+     * @param context    the serialization context collection; must not be {@code null}
+     * @param substitute {@code true} to substitute a downloadable top-level proxy (normal
+     *                   MarshalledInstance); {@code false} to store it bare (carrier inner)
+     * @throws IOException          if DER encoding of {@code obj} fails
+     * @throws NullPointerException if {@code context} is {@code null}
+     */
+    public DerMarshalledInstance(Object obj, Collection context, boolean substitute) throws IOException {
+        super(obj, context, new DerMarshalFactory(substitute));
+    }
+
     // -------------------------------------------------------------------------
     // NO getMarshalFactory() override -- decoding uses ServiceLoader dispatch
     // -------------------------------------------------------------------------

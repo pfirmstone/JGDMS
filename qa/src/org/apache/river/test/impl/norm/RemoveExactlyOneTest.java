@@ -174,7 +174,7 @@ public class RemoveExactlyOneTest extends TestBase implements Test {
 	warningListener.setRegInfo(reg, handback);
 
 	handback = null;
-	reg = set.setRenewalFailureListener(failureListener, null); 
+	reg = set.setRenewalFailureListener(failureListener, (MarshalledInstance) null); 
 	reg = prepareNormEventRegistration(reg);
 	failureListener.setRegInfo(reg, null);
 

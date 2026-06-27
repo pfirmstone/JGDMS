@@ -17,11 +17,17 @@
 
 package au.net.zeus.jgdms.der.marshal;
 
+import au.net.zeus.jgdms.der.object.DerProxySerializer;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
+import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
+import net.jini.export.DynamicProxyCodebaseAccessor;
+import net.jini.export.ProxyAccessor;
 import net.jini.io.MarshalInstanceOutput;
+import org.apache.river.api.io.AtomicSerial;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
@@ -63,20 +69,40 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
 
     private final OutputStream objOut;
     private final Collection   context;
+    /**
+     * Whether a downloadable top-level proxy is substituted with a {@code DerProxySerializer}
+     * carrier ({@code true}, normal MarshalledInstance) or stored bare ({@code false}, the
+     * carrier's own {@code serviceProxy}). See {@link DerMarshalledInstance#DerMarshalledInstance(Object, Collection, boolean)}.
+     */
+    private final boolean substitute;
 
     // Stashed after writeObject -- reported via the widened MarshalInstanceOutput methods.
     private byte[] schemaBytes;
     private byte[] schemaDigest;
 
     /**
-     * Constructs a new output wrapping {@code objOut}.
+     * Constructs a new substituting output wrapping {@code objOut}.
      *
      * @param objOut  the stream to write the payload bytes to (must not be null)
      * @param context the serialization context collection (may be empty, must not be null)
      */
     public DerMarshalInstanceOutput(OutputStream objOut, Collection context) {
-        this.objOut  = Objects.requireNonNull(objOut,  "objOut");
-        this.context = Objects.requireNonNull(context, "context");
+        this(objOut, context, true);
+    }
+
+    /**
+     * Constructs a new output wrapping {@code objOut}, selecting whether a downloadable
+     * top-level proxy is substituted with a {@code DerProxySerializer} carrier.
+     *
+     * @param objOut     the stream to write the payload bytes to (must not be null)
+     * @param context    the serialization context collection (may be empty, must not be null)
+     * @param substitute {@code true} to substitute a downloadable top-level proxy; {@code false}
+     *                   to store it bare (the carrier inner case)
+     */
+    public DerMarshalInstanceOutput(OutputStream objOut, Collection context, boolean substitute) {
+        this.objOut     = Objects.requireNonNull(objOut,  "objOut");
+        this.context    = Objects.requireNonNull(context, "context");
+        this.substitute = substitute;
     }
 
     // -------------------------------------------------------------------------
@@ -111,21 +137,70 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
             // this case should not arise in normal use.
             return;
         }
+
+        // Write seam: substitute a downloadable top-level proxy with a DerProxySerializer
+        // carrier (unless this is the carrier's own bare serviceProxy -- substitute == false).
+        // With no registered ProxyCodebaseSpi, create() returns the proxy unchanged and it
+        // travels bare below; a registered provider whose substitute() is true yields a
+        // DerProxySerializer (an @AtomicSerial record encoded via the schema-separated path).
+        if (substitute) {
+            if (obj instanceof DynamicProxyCodebaseAccessor dpca) {
+                obj = DerProxySerializer.create(dpca, null, context);
+            } else if (obj instanceof ProxyAccessor pa) {
+                obj = DerProxySerializer.create(pa, null, context);
+            }
+        }
+
+        // A value with NO @AtomicSerial class in its hierarchy (a bare java.lang.reflect.Proxy,
+        // a String, a byte[], an enum, ...) has no separable schema; encode it as a
+        // self-describing object-stream item (context-tagged per STD-008 sec.15.2 -- e.g. [8]
+        // for a bare proxy) via the DER object-stream codec, leaving the first-class schemaBytes
+        // EMPTY. That empty-schema sentinel tells DerMarshalInstanceInput to decode the
+        // object-stream form rather than reconstruct a MarshalledInstanceRecord.
+        if (nearestAtomicSerial(obj.getClass()) == null) {
+            objOut.write(encodeObjectStreamItem(obj));
+            this.schemaBytes  = new byte[0];
+            this.schemaDigest = new byte[0];
+            return;
+        }
+
+        // @AtomicSerial object (including a substituted DerProxySerializer): schema-separated
+        // form -- write ONLY the payload bytes; the schema travels as first-class MI fields.
         try {
             SchemaChain.Result chain   = SchemaGenerator.generateChain(obj.getClass());
             byte[]             payload = ObjectCodec.encodeHierarchy(obj, chain);
             MarshalledInstanceRecord rec = MarshalledInstanceRecord.fromChain(chain, payload);
 
-            // Write ONLY the payload bytes (not the full record).
-            // The schema travels as first-class MarshalledInstance fields.
             objOut.write(rec.payloadBytes());
 
-            // Stash schema for the widened getter methods.
             this.schemaBytes  = rec.schemaBytes();
             this.schemaDigest = rec.schemaDigest();
         } catch (au.net.zeus.jgdms.der.DerException e) {
             throw new IOException("DER encoding failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Encodes {@code obj} as a single self-describing DER object-stream item (context-tagged
+     * per STD-008 sec.15.2) using {@link DerMarshalOutputStream}. Used for a bare
+     * {@code java.lang.reflect.Proxy} inside a MarshalledInstance ([8] form), which has no
+     * separable {@code @AtomicSerial} schema. No stream header/envelope is written -- the
+     * codec accumulates the single TLV which {@code flush()} drains to the buffer.
+     */
+    private byte[] encodeObjectStreamItem(Object obj) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        DerMarshalOutputStream dmos = new DerMarshalOutputStream(bos);
+        dmos.writeObject(obj);
+        dmos.flush();
+        return bos.toByteArray();
+    }
+
+    /** The nearest class in {@code c}'s hierarchy annotated {@code @AtomicSerial}, or null if none. */
+    private static Class<?> nearestAtomicSerial(Class<?> c) {
+        for (Class<?> k = c; k != null && k != Object.class; k = k.getSuperclass()) {
+            if (k.isAnnotationPresent(AtomicSerial.class)) return k;
+        }
+        return null;
     }
 
     /**

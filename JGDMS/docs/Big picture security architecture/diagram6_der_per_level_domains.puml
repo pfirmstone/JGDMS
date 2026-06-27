@@ -1,0 +1,79 @@
+@startuml diagram6_der_per_level_domains
+' Part 6 — Decoupling Data From Code: DER on the JERI wire.
+' One object = a stack of class levels; each level is resolved by its OWN
+' defining loader, which settles namespace AND ProtectionDomain at once, and
+' contributes one SHA-256-chained schema record. All fold into one
+' self-describing DER MarshalledInstance.
+title One object, three domains:\n@AtomicSerial + DER resolve every inheritance level separately
+
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam ArrowColor #6E6E6E
+skinparam rectangle {
+  BackgroundColor #FBFBFB
+  BorderColor #9A9A9A
+  RoundCorner 10
+}
+skinparam note {
+  BackgroundColor #FFF6D6
+  BorderColor #C9A93B
+}
+
+note as N1
+  One object is a **stack of class levels**.
+  Each level authors its own
+  **serialForm() / serialize() / (GetArg)** —
+  the wire ABI, never a field dump.
+  Each level is resolved by **its own defining loader**,
+  and that single loader settles **three things at once**:
+  type identity (**namespace**) · package-private scope
+  (⇒ the per-package **MarshalDelegate**) · permissions (**domain**).
+end note
+
+' --- lane 1: trusted platform base ---
+rectangle "PlatformBase\n«@AtomicSerial»" as L1
+rectangle "defining loader:\n**platform**" as CL1
+rectangle "Namespace + ProtectionDomain\nplatform type-identity & trust" as ND1
+rectangle "schema(PlatformBase)" as S1
+L1 -right-> CL1
+CL1 -right-> ND1
+ND1 -right-> S1
+
+' --- lane 2: a service's proxy ---
+rectangle "ServiceProxy\n«@AtomicSerial»" as L2
+rectangle "defining loader:\n**codebase A**" as CL2
+rectangle "Namespace + ProtectionDomain\ncodebase-A type-identity & trust" as ND2
+rectangle "schema(ServiceProxy)" as S2
+L2 -right-> CL2
+CL2 -right-> ND2
+ND2 -right-> S2
+
+' --- lane 3: a downloaded concrete subclass ---
+rectangle "ConcreteProxy\n«@AtomicSerial»\n(most derived)" as L3
+rectangle "defining loader:\n**codebase B**" as CL3
+rectangle "Namespace + ProtectionDomain\ncodebase-B type-identity & trust" as ND3
+rectangle "schema(ConcreteProxy)" as S3
+L3 -right-> CL3
+CL3 -right-> ND3
+ND3 -right-> S3
+
+' stack the lanes (subclass below superclass)
+L1 -[hidden]down- L2
+L2 -[hidden]down- L3
+
+' --- the per-level schema records, Merkle-chained ---
+S1 -down-> S2 : SHA-256(parent)
+S2 -down-> S3 : SHA-256(parent)
+
+' --- the self-describing wire form ---
+rectangle "**DER MarshalledInstance**\n----\npayloadBytes\nschemaBytes / schemaDigest  (leaf commits the chain)\ncodebaseAnnotation" as MI #LightYellow
+S3 -right-> MI
+
+note bottom of MI
+  **Self-describing on the wire:**
+  • a Java reader runs each level's **(GetArg)** in **its own domain**
+    — a downloaded subclass cannot reach a trusted superclass's slice;
+  • a non-Java reader decodes the payload **from the schema** — no class required.
+end note
+
+@enduml

@@ -21,8 +21,8 @@ package org.apache.river.api.security;
 import java.security.BasicPermission;
 
 /**
- * <p>A "remote" or "REMOTE" PolicyPermission is allows updating a 
- * RemotePolicy </p>
+ * <p>A "remote" or "REMOTE" PolicyPermission allows updating a
+ * remote policy service (see RemotePolicyService). </p>
  * 
  * @author Peter Firmstone
  * @since 3.0.0

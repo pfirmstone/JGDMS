@@ -48,12 +48,13 @@ import java.util.Objects;
  * These are POSITIONAL: the reader must call the matching typed read in the same order.
  * They carry no item tag beyond the natural DER universal tag.
  *
- * <h2>Deferred types</h2>
+ * <h2>Float / double / char and unsupported legacy writes</h2>
  * <p>
- * {@link #writeFloat}, {@link #writeDouble}, and {@link #writeChar} throw
- * {@link UnsupportedOperationException} per STD-006 sec.7.6. {@link #writeBytes(String)}
- * and {@link #writeChars(String)} also throw (ambiguous legacy encoding, not used by
- * JERI marshalling).
+ * {@link #writeFloat}, {@link #writeDouble}, and {@link #writeChar} are <em>implemented</em>
+ * with strict canonicalization (STD-008 sec.17.3 lifted the STD-006 sec.7.6 deferral): IEEE-754
+ * with canonical NaN / {@code +0.0}, and a Unicode-codepoint INTEGER for {@code char}. Only
+ * {@link #writeBytes(String)} and {@link #writeChars(String)} throw
+ * {@link UnsupportedOperationException} (ambiguous legacy encoding, not used by JERI marshalling).
  *
  * <h2>Buffering and flush</h2>
  * <p>
@@ -79,6 +80,23 @@ public final class DerMarshalOutputStream implements ObjectOutput {
     public DerMarshalOutputStream(OutputStream out) {
         this.out   = Objects.requireNonNull(out, "out");
         this.codec = new DerObjectStreamCodec();
+    }
+
+    /**
+     * Constructs a DER object-stream writer that SUBSTITUTES a downloadable top-level proxy
+     * ({@code DynamicProxyCodebaseAccessor} / {@code ProxyAccessor}) with a {@code DerProxySerializer}
+     * carrier -- the JERI invocation arg/return path (the object-stream counterpart of
+     * {@code AtomicMarshalOutputStream.defaultReplaceObject}).
+     *
+     * @param out          the underlying output stream (must not be null)
+     * @param context      the stream context collection (must not be null)
+     * @param streamLoader the loader gating the {@code ProxyCodebaseSpi.substitute()} check (the
+     *                     client proxy loader / the dispatcher's stream loader; may be null)
+     */
+    public DerMarshalOutputStream(OutputStream out, java.util.Collection<?> context, ClassLoader streamLoader) {
+        this.out   = Objects.requireNonNull(out, "out");
+        this.codec = new DerObjectStreamCodec();
+        this.codec.initWriter(context, streamLoader);
     }
 
     // =========================================================================

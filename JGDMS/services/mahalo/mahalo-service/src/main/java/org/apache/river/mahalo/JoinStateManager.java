@@ -53,6 +53,7 @@ import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
 import org.apache.river.mahalo.proxy.*;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages
@@ -729,8 +730,9 @@ class JoinStateManager extends LogHandler {
          
         out.writeInt(attributes.length);
         for (int i=0; i<attributes.length; i++) {
-            out.writeObject(
-                new MarshalledInstance(attributes[i]).convertToMarshalledObject());
+            // Dual-read upgrade: always write the canonical MarshalledInstance
+            // (AtomicMarshalledInstance = DER form; carries the schema).
+            out.writeObject(new AtomicMarshalledInstance(attributes[i]));
 	}
     }
  
@@ -753,8 +755,13 @@ class JoinStateManager extends LogHandler {
         final int objectCount = in.readInt();
         for (int i=0; i<objectCount; i++) {
             try {
-                MarshalledObject mo = (MarshalledObject)in.readObject();
-                entries.add(new MarshalledInstance(mo).get(false));
+                // Dual-read: accept a legacy java.rmi.MarshalledObject or a new
+                // MarshalledInstance; normalize to the canonical instance.
+                Object o = in.readObject();
+                MarshalledInstance mi = (o instanceof MarshalledInstance)
+                        ? (MarshalledInstance) o
+                        : new MarshalledInstance((MarshalledObject) o);
+                entries.add(mi.get(false));
             } catch (IOException e) {
                 if(initlogger.isLoggable(Levels.HANDLED)) {
 	            initlogger.log(Levels.HANDLED, 

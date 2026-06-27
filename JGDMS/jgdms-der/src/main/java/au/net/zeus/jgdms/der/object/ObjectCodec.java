@@ -21,12 +21,15 @@ import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.DeSerializationPermission;
+import org.apache.river.api.io.MarshalDelegate;
+import org.apache.river.api.io.MarshalDelegates;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -234,6 +237,14 @@ public final class ObjectCodec {
 
         // 3. Per-class DeSerializationPermission("ATOMIC") gate, then construct
         checkAtomicDeSerializationPermitted(map.keySet());
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(clazz);
+        if (delegate != null) {
+            // In-package construction via the class's own (GetArg) constructor;
+            // exceptions propagate with their natural type (no reflective wrapping).
+            @SuppressWarnings("unchecked")
+            T created = (T) delegate.create(clazz, arg);
+            return created;
+        }
         Constructor<T> ctor = findGetArgConstructor(clazz);
         try {
             return ctor.newInstance(arg);
@@ -323,7 +334,7 @@ public final class ObjectCodec {
         // For each class in root-first order, load the class and encode its SEQUENCE.
         List<byte[]> perClassSequences = new ArrayList<>(rootFirst.size());
         for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
-            Class<?> cls = loadClass(schemaRecord.className());
+            Class<?> cls = loadClass(schemaRecord.className(), ResolutionContext.NONE);
             byte[] classSeq = encode(instance, cls, schemaRecord, depth);
             perClassSequences.add(classSeq);
         }
@@ -397,7 +408,7 @@ public final class ObjectCodec {
                                          byte[] hierarchyPayload)
             throws DerException, IOException, ClassNotFoundException {
         return decodeHierarchy(expectedSupertype, chain, hierarchyPayload,
-                               (DeserializationCompletion) null);
+                               (DeserializationCompletion) null, ResolutionContext.NONE);
     }
 
     /**
@@ -422,7 +433,8 @@ public final class ObjectCodec {
     public static <T> T decodeHierarchy(Class<T> expectedSupertype,
                                          SchemaChain.Result chain,
                                          byte[] hierarchyPayload,
-                                         DeserializationCompletion decodeUnit)
+                                         DeserializationCompletion decodeUnit,
+                                         ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         Objects.requireNonNull(chain, "chain");
@@ -433,7 +445,7 @@ public final class ObjectCodec {
         // passed to generateChain (S3.10, first rule: non-@AtomicSerial subclass is dropped).
         List<AtomicSerialSchemaRecord> leafFirst = chain.chain();
         String constructClassName = leafFirst.get(0).className();
-        Class<?> constructClass = loadClass(constructClassName);
+        Class<?> constructClass = loadClass(constructClassName, resolution);
 
         // Assignability check: the constructed type must be a subtype of expectedSupertype.
         // When Bar extends Foo (Bar plain, Foo @AtomicSerial), constructClass = Foo,
@@ -463,8 +475,8 @@ public final class ObjectCodec {
         // Build a DerFieldStore for each class, inserting superclass-first into the map
         Map<Class<?>, DerFieldStore> storeMap = new LinkedHashMap<>();
         for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
-            Class<?> cls = loadClass(schemaRecord.className());
-            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq);
+            Class<?> cls = loadClass(schemaRecord.className(), resolution);
+            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq, resolution);
             storeMap.put(cls, store);
         }
         if (outerSeq.hasMore()) {
@@ -488,7 +500,7 @@ public final class ObjectCodec {
         }
 
         // Assemble the multi-entry DerGetArg (superclass-first insertion order)
-        DerGetArg arg = new DerGetArg(storeMap, 0, decodeUnit);
+        DerGetArg arg = new DerGetArg(storeMap, 0, decodeUnit, resolution);
 
         // Per-class DeSerializationPermission("ATOMIC") gate: every @AtomicSerial
         // class in the hierarchy whose (GetArg) constructor will run must be permitted.
@@ -498,6 +510,13 @@ public final class ObjectCodec {
         // For all-@AtomicSerial hierarchies (Phase 4.3) this is the same as the old leafClass.
         // For non-@AtomicSerial subclass dropped to its @AtomicSerial superclass, this is the
         // @AtomicSerial superclass (e.g. Foo, not Bar).
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(constructClass);
+        if (delegate != null) {
+            // In-package construction; the (GetArg) ctor chains up via super(check(arg)).
+            @SuppressWarnings("unchecked")
+            T created = (T) delegate.create(constructClass, arg);
+            return created;
+        }
         @SuppressWarnings("unchecked")
         Constructor<? extends T> ctor = (Constructor<? extends T>)
                 findGetArgConstructor(constructClass);
@@ -610,24 +629,24 @@ public final class ObjectCodec {
      */
     private static Map<String, Object> invokeSerialize(Object instance, Class<?> declaringClass)
             throws DerException {
-        Method serialize;
-        try {
-            serialize = declaringClass.getDeclaredMethod(
-                    "serialize", AtomicSerial.PutArg.class, declaringClass);
-        } catch (NoSuchMethodException ex) {
-            throw new DerException(
-                    "Class " + declaringClass.getName()
-                    + " has no 'public static void serialize(AtomicSerial.PutArg, "
-                    + declaringClass.getSimpleName() + ")' method. Every @AtomicSerial class"
-                    + " MUST implement the serialize(PutArg) write contract; the DER codec"
-                    + " does not read fields by reflection.");
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(declaringClass);
+        if (delegate != null) {
+            // In-package dispatch: invoke the class's own serialize(PutArg, T) with
+            // no reflection into its package-private members; reflection is the fallback.
+            DerPutArg putArg = new DerPutArg();
+            try {
+                delegate.serialize(declaringClass, putArg, instance);
+            } catch (DerException de) {
+                throw de;
+            } catch (IOException ex) {
+                DerException de = new DerException(
+                        "serialize(PutArg) of " + declaringClass.getName() + " failed: " + ex);
+                de.initCause(ex);
+                throw de;
+            }
+            return putArg.captured();
         }
-        if (!Modifier.isStatic(serialize.getModifiers())) {
-            throw new DerException(
-                    "Class " + declaringClass.getName()
-                    + " serialize(PutArg, " + declaringClass.getSimpleName() + ") must be static");
-        }
-        serialize.setAccessible(true);
+        Method serialize = serializeMethod(declaringClass); // cached + validated reflective fallback
         DerPutArg putArg = new DerPutArg();
         try {
             serialize.invoke(null, putArg, instance);
@@ -745,15 +764,67 @@ public final class ObjectCodec {
     @SuppressWarnings("unchecked")
     private static <T> Constructor<T> findGetArgConstructor(Class<T> clazz)
             throws DerException {
-        try {
-            Constructor<T> ctor = clazz.getDeclaredConstructor(AtomicSerial.GetArg.class);
-            ctor.setAccessible(true);
-            return ctor;
-        } catch (NoSuchMethodException ex) {
-            throw new DerException(
-                    "Class " + clazz.getName()
-                    + " has no (AtomicSerial.GetArg) deserialization constructor");
+        Object v = GETARG_CTOR.get(clazz);
+        if (v instanceof Constructor<?> ctor) {
+            return (Constructor<T>) ctor;
         }
+        throw new DerException((String) v);
+    }
+
+    // -------------------------------------------------------------------------
+    // Per-class reflection caches for the delegate-less fallback path (the common case uses a
+    // MarshalDelegate -- no reflection). Memoised in ClassValue: the resolved (validated) member on
+    // success, the failure message otherwise. ClassValue is keyed by the defining class and GC-tied
+    // to its lifetime, so there is no leak and no per-object getDeclared* lookup on the hot path.
+    // (Accessibility is unchanged from the prior inline lookups -- no setAccessible is added here.)
+    // -------------------------------------------------------------------------
+
+    /** Cached {@code (AtomicSerial.GetArg)} constructor (or a failure message) per class. */
+    private static final ClassValue<Object> GETARG_CTOR = new ClassValue<Object>() {
+        @Override
+        protected Object computeValue(Class<?> clazz) {
+            try {
+                Constructor<?> ctor = clazz.getDeclaredConstructor(AtomicSerial.GetArg.class);
+                String sv = MarshalDelegates.strictBlockCtor(clazz, ctor.getModifiers());
+                if (sv != null) return sv;
+                return ctor;
+            } catch (NoSuchMethodException ex) {
+                return "Class " + clazz.getName()
+                        + " has no (AtomicSerial.GetArg) deserialization constructor";
+            }
+        }
+    };
+
+    /** Cached {@code static serialize(PutArg, T)} method (or a failure message) per class. */
+    private static final ClassValue<Object> SERIALIZE_METHOD = new ClassValue<Object>() {
+        @Override
+        protected Object computeValue(Class<?> clazz) {
+            Method m;
+            try {
+                m = clazz.getDeclaredMethod("serialize", AtomicSerial.PutArg.class, clazz);
+            } catch (NoSuchMethodException ex) {
+                return "Class " + clazz.getName()
+                        + " has no 'public static void serialize(AtomicSerial.PutArg, "
+                        + clazz.getSimpleName() + ")' method. Every @AtomicSerial class"
+                        + " MUST implement the serialize(PutArg) write contract; the DER codec"
+                        + " does not read fields by reflection.";
+            }
+            if (!Modifier.isStatic(m.getModifiers())) {
+                return "Class " + clazz.getName()
+                        + " serialize(PutArg, " + clazz.getSimpleName() + ") must be static";
+            }
+            String sv = MarshalDelegates.strictBlockClass(clazz, "serialize(PutArg, T)");
+            if (sv != null) return sv;
+            return m;
+        }
+    };
+
+    private static Method serializeMethod(Class<?> declaringClass) throws DerException {
+        Object v = SERIALIZE_METHOD.get(declaringClass);
+        if (v instanceof Method m) {
+            return m;
+        }
+        throw new DerException((String) v);
     }
 
     /**
@@ -786,6 +857,15 @@ public final class ObjectCodec {
         // (includes "array:@AtomicSerial:<class>")
         if (wireType.startsWith("array:")) {
             return encodeArray(value, wireType, fieldName, depth);
+        }
+
+        // A nullable scalar reference field (boxed primitive, String, byte[], or a nested
+        // @AtomicSerial value) whose value is null travels as DER NULL. A primitive field is
+        // never null at encode (its captured value is autoboxed), so this only fires for a
+        // nullable reference field. (Enum/array null is handled by encodeEnum/encodeArray above;
+        // a null @AtomicSerial nested value yields the same DER NULL as encodeNested.)
+        if (value == null) {
+            return new byte[]{0x05, 0x00};
         }
 
         return switch (wireType) {
@@ -962,7 +1042,7 @@ public final class ObjectCodec {
         }
         // Type-check: runtime class must match the declared enum class in the wireType.
         String className = wireType.substring(5); // strip "enum:"
-        Class<?> declaredClass = loadClass(className);
+        Class<?> declaredClass = loadClass(className, ResolutionContext.NONE);
         if (!declaredClass.isInstance(value)) {
             throw new DerException(
                     "ObjectCodec: enum field '" + fieldName
@@ -1042,11 +1122,14 @@ public final class ObjectCodec {
      * @return the loaded class
      * @throws DerException if the class cannot be found
      */
-    private static Class<?> loadClass(String className) throws DerException {
+    private static Class<?> loadClass(String className, ResolutionContext res) throws DerException {
         try {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            if (cl == null) cl = ClassLoader.getSystemClassLoader();
-            return Class.forName(className, false, cl);
+            // Endpoint-assigned resolution via ClassLoading -- NEVER the thread-context loader
+            // (the Warres ambient-resolution failure: wrong local copy, same-name type conflicts,
+            // broken under OSGi). DER carries no codebase, so the name resolves against the
+            // endpoint's defaultLoader through the preferred/OSGi-aware SPI. The ENCODE path,
+            // whose classes are already loaded (ancestors of the live instance), passes NONE.
+            return res.loadClass(className);
         } catch (ClassNotFoundException ex) {
             throw new DerException(
                     "ObjectCodec: cannot load class '" + className + "'", ex);
@@ -1119,14 +1202,24 @@ public final class ObjectCodec {
         }
 
         Class<?> cls = value.getClass();
-        if (!cls.isAnnotationPresent(AtomicSerial.class)) {
+        // S3.10 wire-visibility: a value whose runtime class is not itself @AtomicSerial but
+        // which extends an @AtomicSerial class is encoded as that @AtomicSerial superclass (its
+        // subclass-only state is not wire-visible) -- exactly as the top-level decodeHierarchy
+        // drops a non-@AtomicSerial subclass to its @AtomicSerial superclass. This is what lets
+        // a final DerMarshalledInstance value travel as its @AtomicSerial MarshalledInstance
+        // superclass and decode as a base MarshalledInstance via ServiceLoader dispatch
+        // (@AtomicSerial is NOT @Inherited, so isAnnotationPresent on the subclass is false).
+        // Require SOME @AtomicSerial class in the hierarchy, else fail clearly (a bare
+        // java.lang.reflect.Proxy with no @AtomicSerial ancestor is rejected here -- it travels
+        // only as a top-level object-stream [8] item, never as a nested field value).
+        if (nearestAtomicSerial(cls) == null) {
             throw new DerException(
                     "ObjectCodec: nested field '" + fieldName
                     + "' has wireType @AtomicSerial but runtime type "
-                    + cls.getName() + " is not annotated @AtomicSerial");
+                    + cls.getName() + " has no @AtomicSerial class in its hierarchy");
         }
 
-        // Generate chain and encode payload
+        // Generate chain and encode payload (generateChain walks to the @AtomicSerial leaf)
         SchemaChain.Result chain = SchemaGenerator.generateChain(cls);
         byte[] payloadBytes = encodeHierarchy(value, chain, depth + 1);
 
@@ -1138,6 +1231,14 @@ public final class ObjectCodec {
         children.add(DerWriter.writeOctetString(schemaChainBytes));
         children.add(DerWriter.writeOctetString(payloadBytes));
         return DerWriter.writeSequence(children);
+    }
+
+    /** The nearest class in {@code c}'s hierarchy annotated {@code @AtomicSerial}, or null if none. */
+    private static Class<?> nearestAtomicSerial(Class<?> c) {
+        for (Class<?> k = c; k != null && k != Object.class; k = k.getSuperclass()) {
+            if (k.isAnnotationPresent(AtomicSerial.class)) return k;
+        }
+        return null;
     }
 
     /**
@@ -1158,6 +1259,13 @@ public final class ObjectCodec {
         return decodeNested(nestedRecordBytes, depth, null);
     }
 
+    /** As {@link #decodeNested(byte[], int, DeserializationCompletion, ResolutionContext)} with no endpoint resolution context ({@link ResolutionContext#NONE}). */
+    public static Object decodeNested(byte[] nestedRecordBytes, int depth,
+                                      DeserializationCompletion decodeUnit)
+            throws DerException, IOException, ClassNotFoundException {
+        return decodeNested(nestedRecordBytes, depth, decodeUnit, ResolutionContext.NONE);
+    }
+
     /**
      * Token-threading variant of {@link #decodeNested(byte[], int)}: the decode-unit
      * completion token is propagated to the nested object's {@code DerGetArg} so that a
@@ -1172,7 +1280,8 @@ public final class ObjectCodec {
      * @throws ClassNotFoundException if a class named in the schema cannot be loaded
      */
     public static Object decodeNested(byte[] nestedRecordBytes, int depth,
-                                      DeserializationCompletion decodeUnit)
+                                      DeserializationCompletion decodeUnit,
+                                      ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(nestedRecordBytes, "nestedRecordBytes");
         if (depth > MAX_NESTING) {
@@ -1219,7 +1328,7 @@ public final class ObjectCodec {
 
         // The declared field type is Object (checked by caller via cast); the chain drives
         // the actual runtime class. decodeHierarchy does assignability checking.
-        Object decoded = decodeHierarchy(Object.class, chain, payloadBytes, depth + 1, decodeUnit);
+        Object decoded = decodeHierarchy(Object.class, chain, payloadBytes, depth + 1, decodeUnit, resolution);
         // DER replacement: if the decoded value is a serializer (implements Resolve),
         // rebuild the original object via readResolve(); otherwise pass it through.
         return au.net.zeus.jgdms.der.serial.DerReplacer.resolve(decoded);
@@ -1234,7 +1343,8 @@ public final class ObjectCodec {
                                           SchemaChain.Result chain,
                                           byte[] hierarchyPayload,
                                           int depth,
-                                          DeserializationCompletion decodeUnit)
+                                          DeserializationCompletion decodeUnit,
+                                          ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         Objects.requireNonNull(chain, "chain");
@@ -1247,7 +1357,7 @@ public final class ObjectCodec {
 
         List<AtomicSerialSchemaRecord> leafFirst = chain.chain();
         String constructClassName = leafFirst.get(0).className();
-        Class<?> constructClass = loadClass(constructClassName);
+        Class<?> constructClass = loadClass(constructClassName, resolution);
 
         if (!expectedSupertype.isAssignableFrom(constructClass)) {
             throw new DerException(
@@ -1269,8 +1379,8 @@ public final class ObjectCodec {
 
         Map<Class<?>, DerFieldStore> storeMap = new LinkedHashMap<>();
         for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
-            Class<?> cls = loadClass(schemaRecord.className());
-            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq);
+            Class<?> cls = loadClass(schemaRecord.className(), resolution);
+            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq, resolution);
             storeMap.put(cls, store);
         }
         if (outerSeq.hasMore()) {
@@ -1284,11 +1394,18 @@ public final class ObjectCodec {
             }
         }
 
-        DerGetArg arg = new DerGetArg(storeMap, depth, decodeUnit);
+        DerGetArg arg = new DerGetArg(storeMap, depth, decodeUnit, resolution);
 
         // Per-class DeSerializationPermission("ATOMIC") gate (nested decode path too).
         checkAtomicDeSerializationPermitted(storeMap.keySet());
 
+        MarshalDelegate delegate = MarshalDelegates.delegateFor(constructClass);
+        if (delegate != null) {
+            // In-package construction; the (GetArg) ctor chains up via super(check(arg)).
+            @SuppressWarnings("unchecked")
+            T created = (T) delegate.create(constructClass, arg);
+            return created;
+        }
         @SuppressWarnings("unchecked")
         Constructor<? extends T> ctor = (Constructor<? extends T>)
                 findGetArgConstructor(constructClass);
@@ -1342,6 +1459,15 @@ public final class ObjectCodec {
         return decodeNestedArray(rawBytes, componentClassName, depth, null);
     }
 
+    /** As {@link #decodeNestedArray(byte[], String, int, DeserializationCompletion, ResolutionContext)} with no endpoint resolution context ({@link ResolutionContext#NONE}). */
+    public static Object decodeNestedArray(byte[] rawBytes,
+                                            String componentClassName,
+                                            int depth,
+                                            DeserializationCompletion decodeUnit)
+            throws DerException, IOException, ClassNotFoundException {
+        return decodeNestedArray(rawBytes, componentClassName, depth, decodeUnit, ResolutionContext.NONE);
+    }
+
     /**
      * Token-threading variant of {@link #decodeNestedArray(byte[], String, int)}: the
      * decode-unit completion token is propagated to each element's nested decode so a
@@ -1360,7 +1486,8 @@ public final class ObjectCodec {
     public static Object decodeNestedArray(byte[] rawBytes,
                                             String componentClassName,
                                             int depth,
-                                            DeserializationCompletion decodeUnit)
+                                            DeserializationCompletion decodeUnit,
+                                            ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(rawBytes, "rawBytes");
         Objects.requireNonNull(componentClassName, "componentClassName");
@@ -1404,13 +1531,13 @@ public final class ObjectCodec {
         }
 
         // Load component class and allocate a typed array
-        Class<?> componentClass = loadClass(componentClassName);
+        Class<?> componentClass = loadClass(componentClassName, resolution);
         Object result = Array.newInstance(componentClass, elementRaws.size());
 
         for (int i = 0; i < elementRaws.size(); i++) {
             // Each element is decoded with the THREADED depth (not 0!).
             // This is the critical invariant for the cumulative depth guard.
-            Object element = decodeNested(elementRaws.get(i), depth, decodeUnit);
+            Object element = decodeNested(elementRaws.get(i), depth, decodeUnit, resolution);
             Array.set(result, i, element); // null element is fine (nullable elements)
         }
 

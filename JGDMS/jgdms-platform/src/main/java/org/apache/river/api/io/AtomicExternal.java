@@ -42,8 +42,34 @@ import java.security.PrivilegedExceptionAction;
  * constructor.
  * <p>
  * The constructor replaces the readExternal method in Externalizable.
- * 
+ * <p>
+ * <b>Optional, and supported only by the JOSS-based atomic implementation.</b>
+ * {@code @AtomicExternal} is the {@link AtomicSerial} counterpart to
+ * {@link Externalizable}: the constructor and {@code writeExternal} read and write
+ * the stream directly with arbitrary, caller-defined logic. Because that logic has
+ * no fixed {@link AtomicSerial.SerialForm serial form} or schema, it <em>cannot</em>
+ * be expressed deterministically and is <em>not supported on the deterministic
+ * (DER) wire path</em>; nor can an {@code @AtomicExternal} class be served by a
+ * {@link MarshalDelegate} (there is no serialForm/serialize to dispatch to). Support
+ * is therefore optional -- a serialization framework may decline to handle
+ * {@code @AtomicExternal} classes at all.
+ * <p>
+ * The strict {@link MarshalDelegate} mode governs only the {@link AtomicSerial}
+ * DER/delegate path; {@code @AtomicExternal} is not part of it (there is no
+ * serialForm to dispatch to a delegate) and is intentionally outside that gate.
+ * External {@code @AtomicExternal} classes follow the {@link Externalizable}
+ * convention of being {@code public}; the platform's own JOSS-only primitive
+ * serializers (for {@code Double}, {@code Date}, {@code UID}, ...) are
+ * package-private with a public {@code (ObjectInput)} constructor and are
+ * instantiated only within this serialization package, never on the deterministic
+ * wire.
+ * <p>
+ * A class that must marshal across every wire path (including deterministic ones),
+ * or that must work without direct stream access, should use {@link AtomicSerial}
+ * with {@code serialForm()}/{@code serialize()} instead.
+ *
  * @see Externalizable
+ * @see AtomicSerial
  * @author peter
  */
 @Retention(RetentionPolicy.RUNTIME)

@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 470" font-family="Helvetica, Arial, sans-serif">
+  <!-- DRAFT placeholder cartoon for blog-post-7. Left: the ambient resolver
+       (stack-walk / TCCL / latestUserDefinedLoader), blindfolded atop a wobbly
+       call stack, delivers an object to the WRONG door (a local copy) -> CCE.
+       Right: the JERI endpoint hands over the right key (defaultLoader, parent =
+       client bundle) and the object goes to the correct, codebase door.
+       To be replaced by finished illustration; keep the caption. -->
+  <rect width="880" height="470" fill="#ffffff"/>
+  <path d="M0,408 Q440,372 880,408 L880,470 L0,470 Z" fill="#f3f1ea"/>
+
+  <!-- centre divider -->
+  <line x1="440" y1="58" x2="440" y2="404" stroke="#d8d8d8" stroke-width="1.5" stroke-dasharray="3 5"/>
+
+  <!-- =========================== LEFT: ambient ========================== -->
+  <text x="36" y="44" font-size="15" font-weight="bold" fill="#9c3a2e">Ambient resolution</text>
+  <text x="36" y="62" font-size="11" fill="#8a8a8a">stack-walk · TCCL · latestUserDefinedLoader</text>
+
+  <!-- wobbly call stack -->
+  <g stroke="#b9985f" stroke-width="1.5">
+    <rect x="86" y="356" width="116" height="20" rx="3" fill="#e7d3a8" transform="rotate(-3 144 366)"/>
+    <rect x="92" y="338" width="104" height="20" rx="3" fill="#edd9af" transform="rotate(2 144 348)"/>
+    <rect x="96" y="320" width="96"  height="20" rx="3" fill="#e7d3a8" transform="rotate(-2 144 330)"/>
+  </g>
+  <text x="144" y="392" text-anchor="middle" font-size="10" fill="#9a8459">the call stack</text>
+
+  <!-- blindfolded courier on top -->
+  <g>
+    <rect x="129" y="266" width="30" height="46" rx="9" fill="#c98b6a"/>            <!-- body -->
+    <circle cx="144" cy="250" r="18" fill="#f3e2d4" stroke="#b07a55" stroke-width="1.5"/>
+    <rect x="126" y="244" width="36" height="9" rx="2" fill="#5b5b5b"/>             <!-- blindfold -->
+    <path d="M138,263 q6,4 12,0" fill="none" stroke="#9a6b4a" stroke-width="1.4"/>  <!-- unsure mouth -->
+    <text x="173" y="232" font-size="20" fill="#c0392b" font-weight="bold">?</text>
+    <!-- arm shoving a parcel toward the wrong door -->
+    <line x1="131" y1="282" x2="96" y2="276" stroke="#c98b6a" stroke-width="6" stroke-linecap="round"/>
+    <rect x="74" y="266" width="22" height="20" rx="2" fill="#cdb487" stroke="#9a8459"/>
+    <line x1="74" y1="276" x2="96" y2="276" stroke="#9a8459" stroke-width="1"/>
+    <text x="85" y="299" text-anchor="middle" font-size="8" fill="#7a6a44">object</text>
+  </g>
+
+  <!-- the WRONG door -->
+  <g>
+    <rect x="250" y="150" width="92" height="170" rx="6" fill="#f4d9d4" stroke="#c0392b" stroke-width="2"/>
+    <circle cx="330" cy="238" r="4" fill="#c0392b"/>
+    <text x="296" y="138" text-anchor="middle" font-size="12" font-weight="bold" fill="#9c3a2e">LocalCopy</text>
+    <!-- big red cross -->
+    <g stroke="#c0392b" stroke-width="7" stroke-linecap="round">
+      <line x1="268" y1="186" x2="324" y2="242"/>
+      <line x1="324" y1="186" x2="268" y2="242"/>
+    </g>
+    <text x="296" y="306" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#c0392b">ClassCastException</text>
+  </g>
+  <!-- delivery arrow to wrong door -->
+  <path d="M150,250 C190,210 215,210 246,224" fill="none" stroke="#d8b3ab" stroke-width="2.4" stroke-dasharray="2 5"/>
+
+  <!-- =========================== RIGHT: endpoint ======================= -->
+  <text x="510" y="44" font-size="15" font-weight="bold" fill="#2c7a45">JERI endpoint</text>
+  <text x="510" y="62" font-size="11" fill="#8a8a8a">endpoint-assigned · parent-anchored</text>
+
+  <!-- endpoint clerk -->
+  <g>
+    <rect x="529" y="252" width="30" height="46" rx="9" fill="#6b8f73"/>
+    <circle cx="544" cy="236" r="18" fill="#eef4ef" stroke="#4f7a5b" stroke-width="1.5"/>
+    <path d="M537,242 q7,5 14,0" fill="none" stroke="#4f7a5b" stroke-width="1.4"/>   <!-- calm smile -->
+    <!-- arm offering the key -->
+    <line x1="558" y1="266" x2="612" y2="250" stroke="#6b8f73" stroke-width="6" stroke-linecap="round"/>
+  </g>
+
+  <!-- the right KEY, labelled -->
+  <g>
+    <circle cx="622" cy="248" r="13" fill="none" stroke="#2E9E5B" stroke-width="5"/>
+    <line x1="634" y1="248" x2="676" y2="248" stroke="#2E9E5B" stroke-width="5" stroke-linecap="round"/>
+    <line x1="668" y1="248" x2="668" y2="260" stroke="#2E9E5B" stroke-width="5" stroke-linecap="round"/>
+    <line x1="658" y1="248" x2="658" y2="258" stroke="#2E9E5B" stroke-width="5" stroke-linecap="round"/>
+    <text x="624" y="288" text-anchor="middle" font-size="10" font-weight="bold" fill="#2c7a45">defaultLoader</text>
+    <text x="624" y="301" text-anchor="middle" font-size="9" fill="#5a7a62">parent = client bundle</text>
+  </g>
+
+  <!-- the RIGHT door (codebase) -->
+  <g>
+    <rect x="740" y="150" width="92" height="170" rx="6" fill="#d7eede" stroke="#2E9E5B" stroke-width="2"/>
+    <text x="786" y="132" text-anchor="middle" font-size="10.5" fill="#2c7a45">codebase:</text>
+    <text x="786" y="145" text-anchor="middle" font-size="9.5" fill="#2c7a45">http://svc/ui</text>
+    <!-- key in the lock -->
+    <circle cx="816" cy="238" r="5" fill="none" stroke="#2E9E5B" stroke-width="2.5"/>
+    <line x1="816" y1="243" x2="816" y2="252" stroke="#2E9E5B" stroke-width="2.5"/>
+    <!-- big green tick -->
+    <polyline points="760,205 778,224 812,182" fill="none" stroke="#2E9E5B" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="786" y="306" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#2c7a45">the right class</text>
+  </g>
+  <!-- delivery arrow into the lock -->
+  <path d="M676,248 C706,244 716,242 736,238" fill="none" stroke="#a9d6ba" stroke-width="2.4"/>
+  <polygon points="736,238 727,233 728,243" fill="#a9d6ba"/>
+</svg>

@@ -82,7 +82,7 @@ public class Levels {
     * permit creating the serialized form of a Level instance.
     */
     @AtomicSerial
-    private static final class LevelData implements Serializable {
+    static final class LevelData implements Serializable {
         private static final long serialVersionUID = -8176160795706313070L;
         
         private static final String NAME = "name";
