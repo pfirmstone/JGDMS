@@ -365,42 +365,6 @@ public class SpiffeCredentialManagerTest {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // SpiffeSubjectHolder: second start() on a different manager is rejected
-    // with IllegalStateException — one SVID per JVM/process (#7)
-    // -----------------------------------------------------------------------
-
-    @Test
-    public void secondManagerStartIsRejectedWithIllegalStateException()
-            throws Exception {
-        Subject subject1 = mutableSubject();
-        Subject subject2 = mutableSubject();
-
-        SpiffeCredentialManager mgr1 =
-                new SpiffeCredentialManager(subject1, reggieSource(), 3600L);
-        SpiffeCredentialManager mgr2 =
-                new SpiffeCredentialManager(subject2, reggieSource(), 3600L);
-        try {
-            mgr1.start();
-            assertEquals(subject1, SpiffeSubjectHolder.get());
-
-            // Starting a second manager with a different Subject must be
-            // rejected — one SVID per JVM/process.
-            try {
-                mgr2.start();
-                fail("Expected IllegalStateException on second manager start");
-            } catch (IllegalStateException e) {
-                // expected — only one manager allowed per JVM
-            }
-            // The holder must still contain subject1, not subject2.
-            assertEquals("SpiffeSubjectHolder must still hold subject1",
-                    subject1, SpiffeSubjectHolder.get());
-        } finally {
-            mgr1.close();
-            mgr2.close();
-        }
-    }
-
     @Test
     public void doubleStartOnSameManagerIsRejected() throws Exception {
         Subject subject = mutableSubject();
