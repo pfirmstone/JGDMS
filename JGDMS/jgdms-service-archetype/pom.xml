@@ -52,14 +52,16 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-archetype-plugin</artifactId>
-                <version>3.2.1</version>
+                <!-- 3.3.0 fixes CVE-2024-47197: archetype:integration-test could
+                     package ~/.m2/settings.xml (credentials) into the artifact. -->
+                <version>3.3.0</version>
             </plugin>
         </plugins>
         <extensions>
             <extension>
                 <groupId>org.apache.maven.archetype</groupId>
                 <artifactId>archetype-packaging</artifactId>
-                <version>3.2.1</version>
+                <version>3.3.0</version>
             </extension>
         </extensions>
     </build>
