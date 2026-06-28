@@ -55,7 +55,9 @@ import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
+import java.security.cert.CertPath;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -67,6 +69,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -82,6 +85,7 @@ import net.jini.export.CodebaseAccessor;
 import net.jini.export.ServerContext;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
+import net.jini.jeri.ssl.SpiffePrincipal;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
@@ -1419,7 +1423,21 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    pd = emptyPD;
 	} else {
 	    pd = domains.computeIfAbsent(client, s -> {
-		Set<Principal> set = s.getPrincipals();
+		Set<Principal> set = new HashSet<Principal>(s.getPrincipals());
+		/*
+		 * Gate 1 (workload): the SPIFFE identity is ADDITIVE, so it is taken
+		 * from the authenticated connection's certificate (never the wire) and
+		 * added to this LOCAL authorization domain only -- not the transport
+		 * Subject (which feeds reducing-domain reconstruction and must stay
+		 * codebase/X.500).  INTERIM: this introduces a net.jini.jeri ->
+		 * net.jini.jeri.ssl import; removed by the codebase-strings ACC rework.
+		 */
+		for (CertPath cp : s.getPublicCredentials(CertPath.class)) {
+			List<? extends Certificate> certs = cp.getCertificates();
+			if (!certs.isEmpty() && certs.get(0) instanceof X509Certificate) {
+				set.addAll(SpiffePrincipal.fromCertificate((X509Certificate) certs.get(0)));
+			}
+		}
 		Principal[] prins = set.toArray(new Principal[0]);
 		return new ProtectionDomain(emptyCS, null, null, prins);
 	    });

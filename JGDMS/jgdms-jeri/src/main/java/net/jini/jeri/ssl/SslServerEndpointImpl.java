@@ -31,6 +31,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.nio.channels.SocketChannel;
 import java.security.AccessControlContext;
+import java.lang.reflect.Constructor;
 import java.security.AccessController;
 import java.security.GeneralSecurityException;
 import java.security.Permission;
@@ -119,6 +120,51 @@ class SslServerEndpointImpl extends Utilities {
 	new BasicServerConnManager();
     
     private static final LocalHost LOCAL_HOST = new LocalHost(logger, SslServerEndpointImpl.class);
+
+    /**
+     * Reflective constructor for {@code javax.security.auth.RemoteSubject(X509Certificate[])}
+     * -- DirtyChai's read-only, authenticated-remote-peer {@code WorkerSubject} subclass.
+     * It derives the X.500 DN and SPIFFE URI principals from the verified leaf certificate,
+     * carries the peer {@code CertPath} as its sole (public) credential, and holds no
+     * private credentials.
+     *
+     * <p>jgdms-jeri compiles on stock OpenJDK (where this class is absent) but runs only on
+     * DirtyChai (where it is always present), so the type is bound reflectively once here.
+     * A {@code null} value -- a non-DirtyChai JVM, which JGDMS does not support at runtime --
+     * makes {@code getClientSubject} fall back to a plain read-only X.500 {@code Subject}
+     * (defensive only; logged at HANDLED).
+     */
+    private static final Constructor<?> REMOTE_SUBJECT_CTOR =
+        AccessController.doPrivileged((PrivilegedAction<Constructor<?>>) () -> {
+            try {
+                return Class.forName("javax.security.auth.RemoteSubject")
+                            .getConstructor(X509Certificate[].class);
+            } catch (ClassNotFoundException | NoSuchMethodException e) {
+                return null;
+            }
+        });
+
+    /**
+     * Mints the authenticated-remote-peer {@code RemoteSubject} from the verified mTLS
+     * peer certificate chain, or returns {@code null} when the DirtyChai type is absent
+     * (non-DirtyChai JVM) or construction fails -- in which case the caller uses the
+     * defensive X.500-only fallback.
+     */
+    private static Subject mintRemoteSubject(Certificate[] chain) {
+        if (REMOTE_SUBJECT_CTOR == null) return null;
+        try {
+            X509Certificate[] x509Chain = new X509Certificate[chain.length];
+            for (int i = 0; i < chain.length; i++) {
+                x509Chain[i] = (X509Certificate) chain[i];
+            }
+            return (Subject) REMOTE_SUBJECT_CTOR.newInstance((Object) x509Chain);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            if (logger.isLoggable(Levels.HANDLED)) {
+                logger.log(Levels.HANDLED, "RemoteSubject construction failed", e);
+            }
+            return null;
+        }
+    }
 
     /** The associated server endpoint. */
     private final ServerEndpoint serverEndpoint;
@@ -1611,21 +1657,28 @@ class SslServerEndpointImpl extends Utilities {
 					&& certificateChain.length > 0
 					&& certificateChain[0] instanceof X509Certificate)
 				{
-					X509Certificate cert = (X509Certificate) certificateChain[0];
 					/*
-					 * Gate-1 (workload) authorization keys on the SPIFFE identity,
-					 * so carry both the X.500 subject DN and any spiffe:// SAN
-					 * principals -- not just the DN, which would drop the SPIFFE
-					 * identity before authorization.  SpiffePrincipal.fromCertificate
-					 * returns an empty list for a non-SPIFFE X.509 client, leaving
-					 * the prior X.500-only behaviour unchanged in that case.
+					 * The client subject is the authenticated *remote peer* worker
+					 * identity, minted from the verified mTLS peer certificate chain as a
+					 * read-only RemoteSubject (a WorkerSubject subclass): X.500 DN + SPIFFE
+					 * URI principals derived from the leaf, the CertPath credential, and no
+					 * private credentials.  Both identity halves come from the cert (never
+					 * the wire), and a WorkerSubject can never be callAs/doAs'd -- so the
+					 * SPIFFE principal is an additive, authenticated identity used for
+					 * Gate-1 ACC stamping (BasicInvocationDispatcher), not transmitted.
 					 */
-					Set<Principal> principals = new HashSet<Principal>();
-					principals.add(cert.getSubjectX500Principal());
-					principals.addAll(SpiffePrincipal.fromCertificate(cert));
+					Subject remote = mintRemoteSubject(certificateChain);
+					if (remote != null) {
+						return remote;
+					}
+					/*
+					 * Defensive fallback only (JGDMS runs on DirtyChai, where RemoteSubject
+					 * is always present): a plain read-only X.500 Subject, no SPIFFE principal.
+					 */
+					X509Certificate cert = (X509Certificate) certificateChain[0];
 					return new Subject(
 						true,
-						principals,
+						Collections.singleton(cert.getSubjectX500Principal()),
 						Collections.singleton(getCertFactory().generateCertPath(Arrays.asList(certificateChain))),
 						Collections.EMPTY_SET
 					);

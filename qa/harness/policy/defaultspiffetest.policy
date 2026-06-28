@@ -171,7 +171,7 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
     permission java.io.SerializablePermission "enableSubclassImplementation";
 };
 
-grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/mahalo",
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/mahalo",
 {
     permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.abort";
     permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.commit";
@@ -181,13 +181,13 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
 };
 
-grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/norm",
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/norm",
 {
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
 };
 
-grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/outrigger",
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/outrigger",
 {
     permission net.jini.security.AccessPermission "net.jini.core.event.RemoteEventListener.notify";
     permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionManager.getState";
@@ -196,12 +196,12 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
 };
 
-grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/reggie",
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/reggie",
 {
     permission net.jini.security.AccessPermission "net.jini.core.event.RemoteEventListener.notify";
 };
 
-grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/tester",
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/tester",
 {
     permission net.jini.security.AccessPermission "net.jini.lookup.ServiceProxyAccessor.getServiceProxy";
 };
@@ -456,10 +456,10 @@ grant {
 // CAVEAT (bring-up): these SHA-256 hashes pin the *current* dl-jar bytes; they change whenever the
 // service dl jars are rebuilt -> regenerate from `sha256sum <dl-jar>` if the codebase download starts
 // failing BootstrapPermission again.  reggie-dl/jgdms-lib-dl serve on :9080; qa1-*-dl on :9082.
-grant digest "SHA-256:cd1cac908bb4b0e111bcc3968b92bf220321140116b76e013da8a5109fdbc0c9" {   // reggie-dl
+grant digest "SHA-256:c0add336da0f2372a04677a995a6d2fb555b1630d84a23faf8bcb4693aa51d41" {   // reggie-dl
     permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
 };
-grant digest "SHA-256:a8e68d3b9bbdcfc3b04d1e40f4d157be688beb3454e7143fd81c086e43c35b34" {   // jgdms-lib-dl
+grant digest "SHA-256:cddebf4d65970f444217d2ac3c853d96eb88c7155d6d4506922d198582d81c35" {   // jgdms-lib-dl
     permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
 };
 grant digest "SHA-256:c9cf08b997ed31cb0e6681892321da80575c0410c830ca01d738709665141712" {   // qa1-outrigger-dl

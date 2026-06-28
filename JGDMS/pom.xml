@@ -135,6 +135,13 @@
     <osgi.annotation.version>8.1.0</osgi.annotation.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <!-- Reproducible builds: a fixed output timestamp normalises every jar/ZIP
+         entry time (and is honoured by maven-jar/assembly and bnd-maven-plugin),
+         so a jar's bytes - and therefore its SHA-256 digest - are a deterministic
+         function of the source.  This keeps DigestGrant / httpmd codebase hashes
+         stable across rebuilds of unchanged source, instead of changing every
+         build from per-build timestamps. -->
+    <project.build.outputTimestamp>2024-01-01T00:00:00Z</project.build.outputTimestamp>
     <asm.version>9.7.1</asm.version>
     <dependency-check-maven.version>10.0.4</dependency-check-maven.version>
   </properties>
@@ -215,6 +222,16 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
           <version>3.3.0</version>
+          <configuration>
+            <archive>
+              <!-- Reproducible jars: drop the build-environment-specific manifest
+                   entries (Build-Jdk-Spec, Built-By, Created-By) so the digest does
+                   not depend on which JDK/user produced the jar. -->
+              <manifest>
+                <addDefaultEntries>false</addDefaultEntries>
+              </manifest>
+            </archive>
+          </configuration>
         </plugin>
         <plugin>
             <groupId>biz.aQute.bnd</groupId>
