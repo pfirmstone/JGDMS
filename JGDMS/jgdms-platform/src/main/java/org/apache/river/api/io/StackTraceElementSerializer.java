@@ -30,7 +30,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @Serializer(replaceObType = StackTraceElement.class)
 @AtomicSerial
-public class StackTraceElementSerializer {
+class StackTraceElementSerializer {
 
     private static final String DECLARING_CLASS = "declaringClass";
     private static final String METHOD_NAME = "methodName";

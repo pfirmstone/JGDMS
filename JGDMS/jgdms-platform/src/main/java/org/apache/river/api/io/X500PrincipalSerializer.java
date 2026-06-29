@@ -33,7 +33,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType = X500Principal.class)
 @AtomicSerial
-public class X500PrincipalSerializer implements Resolve {
+class X500PrincipalSerializer implements Resolve {
 
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

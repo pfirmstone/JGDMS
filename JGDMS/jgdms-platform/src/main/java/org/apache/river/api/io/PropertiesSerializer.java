@@ -32,7 +32,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType = Properties.class)
 @AtomicSerial
-public class PropertiesSerializer implements Resolve {
+class PropertiesSerializer implements Resolve {
 
     public static SerialForm [] serialForm(){
         return new SerialForm[]{

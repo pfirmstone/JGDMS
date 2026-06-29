@@ -42,7 +42,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @Serializer(replaceObType = Throwable.class)
 @AtomicSerial
-public class ThrowableSerializer implements Resolve {
+class ThrowableSerializer implements Resolve {
 
     /**
      * Serial argument / field names

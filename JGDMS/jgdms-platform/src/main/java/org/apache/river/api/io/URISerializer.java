@@ -33,7 +33,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType = URI.class)
 @AtomicSerial
-public class URISerializer {
+class URISerializer {
 
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

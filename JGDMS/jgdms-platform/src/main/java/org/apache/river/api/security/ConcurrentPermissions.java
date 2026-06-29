@@ -76,7 +76,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @since 3.0.0
  * @serial permsMap
  */
-public final class ConcurrentPermissions extends PermissionCollection {
+final class ConcurrentPermissions extends PermissionCollection {
 
     /* unresolved is never returned or allowed to escape, it's elements() method
      * isn't used to return an Enumeration yet 
