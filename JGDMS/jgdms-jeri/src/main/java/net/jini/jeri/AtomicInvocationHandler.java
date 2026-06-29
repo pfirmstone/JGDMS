@@ -90,9 +90,18 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
     public AtomicInvocationHandler(ObjectEndpoint oe,
 				   MethodConstraints serverConstraints,
 				   boolean useCodebaseAnnotations,
-                                   Compression compress) 
+                                   Compression compress)
     {
-	super(oe, serverConstraints);
+	this(oe, serverConstraints, useCodebaseAnnotations, compress, null);
+    }
+
+    public AtomicInvocationHandler(ObjectEndpoint oe,
+				   MethodConstraints serverConstraints,
+				   boolean useCodebaseAnnotations,
+                                   Compression compress,
+                                   MarshalStreamFactory marshalStreamFactory)
+    {
+	super(oe, serverConstraints, marshalStreamFactory);
 	this.useCodebaseAnnotations = useCodebaseAnnotations;
         this.compression = compress;
     }

@@ -22,15 +22,20 @@
 
 package org.apache.river.api.security;
 
+import java.net.URL;
+import java.security.CodeSource;
 import java.security.KeyStore;
 import java.security.Permission;
 import java.security.Principal;
+import java.security.ProtectionDomain;
 import java.security.SecurityPermission;
 import java.security.UnresolvedPermission;
+import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+import javax.security.auth.x500.X500Principal;
 
 import junit.framework.TestCase;
 import org.apache.river.api.security.DefaultPolicyScanner.GrantEntry;
@@ -296,6 +301,108 @@ public class DefaultPolicyParserTest extends TestCase {
         PermissionGrant result = parser.resolveGrant(mixedGe, null, system, false);
         assertNotNull(result);
         assertTrue(isDigestGrant(result));
+    }
+
+    /**
+     * Compared by class name (not instanceof) for the same split-package reason
+     * as {@link #isDigestGrant}: under DirtyChai the grant classes are embedded
+     * in java.base while this test is loaded from the unnamed module, so a
+     * java.base-resolved grant is not an {@code instanceof} the classpath copy.
+     */
+    private static boolean isPrincipalGrant(PermissionGrant grant) {
+        return grant != null
+                && "org.apache.river.api.security.PrincipalGrant"
+                        .equals(grant.getClass().getName());
+    }
+
+    private static boolean isURIGrant(PermissionGrant grant) {
+        return grant != null
+                && "org.apache.river.api.security.URIGrant"
+                        .equals(grant.getClass().getName());
+    }
+
+    /**
+     * A grant whose only discriminator is principals (no codeBase, no signedBy,
+     * no digest) must resolve to a PrincipalGrant, which matches by principal
+     * alone -- including a domain whose CodeSource is {@code null}. This is the
+     * §7.3 two-gate requirement that a reducing-context domain may "use only the
+     * Principal": a codebase-less authenticated frame must still satisfy a
+     * principal grant. Regression for the parser previously mis-building such a
+     * grant as a URIGrant (whose matcher rejects a null CodeSource).
+     */
+    @Test
+    public void testResolveGrantPrincipalOnlyProducesPrincipalGrant() throws Exception {
+        System.out.println("testResolveGrantPrincipalOnlyProducesPrincipalGrant");
+        DefaultPolicyParser parser = new DefaultPolicyParser();
+        Collection<DefaultPolicyScanner.PrincipalEntry> pe =
+                new ArrayList<DefaultPolicyScanner.PrincipalEntry>();
+        pe.add(new DefaultPolicyScanner.PrincipalEntry(
+                "javax.security.auth.x500.X500Principal", "CN=Test"));
+        GrantEntry principalGe = new GrantEntry(null, null, null, pe, null);
+        PermissionGrant grant = parser.resolveGrant(principalGe, null, system, false);
+        assertNotNull(grant);
+        assertTrue("principal-only grant must resolve to a PrincipalGrant",
+                isPrincipalGrant(grant));
+        Principal[] match = { new X500Principal("CN=Test") };
+        Principal[] other = { new X500Principal("CN=Other") };
+        // Matches a null-CodeSource domain carrying the principal -- the case the
+        // mis-categorised URIGrant rejected.
+        assertTrue("principal grant must match a null-CodeSource domain with the principal",
+                grant.implies(new ProtectionDomain(null, null, null, match)));
+        // PrincipalGrant ignores CodeSource, so a real-CS domain matches too.
+        CodeSource cs = new CodeSource(new URL("file:/app/lib.jar"), (Certificate[]) null);
+        assertTrue(grant.implies(new ProtectionDomain(cs, null, null, match)));
+        // ...but a different principal does not match.
+        assertFalse(grant.implies(new ProtectionDomain(null, null, null, other)));
+    }
+
+    /**
+     * A BARE grant (no codeBase, no signedBy, no digest, no principals) must
+     * resolve to a URIGrant (a codebase wildcard), NOT a PrincipalGrant -- so it
+     * applies to codebase-bearing code but NOT to a null-CodeSource domain,
+     * preserving the "null CodeSource is unprivileged" invariant (HC-5).
+     *
+     * <p>The scanner supplies a non-null EMPTY principals collection for a bare
+     * grant, so this reproduces and guards against the regression where the
+     * guard {@code ge.getPrincipals(null) != null} (always true) routed bare
+     * grants into the PRINCIPAL branch, yielding a PrincipalGrant with empty
+     * principals whose {@code implies} returns true for every domain.
+     */
+    @Test
+    public void testResolveGrantBareProducesURIGrantAndExcludesNullCodeSource() throws Exception {
+        System.out.println("testResolveGrantBareProducesURIGrantAndExcludesNullCodeSource");
+        DefaultPolicyParser parser = new DefaultPolicyParser();
+        // Non-null empty principals, exactly as DefaultPolicyScanner yields for a bare grant.
+        GrantEntry bareGe = new GrantEntry(null, null, null,
+                new ArrayList<DefaultPolicyScanner.PrincipalEntry>(), null);
+        PermissionGrant grant = parser.resolveGrant(bareGe, null, system, false);
+        assertNotNull(grant);
+        assertTrue("bare grant must resolve to a URIGrant, not a PrincipalGrant",
+                isURIGrant(grant));
+        assertFalse("bare grant must NOT match a null-CodeSource domain",
+                grant.implies(new ProtectionDomain(null, null, null,
+                        new Principal[]{ new X500Principal("CN=Test") })));
+        // A bare grant is an empty-URI wildcard: it matches any non-null CodeSource.
+        CodeSource cs = new CodeSource(new URL("file:/app/lib.jar"), (Certificate[]) null);
+        assertTrue("bare grant (codebase wildcard) must match a codebase-bearing domain",
+                grant.implies(new ProtectionDomain(cs, null, null, null)));
+    }
+
+    /**
+     * A codeBase grant must remain a URIGrant and must not match a
+     * null-CodeSource domain, regardless of the domain's principals (HC-5).
+     */
+    @Test
+    public void testResolveGrantCodebaseExcludesNullCodeSource() throws Exception {
+        System.out.println("testResolveGrantCodebaseExcludesNullCodeSource");
+        DefaultPolicyParser parser = new DefaultPolicyParser();
+        GrantEntry cbGe = new GrantEntry(null, "file:/app/lib.jar", null, null, null);
+        PermissionGrant grant = parser.resolveGrant(cbGe, null, system, false);
+        assertNotNull(grant);
+        assertTrue(isURIGrant(grant));
+        Principal[] p = { new X500Principal("CN=Test") };
+        assertFalse("codeBase grant must NOT match a null-CodeSource domain",
+                grant.implies(new ProtectionDomain(null, null, null, p)));
     }
 
 //    /**

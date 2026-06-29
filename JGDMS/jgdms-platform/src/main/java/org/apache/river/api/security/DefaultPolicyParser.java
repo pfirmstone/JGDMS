@@ -344,8 +344,15 @@ public class DefaultPolicyParser implements PolicyParser {
            .principals(principals.toArray(new Principal[principals.size()]))
            .permissions(permissions.toArray(new Permission[permissions.size()]));
 
-        // If a digest clause was present, decode it and produce a DigestGrant.
-        // Otherwise fall back to a plain URIGrant.
+        // Choose the grant type by which discriminators the clause actually carries:
+        //  - digest                         -> DigestGrant
+        //  - signedBy, no codebase          -> CertificateGrant
+        //  - principal(s), no codebase      -> PrincipalGrant (matches by principal alone,
+        //                                      regardless of CodeSource, incl. a null one)
+        //  - otherwise (codebase, or a bare grant = codebase wildcard) -> URIGrant
+        // A URIGrant/CertificateGrant/DigestGrant requires a non-null CodeSource, so a
+        // codebase-less domain (e.g. a dynamically generated proxy) never gains codebase-scoped
+        // authority; only a genuinely principal-only grant applies to it.
         String rawDigest = ge.getDigest();
         if (rawDigest != null) {
             int colon = rawDigest.indexOf(':');
@@ -358,6 +365,16 @@ public class DefaultPolicyParser implements PolicyParser {
             String hexValue   = rawDigest.substring(colon + 1);
             pgb.digest(algorithm, hexDecode(hexValue))
                .context(PermissionGrantBuilder.DIGEST);
+        } else if (signerString != null && codebases.isEmpty()) {
+            pgb.context(PermissionGrantBuilder.CODESOURCE_CERTS);
+        } else if (!principals.isEmpty() && codebases.isEmpty()) {
+            // Guard on the RESOLVED principals, not ge.getPrincipals(null): the
+            // scanner returns a non-null empty collection when no principal clause
+            // is present, so testing it for null would also route a BARE grant
+            // here -> PrincipalGrant(emptyPals) matches every domain incl. null
+            // CodeSource (an HC-5 weakening).  A bare grant must stay a URIGrant
+            // (codebase wildcard, which rejects a null CodeSource).
+            pgb.context(PermissionGrantBuilder.PRINCIPAL);
         } else {
             pgb.context(PermissionGrantBuilder.URI);
         }

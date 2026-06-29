@@ -462,6 +462,9 @@ grant digest "SHA-256:c0add336da0f2372a04677a995a6d2fb555b1630d84a23faf8bcb4693a
 grant digest "SHA-256:cddebf4d65970f444217d2ac3c853d96eb88c7155d6d4506922d198582d81c35" {   // jgdms-lib-dl
     permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
 };
+grant digest "SHA-256:97f2b2d133f7af082c547f9a77e77528f503c3a0267196988a6cb7fd0e9bf543" {   // outrigger-dl
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
 grant digest "SHA-256:c9cf08b997ed31cb0e6681892321da80575c0410c830ca01d738709665141712" {   // qa1-outrigger-dl
     permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
 };

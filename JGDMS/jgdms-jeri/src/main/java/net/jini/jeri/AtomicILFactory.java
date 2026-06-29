@@ -68,7 +68,15 @@ public class AtomicILFactory extends BasicILFactory {
     
     private final boolean useAnnotations;
     private final Compression compression;
-    
+    private final MarshalStreamFactory marshalStreamFactory;
+
+    /**
+     * Default reducing-context ({@code AccessControlContext}) codec for proxies
+     * exported by this factory: hardened atomic Java serialization (JOSS).
+     */
+    private static final MarshalStreamFactory DEFAULT_MARSHAL_STREAM_FACTORY =
+	new AtomicMarshalStreamFactory();
+
     /**
      * Creates a <code>AtomicILFactory</code> with the specified server
      * constraints, permission class, and class loader.  The server
@@ -133,9 +141,46 @@ public class AtomicILFactory extends BasicILFactory {
 			    boolean useAnnotations,
                             Compression compress)
     {
+	this(serverConstraints, permissionClass, loader, useAnnotations, compress,
+		DEFAULT_MARSHAL_STREAM_FACTORY);
+    }
+
+    /**
+     * Creates an <code>AtomicILFactory</code> that decodes the remote caller's
+     * reducing context with the supplied {@link MarshalStreamFactory}.  A
+     * {@link net.jini.config.Configuration} can construct one directly, e.g. a
+     * {@link DerMarshalStreamFactory} with custom DoS limits.
+     *
+     * @param	serverConstraints the server constraints, or <code>null</code>
+     * @param	permissionClass the permission class, or <code>null</code>
+     * @param	loader the class loader
+     * @param   compress the type of compression to use or none
+     * @param	marshalStreamFactory the reducing-context codec, or
+     *		<code>null</code> for the default (atomic JOSS)
+     * @throws NullPointerException if loader is null
+     **/
+    public AtomicILFactory(MethodConstraints serverConstraints,
+			    Class permissionClass,
+			    ClassLoader loader,
+                            Compression compress,
+                            MarshalStreamFactory marshalStreamFactory)
+    {
+	this(serverConstraints, permissionClass, loader, false, compress,
+		marshalStreamFactory);
+    }
+
+    private AtomicILFactory(MethodConstraints serverConstraints,
+			    Class permissionClass,
+			    ClassLoader loader,
+			    boolean useAnnotations,
+                            Compression compress,
+                            MarshalStreamFactory marshalStreamFactory)
+    {
 	super(serverConstraints, permissionClass, notNull(loader));
 	this.useAnnotations = useAnnotations;
         this.compression = compress;
+        this.marshalStreamFactory = marshalStreamFactory != null ?
+		marshalStreamFactory : DEFAULT_MARSHAL_STREAM_FACTORY;
     }
     
     private static <T> T notNull(T object) throws NullPointerException{
@@ -383,7 +428,7 @@ public class AtomicILFactory extends BasicILFactory {
 	if (impl == null) {
 	    throw new NullPointerException();
 	}
-	return new AtomicInvocationHandler(oe, getServerConstraints(), useAnnotations, compression);
+	return new AtomicInvocationHandler(oe, getServerConstraints(), useAnnotations, compression, marshalStreamFactory);
         }
     
     /**
@@ -416,9 +461,10 @@ public class AtomicILFactory extends BasicILFactory {
 	return new AtomicInvocationDispatcher(methods, caps,
 					     getServerConstraints(),
 					     getPermissionClass(),
-					     getClassLoader(), 
+					     getClassLoader(),
 					     useAnnotations,
-                                             compression);
+                                             compression,
+                                             marshalStreamFactory);
     }
 	
     @Override

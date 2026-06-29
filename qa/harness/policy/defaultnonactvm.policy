@@ -25,6 +25,19 @@ principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
     permission javax.security.auth.AuthPermission "callAs";
 };
 
+// §7.3 two-gate: grant the matching-test client (tester) AccessPermission for
+// remote method invocation.  reggie's NonActivatableGroup VM evaluates Gate-1
+// against this policy (its java.security.policy), so the grant must live here, not
+// in the per-service policy file.  Real principal classes (not UnresolvedPrincipal
+// used as the class) so the grant resolves; the SpiffePrincipal class name is held
+// as a string by the policy parser, so this remains portable to non-DirtyChai
+// config sets (there it simply never matches).
+grant principal javax.security.auth.x500.X500Principal "CN=Tester",
+      principal au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://test.jgdms.local/svc/tester"
+{
+    permission net.jini.security.AccessPermission "*";
+};
+
 grant codebase "file:${jsk.home}/lib/jgdms-collections-3.1.1-SNAPSHOT.jar",
 {
     permission javax.security.auth.AuthPermission "callAs";
@@ -1309,6 +1322,7 @@ grant {
     permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Group\"", "read";
     permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Reggie\"", "read";
     permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Tester\"", "read";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "read";
     permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
     permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.qa.harness";
@@ -1524,10 +1538,13 @@ grant {
 // validates codebases via RFC 3986 URL construction (HC-7) -> a wildcard httpmd codebase never loads.
 // CAVEAT (bring-up): SHA-256 pins the current dl-jar bytes; regenerate via `sha256sum <dl-jar>` after
 // any rebuild of the service dl jars.
-grant digest "SHA-256:cd1cac908bb4b0e111bcc3968b92bf220321140116b76e013da8a5109fdbc0c9" {   // reggie-dl
+grant digest "SHA-256:c0add336da0f2372a04677a995a6d2fb555b1630d84a23faf8bcb4693aa51d41" {   // reggie-dl
     permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
 };
-grant digest "SHA-256:a8e68d3b9bbdcfc3b04d1e40f4d157be688beb3454e7143fd81c086e43c35b34" {   // jgdms-lib-dl
+grant digest "SHA-256:cddebf4d65970f444217d2ac3c853d96eb88c7155d6d4506922d198582d81c35" {   // jgdms-lib-dl
+    permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
+};
+grant digest "SHA-256:97f2b2d133f7af082c547f9a77e77528f503c3a0267196988a6cb7fd0e9bf543" {   // outrigger-dl
     permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
 };
 grant digest "SHA-256:c9cf08b997ed31cb0e6681892321da80575c0410c830ca01d738709665141712" {   // qa1-outrigger-dl

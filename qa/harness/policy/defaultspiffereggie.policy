@@ -123,6 +123,15 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
     permission net.jini.security.AccessPermission "*";
 };
 
+// §7.3 two-gate: the tester client authenticates as both an X.500 identity
+// (SVID subject DN) and a SPIFFE workload identity (URI SAN).  The reconstructed
+// reducing domains carry both real principals, so Gate-1 requires both here.
+grant principal javax.security.auth.x500.X500Principal "CN=Tester",
+      principal au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://test.jgdms.local/svc/tester"
+{
+    permission net.jini.security.AccessPermission "*";
+};
+
 grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=fiddler",
 {
     permission net.jini.security.AccessPermission "multicastRequest";

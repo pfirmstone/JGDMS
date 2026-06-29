@@ -28,7 +28,6 @@ import java.net.URI;
 import java.net.URL;
 import java.rmi.MarshalledObject;
 import java.rmi.server.UID;
-import java.security.AccessControlContext;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -299,7 +298,6 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    serializers.put(StackTraceElement.class, StackTraceElementSerializer.class);
             serializers.put(X500Principal.class, X500PrincipalSerializer.class);
 	    serializers.put(Date.class, DateSerializer.class);
-            serializers.put(AccessControlContext.class, AccessControlContextSerializer.class);
 	}
 	
 	@Override

@@ -18,6 +18,7 @@
 
 package net.jini.jeri;
 
+import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -77,7 +78,6 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
-import org.apache.river.api.io.AccessControlContextSerializer;
 import org.apache.river.jeri.internal.runtime.Util;
 import org.apache.river.logging.Levels;
 
@@ -268,44 +268,54 @@ public class BasicInvocationHandler
      */
     private static final class AccSerialCache {
         final AccessControlContext acc;
-        /** HTTPMD-domain transport bytes; used by protocol version {@code 0x02}. */
-        final byte[] transportBytes;
         /**
-         * {@code DigestCodeSource} transport bytes.
-         * Not transmitted by the current protocol version ({@code 0x02}) but
-         * precomputed here so that future protocol versions that carry
-         * digest-domain bytes can read the cache directly without an extra
-         * security stack-walk per call.
+         * The {@code RemoteContextCodec} reducing-context block (codebases only,
+         * no principals) for {@link #acc}, framed as the protocol version
+         * {@code 0x02} ACC block.
          */
-        final byte[] digestBytes;
+        final byte[] block;
 
-        AccSerialCache(AccessControlContext acc, byte[] transportBytes, byte[] digestBytes) {
+        AccSerialCache(AccessControlContext acc, byte[] block) {
             this.acc = acc;
-            this.transportBytes = transportBytes;
-            this.digestBytes = digestBytes;
+            this.block = block;
         }
     }
 
     /**
-     * Connection-level ACC serialisation cache (Work Item 28).
+     * Default codec for the reducing-context ({@code AccessControlContext})
+     * side-band block: hardened atomic Java serialization (JOSS).  A
+     * deserialised handler (which never carries the field on the wire) and every
+     * non-codec-aware constructor use this; a DER-exported proxy supplies a
+     * {@link DerMarshalStreamFactory} instead.
+     */
+    private static final MarshalStreamFactory DEFAULT_MARSHAL_STREAM_FACTORY =
+            new AtomicMarshalStreamFactory();
+
+    /** Sentinel for "no reducing context transmitted". */
+    private static final byte[] EMPTY_BYTES = new byte[0];
+
+    /**
+     * Codec used to encode the reducing-context block written in {@link #invoke}.
+     * Always non-{@code null}; see {@link MarshalStreamFactory}.
+     */
+    private final MarshalStreamFactory marshalStreamFactory;
+
+    /**
+     * Connection-level reducing-context cache (Work Item 28).
      *
      * <p>The caller's {@link AccessControlContext} rarely changes between
-     * successive calls on the same proxy.  Computing the transport bytes via
-     * {@link AccessControlContextSerializer#marshalForTransport} and
-     * {@link AccessControlContextSerializer#marshalDigestForTransport} each
-     * requires a security stack-walk ({@code extractDomains}) that costs
-     * roughly 5–20 µs per call.  By caching the results and invalidating only
-     * when the ACC reference changes (a cheap {@code volatile} read + identity
-     * comparison, ~10 ns), we reduce steady-state stack-walk overhead from
-     * O(calls/s) to O(ACC-changes/s) at steady state.
+     * successive calls on the same proxy.  Encoding the reducing-context block
+     * via {@link RemoteContextCodec#marshal} requires a security stack-walk
+     * ({@code extractDomains}) that costs roughly 5–20 µs per call.  By caching
+     * the block and invalidating only when the ACC reference changes (a cheap
+     * {@code volatile} read + identity comparison, ~10 ns), we reduce
+     * steady-state stack-walk overhead from O(calls/s) to O(ACC-changes/s).
      *
      * <p>A <em>single</em> {@code volatile} reference to an {@link AccSerialCache}
-     * holder is used instead of three separate {@code volatile} fields.  This
-     * ensures that the ACC identity check and the subsequent read of the
-     * transport bytes operate on the <em>same</em> snapshot: one volatile read
-     * returns a fully consistent (acc, transportBytes, digestBytes) triple with
-     * no possibility of a concurrent thread having replaced one of the fields
-     * between the check and the use.
+     * holder keeps the ACC-identity check and the subsequent read of the cached
+     * block operating on the <em>same</em> snapshot: one volatile read returns a
+     * consistent (acc, block) pair with no possibility of a concurrent thread
+     * having replaced one of the fields between the check and the use.
      *
      * <p>The field is {@code transient}: on deserialisation it defaults to
      * {@code null} and is repopulated on the first outbound call.
@@ -327,16 +337,37 @@ public class BasicInvocationHandler
     public BasicInvocationHandler(ObjectEndpoint oe,
 				  MethodConstraints serverConstraints)
     {
-	this(check(oe), oe, null, serverConstraints);
+	this(check(oe), oe, null, serverConstraints, DEFAULT_MARSHAL_STREAM_FACTORY);
 	}
-    
+
+    /**
+     * Creates a new <code>BasicInvocationHandler</code> with the specified
+     * <code>ObjectEndpoint</code>, server constraints, and reducing-context
+     * codec.
+     *
+     * @param	oe the <code>ObjectEndpoint</code> for this invocation handler
+     * @param	serverConstraints the server constraints, or <code>null</code>
+     * @param	marshalStreamFactory the codec for the reducing-context block,
+     *		or <code>null</code> for the default (atomic JOSS)
+     * @throws	NullPointerException if <code>oe</code> is <code>null</code>
+     **/
+    public BasicInvocationHandler(ObjectEndpoint oe,
+				  MethodConstraints serverConstraints,
+				  MarshalStreamFactory marshalStreamFactory)
+    {
+	this(check(oe), oe, null, serverConstraints, marshalStreamFactory);
+	}
+
     private BasicInvocationHandler(boolean check, ObjectEndpoint oe,
 	    MethodConstraints clientConstraints,
-	    MethodConstraints serverConstraints)
+	    MethodConstraints serverConstraints,
+	    MarshalStreamFactory marshalStreamFactory)
     {
 	this.oe = oe;
 	this.clientConstraints = clientConstraints;
 	this.serverConstraints = serverConstraints;
+	this.marshalStreamFactory = marshalStreamFactory != null ?
+		marshalStreamFactory : DEFAULT_MARSHAL_STREAM_FACTORY;
     }
 
     private static boolean check(ObjectEndpoint oe){
@@ -364,7 +395,12 @@ public class BasicInvocationHandler
 	this(check(arg),
 	    (ObjectEndpoint) arg.get("oe", null),
 	    (MethodConstraints) arg.get("clientConstraints", null),
-	    (MethodConstraints) arg.get("serverConstraints", null)
+	    (MethodConstraints) arg.get("serverConstraints", null),
+	    // The codec is not carried on the wire: it is determined by the
+	    // (de)serialised handler's class.  Atomic JOSS is the default; a
+	    // future DER-exported handler will supply its own via the codec
+	    // constructor before re-serialisation.
+	    DEFAULT_MARSHAL_STREAM_FACTORY
 	);
     }
 
@@ -396,6 +432,7 @@ public class BasicInvocationHandler
 	this.oe = other.oe;
 	this.clientConstraints = clientConstraints;
 	this.serverConstraints = other.serverConstraints;
+	this.marshalStreamFactory = other.marshalStreamFactory;
     }
 
     /**
@@ -938,30 +975,36 @@ public class BasicInvocationHandler
 	    // 0x02 = with serialized remote ACC + user Subjects (multi-subject)
 	    // 0x01 = atomicValidation, no user Subjects
 	    // 0x00 = legacy, no atomicValidation, no user Subjects
-            final AccessControlContext currentAcc = AccessController.getContext();
-            // Single volatile read: obtain a consistent (acc, transportBytes, digestBytes)
-            // snapshot.  Using one volatile reference to an immutable holder prevents the
-            // TOCTOU race that would exist with three separate volatile fields: a second
-            // thread could replace one field between our check and our read, causing us to
-            // use transport bytes that belong to a different ACC (context confusion /
-            // impersonation).  With a single volatile read the triple is always coherent.
-            AccSerialCache cache = accSerialCache;
+            // The reducing AccessControlContext is only meaningful where an
+            // authorization SecurityManager enforces it; without one, omit it
+            // and fall back to the legacy wire versions (0x00 / 0x01).
+            final AccessControlContext currentAcc =
+                    (System.getSecurityManager() != null) ?
+                        AccessController.getContext() : null;
             final byte[] serializedAcc;
-            if (cache == null || cache.acc != currentAcc) {
-                // Cache miss: recompute both transport payloads.
-                // Reference equality is used deliberately: AccessControlContext does not
-                // override equals(), so reference identity is the only cheap indicator.
-                // The worst case is an extra stack-walk when a new ACC wraps the same
-                // domains; that is acceptable and far cheaper than a walk on every call.
-                byte[] tb = AccessControlContextSerializer.marshalForTransport(currentAcc);
-                byte[] db = AccessControlContextSerializer.marshalDigestForTransport(currentAcc);
-                // Publish all three values atomically via a single volatile write.
-                accSerialCache = new AccSerialCache(currentAcc, tb, db);
-                serializedAcc = tb; // use locally computed value; never read back from cache
+            if (currentAcc == null) {
+                serializedAcc = EMPTY_BYTES;
             } else {
-                // Cache hit: the single volatile read above guarantees that cache.acc,
-                // cache.transportBytes, and cache.digestBytes are mutually consistent.
-                serializedAcc = cache.transportBytes;
+                // Single volatile read: obtain a consistent (acc, block) snapshot.
+                // Using one volatile reference to an immutable holder prevents the
+                // TOCTOU race that two separate volatile fields would allow: a second
+                // thread could replace one field between our check and our read,
+                // causing us to send a block belonging to a different ACC (context
+                // confusion / impersonation).  One volatile read keeps the pair coherent.
+                AccSerialCache cache = accSerialCache;
+                if (cache == null || cache.acc != currentAcc) {
+                    // Cache miss: re-encode the reducing context.  Reference equality is
+                    // deliberate -- AccessControlContext has no equals(), so identity is
+                    // the only cheap indicator.  The worst case is an extra stack-walk
+                    // when a new ACC wraps the same domains; acceptable and far cheaper
+                    // than encoding on every call.
+                    byte[] block = marshalRemoteContext(currentAcc, proxy);
+                    // Publish both values atomically via a single volatile write.
+                    accSerialCache = new AccSerialCache(currentAcc, block);
+                    serializedAcc = block; // use the local value; never read back from cache
+                } else {
+                    serializedAcc = cache.block;
+                }
             }
 	    if (serializedAcc.length > 0) {
 		// Capture all user Subjects (from Subject.callAs scope, JDK 18+).
@@ -1977,6 +2020,31 @@ public class BasicInvocationHandler
 	out.write((bytes.length >>> 8) & 0xFF);
 	out.write(bytes.length & 0xFF);
 	out.write(bytes);
+    }
+
+    /**
+     * Encodes the reducing-context block (codebases only, no principals) for
+     * {@code acc} using this handler's {@link MarshalStreamFactory} and
+     * {@link RemoteContextCodec}.  The block is decoded by the server in its own
+     * isolated codec stream, so the codec here must match the dispatcher's.
+     *
+     * @param acc   the caller's {@link AccessControlContext}
+     * @param proxy the proxy instance, used only to select the codec's class loader
+     * @return the encoded block, framed and written by {@link #writeByteArrayBlock}
+     */
+    private byte[] marshalRemoteContext(AccessControlContext acc, Object proxy)
+	throws IOException
+    {
+	ByteArrayOutputStream baos = new ByteArrayOutputStream(256);
+	ObjectOutput out = marshalStreamFactory.createMarshalOutputStream(
+		baos, Collections.emptyList(), getProxyLoader(proxy.getClass()));
+	try {
+	    RemoteContextCodec.marshal(out, acc);
+	    out.flush();
+	} finally {
+	    out.close();
+	}
+	return baos.toByteArray();
     }
 
     private static void writeByteArrayBlock(OutputStream out, byte[] bytes) throws IOException {

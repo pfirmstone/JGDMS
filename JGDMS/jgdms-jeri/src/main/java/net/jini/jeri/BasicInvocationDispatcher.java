@@ -24,6 +24,7 @@ import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
 import org.apache.river.logging.Levels;
+import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,15 +50,12 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
-import java.security.Policy;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
-import java.security.cert.CertPath;
 import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -85,13 +83,11 @@ import net.jini.export.CodebaseAccessor;
 import net.jini.export.ServerContext;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
-import net.jini.jeri.ssl.SpiffePrincipal;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.ClientSubject;
 import net.jini.security.AccessPermission;
-import net.jini.security.Security;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
@@ -104,7 +100,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.jini.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
-import org.apache.river.api.io.AccessControlContextSerializer;
 import org.apache.river.api.io.AtomicObjectInput;
 
 /**
@@ -331,6 +326,21 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     /** Wire marshalling-format identifier of this dispatcher's codec (STD-008 sec.18.3). */
     private final String marshallingFormat;
 
+    /**
+     * Codec for the remote caller's reducing-context ({@code AccessControlContext})
+     * side-band block.  The server reads untrusted input through this, so a
+     * deployment may inject a hardened variant (e.g. {@link DerMarshalStreamFactory}
+     * with custom limits) via the invocation-layer factory.  Always non-{@code null}.
+     */
+    private final MarshalStreamFactory marshalStreamFactory;
+
+    /**
+     * Default reducing-context codec: hardened atomic Java serialization (JOSS),
+     * matching the default {@link AtomicMarshalStreamFactory} on the handler side.
+     */
+    private static final MarshalStreamFactory DEFAULT_MARSHAL_STREAM_FACTORY =
+	new AtomicMarshalStreamFactory();
+
     /** Map from Subject (weak identity) to ProtectionDomain. */
     private static final ConcurrentMap<Subject, ProtectionDomain> domains =
 	RC.concurrentMap(
@@ -381,6 +391,33 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    // Security manager denied reflective access — treat as not available
 	}
 	CALL_AS_MULTI_SUBJECT = m;
+    }
+
+    /**
+     * DirtyChai JDK extension: {@code javax.security.auth.WorkerSubject}, or
+     * {@code null} on a standard JDK.  Cached once at class-load time via
+     * reflection (jeri compiles on stock OpenJDK where the class is absent).
+     *
+     * <p>A {@code WorkerSubject} (e.g. the {@code RemoteSubject} returned by
+     * {@code getClientSubject()} on DirtyChai) is established by the SPIRE
+     * infrastructure as a process-ambient identity ({@code Subject.processWorker})
+     * and {@code Subject.doAs} rejects it.  Its principals are carried into the
+     * reconstructed reducing context instead (§7.3), so the dispatcher must
+     * <em>not</em> {@code doAs} it.
+     */
+    private static final Class<?> WORKER_SUBJECT_CLASS;
+    static {
+	Class<?> c = null;
+	try {
+	    c = Class.forName("javax.security.auth.WorkerSubject");
+	} catch (ClassNotFoundException notDirtyChai) {
+	    // Standard JDK — no ambient worker-subject model.
+	}
+	WORKER_SUBJECT_CLASS = c;
+    }
+
+    private static boolean isAmbientWorkerSubject(Subject s) {
+	return WORKER_SUBJECT_CLASS != null && WORKER_SUBJECT_CLASS.isInstance(s);
     }
 
     /**
@@ -458,7 +495,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	throws ExportException
     {
 	this(methods, serverCapabilities, serverConstraints, permissionClass, loader,
-		MarshalledInstance.FORMAT_JOSS);
+		MarshalledInstance.FORMAT_JOSS, DEFAULT_MARSHAL_STREAM_FACTORY);
     }
 
     /**
@@ -478,13 +515,57 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 				     String marshallingFormat)
 	throws ExportException
     {
+	this(methods, serverCapabilities, serverConstraints, permissionClass, loader,
+		marshallingFormat, DEFAULT_MARSHAL_STREAM_FACTORY);
+    }
+
+    /**
+     * Codec-aware constructor: subclasses pass the {@link MarshalStreamFactory}
+     * used to decode the remote caller's reducing-context block.  The wire
+     * marshalling format defaults to JOSS.
+     *
+     * @param marshalStreamFactory the reducing-context codec, or {@code null}
+     *		for the default (atomic JOSS)
+     * @throws ExportException if a server constraint cannot be satisfied
+     */
+    protected BasicInvocationDispatcher(Collection methods,
+				     ServerCapabilities serverCapabilities,
+				     MethodConstraints serverConstraints,
+				     Class permissionClass,
+				     ClassLoader loader,
+				     MarshalStreamFactory marshalStreamFactory)
+	throws ExportException
+    {
+	this(methods, serverCapabilities, serverConstraints, permissionClass, loader,
+		MarshalledInstance.FORMAT_JOSS, marshalStreamFactory);
+    }
+
+    /**
+     * Master constructor: both the wire marshalling format and the
+     * reducing-context codec are specified.
+     *
+     * @param marshallingFormat the codec's payload-format identifier (must not be null)
+     * @param marshalStreamFactory the reducing-context codec, or {@code null}
+     *		for the default (atomic JOSS)
+     * @throws ExportException if a server constraint cannot be satisfied
+     */
+    protected BasicInvocationDispatcher(Collection methods,
+				     ServerCapabilities serverCapabilities,
+				     MethodConstraints serverConstraints,
+				     Class permissionClass,
+				     ClassLoader loader,
+				     String marshallingFormat,
+				     MarshalStreamFactory marshalStreamFactory)
+	throws ExportException
+    {
 	this(check(
 		methods,
 		serverCapabilities,
 		serverConstraints,
 		permissionClass,
 		loader,
-		marshallingFormat
+		marshallingFormat,
+		marshalStreamFactory
 	    )
 	);
     }
@@ -497,17 +578,19 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		 MethodConstraints serverConstraints,
 		 Class permissionClass,
 		 ClassLoader loader,
-		 String marshallingFormat) throws ExportException
+		 String marshallingFormat,
+		 MarshalStreamFactory marshalStreamFactory) throws ExportException
     {
 	return new Builder(methods,
 		serverCapabilities,
 		serverConstraints,
 		permissionClass,
 		loader,
-		marshallingFormat
+		marshallingFormat,
+		marshalStreamFactory
 	);
     }
-    
+
     BasicInvocationDispatcher(Builder builder){
 	this.methods = builder.methods;
 	this.loader = builder.loader;
@@ -516,8 +599,9 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	this.permUsesMethod = builder.permUsesMethod;
 	this.permissions = builder.permissions;
 	this.marshallingFormat = builder.marshallingFormat;
+	this.marshalStreamFactory = builder.marshalStreamFactory;
     }
-    
+
     private static class Builder {
 	Map methods;
 	ClassLoader loader;
@@ -526,13 +610,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	boolean permUsesMethod;
 	Map permissions;
 	String marshallingFormat;
+	MarshalStreamFactory marshalStreamFactory;
 
 	Builder(Collection methods,
 		 ServerCapabilities serverCapabilities,
 		 MethodConstraints serverConstraints,
 		 Class permissionClass,
 		 ClassLoader loader,
-		 String marshallingFormat)
+		 String marshallingFormat,
+		 MarshalStreamFactory marshalStreamFactory)
 	throws ExportException
 	{
 	    if (serverCapabilities == null) {
@@ -542,6 +628,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		throw new NullPointerException("marshallingFormat");
 	    }
 	    this.marshallingFormat = marshallingFormat;
+	    this.marshalStreamFactory = marshalStreamFactory != null ?
+		    marshalStreamFactory : DEFAULT_MARSHAL_STREAM_FACTORY;
 	    this.methods = new HashMap();
 	    this.loader = loader;
 	    for (Iterator iter = methods.iterator(); iter.hasNext(); ) {
@@ -893,6 +981,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	boolean atomicValidation = false;
 	boolean hasUserSubjects = false;
         boolean hasSerializedAcc = false;
+        // The remote caller's reconstructed reducing context (domains carrying the
+        // caller's real CodeSource + the authenticated worker principals), used for
+        // both Gate-1 (§7.3) and the reducing dispatch bound.  The decoded
+        // ProtectionDomain[] stays a dispatcher-internal local (below); only this
+        // opaque AccessControlContext crosses into the overridable checkAccess, so
+        // no ProtectionDomain.getClassLoader() capability is exposed to subclasses.
         AccessControlContext remoteIdentityContext = null;
 	try {
 	    rin = request.getRequestInputStream();
@@ -950,9 +1044,17 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
             if (hasSerializedAcc) {
                 byte[] accBytes = readByteArrayBlock(rin);
                 if (accBytes.length > 0) {
-                    remoteIdentityContext =
-                        AccessControlContextSerializer.unmarshalForTransport(
-                            accBytes, getClientSubject());
+                    // §7.3: decode the caller's reducing codebases (no principals on
+                    // the wire) in an isolated codec stream, stamping ONLY the
+                    // authenticated worker (RemoteSubject) principals derived from the
+                    // verified connection.  The ProtectionDomain[] is consumed here in
+                    // trusted dispatcher code to build the opaque AccessControlContext;
+                    // it never escapes this frame.
+                    ProtectionDomain[] remoteDomains =
+                            unmarshalRemoteContext(accBytes, integrity);
+                    if (remoteDomains.length > 0) {
+                        remoteIdentityContext = new AccessControlContext(remoteDomains);
+                    }
                 }
             }
 	} catch (Throwable t) {
@@ -1012,7 +1114,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		// REMIND: support ConstraintAlternatives containing Integrity?
 	    }
 	    
-	    checkAccess(impl, method, sc, context);
+	    checkAccess(impl, method, sc, context, remoteIdentityContext);
 	    
 	    /*
 	     * Unmarshal arguments.
@@ -1319,12 +1421,58 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *		incoming remote call for a remote object
      * @throws	NullPointerException if <code>impl</code>,
      *		<code>method</code>, or <code>context</code> is
-     *		<code>null</code> 
+     *		<code>null</code>
      **/
     protected void checkAccess(Remote impl,
 			       Method method,
 			       InvocationConstraints constraints,
 			       Collection context)
+    {
+	checkAccess(impl, method, constraints, context, null);
+    }
+
+    /**
+     * Checks that the remote caller has permission to invoke the specified
+     * method on the specified remote object, evaluating the permission against
+     * the caller's reconstructed <em>reducing</em> context (§7.3).
+     *
+     * <p>This is the two-gate overload of {@link #checkAccess(Remote, Method,
+     * InvocationConstraints, Collection)}; the {@code dispatch} method calls it
+     * with the remote caller's reconstructed reducing context.  The default
+     * implementation behaves exactly as the four-argument form except that the
+     * permission is evaluated against {@code remoteContext} (see {@link
+     * #checkClientPermission(Permission, AccessControlContext)}).
+     *
+     * <p>The reducing context is passed as an opaque {@link AccessControlContext}
+     * rather than a {@code ProtectionDomain[]} deliberately: an
+     * {@code AccessControlContext} exposes only {@link
+     * AccessControlContext#checkPermission checkPermission}, whereas a
+     * {@code ProtectionDomain} would expose {@link
+     * ProtectionDomain#getClassLoader} (which is <em>not</em> guarded by a
+     * permission check) and the static permission set to this overridable method,
+     * leaking a capability across the extension boundary.
+     *
+     * @param	impl the remote object
+     * @param	method the remote method
+     * @param	constraints the enforced constraints for the specified
+     *		method, or <code>null</code>
+     * @param	context the server context
+     * @param	remoteContext the remote caller's reconstructed reducing context
+     *		(domains carrying the caller's real CodeSource and the
+     *		authenticated worker principals), or <code>null</code> if none was
+     *		transmitted, in which case this falls back to a principal-only check
+     * @throws	SecurityException if the remote caller does not have permission to
+     *		invoke the method
+     * @throws	IllegalStateException if the current thread is not executing an
+     *		incoming remote call for a remote object
+     * @throws	NullPointerException if <code>impl</code>,
+     *		<code>method</code>, or <code>context</code> is <code>null</code>
+     **/
+    protected void checkAccess(Remote impl,
+			       Method method,
+			       InvocationConstraints constraints,
+			       Collection context,
+			       AccessControlContext remoteContext)
     {
 	if (impl == null || method == null || context == null) {
 	    throw new NullPointerException();
@@ -1365,7 +1513,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		permissions.put(method, perm);
 	    }
 	}
-	checkClientPermission(perm);
+	checkClientPermission(perm, remoteContext);
     }
     
     /**
@@ -1422,45 +1570,84 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	if (client == null) {
 	    pd = emptyPD;
 	} else {
+	    // The authenticated worker's principals (X.500 and, on DirtyChai, the
+	    // connection-derived SpiffePrincipal already attached to the
+	    // RemoteSubject by getClientSubject()) form the LOCAL authorization
+	    // domain.  No wire data and no certificate parsing here: the
+	    // connection-derived identity is established upstream, keeping this
+	    // library free of any net.jini.jeri.ssl dependency.
 	    pd = domains.computeIfAbsent(client, s -> {
 		Set<Principal> set = new HashSet<Principal>(s.getPrincipals());
-		/*
-		 * Gate 1 (workload): the SPIFFE identity is ADDITIVE, so it is taken
-		 * from the authenticated connection's certificate (never the wire) and
-		 * added to this LOCAL authorization domain only -- not the transport
-		 * Subject (which feeds reducing-domain reconstruction and must stay
-		 * codebase/X.500).  INTERIM: this introduces a net.jini.jeri ->
-		 * net.jini.jeri.ssl import; removed by the codebase-strings ACC rework.
-		 */
-		for (CertPath cp : s.getPublicCredentials(CertPath.class)) {
-			List<? extends Certificate> certs = cp.getCertificates();
-			if (!certs.isEmpty() && certs.get(0) instanceof X509Certificate) {
-				set.addAll(SpiffePrincipal.fromCertificate((X509Certificate) certs.get(0)));
-			}
-		}
 		Principal[] prins = set.toArray(new Principal[0]);
 		return new ProtectionDomain(emptyCS, null, null, prins);
 	    });
 	}
-	// XXX what about logging
 	if (logger.isLoggable(Level.FINEST)){
-            Policy p = Policy.getPolicy();
-            logger.log(Level.FINEST, "SecurityManager: " + sm + "\nPolicy: " + p +
+            logger.log(Level.FINEST, "Gate-1 principal check: " + permission +
                     "\nProtectionDomain: " + pd);
         }
 	/*
-	 * Gate 1 (workload): evaluate the permission against an ACC of the client
-	 * ProtectionDomain ALONE.  Route through Security.checkPermission, which
-	 * builds that ACC inside a doPrivileged so the "createAccessControlContext"
-	 * authorization is satisfied by this library's frame only.  Calling
-	 * AccessControlContext.create() off the bare dispatch stack instead would
-	 * make createAccessControlContext go viral -- every caller up the stack
-	 * would need it, forcing a global grant -- and would merge the dispatch
-	 * stack domains into the context, which is what previously denied a
-	 * legitimately-authorized client (e.g. getAdmin) because an unrelated stack
-	 * domain lacked the grant.
+	 * Gate 1 (workload): evaluate the permission against the client's
+	 * ProtectionDomain ALONE.  The single domain is combined into an
+	 * AccessControlContext with the public array constructor -- which does NOT
+	 * merge the carrier thread's current (possibly principal-less,
+	 * virtual-thread-inherited) domains, unlike AccessControlContext.create off
+	 * the bare stack -- and submitted to the installed SecurityManager (on
+	 * DirtyChai, the CombinerSecurityManager).  Going through the SecurityManager
+	 * keeps it the single authorization chokepoint and applies its domain
+	 * combiner; calling ProtectionDomain.implies directly would bypass it.
 	 */
-	Security.checkPermission(permission, pd);
+	sm.checkPermission(permission,
+		new AccessControlContext(new ProtectionDomain[]{ pd }));
+    }
+
+    /**
+     * Gate&nbsp;1 (workload authorization, §7.3): checks that the remote caller
+     * is permitted to invoke the method, evaluating {@code permission} against
+     * the caller's reconstructed <em>reducing</em> context.
+     *
+     * <p>{@code remoteContext} is the remote caller's reducing domains (each
+     * carrying the caller's real {@link CodeSource} and the authenticated worker
+     * principals, stamped by {@code RemoteContextCodec} from the verified mTLS
+     * connection -- never the wire) already combined into an
+     * {@link AccessControlContext} by the dispatcher with the public array
+     * constructor, which does <em>not</em> merge the carrier thread's current
+     * (possibly principal-less, virtual-thread-inherited) domains, unlike
+     * {@code AccessControlContext.create} off the bare stack.  The permission is
+     * checked against it through the installed {@link SecurityManager} (on
+     * DirtyChai, the {@code CombinerSecurityManager}): the {@code SecurityManager}
+     * evaluates the permission against exactly that context (the reducing-context
+     * AND semantics) and remains the single authorization chokepoint, and the
+     * context exposes only {@code checkPermission} -- no {@link
+     * ProtectionDomain#getClassLoader} capability leaks here.
+     *
+     * <p>When no reducing context was transmitted ({@code remoteContext} is
+     * {@code null}), falls back to the principal-only
+     * {@link #checkClientPermission(Permission)} against the authenticated worker
+     * subject.
+     *
+     * @param	permission the requested permission
+     * @param	remoteContext the caller's reconstructed reducing context, or
+     *		{@code null} if none was transmitted
+     * @throws	SecurityException if the caller is not authorized
+     */
+    static void checkClientPermission(Permission permission,
+				      AccessControlContext remoteContext) {
+	if (permission == null) {
+	    throw new NullPointerException();
+	}
+	SecurityManager sm = System.getSecurityManager();
+	if (sm == null) {
+	    return;
+	}
+	if (remoteContext == null) {
+	    checkClientPermission(permission);
+	    return;
+	}
+	if (logger.isLoggable(Level.FINEST)) {
+	    logger.log(Level.FINEST, "Gate-1 reducing-context check: " + permission);
+	}
+	sm.checkPermission(permission, remoteContext);
     }
 
     /**
@@ -2008,16 +2195,13 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    dispatchWithUsers = () -> Subject.callAs(first, dispatchWithContext);
 	}
 
-	if (workerSubject != null) {
+	if (workerSubject != null && !isAmbientWorkerSubject(workerSubject)) {
 	    /*
-	     * Worker subject is present: Subject.doAs places the server's TLS
-	     * worker identity into the AccessControlContext so that any virtual
-	     * threads spawned during invoke() inherit it (not the client's).
-	     * This ACC-inheritance semantic is precisely why doAs is used here;
-	     * Subject.callAs (ScopedValue-based) does not propagate to new threads.
-	     *
-	     * When user subjects are also present, wrap dispatchWithContext in
-	     * the chain of Subject.callAs calls built above.
+	     * Standard-JDK worker subject (a plain Subject, not a DirtyChai
+	     * WorkerSubject): Subject.doAs places its identity into the
+	     * AccessControlContext so that any virtual threads spawned during
+	     * invoke() inherit it.  Subject.callAs (ScopedValue-based) does not
+	     * propagate to new threads, which is why doAs is used here.
 	     */
 	    Subject.doAs(workerSubject, (PrivilegedAction<Void>) () -> {
 		try {
@@ -2028,8 +2212,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		return null;
 	    });
 	} else {
-	    // User subjects only: callAs chain establishes Subject.current()
-	    // via ScopedValue for the dispatch thread.
+	    /*
+	     * Either no worker subject, or (the §7.3 DirtyChai case) a
+	     * WorkerSubject established by the SPIRE infrastructure: it is
+	     * process-ambient via Subject.processWorker -- already visible to the
+	     * dispatch thread and any virtual threads it spawns -- and
+	     * Subject.doAs rejects it.  Its principals are carried into the
+	     * reconstructed reducing AccessControlContext (remoteIdentityContext)
+	     * instead, so we run the dispatch chain directly without doAs.
+	     */
 	    try {
 		dispatchWithUsers.call();
 	    } catch (Exception e) {
@@ -2322,6 +2513,35 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	return new String(bytes, StandardCharsets.UTF_8);
     }
     
+    /**
+     * Decodes the remote caller's reducing-context block (§7.3) in its own
+     * isolated codec stream -- a separate handle table and DoS budget from the
+     * application arguments, since this is untrusted authorization input.  The
+     * domains carry codebases only; the authenticated worker (RemoteSubject)
+     * principals from the verified connection are stamped on during decode by
+     * {@link RemoteContextCodec#unmarshal}.
+     *
+     * @param accBytes  the already length-bounded ACC block
+     * @param integrity whether codebase-integrity verification is required
+     * @return the reconstructed reducing domains (never {@code null}; possibly empty)
+     */
+    private ProtectionDomain[] unmarshalRemoteContext(byte[] accBytes, boolean integrity)
+	throws IOException
+    {
+	ObjectInput in = marshalStreamFactory.createMarshalInputStream(
+		new ByteArrayInputStream(accBytes), loader, integrity,
+		Collections.emptyList());
+	try {
+	    return RemoteContextCodec.unmarshal(in, getClientSubject());
+	} finally {
+	    try {
+		in.close();
+	    } catch (IOException ignore) {
+		// closing the in-memory block stream cannot fail meaningfully
+	    }
+	}
+    }
+
     private static byte[] readByteArrayBlock(InputStream in) throws IOException {
         int b1 = in.read();
         int b2 = in.read();

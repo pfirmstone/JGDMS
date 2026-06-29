@@ -139,6 +139,15 @@ final class RemoteContextCodec {
     /**
      * Writes the reducing domains of {@code acc} -- their codebases only, no
      * principals -- to {@code out}.
+     *
+     * <p>Every reducing domain is transmitted, including a domain whose
+     * {@link CodeSource} is {@code null} (a dynamic proxy, lambda, or bootstrap
+     * domain): it is a genuine reducer and dropping it would <em>elevate</em>
+     * authority.  Such a domain is reconstructed on the receiver as a
+     * codebase-less, principal-bearing domain, so it reduces to whatever the
+     * authenticated worker principals are granted (a principal-only grant) and
+     * never grants codebase-scoped authority -- "the caller may use only the
+     * Principal."  No principals and no synthetic placeholders are written.
      */
     static void marshal(ObjectOutput out, AccessControlContext acc) throws IOException {
         ProtectionDomain[] domains =
@@ -146,8 +155,7 @@ final class RemoteContextCodec {
         out.writeInt(domains.length);
         for (int i = 0; i < domains.length; i++) {
             CodeSource cs = domains[i].getCodeSource();
-            if (cs != null && DCS_CTOR != null
-                    && DIGEST_CODESOURCE.equals(cs.getClass().getName())) {
+            if (isDigestCodeSource(cs)) {
                 out.writeByte(KIND_DIGEST);
                 URL loc = cs.getLocation();
                 out.writeUTF(loc != null ? loc.toExternalForm() : "");
@@ -164,11 +172,17 @@ final class RemoteContextCodec {
                 out.writeUTF(cs.getLocation().toExternalForm());
                 writeCerts(out, cs.getCertificates());
             } else {
-                // Null CodeSource (or null location): a domain that was genuinely
-                // null-CS at the sender.  No synthetic placeholders are produced.
+                // Genuinely codebase-less domain at the sender: a reducer with no
+                // codebase identity.  Reconstructed with a null CodeSource + the
+                // authenticated worker principals; matches principal-only grants.
                 out.writeByte(KIND_NULL_CS);
             }
         }
+    }
+
+    private static boolean isDigestCodeSource(CodeSource cs) {
+        return cs != null && DCS_CTOR != null
+                && DIGEST_CODESOURCE.equals(cs.getClass().getName());
     }
 
     private static void writeCerts(ObjectOutput out, Certificate[] certs) throws IOException {

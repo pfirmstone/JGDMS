@@ -63,9 +63,23 @@ public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
 				      Class permissionClass,
 				      ClassLoader loader,
 				      boolean useAnnotations,
-                                      Compression compress) throws ExportException 
+                                      Compression compress) throws ExportException
     {
-	super(methods, serverCapabilities, serverConstraints, permissionClass, loader);
+	this(methods, serverCapabilities, serverConstraints, permissionClass, loader,
+		useAnnotations, compress, null);
+    }
+
+    public AtomicInvocationDispatcher(Collection methods,
+				      ServerCapabilities serverCapabilities,
+				      MethodConstraints serverConstraints,
+				      Class permissionClass,
+				      ClassLoader loader,
+				      boolean useAnnotations,
+                                      Compression compress,
+                                      MarshalStreamFactory marshalStreamFactory) throws ExportException
+    {
+	super(methods, serverCapabilities, serverConstraints, permissionClass, loader,
+		marshalStreamFactory);
 	this.useAnnotations = useAnnotations;
         this.compression = compress;
     }

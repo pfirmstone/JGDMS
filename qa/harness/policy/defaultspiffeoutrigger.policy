@@ -137,6 +137,13 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
     permission net.jini.security.AccessPermission "*";
 };
 
+// §7.3 two-gate: tester client real principals (X.500 SVID DN + SPIFFE URI SAN).
+grant principal javax.security.auth.x500.X500Principal "CN=Tester",
+      principal au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://test.jgdms.local/svc/tester"
+{
+    permission net.jini.security.AccessPermission "*";
+};
+
 grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/fiddler",
 {
     permission net.jini.security.AccessPermission "*";
