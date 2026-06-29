@@ -168,6 +168,17 @@ public final class SerialSchemaTracker {
 
     // ----------------------------------------------------------------- driver
 
+    /**
+     * Caps the class-file major version so an older ASM can parse newer JDK
+     * bytecode. Safe here: we read only annotations and constant operands,
+     * which are version-independent. (JDK 25 = major 69; ASM 9.7.1 reads <= 67.)
+     */
+    static void capClassVersion(byte[] b) {
+        if (b.length < 8) return;
+        int major = ((b[6] & 0xFF) << 8) | (b[7] & 0xFF);
+        if (major > 67) { b[6] = 0; b[7] = 52; }   // present as Java 8 for parsing
+    }
+
     static Map<String, Schema> scan(List<Path> dirs) throws IOException {
         Map<String, Schema> out = new TreeMap<String, Schema>();
         for (Path dir : dirs) {
@@ -176,7 +187,14 @@ public final class SerialSchemaTracker {
             Files.walk(dir).filter(p -> p.toString().endsWith(".class")).forEach(classFiles::add);
             for (Path p : classFiles) {
                 byte[] b = Files.readAllBytes(p);
-                ClassReader cr = new ClassReader(b);
+                capClassVersion(b);   // tolerate JDK-newer-than-ASM bytecode (we read only structure)
+                ClassReader cr;
+                try {
+                    cr = new ClassReader(b);
+                } catch (RuntimeException e) {
+                    System.err.println("  (skip unreadable " + p + ": " + e.getMessage() + ")");
+                    continue;
+                }
                 Scan s = new Scan();
                 // Keep method code (no SKIP_CODE): FormReader needs the instruction stream.
                 cr.accept(s, ClassReader.SKIP_FRAMES | ClassReader.SKIP_DEBUG);
