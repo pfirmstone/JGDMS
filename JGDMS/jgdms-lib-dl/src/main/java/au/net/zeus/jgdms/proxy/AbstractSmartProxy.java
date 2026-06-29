@@ -19,8 +19,6 @@ package au.net.zeus.jgdms.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.admin.Administrable;
 import net.jini.admin.JoinAdmin;
@@ -49,11 +47,11 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
  * <p>This class encapsulates the boilerplate that every Jini smart proxy must
  * implement:
  * <ul>
- *   <li>{@link Serializable} — proxies are transported over the wire and
- *       stored in lookup services</li>
- *   <li>{@link AtomicSerial} — safe deserialization using the
- *       {@link GetArg} constructor pattern; field invariants are checked
- *       before any field is assigned</li>
+ *   <li>{@link AtomicSerial} — proxies are transported over the wire and
+ *       stored in lookup services using safe deserialization via the
+ *       {@link GetArg} constructor pattern (Java Serialization is not
+ *       supported); field invariants are checked before any field is
+ *       assigned</li>
  *   <li>{@link ProxyAccessor} — exposes the inner server stub so that the
  *       Phoenix activation infrastructure and trust-verification code can
  *       obtain the raw remote reference</li>
@@ -141,22 +139,16 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
  */
 @AtomicSerial
 public abstract class AbstractSmartProxy
-        implements Serializable, ProxyAccessor, ReferentUuid, Administrable {
-
-    private static final long serialVersionUID = 1L;
+        implements ProxyAccessor, ReferentUuid, Administrable {
 
     /**
      * The remote server stub.  Concrete subclasses cast this to the
      * appropriate service back-end interface when delegating method calls.
-     *
-     * @serial
      */
     protected final Object server;
 
     /**
      * The stable unique identifier of the service this proxy represents.
-     *
-     * @serial
      */
     private final Uuid proxyID;
 
@@ -283,8 +275,8 @@ public abstract class AbstractSmartProxy
      * the most-derived class in the stream hierarchy).  The {@code server}
      * stub is then checked against every interface declared directly on that
      * class -- these are always the service interfaces, since the
-     * infrastructure interfaces ({@link Serializable}, {@link ProxyAccessor},
-     * {@link ReferentUuid}, {@link Administrable}) are declared on
+     * infrastructure interfaces ({@link ProxyAccessor}, {@link ReferentUuid},
+     * {@link Administrable}) are declared on
      * {@link AbstractSmartProxy} itself and therefore do not appear in the
      * concrete class's {@code getInterfaces()} result.
      *
@@ -335,11 +327,6 @@ public abstract class AbstractSmartProxy
                     + iface.getName()
                     + "; actual type: " + server.getClass().getName());
         }
-    }
-
-    private void readObjectNoData() throws ObjectStreamException {
-        throw new InvalidObjectException(
-                "no data found when deserializing " + getClass().getName());
     }
 
     // -------------------------------------------------------------------------
@@ -495,8 +482,6 @@ public abstract class AbstractSmartProxy
     public static abstract class ConstrainableSmartProxy
             extends AbstractSmartProxy
             implements RemoteMethodControl {
-
-        private static final long serialVersionUID = 1L;
 
         // -------------------------------------------------------------------------
         // Constructors
