@@ -43,5 +43,6 @@
         <module>security-policy-debug</module>
         <module>policy-condenser</module>
         <module>preferred-list-analyzer</module>
+        <module>serial-schema-tracker</module>
     </modules>
 </project>
