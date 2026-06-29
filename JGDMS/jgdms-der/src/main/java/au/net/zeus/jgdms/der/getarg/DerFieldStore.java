@@ -716,4 +716,28 @@ public final class DerFieldStore {
                 + "', presentFields=" + presentFieldNames()
                 + ", trailingDiscarded=" + trailingDiscarded + '}';
     }
+
+    // =========================================================================
+    // Top-level value-array decode bridge (for the [9] CTX_ARRAY stream tag)
+    // =========================================================================
+
+    /**
+     * Decodes a top-level primitive / {@code String} / enum array from its raw element
+     * {@code SEQUENCE} TLV bytes -- the {@code [9] CTX_ARRAY} stream decoder's bridge to the
+     * package-private {@link WireTypes} decoder (which lives in this package, so the stream
+     * codec cannot call it directly). Used for the value-array parallel of {@code byte[]};
+     * {@code @AtomicSerial}-component arrays are NOT handled here -- the stream decoder calls
+     * {@code ObjectCodec.decodeNestedArray} for those.
+     *
+     * @param sequenceTlv   the raw element {@code SEQUENCE} TLV (from {@code encodeTopLevelArray})
+     * @param arrayWireType the full array wireType, e.g. {@code "array:long"} (never
+     *                      {@code "array:@AtomicSerial:..."})
+     * @param res           the endpoint resolution context (for enum component classes)
+     * @return the decoded typed array (e.g. {@code long[]}, {@code String[]})
+     * @throws DerException if the encoding is malformed or the component type is unsupported
+     */
+    public static Object decodePrimitiveArray(byte[] sequenceTlv, String arrayWireType,
+                                              ResolutionContext res) throws DerException {
+        return WireTypes.decode(new DerReader(sequenceTlv), arrayWireType, res);
+    }
 }

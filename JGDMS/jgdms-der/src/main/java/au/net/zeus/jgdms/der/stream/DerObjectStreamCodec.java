@@ -26,6 +26,8 @@ import au.net.zeus.jgdms.der.marshal.MarshalledInstanceCodec;
 import au.net.zeus.jgdms.der.marshal.MarshalledInstanceRecord;
 import au.net.zeus.jgdms.der.object.DerProxySerializer;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
+import au.net.zeus.jgdms.der.getarg.DerFieldStore;
+import java.util.Arrays;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
 import net.jini.export.DynamicProxyCodebaseAccessor;
@@ -105,6 +107,8 @@ final class DerObjectStreamCodec {
     private static final Tag CTX_ENUM        = new Tag(Tag.CLASS_CONTEXT, true,  7);
     /** [8] constructed context tag: bare java.lang.reflect.Proxy (interface names + @AtomicSerial handler). */
     private static final Tag CTX_PROXY       = new Tag(Tag.CLASS_CONTEXT, true,  8);
+    /** [9] constructed context tag: top-level value array (UTF8 componentWireType + element SEQUENCE). */
+    private static final Tag CTX_ARRAY       = new Tag(Tag.CLASS_CONTEXT, true,  9);
 
     /** DoS bound on a [8] proxy's interface count (mirrors AtomicMarshalInputStream's Byte.MAX_VALUE). */
     private static final int MAX_PROXY_INTERFACES = 127;
@@ -342,6 +346,18 @@ final class DerObjectStreamCodec {
         // byte[]: value semantics, no handle table
         if (obj instanceof byte[] bytes) {
             writeBuffer.add(DerWriter.writeTlv(CTX_BYTES, bytes));
+            return;
+        }
+
+        // Non-byte[] value array (primitive/String/enum/@AtomicSerial component) -> [9] CTX_ARRAY.
+        // Arrays are VALUES, not @AtomicSerial objects (byte[] handled above as OCTET STRING).
+        if (obj.getClass().isArray()) {
+            try {
+                writeBuffer.add(DerWriter.writeTlv(CTX_ARRAY, ObjectCodec.encodeTopLevelArray(obj)));
+            } catch (DerException e) {
+                throw new IOException("DER stream [9] array encode failed for "
+                        + obj.getClass().getName(), e);
+            }
             return;
         }
 
@@ -613,6 +629,38 @@ final class DerObjectStreamCodec {
                 return reader.readRawContent(hdr.contentLength());
             } catch (DerException e) {
                 throw new IOException("readObject: failed to read byte[] content", e);
+            }
+        }
+
+        if (CTX_ARRAY.equals(tag)) {
+            // [9] top-level value array: content = UTF8String(arrayWireType) ++ element SEQUENCE.
+            byte[] content;
+            try {
+                content = reader.readRawContent(hdr.contentLength());
+            } catch (DerException e) {
+                throw new IOException("readObject: failed to read [9] array content", e);
+            }
+            DerReader ar = new DerReader(content);
+            String awt;
+            try {
+                awt = ar.readUtf8String();
+            } catch (DerException e) {
+                throw new IOException("readObject: malformed [9] array wireType", e);
+            }
+            if (!awt.startsWith("array:")) {
+                throw new IOException("readObject: [9] array wireType must start with 'array:', got '"
+                        + awt + "'");
+            }
+            byte[] seqBytes = Arrays.copyOfRange(content, ar.position(), content.length);
+            String componentWT = awt.substring("array:".length());
+            try {
+                if (componentWT.startsWith("@AtomicSerial:")) {
+                    String cls = componentWT.substring("@AtomicSerial:".length());
+                    return ObjectCodec.decodeNestedArray(seqBytes, cls, 0, decodeUnit, resolution);
+                }
+                return DerFieldStore.decodePrimitiveArray(seqBytes, awt, resolution);
+            } catch (DerException | ClassNotFoundException e) {
+                throw new IOException("readObject: [9] array decode failed (" + awt + ")", e);
             }
         }
 

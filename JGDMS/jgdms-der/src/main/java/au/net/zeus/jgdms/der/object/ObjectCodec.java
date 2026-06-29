@@ -52,6 +52,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -331,10 +332,28 @@ public final class ObjectCodec {
         List<AtomicSerialSchemaRecord> rootFirst = new ArrayList<>(leafFirst);
         Collections.reverse(rootFirst);
 
-        // For each class in root-first order, load the class and encode its SEQUENCE.
+        // The schema chain was generated from instance.getClass(); resolve each level's
+        // Class from the live instance's OWN already-loaded hierarchy rather than a by-name
+        // load against ResolutionContext.NONE.  NONE resolves only against the system loader,
+        // so a codebase (child-loader) class -- a downloaded smart proxy or Entry, e.g.
+        // EntryRep -- is "already loaded" (the comment on loadClass) yet NOT findable by name
+        // there, and the encode fails.  The schema levels are exactly the ancestors of the
+        // live instance, so a name->Class map over its hierarchy is correct, loader-assumption
+        // -free, and deterministic (a class's superclass chain and FQNs are fixed); it changes
+        // neither the schema nor the encoded bytes, only how the sender locates its own classes.
+        Map<String, Class<?>> hierarchy = new HashMap<String, Class<?>>();
+        for (Class<?> c = instance.getClass(); c != null; c = c.getSuperclass()) {
+            hierarchy.put(c.getName(), c);
+        }
         List<byte[]> perClassSequences = new ArrayList<>(rootFirst.size());
         for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
-            Class<?> cls = loadClass(schemaRecord.className(), ResolutionContext.NONE);
+            Class<?> cls = hierarchy.get(schemaRecord.className());
+            if (cls == null) {
+                throw new DerException(
+                        "ObjectCodec: schema class '" + schemaRecord.className()
+                        + "' is not in the runtime hierarchy of "
+                        + instance.getClass().getName());
+            }
             byte[] classSeq = encode(instance, cls, schemaRecord, depth);
             perClassSequences.add(classSeq);
         }
@@ -1114,8 +1133,43 @@ public final class ObjectCodec {
     }
 
     /**
-     * Loads a class by name using the thread context class loader (falling back to
-     * the system class loader). Used by hierarchy encode/decode to resolve class
+     * Encodes a top-level (non-{@code byte[]}) array as the self-describing content of a
+     * {@code [9] CTX_ARRAY} stream TLV: {@code UTF8String(arrayWireType) ++ SEQUENCE(elements)}.
+     * The component wire-type travels so the decoder reconstructs the typed array without the
+     * method signature -- the value-array parallel of {@code byte[]} (CTX_BYTES) and {@code enum}
+     * (CTX_ENUM). The element {@code SEQUENCE} is byte-identical to an {@code @AtomicSerial} array
+     * <em>field</em> ({@link #encodeArray}), so a {@code long[]} return value and a {@code long[]}
+     * field encode the same way. Primitive, {@code String}, enum and {@code @AtomicSerial} component
+     * types are supported (one dimension; STD-006 sec.17.2). {@code byte[]} is NOT routed here
+     * (it stays OCTET STRING via CTX_BYTES).
+     *
+     * @param array a non-null array whose component is not {@code byte}
+     * @return the CTX_ARRAY content bytes
+     * @throws DerException if {@code array} is not an array, is a {@code byte[]}, or has an
+     *                      unsupported component type
+     */
+    public static byte[] encodeTopLevelArray(Object array) throws DerException {
+        if (array == null || !array.getClass().isArray()) {
+            throw new DerException("ObjectCodec.encodeTopLevelArray: not an array: "
+                    + (array == null ? "null" : array.getClass().getName()));
+        }
+        String arrayWireType = SchemaGenerator.toWireType(array.getClass(), array.getClass());
+        if (!arrayWireType.startsWith("array:")) {
+            // byte[] maps to "byte[]" (CTX_BYTES handles it); anything else is a caller bug.
+            throw new DerException("ObjectCodec.encodeTopLevelArray: unsupported top-level array '"
+                    + array.getClass().getName() + "' (wireType " + arrayWireType + ")");
+        }
+        byte[] wtTlv   = DerWriter.writeUtf8String(arrayWireType);
+        byte[] elemSeq = encodeArray(array, arrayWireType, "<top-level array>", 0);
+        byte[] content = new byte[wtTlv.length + elemSeq.length];
+        System.arraycopy(wtTlv,   0, content, 0,            wtTlv.length);
+        System.arraycopy(elemSeq, 0, content, wtTlv.length, elemSeq.length);
+        return content;
+    }
+
+    /**
+     * Loads a class by name using the ResolutionContext.
+     * Used by hierarchy encode/decode to resolve class
      * names from schema records.
      *
      * @param className the fully-qualified class name
