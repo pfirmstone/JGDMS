@@ -18,36 +18,61 @@
 
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.DerInputLimits;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
+import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
+import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.io.OutputStream;
 import java.util.Collection;
-import org.apache.river.api.io.AtomicMarshalInputStream;
-import org.apache.river.api.io.AtomicMarshalOutputStream;
+import net.jini.core.constraint.MarshallingFormat;
 
 /**
- * A {@link MarshalStreamFactory} that produces atomic Java-serialization (JOSS)
- * codec streams ({@link AtomicMarshalOutputStream} / {@link AtomicMarshalInputStream}),
- * the hardened atomic-validation streams.
+ * A {@link ReducingContextCodec} that produces STD-006 DER codec streams
+ * ({@link DerMarshalOutputStream} / {@link DerMarshalInputStream}).  The input side
+ * applies per-deployment {@link DerInputLimits} for denial-of-service defence.
  *
  * <p>Suitable for use as a {@link net.jini.config.Configuration}-constructed
- * argument to {@link AtomicILFactory}; the no-argument constructor is public.
+ * argument to {@link AtomicDerILFactory}; both constructors are public.
  *
  * @since 3.2
  */
-public final class AtomicMarshalStreamFactory implements MarshalStreamFactory {
+public final class DerReducingContextCodec implements ReducingContextCodec {
 
-    /** Creates a JOSS marshal-stream factory. */
-    public AtomicMarshalStreamFactory() {
+    private final DerInputLimits limits;
+
+    /** Creates a factory using {@link DerInputLimits#DEFAULT}. */
+    public DerReducingContextCodec() {
+        this(DerInputLimits.DEFAULT);
+    }
+
+    /**
+     * Creates a factory with the given input-stream DoS limits.
+     *
+     * @param limits the limits applied while decoding a side-band block; must not
+     *               be {@code null}
+     * @throws NullPointerException if {@code limits} is {@code null}
+     */
+    public DerReducingContextCodec(DerInputLimits limits) {
+        if (limits == null) {
+            throw new NullPointerException("limits");
+        }
+        this.limits = limits;
+    }
+
+    @Override
+    public String formatName() {
+        return MarshallingFormat.DER.getFormat();
     }
 
     @Override
     public ObjectOutput createMarshalOutputStream(OutputStream out,
                                                   Collection context,
                                                   ClassLoader loader) throws IOException {
-        return new AtomicMarshalOutputStream(out, context);
+        return new DerMarshalOutputStream(out, context, loader);
     }
 
     @Override
@@ -55,8 +80,7 @@ public final class AtomicMarshalStreamFactory implements MarshalStreamFactory {
                                                 ClassLoader loader,
                                                 boolean integrity,
                                                 Collection context) throws IOException {
-        // readAnnotations = false: a RemoteContextCodec side-band block carries no
-        // codebase annotations -- it is primitives plus value-semantic byte arrays.
-        return AtomicMarshalInputStream.create(in, loader, integrity, loader, context, false);
+        return new DerMarshalInputStream(
+                in, new ResolutionContext(loader, integrity, loader), limits);
     }
 }

@@ -76,10 +76,10 @@ public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
 				      ClassLoader loader,
 				      boolean useAnnotations,
                                       Compression compress,
-                                      MarshalStreamFactory marshalStreamFactory) throws ExportException
+                                      ReducingContextCodec reducingContextCodec) throws ExportException
     {
 	super(methods, serverCapabilities, serverConstraints, permissionClass, loader,
-		marshalStreamFactory);
+		reducingContextCodec);
 	this.useAnnotations = useAnnotations;
         this.compression = compress;
     }

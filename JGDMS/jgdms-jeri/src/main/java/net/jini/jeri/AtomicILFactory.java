@@ -68,14 +68,14 @@ public class AtomicILFactory extends BasicILFactory {
     
     private final boolean useAnnotations;
     private final Compression compression;
-    private final MarshalStreamFactory marshalStreamFactory;
+    private final ReducingContextCodec reducingContextCodec;
 
     /**
      * Default reducing-context ({@code AccessControlContext}) codec for proxies
      * exported by this factory: hardened atomic Java serialization (JOSS).
      */
-    private static final MarshalStreamFactory DEFAULT_MARSHAL_STREAM_FACTORY =
-	new AtomicMarshalStreamFactory();
+    private static final ReducingContextCodec DEFAULT_REDUCING_CONTEXT_CODEC =
+	new AtomicReducingContextCodec();
 
     /**
      * Creates a <code>AtomicILFactory</code> with the specified server
@@ -142,20 +142,20 @@ public class AtomicILFactory extends BasicILFactory {
                             Compression compress)
     {
 	this(serverConstraints, permissionClass, loader, useAnnotations, compress,
-		DEFAULT_MARSHAL_STREAM_FACTORY);
+		DEFAULT_REDUCING_CONTEXT_CODEC);
     }
 
     /**
      * Creates an <code>AtomicILFactory</code> that decodes the remote caller's
-     * reducing context with the supplied {@link MarshalStreamFactory}.  A
+     * reducing context with the supplied {@link ReducingContextCodec}.  A
      * {@link net.jini.config.Configuration} can construct one directly, e.g. a
-     * {@link DerMarshalStreamFactory} with custom DoS limits.
+     * {@link DerReducingContextCodec} with custom DoS limits.
      *
      * @param	serverConstraints the server constraints, or <code>null</code>
      * @param	permissionClass the permission class, or <code>null</code>
      * @param	loader the class loader
      * @param   compress the type of compression to use or none
-     * @param	marshalStreamFactory the reducing-context codec, or
+     * @param	reducingContextCodec the reducing-context codec, or
      *		<code>null</code> for the default (atomic JOSS)
      * @throws NullPointerException if loader is null
      **/
@@ -163,10 +163,10 @@ public class AtomicILFactory extends BasicILFactory {
 			    Class permissionClass,
 			    ClassLoader loader,
                             Compression compress,
-                            MarshalStreamFactory marshalStreamFactory)
+                            ReducingContextCodec reducingContextCodec)
     {
 	this(serverConstraints, permissionClass, loader, false, compress,
-		marshalStreamFactory);
+		reducingContextCodec);
     }
 
     private AtomicILFactory(MethodConstraints serverConstraints,
@@ -174,13 +174,13 @@ public class AtomicILFactory extends BasicILFactory {
 			    ClassLoader loader,
 			    boolean useAnnotations,
                             Compression compress,
-                            MarshalStreamFactory marshalStreamFactory)
+                            ReducingContextCodec reducingContextCodec)
     {
 	super(serverConstraints, permissionClass, notNull(loader));
 	this.useAnnotations = useAnnotations;
         this.compression = compress;
-        this.marshalStreamFactory = marshalStreamFactory != null ?
-		marshalStreamFactory : DEFAULT_MARSHAL_STREAM_FACTORY;
+        this.reducingContextCodec = reducingContextCodec != null ?
+		reducingContextCodec : DEFAULT_REDUCING_CONTEXT_CODEC;
     }
     
     private static <T> T notNull(T object) throws NullPointerException{
@@ -428,7 +428,10 @@ public class AtomicILFactory extends BasicILFactory {
 	if (impl == null) {
 	    throw new NullPointerException();
 	}
-	return new AtomicInvocationHandler(oe, getServerConstraints(), useAnnotations, compression, marshalStreamFactory);
+	// The handler derives its (encode) reducing-context codec from its marshalling
+	// format; only the dispatcher (decode side) takes an injected codec, so a
+	// deployment can supply DoS limits there.  See ReducingContextCodec.
+	return new AtomicInvocationHandler(oe, getServerConstraints(), useAnnotations, compression);
         }
     
     /**
@@ -464,7 +467,7 @@ public class AtomicILFactory extends BasicILFactory {
 					     getClassLoader(),
 					     useAnnotations,
                                              compression,
-                                             marshalStreamFactory);
+                                             reducingContextCodec);
     }
 	
     @Override

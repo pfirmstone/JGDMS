@@ -329,17 +329,17 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     /**
      * Codec for the remote caller's reducing-context ({@code AccessControlContext})
      * side-band block.  The server reads untrusted input through this, so a
-     * deployment may inject a hardened variant (e.g. {@link DerMarshalStreamFactory}
+     * deployment may inject a hardened variant (e.g. {@link DerReducingContextCodec}
      * with custom limits) via the invocation-layer factory.  Always non-{@code null}.
      */
-    private final MarshalStreamFactory marshalStreamFactory;
+    private final ReducingContextCodec reducingContextCodec;
 
     /**
      * Default reducing-context codec: hardened atomic Java serialization (JOSS),
-     * matching the default {@link AtomicMarshalStreamFactory} on the handler side.
+     * matching the default {@link AtomicReducingContextCodec} on the handler side.
      */
-    private static final MarshalStreamFactory DEFAULT_MARSHAL_STREAM_FACTORY =
-	new AtomicMarshalStreamFactory();
+    private static final ReducingContextCodec DEFAULT_REDUCING_CONTEXT_CODEC =
+	new AtomicReducingContextCodec();
 
     /** Map from Subject (weak identity) to ProtectionDomain. */
     private static final ConcurrentMap<Subject, ProtectionDomain> domains =
@@ -495,7 +495,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	throws ExportException
     {
 	this(methods, serverCapabilities, serverConstraints, permissionClass, loader,
-		MarshalledInstance.FORMAT_JOSS, DEFAULT_MARSHAL_STREAM_FACTORY);
+		MarshalledInstance.FORMAT_JOSS, DEFAULT_REDUCING_CONTEXT_CODEC);
     }
 
     /**
@@ -516,15 +516,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	throws ExportException
     {
 	this(methods, serverCapabilities, serverConstraints, permissionClass, loader,
-		marshallingFormat, DEFAULT_MARSHAL_STREAM_FACTORY);
+		marshallingFormat, DEFAULT_REDUCING_CONTEXT_CODEC);
     }
 
     /**
-     * Codec-aware constructor: subclasses pass the {@link MarshalStreamFactory}
+     * Codec-aware constructor: subclasses pass the {@link ReducingContextCodec}
      * used to decode the remote caller's reducing-context block.  The wire
      * marshalling format defaults to JOSS.
      *
-     * @param marshalStreamFactory the reducing-context codec, or {@code null}
+     * @param reducingContextCodec the reducing-context codec, or {@code null}
      *		for the default (atomic JOSS)
      * @throws ExportException if a server constraint cannot be satisfied
      */
@@ -533,11 +533,11 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 				     MethodConstraints serverConstraints,
 				     Class permissionClass,
 				     ClassLoader loader,
-				     MarshalStreamFactory marshalStreamFactory)
+				     ReducingContextCodec reducingContextCodec)
 	throws ExportException
     {
 	this(methods, serverCapabilities, serverConstraints, permissionClass, loader,
-		MarshalledInstance.FORMAT_JOSS, marshalStreamFactory);
+		MarshalledInstance.FORMAT_JOSS, reducingContextCodec);
     }
 
     /**
@@ -545,7 +545,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * reducing-context codec are specified.
      *
      * @param marshallingFormat the codec's payload-format identifier (must not be null)
-     * @param marshalStreamFactory the reducing-context codec, or {@code null}
+     * @param reducingContextCodec the reducing-context codec, or {@code null}
      *		for the default (atomic JOSS)
      * @throws ExportException if a server constraint cannot be satisfied
      */
@@ -555,7 +555,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 				     Class permissionClass,
 				     ClassLoader loader,
 				     String marshallingFormat,
-				     MarshalStreamFactory marshalStreamFactory)
+				     ReducingContextCodec reducingContextCodec)
 	throws ExportException
     {
 	this(check(
@@ -565,7 +565,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		permissionClass,
 		loader,
 		marshallingFormat,
-		marshalStreamFactory
+		reducingContextCodec
 	    )
 	);
     }
@@ -579,7 +579,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		 Class permissionClass,
 		 ClassLoader loader,
 		 String marshallingFormat,
-		 MarshalStreamFactory marshalStreamFactory) throws ExportException
+		 ReducingContextCodec reducingContextCodec) throws ExportException
     {
 	return new Builder(methods,
 		serverCapabilities,
@@ -587,7 +587,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		permissionClass,
 		loader,
 		marshallingFormat,
-		marshalStreamFactory
+		reducingContextCodec
 	);
     }
 
@@ -599,7 +599,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	this.permUsesMethod = builder.permUsesMethod;
 	this.permissions = builder.permissions;
 	this.marshallingFormat = builder.marshallingFormat;
-	this.marshalStreamFactory = builder.marshalStreamFactory;
+	this.reducingContextCodec = builder.reducingContextCodec;
     }
 
     private static class Builder {
@@ -610,7 +610,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	boolean permUsesMethod;
 	Map permissions;
 	String marshallingFormat;
-	MarshalStreamFactory marshalStreamFactory;
+	ReducingContextCodec reducingContextCodec;
 
 	Builder(Collection methods,
 		 ServerCapabilities serverCapabilities,
@@ -618,7 +618,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		 Class permissionClass,
 		 ClassLoader loader,
 		 String marshallingFormat,
-		 MarshalStreamFactory marshalStreamFactory)
+		 ReducingContextCodec reducingContextCodec)
 	throws ExportException
 	{
 	    if (serverCapabilities == null) {
@@ -628,8 +628,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		throw new NullPointerException("marshallingFormat");
 	    }
 	    this.marshallingFormat = marshallingFormat;
-	    this.marshalStreamFactory = marshalStreamFactory != null ?
-		    marshalStreamFactory : DEFAULT_MARSHAL_STREAM_FACTORY;
+	    this.reducingContextCodec = reducingContextCodec != null ?
+		    reducingContextCodec : DEFAULT_REDUCING_CONTEXT_CODEC;
 	    this.methods = new HashMap();
 	    this.loader = loader;
 	    for (Iterator iter = methods.iterator(); iter.hasNext(); ) {
@@ -2528,7 +2528,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     private ProtectionDomain[] unmarshalRemoteContext(byte[] accBytes, boolean integrity)
 	throws IOException
     {
-	ObjectInput in = marshalStreamFactory.createMarshalInputStream(
+	ObjectInput in = reducingContextCodec.createMarshalInputStream(
 		new ByteArrayInputStream(accBytes), loader, integrity,
 		Collections.emptyList());
 	try {

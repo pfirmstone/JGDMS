@@ -281,24 +281,22 @@ public class BasicInvocationHandler
         }
     }
 
-    /**
-     * Default codec for the reducing-context ({@code AccessControlContext})
-     * side-band block: hardened atomic Java serialization (JOSS).  A
-     * deserialised handler (which never carries the field on the wire) and every
-     * non-codec-aware constructor use this; a DER-exported proxy supplies a
-     * {@link DerMarshalStreamFactory} instead.
-     */
-    private static final MarshalStreamFactory DEFAULT_MARSHAL_STREAM_FACTORY =
-            new AtomicMarshalStreamFactory();
-
     /** Sentinel for "no reducing context transmitted". */
     private static final byte[] EMPTY_BYTES = new byte[0];
 
     /**
-     * Codec used to encode the reducing-context block written in {@link #invoke}.
-     * Always non-{@code null}; see {@link MarshalStreamFactory}.
+     * Lazily-derived codec used to <em>encode</em> the reducing-context
+     * ({@code AccessControlContext}) side-band block in {@link #invoke}.  Not carried
+     * on the wire and not a constructor argument: the format is the proxy's own
+     * marshalling format ({@link #marshallingFormat()}, STD-008 sec.18.3), resolved on
+     * first use via {@link ReducingContextCodec#forFormat}.  Deriving from the
+     * (subclass-determined) marshalling format means the codec choice survives proxy
+     * serialization with no extra wire field, and a non-Java peer keys off the same
+     * published payload-format id.  {@code transient}/{@code volatile}: rebuilt after
+     * deserialization; the value is an idempotent function of the format, so a benign
+     * recompute under a race is harmless.
      */
-    private final MarshalStreamFactory marshalStreamFactory;
+    private transient volatile ReducingContextCodec reducingContextCodec;
 
     /**
      * Connection-level reducing-context cache (Work Item 28).
@@ -337,37 +335,16 @@ public class BasicInvocationHandler
     public BasicInvocationHandler(ObjectEndpoint oe,
 				  MethodConstraints serverConstraints)
     {
-	this(check(oe), oe, null, serverConstraints, DEFAULT_MARSHAL_STREAM_FACTORY);
-	}
-
-    /**
-     * Creates a new <code>BasicInvocationHandler</code> with the specified
-     * <code>ObjectEndpoint</code>, server constraints, and reducing-context
-     * codec.
-     *
-     * @param	oe the <code>ObjectEndpoint</code> for this invocation handler
-     * @param	serverConstraints the server constraints, or <code>null</code>
-     * @param	marshalStreamFactory the codec for the reducing-context block,
-     *		or <code>null</code> for the default (atomic JOSS)
-     * @throws	NullPointerException if <code>oe</code> is <code>null</code>
-     **/
-    public BasicInvocationHandler(ObjectEndpoint oe,
-				  MethodConstraints serverConstraints,
-				  MarshalStreamFactory marshalStreamFactory)
-    {
-	this(check(oe), oe, null, serverConstraints, marshalStreamFactory);
+	this(check(oe), oe, null, serverConstraints);
 	}
 
     private BasicInvocationHandler(boolean check, ObjectEndpoint oe,
 	    MethodConstraints clientConstraints,
-	    MethodConstraints serverConstraints,
-	    MarshalStreamFactory marshalStreamFactory)
+	    MethodConstraints serverConstraints)
     {
 	this.oe = oe;
 	this.clientConstraints = clientConstraints;
 	this.serverConstraints = serverConstraints;
-	this.marshalStreamFactory = marshalStreamFactory != null ?
-		marshalStreamFactory : DEFAULT_MARSHAL_STREAM_FACTORY;
     }
 
     private static boolean check(ObjectEndpoint oe){
@@ -395,12 +372,7 @@ public class BasicInvocationHandler
 	this(check(arg),
 	    (ObjectEndpoint) arg.get("oe", null),
 	    (MethodConstraints) arg.get("clientConstraints", null),
-	    (MethodConstraints) arg.get("serverConstraints", null),
-	    // The codec is not carried on the wire: it is determined by the
-	    // (de)serialised handler's class.  Atomic JOSS is the default; a
-	    // future DER-exported handler will supply its own via the codec
-	    // constructor before re-serialisation.
-	    DEFAULT_MARSHAL_STREAM_FACTORY
+	    (MethodConstraints) arg.get("serverConstraints", null)
 	);
     }
 
@@ -432,7 +404,22 @@ public class BasicInvocationHandler
 	this.oe = other.oe;
 	this.clientConstraints = clientConstraints;
 	this.serverConstraints = other.serverConstraints;
-	this.marshalStreamFactory = other.marshalStreamFactory;
+    }
+
+    /**
+     * Returns the codec used to <em>encode</em> the reducing-context block, derived
+     * (and cached) from this proxy's marshalling format ({@link #marshallingFormat()})
+     * so the side-band is encoded in the format the server dispatcher decodes -- the
+     * single source of truth, shared with non-Java peers via the published
+     * payload-format id.  See {@link #reducingContextCodec}.
+     */
+    private ReducingContextCodec reducingContextCodec() {
+	ReducingContextCodec c = reducingContextCodec;
+	if (c == null) {
+	    c = ReducingContextCodec.forFormat(marshallingFormat());
+	    reducingContextCodec = c;
+	}
+	return c;
     }
 
     /**
@@ -2024,7 +2011,7 @@ public class BasicInvocationHandler
 
     /**
      * Encodes the reducing-context block (codebases only, no principals) for
-     * {@code acc} using this handler's {@link MarshalStreamFactory} and
+     * {@code acc} using this handler's {@link ReducingContextCodec} and
      * {@link RemoteContextCodec}.  The block is decoded by the server in its own
      * isolated codec stream, so the codec here must match the dispatcher's.
      *
@@ -2036,7 +2023,7 @@ public class BasicInvocationHandler
 	throws IOException
     {
 	ByteArrayOutputStream baos = new ByteArrayOutputStream(256);
-	ObjectOutput out = marshalStreamFactory.createMarshalOutputStream(
+	ObjectOutput out = reducingContextCodec().createMarshalOutputStream(
 		baos, Collections.emptyList(), getProxyLoader(proxy.getClass()));
 	try {
 	    RemoteContextCodec.marshal(out, acc);
