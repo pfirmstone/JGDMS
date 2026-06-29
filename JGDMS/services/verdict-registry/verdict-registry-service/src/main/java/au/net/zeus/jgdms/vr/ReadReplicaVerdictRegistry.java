@@ -43,7 +43,7 @@ import net.jini.export.Exporter;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
-import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lease.LeaseListener;
@@ -166,7 +166,7 @@ public class ReadReplicaVerdictRegistry
                                       String sigAlgorithm) {
         this(primary, primaryPublicKey, sigAlgorithm,
                 new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-                        new BasicILFactory(), false, true),
+                        new AtomicILFactory(null, null, VerdictRegistry.class.getClassLoader()), false, true),
                 Lease.FOREVER);
     }
 

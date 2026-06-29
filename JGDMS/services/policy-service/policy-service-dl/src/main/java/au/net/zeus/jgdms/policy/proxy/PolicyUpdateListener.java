@@ -33,7 +33,7 @@ import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.export.Exporter;
-import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lease.LeaseListener;
@@ -161,7 +161,7 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
                                 RemotePolicyProvider localPolicy) {
         this(service, localPolicy,
                 new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-                        new BasicILFactory(), false, true),
+                        new AtomicILFactory(null, null, PolicyUpdateListener.class.getClassLoader()), false, true),
                 Lease.FOREVER);
     }
 
@@ -176,7 +176,7 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
      *       the exporter that makes this listener callable by the server.
      *       Allows administrators to substitute an SSL or Kerberos endpoint.
      *       Defaults to {@code BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-     *       new BasicILFactory(), false, true)}.</li>
+     *       new AtomicILFactory(null, null, PolicyUpdateListener.class.getClassLoader()), false, true)}.</li>
      *   <li><b>{@code leaseDuration}</b> ({@code long}, optional) —
      *       the requested event-registration lease duration in milliseconds.
      *       Defaults to {@link Lease#FOREVER}.</li>
@@ -210,7 +210,7 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
             throws ConfigurationException {
         Exporter defaultExporter = new BasicJeriExporter(
                 TcpServerEndpoint.getInstance(0),
-                new BasicILFactory(), false, true);
+                new AtomicILFactory(null, null, PolicyUpdateListener.class.getClassLoader()), false, true);
         return (Exporter) config.getEntry(
                 COMPONENT, "listenerExporter", Exporter.class, defaultExporter);
     }
