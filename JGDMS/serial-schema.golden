@@ -1,0 +1,250 @@
+# JGDMS serial-schema golden file. ENTRY hash is the registrar type hash (STD-005 RULE-7).
+ATOMIC au.net.zeus.jgdms.api.codebase.AnalysisRequest  -  | packedJarBytes:[B, contentHash:java.lang.String, originalUri:java.lang.String, maxBfsDepth:int
+ATOMIC au.net.zeus.jgdms.api.codebase.ClassAnalysisResult  -  | className:java.lang.String, clinitVerdict:au.net.zeus.jgdms.api.codebase.ClinitVerdict, atomicVerdict:au.net.zeus.jgdms.api.codebase.AtomicSerialVerdict, blockingCallPath:[Ljava.lang.String;, cycleParticipants:[Ljava.lang.String;
+ATOMIC au.net.zeus.jgdms.api.codebase.CrashReport  -  | codebaseUrls:[Ljava.lang.String;, exitCode:int, incarnation:long, stderrSummary:java.lang.String, signature:[B
+ATOMIC au.net.zeus.jgdms.api.codebase.JarAnalysisReport  -  | contentHash:java.lang.String, classNames:[Ljava.lang.String;, classResults:[Lau.net.zeus.jgdms.api.codebase.ClassAnalysisResult;, engineSignature:[B, declaredPermissions:[Ljava.lang.String;, codebaseUrls:[Ljava.lang.String;
+ATOMIC au.net.zeus.jgdms.api.codebase.RegistryVerdict  -  | codebaseUrls:[Ljava.lang.String;, verdict:au.net.zeus.jgdms.api.codebase.VerdictType, timestamp:long, signature:[B
+ATOMIC au.net.zeus.jgdms.api.telemetry.PinningReport  -  | codebaseUrls:[Ljava.lang.String;, pinnedNanos:long, eventCount:long, periodStartMs:long, periodEndMs:long
+ATOMIC au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy  -  | 
+ATOMIC au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy$ConstrainableBytecodeAnalysisEngineProxy  -  | 
+ATOMIC au.net.zeus.jgdms.der.object.DerProxySerializer  -  | handler:java.lang.reflect.InvocationHandler, serviceProxy:net.jini.io.MarshalledInstance
+ATOMIC au.net.zeus.jgdms.der.registry.ServiceSchemaEntry  -  | schemaDigest:[B, serviceInterface:java.lang.String, schemaVersion:java.lang.String, schemaFormat:java.lang.String
+ATOMIC au.net.zeus.jgdms.hello.proxy.HelloServiceProxy  -  | 
+ATOMIC au.net.zeus.jgdms.hello.proxy.HelloServiceProxy$ConstrainableHelloServiceProxy  -  | 
+ATOMIC au.net.zeus.jgdms.jfr.proxy.JfrTelemetryServiceProxy  -  | 
+ATOMIC au.net.zeus.jgdms.jfr.proxy.JfrTelemetryServiceProxy$ConstrainableJfrTelemetryServiceProxy  -  | 
+ATOMIC au.net.zeus.jgdms.policy.proxy.PolicyEventLease  -  | server:org.apache.river.api.security.RemotePolicyService, leaseId:net.jini.id.Uuid
+ATOMIC au.net.zeus.jgdms.policy.proxy.PolicyUpdateEvent  -  | 
+ATOMIC au.net.zeus.jgdms.policy.proxy.RemotePolicyServiceProxy  -  | 
+ATOMIC au.net.zeus.jgdms.policy.proxy.RemotePolicyServiceProxy$ConstrainableRemotePolicyServiceProxy  -  | 
+ATOMIC au.net.zeus.jgdms.proxy.AbstractSmartProxy  -  | server:java.lang.Object, proxyID:net.jini.id.Uuid
+ATOMIC au.net.zeus.jgdms.proxy.AbstractSmartProxy$ConstrainableSmartProxy  -  | 
+ATOMIC au.net.zeus.jgdms.proxy.AdminProxy  -  | server:java.rmi.Remote, proxyID:net.jini.id.Uuid
+ATOMIC au.net.zeus.jgdms.proxy.AdminProxy$ConstrainableAdminProxy  -  | 
+ATOMIC au.net.zeus.jgdms.vr.proxy.VerdictEvent  -  | verdict:au.net.zeus.jgdms.api.codebase.RegistryVerdict
+ATOMIC au.net.zeus.jgdms.vr.proxy.VerdictEventLease  -  | server:au.net.zeus.jgdms.api.codebase.VerdictRegistry, leaseId:net.jini.id.Uuid
+ATOMIC au.net.zeus.jgdms.vr.proxy.VerdictRegistryProxy  -  | 
+ATOMIC au.net.zeus.jgdms.vr.proxy.VerdictRegistryProxy$ConstrainableVerdictRegistryProxy  -  | 
+ATOMIC com.sun.jini.logging.Levels$LevelData  -  | name:java.lang.String, value:int, resourceBundleName:java.lang.String, localizedLevelName:java.lang.String
+ATOMIC com.sun.jini.start.NonActivatableServiceDescriptor  -  | 
+ATOMIC net.jini.activation.ActivatableInvocationHandler  -  | id:java.lang.Object, uproxy:java.rmi.Remote, clientConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC net.jini.activation.ActivationDescImpl  -  | groupID:net.jini.activation.arg.ActivationGroupID, className:java.lang.String, location:java.lang.String, data:[Ljava.lang.String;, restart:boolean
+ATOMIC net.jini.activation.ActivationGroup  -  | groupID:net.jini.activation.arg.ActivationGroupID, monitor:net.jini.activation.arg.ActivationMonitor, incarnation:long
+ATOMIC net.jini.activation.ActivationGroupDescImpl  -  | className:java.lang.String, location:java.lang.String, data:[Ljava.lang.String;, env:net.jini.activation.ActivationGroupDescImpl$CommandEnvironmentImpl, props:java.util.Properties
+ATOMIC net.jini.activation.ActivationGroupDescImpl$CommandEnvironmentImpl  -  | command:java.lang.String, options:[Ljava.lang.String;
+ATOMIC net.jini.activation.ActivationGroupIDImpl  -  | uid:java.rmi.server.UID, system:net.jini.activation.arg.ActivationSystem
+ATOMIC net.jini.config.ConfigurationFile$ErrorDescriptor  -  | lineno:int, override:int, description:java.lang.String, locationName:java.lang.String, t:java.lang.Throwable
+ATOMIC net.jini.constraint.BasicMethodConstraints  -  | descs:[Lnet.jini.constraint.BasicMethodConstraints$MethodDesc;
+ATOMIC net.jini.constraint.BasicMethodConstraints$MethodDesc  -  | name:java.lang.String, types:[Ljava.lang.Class;, constraints:net.jini.core.constraint.InvocationConstraints
+ATOMIC net.jini.constraint.StringMethodConstraints  -  | descs:[Lnet.jini.constraint.StringMethodConstraints$StringMethodDesc;
+ATOMIC net.jini.constraint.StringMethodConstraints$StringMethodDesc  -  | name:java.lang.String, types:[Ljava.lang.String;, constraints:net.jini.core.constraint.InvocationConstraints
+ATOMIC net.jini.core.constraint.ClientAuthentication  -  | val:boolean
+ATOMIC net.jini.core.constraint.ClientMaxPrincipal  -  | principals:[Ljava.security.Principal;
+ATOMIC net.jini.core.constraint.ClientMaxPrincipalType  -  | classes:[Ljava.lang.Class;
+ATOMIC net.jini.core.constraint.ClientMinPrincipal  -  | principals:[Ljava.security.Principal;
+ATOMIC net.jini.core.constraint.ClientMinPrincipalType  -  | classes:[Ljava.lang.Class;
+ATOMIC net.jini.core.constraint.Confidentiality  -  | val:boolean
+ATOMIC net.jini.core.constraint.ConnectionAbsoluteTime  -  | time:long
+ATOMIC net.jini.core.constraint.ConnectionRelativeTime  -  | time:long
+ATOMIC net.jini.core.constraint.ConstraintAlternatives  -  | constraints:[Lnet.jini.core.constraint.InvocationConstraint;
+ATOMIC net.jini.core.constraint.Delegation  -  | val:boolean
+ATOMIC net.jini.core.constraint.DelegationAbsoluteTime  -  | minStart:long, maxStart:long, minStop:long, maxStop:long
+ATOMIC net.jini.core.constraint.DelegationRelativeTime  -  | minStart:long, maxStart:long, minStop:long, maxStop:long
+ATOMIC net.jini.core.constraint.Integrity  -  | val:boolean
+ATOMIC net.jini.core.constraint.InvocationConstraints  -  | reqs:[Lnet.jini.core.constraint.InvocationConstraint;, prefs:[Lnet.jini.core.constraint.InvocationConstraint;
+ATOMIC net.jini.core.constraint.MarshallingFormat  -  | format:java.lang.String
+ATOMIC net.jini.core.constraint.ServerAuthentication  -  | val:boolean
+ATOMIC net.jini.core.constraint.ServerMaxPrincipal  -  | principals:[Ljava.security.Principal;
+ATOMIC net.jini.core.constraint.ServerMinPrincipal  -  | principals:[Ljava.security.Principal;
+ATOMIC net.jini.core.discovery.LookupLocator  -  | host:java.lang.String, port:int, scheme:java.lang.String
+ATOMIC net.jini.core.event.EventRegistration  -  | eventID:long, source:java.lang.Object, lease:net.jini.core.lease.Lease, seqNum:long
+ATOMIC net.jini.core.event.RemoteEvent  -  | source:java.lang.Object, eventID:long, seqNum:long, handback:java.rmi.MarshalledObject, miHandback:net.jini.io.MarshalledInstance
+ATOMIC net.jini.core.lease.LeaseDeniedException  -  | 
+ATOMIC net.jini.core.lease.LeaseException  -  | 
+ATOMIC net.jini.core.lease.LeaseMapException  -  | exceptionMap:java.util.Map
+ATOMIC net.jini.core.lease.UnknownLeaseException  -  | 
+ATOMIC net.jini.core.lookup.ServiceEvent  -  | serviceID:net.jini.core.lookup.ServiceID, transition:long
+ATOMIC net.jini.core.lookup.ServiceID  -  | mostSig:long, leastSig:long
+ATOMIC net.jini.core.lookup.ServiceItem  -  | serviceID:net.jini.core.lookup.ServiceID, service:java.lang.Object, attributeSets:[Lnet.jini.core.entry.Entry;
+ATOMIC net.jini.core.lookup.ServiceMatches  -  | items:[Lnet.jini.core.lookup.ServiceItem;, totalMatches:int
+ATOMIC net.jini.core.lookup.ServiceTemplate  -  | serviceID:net.jini.core.lookup.ServiceID, serviceTypes:[Ljava.lang.Class;, attributeSetTemplates:[Lnet.jini.core.entry.Entry;
+ATOMIC net.jini.core.transaction.NestableTransaction$Created  -  | transaction:net.jini.core.transaction.NestableTransaction, lease:net.jini.core.lease.Lease
+ATOMIC net.jini.core.transaction.TimeoutExpiredException  -  | committed:boolean
+ATOMIC net.jini.core.transaction.Transaction$Created  -  | transaction:net.jini.core.transaction.Transaction, lease:net.jini.core.lease.Lease
+ATOMIC net.jini.core.transaction.TransactionException  -  | 
+ATOMIC net.jini.core.transaction.server.NestableServerTransaction  -  | parent:net.jini.core.transaction.server.NestableServerTransaction
+ATOMIC net.jini.core.transaction.server.ServerTransaction  -  | mgr:net.jini.core.transaction.server.TransactionManager, id:long
+ATOMIC net.jini.core.transaction.server.TransactionManager$Created  -  | id:long, lease:net.jini.core.lease.Lease
+ATOMIC net.jini.core.transaction.server.TransactionManager$TransactionConfig  -  | readOnly:boolean, isolationLevel:int
+ATOMIC net.jini.discovery.ConstrainableLookupLocator  -  | constraints:net.jini.core.constraint.MethodConstraints
+ATOMIC net.jini.discovery.DiscoveryEvent  -  | regs:[Lnet.jini.core.lookup.ServiceRegistrar;, groups:java.util.Map
+ATOMIC net.jini.discovery.LookupUnmarshalException  -  | registrars:[Lnet.jini.core.lookup.ServiceRegistrar;, marshalledRegistrars:[Lnet.jini.io.MarshalledInstance;, exceptions:[Ljava.lang.Throwable;
+ATOMIC net.jini.discovery.RemoteDiscoveryEvent  -  | discarded:boolean, marshalledRegs:java.util.List, regs:[Lnet.jini.core.lookup.ServiceRegistrar;, groups:java.util.Map
+ATOMIC net.jini.entry.UnusableEntriesException  -  | entries:java.util.Collection, exceptions:java.util.Collection
+ATOMIC net.jini.id.Uuid  -  | bits0:long, bits1:long
+ATOMIC net.jini.id.UuidFactory$Impl  -  | 
+ATOMIC net.jini.io.MarshalledInstance  -  | payloadBytes:[B, codebaseAnnotation:[B, schemaBytes:[B, schemaDigest:[B, payloadFormat:java.lang.String, hash:int
+ATOMIC net.jini.jeri.AtomicDerInvocationHandler  -  | 
+ATOMIC net.jini.jeri.AtomicInvocationHandler  -  | useCodebaseAnnotations:boolean, compression:net.jini.jeri.Compression
+ATOMIC net.jini.jeri.BasicInvocationHandler  -  | oe:net.jini.jeri.ObjectEndpoint, clientConstraints:net.jini.core.constraint.MethodConstraints, serverConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC net.jini.jeri.BasicObjectEndpoint  -  | ep:net.jini.jeri.Endpoint, id:net.jini.id.Uuid, dgc:boolean
+ATOMIC net.jini.jeri.http.HttpEndpoint  -  | host:java.lang.String, port:int, sf:javax.net.SocketFactory
+ATOMIC net.jini.jeri.ssl.ConfidentialityStrength  -  | value:boolean
+ATOMIC net.jini.jeri.ssl.HttpsEndpoint  -  | serverHost:java.lang.String, port:int, socketFactory:javax.net.SocketFactory
+ATOMIC net.jini.jeri.ssl.SslEndpoint  -  | serverHost:java.lang.String, port:int, socketFactory:javax.net.SocketFactory
+ATOMIC net.jini.jeri.tcp.TcpEndpoint  -  | host:java.lang.String, port:int, sf:javax.net.SocketFactory
+ATOMIC net.jini.lease.ExpirationWarningEvent  -  | 
+ATOMIC net.jini.lease.LeaseRenewalEvent  -  | lease:net.jini.core.lease.Lease, expiration:long, ex:java.lang.Throwable
+ATOMIC net.jini.lease.LeaseUnmarshalException  -  | unmarshalledLeases:[Lnet.jini.core.lease.Lease;, stillMarshalledLeases:[Lnet.jini.io.MarshalledInstance;, exceptions:[Ljava.lang.Throwable;
+ATOMIC net.jini.lease.RenewalFailureEvent  -  | 
+ATOMIC net.jini.lookup.ServiceDiscoveryEvent  -  | preEventItem:net.jini.core.lookup.ServiceItem, postEventItem:net.jini.core.lookup.ServiceItem
+ENTRY  net.jini.lookup.entry.Address  4301117644196083505  | street:java.lang.String, organization:java.lang.String, organizationalUnit:java.lang.String, locality:java.lang.String, stateOrProvince:java.lang.String, postalCode:java.lang.String, country:java.lang.String
+ENTRY  net.jini.lookup.entry.Comment  -3631551370889972363  | comment:java.lang.String
+ENTRY  net.jini.lookup.entry.Host  -2455424707099809235  | hostName:java.lang.String
+ENTRY  net.jini.lookup.entry.Location  5882440256380858160  | floor:java.lang.String, room:java.lang.String, building:java.lang.String
+ENTRY  net.jini.lookup.entry.Name  4171455556316109860  | name:java.lang.String
+ENTRY  net.jini.lookup.entry.ServiceInfo  -8333120824101216372  | name:java.lang.String, manufacturer:java.lang.String, vendor:java.lang.String, version:java.lang.String, model:java.lang.String, serialNumber:java.lang.String
+ENTRY  net.jini.lookup.entry.ServiceTypes  -6980408648439691681  | serviceType:java.lang.Class
+ENTRY  net.jini.lookup.entry.UIDescriptor  8944440790990485853  | role:java.lang.String, toolkit:java.lang.String, attributes:java.util.Set, factory:java.rmi.MarshalledObject
+ENTRY  net.jini.lookup.entry.jmx.JMXProperty  -5088604349259407677  | name:java.lang.String, value:java.lang.String
+ENTRY  net.jini.lookup.entry.jmx.JMXProtocolType  9195332107067203752  | protocolType:java.lang.String
+ATOMIC net.jini.security.BasicProxyPreparer  -  | verify:boolean, methodConstraintsSpecified:boolean, methodConstraints:net.jini.core.constraint.MethodConstraints, permissions:[Ljava.security.Permission;
+ATOMIC net.jini.security.proxytrust.ProxyTrustInvocationHandler  -  | main:net.jini.core.constraint.RemoteMethodControl, boot:net.jini.security.proxytrust.ProxyTrust
+ATOMIC net.jini.space.AvailabilityEvent  -  | visibilityTransition:boolean
+ATOMIC org.apache.river.api.io.ArrayClassNotFoundException  -  | message:java.lang.String, arr:[Ljava.lang.Object;, exceptionIndexes:[I, exceptions:[Ljava.lang.ClassNotFoundException;
+ATOMIC org.apache.river.api.io.AtomicException  -  | message:java.lang.String, cause:java.lang.Throwable, stack:[Ljava.lang.StackTraceElement;, suppressed:[Ljava.lang.Throwable;
+ATOMIC org.apache.river.api.io.AtomicMarshalledInstance  -  | useCodebaseAnnotations:boolean
+ATOMIC org.apache.river.api.io.AtomicRuntimeException  -  | message:java.lang.String, cause:java.lang.Throwable, stack:[Ljava.lang.StackTraceElement;, suppressed:[Ljava.lang.Throwable;
+ATOMIC org.apache.river.api.io.FileSerializer  -  | path:java.net.URI
+ATOMIC org.apache.river.api.io.ListSerializer  -  | elements:[Ljava.lang.Object;
+ATOMIC org.apache.river.api.io.MapSerializer  -  | entrySet:[Lorg.apache.river.api.io.MapSerializer$Ent;, comparator:java.util.Comparator
+ATOMIC org.apache.river.api.io.MapSerializer$Ent  -  | key:java.lang.Object, value:java.lang.Object, keyClass:java.lang.Class, valueClass:java.lang.Class
+ATOMIC org.apache.river.api.io.MarshalledObjectSerializer  -  | instance:net.jini.io.MarshalledInstance
+ATOMIC org.apache.river.api.io.PermissionSerializer  -  | targetType:java.lang.Class, unresolvedType:java.lang.String, targetName:java.lang.String, targetActions:java.lang.String
+ATOMIC org.apache.river.api.io.PropertiesSerializer  -  | m:org.apache.river.api.io.MapSerializer
+ATOMIC org.apache.river.api.io.ProxySerializer  -  | bootstrapProxy:net.jini.export.CodebaseAccessor, serviceProxy:net.jini.io.MarshalledInstance
+ATOMIC org.apache.river.api.io.SetSerializer  -  | content:[Ljava.lang.Object;, comparator:java.util.Comparator
+ATOMIC org.apache.river.api.io.StackTraceElementSerializer  -  | declaringClass:java.lang.String, methodName:java.lang.String, fileName:java.lang.String, lineNumber:int
+ATOMIC org.apache.river.api.io.ThrowableSerializer  -  | clazz:java.lang.Class, message:java.lang.String, cause:java.lang.Throwable, stack:[Ljava.lang.StackTraceElement;, suppressed:[Ljava.lang.Throwable;, classname:java.lang.String, length:int, eof:boolean
+ATOMIC org.apache.river.api.io.URISerializer  -  | uriExternalForm:java.lang.String
+ATOMIC org.apache.river.api.io.URLSerializer  -  | urlExternalForm:java.lang.String
+ATOMIC org.apache.river.api.io.X500PrincipalSerializer  -  | encoded:[B
+ATOMIC org.apache.river.discovery.DiscoveryProtocolVersion  -  | version:int
+ATOMIC org.apache.river.discovery.MulticastMaxPacketSize  -  | size:int
+ATOMIC org.apache.river.discovery.MulticastTimeToLive  -  | ttl:int
+ATOMIC org.apache.river.discovery.UnicastSocketTimeout  -  | timeout:int
+ATOMIC org.apache.river.fiddler.FiddlerImpl$RegistrationInfo  -  | registrationID:net.jini.id.Uuid, discoveredRegsMap:java.util.Map, groups:java.util.Set, locators:java.util.Set, leaseID:net.jini.id.Uuid, leaseExpiration:long, eventID:long, seqNum:long, handback:java.rmi.MarshalledObject, discardFlag:boolean, listener:net.jini.io.MarshalledInstance
+ATOMIC org.apache.river.fiddler.proxy.FiddlerAdminProxy  -  | server:org.apache.river.fiddler.proxy.Fiddler, proxyID:net.jini.id.Uuid
+ATOMIC org.apache.river.fiddler.proxy.FiddlerAdminProxy$ConstrainableFiddlerAdminProxy  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.fiddler.proxy.FiddlerLease  -  | server:org.apache.river.fiddler.proxy.Fiddler, serverID:net.jini.id.Uuid, registrationID:net.jini.id.Uuid, leaseID:net.jini.id.Uuid
+ATOMIC org.apache.river.fiddler.proxy.FiddlerLease$ConstrainableFiddlerLease  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.fiddler.proxy.FiddlerProxy  -  | server:org.apache.river.fiddler.proxy.Fiddler, proxyID:net.jini.id.Uuid
+ATOMIC org.apache.river.fiddler.proxy.FiddlerProxy$ConstrainableFiddlerProxy  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.fiddler.proxy.FiddlerRegistration  -  | server:org.apache.river.fiddler.proxy.Fiddler, registrationID:net.jini.id.Uuid, eventReg:net.jini.core.event.EventRegistration
+ATOMIC org.apache.river.fiddler.proxy.FiddlerRegistration$ConstrainableFiddlerRegistration  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.fiddler.proxy.FiddlerRenewResults  -  | durations:[J, exceptions:[Ljava.lang.Exception;
+ATOMIC org.apache.river.fiddler.proxy.ProxyVerifier  -  | innerProxy:net.jini.core.constraint.RemoteMethodControl, proxyID:net.jini.id.Uuid
+ATOMIC org.apache.river.landlord.ConstrainableLandlordLease  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.landlord.Landlord$RenewResults  -  | granted:[J, denied:[Ljava.lang.Exception;
+ATOMIC org.apache.river.landlord.LandlordLease  -  | cookie:net.jini.id.Uuid, landlord:org.apache.river.landlord.Landlord, landlordUuid:net.jini.id.Uuid
+ATOMIC org.apache.river.landlord.LandlordProxyVerifier  -  | landlord:net.jini.core.constraint.RemoteMethodControl, landlordUuid:net.jini.id.Uuid
+ATOMIC org.apache.river.lease.AbstractLease  -  | serialFormat:int, expiration:long
+ATOMIC org.apache.river.lease.BasicRenewalFailureEvent  -  | marshalledThrowable:net.jini.io.MarshalledInstance, marshalledLease:net.jini.io.MarshalledInstance
+ATOMIC org.apache.river.logging.Levels$LevelData  -  | name:java.lang.String, value:int, resourceBundleName:java.lang.String, localizedLevelName:java.lang.String
+ATOMIC org.apache.river.lookup.util.ConsistentMap  -  | entrySet:java.util.Set
+ATOMIC org.apache.river.lookup.util.ConsistentMapEntry  -  | key:java.lang.Object, value:java.lang.Object
+ATOMIC org.apache.river.lookup.util.ConsistentSet  -  | elements:[Ljava.lang.Object;
+ATOMIC org.apache.river.mahalo.AbortRecord  -  | parts:[Lorg.apache.river.mahalo.ParticipantHandle;
+ATOMIC org.apache.river.mahalo.CommitRecord  -  | parts:[Lorg.apache.river.mahalo.ParticipantHandle;
+ATOMIC org.apache.river.mahalo.ParticipantAbortRecord  -  | 
+ATOMIC org.apache.river.mahalo.ParticipantCommitRecord  -  | 
+ATOMIC org.apache.river.mahalo.ParticipantHandle  -  | storedpart:org.apache.river.mahalo.StorableObject, crashcount:long, prepstate:int
+ATOMIC org.apache.river.mahalo.ParticipantModRecord  -  | part:org.apache.river.mahalo.ParticipantHandle, result:int
+ATOMIC org.apache.river.mahalo.PrepareAndCommitRecord  -  | 
+ATOMIC org.apache.river.mahalo.PrepareRecord  -  | 
+ATOMIC org.apache.river.mahalo.StorableObject  -  | bytes:java.rmi.MarshalledObject, instance:net.jini.io.MarshalledInstance
+ATOMIC org.apache.river.mahalo.proxy.ProxyVerifier  -  | serverProxy:net.jini.core.constraint.RemoteMethodControl, proxyID:net.jini.id.Uuid
+ATOMIC org.apache.river.mahalo.proxy.TxnMgrAdminProxy  -  | server:org.apache.river.mahalo.proxy.TxnManager, proxyID:net.jini.id.Uuid
+ATOMIC org.apache.river.mahalo.proxy.TxnMgrAdminProxy$ConstrainableTxnMgrAdminProxy  -  | 
+ATOMIC org.apache.river.mahalo.proxy.TxnMgrProxy  -  | backend:org.apache.river.mahalo.proxy.TxnManager, proxyID:net.jini.id.Uuid
+ATOMIC org.apache.river.mahalo.proxy.TxnMgrProxy$ConstrainableTxnMgrProxy  -  | 
+ATOMIC org.apache.river.mercury.EventID  -  | id:long, source:net.jini.io.MarshalledInstance
+ATOMIC org.apache.river.mercury.ServiceRegistration  -  | cookie:net.jini.id.Uuid, expiration:long, marshalledEventTarget:net.jini.io.MarshalledInstance, unknownEvents:java.util.Map, remoteEventIteratorID:net.jini.id.Uuid
+ATOMIC org.apache.river.mercury.proxy.ListenerProxy  -  | server:org.apache.river.mercury.proxy.MailboxBackEnd, registrationID:net.jini.id.Uuid
+ATOMIC org.apache.river.mercury.proxy.ListenerProxy$ConstrainableListenerProxy  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.mercury.proxy.MailboxAdminProxy  -  | server:org.apache.river.mercury.proxy.MailboxBackEnd, proxyID:net.jini.id.Uuid
+ATOMIC org.apache.river.mercury.proxy.MailboxAdminProxy$ConstrainableMailboxAdminProxy  -  | 
+ATOMIC org.apache.river.mercury.proxy.MailboxProxy  -  | mailbox:org.apache.river.mercury.proxy.MailboxBackEnd, proxyID:net.jini.id.Uuid
+ATOMIC org.apache.river.mercury.proxy.MailboxProxy$ConstrainableMailboxProxy  -  | 
+ATOMIC org.apache.river.mercury.proxy.ProxyVerifier  -  | serverProxy:net.jini.core.constraint.RemoteMethodControl, proxyID:net.jini.id.Uuid
+ATOMIC org.apache.river.mercury.proxy.Registration  -  | registrationID:net.jini.id.Uuid, mailbox:org.apache.river.mercury.proxy.MailboxBackEnd, listener:org.apache.river.mercury.proxy.ListenerProxy, lease:net.jini.core.lease.Lease
+ATOMIC org.apache.river.mercury.proxy.Registration$ConstrainableRegistration  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.mercury.proxy.RemoteEventData  -  | mi:net.jini.io.MarshalledInstance, cookie:java.lang.Object
+ATOMIC org.apache.river.mercury.proxy.RemoteEventDataCursor  -  | readCount:long, readPosition:long
+ATOMIC org.apache.river.mercury.proxy.RemoteEventIteratorData  -  | uuid:net.jini.id.Uuid, events:java.util.Collection
+ATOMIC org.apache.river.norm.ClientLeaseWrapper  -  | lastFailure:java.lang.Throwable, marshalledClientLease:net.jini.io.MarshalledInstance, clientLeaseExpiration:long, UID:long, membershipExpiration:long, renewDuration:long
+ATOMIC org.apache.river.norm.CreateLeaseSet  -  | set:org.apache.river.norm.LeaseSet
+ATOMIC org.apache.river.norm.LeaseSet  -  | expiration:long, ID:net.jini.id.Uuid, leases:java.util.Set, minWarning:long, warningEventType:org.apache.river.norm.event.EventType, warningSeqNum:long, failureEventType:org.apache.river.norm.event.EventType
+ATOMIC org.apache.river.norm.event.EventType  -  | marshalledListener:net.jini.io.MarshalledInstance, handback:java.lang.Object, registrationNumber:long, lastSeqNum:long, evID:long
+ATOMIC org.apache.river.norm.event.EventTypeGenerator  -  | nextEvID:long
+ATOMIC org.apache.river.norm.proxy.AbstractProxy  -  | server:org.apache.river.norm.proxy.NormServer, uuid:net.jini.id.Uuid
+ATOMIC org.apache.river.norm.proxy.AdminProxy  -  | 
+ATOMIC org.apache.river.norm.proxy.AdminProxy$ConstrainableAdminProxy  -  | 
+ATOMIC org.apache.river.norm.proxy.GetLeasesResult  -  | marshalledLeases:[Lnet.jini.io.MarshalledInstance;
+ATOMIC org.apache.river.norm.proxy.NormProxy  -  | 
+ATOMIC org.apache.river.norm.proxy.NormProxy$ConstrainableNormProxy  -  | 
+ATOMIC org.apache.river.norm.proxy.ProxyVerifier  -  | serverProxy:net.jini.core.constraint.RemoteMethodControl, serverUuid:net.jini.id.Uuid
+ATOMIC org.apache.river.norm.proxy.SetProxy  -  | ourLease:net.jini.core.lease.Lease
+ATOMIC org.apache.river.norm.proxy.SetProxy$ConstrainableSetProxy  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.outrigger.proxy.AdminProxy  -  | admin:org.apache.river.outrigger.proxy.OutriggerAdmin, spaceUuid:net.jini.id.Uuid
+ATOMIC org.apache.river.outrigger.proxy.ConstrainableAdminProxy  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.outrigger.proxy.ConstrainableOutriggerAvailabilityEvent  -  | 
+ATOMIC org.apache.river.outrigger.proxy.ConstrainableParticipantProxy  -  | 
+ATOMIC org.apache.river.outrigger.proxy.ConstrainableSpaceProxy2  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.outrigger.proxy.EntryRep  -  | values:[Lnet.jini.io.MarshalledInstance;, superclasses:[Ljava.lang.String;, hashes:[J, hash:long, className:java.lang.String, codebase:java.lang.String, id:net.jini.id.Uuid
+ATOMIC org.apache.river.outrigger.proxy.MatchSetData  -  | uuid:net.jini.id.Uuid, reps:[Lorg.apache.river.outrigger.proxy.EntryRep;, intialLeaseDuration:long
+ATOMIC org.apache.river.outrigger.proxy.OutriggerAvailabilityEvent  -  | rep:org.apache.river.outrigger.proxy.EntryRep
+ATOMIC org.apache.river.outrigger.proxy.OutriggerQueryCookie  -  | startTime:long
+ATOMIC org.apache.river.outrigger.proxy.ParticipantProxy  -  | space:net.jini.core.transaction.server.TransactionParticipant, spaceUuid:net.jini.id.Uuid
+ATOMIC org.apache.river.outrigger.proxy.SpaceProxy2  -  | space:org.apache.river.outrigger.proxy.OutriggerServer, spaceUuid:net.jini.id.Uuid, serverMaxServerQueryTimeout:long
+ATOMIC org.apache.river.phoenix.Activation  -  | idTable:java.util.Map, groupTable:java.util.Map
+ATOMIC org.apache.river.phoenix.Activation$GroupEntry  -  | desc:net.jini.activation.arg.ActivationGroupDesc, groupID:net.jini.activation.arg.ActivationGroupID, incarnation:long, objects:java.util.Map, restartSet:java.util.Set, activation:org.apache.river.phoenix.Activation
+ATOMIC org.apache.river.phoenix.Activation$ObjectEntry  -  | desc:net.jini.activation.arg.ActivationDesc, activation:org.apache.river.phoenix.Activation
+ATOMIC org.apache.river.phoenix.common.ActivationGroupData  -  | config:[Ljava.lang.String;
+ATOMIC org.apache.river.phoenix.dl.AID$State  -  | activator:org.apache.river.phoenix.dl.Activator, uid:java.rmi.server.UID
+ATOMIC org.apache.river.phoenix.dl.ConstrainableAID$State  -  | activator:org.apache.river.phoenix.dl.Activator, uid:java.rmi.server.UID, constraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.phoenix.dl.ConstrainableAID$Verifier  -  | activator:net.jini.core.constraint.RemoteMethodControl
+ATOMIC org.apache.river.phoenix.group.AbstractActivationGroup  -  | 
+ATOMIC org.apache.river.phoenix.group.AbstractActivationGroup$WrappedGID  -  | id:net.jini.activation.arg.ActivationGroupID, sys:net.jini.activation.arg.ActivationSystem
+ATOMIC org.apache.river.proxy.BasicProxyTrustVerifier  -  | proxy:net.jini.core.constraint.RemoteMethodControl
+ATOMIC org.apache.river.proxy.MarshalledWrapper  -  | instance:net.jini.activation.arg.MarshalledObject
+ATOMIC org.apache.river.proxy.ThrowThis  -  | toThrow:java.rmi.RemoteException
+ATOMIC org.apache.river.reggie.RegistrarImpl$EventReg  -  | eventID:long, leaseID:net.jini.id.Uuid, tmpl:org.apache.river.reggie.proxy.Template, transitions:int, seqNo:long, handback:java.lang.Object, leaseExpiration:long, listener:net.jini.io.MarshalledInstance
+ATOMIC org.apache.river.reggie.RegistrarImpl$SvcReg  -  | item:org.apache.river.reggie.proxy.Item, leaseID:net.jini.id.Uuid, leaseExpiration:long
+ATOMIC org.apache.river.reggie.proxy.AdminProxy  -  | server:org.apache.river.reggie.proxy.Registrar, registrarIDMostSig:long, registrarIDLeastSig:long
+ATOMIC org.apache.river.reggie.proxy.ConstrainableAdminProxy  -  | constraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.reggie.proxy.ConstrainableEventLease  -  | constraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.reggie.proxy.ConstrainableRegistrarEvent  -  | 
+ATOMIC org.apache.river.reggie.proxy.ConstrainableRegistrarProxy  -  | constraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.reggie.proxy.ConstrainableRegistration  -  | constriants:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.reggie.proxy.ConstrainableServiceLease  -  | constraints:net.jini.core.constraint.MethodConstraints
+ATOMIC org.apache.river.reggie.proxy.EntryClass  -  | name:java.lang.String, hash:long, superclass:org.apache.river.reggie.proxy.EntryClass, numFields:int
+ATOMIC org.apache.river.reggie.proxy.EntryClassBase  -  | eclass:org.apache.river.reggie.proxy.EntryClass, codebase:java.lang.String
+ATOMIC org.apache.river.reggie.proxy.EntryRep  -  | eclass:org.apache.river.reggie.proxy.EntryClass, codebase:java.lang.String, fields:[Ljava.lang.Object;
+ATOMIC org.apache.river.reggie.proxy.EventLease  -  | eventID:long
+ATOMIC org.apache.river.reggie.proxy.Item  -  | serviceID:net.jini.core.lookup.ServiceID, serviceType:org.apache.river.reggie.proxy.ServiceType, codebase:java.lang.String, service:org.apache.river.proxy.MarshalledWrapper, attributeSets:[Lorg.apache.river.reggie.proxy.EntryRep;, bootstrapProxy:java.lang.reflect.Proxy
+ATOMIC org.apache.river.reggie.proxy.Matches  -  | items:java.util.List, totalMatches:int
+ATOMIC org.apache.river.reggie.proxy.RegistrarEvent  -  | serviceItem:java.lang.Object, servIDMostSig:long, servIDLeastSig:long
+ATOMIC org.apache.river.reggie.proxy.RegistrarLease  -  | server:org.apache.river.reggie.proxy.Registrar, leaseID:net.jini.id.Uuid, registrarIDMostSig:long, registrarIDLeastSig:long
+ATOMIC org.apache.river.reggie.proxy.RegistrarProxy  -  | server:org.apache.river.reggie.proxy.Registrar, registrarIDMostSig:long, registrarIDLeastSig:long
+ATOMIC org.apache.river.reggie.proxy.Registration  -  | server:org.apache.river.reggie.proxy.Registrar, lease:org.apache.river.reggie.proxy.ServiceLease
+ATOMIC org.apache.river.reggie.proxy.RenewResults  -  | durations:[J, exceptions:[Ljava.lang.Exception;
+ATOMIC org.apache.river.reggie.proxy.ServiceLease  -  | serviceIDMostSig:long, serviceIDLeastSig:long
+ATOMIC org.apache.river.reggie.proxy.ServiceType  -  | name:java.lang.String, hash:long, superclass:org.apache.river.reggie.proxy.ServiceType, interfaces:[Lorg.apache.river.reggie.proxy.ServiceType;
+ATOMIC org.apache.river.reggie.proxy.ServiceTypeBase  -  | type:org.apache.river.reggie.proxy.ServiceType, codebase:java.lang.String
+ATOMIC org.apache.river.reggie.proxy.Template  -  | serviceID:net.jini.core.lookup.ServiceID, serviceTypes:[Lorg.apache.river.reggie.proxy.ServiceType;, attributeSetTemplates:[Lorg.apache.river.reggie.proxy.EntryRep;
+ATOMIC org.apache.river.start.ActivateWrapper$ActivateDesc  -  | className:java.lang.String, importLocation:[Ljava.lang.String;, exportLocation:[Ljava.lang.String;, policy:java.lang.String, configurationArguments:[Ljava.lang.String;
+ATOMIC org.apache.river.start.NonActivatableServiceDescriptor  -  | codebase:java.lang.String, policy:java.lang.String, classpath:java.lang.String, implClassName:java.lang.String, serverConfigArgs:[Ljava.lang.String;
+ATOMIC org.apache.river.start.SharedActivatableServiceDescriptor  -  | sharedGroupLog:java.lang.String, restart:boolean, host:java.lang.String, port:int
+ATOMIC org.apache.river.start.SharedActivationGroupDescriptor  -  | policy:java.lang.String, classpath:java.lang.String, log:java.lang.String, serverCommand:java.lang.String, serverOptions:[Ljava.lang.String;, serverProperties:[Ljava.lang.String;, host:java.lang.String, port:int
+ATOMIC org.apache.river.start.SharedActivationPolicyPermission  -  | policy:java.lang.String
