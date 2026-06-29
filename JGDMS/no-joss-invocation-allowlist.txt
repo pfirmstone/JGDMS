@@ -1,0 +1,21 @@
+# Allowlist for check-no-joss-invocation.sh
+#
+# Files permitted to instantiate (`new BasicILFactory(...)`) or extend
+# (`extends BasicILFactory`) the JOSS-based invocation layer. Every other
+# main-source site is a forbidden new pre-authentication JOSS deserialization
+# surface — use net.jini.jeri.AtomicILFactory instead.
+#
+# Entries are path fragments matched as substrings against the source path.
+
+# --- Framework (permanent): the AtomicSerial/DER/ProxyTrust factories that
+#     subclass BasicILFactory to override its marshal stream. These are the fix. ---
+jgdms-jeri/src/main/java/net/jini/jeri/AtomicILFactory.java
+jgdms-jeri/src/main/java/net/jini/jeri/AtomicDerILFactory.java
+jgdms-jeri/src/main/java/net/jini/jeri/ProxyTrustILFactory.java
+
+# --- Known debt (TO MIGRATE to AtomicILFactory; remove entries as fixed) ---
+phoenix-activation/phoenix/src/main/java/org/apache/river/phoenix/SystemAccessILFactory.java
+phoenix-activation/phoenix-common/src/main/java/org/apache/river/phoenix/common/AccessILFactory.java
+browser/src/main/java/org/apache/river/example/browser/Browser.java
+browser/src/main/java/org/apache/river/example/browser/ServiceEditor.java
+extra/src/main/java/org/apache/river/extra/helpers/ExportHelper.java
