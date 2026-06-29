@@ -70,6 +70,21 @@
                         <maxmem>1024m</maxmem>
                     </configuration>
             </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!--
+                      AccessILFactoryAtomicRoundTripTest exports via JERI, which
+                      resolves classes through RMIClassLoader. A resources jar on
+                      the classpath declares the PreferredClassProvider
+                      RMIClassLoaderSpi whose impl (jgdms-pref-class-loader) is
+                      not a test dependency here; for the in-JVM round-trip the
+                      JDK default provider suffices and avoids the unresolved-SPI
+                      failure. The full preferred-class path is covered in qa.
+                    -->
+                    <argLine>-Djava.rmi.server.RMIClassLoaderSpi=default</argLine>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
