@@ -120,7 +120,6 @@ ATOMIC org.apache.river.api.io.ListSerializer  -  | elements:[Ljava.lang.Object;
 ATOMIC org.apache.river.api.io.MapSerializer  -  | entrySet:[Lorg.apache.river.api.io.MapSerializer$Ent;, comparator:java.util.Comparator
 ATOMIC org.apache.river.api.io.MapSerializer$Ent  -  | key:java.lang.Object, value:java.lang.Object, keyClass:java.lang.Class, valueClass:java.lang.Class
 ATOMIC org.apache.river.api.io.MarshalledObjectSerializer  -  | instance:net.jini.io.MarshalledInstance
-ATOMIC org.apache.river.api.io.PermissionSerializer  -  | targetType:java.lang.Class, unresolvedType:java.lang.String, targetName:java.lang.String, targetActions:java.lang.String
 ATOMIC org.apache.river.api.io.PropertiesSerializer  -  | m:org.apache.river.api.io.MapSerializer
 ATOMIC org.apache.river.api.io.ProxySerializer  -  | bootstrapProxy:net.jini.export.CodebaseAccessor, serviceProxy:net.jini.io.MarshalledInstance
 ATOMIC org.apache.river.api.io.SetSerializer  -  | content:[Ljava.lang.Object;, comparator:java.util.Comparator
