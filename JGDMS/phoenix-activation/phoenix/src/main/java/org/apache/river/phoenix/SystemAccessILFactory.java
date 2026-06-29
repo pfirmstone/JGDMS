@@ -26,8 +26,8 @@ import java.rmi.server.ExportException;
 import java.util.Collection;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
-import net.jini.jeri.BasicILFactory;
-import net.jini.jeri.BasicInvocationDispatcher;
+import net.jini.jeri.AtomicILFactory;
+import net.jini.jeri.AtomicInvocationDispatcher;
 import net.jini.jeri.InvocationDispatcher;
 import net.jini.jeri.ServerCapabilities;
 import org.apache.river.phoenix.common.LocalAccess;
@@ -48,7 +48,7 @@ import org.apache.river.phoenix.dl.SystemPermission;
  * @since 2.0
  * @see SystemAccessProxyTrustILFactory
  **/
-public class SystemAccessILFactory extends BasicILFactory {
+public class SystemAccessILFactory extends AtomicILFactory {
     /**
      * The group policy, if any.
      */
@@ -169,7 +169,7 @@ public class SystemAccessILFactory extends BasicILFactory {
      * {@link GroupPolicy} on calls to <code>registerGroup</code> and
      * <code>setActivationGroupDesc</code>.
      */
-    public static class SystemDispatcher extends BasicInvocationDispatcher {
+    public static class SystemDispatcher extends AtomicInvocationDispatcher {
 	/**
 	 * The group policy, if any.
 	 */
@@ -235,7 +235,7 @@ public class SystemAccessILFactory extends BasicILFactory {
 				ClassLoader loader)
 	    throws ExportException
 	{
-	    super(methods, serverCaps, serverConstraints, permClass, loader);
+	    super(methods, serverCaps, serverConstraints, permClass, loader, false);
 	    if (impl == null) {
 		throw new NullPointerException("impl is null");
 	    }

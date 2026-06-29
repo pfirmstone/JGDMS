@@ -23,8 +23,8 @@ import java.rmi.server.ExportException;
 import java.rmi.Remote;
 import java.util.Collection;
 import net.jini.core.constraint.InvocationConstraints;
-import net.jini.jeri.BasicILFactory;
-import net.jini.jeri.BasicInvocationDispatcher;
+import net.jini.jeri.AtomicILFactory;
+import net.jini.jeri.AtomicInvocationDispatcher;
 import net.jini.jeri.InvocationDispatcher;
 import net.jini.jeri.ServerCapabilities;
 
@@ -39,7 +39,7 @@ import net.jini.jeri.ServerCapabilities;
  * 
  * @since 2.0
  **/
-public class AccessILFactory extends BasicILFactory {
+public class AccessILFactory extends AtomicILFactory {
 
     /**
      * Creates an <code>AccessILFactory</code>instance with no server
@@ -47,6 +47,7 @@ public class AccessILFactory extends BasicILFactory {
      * loader.
      **/
     public AccessILFactory() {
+	this((ClassLoader) null);   // AtomicILFactory has no no-arg ctor; null loader
     }
 
     /**
@@ -85,7 +86,7 @@ public class AccessILFactory extends BasicILFactory {
      * A subclass of {@link BasicInvocationDispatcher} that only accepts
      * calls from the local host.
      */
-    public static class AccessDispatcher extends BasicInvocationDispatcher {
+    public static class AccessDispatcher extends AtomicInvocationDispatcher {
 	/**
 	 * Constructs an invocation dispatcher for the specified methods.
 	 *
@@ -107,7 +108,7 @@ public class AccessILFactory extends BasicILFactory {
 				ClassLoader loader)
 	    throws ExportException
 	{
-	    super(methods, caps, null, null, loader);
+	    super(methods, caps, null, null, loader, false);
 	}
 
 	/**
