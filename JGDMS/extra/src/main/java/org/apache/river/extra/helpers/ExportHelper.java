@@ -30,7 +30,7 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.export.Exporter;
 import net.jini.id.Uuid;
-import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.InvocationLayerFactory;
 import net.jini.jeri.ServerEndpoint;
@@ -68,7 +68,7 @@ public class ExportHelper
             component = getComponent(cls);
         }
 
-        Exporter exp = getExporter(component);
+        Exporter exp = getExporter(component, cls.getClassLoader());
 
         final Remote exportedObj = exp.export(obj);
 
@@ -82,11 +82,20 @@ public class ExportHelper
     public Exporter getExporter( String component )
         throws ConfigurationException
     {
+        // Public entry point: no exported type in hand, so default the class
+        // loader (used by AtomicILFactory to resolve marshalled types) to the
+        // context loader. export(obj, cls, ...) uses cls's loader instead.
+        return getExporter(component, Thread.currentThread().getContextClassLoader());
+    }
+
+    private Exporter getExporter( String component, ClassLoader loader )
+        throws ConfigurationException
+    {
         Exporter exp = (Exporter) configuration.getEntry(component, EXPORTER, Exporter.class, null);
 
         if( exp == null ) {
             ServerEndpoint se = getServerEndpoint(component);
-            InvocationLayerFactory ilf = getILFactory(component);
+            InvocationLayerFactory ilf = getILFactory(component, loader);
             boolean keepAlive = getKeepAlive(component);
             boolean dgc = getDgc(component);
             Uuid uuid = getUuid(component);
@@ -97,7 +106,7 @@ public class ExportHelper
         return exp;
     }
 
-    private InvocationLayerFactory getILFactory( String component )
+    private InvocationLayerFactory getILFactory( String component, ClassLoader loader )
         throws ConfigurationException
     {
         InvocationLayerFactory ilf = (InvocationLayerFactory) configuration.getEntry(component, ILF, InvocationLayerFactory.class, null);
@@ -110,10 +119,12 @@ public class ExportHelper
                 ic = InvocationConstraints.EMPTY ;
             }
             MethodConstraints serverConstraints = new BasicMethodConstraints(ic);
-            ilf = new BasicILFactory(serverConstraints,null);
+            // AtomicILFactory (AtomicSerial) instead of BasicILFactory (JOSS):
+            // removes the pre-authentication deserialization gadget surface.
+            ilf = new AtomicILFactory(serverConstraints, null, loader);
             //ilf = new ProxyTrustILFactory(serverConstraints,null);
         }
-        
+
         return ilf ;
     }
 

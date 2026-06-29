@@ -14,8 +14,10 @@ jgdms-jeri/src/main/java/net/jini/jeri/AtomicDerILFactory.java
 jgdms-jeri/src/main/java/net/jini/jeri/ProxyTrustILFactory.java
 
 # --- Known debt (TO MIGRATE to AtomicILFactory; remove entries as fixed) ---
+# phoenix: these override createInvocationDispatcher to return a custom
+# BasicInvocationDispatcher subclass (SystemDispatcher/AccessDispatcher), so
+# migrating to atomic marshalling means re-basing those dispatchers onto
+# AtomicInvocationDispatcher (not just re-parenting the factory). Deferred until
+# the in-flight Atomic*Dispatcher work settles.
 phoenix-activation/phoenix/src/main/java/org/apache/river/phoenix/SystemAccessILFactory.java
 phoenix-activation/phoenix-common/src/main/java/org/apache/river/phoenix/common/AccessILFactory.java
-browser/src/main/java/org/apache/river/example/browser/Browser.java
-browser/src/main/java/org/apache/river/example/browser/ServiceEditor.java
-extra/src/main/java/org/apache/river/extra/helpers/ExportHelper.java

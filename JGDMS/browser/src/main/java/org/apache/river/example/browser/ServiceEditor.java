@@ -74,7 +74,7 @@ import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.export.Exporter;
-import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lookup.DiscoveryAdmin;
@@ -225,7 +225,7 @@ class ServiceEditor extends JFrame {
 				 "listenerExporter", Exporter.class,
 				 new BasicJeriExporter(
 					     TcpServerEndpoint.getInstance(0),
-					     new BasicILFactory(),
+					     new AtomicILFactory(null, null, Browser.class.getClassLoader()),
 					     false, false));
       proxy = (RemoteEventListener) exporter.export(this);
     }
