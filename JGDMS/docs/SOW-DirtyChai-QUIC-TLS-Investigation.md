@@ -334,8 +334,10 @@ TODO/`throw`/unimplemented markers.
 
 ## 5. Deliverable
 
-A single ADVICE markdown, **`DirtyChai/ADVICE-quic-tls-exposure-2026-06-30.md`** (repo-root,
-documentation — permitted), containing:
+A single ADVICE markdown — **`ADVICE-quic-tls-exposure-2026-06-30.md`**, placed in
+**`JGDMS/JGDMS/docs/`** (moved here from the DirtyChai repo root at Peter's request, 2026-06-30,
+to keep the artifact on the writable JGDMS side and avoid the DirtyChai AI-contribution-policy
+question entirely — it advises about DirtyChai but modifies nothing there), containing:
 
 1. **Verdict:** Go / No-Go / Go-with-caveats on Path A, in the first paragraph.
 2. **Minimal DirtyChai change-set as a human-implementable proposal** — exact files, the

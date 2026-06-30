@@ -244,8 +244,23 @@ That blocker is now understood to be **load-bearing**: not just the
 `isUsableWithQuic()` → `X509TrustManagerImpl` gate (§3b) but a downstream hard-throw in
 `sun.security.ssl.CertificateMessage` (a custom trust manager fails the QUIC handshake even
 with the gate relaxed), rooted in an SPI-shape mismatch (`QuicTLSEngineImpl` is not an
-`SSLEngine`). The summary below frames the two architectures; defer to that doc for Path A.
-Spike to answer:
+`SSLEngine`).
+
+**INVESTIGATION COMPLETE (2026-06-30) — verdict: Path A is GO-WITH-CAVEATS.** Full Q1–Q7
+answers with source evidence are in `ADVICE-quic-tls-exposure-2026-06-30.md` (this docs dir).
+Headlines: the DirtyChai side is a **small, P2-defensible change** — accept a custom
+`X509ExtendedTrustManager` in QUIC mode via a `CertificateMessage` branch (option (c)) plus
+the `isUsableWithQuic` relaxation, fenced so SunJSSE's own path is untouched. The **key-manager
+side, peer-cert/`SSLSession` extraction, and the server handshake already work** with JGDMS's
+managers, no DirtyChai change (Q2/Q3/Q7) — notably, JGDMS's constraint-driven selection lives in
+the legacy `chooseClientAlias`/`chooseServerAlias` overloads, which is exactly what QUIC's
+fallback calls. **0-RTT is unimplemented**, so the early-data hazard is moot today (Q5). The
+**dominant cost is JGDMS-side**: the JDK QUIC *transport* is client-only and encapsulated (no
+accept path, not exported), ~32k LOC — so **JGDMS builds its own QUIC transport** on the exposed
+engine (Q6), as §3b's "relocated cost" already anticipated. **Top pre-Path-A risk: mTLS over
+QUIC *server* mode is wired-but-UNTESTED** — no JDK test sets client-auth on a QUIC server; since
+JGDMS mTLS is mandatory, a client-auth QUIC handshake test is the first thing to write (Q7).
+The summary below frames the two architectures; defer to that doc for Path A. Spike to answer:
 1. **Two architectures** (JDK confirmed client-only + no public QUIC API, JEP 517):
    - **A — clean / DirtyChai (preferred):** DirtyChai exposes SunJSSE's existing
      QUIC-TLS provider-SPI (a QUIC-mode `SSLEngine`); JGDMS builds the QUIC *transport*
