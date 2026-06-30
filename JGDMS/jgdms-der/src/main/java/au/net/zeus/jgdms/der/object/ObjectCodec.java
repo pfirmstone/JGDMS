@@ -20,6 +20,7 @@ package au.net.zeus.jgdms.der.object;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
+import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
@@ -36,9 +37,11 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
 import java.math.BigInteger;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -143,6 +146,28 @@ public final class ObjectCodec {
     private static final Permission ATOMIC = new DeSerializationPermission("ATOMIC");
 
     /**
+     * The {@link DeSerializationPermission} required to reconstruct a nested
+     * {@code java.lang.reflect.Proxy} field value (the field-level counterpart of the
+     * object-stream {@code [8]} gate in {@code DerObjectStreamCodec}; mirrors JOSS
+     * {@code deSerializationPermitted(PROXY)}).
+     */
+    private static final Permission PROXY = new DeSerializationPermission("PROXY");
+
+    /**
+     * Maximum number of interfaces a nested {@code java.lang.reflect.Proxy} field value
+     * may declare (matches {@code DerObjectStreamCodec.MAX_PROXY_INTERFACES}); bounds the
+     * {@code [8]} interface-name list against a hostile stream.
+     */
+    private static final int MAX_PROXY_INTERFACES = 127;
+
+    /**
+     * {@code [8]} context-constructed tag: a nested {@code java.lang.reflect.Proxy} field
+     * value (interface names + the {@code @AtomicSerial} InvocationHandler). Identical tag
+     * to the object-stream {@code CTX_PROXY} so the two layers share one wire discriminator.
+     */
+    private static final Tag CTX_PROXY = new Tag(Tag.CLASS_CONTEXT, true, 8);
+
+    /**
      * Per-class {@code DeSerializationPermission("ATOMIC")} gate (STD-008): before
      * any {@code @AtomicSerial (GetArg)} constructor runs, every class in the
      * hierarchy whose constructor will execute must have
@@ -191,6 +216,42 @@ public final class ObjectCodec {
                             domains.toArray(new ProtectionDomain[0]));
                 });
         sm.checkPermission(ATOMIC, ctx);
+    }
+
+    /**
+     * {@code DeSerializationPermission("PROXY")} gate for reconstructing a nested
+     * {@code java.lang.reflect.Proxy} field value; no-op without a {@link SecurityManager}.
+     * The field-level counterpart of {@code DerObjectStreamCodec.checkProxyDeSerializationPermitted}.
+     */
+    private static void checkProxyDeSerializationPermitted(Class<?>[] interfaces) {
+        checkProxyDeSerializationPermitted(interfaces, System.getSecurityManager());
+    }
+
+    /**
+     * Testable seam for the nested-proxy {@code DeSerializationPermission("PROXY")} gate. The
+     * permission is checked against an {@link AccessControlContext} built from the proxy
+     * interfaces' protection domains, so a deployment governs which interface codebases may be
+     * reconstructed as a proxy from an untrusted stream.
+     *
+     * @param interfaces the resolved proxy interfaces about to be reconstructed
+     * @param sm         the active security manager, or {@code null}
+     * @throws SecurityException if {@code sm} denies {@code DeSerializationPermission("PROXY")}
+     */
+    @SuppressWarnings("removal")
+    static void checkProxyDeSerializationPermitted(Class<?>[] interfaces, SecurityManager sm) {
+        if (sm == null) return;
+        AccessControlContext ctx = AccessController.doPrivileged(
+                (PrivilegedAction<AccessControlContext>) () -> {
+                    Set<ProtectionDomain> domains = new LinkedHashSet<>();
+                    for (Class<?> i : interfaces) {
+                        if (i == null) continue;
+                        ProtectionDomain pd = i.getProtectionDomain();
+                        if (pd != null) domains.add(pd);
+                    }
+                    return new AccessControlContext(
+                            domains.toArray(new ProtectionDomain[0]));
+                });
+        sm.checkPermission(PROXY, ctx);
     }
 
     private ObjectCodec() {
@@ -1256,6 +1317,19 @@ public final class ObjectCodec {
         }
 
         Class<?> cls = value.getClass();
+
+        // A nested java.lang.reflect.Proxy field value (e.g. AdminProxy.admin, declared as the
+        // OutriggerAdmin remote interface but holding a dynamic Proxy over an @AtomicSerial
+        // InvocationHandler) is encoded as a [8] CTX_PROXY field record: interface names + the
+        // @AtomicSerial handler, reconstructed at decode via Proxy.newProxyInstance. This mirrors
+        // the object-stream top-level [8] in DerObjectStreamCodec; the handler rides as a nested
+        // @AtomicSerial value, so it reuses the nested path's depth bound, ResolutionContext and
+        // DGC decode-unit threading. (Resolved BEFORE nearestAtomicSerial below, since a Proxy's
+        // own hierarchy -- Proxy -> Object -- carries no @AtomicSerial class.)
+        if (Proxy.isProxyClass(cls)) {
+            return encodeProxy(value, fieldName, depth);
+        }
+
         // S3.10 wire-visibility: a value whose runtime class is not itself @AtomicSerial but
         // which extends an @AtomicSerial class is encoded as that @AtomicSerial superclass (its
         // subclass-only state is not wire-visible) -- exactly as the top-level decodeHierarchy
@@ -1263,9 +1337,8 @@ public final class ObjectCodec {
         // a final DerMarshalledInstance value travel as its @AtomicSerial MarshalledInstance
         // superclass and decode as a base MarshalledInstance via ServiceLoader dispatch
         // (@AtomicSerial is NOT @Inherited, so isAnnotationPresent on the subclass is false).
-        // Require SOME @AtomicSerial class in the hierarchy, else fail clearly (a bare
-        // java.lang.reflect.Proxy with no @AtomicSerial ancestor is rejected here -- it travels
-        // only as a top-level object-stream [8] item, never as a nested field value).
+        // Require SOME @AtomicSerial class in the hierarchy, else fail clearly (a non-proxy value
+        // with no @AtomicSerial ancestor is rejected here; a dynamic Proxy is handled above).
         if (nearestAtomicSerial(cls) == null) {
             throw new DerException(
                     "ObjectCodec: nested field '" + fieldName
@@ -1285,6 +1358,44 @@ public final class ObjectCodec {
         children.add(DerWriter.writeOctetString(schemaChainBytes));
         children.add(DerWriter.writeOctetString(payloadBytes));
         return DerWriter.writeSequence(children);
+    }
+
+    /**
+     * Encodes a nested {@code java.lang.reflect.Proxy} field value as a {@code [8]} CTX_PROXY
+     * record: {@code INTEGER(interfaceCount) ++ UTF8String(interfaceName)* ++ <nested handler>},
+     * where the handler is its {@code @AtomicSerial} {@link InvocationHandler} carried via
+     * {@link #encodeNested} (so the proxy occupies one nesting level and the handler the next).
+     * The interface list travels because a proxy may implement more interfaces than the declared
+     * field type names. At decode {@link #decodeProxy} resolves the interfaces and rebuilds the
+     * proxy via {@code Proxy.newProxyInstance}.
+     *
+     * @param proxy     the dynamic proxy value (caller has verified {@code Proxy.isProxyClass})
+     * @param fieldName the field name (diagnostics)
+     * @param depth     the proxy's nesting depth; the handler is encoded at {@code depth + 1}
+     */
+    private static byte[] encodeProxy(Object proxy, String fieldName, int depth)
+            throws DerException {
+        Class<?>[] ifaces = proxy.getClass().getInterfaces();
+        if (ifaces.length == 0 || ifaces.length > MAX_PROXY_INTERFACES) {
+            throw new DerException("ObjectCodec: nested proxy field '" + fieldName
+                    + "' interface count " + ifaces.length
+                    + " out of range (1.." + MAX_PROXY_INTERFACES + ")");
+        }
+        InvocationHandler h = Proxy.getInvocationHandler(proxy);
+        if (nearestAtomicSerial(h.getClass()) == null) {
+            throw new DerException("ObjectCodec: nested proxy field '" + fieldName
+                    + "' InvocationHandler " + h.getClass().getName()
+                    + " is not @AtomicSerial");
+        }
+        ByteArrayOutputStream content = new ByteArrayOutputStream();
+        content.writeBytes(DerWriter.writeInteger(BigInteger.valueOf(ifaces.length)));
+        for (Class<?> i : ifaces) {
+            content.writeBytes(DerWriter.writeUtf8String(i.getName()));
+        }
+        // Handler as a nested @AtomicSerial value (depth + 1): reuses the depth bound,
+        // ResolutionContext and DGC decode-unit threading of the nested-field path.
+        content.writeBytes(encodeNested(h, fieldName + ".proxyHandler", depth + 1));
+        return DerWriter.writeTlv(CTX_PROXY, content.toByteArray());
     }
 
     /** The nearest class in {@code c}'s hierarchy annotated {@code @AtomicSerial}, or null if none. */
@@ -1354,6 +1465,10 @@ public final class ObjectCodec {
             }
             return null;
         }
+        // [8] CTX_PROXY -> a nested java.lang.reflect.Proxy field value (see encodeProxy).
+        if (CTX_PROXY.equals(new DerReader(nestedRecordBytes).peekTag())) {
+            return decodeProxy(nestedRecordBytes, depth, decodeUnit, resolution);
+        }
         // SEQUENCE { OCTET STRING(schemaChainBytes), OCTET STRING(payloadBytes) }
         DerReader outer = new DerReader(nestedRecordBytes);
         DerReader seq = outer.readSequence();
@@ -1386,6 +1501,74 @@ public final class ObjectCodec {
         // DER replacement: if the decoded value is a serializer (implements Resolve),
         // rebuild the original object via readResolve(); otherwise pass it through.
         return au.net.zeus.jgdms.der.serial.DerReplacer.resolve(decoded);
+    }
+
+    /**
+     * Decodes a nested {@code [8]} CTX_PROXY field record produced by {@link #encodeProxy} and
+     * reconstructs the dynamic {@code java.lang.reflect.Proxy}. Interfaces are resolved through
+     * the {@link ResolutionContext} (the endpoint-assigned loader -- never the thread-context
+     * loader, per Warres); a {@code DeSerializationPermission("PROXY")} gate runs before
+     * reconstruction, mirroring the object-stream {@code [8]} path.
+     *
+     * @param proxyTlv   the raw {@code [8]} CTX_PROXY TLV bytes
+     * @param depth      the proxy's nesting depth (the handler decodes at {@code depth + 1})
+     * @param decodeUnit the per-decode-unit completion sink (DGC batching), or {@code null}
+     * @param resolution the endpoint resolution context for class/proxy loading
+     */
+    private static Object decodeProxy(byte[] proxyTlv, int depth,
+                                      DeserializationCompletion decodeUnit,
+                                      ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
+        DerReader r = new DerReader(proxyTlv);
+        DerReader.TlvHeader hdr = r.readTlvHeader();
+        if (!CTX_PROXY.equals(hdr.tag())) {
+            throw new DerException("ObjectCodec.decodeProxy: expected [8] CTX_PROXY, got " + hdr.tag());
+        }
+        byte[] content = r.readRawContent(hdr.contentLength());
+        if (r.hasMore()) {
+            throw new DerException("ObjectCodec.decodeProxy: trailing bytes after [8] proxy TLV");
+        }
+        DerReader pr = new DerReader(content);
+        int count;
+        try {
+            count = pr.readInteger().intValueExact();
+        } catch (ArithmeticException e) {
+            throw new DerException("ObjectCodec.decodeProxy: interface count overflow", e);
+        }
+        if (count <= 0 || count > MAX_PROXY_INTERFACES) {
+            throw new DerException("ObjectCodec.decodeProxy: interface count " + count
+                    + " out of range (1.." + MAX_PROXY_INTERFACES + ")");
+        }
+        String[] names = new String[count];
+        for (int i = 0; i < count; i++) {
+            names[i] = pr.readUtf8String();
+        }
+        // The handler is the single remaining TLV (a nested @AtomicSerial record).
+        int start = pr.position();
+        DerReader.TlvHeader hh = pr.readTlvHeader();
+        pr.readRawContent(hh.contentLength());
+        int end = pr.position();
+        if (pr.hasMore()) {
+            throw new DerException(
+                    "ObjectCodec.decodeProxy: trailing bytes after handler in [8] proxy content");
+        }
+        byte[] handlerTlv = Arrays.copyOfRange(content, start, end);
+        Object handler = decodeNested(handlerTlv, depth + 1, decodeUnit, resolution);
+        if (!(handler instanceof InvocationHandler)) {
+            throw new DerException("ObjectCodec.decodeProxy: handler is not an InvocationHandler ("
+                    + (handler == null ? "null" : handler.getClass().getName()) + ")");
+        }
+        // Endpoint-assigned resolution of the proxy class (the raw loader stays inside the
+        // ResolutionContext); the DeSerializationPermission("PROXY") gate runs on its interfaces.
+        Class<?> proxyClass = resolution.loadProxyClass(names);
+        Class<?>[] ifaces = proxyClass.getInterfaces();
+        checkProxyDeSerializationPermitted(ifaces);
+        try {
+            return Proxy.newProxyInstance(
+                    proxyClass.getClassLoader(), ifaces, (InvocationHandler) handler);
+        } catch (IllegalArgumentException e) {
+            throw new DerException("ObjectCodec.decodeProxy: proxy reconstruction failed", e);
+        }
     }
 
     /**
