@@ -1,0 +1,16 @@
+grant codeBase "jrt:/-" {
+    permission java.security.AllPermission;
+};
+
+// Test code loads + runs freely; this does NOT decide the check, which turns on
+// the synthetic file:/synthetic probe domain (granted nothing here).
+grant codeBase "file:${test.classes}/-" {
+    permission java.security.AllPermission;
+};
+
+// The ONLY grant of the gated permission — conjunctive, matched only after the
+// live SM path folds BOTH principals onto the probe domain.
+grant principal javax.security.auth.x500.X500Principal "CN=alice",
+      principal javax.security.auth.x500.X500Principal "CN=bob" {
+    permission java.lang.RuntimePermission "multiSubject.bothPartiesRequired";
+};

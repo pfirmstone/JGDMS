@@ -1,0 +1,27 @@
+// Platform modules need their grants back: jtreg installs this policy as an
+// override (==), which otherwise strips them — e.g. the CLDR locale provider
+// load during DirtyChai's DigestCodeSource computation when defining a class
+// from a file: codebase. The synthetic file:/synthetic query domain below is
+// deliberately NOT covered here, so it stays principal-gated.
+grant codeBase "jrt:/-" {
+    permission java.security.AllPermission;
+};
+
+// Run the test code (and let the harness query the policy) freely.
+grant codeBase "file:${test.classes}/-" {
+    permission java.security.AllPermission;
+};
+
+// The conjunctive n-party grant: BOTH requires principal ALICE AND principal BOB.
+grant principal javax.security.auth.x500.X500Principal "CN=alice",
+      principal javax.security.auth.x500.X500Principal "CN=bob" {
+    permission java.lang.RuntimePermission "multiSubject.bothPartiesRequired";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=alice" {
+    permission java.lang.RuntimePermission "multiSubject.aliceOnly";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=bob" {
+    permission java.lang.RuntimePermission "multiSubject.bobOnly";
+};

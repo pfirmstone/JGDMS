@@ -1,0 +1,2 @@
+grant codeBase "jrt:/-" { permission java.security.AllPermission; };
+grant codeBase "file:${test.classes}/-" { permission java.security.AllPermission; };
