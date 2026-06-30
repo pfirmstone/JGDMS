@@ -1,9 +1,11 @@
 # JGDMS-STD-003: Multi-Subject Identity Architecture
 
-**Status:** Draft  
-**Version:** 1.0  
+**Status:** SUPERSEDED — see `JGDMS-STD-003-MultiSubjectIdentityArchitecture-v3.md` (v3.3+).  
+**Version:** 1.0 (historical)  
 **Applies to:** DirtyChai (JDK fork), JGDMS  
 **Supersedes:** Ad-hoc two-Subject model documented in AI Agent context v8–v16  
+
+> ⚠️ **SUPERSEDED.** This is the original draft; the current model is in **v3**. Kept for history only.
 
 ---
 

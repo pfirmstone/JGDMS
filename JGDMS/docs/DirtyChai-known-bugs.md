@@ -3,7 +3,26 @@
 ## BUG-001 — `Subject.getSubject(AccessControlContext)` always throws `MissingResourceException`
 
 ### Status
-Open — reproduced against `openjdk version "27-internal" 2026-09-15 (build 27-internal-adhoc.peter.DirtyChai)`.
+**Fixed** — current DirtyChai source (verified 2026-07-01) applies the restructured null-check
+recommended below: the resource lookup now runs **only** when `acc == null`. Originally reproduced
+against `openjdk version "27-internal" (build 27-internal-adhoc.peter.DirtyChai)`.
+
+> **Resolution / current behaviour.** `Subject.getSubject(AccessControlContext)` (`Subject.java:338`)
+> now reads:
+> ```java
+> public static Subject getSubject(final AccessControlContext acc) {
+>     if (acc == null) {
+>         throw new NullPointerException(
+>             ResourcesMgr.getString("invalid.null.AccessControlContext.provided"));
+>     }
+>     return current();   // acc is null-checked, then IGNORED
+> }
+> ```
+> A non-null `acc` no longer triggers the resource lookup, so there is no `MissingResourceException`.
+> Note the method is now a **deprecated shim that ignores its `acc` argument and returns `current()`**
+> (the scoped user subject) — it does **not** recover a subject captured in the `acc`. JGDMS code
+> should prefer `Subject.current()`; the broad `catch (Exception)` workaround below is now harmless
+> but unnecessary.
 
 ### Affected method
 `javax.security.auth.Subject.getSubject(AccessControlContext acc)` — `java.base` module.
@@ -90,3 +109,65 @@ if (acc == null) {
 ### Fix required in DirtyChai — repository pointer
 File to patch: `src/java.base/share/classes/javax/security/auth/Subject.java`, method `getSubject`.
 Resource bundle: `src/java.base/share/classes/sun/security/util/resources/security.properties` (or `.java`).
+
+---
+
+## BUG-002 — `AccessControlContext.optimize()` throws `ArrayIndexOutOfBoundsException` on an empty assigned context
+
+### Status
+**Fixed — 2026-07-01** (guard added: `acc.context.length > 0`). A latent **inherited** OpenJDK
+defect exposed by DirtyChai's `ScopedValue` subject-propagation rework; never reachable on stock
+OpenJDK.
+
+### Affected method
+`java.security.AccessControlContext.optimize()` — `java.base` module. Reached from
+`AccessController.getContext()` → `optimize()`, i.e. from any permission check under an installed
+`SecurityManager`.
+
+### Root cause
+`optimize()` carried an old OpenJDK shortcut that dereferences `acc.context[0]` without a length
+check:
+
+```java
+// before fix (AccessControlContext.java ~line 766)
+if ((slen == 1) && (context[0] == acc.context[0])) { ... }   // acc.context may be length 0
+```
+
+Upstream OpenJDK never reached this with an **empty** assigned context, because `Subject.doAs`/
+`doAsPrivileged` attach a `SubjectDomainCombiner` to the ACC, so `optimize()` takes the combiner
+branch instead. DirtyChai carries the user subject on a `ScopedValue` and folds at `getContext()`
+(no combiner retained on the ACC), so the non-combiner branch is taken; and
+`Subject.doAsPrivileged(subject, action, null)` builds an **empty** assigned context
+(`NULL_PD_ARRAY`). The first permission check inside the action (e.g. `Subject.current()` →
+`checkPermission` → `getContext` → `optimize`) then dereferenced `context[0]` on a zero-length
+array.
+
+### Consequence
+Under an installed `SecurityManager`, `Subject.doAsPrivileged(subject, action, null)` crashed with
+`ArrayIndexOutOfBoundsException: Index 0 out of bounds for length 0` (a fail-stop, **not** a
+`SecurityException`) whenever the `doPrivileged`-truncated stack had exactly one domain and the
+action performed a permission check. Every JGDMS `doAsPrivileged(…, null)` call site (Browser,
+DestroySharedGroup, ServiceStarter, AbstractActivationGroup, Activation) was affected. Surefire did
+not catch it (no SM installed there); it only surfaced under jtreg with a real SM.
+
+### Fix applied in DirtyChai
+Guard the shortcut with a length check (stricter than upstream's own `assigned != null` test,
+which would still miss a non-null but empty array):
+
+```java
+// AccessControlContext.java:766 (fixed)
+if ((slen == 1) && acc.context.length > 0 && (context[0] == acc.context[0])) { ... }
+```
+
+An empty assigned context falls through to the general combine path, which already handles
+`acc.context.length == 0`.
+
+### Regression
+`qa/jtreg/org/apache/river/api/security/doAsPrivNullAcc/DoAsPrivilegedNullAccTest`
+(`-Djava.security.manager=default`): `doAsPrivileged(plain, Subject::current, null)` standalone and
+nested in `callAs(USER)` — both green, no AIOOBE, user replaced.
+
+### Repository pointer
+File: `src/java.base/share/classes/java/security/AccessControlContext.java`, method `optimize()`
+(~line 766). Background: DirtyChai `SECURITY_MODEL.md` §10.4 (ScopedValue fold vs upstream
+combiner-on-ACC).

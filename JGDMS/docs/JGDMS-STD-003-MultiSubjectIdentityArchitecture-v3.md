@@ -1,13 +1,30 @@
 # JGDMS-STD-003: Multi-Subject Identity Architecture
 
 **Status:** Draft  
-**Version:** 3.2  
+**Version:** 3.3  
 **Applies to:** DirtyChai (JDK fork), JGDMS  
-**Supersedes:** JGDMS-STD-003 v3.1  
+**Supersedes:** JGDMS-STD-003 v3.2  
 
 ---
 
 ## Change Log
+
+### v3.3 changes from v3.2 (2026-07-01)
+
+Corrects the ACC/combiner *plumbing* description to match source (the identity model is
+unchanged). The `getContext()` listing (§8.1) is rewritten from the old per-subject loop to the
+single `SubjectDomainCombiner.currentAll()` fold (`combine(current, null)`); the combiner is
+folded-and-discarded, **not** retained on the ACC (`acc.getDomainCombiner()` is normally `null`).
+Gate 2 (§10.5) and the §12 endpoint tables now bind the user subject with `Subject.callAs` — a
+sealed `UserSubject` is rejected by `doAs`/`doAsPrivileged`. `getSubject(acc)` is clarified as a
+deprecated shim that ignores its `acc` and returns `current()` (there is no "ACC fallback"). Added
+the upstream divergence (ScopedValue + fold-at-`getContext()` vs combiner-on-ACC) and the fixed
+`AccessControlContext.optimize()` AIOOBE on `doAsPrivileged(…, null)` (new §8.2). Sharpened n-party
+wording to conjunctive intersection (`containsAll`). Reworked §14.4 into the `doAs`/`doAsPrivileged`
+**deprecation decision** (identity is orthogonal to the code boundary; `doAs` conflates them →
+soft-`@Deprecated` now with DirtyChai's own rationale, `forRemoval` gated on the Kerberos-GSS and
+legacy-JAAS blockers in §6.2; `getSubject(acc)` stays `forRemoval`). Added §13.5 — a `sudo`-style
+privilege-elevation policy example (one user + admin role, co-present via the varargs `callAs`).
 
 ### v3.2 changes from v3.1
 
@@ -33,7 +50,7 @@ concern how a received ACC is scored and how `AccessPermission` is gated.
 - **Two-gate authorization (new §10.5).** `AccessPermission` is evaluated over two separate
   anchors, never one merged ACC: **Gate 1** workload `AccessPermission` over the remote
   connection ACC (always), **Gate 2** user `AccessPermission` over the validated user subject
-  via `Subject.doAs` (opt-in). Admin/sensitive methods require **both**. The ambient
+  via `Subject.callAs` (opt-in). Admin/sensitive methods require **both**. The ambient
   `WorkerSubject` is never passed to `doAs`/`callAs` — Gate 2 carries the user subject only.
 
 - **Per-receiver JWT validation (new §10.6, D2).** User JWTs are validated per receiver on
@@ -190,6 +207,14 @@ routing logic must rely on principal inspection rather than type dispatch.
 **Remote process identity contaminates local grants.** Injecting remote process
 principals into local `ProtectionDomain`s would cause grants to require those remote
 principals permanently, breaking policy stability as remote workers change.
+
+> The limitations above describe **upstream OpenJDK**. DirtyChai resolves them by the sealed
+> hierarchy (§4), the ambient class-load-stamped `WorkerSubject` (which is in the domain, so it
+> survives `doPrivileged`), and the `SCOPED_SUBJECT` `ScopedValue` for users (which also survives
+> `doPrivileged`) folded at `getContext()` (§8). Because `AccessController.checkPermission` routes
+> through `getContext()`, this fold is applied for the stock `SecurityManager` and
+> `CombinerSecurityManager` identically — there is no "only the combiner-aware SM sees the Subject"
+> caveat.
 
 ### 2.2 Design Goals
 
@@ -393,7 +418,7 @@ The vanilla `Subject` class represents a locally-authenticated user via JAAS
 `LoginContext` (Kerberos, etc.). Retains existing semantics for backwards compatibility.
 
 **Key properties:**
-- `Subject.doAs()` routes to this type — unchanged legacy semantics
+- `Subject.doAs()` accepts this (vanilla) type — but `doAs` now **replaces** the bound user (it no longer accumulates the enclosing subject) and installs a code-only `doPrivileged` boundary; soft-deprecated, prefer `callAs` (§6.1, §14.4)
 - `Subject.current()` returns `subject[0]` which may be a vanilla `Subject`
 - Used by `KerberosEndpoint` for GSS credential acquisition
 - Survives `doPrivileged` when carried on `SCOPED_SUBJECT`
@@ -619,7 +644,9 @@ public static <T> T doAs(Subject subject, PrivilegedAction<T> action) {
 
 ### 6.2 Retained Uses
 
-`Subject.doAs()` is retained for:
+`Subject.doAs()`/`doAsPrivileged()` are to be soft-deprecated (prefer `callAs` + explicit
+`doPrivileged`; see §14.4) but retained — and these two uses are exactly the blockers that gate
+`forRemoval`:
 - **Kerberos GSS-API** — JDK GSS-API reads `Subject` from ACC internally;
   this is a JDK constraint, not a JGDMS one
 - **Legacy JAAS** — `AbstractJiniService` `LoginContext` subjects
@@ -664,36 +691,69 @@ JGDMS Spiffe Subject is refreshed internally for JERI SSL (TLS) connections.
 
 ---
 
-## 8. `AccessController.getContext()` — Multi-Subject Injection Loop
+## 8. `AccessController.getContext()` — Multi-Subject Injection
 
 ### 8.1 Implementation
 
+A **single** `SubjectDomainCombiner.currentAll()` folds **all** bound user subjects in one pass:
+`currentAll()` unions every scoped `UserSubject`'s principals (a `WorkerSubject` is never
+included) onto **one** multi-principal `ProtectionDomain`. There is no per-subject loop. (The
+earlier per-subject-loop form — a `new SubjectDomainCombiner(subject[i])` per iteration with
+`combine(acc.getContext(), acc.getContext())` — was incorrect: it produced N separate
+single-principal domains instead of one merged domain, breaking conjunctive *n*-party grants,
+and the double-pass re-added principal-less copies. Both are fixed.)
+
 ```java
-Subject[] subject = SubjectAccess.SCOPED.get(); // Subject[] via NoCheck trust chain
-if (subject != null) {
-    DomainCombiner existing = acc.getCombiner(); // captured once — never displaced
-    for (int i = 0, l = subject.length; i < l; i++) {
-        if (subject[i] instanceof WorkerSubject) continue; // already in domains
-        SubjectDomainCombiner sdc = new SubjectDomainCombiner(subject[i]);
-        ProtectionDomain[] combined = sdc.combine(acc.getContext(), acc.getContext());
+AccessControlContext acc = getStackAccessControlContext();
+if (acc == null) {
+    // privileged system code only — return a real (non-null) empty ACC
+    return AccessControlContext.create(null, true);
+}
+acc = acc.optimize();
 
-        AccessControlContext privileged = acc.privilegedContext();
-        if (privileged != null) {
-            ProtectionDomain[] combinedPrivileged = sdc.combine(
-                privileged.getContext(), privileged.getContext());
-            privileged = AccessControlContext.create(
-                combinedPrivileged, privileged.privilegedContext(),
-                privileged.getCombiner(), privileged.isPrivileged());
-        }
+SubjectDomainCombiner sdc = SubjectDomainCombiner.currentAll();
+if (sdc != null) {
+    DomainCombiner existing = acc.getCombiner();  // pre-existing stack combiner (normally null)
+    // NOTE: assignedDomains is null. Passing acc.getContext() here (the old double-pass)
+    // re-adds the raw, principal-less stack domains and is a bug.
+    ProtectionDomain[] combined = sdc.combine(acc.getContext(), null);
 
-        // existing combiner restored every iteration.
-        // acc.isPrivileged() preserved every iteration — erasing is a security error.
-        // Last iteration produces ACC with ALL subjects' principals merged.
-        acc = AccessControlContext.create(combined, privileged, existing, acc.isPrivileged());
+    AccessControlContext privileged = acc.privilegedContext();
+    if (privileged != null) {
+        ProtectionDomain[] combinedPrivileged = sdc.combine(privileged.getContext(), null);
+        privileged = AccessControlContext.create(
+            combinedPrivileged, privileged.privilegedContext(),
+            privileged.getCombiner(), privileged.isPrivileged());
     }
+    // acc.isPrivileged() preserved — erasing it is a security error.
+    acc = AccessControlContext.create(combined, privileged, existing, acc.isPrivileged());
 }
 return acc;
 ```
+
+The `SubjectDomainCombiner` is used **transiently** to compute the folded domains; it is **not**
+retained as the returned ACC's combiner (the returned combiner is the pre-existing stack
+`existing`, normally `null`, so `acc.getDomainCombiner()` is normally `null`). Because
+`AccessController.checkPermission` routes through `getContext()`, this fold applies to the stock
+`SecurityManager` and `CombinerSecurityManager` **identically** (see §2.1).
+
+### 8.2 Divergence from upstream OpenJDK, and a fixed `optimize()` defect
+
+This whole mechanism is a deliberate divergence from upstream OpenJDK. Upstream `Subject.doAs`/
+`doAsPrivileged` attach a `SubjectDomainCombiner` to the `AccessControlContext` (the subject is
+*carried on the ACC*). DirtyChai instead carries the user on the `SCOPED_SUBJECT` `ScopedValue`
+— which **survives `doPrivileged`** — and folds it at `getContext()` as shown above; nothing is
+retained on the ACC.
+
+That divergence exposed a latent inherited defect. `AccessControlContext.optimize()` carried an
+old OpenJDK shortcut that dereferenced `context[0]`; upstream never reached it with an **empty**
+assigned context because its combiner branch was taken instead. With the combiner gone,
+`Subject.doAsPrivileged(subject, action, null)` — which builds an empty assigned context
+(`NULL_PD_ARRAY`) — hit `[0]` on a zero-length array → `ArrayIndexOutOfBoundsException` on the
+first permission check inside the action, under an installed `SecurityManager`. **Fixed
+2026-07-01** with an `acc.context.length > 0` guard. DirtyChai-only; never affected stock
+OpenJDK. (Every JGDMS `doAsPrivileged(…, null)` call site depended on this fix; regression:
+`qa/jtreg/org/apache/river/api/security/doAsPrivNullAcc`.)
 
 ### 8.2 Injection Rules by Type
 
@@ -814,24 +874,27 @@ contexts with two separate anchors — never one merged ACC**:
   always runs; it answers "is this workload, over this connection, permitted to invoke this
   method on the mesh."
 - **Gate 2 — user.** Opt-in per method/interface. Tests the method's `AccessPermission`
-  against the **validated user subject** (`Subject.doAs(userSubject, … checkPermission(…))`),
-  where `userSubject` is a JWT identity validated per §10.6. This gate answers "is this
-  *human/principal* permitted to perform this operation."
+  against the **validated user subject** (`Subject.callAs(userSubject, () -> { … checkPermission(…); return null; })`),
+  where `userSubject` is a JWT identity validated per §10.6. A sealed `UserSubject` **must** use
+  `callAs` — `doAs`/`doAsPrivileged` throw on a `UserSubject` ("must use callAs()"), see §6.1.
+  This gate answers "is this *human/principal* permitted to perform this operation."
 - **Admin / sensitive methods require BOTH** — a trusted workload **and** an authorized
   admin user. Neither gate alone authorizes an administrative call: a trusted workload with
   no admin user is denied, and an admin JWT arriving over an untrusted workload is denied.
 
 The two gates are evaluated over two distinct anchors precisely so that the workload's
 authority and the user's authority cannot silently merge into a single elevated context.
-Identity is **additive** (a principal must be authenticated to count); codebases are
-**subtractive** (they only reduce — see §10.4). Mixing them in one ACC would let an
+Identity is **additive** — each principal adds authority only once independently
+authenticated, and a multi-principal grant is satisfied only when **all** required principals
+are co-present (conjunctive intersection, `PrincipalGrant.containsAll` — never a subset or an
+OR); codebases are **subtractive** (they only reduce — see §10.4). Mixing them in one ACC would let an
 authenticated workload's principals satisfy a check that should have required the user, or
 vice-versa.
 
 > **Constraint.** The ambient process `WorkerSubject` is **never** passed to
-> `Subject.doAs` / `Subject.callAs` (it is not a `UserSubject`; the varargs overload rejects
-> it and the legacy overload throws). The worker is reached only as the ambient identity via
-> `Subject.processWorker()` (§7.3). Gate 2's `doAs` carries the **user** subject only.
+> `Subject.doAs` / `Subject.callAs` (it is not a `UserSubject`; both overloads reject
+> a `WorkerSubject`). The worker is reached only as the ambient identity via
+> `Subject.processWorker()` (§7.3). Gate 2 binds the **user** subject via `callAs` only.
 
 ### 10.6 Per-Receiver JWT Validation
 
@@ -917,8 +980,8 @@ Daemon threads must be constructed outside any `callAs` scope, or must use
 ```
 Priority 1: SpiffeCredentialManager.getInstance().getSubject()
             — direct access; definitive; instanceof WorkerSubject check
-Priority 2: Subject.getWorker()
-            — ACC combiner lookup fallback
+Priority 2: Subject.processWorker()
+            — ambient worker (pulled from SpiffeCredentialManager); NOT an ACC/combiner lookup
 Priority 3: (reject) — UserSubject and vanilla Subject are never used for TLS
 ```
 
@@ -927,8 +990,8 @@ Priority 3: (reject) — UserSubject and vanilla Subject are never used for TLS
 ```
 Priority 1: Subject.current()
             — UserSubject or vanilla Subject; KerberosPrincipal required
-Priority 2: Subject.getSubject(acc) filtered
-            — ACC fallback; WorkerSubject always rejected for Kerberos
+Priority 2: (none) — getSubject(acc) is a deprecated shim that ignores acc and returns
+            current(); it is NOT an independent "ACC fallback". current() is the path.
 ```
 
 ---
@@ -987,7 +1050,29 @@ grant codeBase "file:/opt/jgdms/txn-svc/-"
 };
 ```
 
-### 13.5 Class Load Gate
+### 13.5 Privilege Elevation (sudo-style: one user, two roles)
+
+```
+// Alice logged in first as her user account, then ALSO as her admin role,
+// bound together via callAs(action, aliceUser, aliceAdminRole).
+// Variant A — admin authority bound to the person (conjunction of both principals):
+grant principal KerberosPrincipal "alice@EXAMPLE.ORG"
+      principal X500Principal "CN=AdminRole" {
+    permission net.jini.security.AccessPermission "...Admin.*";
+};
+// Variant B — any admin, while alice's identity is still carried for accountability:
+grant principal X500Principal "CN=AdminRole" {
+    permission net.jini.security.AccessPermission "...Admin.*";
+};
+```
+
+Unlike Unix `root`, Alice's user identity is *added to*, not *replaced by*, the admin role — both
+principals stay in the authorization context (accountability is structural), and the elevation is
+scoped to grants that ask for the admin principal. Co-presence **requires** the varargs overload
+`callAs(action, aliceUser, aliceAdminRole)`: nesting single-Subject `callAs` would *replace* the user
+with the admin role (§5), losing exactly the identity you meant to keep.
+
+### 13.6 Class Load Gate
 
 ```
 // Only this specific workload on SELinux may load ASM
@@ -1048,14 +1133,66 @@ Replace `SubjectDomainCombiner` combiner dispatch with a direct private path in
 Once all internal Subject-injection uses are replaced by the direct path, and
 the ACC serializer no longer requires `DomainCombiner` as a verification hook:
 - `DomainCombiner` deprecated
-- `Subject.doAs()` and `Subject.doAsPrivileged()` deprecated (except Kerberos GSS)
 - ACC becomes purely a code-privilege-boundary mechanism
 
-### 14.4 Phase 4 — Kerberos GSS-API (OpenJDK dependency)
+### 14.4 `doAs` / `doAsPrivileged` deprecation (decision 2026-07-01)
 
-Once OpenJDK provides a `callAs`-based GSS-API path:
-- `KerberosUtil.getGSSCredential()` migrated to `callAs` path
-- `Subject.doAs()` fully deprecated
+**Rationale.** A user `Subject` (WHO) is **orthogonal** to what the code is doing (the privilege
+boundary). `Subject.doAs`/`doAsPrivileged` **conflate** the two — they bind an identity *and*
+install a `doPrivileged` boundary in one call. The go-forward model keeps the axes separate:
+`Subject.callAs(...)` for identity (folded at every `getContext()`, surviving `doPrivileged`) and
+`AccessController.doPrivileged(...)` for the boundary, composed explicitly when both are genuinely
+needed — `callAs(user, () -> doPrivileged(action[, acc]))`. Post-redesign `doAs` is exactly that
+composition fused, so it now adds only API surface and the subject/code conflation. It goes.
+
+**Why the conflation actually bites (not just redundant).** The two axes are already handled
+separately and correctly at a `doPrivileged` boundary:
+- **`WorkerSubject` is a code/stack concern.** A `RemoteSubject` rides the dispatch frames on the
+  call stack from the remote endpoint, so a plain `doPrivileged` correctly **sheds** it — a
+  privileged action proceeds without the remote caller's authority gating it. The local
+  `SpiffeSubject` is the complement: stamped on the running code's own `ProtectionDomain`
+  (present because *this code is that process*).
+- **`UserSubject` is an orthogonal authorization concern.** It rides `SCOPED_SUBJECT`, is not
+  stack-borne, and **survives `doPrivileged`**. Shedding a remote worker has nothing to do with
+  the user, so the user must remain.
+
+`doAs` is the wrong tool exactly here: used to obtain a privilege boundary (e.g. to shed a remote
+worker), it **also drops the user** — its `STACK_CONTEXT` capture suppresses the enclosing user and
+it rebinds `SCOPED_SUBJECT` to the new subject. So "run this privileged" via `doAs` silently loses
+the user identity that should have survived. Dropping the user must be a **deliberate, explicit**
+act — `callAs(new Subject[0])` to run process-only — never a side effect of wanting a code boundary.
+Go-forward: `doPrivileged` (+ PD stamping) handles the worker/code boundary; the ScopedValue
+(`callAs`) handles the user; the two never need to be fused.
+
+**Current state (to correct).** In DirtyChai the upstream `@Deprecated(since="17", forRemoval=true)`
+was *removed* from `doAs`/`doAsPrivileged` — correctly, because the upstream reason (the
+SecurityManager is being removed) does not apply to a fork that keeps the SM. They presently carry
+only `@SuppressWarnings("removal")` (they call `AccessController.doPrivileged`) and are fully
+supported. `Subject.getSubject(AccessControlContext)` remains `@Deprecated(since="17",
+forRemoval=true)` and **stays so** — it is a pure acc-ignoring shim with a 1:1 replacement
+(`current()`).
+
+**Plan.**
+1. **Now — soft `@Deprecated`** (not `forRemoval`) on all four `doAs`/`doAsPrivileged` overloads,
+   carrying **DirtyChai's own rationale** (superseded by `callAs` + explicit `doPrivileged`;
+   identity is orthogonal to the code boundary) — **not** the upstream SM-removal rationale. This
+   steers new code to `callAs` and is consistent with `doAs`/`doAsPrivileged` already rejecting the
+   sealed `UserSubject` ("must use callAs()").
+2. **`forRemoval=true`** only once **both** blockers clear (§6.2): (a) a `callAs`-based JGSS path
+   replaces `KerberosUtil.getGSSCredential()`'s `doAs` use (a JDK GSS-API constraint), and (b) the
+   project decides to drop legacy JAAS plain-`Subject` `doAs` interop (`AbstractJiniService`
+   `LoginContext` subjects).
+3. **Removal** after a deprecation cycle, internal call sites migrated to `callAs (+ doPrivileged)`.
+   `doAsPrivileged` is the higher-priority retirement target — it owns both the captured-acc
+   stale-user hazard and the `optimize()` empty-context AIOOBE (§8.2).
+
+`WorkerSubject` rejection in `callAs`/`doAs`/`doAsPrivileged` is unaffected by this — it stays on
+its own ambient/non-sheddable grounds.
+
+### 14.5 Kerberos GSS-API (OpenJDK dependency)
+
+The hard blocker for `forRemoval` (step 2 above). Once OpenJDK provides a `callAs`-based GSS-API
+path, migrate `KerberosUtil.getGSSCredential()` off `doAs`.
 
 ---
 
@@ -1071,14 +1208,14 @@ Once OpenJDK provides a `callAs`-based GSS-API path:
 | Remote identity cannot escalate to local trust | Remote `WorkerSubject` domains are shed at `doPrivileged` — they are not in `privilegedContext` on the local JVM. |
 | Trust tier is machine-attested | SPIRE provisions SVID based on platform attestation. A Windows host cannot claim an SELinux SVID. |
 | Class loading is SPIFFE-gated | `LoadClassPermission` check at class load time. Fail-secure on SPIRE unavailability. |
-| Multi-party grants are atomic | All principals from all `SCOPED_SUBJECT` entries are merged additively. A grant requiring multiple users is only satisfied when all are simultaneously present. |
+| Multi-party grants are atomic | All principals from all `SCOPED_SUBJECT` entries are merged onto **one** multi-principal `ProtectionDomain` by `currentAll()`. Authorization is **conjunctive intersection** (`PrincipalGrant.containsAll`): a grant requiring multiple users is satisfied only when **all** are simultaneously present — never a subset, never a union/OR. |
 | Executor tasks do not accidentally inherit identity | `ScopedValue` does not propagate to executor tasks. Explicit wrapping required. |
 | Daemon threads are identity-free by construction | `neverPrivileged()` ACC prevents Subject injection regardless of construction context. |
 | `WorkerSubject` cannot be passed to `callAs(Callable, UserSubject...)` | Enforced at compile time by the `UserSubject` varargs type — no runtime check needed. |
 | Two-implementation coexistence is safe | DirtyChai `SpiffeSubject` and JGDMS vanilla `Subject` both carry `SpiffePrincipal`; policy grants match by principal type/name; Subject subtype does not affect grant matching |
 | Full `Subject[]` propagated to spawned threads | `Thread.scopedSubjects` captures the full array; `Subject.currentAll()` returns all transaction participants in spawned threads; no partial propagation |
 | `WorkerSubject` skipped in injection loop | Explicit `instanceof WorkerSubject` check before each `combine()` call; principals already present from class load time; no double-injection |
-| Original combiner preserved across multi-subject loop | `existing = acc.getCombiner()` captured once before loop; restored in every `AccessControlContext.create()` call within the loop |
+| Subject combiner is folded then discarded (not retained on the ACC) | The `SubjectDomainCombiner` from `currentAll()` is used **once** to compute the merged domains and is **not** retained on the returned ACC. The ACC's combiner is the pre-existing stack combiner (normally `null`), so `acc.getDomainCombiner()` is normally `null`. User principals live in the domains, not in a retained combiner. There is no per-subject loop. |
 | DigestGrant bound to both local and server SPIFFE identity | Per-JAR `DigestGrant`s issued during the boot window are scoped to the union of the local workload's SPIFFE principal and the authenticated server's SPIFFE principal. A second service that ships code with the same content digest cannot reuse the grant, because its server SPIFFE identity differs. (See §15.3.) |
 
 ### 15.2 What Cannot Be Bypassed

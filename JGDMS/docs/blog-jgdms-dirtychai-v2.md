@@ -270,7 +270,7 @@ its own carrier, lifetime, and routing rule:
 │                    DirtyChai Subject Hierarchy                      │
 │                                                                     │
 │  Subject (vanilla, legacy)                                          │
-│   ├── WorkerSubject  (sealed, permits SpiffeSubject only)           │
+│   ├── WorkerSubject  (sealed, permits SpiffeSubject, RemoteSubject) │
 │   │     • Process workload identity (SPIFFE SVID)                   │
 │   │     • Baked into every ProtectionDomain at class-load time      │
 │   │     • AMBIENT — survives all doPrivileged boundaries            │
@@ -364,6 +364,17 @@ are SHA-256–checked and unverifiable ones are reconstructed as anonymous place
 All domains are shed at `doPrivileged` boundaries.
 
 No session state, no thread-local leakage between calls, no boilerplate in service code.
+
+**Why `callAs`, not `doAs`.** This separation is also why DirtyChai is retiring
+`Subject.doAs(...)`/`doAsPrivileged(...)` in favour of `Subject.callAs(...)` plus an explicit
+`doPrivileged` where a privilege boundary is actually wanted. Two things classic JAAS fused are
+orthogonal: *who* you are (identity — bound with `callAs`, carried on a `ScopedValue`, surviving
+`doPrivileged`) and *what privileges the code runs with* (the boundary — `doPrivileged`, which
+truncates the stack and so sheds the remote caller's stack-borne `WorkerSubject`). `doAs` couples
+them, and used merely to run privileged it *also* drops the user, because it rebinds the subject and
+suppresses the enclosing one. Dropping the user should be deliberate (`callAs` with no user subject =
+run as the process only), not a side effect of a code boundary. `doAs`/`doAsPrivileged` survive only
+for legacy JAAS and Kerberos GSS interop.
 
 ### Hardened Deserialization: `@AtomicSerial`
 
@@ -833,9 +844,11 @@ once at class-load time via reflection. The dispatch strategy differs by JDK:
   on a standard JDK because each inner call shadows the outer one, leaving only the innermost
   Subject visible via `Subject.current()`.
 
-`Subject.current()` returns only the first Subject bound via `callAs` — it never falls back to the
-`AccessControlContext`. This ensures the server can always distinguish TLS-verified machine identity
-from wire-asserted human identity.
+`Subject.current()` returns only the first Subject bound via `callAs`; it reads the
+`SCOPED_SUBJECT` `ScopedValue` directly. There is no user Subject stored *in* the
+`AccessControlContext` to fall back to — `getSubject(acc)` is a deprecated shim that ignores its
+`acc` and just returns `current()`. This lets the server always distinguish TLS-verified machine
+identity from wire-asserted human identity.
 
 **Retrieving Subjects in service code:**
 

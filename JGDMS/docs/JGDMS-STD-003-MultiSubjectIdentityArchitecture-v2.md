@@ -1,9 +1,13 @@
 # JGDMS-STD-003: Multi-Subject Identity Architecture
 
-**Status:** Draft  
-**Version:** 2.1  
+**Status:** SUPERSEDED — see `JGDMS-STD-003-MultiSubjectIdentityArchitecture-v3.md` (v3.3+).  
+**Version:** 2.1 (historical)  
 **Applies to:** DirtyChai (JDK fork), JGDMS  
 **Supersedes:** JGDMS-STD-003 v1.0  
+
+> ⚠️ **SUPERSEDED.** This revision predates the corrected ACC/combiner plumbing. Use **v3** for the
+> current model (sealed `Subject`; users bound with `callAs`; the `getContext()`→`currentAll()` fold
+> is not retained on the ACC; conjunctive n-party intersection). Kept for history only.
 
 ---
 

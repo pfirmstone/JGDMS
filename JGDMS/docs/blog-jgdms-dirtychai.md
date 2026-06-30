@@ -1,5 +1,7 @@
 # JGDMS & DirtyChai: Secure, Scalable, Dynamically Discoverable Microservices for the JVM
 
+> ⚠️ **Superseded draft** — see `blog-jgdms-dirtychai-v2.md` for the current version. Kept for history.
+
 ## Introduction
 
 Modern distributed systems face an uncomfortable trade-off: the more open and composable a platform

@@ -179,7 +179,8 @@ contexts — never one merged ACC**:
   *elevate*). This gate always runs; it answers *"may this workload, over this connection, reach
   this method at all?"*
 - **Gate 2 — user.** Opt-in per method/interface. The method's `AccessPermission` is tested
-  against the **validated user subject** (`Subject.doAs(userSubject, …)`). It answers *"is this
+  against the **validated user subject** (`Subject.callAs(userSubject, …)` — a `UserSubject` is
+  bound with `callAs`, never `doAs`, which rejects it). It answers *"is this
   human authorized for this operation?"*
 - **Admin / sensitive methods require BOTH** — a trusted workload **and** an authorized user.
   A trusted workload with no admin user is denied; an admin JWT arriving over an untrusted
@@ -200,7 +201,7 @@ grant codeBase "httpmd://repo.example.org/order-processor.jar#SHA256:abc123"
     permission net.jini.security.AccessPermission "submitOrder";
 };
 
-// Gate 2 — user authorization (matched against the validated JWT subject under doAs)
+// Gate 2 — user authorization (matched against the validated JWT subject under callAs)
 grant principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org" {
     permission net.jini.security.AccessPermission "submitOrder";
 };
@@ -215,6 +216,17 @@ grant principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org" {
 > appropriately-scoped tokens, not from an intermediary minting them. (The ambient workload
 > `WorkerSubject`, by contrast, is *never* passed through `Subject.doAs`/`callAs` — it is reached
 > only as the process's ambient identity.)
+
+**Why `callAs`, not `doAs`.** Gate 2 binds the user with `Subject.callAs(...)`, never the older
+`Subject.doAs(...)` — and DirtyChai is deprecating `doAs`/`doAsPrivileged` outright. It rests on the
+same separation the two gates rely on: *who* you are (identity) and *what privileges the code runs
+with* (the boundary) are orthogonal axes. Identity rides a `ScopedValue` and survives `doPrivileged`;
+the boundary is `AccessController.doPrivileged(...)`, which truncates the stack and correctly sheds
+the *remote caller's* `WorkerSubject` (it lives on those frames) without touching the user. `doAs`
+fused the two — and that fusion is a footgun: use it to *run privileged* and you also drop the user,
+because `doAs` rebinds the subject and suppresses the enclosing one. Dropping the user must be
+deliberate (`callAs` with no user subject = run as the process only), never a side effect of wanting
+a code boundary. So: `callAs` for *who*, `doPrivileged` for the *boundary*.
 
 What can an attacker do with exactly one axis compromised? The combination still requires breaching
 three independent systems — but now via two gates plus a digest condition, not one merged grant:

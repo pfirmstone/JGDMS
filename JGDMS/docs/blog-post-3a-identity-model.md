@@ -51,7 +51,7 @@ DirtyChai introduces a sealed `Subject` hierarchy with three distinct identity l
 │                    DirtyChai Subject Hierarchy                      │
 │                                                                     │
 │  Subject (vanilla, legacy)                                          │
-│   ├── WorkerSubject  (sealed, permits SpiffeSubject only)           │
+│   ├── WorkerSubject  (sealed, permits SpiffeSubject, RemoteSubject) │
 │   │     • Process workload identity (SPIFFE SVID)                   │
 │   │     • Baked into every ProtectionDomain at class-load time      │
 │   │     • AMBIENT — survives all doPrivileged boundaries            │
@@ -135,6 +135,12 @@ Wire layout: `[httpmdCount: 4B BE][DomainIdentityRecord…][anonCount: 4B BE]`
 These remote domains are shed at `doPrivileged` boundaries — they represent the *caller's* context,
 not the server's. No session state, no thread-local leakage between calls, no boilerplate in service
 code.
+
+This is the *code/privilege boundary* axis, and DirtyChai keeps it deliberately separate from *who*
+the call is for: the user identity (Part 3b) rides a `ScopedValue` and **survives** `doPrivileged`,
+whereas these caller domains are shed by it. That separation is exactly why DirtyChai is retiring the
+old `Subject.doAs(...)`, which fused identity with the boundary in a single call — `callAs` handles
+*who*, `doPrivileged` handles the *boundary*. Parts 3b and 4 pick this up.
 
 ---
 

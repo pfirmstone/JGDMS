@@ -168,11 +168,21 @@ of `AccessPermission` going forward.
 For methods that declare a user requirement (admin, destroy, config…), an additional check
 against the **validated user subject**, e.g.:
 ```java
-Subject.doAs(validatedUserSubject, () ->
-    sm.checkPermission(new AccessPermission("net.jini.admin.Administrable.getAdmin")));
+Subject.callAs(validatedUserSubject, () -> {
+    sm.checkPermission(new AccessPermission("net.jini.admin.Administrable.getAdmin"));
+    return null;
+});
 ```
 satisfied by `grant principal "<admin-role-or-jwt-id>" { permission net.jini.security.AccessPermission "...Admin.method"; }`,
 i.e. only by the human's validated claims — never by the workload.
+
+> **Use `callAs`, not `doAs`, for a sealed `UserSubject`.** DirtyChai's `Subject.doAs`/`doAsPrivileged`
+> **throw `IllegalArgumentException` on a `UserSubject`** ("UserSubject must use callAs()") just as they
+> do on a `WorkerSubject`. `doAs` accepts only a *plain* (legacy, non-sealed-subtype) `Subject`. Since a
+> JWT-validated user subject is a sealed `UserSubject` (minted from the verified token), Gate 2 must bind
+> it with `Subject.callAs(subject, Callable)` — which is also the primitive that `current()`/`currentAll()`
+> read, and which folds the user principals into the check via `getContext()` without imposing a
+> `doPrivileged` boundary. (See DirtyChai `SECURITY_MODEL.md` §10.)
 
 **Constraint — the SPIFFE WorkerSubject is *ambient*, never a `doAs`/`callAs` argument.** DirtyChai's
 worker subject is fetched via `Subject.processWorker()`, cannot be captured by `Subject.current()`,
@@ -249,7 +259,8 @@ token is the canonical confused deputy; transmission can't fix it. Bound it with
    §3 (digest-matched grants, digest-less domains kept as reducers scored by static policy); drop
    unvalidated subjects.
 4. Gate 2 — a declarative per-method/interface user-authorization hook that runs `AccessPermission`
-   against the **validated user subject** via `Subject.doAs`/`callAs` (legal only for user subjects);
+   against the **validated user subject** via `Subject.callAs` (a sealed `UserSubject` is **rejected by
+   `doAs`** — "must use callAs()"; `doAs` is for plain/legacy subjects only);
    wire the validated user subject through the server context.
 5. **WorkerSubject constraint (applies across 1–4):** the SPIFFE worker subject is ambient
    (`Subject.processWorker()`), cannot be captured by `Subject.current()`, and **throws** if passed

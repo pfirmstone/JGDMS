@@ -32,7 +32,7 @@ Consequently the space's job is **principal-to-principal** authorization: two se
 Carriers (why the conjunction spans both frames and subjects):
 
 - **codebase digests + local-process SVID** — stamped per-frame on each `ProtectionDomain` at class-load (ambient).
-- **remote-process SVID** — carried in the JERI dispatch's `Subject.doAs(clientSubject)` ACC (stack/ACC-borne).
+- **remote-process SVID** — the verified TLS peer chain is reconstructed as a `RemoteSubject` (a `WorkerSubject`) whose principals sit in the JERI dispatch ACC's `ProtectionDomain`s (stack/ACC-borne). It is established by the connection, **not** via `Subject.doAs` (which rejects a `WorkerSubject`); retrieve it with `getClientSubject()`.
 - **user principal(s)** — carried via `Subject.callAs` / `ScopedValue`, re-injected by `AccessController.getContext()` (ambient within scope).
 
 This is multi-factor authority: forging it requires simultaneous control of every factor — each process SVID is unforgeable mTLS, each codebase is digest-pinned, the user is authenticated.

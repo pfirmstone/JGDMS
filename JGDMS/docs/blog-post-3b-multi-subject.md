@@ -75,9 +75,11 @@ once at class-load time via reflection. The dispatch strategy differs by JDK:
 > Subjects (e.g. to enforce a dual-authorization policy), running on a standard JDK will silently
 > bypass that check. DirtyChai is required for multi-Subject dispatch to be correct.
 
-`Subject.current()` returns only the first Subject bound via `callAs` — it never falls back to the
-`AccessControlContext`. This ensures the server can always distinguish TLS-verified machine identity
-from wire-asserted human identity.
+`Subject.current()` returns only the first Subject bound via `callAs`; it reads the
+`SCOPED_SUBJECT` `ScopedValue` directly. There is no user Subject stored *in* the
+`AccessControlContext` to fall back to — `getSubject(acc)` is a deprecated shim that ignores its
+`acc` and just returns `current()`. This lets the server always distinguish TLS-verified machine
+identity from wire-asserted human identity.
 
 ### Retrieving Subjects in Service Code
 
@@ -132,6 +134,36 @@ This ensures that a transaction cannot be settled by a subset of the parties tha
 and that policy-mandated quorums are enforced at the transaction boundary — not just at the initial
 RPC — with no out-of-band session state.
 
+### `sudo`, done right: one person, two roles
+
+The example above is two *different* people (four-eyes / dual control). The same machinery also
+covers the everyday case of *one* person holding two roles. You log in as your ordinary user account,
+and only when you need to do something privileged do you authenticate *again* as your administrator
+role — Unix `sudo`. Multi-Subject `callAs` expresses it directly:
+
+```java
+Subject.callAs(() -> performAdminOp(), aliceUser, aliceAdminRole);
+```
+
+Both subjects are present for the duration of the call, and that buys two things Unix `root` does not:
+
+- **Your identity is never lost.** `sudo` makes the process *become* root — the kernel sees uid 0,
+  and your real identity survives only in a log. Here you *add* the admin role on top of your user
+  identity; both principals are in the authorization context, so the action is attributable to
+  *Alice acting as admin* structurally, not by correlating logs.
+- **Admin authority is gated, and can be bound to the person.** Because a grant fires only when *all*
+  its principals are present, you can write `grant principal "Alice", principal "AdminRole" { … }` —
+  admin authority only Alice, in her admin role, can wield — or `grant principal "AdminRole" { … }`
+  for any admin while still carrying Alice's identity for accountability. The elevation is *scoped*:
+  Alice keeps only her ordinary authority everywhere the policy doesn't ask for the admin principal,
+  not blanket root.
+
+This is also why the *varargs* overload matters rather than being mere convenience: you cannot get
+co-presence by nesting single-Subject calls. `callAs(aliceUser, () -> callAs(aliceAdminRole, …))`
+*replaces* Alice with the admin role inside, so you would lose exactly the user identity you wanted to
+keep. Binding both at once is the only correct way to hold them together — and it is why the stock
+JDK, with only single-Subject `callAs`, cannot express this at all.
+
 ---
 
 ## SubjectAwareExecutor: Propagating Identity Across Thread Boundaries
@@ -146,13 +178,42 @@ It wraps any `ExecutorService`. At **task submission** time it captures:
 - The current `AccessControlContext` (via `Security.getContext()`)
 
 On the **worker thread** it restores them via `AccessController.doPrivileged` + `Subject.callAs`
-(using the DirtyChai varargs overload when available, single-subject otherwise). SPIFFE
-`WorkerSubject` propagation happens automatically through the restored `AccessControlContext` —
-it does not need to be explicitly captured or restored.
+(using the DirtyChai varargs overload when available, single-subject otherwise). The SPIFFE
+`WorkerSubject` does not need to be captured or restored at all — it is **ambient on every
+thread**, stamped into `ProtectionDomain`s at class-load time (and reconstructed from the TLS
+peer chain for a remote caller), so it is structurally present rather than carried on the
+restored `AccessControlContext`.
 
 This ensures that authorization decisions made on worker threads are evaluated against the same
 identity context that was present when the task was submitted, not against whatever identity
 happens to be ambient on the pool thread.
+
+## Why `callAs`, not `doAs`
+
+You may have noticed every example here uses `Subject.callAs(...)`, never the older
+`Subject.doAs(...)`. That is deliberate — DirtyChai is deprecating `doAs`/`doAsPrivileged`.
+
+The reason is that two things classic JAAS fused are actually orthogonal:
+
+- **Who you are** — identity. Bound with `callAs`, it rides a `ScopedValue`, so it **survives
+  `doPrivileged`**.
+- **What privileges the code runs with** — the boundary. That is `AccessController.doPrivileged(...)`,
+  which truncates the call stack.
+
+These are already handled by two separate, correct mechanisms. A remote caller's `WorkerSubject`
+rides the dispatch frames on the call stack, so a `doPrivileged` correctly **sheds** it — the server
+can perform a privileged action without the remote caller's authority gating it — while the user
+identity, on the `ScopedValue`, stays in effect. That is exactly what you want.
+
+`Subject.doAs(...)` couples the two: it binds an identity *and* installs a `doPrivileged` boundary in
+one call. So if you reach for `doAs` merely to *run privileged*, you also **drop the user** — `doAs`
+rebinds the subject and suppresses the enclosing one, and the identity that should have survived is
+silently gone. Dropping the user should be a deliberate choice — `callAs` with no user subject, i.e.
+run as the process only — never a side effect of wanting a code boundary.
+
+So the rule is simple: `callAs` for *who*, `doPrivileged` for the *boundary*, composed explicitly
+when you need both. `doAs`/`doAsPrivileged` remain only for legacy JAAS and Kerberos GSS interop, and
+are on their way out.
 
 ---
 

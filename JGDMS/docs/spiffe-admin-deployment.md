@@ -236,8 +236,9 @@ outright.  The two identities are deliberately distinct: the mTLS/SVID peer auth
 own gate.  See `JGDMS-STD-003` §10.5 (two-gate authorization) and
 `docs/DESIGN-spiffe-authorization-acc-transmission-2026-06-27.md`.
 
-A request handler may still legitimately enter `Subject.doAs(userSubject, …)` to run **user** work
-under a validated user identity; that is orthogonal to — and layered on top of — the ambient
+A request handler may still legitimately enter `Subject.callAs(userSubject, …)` to run **user** work
+under a validated user identity (a `UserSubject` is bound with `callAs`, never `doAs`, which rejects
+it); that is orthogonal to — and layered on top of — the ambient
 workload identity, which remains in effect throughout.
 
 ---
