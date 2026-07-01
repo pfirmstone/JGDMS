@@ -7,9 +7,10 @@ Prerequisite: [Part 3a](blog-post-3a-identity-model.md).*
 ---
 
 Part 3a described the `WorkerSubject` (the ambient process identity baked into every
-`ProtectionDomain`) and remote process identity (the serialized ACC transmitted over the wire).
-This post covers the third layer: `UserSubject` — the human user's JWT/OIDC identity — and the
-wire protocol that transmits up to 16 such Subjects per call.
+`ProtectionDomain`) and the remote process identity (the caller's *reducing* ACC — codebases only,
+no principals on the wire; the peer's worker principals are stamped from the authenticated mTLS
+connection at the receiver). This post covers the third layer: `UserSubject` — the human user's
+JWT/OIDC identity — and the wire protocol that transmits up to 16 such Subjects per call.
 
 Why would a single RPC carry more than one user identity? Consider a financial transfer: the
 initiating user submits the request, but the organization's policy requires a second user (an
@@ -115,7 +116,7 @@ Policy:
 ```
 grant principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org"
       principal net.jini.security.jwt.JwtPrincipal "sub:bob@example.org" {
-    permission net.jini.core.transaction.SettleTransactionPermission "transfer";
+    permission net.jini.core.transaction.SettleTransactionPermission "commit";
 };
 ```
 

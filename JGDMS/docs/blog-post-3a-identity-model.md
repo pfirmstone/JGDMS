@@ -73,11 +73,11 @@ DirtyChai introduces a sealed `Subject` hierarchy with three distinct identity l
 │    client's Principal[] + DigestCodeSource at class-load time.      │
 │    Always present at every checkPermission. Never reinstalled.      │
 │                                                                     │
-│  Layer 2 — Remote Process  (serialized ACC ProtectionDomains)       │
-│    Remote client's WorkerSubject principals travel inside a         │
-│    serialized AccessControlContext over the JERI wire.              │
-│    Unverifiable domains are encoded as anonCount; the receiver      │
-│    reconstructs anonymous placeholder domains. Shed at doPrivileged.│
+│  Layer 2 — Remote Process  (reducing codebases, no principals)      │
+│    The remote caller's reducing ProtectionDomains travel as         │
+│    codebases only over the JERI wire — no principals on it.         │
+│    The receiver reconstructs each and stamps on the                 │
+│    authenticated mTLS worker principals. Shed at doPrivileged.      │
 │                                                                     │
 │  Layer 3 — User  (UserSubject via callAs)                           │
 │    Per-request human identity bound by JERI dispatcher via          │
@@ -117,20 +117,32 @@ contextual.
 
 ## Layer 2 — Remote Process Identity
 
-The remote client's `WorkerSubject` principals travel differently: they are carried inside a
-serialized `AccessControlContext` transmitted over the JERI wire.
+The remote caller's process identity reaches the server in two halves that are deliberately kept
+apart. Its **principals never travel on the wire** — they are the SPIFFE workload principals of the
+peer, taken from the *authenticated mTLS connection* and stamped on at the receiver. What travels is
+only the caller's **reducing `ProtectionDomain` set — codebases, no principals** — the subtractive
+permission ceiling that bounds the dispatched call. That is the subtractive half of the two-gate
+workload model: the authenticated worker `Subject` is the additive identity, the transmitted
+codebases are the reduction.
 
-`AccessControlContextSerializer` encodes `ProtectionDomain`s for transport:
+`RemoteContextCodec` encodes those reducing domains for transport. They are written and read through
+the proxy's own codec stream as a single length-delimited block — isolated from the application
+arguments, so this untrusted remote input shares no decode state, handle table, or DoS budget with
+them. Each domain is carried by its codebase identity:
 
-- **Verifiable domains** (`httpmd:` URL or `DigestCodeSource`): encoded as `DomainIdentityRecord`
-  with their SHA-256-verifiable identity. The receiving JVM checks the digest before accepting
-  the domain.
-- **Unverifiable domains**: counted as `anonCount` (a 16-bit unsigned integer). The receiving JVM
-  reconstructs anonymous placeholder `ProtectionDomain`s — their permission ceilings are preserved
-  without asserting a specific identity.
-- `jrt:/java.base` domains are excluded from `anonCount`; other `jrt:` module domains are retained.
+- **`DigestCodeSource` domains**: the codebase URI, digest algorithm, digest, and any signing
+  certificates. The digest is self-verifying — the receiver rebuilds a `DigestCodeSource` with the
+  same SHA-256 identity, which the server's policy can then match.
+- **Other codebase domains**: the codebase URL and any signing certificates.
+- **Genuinely codebase-less reducing domains** (a dynamic proxy, lambda, or bootstrap domain): a
+  bare null-CodeSource marker. It is *still transmitted* — dropping it would **elevate** authority —
+  and is reconstructed as a codebase-less, principal-bearing domain that reduces to whatever the
+  authenticated worker principals are granted ("the caller may use only the Principal").
 
-Wire layout: `[httpmdCount: 4B BE][DomainIdentityRecord…][anonCount: 4B BE]`
+Wire layout: `int domainCount`, then per domain a `byte kind` ∈ { null-CS, digest, URL } followed by
+the fields above. There is no `anonCount` and there are **no anonymous placeholder domains** — every
+reducing domain is carried, and each is reconstructed with a *null* permission set, so the server's
+policy alone decides what it grants.
 
 These remote domains are shed at `doPrivileged` boundaries — they represent the *caller's* context,
 not the server's. No session state, no thread-local leakage between calls, no boilerplate in service
@@ -177,8 +189,9 @@ provider to retrieve the local SPIFFE principals rather than returning an empty 
 
 ## What Part 3b Covers
 
-Part 3a has described the first two layers of identity (the process `WorkerSubject` and the remote
-process identity serialized in the ACC). The third layer — `UserSubject` carrying a human user's
+Part 3a has described the first two layers of identity (the process `WorkerSubject`, and the remote
+caller's reducing ACC — codebases only, with the peer's worker principals stamped from the
+authenticated mTLS connection at the receiver). The third layer — `UserSubject` carrying a human user's
 JWT/OIDC identity, the wire protocol that transmits up to 16 such Subjects per call, and how
 `SettleTransactionPermission` extends this model to distributed transactions — is covered in
 [Part 3b](blog-post-3b-multi-subject.md).
