@@ -145,7 +145,7 @@ InvocationConstraints constraints = new InvocationConstraints(
     Collections.emptyList()
 );
 MethodConstraints methodConstraints =
-    new BasicMethodConstraints(new DefaultMethodConstraints(constraints));
+    new BasicMethodConstraints(constraints);
 ```
 
 ### Step 2 — Write the ServiceStarter configuration
@@ -156,13 +156,14 @@ import net.jini.jeri.*;
 import net.jini.jeri.ssl.*;
 import net.jini.core.constraint.*;
 
-com.sun.jini.start {
+org.apache.river.start {
     serviceDescriptors = new ServiceDescriptor[] {
         new NonActivatableServiceDescriptor(
-            "file:hello-service-impl.jar",          // implementation JAR
-            "file:hello-service-dl.jar",            // downloadable proxy JAR
+            "file:hello-service-dl.jar",            // export codebase — downloadable proxy JAR
+            "hello-service.policy",                 // service security policy file
+            "file:hello-service-impl.jar",          // import codebase — implementation JAR
             "net.example.HelloServiceImpl",         // implementation class
-            new String[]{ "hello-service.config" } // configuration passed to service
+            new String[]{ "hello-service.config" }  // configuration passed to service
         )
     };
 }

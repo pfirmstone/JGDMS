@@ -38,8 +38,8 @@ requires:
 When the `AtomicInputValidation.YES` constraint is in effect, the JERI dispatcher switches to
 `AtomicMarshalInputStream`, ensuring every deserialized argument across the wire has passed its
 invariant checks. This ties directly to the authorization model: `AtomicInputValidation.YES` is
-expressed as a method constraint, and method constraints are enforced by the policy layer before
-any bytes leave the client JVM.
+expressed as a method constraint, and method constraints are enforced by the JERI invocation layer
+before any bytes leave the client JVM.
 
 ---
 
@@ -56,7 +56,7 @@ condition grants on the **SHA-256 content hash of the JAR**, not merely its URL:
   `DigestCodeSource.getDigest()` matches. Expressed in policy files as:
 
 ```
-grant digest "SHA-256:4e07408562bedb8b60ce05c1decafe11",
+grant digest "SHA-256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       codeBase "https://repo.example.org/order-processor.jar"
       principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org" {
     permission net.jini.security.AccessPermission "submitOrder";
@@ -73,7 +73,8 @@ round-trip works transparently.
 > known-**vulnerable** digest can be refused or blocklisted regardless of who serves it. The
 > corollary is the fail-closed default: **code with no identifiable digest is assumed
 > worst-case** until proven otherwise. On DirtyChai every domain is identifiable (the
-> `SecureClassLoader` stamps a `DigestCodeSource` into *every* `ProtectionDomain`); on a stock
+> `SecureClassLoader` stamps a `DigestCodeSource` into every `ProtectionDomain` whose code has a
+> non-null location, when a `SecurityManager` is installed); on a stock
 > JVM, only `httpmd:` codebases carry an in-band digest — so serving *all* code, even "local"
 > code, via `httpmd:` is what buys you full fidelity. Domains that arrive with no digest are
 > never trusted on faith; they reduce, they do not elevate (see the receiving-side discussion
@@ -89,8 +90,8 @@ providers.
 > **A note on composition (status clarification).** The "three layers" below are a *wrapping
 > and assembly convention*, **not a hard-wired chain**. `DynamicPolicyProvider` and
 > `RemotePolicyProvider` each generically wrap **any** base `ScalableNestedPolicy`/`Policy` —
-> they are not bound to the specific `SpiffePolicyFile` → `RemotePolicy` → `DynamicPolicy`
-> ordering shown here. That ordering is a *deployment assembly* chosen by whoever wires the
+> they are not bound to the specific `SpiffePolicyFile` → `RemotePolicyProvider` →
+> `DynamicPolicyProvider` ordering shown here. That ordering is a *deployment assembly* chosen by whoever wires the
 > providers; the types themselves impose no fixed sequence. (Code review,
 > `docs/agent-authority-code-review-2026-06-14.md` §2 claim 1, §5.) The arrangement below is
 > the recommended assembly, not an invariant of the implementation.
@@ -196,8 +197,8 @@ user-scoped clause (matched in Gate 2), each optionally conditioned on the JAR d
 
 ```
 // Gate 1 — workload reachability (matched against the authenticated connection)
-grant codeBase "httpmd://repo.example.org/order-processor.jar#SHA256:abc123"
-      principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://.../svc/order-processor" {
+grant codeBase "httpmd://repo.example.org/order-processor.jar;sha-256=abc123"
+      principal au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://.../svc/order-processor" {
     permission net.jini.security.AccessPermission "submitOrder";
 };
 
@@ -209,7 +210,7 @@ grant principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org" {
 
 > **The JWT is trusted as a *token*, not because of the *conduit*.** A user JWT is validated
 > **per receiver, on every hop** — signature against the trusted issuer, plus `iss` / `aud`
-> (this receiver's own audience) / `exp` / proof-of-possession — *before* it becomes the Gate-2
+> (this receiver's own audience) / `exp` — *before* it becomes the Gate-2
 > subject. A token that does not validate is dropped, and Gate 2 fails closed. A receiver never
 > re-mints a token at ingress to speak for the caller downstream; tokens are forwarded unchanged
 > and re-validated at the next hop, and multi-hop reach comes from the IdP **issuing**
@@ -218,7 +219,8 @@ grant principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org" {
 > only as the process's ambient identity.)
 
 **Why `callAs`, not `doAs`.** Gate 2 binds the user with `Subject.callAs(...)`, never the older
-`Subject.doAs(...)` — and DirtyChai is deprecating `doAs`/`doAsPrivileged` outright. It rests on the
+`Subject.doAs(...)` — and DirtyChai is deprecating `doAs`/`doAsPrivileged` for binding user
+identity (they linger only for legacy JAAS/Kerberos GSS interop). It rests on the
 same separation the two gates rely on: *who* you are (identity) and *what privileges the code runs
 with* (the boundary) are orthogonal axes. Identity rides a `ScopedValue` and survives `doPrivileged`;
 the boundary is `AccessController.doPrivileged(...)`, which truncates the stack and correctly sheds
@@ -235,7 +237,7 @@ three independent systems — but now via two gates plus a digest condition, not
 |---|---|---|
 | JAR replaced at the URL (different SHA-256) | Serve a new JAR | Acquire `submitOrder` (hash mismatch; and a *known-bad* digest can be blocklisted outright) |
 | SPIFFE workload credential stolen | Pass Gate 1 as the service process | Pass Gate 2 — `submitOrder` on an admin method still needs Alice's validated JWT |
-| JWT credential stolen (Alice's token) | Present Alice's token | Pass Gate 1 from a different workload, or past per-receiver validation if the token is expired / wrong-audience / lacks PoP |
+| JWT credential stolen (Alice's token) | Present Alice's token | Pass Gate 1 from a different workload, or past per-receiver validation if the token is expired or wrong-audience |
 
 All axes must hold simultaneously for an administrative call to authorize — and because the gates
 are separate, compromising the *workload* does not buy you the *user*, and vice-versa.
