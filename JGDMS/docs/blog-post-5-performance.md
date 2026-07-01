@@ -57,8 +57,9 @@ its own immutable, isolated `AccessControlContext`, so security context (authent
 protection domains, granted permissions) is independently maintained per thread. Even when virtual
 threads share a carrier platform thread, their security contexts remain fully isolated — one request
 cannot inadvertently inherit or use the security context of a concurrent request.
-`SubjectDomainCombiner` attaches the authenticated Subject's principals to every `ProtectionDomain`
-in the virtual thread's ACC, so every `AccessController.checkPermission()` call is evaluated against
+`SubjectDomainCombiner` attaches the authenticated Subject's principals to every non-static
+`ProtectionDomain` in the virtual thread's ACC (static, all-permission privileged domains are left
+unchanged), so every `AccessController.checkPermission()` call is evaluated against
 the correct user's identity. This enables millions of concurrent virtual threads — each running
 under a different authenticated Subject — to receive correct, per-principal authorization decisions
 without shared mutable state.
@@ -121,8 +122,9 @@ increases capacity without requiring reconfiguration of existing nodes:
 - **Quorum-based verdicts** — adding engines increases both throughput and confidence
   simultaneously. A quorum of three engines provides stronger assurance than one, and twice the
   analysis throughput.
-- **Multiple Lookup Services** — DNS-SD SRV records enumerate multiple named lookup instances;
-  services register with multiple groups; clients query multiple locators with merge semantics.
+- **Multiple Lookup Services** — services register with multiple groups and clients query multiple
+  locators (via `LookupDiscoveryManager`) with merge semantics, so there is no single lookup
+  dependency.
   The lookup tier has no single point of failure.
 - **Content-addressed Verdict Registry** — keyed by SHA-256 hash, not URL. The same JAR is
   analyzed once regardless of how many services serve it. URL changes and CDN migrations do not

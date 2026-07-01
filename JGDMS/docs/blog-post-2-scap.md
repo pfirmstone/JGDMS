@@ -108,9 +108,11 @@ Two further invariants:
 The BAE uses [ASM](https://asm.ow2.io/)-based visitors to analyze every class in a JAR:
 
 - **`ClinitBlockingVisitor`** — BFS traversal from `<clinit>` to a registry of blocking sinks
-  (network I/O, file locks, thread creation, native calls). Classifies risk as `CLEAN`,
-  `BLOCKING_GUARDED`, or `BLOCKING_DECLARED` (DANGEROUS). This is the visitor that catches the
-  attack described in the introduction.
+  (network I/O, file locks, thread creation, native calls). It assigns a `ClinitVerdict`: `CLEAN`,
+  `BLOCKING` (an *unguarded* blocking sink — DANGEROUS), or `BLOCKING_GUARDED` (the sink is reached
+  only behind a permission check). A naked, unguarded `<clinit>` like the one in the introduction
+  is caught as `BLOCKING`. (The full enum also carries `BLOCKING_DECLARED` — see the
+  `PERMISSIONS.LIST` step below — plus `NATIVE_OPACITY` and `CYCLE`.)
 - **`AtomicSerialComplianceVisitor`** — verifies that every `Serializable` class crossing a JERI
   wire follows the `@AtomicSerial` protocol. Violations produce a `DANGEROUS` verdict.
 - **Cyclic `<clinit>` detector** — detects circular class-initializer dependency chains that would
@@ -134,17 +136,19 @@ instances; they self-register and are automatically load-balanced via Jini servi
 `PreferredProxyCodebaseProvider` maintains a `ConcurrentHashMap` verdict cache keyed by SHA-256
 JAR hash. Behaviour:
 
-- A successful `SAFE` verdict from the Verdict Registry is cached immediately.
+- Every verdict fetched from the Verdict Registry — `SAFE`, `INCONCLUSIVE`, or `DANGEROUS` — is
+  cached immediately, keyed by content hash.
 - If the Verdict Registry is unreachable on a subsequent request, the cached entry is used if its
   age is within the configured TTL.
 - TTL is controlled by the system property `jgdms.proxy.verdictCacheTtlMs` (default `300000` —
   5 minutes). Set to `0` to disable the cache entirely.
 
 The cache provides resilience against transient Verdict Registry outages without weakening the
-security guarantee: only verdicts that were previously confirmed `SAFE` are served from the cache.
-The Verdict Registry is keyed by SHA-256 content hash, not URL — the same JAR served from
-different URLs is analyzed once and the result cached forever. URL changes, CDN migrations, and
-service moves do not invalidate existing verdicts.
+security guarantee: a cached verdict is re-evaluated on use, so a cached `DANGEROUS` (or, in strict
+mode, `INCONCLUSIVE`) result still refuses the load — the cache can only *withhold* trust, never
+manufacture it. The Verdict Registry is keyed by SHA-256 content hash, not URL — the same JAR
+served from different URLs is analyzed once and the result is reused for the registry's lifetime.
+URL changes, CDN migrations, and service moves do not invalidate existing verdicts.
 
 ---
 
