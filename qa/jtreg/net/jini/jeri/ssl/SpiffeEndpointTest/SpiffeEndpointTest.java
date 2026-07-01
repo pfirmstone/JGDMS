@@ -48,11 +48,11 @@ import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
 
-import net.jini.jeri.ssl.SpiffeCredentialManager;
-import net.jini.jeri.ssl.SpiffeCredentialManager.FileSvidSource;
-import net.jini.jeri.ssl.SpiffeCredentialManager.SvidSource;
-import net.jini.jeri.ssl.SpiffePrincipal;
-import net.jini.jeri.ssl.SpiffeLoginModule;
+import au.net.zeus.jgdms.spiffe.SpiffeCredentialManager;
+import au.net.zeus.jgdms.spiffe.SpiffeCredentialManager.FileSvidSource;
+import au.net.zeus.jgdms.spiffe.SpiffeCredentialManager.SvidSource;
+import au.net.zeus.jgdms.spiffe.SpiffePrincipal;
+import au.net.zeus.jgdms.spiffe.SpiffeLoginModule;
 
 /**
  * End-to-end integration test for the SPIFFE credential pipeline.

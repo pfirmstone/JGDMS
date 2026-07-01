@@ -510,7 +510,12 @@ class SslConnection extends Utilities implements Connection {
 	    Set<Principal> principals = new HashSet<Principal>();
 	    principals.add(serverX500);
 	    // Also include SPIFFE principal(s) from the URI Subject
-	    // Alternative Name(s) in the server certificate, if present.
+	    // Alternative Name(s) in the server certificate, if present.  These
+	    // must be real SpiffePrincipal instances (resolved by name via
+	    // Utilities) because this Subject's principals are evaluated by the
+	    // security policy in PreferredProxyCodebaseProvider, which keys on
+	    // the principal's runtime class -- see
+	    // Utilities.spiffePrincipalsFromCertificate.
 	    SSLSession currentSession = session;
 	    if (currentSession != null) {
 		try {
@@ -518,7 +523,7 @@ class SslConnection extends Utilities implements Connection {
 		    if (peerCerts != null && peerCerts.length > 0
 			    && peerCerts[0] instanceof X509Certificate) {
 			principals.addAll(
-			    SpiffePrincipal.fromCertificate(
+			    Utilities.spiffePrincipalsFromCertificate(
 				(X509Certificate) peerCerts[0]));
 		    }
 		} catch (SSLPeerUnverifiedException e) {

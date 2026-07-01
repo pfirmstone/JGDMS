@@ -1563,7 +1563,7 @@ grant codebase "file:${jsk.home}/lib/jgdms-platform-3.1.1-SNAPSHOT.jar" {
 // FIX-CANDIDATE (spiffe per-method AccessPermission for the service VMs): services run under
 // defaultnonactvm.policy (the spiffe configSet does not override the nonact-group VM policy), so
 // the authenticated CLIENT principal seen by BasicInvocationDispatcher.checkClientPermission is a
-// net.jini.jeri.ssl.SpiffePrincipal "spiffe://.../<role>" -- for which this policy had NO
+// au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://.../<role>" -- for which this policy had NO
 // AccessPermission grants (only the X500 "CN=<role>" form, which the SVID does not present here).
 // Grant AccessPermission to the spiffe service+client principals so server-side method access
 // control passes.  Blanket "*" for bring-up; tighten to per-method (polpAudit) once green.

@@ -171,7 +171,7 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "CN=Tester",
     permission java.io.SerializablePermission "enableSubclassImplementation";
 };
 
-grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/mahalo",
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://test.jgdms.local/svc/mahalo",
 {
     permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.abort";
     permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.commit";
@@ -181,13 +181,13 @@ grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
 };
 
-grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/norm",
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://test.jgdms.local/svc/norm",
 {
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
 };
 
-grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/outrigger",
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://test.jgdms.local/svc/outrigger",
 {
     permission net.jini.security.AccessPermission "net.jini.core.event.RemoteEventListener.notify";
     permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionManager.getState";
@@ -196,12 +196,12 @@ grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
 };
 
-grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/reggie",
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://test.jgdms.local/svc/reggie",
 {
     permission net.jini.security.AccessPermission "net.jini.core.event.RemoteEventListener.notify";
 };
 
-grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/tester",
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://test.jgdms.local/svc/tester",
 {
     permission net.jini.security.AccessPermission "net.jini.lookup.ServiceProxyAccessor.getServiceProxy";
 };

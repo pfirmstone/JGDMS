@@ -42,8 +42,8 @@ import javax.security.auth.login.LoginException;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
 import java.security.cert.CertPath;
-import net.jini.jeri.ssl.SpiffeLoginModule;
-import net.jini.jeri.ssl.SpiffePrincipal;
+import au.net.zeus.jgdms.spiffe.SpiffeLoginModule;
+import au.net.zeus.jgdms.spiffe.SpiffePrincipal;
 
 /**
  * Integration tests for {@link SpiffeLoginModule}.

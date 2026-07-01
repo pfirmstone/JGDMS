@@ -169,20 +169,22 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements 
     /**
      * Make sure the subject of the leaf certificate is one of the permitted
      * principals.  Matches against both {@link X500Principal} (via Subject DN)
-     * and {@link SpiffePrincipal} (via URI Subject Alternative Name).
+     * and SPIFFE principals (via {@code spiffe://} URI Subject Alternative
+     * Name), the latter compared by canonical
+     * {@link java.security.Principal#getName()}.
      */
     private void check(X509Certificate[] chain) throws CertificateException {
 	X500Principal x500 = chain[0].getSubjectX500Principal();
 	synchronized(principals){
 	    if (principals.isEmpty()) return;
 	    if (principals.contains(x500)) return;
-	    // Check URI SANs against any SpiffePrincipal entries.
-	    // SpiffePrincipal.fromCertificate() calls X509Certificate
-	    // .getSubjectAlternativeNames(); OpenJDK 17+ caches the parsed
-	    // SAN extension internally, so this is inexpensive on the hot path.
-	    for (SpiffePrincipal sp : SpiffePrincipal.fromCertificate(chain[0])) {
-		if (principals.contains(sp)) return;
-	    }
+	    // Check the certificate's spiffe:// URI SANs against any SPIFFE
+	    // principal entries, comparing by canonical getName() (see
+	    // Utilities.permittedViaSpiffeSan) so the downloaded SpiffePrincipal
+	    // constraint class need not be referenced here.  X509Certificate
+	    // .getSubjectAlternativeNames() is cached by OpenJDK 17+, so this is
+	    // inexpensive on the hot path.
+	    if (Utilities.permittedViaSpiffeSan(principals, chain[0])) return;
 	    throw new CertificateException("Remote principal is not trusted");
 	}
     }

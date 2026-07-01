@@ -28,7 +28,7 @@ import net.jini.core.constraint.ClientMinPrincipalType;
 import net.jini.core.constraint.ConstraintAlternatives;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.ServerMinPrincipal;
-import net.jini.jeri.ssl.SpiffePrincipal;
+import au.net.zeus.jgdms.spiffe.SpiffePrincipal;
 
 /**
  * Subject provider for the SPIFFE QA configuration set.

@@ -163,7 +163,7 @@ class Utilities {
 		Method subjectCurrent = null;
 		Method processWorker = null;
 		try {
-			spiffePrincipalClass = Class.forName("net.jini.jeri.ssl.SpiffePrincipal");
+			spiffePrincipalClass = Class.forName("au.net.zeus.jgdms.spiffe.SpiffePrincipal");
 		} catch (ClassNotFoundException e) {
 			// SPIFFE support not available - will fall back to X500 only
 			if (INIT_LOGGER.isLoggable(Level.FINE)) {

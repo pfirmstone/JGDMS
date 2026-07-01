@@ -47,35 +47,35 @@ grant {
 };
 
 /* ── Grants to the Codebase Downloader (Host 4) SPIFFE identity ──────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/downloader" {
     permission net.jini.security.AccessPermission "*";
     permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
 };
 
 /* ── Grants to the JFR Telemetry Service (Host 5) SPIFFE identity ────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/telemetry" {
     permission net.jini.security.AccessPermission "*";
     permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
 };
 
 /* ── Grants to BAE instances (Host 2) for lookup registration ────────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/bae/*" {
     permission net.jini.security.AccessPermission "*";
     permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
 };
 
 /* ── Grants to VerdictRegistry (Host 3) for registration ─────────────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/registry" {
     permission net.jini.security.AccessPermission "*";
     permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
 };
 
 /* ── Grants to clients ───────────────────────────────────────────────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/client/*" {
     permission net.jini.security.AccessPermission "lookup";
     permission net.jini.security.AccessPermission "notify";

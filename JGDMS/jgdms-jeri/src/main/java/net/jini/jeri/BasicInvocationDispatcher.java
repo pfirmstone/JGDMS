@@ -222,7 +222,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
         Set<String> allowed = Set.of(
             "javax.security.auth.x500.X500Principal",
             "javax.security.auth.kerberos.KerberosPrincipal",
-            "net.jini.jeri.ssl.SpiffePrincipal",
+            "au.net.zeus.jgdms.spiffe.SpiffePrincipal",
             "net.jini.security.jwt.JwtPrincipal"
         );
         Map<String, Constructor<? extends Principal>> ctorMap = new HashMap<>();
@@ -232,10 +232,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                 Class<? extends Principal> cls =
                     (Class<? extends Principal>) Class.forName(cname, false,
                         // System classloader is required: SpiffePrincipal and JwtPrincipal are
-                        // JGDMS application-classpath classes (jgdms-jeri / jgdms-platform),
-                        // not JDK built-ins.  The allowlist
-                        // (not the classloader) is the security boundary — unknown names return
-                        // RemotePrincipal without any classloading.
+                        // JGDMS application-classpath classes (jgdms-lib-dl / jgdms-platform),
+                        // not JDK built-ins.  This user-Subject path reconstructs by the fixed
+                        // allowlist (no codebase download); a node running this dispatcher ships
+                        // jgdms-lib-dl locally, so the -dl SpiffePrincipal resolves here.  The
+                        // allowlist (not the classloader) is the security boundary — unknown
+                        // names return RemotePrincipal without any classloading.
                         ClassLoader.getSystemClassLoader());
                 ctorMap.put(cname, cls.getConstructor(String.class));
             } catch (Exception ignored) { /* class not present on this JDK/classpath */ }

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.jini.jeri.ssl;
+package au.net.zeus.jgdms.spiffe;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -92,7 +92,7 @@ import javax.security.auth.x500.X500PrivateCredential;
  * <h2>Example JAAS configuration ({@code spiffelogins})</h2>
  * <pre>
  * org.apache.river.Reggie {
- *     net.jini.jeri.ssl.SpiffeLoginModule required
+ *     au.net.zeus.jgdms.spiffe.SpiffeLoginModule required
  *         serviceRole="reggie";
  * };
  * </pre>

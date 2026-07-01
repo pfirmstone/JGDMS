@@ -19,8 +19,8 @@ import java.security.BasicPermission;
 
 /**
  * Permission that must be granted to a server's principal (typically a
- * {@code net.jini.jeri.ssl.SpiffePrincipal}) to allow that server to act as a
- * trusted codebase source during the client bootstrap phase.
+ * {@code au.net.zeus.jgdms.spiffe.SpiffePrincipal}) to allow that server to act
+ * as a trusted codebase source during the client bootstrap phase.
  *
  * <p>During the boot window — before a {@link VerdictRegistry} is available —
  * {@link PreferredProxyCodebaseProvider} checks whether the authenticated
@@ -35,7 +35,7 @@ import java.security.BasicPermission;
  *
  * <h2>Policy file example</h2>
  * <pre>
- * grant principal net.jini.jeri.ssl.SpiffePrincipal
+ * grant principal au.net.zeus.jgdms.spiffe.SpiffePrincipal
  *         "spiffe://trust.domain/svc/reggie" {
  *     permission net.jini.loader.pref.BootstrapPermission "loadCodebase";
  * };
