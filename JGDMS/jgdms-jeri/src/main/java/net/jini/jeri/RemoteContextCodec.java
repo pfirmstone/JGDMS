@@ -32,6 +32,7 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.DomainCombiner;
+import java.security.PermissionCollection;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
@@ -75,7 +76,10 @@ import net.jini.security.Security;
  * Every domain keeps its codebase identity: a {@code DigestCodeSource} carries its
  * URI + algorithm + digest (self-verifying); other domains carry their URL and any
  * signing certificates.  No anonymous placeholder domains and no principals are
- * written.
+ * written.  The one domain that is <em>not</em> transmitted (nor reconstructed if a
+ * peer sends it) is the platform {@code jrt:/java.base} module: always fully
+ * privileged ({@link java.security.AllPermission}), native, and unstamped, it is not
+ * a reducer (see {@link #isJavaBaseModule}).
  */
 final class RemoteContextCodec {
 
@@ -122,6 +126,38 @@ final class RemoteContextCodec {
     }
 
     /**
+     * Reflective handle to DirtyChai's {@code java.security.DomainIdentity} -- a
+     * {@code ProtectionDomain} subclass with <em>value</em> equality (codebase + principals
+     * + permissions) instead of the identity equality of a plain {@code ProtectionDomain}.
+     *
+     * <p>DirtyChai's rule is that plain {@code ProtectionDomain}s are for ClassLoaders only;
+     * every temporary/reconstructed domain is a {@code DomainIdentity}.  That matters here:
+     * the reducing domains rebuilt per remote call are temporary, and with N virtual threads
+     * invoking the same remote object the reconstructed reducing {@code AccessControlContext}
+     * is logically identical across all of them.  Value equality lets that single context
+     * deduplicate in the {@code AccessControlContext} cache and the
+     * {@code CombinerSecurityManager} permission-result cache -- one interned context and one
+     * cached permission decision shared by all N threads.  Identity equality would instead
+     * intern N distinct contexts that never hit, re-evaluating policy per call.
+     *
+     * <p>Bound reflectively because jgdms-jeri compiles on stock OpenJDK (where the class is
+     * absent) but runs only on DirtyChai; on a stock JVM the reducing domains fall back to the
+     * identity-equality {@link ReconstructedDomain} (which does not occur at runtime).
+     */
+    private static final Constructor<?> DOMAIN_IDENTITY_CTOR; // (CodeSource, PermissionCollection, ClassLoader, Principal[])
+    static {
+        Constructor<?> ctor = null;
+        try {
+            ctor = Class.forName("java.security.DomainIdentity")
+                    .getConstructor(CodeSource.class, PermissionCollection.class,
+                                    ClassLoader.class, Principal[].class);
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
+            // Non-DirtyChai JVM -- see field javadoc; falls back to ReconstructedDomain.
+        }
+        DOMAIN_IDENTITY_CTOR = ctor;
+    }
+
+    /**
      * Identity-only {@link URLStreamHandler} used to reconstruct a codebase URL
      * for {@code CodeSource} (policy-matching) purposes when the real protocol
      * handler is not registered on the receiver; opening a connection always
@@ -143,18 +179,30 @@ final class RemoteContextCodec {
      * <p>Every reducing domain is transmitted, including a domain whose
      * {@link CodeSource} is {@code null} (a dynamic proxy, lambda, or bootstrap
      * domain): it is a genuine reducer and dropping it would <em>elevate</em>
-     * authority.  Such a domain is reconstructed on the receiver as a
+     * authority.  The sole exception is the platform {@code jrt:/java.base} module
+     * domain, which is dropped precisely because it is <em>not</em> a reducer (always
+     * {@link java.security.AllPermission}, native, unstamped); see
+     * {@link #isJavaBaseModule}.  Such a null-codebase domain is reconstructed on the receiver as a
      * codebase-less, principal-bearing domain, so it reduces to whatever the
      * authenticated worker principals are granted (a principal-only grant) and
      * never grants codebase-scoped authority -- "the caller may use only the
      * Principal."  No principals and no synthetic placeholders are written.
      */
     static void marshal(ObjectOutput out, AccessControlContext acc) throws IOException {
-        ProtectionDomain[] domains =
+        ProtectionDomain[] extracted =
                 (acc == null) ? new ProtectionDomain[0] : extractDomains(acc);
-        out.writeInt(domains.length);
-        for (int i = 0; i < domains.length; i++) {
-            CodeSource cs = domains[i].getCodeSource();
+        // Drop the platform jrt:/java.base domain before counting: it is always fully
+        // privileged, native, and unstamped, so it is not a reducer and must never be
+        // reconstructed with the remote principals (see isJavaBaseModule).
+        List<ProtectionDomain> domains = new ArrayList<ProtectionDomain>(extracted.length);
+        for (ProtectionDomain pd : extracted) {
+            CodeSource pdcs = pd.getCodeSource();
+            if (pdcs != null && isJavaBaseModule(pdcs.getLocation())) continue;
+            domains.add(pd);
+        }
+        out.writeInt(domains.size());
+        for (ProtectionDomain pd : domains) {
+            CodeSource cs = pd.getCodeSource();
             if (isDigestCodeSource(cs)) {
                 out.writeByte(KIND_DIGEST);
                 URL loc = cs.getLocation();
@@ -183,6 +231,43 @@ final class RemoteContextCodec {
     private static boolean isDigestCodeSource(CodeSource cs) {
         return cs != null && DCS_CTOR != null
                 && DIGEST_CODESOURCE.equals(cs.getClass().getName());
+    }
+
+    /**
+     * True for the platform {@code jrt:/java.base} module codebase.  That domain is
+     * always fully privileged (it holds {@link java.security.AllPermission}), carries
+     * native code, and is unstamped (no content digest), so it is never a genuine
+     * reducer.  It is therefore neither transmitted nor reconstructed: stamping the
+     * remote worker principals onto a domain that the receiver's policy
+     * unconditionally grants would elevate authority, not reduce it.  Other {@code jrt:}
+     * module domains are retained -- they are not necessarily fully privileged.
+     */
+    private static boolean isJavaBaseModule(URL loc) {
+        if (loc == null || !"jrt".equals(loc.getProtocol())) return false;
+        String path = loc.getPath();
+        return "/java.base".equals(path)
+                || (path != null && path.startsWith("/java.base/"));
+    }
+
+    /**
+     * Builds the reconstructed reducing domain (codebase + stamped worker principals, no
+     * static permissions).  On DirtyChai this is a value-equality {@code DomainIdentity}, so
+     * that the reducing {@code AccessControlContext} of every caller sharing a codebase and
+     * principal set deduplicates to a single cached context -- one interned context and one
+     * cached permission decision across all the virtual threads invoking that remote object.
+     * On a stock JVM (where {@code DomainIdentity} is absent and the codec does not run) it
+     * falls back to the identity-equality {@link ReconstructedDomain}.
+     */
+    private static ProtectionDomain reconstructDomain(CodeSource cs, Principal[] principals) {
+        if (DOMAIN_IDENTITY_CTOR != null) {
+            try {
+                return (ProtectionDomain)
+                        DOMAIN_IDENTITY_CTOR.newInstance(cs, null, null, principals);
+            } catch (ReflectiveOperationException e) {
+                // Fall back to identity-equality reconstruction below.
+            }
+        }
+        return new ReconstructedDomain(cs, principals);
     }
 
     private static void writeCerts(ObjectOutput out, Certificate[] certs) throws IOException {
@@ -234,7 +319,14 @@ final class RemoteContextCodec {
                 default:
                     throw new IOException("unknown remote domain kind: " + kind);
             }
-            domains.add(new ReconstructedDomain(cs, principals));
+            if (cs != null && isJavaBaseModule(cs.getLocation())) {
+                // Defence in depth: never reconstruct the trusted platform domain from
+                // the wire (a malicious or pre-fix peer may still send it).  Stamping
+                // the remote principals onto jrt:/java.base would inherit the server's
+                // unconditional platform grant -- escalation, not reduction.
+                continue;
+            }
+            domains.add(reconstructDomain(cs, principals));
         }
         return domains.toArray(new ProtectionDomain[domains.size()]);
     }
@@ -377,6 +469,10 @@ final class RemoteContextCodec {
      * A reconstructed reducing domain: the remote caller's real {@link CodeSource}
      * plus the authenticated worker principals, with no static permissions (so the
      * server's policy alone decides what it grants).
+     *
+     * <p>Identity-equality fallback used only on a stock JVM (where {@code DomainIdentity}
+     * is absent and the codec does not run).  At runtime on DirtyChai {@link #reconstructDomain}
+     * builds a value-equality {@code DomainIdentity} instead -- see {@link #DOMAIN_IDENTITY_CTOR}.
      */
     private static final class ReconstructedDomain extends ProtectionDomain {
         ReconstructedDomain(CodeSource cs, Principal[] principals) {

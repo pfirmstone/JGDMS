@@ -97,6 +97,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import net.jini.security.Security;
 import net.jini.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
@@ -1055,7 +1056,18 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                     ProtectionDomain[] remoteDomains =
                             unmarshalRemoteContext(accBytes, integrity);
                     if (remoteDomains.length > 0) {
-                        remoteIdentityContext = new AccessControlContext(remoteDomains);
+                        // Factory, not the constructor: on DirtyChai this interns the
+                        // value-equal reducing context in the AccessControlContext cache,
+                        // so all callers sharing this codebase + principal set share one
+                        // instance (virtual-thread dedup); on stock JVMs it falls back to
+                        // new AccessControlContext(remoteDomains).
+                        //
+                        // Building the context needs SecurityPermission("createAccessControlContext")
+                        // (the array constructor requires it too); run it under this trusted JERI frame
+                        // via doPrivileged so the permission does not go viral to callers and, being
+                        // authorized, the reducing context is exactly the remote domains (no stack merge).
+                        remoteIdentityContext = AccessController.doPrivileged(
+                                (PrivilegedAction<AccessControlContext>) () -> Security.create(remoteDomains));
                     }
                 }
             }
@@ -1590,17 +1602,20 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
         }
 	/*
 	 * Gate 1 (workload): evaluate the permission against the client's
-	 * ProtectionDomain ALONE.  The single domain is combined into an
-	 * AccessControlContext with the public array constructor -- which does NOT
-	 * merge the carrier thread's current (possibly principal-less,
-	 * virtual-thread-inherited) domains, unlike AccessControlContext.create off
-	 * the bare stack -- and submitted to the installed SecurityManager (on
-	 * DirtyChai, the CombinerSecurityManager).  Going through the SecurityManager
-	 * keeps it the single authorization chokepoint and applies its domain
-	 * combiner; calling ProtectionDomain.implies directly would bypass it.
+	 * ProtectionDomain ALONE.  The single domain is built into an
+	 * AccessControlContext via the interning factory (Security.create) inside a
+	 * doPrivileged, so this trusted frame's createAccessControlContext permission
+	 * applies and the factory returns a context of exactly {pd} -- no call-stack
+	 * merge -- while still deduplicating in the AccessControlContext cache
+	 * (virtual-thread friendly).  It is submitted to the installed SecurityManager
+	 * (on DirtyChai, the CombinerSecurityManager), keeping it the single
+	 * authorization chokepoint and applying its domain combiner; calling
+	 * ProtectionDomain.implies directly would bypass it.
 	 */
-	sm.checkPermission(permission,
-		new AccessControlContext(new ProtectionDomain[]{ pd }));
+	AccessControlContext ctx = AccessController.doPrivileged(
+		(PrivilegedAction<AccessControlContext>) () ->
+			Security.create(new ProtectionDomain[]{ pd }));
+	sm.checkPermission(permission, ctx);
     }
 
     /**

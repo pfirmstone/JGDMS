@@ -33,6 +33,7 @@ import au.net.zeus.jgdms.der.schema.SchemaChain;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.export.ProxyAccessor;
 import net.jini.io.context.DeserializationCompletion;
+import net.jini.security.Security;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.DeSerializationPermission;
 
@@ -832,7 +833,7 @@ final class DerObjectStreamCodec {
                         ProtectionDomain pd = i.getProtectionDomain();
                         if (pd != null) domains.add(pd);
                     }
-                    return new AccessControlContext(domains.toArray(new ProtectionDomain[0]));
+                    return Security.create(domains.toArray(new ProtectionDomain[0]));
                 });
         sm.checkPermission(PROXY_PERM, ctx);
     }
