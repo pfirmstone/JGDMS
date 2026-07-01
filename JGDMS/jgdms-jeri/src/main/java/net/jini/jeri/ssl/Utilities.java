@@ -19,8 +19,10 @@
 package net.jini.jeri.ssl;
 
 import org.apache.river.action.GetPropertyAction;
+import org.apache.river.api.net.Uri;
 import org.apache.river.collection.WeakSoftTable;
 import java.lang.ref.ReferenceQueue;
+import java.net.URISyntaxException;
 import java.security.AccessController;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -31,8 +33,12 @@ import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -128,6 +134,175 @@ abstract class Utilities
      */
     static boolean isWorkerSubject(Subject s) {
         return WORKER_SUBJECT != null && WORKER_SUBJECT.isInstance(s);
+    }
+
+    /* -- SPIFFE identity helpers -- */
+
+    /**
+     * The SPIFFE ID URI scheme prefix.  A SPIFFE identity is any
+     * {@link Principal} whose {@link Principal#getName() name} is a
+     * {@code spiffe://} URI.
+     */
+    static final String SPIFFE_SCHEME = "spiffe://";
+
+    /**
+     * Returns {@code true} if the principal is a SPIFFE identity -- i.e. a
+     * {@link Principal} whose {@code getName()} is a {@code spiffe://} URI.
+     *
+     * <p>This deliberately avoids referencing any particular
+     * {@code SpiffePrincipal} class: the constraint principal is downloaded
+     * from a {@code -dl} codebase (so referencing it would create a
+     * compile/version-skew dependency), and the authenticated peer identity
+     * may be a different {@code SpiffePrincipal} implementation altogether
+     * (for example the platform's read-only {@code RemoteSubject} principal).
+     * Matching is therefore by the canonical {@code spiffe://} URI carried in
+     * {@code getName()}, not by class identity.
+     */
+    static boolean isSpiffePrincipal(Principal p) {
+        if (p == null) return false;
+        String name = p.getName();
+        return name != null && name.startsWith(SPIFFE_SCHEME);
+    }
+
+    /**
+     * Extracts the {@code spiffe://} URI Subject Alternative Names from the
+     * given certificate and returns them as canonical (RFC 3986 normalized)
+     * URI strings.
+     *
+     * <p>The strings are normalized through {@link Uri} -- the same RFC 3986
+     * implementation the SPIFFE {@code SpiffePrincipal} normalizes through --
+     * so a canonical SAN URI compares equal to a {@code SpiffePrincipal}'s
+     * canonical {@link Principal#getName()}.  Malformed or unparseable SANs
+     * are silently skipped (treated as no SPIFFE identity), matching the
+     * fail-closed behaviour of the surrounding certificate checks.
+     *
+     * @param cert the certificate to inspect; must be non-null
+     * @return the set of canonical {@code spiffe://} SAN URIs; empty if none
+     */
+    static Set<String> spiffeSanUris(X509Certificate cert) {
+        Set<String> result = new HashSet<String>();
+        Collection<List<?>> sans;
+        try {
+            sans = cert.getSubjectAlternativeNames();
+        } catch (CertificateParsingException e) {
+            return result;
+        }
+        if (sans == null) return result;
+        for (List<?> san : sans) {
+            // SAN type 6 == uniformResourceIdentifier
+            if (san.size() >= 2 && Integer.valueOf(6).equals(san.get(0))) {
+                Object value = san.get(1);
+                if (value instanceof String
+                        && ((String) value).startsWith(SPIFFE_SCHEME)) {
+                    try {
+                        result.add(new Uri((String) value).toString());
+                    } catch (URISyntaxException e) {
+                        // Skip malformed SPIFFE URI.
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns {@code true} if any of the permitted principals is a SPIFFE
+     * identity whose canonical {@code getName()} matches one of the
+     * certificate's canonical {@code spiffe://} SAN URIs.
+     *
+     * @param permitted the permitted principals (may be null/empty)
+     * @param cert      the certificate whose URI SANs are matched
+     */
+    static boolean permittedViaSpiffeSan(Set permitted, X509Certificate cert) {
+        if (permitted == null || permitted.isEmpty()) return false;
+        Set<String> sanUris = spiffeSanUris(cert);
+        if (sanUris.isEmpty()) return false;
+        for (Object o : permitted) {
+            if (o instanceof Principal
+                    && sanUris.contains(((Principal) o).getName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns {@code true} if the subject contains a SPIFFE identity -- any
+     * {@link Principal} whose {@code getName()} is a {@code spiffe://} URI.
+     * Replaces {@code subject.getPrincipals(SpiffePrincipal.class)} so no
+     * particular {@code SpiffePrincipal} class is referenced.
+     */
+    static boolean hasSpiffePrincipal(Subject subject) {
+        if (subject == null) return false;
+        Set<Principal> principals = subject.getPrincipals();
+        synchronized (principals) {
+            for (Principal p : principals) {
+                if (isSpiffePrincipal(p)) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The downloadable SPIFFE constraint/identity principal class,
+     * {@code au.net.zeus.jgdms.spiffe.SpiffePrincipal} (in a {@code -dl}
+     * module).  Referenced by name only -- the SSL transport must not
+     * compile-depend on a downloadable class (it would create a version-skew
+     * {@link ClassNotFoundException} on earlier peers and a dependency
+     * inversion).
+     */
+    private static final String SPIFFE_PRINCIPAL_CLASS =
+        "au.net.zeus.jgdms.spiffe.SpiffePrincipal";
+
+    /**
+     * The {@code SpiffePrincipal(String)} constructor, resolved reflectively by
+     * name via the system class loader (mirroring
+     * {@code BasicInvocationDispatcher.PRINCIPAL_CTORS}, so the instance is the
+     * same class the dispatcher reconstructs for constraints), or null if the
+     * {@code -dl} class is not on the classpath.
+     */
+    private static final java.lang.reflect.Constructor<?> SPIFFE_PRINCIPAL_CTOR =
+        findSpiffePrincipalCtor();
+
+    private static java.lang.reflect.Constructor<?> findSpiffePrincipalCtor() {
+        try {
+            Class<?> c = Class.forName(SPIFFE_PRINCIPAL_CLASS, false,
+                                       ClassLoader.getSystemClassLoader());
+            return c.getConstructor(String.class);
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns SPIFFE {@link Principal}s for the certificate's {@code spiffe://}
+     * URI SANs, as instances of the downloadable {@code SpiffePrincipal} class
+     * (resolved by name).
+     *
+     * <p>Unlike matching -- which is by canonical {@link Principal#getName()}
+     * (see {@link #permittedViaSpiffeSan}) -- populating a local {@code Subject}
+     * whose principals are evaluated by the security policy requires the actual
+     * {@code SpiffePrincipal} class, because policy {@code PrincipalGrant}
+     * matching keys on the principal's runtime class name (and {@code equals}).
+     * A surrogate class would not match a policy grant naming the SPIFFE class.
+     *
+     * <p>Returns an empty collection if the {@code -dl} class is unavailable
+     * (graceful degradation to X500-only identity) or the certificate's SANs
+     * are malformed.
+     *
+     * @param cert the certificate to inspect; must be non-null
+     */
+    static Collection<Principal> spiffePrincipalsFromCertificate(X509Certificate cert) {
+        if (SPIFFE_PRINCIPAL_CTOR == null) return Collections.emptyList();
+        List<Principal> result = new ArrayList<Principal>();
+        for (String uri : spiffeSanUris(cert)) {
+            try {
+                result.add((Principal) SPIFFE_PRINCIPAL_CTOR.newInstance(uri));
+            } catch (ReflectiveOperationException e) {
+                // Skip a URI the SpiffePrincipal constructor rejects.
+            }
+        }
+        return result;
     }
 
     /**
@@ -521,7 +696,9 @@ abstract class Utilities
 	Set result = new HashSet(principals.size());
 	for (Iterator i = principals.iterator(); i.hasNext(); ) {
 	    Object elt = i.next();
-	    if (elt instanceof X500Principal || elt instanceof SpiffePrincipal) {
+	    if (elt instanceof X500Principal
+		    || (elt instanceof Principal && isSpiffePrincipal((Principal) elt)))
+	    {
 		result.add(elt);
 	    }
 	}
@@ -1288,7 +1465,7 @@ abstract class Utilities
     protected static boolean hasTlsIdentity(Subject subject) {
         if (subject == null) return false;
         if ( !subject.getPrincipals(X500Principal.class).isEmpty()
-                || !subject.getPrincipals(SpiffePrincipal.class).isEmpty()){
+                || hasSpiffePrincipal(subject)){
             Set<?> privateCreds = AccessController.doPrivileged( new PrivilegedAction<Set<?>>(){               
                 public Set<?> run(){
                     return subject.getPrivateCredentials();

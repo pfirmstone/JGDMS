@@ -64,13 +64,13 @@ grant {
 };
 
 /* ── Allow Host 4 (Codebase Downloader) to submit AnalysisRequests ───── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/downloader" {
     permission net.jini.security.AccessPermission "analyzeJar";
 };
 
 /* ── Allow Host 5 (JFR Telemetry) to submit re-analysis requests ─────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/telemetry" {
     permission net.jini.security.AccessPermission "analyzeJar";
 };

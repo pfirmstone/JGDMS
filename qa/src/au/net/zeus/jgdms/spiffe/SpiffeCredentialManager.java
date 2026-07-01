@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.jini.jeri.ssl;
+package au.net.zeus.jgdms.spiffe;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -119,7 +119,6 @@ import net.jini.security.Security;
  * <p>All credential updates are synchronised on the provided {@link Subject}
  * so that concurrent JERI SSL handshakes observe a consistent state.
  *
- * @see SubjectCredentials
  * @see SvidSource
  * @since 3.1.1
  * @author Peter Firmstone
@@ -758,7 +757,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
      * <ul>
      *   <li>The {@link X500Principal} derived from the SVID leaf certificate's
      *       Subject DN is added, enabling the existing JERI credential-
-     *       selection machinery ({@link SubjectCredentials#getPrincipal}) to
+     *       selection machinery ({@code SubjectCredentials.getPrincipal}) to
      *       locate the certificate.</li>
      *   <li>The {@link SpiffePrincipal} derived from the SVID's URI Subject
      *       Alternative Name (if present) is added, enabling constraint

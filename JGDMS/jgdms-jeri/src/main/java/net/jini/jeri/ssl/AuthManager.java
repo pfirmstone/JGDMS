@@ -289,10 +289,10 @@ abstract class AuthManager extends FilterX509TrustManager
 		   // Note: permittedViaSan() is only reached once the
 		   // certificate's X500Principal has already been confirmed
 		   // to be present in the Subject (above).
-		   // SpiffeCredentialManager always adds both the X500Principal
-		   // and any SpiffePrincipal together, so this invariant is
+		   // An SVID login mechanism adds both the X500Principal
+		   // and any SPIFFE principal together, so this invariant is
 		   // satisfied when SVIDs are loaded through the standard
-		   // credential-manager machinery.
+		   // credential machinery.
 		   && !permittedViaSan(permittedLocalPrincipals, head))
 	{
 	    throw new GeneralSecurityException(
@@ -334,21 +334,20 @@ abstract class AuthManager extends FilterX509TrustManager
     }
 
     /**
-     * Returns {@code true} if the certificate's URI Subject Alternative Name
-     * matches a {@link SpiffePrincipal} in the permitted-principals set.
+     * Returns {@code true} if the certificate's {@code spiffe://} URI Subject
+     * Alternative Name matches a SPIFFE principal in the permitted-principals
+     * set, comparing by canonical {@link Principal#getName()} (see
+     * {@link Utilities#permittedViaSpiffeSan}).
      *
      * <p>This supplements the standard {@link X500Principal} check in
      * {@link #checkChain} to allow SPIFFE SVID credentials to satisfy
      * constraints expressed as {@link net.jini.core.constraint.ClientMinPrincipal}
-     * containing {@code SpiffePrincipal} values.
+     * containing SPIFFE principal values.
      */
     private static boolean permittedViaSan(Set permittedLocalPrincipals,
 					   X509Certificate cert)
     {
-	for (SpiffePrincipal sp : SpiffePrincipal.fromCertificate(cert)) {
-	    if (permittedLocalPrincipals.contains(sp)) return true;
-	}
-	return false;
+	return Utilities.permittedViaSpiffeSan(permittedLocalPrincipals, cert);
     }
 
     /**

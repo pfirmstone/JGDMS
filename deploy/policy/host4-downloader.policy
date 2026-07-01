@@ -52,7 +52,7 @@ grant {
 };
 
 /* ── Host 1 (Lookup Service) discovery events ────────────────────────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/lookup" {
     permission net.jini.security.AccessPermission "*";
     permission java.net.SocketPermission "*:4160",           "connect,resolve";
@@ -60,14 +60,14 @@ grant principal net.jini.jeri.ssl.SpiffePrincipal
 };
 
 /* ── BAE pool (Host 2) — submit AnalysisRequests ─────────────────────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/bae/*" {
     permission net.jini.security.AccessPermission "analyzeJar";
     permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
 };
 
 /* ── VerdictRegistry (Host 3) — submit signed reports ───────────────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/registry" {
     permission net.jini.security.AccessPermission "submit";
     permission net.jini.security.AccessPermission "lookup";

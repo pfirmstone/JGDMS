@@ -15,14 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.jini.jeri.ssl;
-
-import net.jini.jeri.ssl.SpiffeCredentialManager.FileSvidSource;
-import net.jini.jeri.ssl.SpiffeCredentialManager.Svid;
-import net.jini.jeri.ssl.SpiffeCredentialManager.SvidSource;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+/* @test
+ * @summary Unit tests for SpiffeCredentialManager: constructor validation,
+ *          start()/close() Subject population and clearing, refresh() SVID
+ *          rotation, start()/refresh()-after-close guards, SvidSource failure
+ *          propagation, the health API (isCredentialValid/secondsUntilExpiry),
+ *          and exponential-backoff recovery from transient SvidSource failures.
+ *          SVIDs are generated at test time using SpiffeTestSvidFactory (which
+ *          shells out to keytool) — no certificate material is committed to
+ *          the repository.
+ * @build SpiffeCredentialManagerTest
+ * @run main/othervm SpiffeCredentialManagerTest
+ */
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -36,16 +40,17 @@ import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import au.net.zeus.jgdms.spiffe.SpiffeCredentialManager;
+import au.net.zeus.jgdms.spiffe.SpiffeCredentialManager.FileSvidSource;
+import au.net.zeus.jgdms.spiffe.SpiffeCredentialManager.Svid;
+import au.net.zeus.jgdms.spiffe.SpiffeCredentialManager.SvidSource;
+import au.net.zeus.jgdms.spiffe.SpiffePrincipal;
+import au.net.zeus.jgdms.spiffe.SpiffeTestSvidFactory;
 
 /**
  * Unit tests for {@link SpiffeCredentialManager}.
  *
- * SVID certificates are generated at test time using
+ * <p>SVID certificates are generated at test time using
  * {@link SpiffeTestSvidFactory} — no certificate material is committed to
  * the repository.
  */
@@ -53,14 +58,16 @@ public class SpiffeCredentialManagerTest {
 
     private static SpiffeTestSvidFactory.Fixture fixture;
 
-    @BeforeClass
-    public static void setUpFixture() throws Exception {
+    // -----------------------------------------------------------------------
+    // Fixture setup / teardown
+    // -----------------------------------------------------------------------
+
+    private static void setUpFixture() throws Exception {
         Path tempDir = Files.createTempDirectory("spiffe-mgr-test-");
         fixture = SpiffeTestSvidFactory.createReggieFixture(tempDir);
     }
 
-    @AfterClass
-    public static void tearDownFixture() throws Exception {
+    private static void tearDownFixture() throws Exception {
         if (fixture != null) {
             Files.walk(fixture.dir)
                     .sorted(java.util.Comparator.reverseOrder())
@@ -85,96 +92,163 @@ public class SpiffeCredentialManagerTest {
     }
 
     // -----------------------------------------------------------------------
+    // Entry point
+    // -----------------------------------------------------------------------
+
+    public static void main(String[] args) throws Exception {
+        try {
+            setUpFixture();
+
+            // Constructor validation
+            run("constructNullSubject",           SpiffeCredentialManagerTest::constructNullSubject);
+            run("constructNullSvidSource",         SpiffeCredentialManagerTest::constructNullSvidSource);
+            run("constructZeroRenewalLead",        SpiffeCredentialManagerTest::constructZeroRenewalLead);
+            run("constructNegativeRenewalLead",    SpiffeCredentialManagerTest::constructNegativeRenewalLead);
+            run("constructReadOnlySubject",        SpiffeCredentialManagerTest::constructReadOnlySubject);
+            run("constructDirNullSubject",         SpiffeCredentialManagerTest::constructDirNullSubject);
+
+            // start() — populates Subject
+            run("startPopulatesX500Principal",     SpiffeCredentialManagerTest::startPopulatesX500Principal);
+            run("startPopulatesSpiffePrincipal",   SpiffeCredentialManagerTest::startPopulatesSpiffePrincipal);
+            run("startPopulatesCertPath",          SpiffeCredentialManagerTest::startPopulatesCertPath);
+            run("startPopulatesPrivateCredential", SpiffeCredentialManagerTest::startPopulatesPrivateCredential);
+
+            // close() — clears Subject
+            run("closeClearsPrincipals",           SpiffeCredentialManagerTest::closeClearsPrincipals);
+            run("closeClearsCredentials",          SpiffeCredentialManagerTest::closeClearsCredentials);
+            run("closeIsIdempotent",               SpiffeCredentialManagerTest::closeIsIdempotent);
+
+            // start()/refresh() after close() throws IllegalStateException
+            run("startAfterCloseThrows",           SpiffeCredentialManagerTest::startAfterCloseThrows);
+            run("refreshAfterCloseThrows",         SpiffeCredentialManagerTest::refreshAfterCloseThrows);
+
+            // SVID rotation
+            run("refreshReplacesCredentials",      SpiffeCredentialManagerTest::refreshReplacesCredentials);
+
+            // start() failure propagation
+            run("startFailureWhenSvidSourceThrows", SpiffeCredentialManagerTest::startFailureWhenSvidSourceThrows);
+
+            // Subject isolation
+            run("closeOnlyRemovesManagedPrincipals", SpiffeCredentialManagerTest::closeOnlyRemovesManagedPrincipals);
+
+            // SEC1 EC key rejection
+            run("sec1EcKeyFileIsRejectedWithHelpfulMessage",
+                    SpiffeCredentialManagerTest::sec1EcKeyFileIsRejectedWithHelpfulMessage);
+
+            // Double start on same manager
+            run("doubleStartOnSameManagerIsRejected",
+                    SpiffeCredentialManagerTest::doubleStartOnSameManagerIsRejected);
+
+            // Health API
+            run("isCredentialValidBeforeStart",    SpiffeCredentialManagerTest::isCredentialValidBeforeStart);
+            run("secondsUntilExpiryBeforeStart",   SpiffeCredentialManagerTest::secondsUntilExpiryBeforeStart);
+            run("isCredentialValidAfterStart",     SpiffeCredentialManagerTest::isCredentialValidAfterStart);
+            run("secondsUntilExpiryAfterStart",    SpiffeCredentialManagerTest::secondsUntilExpiryAfterStart);
+            run("isCredentialValidAfterClose",     SpiffeCredentialManagerTest::isCredentialValidAfterClose);
+            run("secondsUntilExpiryAfterClose",    SpiffeCredentialManagerTest::secondsUntilExpiryAfterClose);
+
+            // Exponential backoff recovery
+            run("renewalRecoverAfterTransientFailures",
+                    SpiffeCredentialManagerTest::renewalRecoverAfterTransientFailures);
+            run("minRetryIntervalConstantIsPositive",
+                    SpiffeCredentialManagerTest::minRetryIntervalConstantIsPositive);
+
+            System.out.println("\nAll SpiffeCredentialManagerTest tests PASSED.");
+        } finally {
+            tearDownFixture();
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Constructor validation
     // -----------------------------------------------------------------------
 
-    @Test(expected = NullPointerException.class)
-    public void constructNullSubject() throws Exception {
-        new SpiffeCredentialManager(null, reggieSource(), 60L);
+    private static void constructNullSubject() throws Exception {
+        assertThrows("constructNullSubject", NullPointerException.class,
+                () -> new SpiffeCredentialManager(null, reggieSource(), 60L));
     }
 
-    @Test(expected = NullPointerException.class)
-    public void constructNullSvidSource() {
-        new SpiffeCredentialManager(mutableSubject(), (SvidSource) null, 60L);
+    private static void constructNullSvidSource() throws Exception {
+        assertThrows("constructNullSvidSource", NullPointerException.class,
+                () -> new SpiffeCredentialManager(mutableSubject(), (SvidSource) null, 60L));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void constructZeroRenewalLead() throws Exception {
-        new SpiffeCredentialManager(mutableSubject(), reggieSource(), 0L);
+    private static void constructZeroRenewalLead() throws Exception {
+        assertThrows("constructZeroRenewalLead", IllegalArgumentException.class,
+                () -> new SpiffeCredentialManager(mutableSubject(), reggieSource(), 0L));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void constructNegativeRenewalLead() throws Exception {
-        new SpiffeCredentialManager(mutableSubject(), reggieSource(), -1L);
+    private static void constructNegativeRenewalLead() throws Exception {
+        assertThrows("constructNegativeRenewalLead", IllegalArgumentException.class,
+                () -> new SpiffeCredentialManager(mutableSubject(), reggieSource(), -1L));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void constructReadOnlySubject() throws Exception {
-        Subject ro = new Subject();
-        ro.setReadOnly();
-        new SpiffeCredentialManager(ro, reggieSource(), 60L);
+    private static void constructReadOnlySubject() throws Exception {
+        assertThrows("constructReadOnlySubject", IllegalArgumentException.class,
+                () -> {
+                    Subject ro = new Subject();
+                    ro.setReadOnly();
+                    new SpiffeCredentialManager(ro, reggieSource(), 60L);
+                });
     }
 
-    @Test(expected = NullPointerException.class)
-    public void constructDirNullSubject() {
-        new SpiffeCredentialManager(null, Paths.get("/tmp"));
+    private static void constructDirNullSubject() throws Exception {
+        assertThrows("constructDirNullSubject", NullPointerException.class,
+                () -> new SpiffeCredentialManager(null, Paths.get("/tmp")));
     }
 
     // -----------------------------------------------------------------------
     // start() — populates Subject
     // -----------------------------------------------------------------------
 
-    @Test
-    public void startPopulatesX500Principal() throws Exception {
+    private static void startPopulatesX500Principal() throws Exception {
         Subject subject = mutableSubject();
         try (SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L)) {
             mgr.start();
             Set<X500Principal> x500s = subject.getPrincipals(X500Principal.class);
-            assertEquals("start() should add exactly one X500Principal", 1, x500s.size());
+            assertEqual("start() should add exactly one X500Principal", 1, x500s.size());
             String dn = x500s.iterator().next().getName();
             assertTrue("X500Principal DN should contain Reggie: " + dn,
                     dn.contains("Reggie"));
         }
     }
 
-    @Test
-    public void startPopulatesSpiffePrincipal() throws Exception {
+    private static void startPopulatesSpiffePrincipal() throws Exception {
         Subject subject = mutableSubject();
         try (SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L)) {
             mgr.start();
             Set<SpiffePrincipal> spiffes = subject.getPrincipals(SpiffePrincipal.class);
-            assertEquals("start() should add exactly one SpiffePrincipal", 1, spiffes.size());
-            assertEquals(SpiffeTestSvidFactory.REGGIE_SPIFFE_ID,
+            assertEqual("start() should add exactly one SpiffePrincipal", 1, spiffes.size());
+            assertEqual("SPIFFE URI", SpiffeTestSvidFactory.REGGIE_SPIFFE_ID,
                     spiffes.iterator().next().getName());
         }
     }
 
-    @Test
-    public void startPopulatesCertPath() throws Exception {
+    private static void startPopulatesCertPath() throws Exception {
         Subject subject = mutableSubject();
         try (SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L)) {
             mgr.start();
             Set<CertPath> certPaths = subject.getPublicCredentials(CertPath.class);
-            assertEquals("start() should add exactly one CertPath", 1, certPaths.size());
+            assertEqual("start() should add exactly one CertPath", 1, certPaths.size());
             assertFalse("CertPath must not be empty",
                     certPaths.iterator().next().getCertificates().isEmpty());
         }
     }
 
-    @Test
-    public void startPopulatesPrivateCredential() throws Exception {
+    private static void startPopulatesPrivateCredential() throws Exception {
         Subject subject = mutableSubject();
         try (SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L)) {
             mgr.start();
             Set<X500PrivateCredential> privs =
                     subject.getPrivateCredentials(X500PrivateCredential.class);
-            assertEquals("start() should add exactly one X500PrivateCredential",
+            assertEqual("start() should add exactly one X500PrivateCredential",
                     1, privs.size());
-            assertNotNull(privs.iterator().next().getPrivateKey());
+            assertNotNull("private key must not be null",
+                    privs.iterator().next().getPrivateKey());
         }
     }
 
@@ -182,8 +256,7 @@ public class SpiffeCredentialManagerTest {
     // close() — clears Subject
     // -----------------------------------------------------------------------
 
-    @Test
-    public void closeClearsPrincipals() throws Exception {
+    private static void closeClearsPrincipals() throws Exception {
         Subject subject = mutableSubject();
         SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L);
@@ -197,8 +270,7 @@ public class SpiffeCredentialManagerTest {
                 subject.getPrincipals().isEmpty());
     }
 
-    @Test
-    public void closeClearsCredentials() throws Exception {
+    private static void closeClearsCredentials() throws Exception {
         Subject subject = mutableSubject();
         SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L);
@@ -211,8 +283,7 @@ public class SpiffeCredentialManagerTest {
                 subject.getPrivateCredentials(X500PrivateCredential.class).isEmpty());
     }
 
-    @Test
-    public void closeIsIdempotent() throws Exception {
+    private static void closeIsIdempotent() throws Exception {
         Subject subject = mutableSubject();
         SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L);
@@ -225,8 +296,7 @@ public class SpiffeCredentialManagerTest {
     // start() after close() throws IllegalStateException
     // -----------------------------------------------------------------------
 
-    @Test
-    public void startAfterCloseThrows() throws Exception {
+    private static void startAfterCloseThrows() throws Exception {
         Subject subject = mutableSubject();
         SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L);
@@ -244,8 +314,7 @@ public class SpiffeCredentialManagerTest {
     // refresh() after close() throws IllegalStateException
     // -----------------------------------------------------------------------
 
-    @Test
-    public void refreshAfterCloseThrows() throws Exception {
+    private static void refreshAfterCloseThrows() throws Exception {
         Subject subject = mutableSubject();
         SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L);
@@ -263,8 +332,7 @@ public class SpiffeCredentialManagerTest {
     // SVID rotation: refresh() replaces credentials atomically
     // -----------------------------------------------------------------------
 
-    @Test
-    public void refreshReplacesCredentials() throws Exception {
+    private static void refreshReplacesCredentials() throws Exception {
         Subject subject = mutableSubject();
         try (SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L)) {
@@ -276,9 +344,10 @@ public class SpiffeCredentialManagerTest {
             mgr.refresh();
 
             Set<CertPath> after = subject.getPublicCredentials(CertPath.class);
-            assertEquals("Exactly one CertPath after refresh()", 1, after.size());
+            assertEqual("Exactly one CertPath after refresh()", 1, after.size());
             // The CertPath content should still be the reggie cert (same source).
-            assertNotNull(after.iterator().next());
+            assertNotNull("CertPath after refresh() must not be null",
+                    after.iterator().next());
         }
     }
 
@@ -286,8 +355,7 @@ public class SpiffeCredentialManagerTest {
     // start() failure propagates as IOException / GeneralSecurityException
     // -----------------------------------------------------------------------
 
-    @Test
-    public void startFailureWhenSvidSourceThrows() throws Exception {
+    private static void startFailureWhenSvidSourceThrows() throws Exception {
         SvidSource failing = new SvidSource() {
             @Override
             public Svid fetch() throws IOException {
@@ -300,7 +368,8 @@ public class SpiffeCredentialManagerTest {
             mgr.start();
             fail("Expected IOException from failing SvidSource");
         } catch (IOException e) {
-            assertTrue(e.getMessage().contains("simulated fetch failure"));
+            assertTrue("message should mention the simulated failure",
+                    e.getMessage().contains("simulated fetch failure"));
         }
     }
 
@@ -308,8 +377,7 @@ public class SpiffeCredentialManagerTest {
     // Subject isolation: pre-existing principals are untouched by close()
     // -----------------------------------------------------------------------
 
-    @Test
-    public void closeOnlyRemovesManagedPrincipals() throws Exception {
+    private static void closeOnlyRemovesManagedPrincipals() throws Exception {
         Subject subject = mutableSubject();
         X500Principal external = new X500Principal("CN=External");
         subject.getPrincipals().add(external);
@@ -325,27 +393,26 @@ public class SpiffeCredentialManagerTest {
 
     // -----------------------------------------------------------------------
     // FileSvidSource: SEC1 EC key (BEGIN EC PRIVATE KEY) must be rejected
-    // with a clear error rather than silently producing a corrupt key (#1)
+    // with a clear error rather than silently producing a corrupt key.
     // -----------------------------------------------------------------------
 
-    @Test
-    public void sec1EcKeyFileIsRejectedWithHelpfulMessage() throws Exception {
+    private static void sec1EcKeyFileIsRejectedWithHelpfulMessage() throws Exception {
         // Write a fake PEM key file containing a SEC1 EC PRIVATE KEY header.
         // The content bytes don't matter for this test — we just need the
         // header/footer to be present so the branch is triggered.
-        java.nio.file.Path tmpDir = java.nio.file.Files.createTempDirectory("spiffe-sec1-test");
-        java.nio.file.Path fakeSvid = tmpDir.resolve("svid.pem");
-        java.nio.file.Path fakeKey  = tmpDir.resolve("svid_key.pem");
+        Path tmpDir = Files.createTempDirectory("spiffe-sec1-test");
+        Path fakeSvid = tmpDir.resolve("svid.pem");
+        Path fakeKey  = tmpDir.resolve("svid_key.pem");
 
         // Copy the generated svid.pem so the cert-loading step succeeds.
-        java.nio.file.Files.copy(fixture.svidPem, fakeSvid);
+        Files.copy(fixture.svidPem, fakeSvid);
 
         // Write a synthetic SEC1-format key file.
         String sec1Pem =
                 "-----BEGIN EC PRIVATE KEY-----\n"
                 + "MHQCAQEEIExampleFakeKeyBytesBase64Padding==\n"
                 + "-----END EC PRIVATE KEY-----\n";
-        java.nio.file.Files.write(fakeKey,
+        Files.write(fakeKey,
                 sec1Pem.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
 
         FileSvidSource source = new FileSvidSource(fakeSvid, fakeKey);
@@ -359,14 +426,13 @@ public class SpiffeCredentialManagerTest {
                     msg.contains("SEC1") || msg.contains("EC PRIVATE KEY")
                     || msg.contains("PKCS#8"));
         } finally {
-            java.nio.file.Files.deleteIfExists(fakeKey);
-            java.nio.file.Files.deleteIfExists(fakeSvid);
-            java.nio.file.Files.deleteIfExists(tmpDir);
+            Files.deleteIfExists(fakeKey);
+            Files.deleteIfExists(fakeSvid);
+            Files.deleteIfExists(tmpDir);
         }
     }
 
-    @Test
-    public void doubleStartOnSameManagerIsRejected() throws Exception {
+    private static void doubleStartOnSameManagerIsRejected() throws Exception {
         Subject subject = mutableSubject();
         SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L);
@@ -387,8 +453,7 @@ public class SpiffeCredentialManagerTest {
     // Health API: isCredentialValid() and secondsUntilExpiry()
     // -----------------------------------------------------------------------
 
-    @Test
-    public void isCredentialValidBeforeStart() throws Exception {
+    private static void isCredentialValidBeforeStart() throws Exception {
         Subject subject = mutableSubject();
         SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L);
@@ -397,18 +462,16 @@ public class SpiffeCredentialManagerTest {
         mgr.close();
     }
 
-    @Test
-    public void secondsUntilExpiryBeforeStart() throws Exception {
+    private static void secondsUntilExpiryBeforeStart() throws Exception {
         Subject subject = mutableSubject();
         SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L);
-        assertEquals("secondsUntilExpiry() should return Long.MIN_VALUE before start()",
+        assertEqual("secondsUntilExpiry() should return Long.MIN_VALUE before start()",
                 Long.MIN_VALUE, mgr.secondsUntilExpiry());
         mgr.close();
     }
 
-    @Test
-    public void isCredentialValidAfterStart() throws Exception {
+    private static void isCredentialValidAfterStart() throws Exception {
         Subject subject = mutableSubject();
         try (SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L)) {
@@ -418,8 +481,7 @@ public class SpiffeCredentialManagerTest {
         }
     }
 
-    @Test
-    public void secondsUntilExpiryAfterStart() throws Exception {
+    private static void secondsUntilExpiryAfterStart() throws Exception {
         Subject subject = mutableSubject();
         try (SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L)) {
@@ -430,8 +492,7 @@ public class SpiffeCredentialManagerTest {
         }
     }
 
-    @Test
-    public void isCredentialValidAfterClose() throws Exception {
+    private static void isCredentialValidAfterClose() throws Exception {
         Subject subject = mutableSubject();
         SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L);
@@ -441,14 +502,13 @@ public class SpiffeCredentialManagerTest {
                 mgr.isCredentialValid());
     }
 
-    @Test
-    public void secondsUntilExpiryAfterClose() throws Exception {
+    private static void secondsUntilExpiryAfterClose() throws Exception {
         Subject subject = mutableSubject();
         SpiffeCredentialManager mgr =
                 new SpiffeCredentialManager(subject, reggieSource(), 3600L);
         mgr.start();
         mgr.close();
-        assertEquals("secondsUntilExpiry() should return Long.MIN_VALUE after close()",
+        assertEqual("secondsUntilExpiry() should return Long.MIN_VALUE after close()",
                 Long.MIN_VALUE, mgr.secondsUntilExpiry());
     }
 
@@ -456,8 +516,7 @@ public class SpiffeCredentialManagerTest {
     // Exponential backoff: manager recovers from transient SvidSource failures
     // -----------------------------------------------------------------------
 
-    @Test
-    public void renewalRecoverAfterTransientFailures() throws Exception {
+    private static void renewalRecoverAfterTransientFailures() throws Exception {
         // SvidSource that fails the first two fetches then succeeds.
         AtomicInteger callCount = new AtomicInteger(0);
         SvidSource intermittent = () -> {
@@ -476,7 +535,8 @@ public class SpiffeCredentialManagerTest {
                 mgr.start();
                 fail("Expected IOException from failing SvidSource on start()");
             } catch (IOException e) {
-                assertTrue(e.getMessage().contains("simulated transient failure"));
+                assertTrue("message should mention the simulated transient failure",
+                        e.getMessage().contains("simulated transient failure"));
             }
         }
 
@@ -503,10 +563,75 @@ public class SpiffeCredentialManagerTest {
         assertNotNull("SvidSource should succeed on 3rd call", svid);
     }
 
-    @Test
-    public void minRetryIntervalConstantIsPositive() {
+    private static void minRetryIntervalConstantIsPositive() throws Exception {
         assertTrue("MIN_RETRY_INTERVAL_SECONDS must be positive",
                 SpiffeCredentialManager.MIN_RETRY_INTERVAL_SECONDS > 0);
     }
-}
 
+    // -----------------------------------------------------------------------
+    // Test harness
+    // -----------------------------------------------------------------------
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    private static void run(String name, ThrowingRunnable test) throws Exception {
+        System.out.print("  " + name + " ... ");
+        test.run();
+        System.out.println("PASS");
+    }
+
+    // -----------------------------------------------------------------------
+    // Assertion helpers
+    // -----------------------------------------------------------------------
+
+    private static void assertTrue(String message, boolean condition) {
+        if (!condition) throw new RuntimeException("ASSERTION FAILED: " + message);
+    }
+
+    private static void assertFalse(String message, boolean condition) {
+        assertTrue(message, !condition);
+    }
+
+    private static void assertEqual(String message, Object expected, Object actual) {
+        if (expected == null ? actual != null : !expected.equals(actual))
+            throw new RuntimeException("ASSERTION FAILED: " + message
+                    + " [expected=" + expected + ", actual=" + actual + "]");
+    }
+
+    private static void assertEqual(String message, long expected, long actual) {
+        if (expected != actual)
+            throw new RuntimeException("ASSERTION FAILED: " + message
+                    + " [expected=" + expected + ", actual=" + actual + "]");
+    }
+
+    private static void assertNotNull(String message, Object obj) {
+        if (obj == null) throw new RuntimeException("ASSERTION FAILED: " + message + " was null");
+    }
+
+    private static void fail(String message) {
+        throw new RuntimeException("ASSERTION FAILED: " + message);
+    }
+
+    /**
+     * Asserts that {@code action} throws an exception of exactly (or a subtype
+     * of) {@code expected}.  Mirrors JUnit4's {@code @Test(expected=X.class)}.
+     */
+    private static void assertThrows(String name, Class<? extends Throwable> expected,
+            ThrowingRunnable action) throws Exception {
+        try {
+            action.run();
+        } catch (Throwable t) {
+            if (expected.isInstance(t)) {
+                return; // expected
+            }
+            throw new RuntimeException("ASSERTION FAILED: " + name
+                    + " expected " + expected.getName()
+                    + " but threw " + t.getClass().getName() + ": " + t.getMessage(), t);
+        }
+        throw new RuntimeException("ASSERTION FAILED: " + name
+                + " expected " + expected.getName() + " but nothing was thrown");
+    }
+}

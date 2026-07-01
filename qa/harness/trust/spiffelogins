@@ -12,46 +12,46 @@
  */
 
 org.apache.river.Reggie {
-    net.jini.jeri.ssl.SpiffeLoginModule required
+    au.net.zeus.jgdms.spiffe.SpiffeLoginModule required
         serviceRole="reggie";
 };
 
 org.apache.river.Mahalo {
-    net.jini.jeri.ssl.SpiffeLoginModule required
+    au.net.zeus.jgdms.spiffe.SpiffeLoginModule required
         serviceRole="mahalo";
 };
 
 org.apache.river.Outrigger {
-    net.jini.jeri.ssl.SpiffeLoginModule required
+    au.net.zeus.jgdms.spiffe.SpiffeLoginModule required
         serviceRole="outrigger";
 };
 
 org.apache.river.Mercury {
-    net.jini.jeri.ssl.SpiffeLoginModule required
+    au.net.zeus.jgdms.spiffe.SpiffeLoginModule required
         serviceRole="mercury";
 };
 
 org.apache.river.Norm {
-    net.jini.jeri.ssl.SpiffeLoginModule required
+    au.net.zeus.jgdms.spiffe.SpiffeLoginModule required
         serviceRole="norm";
 };
 
 org.apache.river.Fiddler {
-    net.jini.jeri.ssl.SpiffeLoginModule required
+    au.net.zeus.jgdms.spiffe.SpiffeLoginModule required
         serviceRole="fiddler";
 };
 
 org.apache.river.Phoenix {
-    net.jini.jeri.ssl.SpiffeLoginModule required
+    au.net.zeus.jgdms.spiffe.SpiffeLoginModule required
         serviceRole="phoenix";
 };
 
 org.apache.river.Test {
-    net.jini.jeri.ssl.SpiffeLoginModule required
+    au.net.zeus.jgdms.spiffe.SpiffeLoginModule required
         serviceRole="tester";
 };
 
 org.apache.river.Group {
-    net.jini.jeri.ssl.SpiffeLoginModule required
+    au.net.zeus.jgdms.spiffe.SpiffeLoginModule required
         serviceRole="group";
 };

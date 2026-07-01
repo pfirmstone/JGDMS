@@ -365,8 +365,13 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    synchronized (clientSubject.getPrincipals()) {
 		clientPrincipals =
 		    new HashSet(clientSubject.getPrincipals(X500Principal.class));
-		clientPrincipals.addAll(
-		    clientSubject.getPrincipals(SpiffePrincipal.class));
+		// Add SPIFFE identities (any Principal whose name is a spiffe://
+		// URI) without referencing a particular SpiffePrincipal class.
+		for (Principal p : clientSubject.getPrincipals()) {
+		    if (Utilities.isSpiffePrincipal(p)) {
+			clientPrincipals.add(p);
+		    }
+		}
 	    }
 	    
 	    if (clientPrincipals.isEmpty()) {
@@ -614,7 +619,13 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		contexts.remove(i);
 		continue;
 	    }
-	    Collection certs = (Collection) publicCreds.get(context.client);
+	    // SPIFFE identities are keyed in publicCreds by their canonical
+	    // spiffe:// URI (getName), not by Principal object, so a downloaded
+	    // SpiffePrincipal constraint matches a certificate-derived identity
+	    // across classes and class loaders.
+	    Object credKey = Utilities.isSpiffePrincipal(context.client)
+		? context.client.getName() : context.client;
+	    Collection certs = (Collection) publicCreds.get(credKey);
 	    if (certs == null) {
 		logger.log(Level.CONFIG,
 			   "missing principal or public credentials: {0}",
@@ -746,16 +757,17 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		    }
 		    certs.add(cert);
 		}
-		// Also index by SpiffePrincipal (URI SAN) so that constraints
-		// expressed as SpiffePrincipal can locate the certificate.
-		// SpiffePrincipal.fromCertificate() calls X509Certificate
-		// .getSubjectAlternativeNames(); OpenJDK 17+ caches the parsed
-		// SAN extension internally, so repeated calls are inexpensive.
-		for (SpiffePrincipal sp : SpiffePrincipal.fromCertificate(cert)) {
-		    Collection spiffeCerts = (Collection) publicCreds.get(sp);
+		// Also index by canonical spiffe:// URI SAN (matching a
+		// SPIFFE constraint principal's getName()) so that constraints
+		// expressed as SPIFFE principals can locate the certificate,
+		// without referencing a downloadable SpiffePrincipal class.
+		// X509Certificate.getSubjectAlternativeNames() is cached by
+		// OpenJDK 17+, so this is inexpensive.
+		for (String spiffeUri : Utilities.spiffeSanUris(cert)) {
+		    Collection spiffeCerts = (Collection) publicCreds.get(spiffeUri);
 		    if (spiffeCerts == null) {
 			spiffeCerts = new ArrayList(1);
-			publicCreds.put(sp, spiffeCerts);
+			publicCreds.put(spiffeUri, spiffeCerts);
 		    }
 		    spiffeCerts.add(cert);
 		}

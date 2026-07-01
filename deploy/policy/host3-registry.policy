@@ -53,21 +53,21 @@ grant {
 };
 
 /* ── Host 4 (Codebase Downloader) may submit signed analysis reports ─── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/downloader" {
     permission net.jini.security.AccessPermission "submit";
     permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
 };
 
 /* ── Host 5 (JFR Telemetry) may submit signed analysis reports ───────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/host/telemetry" {
     permission net.jini.security.AccessPermission "submit";
     permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
 };
 
 /* ── Clients may look up verdicts ────────────────────────────────────── */
-grant principal net.jini.jeri.ssl.SpiffePrincipal
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal
       "spiffe://${trust.domain}/client/*" {
     permission net.jini.security.AccessPermission "lookup";
     permission java.net.SocketPermission "*:1098-65535", "connect,resolve";
