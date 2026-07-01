@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import net.jini.io.context.DeserializationCompletion;
+import net.jini.security.Security;
 
 /**
  * DER object encoder and decoder for single {@code @AtomicSerial} classes
@@ -212,7 +213,7 @@ public final class ObjectCodec {
                         ProtectionDomain pd = c.getProtectionDomain();
                         if (pd != null) domains.add(pd);
                     }
-                    return new AccessControlContext(
+                    return Security.create(
                             domains.toArray(new ProtectionDomain[0]));
                 });
         sm.checkPermission(ATOMIC, ctx);
@@ -248,7 +249,7 @@ public final class ObjectCodec {
                         ProtectionDomain pd = i.getProtectionDomain();
                         if (pd != null) domains.add(pd);
                     }
-                    return new AccessControlContext(
+                    return Security.create(
                             domains.toArray(new ProtectionDomain[0]));
                 });
         sm.checkPermission(PROXY, ctx);

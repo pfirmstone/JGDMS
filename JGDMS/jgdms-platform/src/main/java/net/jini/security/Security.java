@@ -338,6 +338,7 @@ public final class Security {
      * @param domains array containing context ProtectionDomain's.
      * @return a cached or newly created AccessControlContext.
      */
+    @SuppressWarnings("deprecation") // fallback uses the now-deprecated ctor on non-DirtyChai JVMs
     public static AccessControlContext create(ProtectionDomain [] domains){
         // Build an AccessControlContext containing only the supplied domains.
         if (ACC_CREATE_PD != null) {
@@ -367,6 +368,7 @@ public final class Security {
      * @param combiner DomainCombiner or null.
      * @return a cached or newly created AccessControlContext.
      */
+    @SuppressWarnings("deprecation") // fallback uses the now-deprecated ctor on non-DirtyChai JVMs
     public static AccessControlContext create(AccessControlContext context, DomainCombiner combiner){
         // Build an AccessControlContext containing only the supplied domains.
         if (ACC_CREATE_ACDC != null) {
