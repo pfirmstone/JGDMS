@@ -19,7 +19,6 @@ package org.apache.river.outrigger.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.transaction.server.TransactionParticipant;
@@ -41,8 +40,6 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
 public final class ConstrainableParticipantProxy extends ParticipantProxy
     implements RemoteMethodControl
 {
-    private static final long serialVersionUID = 1L;
-
     /**
      * Create a new <code>ConstrainableParticipantProxy</code> for the given
      * space.
@@ -112,21 +109,5 @@ public final class ConstrainableParticipantProxy extends ParticipantProxy
      */
     private ProxyTrustIterator getProxyTrustIterator() {
 	return new SingletonProxyTrustIterator(space);
-    }
-	
-    private void readObject(ObjectInputStream s)
-	throws IOException, ClassNotFoundException
-    {
-	s.defaultReadObject();
-
-	/* Basic validation of space and spaceUuid, was performed by
-	 * ParticipantProxy.readObject(), we just need to verify than
-	 * space implements RemoteMethodControl.	
-	 */
-
-	if(!(space instanceof RemoteMethodControl) ) {
-	    throw new InvalidObjectException(
-	        "space does not implement RemoteMethodControl");
-	}
     }
 }

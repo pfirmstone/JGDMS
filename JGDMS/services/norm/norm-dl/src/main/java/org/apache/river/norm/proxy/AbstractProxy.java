@@ -20,8 +20,6 @@ package org.apache.river.norm.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
@@ -39,20 +37,15 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * @since 2.0
  */
 @AtomicSerial
-abstract class AbstractProxy implements ReferentUuid, Serializable, ProxyAccessor {
-    private static final long serialVersionUID = 1;
+abstract class AbstractProxy implements ReferentUuid, ProxyAccessor {
 
     /**
      * The server.
-     *
-     * @serial
      */
     final NormServer server;
 
     /**
      * The unique identifier for this proxy.
-     *
-     * @serial
      */
     final Uuid uuid;
 
@@ -102,23 +95,6 @@ abstract class AbstractProxy implements ReferentUuid, Serializable, ProxyAccesso
 		"server and uuid must be non-null");
 	}
 	return true;
-    }
-
-    /** Require fields to be non-null. */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new InvalidObjectException(
-	    "server and uuid must be non-null");
-    }
-
-    /** Require fields to be non-null. */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	if (server == null || uuid == null) {
-	    throw new InvalidObjectException(
-		"server and uuid must be non-null");
-	}
     }
 
     /** Returns true if the object has the same UUID as this instance. */

@@ -18,9 +18,6 @@
 package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
-import java.io.InvalidObjectException;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamException;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.UnknownLeaseException;
@@ -140,16 +137,5 @@ public abstract class EventLease extends RegistrarLease {
     // inherit javadoc
     String getLeaseType() {
 	return LEASE_TYPE;
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-
-    /**
-     * Throws InvalidObjectException, since data for this class is required.
-     */
-    private void readObjectNoData() throws ObjectStreamException {
-	throw new InvalidObjectException("no data");
     }
 }

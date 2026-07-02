@@ -19,8 +19,6 @@ package org.apache.river.outrigger.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
@@ -45,9 +43,8 @@ import org.apache.river.admin.AdminIterator;
  * @see JavaSpaceAdmin 
  */
 @AtomicSerial
-public abstract class AdminProxy implements JavaSpaceAdmin, ReferentUuid, Serializable {
-    private static final long serialVersionUID = 1L;
-    
+public abstract class AdminProxy implements JavaSpaceAdmin, ReferentUuid {
+
     /** Reference to the actual remote admin object. */
     final OutriggerAdmin          admin;
 
@@ -110,34 +107,6 @@ public abstract class AdminProxy implements JavaSpaceAdmin, ReferentUuid, Serial
 	if (spaceUuid == null) 
 	    throw new NullPointerException("spaceUuid must be non-null");
 	return true;
-    }
-
-    /**
-     * Read this object back and validate state.
-     * @param in stream used to de-serialize.
-     * @throws IOException
-     * @throws ClassNotFoundException
-     */
-    private void readObject(ObjectInputStream in) 
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-
-	if (admin == null) 
-	    throw new InvalidObjectException("null server reference");
-	    
-	if (spaceUuid == null)
-	    throw new InvalidObjectException("null Uuid");
-    }
-
-    /** 
-     * We should always have data in the stream, if this method
-     * gets called there is something wrong.
-     * @throws InvalidObjectException
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new 
-	    InvalidObjectException("SpaceProxy should always have data");
     }
 
     // inherit doc comment

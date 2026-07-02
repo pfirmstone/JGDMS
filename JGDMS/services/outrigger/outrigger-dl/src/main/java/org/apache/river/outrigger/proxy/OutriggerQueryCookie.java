@@ -28,11 +28,9 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * related sub-queries.
  */
 @AtomicSerial
-public class OutriggerQueryCookie 
-    implements OutriggerServer.QueryCookie, java.io.Serializable 
+public class OutriggerQueryCookie
+    implements OutriggerServer.QueryCookie
 {
-    private static final long serialVersionUID = 1L;
-
     /**
      * The time the first sub-query in a given series was started
      */

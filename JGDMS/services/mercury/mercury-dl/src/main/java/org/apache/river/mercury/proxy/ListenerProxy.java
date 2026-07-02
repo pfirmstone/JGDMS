@@ -21,9 +21,6 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
 import org.apache.river.proxy.ThrowThis;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 
@@ -58,10 +55,8 @@ import org.apache.river.api.io.Valid;
  * @since 1.1
  */
 @AtomicSerial
-public abstract class ListenerProxy implements RemoteEventListener, Serializable,
+public abstract class ListenerProxy implements RemoteEventListener,
 	ReferentUuid, ProxyAccessor {
-
-    private static final long serialVersionUID = 2L;
 
     /**
      * The reference to the event mailbox service implementation
@@ -170,47 +165,6 @@ public abstract class ListenerProxy implements RemoteEventListener, Serializable
         return ReferentUuids.compare(this,o);
     }
 
-    /** When an instance of this class is deserialized, this method is
-     *  automatically invoked. This implementation of this method validates
-     *  the state of the deserialized instance.
-     *
-     * @throws InvalidObjectException if the state of the
-     *         deserialized instance of this class is found to be invalid.
-     */
-    private void readObject(ObjectInputStream s)
-                               throws IOException, ClassNotFoundException
-    {
-        s.defaultReadObject();
-        /* Verify server */
-        if(server == null) {
-            throw new InvalidObjectException("ListenerProxy.readObject "
-                                             +"failure - server "
-                                             +"field is null");
-        }//endif
-        /* Verify registrationID */
-        if(registrationID == null) {
-
-            throw new InvalidObjectException("ListenerProxy.readObject "
-                                             +"failure - registrationID "
-                                             +"field is null");
-        }//endif
-    }//end readObject
-
-    /** During deserialization of an instance of this class, if it is found
-     *  that the stream contains no data, this method is automatically
-     *  invoked. Because it is expected that the stream should always
-     *  contain data, this implementation of this method simply declares
-     *  that something must be wrong.
-     *
-     * @throws InvalidObjectException to indicate that there
-     *         was no data in the stream during deserialization of an
-     *         instance of this class; declaring that something is wrong.
-     */
-    private void readObjectNoData() throws ObjectStreamException {
-        throw new InvalidObjectException("no data found when attempting to "
-                                         +"deserialize ListenerProxy instance");
-    }//end readObjectNoData
-
     public Object getProxy() {
 	return server;
     }
@@ -220,8 +174,6 @@ public abstract class ListenerProxy implements RemoteEventListener, Serializable
     final static class ConstrainableListenerProxy extends ListenerProxy
         implements RemoteMethodControl
     {
-        private static final long serialVersionUID = 2L;
-
         // Mappings from client to server methods,
         private static final Method[] methodMap1 = {
             ProxyUtil.getMethod(RemoteEventListener.class,
@@ -235,7 +187,7 @@ public abstract class ListenerProxy implements RemoteEventListener, Serializable
          *
          * @serial
          */
-        private MethodConstraints methodConstraints;
+        private final MethodConstraints methodConstraints;
 
         public static SerialForm[] serialForm() {
             return new SerialForm[] {
@@ -322,30 +274,6 @@ public abstract class ListenerProxy implements RemoteEventListener, Serializable
         private ProxyTrustIterator getProxyTrustIterator() {
             return new SingletonProxyTrustIterator(server);
         }//end getProxyTrustIterator
-	
-        /**
-         * Verifies that the registrationID and server fields are
-         * not null, that server implements RemoteMethodControl, and that the
-         * server proxy has the appropriate method constraints.
-         *
-         * @throws InvalidObjectException if registrationID or mailbox
-         *         is null, if server does not implement RemoteMethodControl,
-         *         or if server has the wrong constraints
-         */
-	 
-        private void readObject(ObjectInputStream s)
-            throws IOException, ClassNotFoundException
-        {
-            /* Note that basic validation of the fields of this class was
-             * already performed in the readObject() method of this class'
-             * super class.
-             */
-            s.defaultReadObject();
-            /* Verify the server and its constraints */
-            ConstrainableProxyUtil.verifyConsistentConstraints(methodConstraints,
-                                                        server,
-                                                        methodMap1);
-        }
     }
 }
 

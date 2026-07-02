@@ -18,8 +18,6 @@
 package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
@@ -49,10 +47,8 @@ import org.apache.river.api.io.Valid;
  *
  */
 @AtomicSerial
-public class Matches implements Serializable {
+public class Matches {
 
-    private static final long serialVersionUID = 2L;
-    
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("items", List.class),
@@ -110,9 +106,5 @@ public class Matches implements Serializable {
 	    result.add(proxy);
 	}
 	return result.toArray();
-    }
-    
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
     }
 }

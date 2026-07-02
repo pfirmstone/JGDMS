@@ -19,7 +19,6 @@
 package org.apache.river.mercury.proxy;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import net.jini.id.Uuid;
@@ -35,8 +34,7 @@ import org.apache.river.api.io.Valid;
  * data. 
  */
 @AtomicSerial
-public class RemoteEventIteratorData implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class RemoteEventIteratorData {
 
     /**
      * <code>Uuid</code> for iteration.

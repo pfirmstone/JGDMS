@@ -18,7 +18,6 @@
 package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
-import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -34,10 +33,8 @@ import org.apache.river.api.io.Valid;
  *
  */
 @AtomicSerial
-public class RenewResults implements Serializable {
+public class RenewResults {
 
-    private static final long serialVersionUID = 2L;
-    
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("durations", long[].class),
@@ -61,7 +58,7 @@ public class RenewResults implements Serializable {
      *
      * @serial
      */
-    long[] durations;
+    final long[] durations;
     /**
      * Any exceptions thrown.  The length of this array is the same as
      * the number of -1 elements in durations.  The exceptions are in
@@ -69,7 +66,7 @@ public class RenewResults implements Serializable {
      *
      * @serial
      */
-    Exception[] exceptions;
+    final Exception[] exceptions;
 
     /** Simple constructor */
     public RenewResults(long[] durations, Exception[] exceptions) {

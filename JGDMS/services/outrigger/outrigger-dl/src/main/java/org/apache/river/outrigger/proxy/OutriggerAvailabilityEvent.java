@@ -19,7 +19,6 @@ package org.apache.river.outrigger.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
@@ -37,7 +36,6 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @AtomicSerial
 public abstract class OutriggerAvailabilityEvent extends AvailabilityEvent implements ProxyAccessor {
-    private static final long serialVersionUID = 1L;
 
     /** The entry that triggered the event */
     final private EntryRep rep;
@@ -110,17 +108,6 @@ public abstract class OutriggerAvailabilityEvent extends AvailabilityEvent imple
     {
 	super(source, eventID, seqNum, handback, visibilityTransition);
 	this.rep = rep;
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-    /** 
-     * @throws InvalidObjectException if called
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new InvalidObjectException(
-	    "OutriggerAvailabilityEvent should always have data");
     }
 
     public Entry getEntry() throws UnusableEntryException {

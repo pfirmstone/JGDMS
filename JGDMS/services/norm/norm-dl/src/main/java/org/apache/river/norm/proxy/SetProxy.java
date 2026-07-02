@@ -22,7 +22,6 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
 import org.apache.river.proxy.ThrowThis;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
@@ -52,11 +51,9 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @AtomicSerial
 public abstract class SetProxy extends AbstractProxy implements LeaseRenewalSet {
-    private static final long serialVersionUID = 2;
 
-    /** 
+    /**
      * Lease for this set.
-     * @serial
      */
     final Lease ourLease;
 
@@ -111,22 +108,6 @@ public abstract class SetProxy extends AbstractProxy implements LeaseRenewalSet 
 	    throw new InvalidObjectException("ourLease cannot be null");
 	}
 	return arg;
-    }
-
-    /** Require fields to be non-null. */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new InvalidObjectException(
-	    "server, uuid, and ourLease must be non-null");
-    }
-
-    /** Require lease to be non-null. */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	if (ourLease == null) {
-	    throw new InvalidObjectException("ourLease cannot be null");
-	}
     }
 
     /* -- Implement LeaseRenewalSet -- */
@@ -365,8 +346,6 @@ public abstract class SetProxy extends AbstractProxy implements LeaseRenewalSet 
     static final class ConstrainableSetProxy extends SetProxy
 	implements RemoteMethodControl
     {
-	private static final long serialVersionUID = 1;
-
 	/**
 	 * Mappings from client to server methods, using the client method with
 	 * more arguments for each server method when more than one client
@@ -465,8 +444,6 @@ public abstract class SetProxy extends AbstractProxy implements LeaseRenewalSet 
 
 	/**
 	 * The client constraints placed on this proxy or <code>null</code>.
-	 *
-	 * @serial
 	 */
 	private final MethodConstraints methodConstraints;
 
@@ -475,9 +452,11 @@ public abstract class SetProxy extends AbstractProxy implements LeaseRenewalSet 
 	 * different smart proxy methods implemented by the same inner proxy
 	 * methods have different constraints.  This proxy is used for the
 	 * renewFor(Lease, long), clearExpirationWarningListener, and
-	 * clearRenewalFailureListener methods.
+	 * clearRenewalFailureListener methods.  Reconstructed on deserialization
+	 * from {@code server} and {@code methodConstraints}, not part of the
+	 * wire form.
 	 */
-	private transient NormServer server2;
+	private final NormServer server2;
 
 	public static SerialForm[] serialForm() {
 	    return new SerialForm[] {
@@ -555,28 +534,6 @@ public abstract class SetProxy extends AbstractProxy implements LeaseRenewalSet 
 		methodConstraints, spServer, methodMap1);
 	    return methodConstraints;
 	}
-
-	/**
-	 * Verifies that ourLease is a ConstrainableLandlordLease, and that
-	 * server implements RemoteMethodControl and has the appropriate method
-	 * constraints.  Also sets the server2 field.
-	 */
-	private void readObject(ObjectInputStream s)
-	    throws IOException, ClassNotFoundException
-	{
-	    s.defaultReadObject();
-	    if (!(server instanceof RemoteMethodControl)) {
-		throw new InvalidObjectException(
-		    "server does not implement RemoteMethodControl");
-	    } else if (!(ourLease instanceof ConstrainableLandlordLease)) {
-		throw new InvalidObjectException(
-		    "ourLease is not a ConstrainableLandlordLease");
-	    }
-	    ConstrainableProxyUtil.verifyConsistentConstraints(
-		methodConstraints, server, methodMap1);
-	    server2 = constrainServer(server, methodConstraints, methodMap2);
-	}
-
 
 	/**
 	 * Returns a copy of the server proxy with the specified client

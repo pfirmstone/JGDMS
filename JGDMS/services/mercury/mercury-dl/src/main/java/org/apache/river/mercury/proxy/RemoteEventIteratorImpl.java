@@ -16,11 +16,6 @@
  * limitations under the License.
  */
 package org.apache.river.mercury.proxy;
-import java.io.IOException;
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.Collection;
 import java.util.Iterator;

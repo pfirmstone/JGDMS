@@ -17,7 +17,6 @@ package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectStreamField;
 import java.rmi.MarshalledObject;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,9 +35,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @AtomicSerial
 public class ConstrainableRegistrarEvent extends RegistrarEvent implements RemoteMethodControl {
-    private static final long serialVersionUID = 1L;
-    private static final ObjectStreamField[] serialPersistentFields = { };
-    
+
     public static SerialForm [] serialForm(){
         return new SerialForm[]{};
     }

@@ -20,8 +20,6 @@ package org.apache.river.mercury.proxy;
 import org.apache.river.proxy.MarshalledWrapper;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
@@ -34,25 +32,24 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * <code>Object</code> (cookie) obtained from an <code>EventLog</code>.
  */
 @AtomicSerial
-public class RemoteEventData implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class RemoteEventData {
 
     /**
      * <code>MarshalledObject</code> that holds desired
      * <code>RemoteEvent</code>. Wrapping the remote event
-     * permits deserialization to occur on demand on the 
+     * permits deserialization to occur on demand on the
      * client-side.
      */
-    private MarshalledInstance mi;
+    private final MarshalledInstance mi;
 
     /** Cookie associated with the <code>RemoteEvent</code> */
     private final Object cookie;
-    
-    /** 
-     * <code>true</code> if the last time this object was unmarshalled 
+
+    /**
+     * <code>true</code> if the last time this object was unmarshalled
      * integrity was being enforced, <code>false</code> otherwise.
      */
-    private transient boolean integrity;
+    private final boolean integrity;
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
@@ -73,18 +70,21 @@ public class RemoteEventData implements Serializable {
      * @param cookie value of <code>cookie</code> field.
      */
     public RemoteEventData(RemoteEvent re, Object cookie) {
-        this(convert(re), cookie);
+        this(convert(re), cookie, false);
     }
-    
+
     RemoteEventData(GetArg arg) throws IOException, ClassNotFoundException {
-	this(check(arg), arg.get("cookie", null, Object.class));
-	// get value for integrity flag
-	integrity = MarshalledWrapper.integrityEnforced(arg);
+	// check(arg) performs the invariant validation (null cookie) that was
+	// previously in readObject, and the integrity flag is captured from the
+	// stream context here so it can be assigned to the final field.
+	this(check(arg), arg.get("cookie", null, Object.class),
+	     MarshalledWrapper.integrityEnforced(arg));
     }
-    
-    private RemoteEventData(MarshalledInstance mi, Object cookie){
+
+    private RemoteEventData(MarshalledInstance mi, Object cookie, boolean integrity){
 	this.mi = mi;
 	this.cookie = cookie;
+	this.integrity = integrity;
     }
     
     private static MarshalledInstance convert(RemoteEvent re){
@@ -121,32 +121,6 @@ public class RemoteEventData implements Serializable {
     
     public Object getCookie() {
         return cookie;
-    }
-    
-    /**
-     * Use <code>readObject</code> method to capture whether or
-     * not integrity was being enforced when this object was
-     * unmarshalled, and to perform basic integrity checks.
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-
-	if (cookie == null) 
-	    throw new InvalidObjectException("null cookie");
-
-	// get value for integrity flag
-	integrity = MarshalledWrapper.integrityEnforced(in);
-    }
-    
-    /** 
-     * We should always have data in the stream, if this method
-     * gets called there is something wrong.
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new 
-	    InvalidObjectException("RemoteEventData should always have data");
     }
 
 }

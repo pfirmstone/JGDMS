@@ -20,7 +20,6 @@ package org.apache.river.norm.proxy;
 import org.apache.river.admin.DestroyAdmin;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.rmi.RemoteException;
 import net.jini.admin.JoinAdmin;
 import net.jini.core.constraint.MethodConstraints;
@@ -43,8 +42,6 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
 @AtomicSerial
 @Stateless
 public abstract class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin {
-    private static final long serialVersionUID = 1;
-
     /**
      * Creates an admin proxy, returning an instance that implements
      * RemoteMethodControl if the server does.
@@ -68,12 +65,6 @@ public abstract class AdminProxy extends AbstractProxy implements JoinAdmin, Des
 
     AdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	super(arg);
-    }
-
-    /** Require fields to be non-null. */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new InvalidObjectException(
-	    "server and uuid must be non-null");
     }
 
     /* -- Implement JoinAdmin -- */
@@ -155,8 +146,6 @@ public abstract class AdminProxy extends AbstractProxy implements JoinAdmin, Des
     static final class ConstrainableAdminProxy extends AdminProxy
 	implements RemoteMethodControl
     {
-	private static final long serialVersionUID = 1;
-
 	/** Creates an instance of this class. */
 	ConstrainableAdminProxy(NormServer server, Uuid serverUuid) {
 	    super(server, serverUuid);
@@ -177,17 +166,6 @@ public abstract class AdminProxy extends AbstractProxy implements JoinAdmin, Des
 			"server must implement RemoteMethodControl");
 		}
 	    return arg;
-	}
-
-	/** Require server to implement RemoteMethodControl. */
-	private void readObject(ObjectInputStream in)
-	    throws IOException, ClassNotFoundException
-	{
-	    in.defaultReadObject();
-	    if (!(server instanceof RemoteMethodControl)) {
-		throw new InvalidObjectException(
-		    "server must implement RemoteMethodControl");
-	    }
 	}
 
 	/* inherit javadoc */

@@ -22,8 +22,6 @@ import org.apache.river.landlord.Landlord;
 import org.apache.river.landlord.LandlordProxyVerifier;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
@@ -37,20 +35,15 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /** Defines a trust verifier for the smart proxies of a Norm server. */
 @AtomicSerial
-public final class ProxyVerifier implements Serializable, TrustVerifier {
-    private static final long serialVersionUID = 2;
+public final class ProxyVerifier implements TrustVerifier {
 
     /**
      * The Norm server proxy.
-     *
-     * @serial
      */
     private final RemoteMethodControl serverProxy;
 
     /**
      * The unique ID for the Norm server.
-     *
-     * @serial
      */
     private final Uuid serverUuid;
 
@@ -153,16 +146,5 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
 	TrustEquivalence trusted =
 	    (TrustEquivalence) serverProxy.setConstraints(mc);
 	return trusted.checkTrustEquivalence(otherServerProxy);
-    }
-
-    /** Require server proxy to implement TrustEquivalence. */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	if (!(serverProxy instanceof TrustEquivalence)) {
-	    throw new InvalidObjectException(
-		"serverProxy must implement TrustEquivalence");
-	}
     }
 }

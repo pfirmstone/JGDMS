@@ -36,28 +36,22 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *
  */
 @AtomicSerial
-public class FiddlerRenewResults implements java.io.Serializable {
-
-    private static final long serialVersionUID = 6793222607079853307L;
+public class FiddlerRenewResults {
 
     /**
      * The granted duration for each lease. The length of this array
      * is the same as the length of the durations parameter to renewLeases,
      * and is in the same order.  If a duration is -1, it indicates that
      * an exception was thrown for this lease.
-     *
-     * @serial
      */
-    public long[] durations;
+    public final long[] durations;
     /**
      * Exceptions thrown as a result of a renewal attempt in renewLeases.
      * The length of this array is the same as the number of -1 elements
      * in <code>durations</code> field of this class. Furthermore, the
      * exceptions in this array are in order.
-     *
-     * @serial
      */
-    public Exception[] exceptions;
+    public final Exception[] exceptions;
 
     /**
      * Serial form for the atomic/DER codecs. Mirrors the fields read by the

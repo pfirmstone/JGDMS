@@ -21,9 +21,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.lang.reflect.Proxy;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
@@ -53,9 +50,8 @@ import org.apache.river.proxy.MarshalledWrapper;
  * see ClassResolver (org.apache.river.reggie.test.share.ClassResolver?)
  */
 @AtomicSerial
-public class ServiceType implements Serializable {
+public class ServiceType {
 
-    private static final long serialVersionUID = 2L;
     private static final ServiceType[] empty = {};
     
     public static SerialForm[] serialForm(){
@@ -141,6 +137,9 @@ public class ServiceType implements Serializable {
 	ServiceType [] interfaces = (ServiceType[]) arg.get("interfaces", null);
 	if (interfaces != null) interfaces = interfaces.clone();
 	this.interfaces = interfaces;
+	// Sample integrity protection setting of the stream, formerly done in
+	// readObject; used by toClass() to enforce integrity on class loads.
+	integrity = MarshalledWrapper.integrityEnforced(arg);
     }
 
     /**
@@ -351,41 +350,6 @@ public class ServiceType implements Serializable {
 	    hash += ((long) (digest[i] & 0xFF)) << (i * 8);
 	}
 	return hash;
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-
-
-    /**
-     * Samples integrity protection setting (if any) of the stream from which
-     * this instance is being deserialized.
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	if (name == null)
-	    throw new InvalidObjectException("name cannot be null");
-	integrity = MarshalledWrapper.integrityEnforced(in);
-	if (hash == 0) {
-	    throw new InvalidObjectException("hash cannot be zero");
-//	    try {
-//		hash = computeHash(name);
-//	    } catch (Exception e) {
-//		throw new UnmarshalException("unable to calculate the type"
-//					     + " hash for " + name, e);
-//	    }
-	    
-	    }
-	}
-
-    /**
-     * Throws InvalidObjectException, since data for this class is required.
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new InvalidObjectException("no data");
     }
 
 }

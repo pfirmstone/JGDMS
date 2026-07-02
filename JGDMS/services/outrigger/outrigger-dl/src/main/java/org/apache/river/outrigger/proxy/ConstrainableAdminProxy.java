@@ -20,8 +20,6 @@ package org.apache.river.outrigger.proxy;
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import net.jini.admin.JoinAdmin;
@@ -51,8 +49,6 @@ import org.apache.river.admin.JavaSpaceAdmin;
 public final class ConstrainableAdminProxy extends AdminProxy
     implements RemoteMethodControl, ConstrainableJavaSpaceAdmin
 {
-    static final long serialVersionUID = 1L;
-
     /**
      * Array containing element pairs in which each pair of elements
      * represents a mapping between two methods having the following
@@ -258,23 +254,6 @@ public final class ConstrainableAdminProxy extends AdminProxy
      */
     private ProxyTrustIterator getProxyTrustIterator() {
 	return new SingletonProxyTrustIterator(admin);
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-    private void readObject(ObjectInputStream s)  
-	throws IOException, ClassNotFoundException
-    {
-	s.defaultReadObject();
-
-	/* basic validation of admin and spaceUuid was performed by
-	 * AdminProxy.readObject(), we just need to verify than space
-	 * implements RemoteMethodControl and that it has appropriate
-	 * constraints.
-	 */
-	ConstrainableProxyUtil.verifyConsistentConstraints(
-	    methodConstraints, admin, methodMapArray);
     }
 
     /**

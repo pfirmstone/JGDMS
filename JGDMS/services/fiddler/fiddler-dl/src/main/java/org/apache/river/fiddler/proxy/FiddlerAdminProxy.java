@@ -22,8 +22,6 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
 import org.apache.river.admin.FiddlerAdmin;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import net.jini.admin.JoinAdmin;
@@ -51,9 +49,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *
  */
 @AtomicSerial
-public abstract class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
-
-    private static final long serialVersionUID = 2L;
+public abstract class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid {
 
     /**
      * The reference through which communication occurs between the
@@ -131,12 +127,34 @@ public abstract class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, S
     /**
      * {@link AtomicSerial} constructor.
      * @param arg
-     * @throws IOException 
+     * @throws IOException
      */
     FiddlerAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
-	this((Fiddler)arg.get("server", null), (Uuid) arg.get("proxyID", null));
+	this(check((Fiddler)arg.get("server", null), (Uuid) arg.get("proxyID", null)),
+	     (Uuid) arg.get("proxyID", null));
     }
-    
+
+    /** Validates the deserialized state (formerly performed in readObject).
+     *  Returns {@code server} so it can be threaded through the constructor.
+     */
+    private static Fiddler check(Fiddler server, Uuid proxyID)
+	throws InvalidObjectException
+    {
+        /* Verify server */
+        if(server == null) {
+            throw new InvalidObjectException("FiddlerAdminProxy.readObject "
+                                             +"failure - server "
+                                             +"field is null");
+        }//endif
+        /* Verify proxyID */
+        if(proxyID == null) {
+            throw new InvalidObjectException("FiddlerAdminProxy.readObject "
+                                             +"failure - proxyID "
+                                             +"field is null");
+        }//endif
+	return server;
+    }
+
     /* *** Methods of org.apache.river.fiddler.FiddlerAdmin *** */
 
     /**
@@ -579,48 +597,7 @@ public abstract class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, S
 	return ReferentUuids.compare(this,obj);
     }
 
-    /** When an instance of this class is deserialized, this method is
-     *  automatically invoked. This implementation of this method validates
-     *  the state of the deserialized instance.
-     *
-     * @throws InvalidObjectException if the state of the
-     *         deserialized instance of this class is found to be invalid.
-     */
-    private void readObject(ObjectInputStream s)  
-                               throws IOException, ClassNotFoundException
-    {
-        s.defaultReadObject();
-        /* Verify server */
-        if(server == null) {
-            throw new InvalidObjectException("FiddlerAdminProxy.readObject "
-                                             +"failure - server "
-                                             +"field is null");
-        }//endif
-        /* Verify proxyID */
-        if(proxyID == null) {
-            throw new InvalidObjectException("FiddlerAdminProxy.readObject "
-                                             +"failure - proxyID "
-                                             +"field is null");
-        }//endif
-    }//end readObject
-
-    /** During deserialization of an instance of this class, if it is found
-     *  that the stream contains no data, this method is automatically
-     *  invoked. Because it is expected that the stream should always 
-     *  contain data, this implementation of this method simply declares
-     *  that something must be wrong.
-     *
-     * @throws InvalidObjectException to indicate that there
-     *         was no data in the stream during deserialization of an
-     *         instance of this class; declaring that something is wrong.
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-        throw new InvalidObjectException("no data found when attempting to "
-                                         +"deserialize FiddlerAdminProxy "
-                                         +"instance");
-    }//end readObjectNoData
-
-    /** The constrainable version of the class <code>FiddlerAdminProxy</code>. 
+    /** The constrainable version of the class <code>FiddlerAdminProxy</code>.
      *  <p>
      *  When a client obtains an instance of this proxy class, the client
      *  should not attempt to use the proxy until the client is assured
@@ -695,8 +672,6 @@ public abstract class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, S
                                                 extends FiddlerAdminProxy
                                                 implements RemoteMethodControl
     {
-        static final long serialVersionUID = 2L;
-
         /* Array containing element pairs in which each pair of elements
          * represents a correspondence 'mapping' between two methods having
          * the following characteristics:
@@ -833,10 +808,8 @@ public abstract class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, S
         };//end methodMapArray
 
         /** Client constraints placed on this proxy (may be <code>null</code>).
-         *
-         * @serial
          */
-        private MethodConstraints methodConstraints;
+        private final MethodConstraints methodConstraints;
 
         public static SerialForm[] serialForm() {
             return new SerialForm[] {
@@ -942,29 +915,6 @@ public abstract class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, S
         private ProxyTrustIterator getProxyTrustIterator() {
 	    return new SingletonProxyTrustIterator(server);
         }//end getProxyTrustIterator
-
-        /** Performs various functions related to the trust verification
-         *  process for the current instance of this proxy class, as
-         *  detailed in the description for this class.
-         *
-         * @throws <code>InvalidObjectException</code> if any of the
-         *         requirements for trust verification (as detailed in the 
-         *         class description) are not satisfied.
-         */
-        private void readObject(ObjectInputStream s)  
-                                   throws IOException, ClassNotFoundException
-        {
-            /* Note that basic validation of the fields of this class was
-             * already performed in the readObject() method of this class'
-             * super class.
-             */
-            s.defaultReadObject();
-            /* Verify the server and its constraints */
-            ConstrainableProxyUtil.verifyConsistentConstraints
-                                                       (methodConstraints,
-                                                        server,
-                                                        methodMapArray);
-        }//end readObject
 
     }//end class ConstrainableFiddlerAdminProxy
 

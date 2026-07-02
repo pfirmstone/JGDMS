@@ -19,9 +19,6 @@ package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lookup.ServiceID;
@@ -185,41 +182,6 @@ public abstract class RegistrarLease extends AbstractLease implements ReferentUu
 
     /** Returns the type of the lease. */
     abstract String getLeaseType();
-
-    /**
-     * Writes the default serializable field values for this instance, followed
-     * by the registrar's service ID encoded as specified by the
-     * ServiceID.writeBytes method.
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-	registrarID.writeBytes(out);
-    }
-
-    /**
-     * Reads the default serializable field values for this instance, followed
-     * by the registrar's service ID encoded as specified by the
-     * ServiceID.writeBytes method.  Verifies that the deserialized field
-     * values are non-null.
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	registrarID = new ServiceID(in);
-	if (server == null) {
-	    throw new InvalidObjectException("null server");
-	} else if (leaseID == null) {
-	    throw new InvalidObjectException("null leaseID");
-	}
-    }
-
-    /**
-     * Throws InvalidObjectException, since data for this class is required.
-     */
-    private void readObjectNoData() throws ObjectStreamException {
-	throw new InvalidObjectException("no data");
-    }
 
     void setExpiration(long expiration) {
         this.expiration = expiration;

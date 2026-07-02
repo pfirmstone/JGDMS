@@ -18,7 +18,6 @@
 package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
-import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -32,10 +31,8 @@ import org.apache.river.proxy.CodebaseProvider;
  *
  */
 @AtomicSerial
-public class ServiceTypeBase implements Serializable {
+public class ServiceTypeBase {
 
-    private static final long serialVersionUID = 2L;
-    
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("type", ServiceType.class),

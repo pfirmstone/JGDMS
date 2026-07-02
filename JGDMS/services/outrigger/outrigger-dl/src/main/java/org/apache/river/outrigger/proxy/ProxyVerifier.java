@@ -21,15 +21,16 @@ import org.apache.river.landlord.Landlord;
 import org.apache.river.landlord.LandlordProxyVerifier;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /** 
  * This class defines a trust verifier for the proxies related to the 
@@ -40,10 +41,10 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-public final class ProxyVerifier implements Serializable, TrustVerifier {
-    private static final long serialVersionUID = 1L;
+@AtomicSerial
+public final class ProxyVerifier implements TrustVerifier {
 
-    /** 
+    /**
      * The canonical instance of the server reference. This
      * instance will be used by the <code>isTrusted</code> method 
      * as the known trusted object used to determine whether or not a
@@ -58,6 +59,19 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
      * the Outrigger server this verifier is for.
      */
     private final Uuid uuid;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("server", RemoteMethodControl.class),
+            new SerialForm("uuid", Uuid.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, ProxyVerifier o) throws IOException {
+        arg.put("server", o.server);
+        arg.put("uuid", o.uuid);
+        arg.writeArgs();
+    }
 
     /**
      * Returns a verifier for the smart proxies of an Outrigger server with
@@ -88,14 +102,24 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
     }
     
     private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
+	OutriggerServer server = (OutriggerServer) arg.get("server", null);
 	try {
-	    return check((OutriggerServer) arg.get("server", null),
-		    (Uuid) arg.get("uuid", null));
+	    check(server, (Uuid) arg.get("uuid", null));
 	} catch (NullPointerException ex){
 	    InvalidObjectException e = new InvalidObjectException("Invariants unsatisfied");
 	    e.initCause(ex);
 	    throw e;
 	}
+	/* Additional invariant formerly enforced by readObject: the server
+	 * reference must implement TrustEquivalence and Landlord.
+	 */
+	if (!(server instanceof TrustEquivalence))
+	    throw new InvalidObjectException(
+		"server does not implement TrustEquivalence");
+	if (!(server instanceof Landlord))
+	    throw new InvalidObjectException(
+		"server does not implement landlord");
+	return true;
     }
     
     private static boolean check(OutriggerServer server, Uuid uuid){
@@ -208,32 +232,5 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
 	* constraints have been normalized.)
 	*/
         return constrainedServer.checkTrustEquivalence(inputProxyServer);
-    }
-
-    /**
-     * Verifies that the server reference implements
-     * <code>TrustEquivalence</code>.
-     * @param in stream used to de-serialize.
-     * @throws IOException
-     * @throws ClassNotFoundException
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-
-	if (server == null)
-	    throw new InvalidObjectException("null server reference");
-
-	if (uuid == null)
-	    throw new InvalidObjectException("null uuid reference");
-
-	if (!(server instanceof TrustEquivalence))
-	    throw new InvalidObjectException(
-		"server does not implement TrustEquivalence");
-
-	if (!(server instanceof Landlord))
-	    throw new InvalidObjectException(
-		 "server does not implement landlord");
     }
 }

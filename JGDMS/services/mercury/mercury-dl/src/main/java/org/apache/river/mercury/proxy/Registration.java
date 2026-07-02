@@ -22,9 +22,6 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
 import org.apache.river.proxy.ThrowThis;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.util.Collection;
@@ -59,10 +56,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */ 
 @AtomicSerial
 public abstract class Registration implements MailboxPullRegistration,
-    Serializable, ReferentUuid, ProxyAccessor
+    ReferentUuid, ProxyAccessor
 {
-
-    private static final long serialVersionUID = 2L;
 
     /** Unique identifier for this registration */
     final Uuid registrationID;
@@ -253,70 +248,16 @@ public abstract class Registration implements MailboxPullRegistration,
         return ReferentUuids.compare(this,o);
     }
 
-   /** When an instance of this class is deserialized, this method is
-     *  automatically invoked. This implementation of this method validates
-     *  the state of the deserialized instance.
-     *
-     * @throws InvalidObjectException if the state of the
-     *         deserialized instance of this class is found to be invalid.
-     */
-    private void readObject(ObjectInputStream s)
-                               throws IOException, ClassNotFoundException
-    {
-        s.defaultReadObject();
-        /* Verify server */
-        if(mailbox == null) {
-            throw new InvalidObjectException("Registration.readObject "
-                                             +"failure - mailbox "
-                                             +"field is null");
-        }//endif
-        /* Verify registrationID */
-        if(registrationID == null) {
-            throw new InvalidObjectException
-                                  ("Registration.readObject "
-                                   +"failure - registrationID field is null");
-        }//endif
-        /* Verify regLease */
-        if(lease == null) {
-            throw new InvalidObjectException
-                                        ("Registration.readObject "
-                                         +"failure - lease field is null");
-        }//endif
-        /* Verify listener */
-        if(listener == null) {
-            throw new InvalidObjectException
-                                        ("Registration.readObject "
-                                         +"failure - listener field is null");
-        }//endif
-    }//end readObject
-
-    /** During deserialization of an instance of this class, if it is found
-     *  that the stream contains no data, this method is automatically
-     *  invoked. Because it is expected that the stream should always
-     *  contain data, this implementation of this method simply declares
-     *  that something must be wrong.
-     *
-     * @throws InvalidObjectException to indicate that there
-     *         was no data in the stream during deserialization of an
-     *         instance of this class; declaring that something is wrong.
-     */
-    private void readObjectNoData() throws ObjectStreamException {
-        throw new InvalidObjectException("no data found when attempting to "
-                                         +"deserialize Registration instance");
-    }//end readObjectNoData
-
     public Object getProxy() {
 	return mailbox;
     }
 
     /** A subclass of Registration that implements RemoteMethodControl. */
     @AtomicSerial
-    final static class ConstrainableRegistration extends Registration 
-        implements RemoteMethodControl 
+    final static class ConstrainableRegistration extends Registration
+        implements RemoteMethodControl
     {
-	private static final long serialVersionUID = 1L;
-
-	// Mappings from client to server methods, 
+	// Mappings from client to server methods,
 	private static final Method[] methodMap1 = {
 	    ProxyUtil.getMethod(MailboxPullRegistration.class,
 	        "getRemoteEvents", new Class[] {}),
@@ -347,7 +288,7 @@ public abstract class Registration implements MailboxPullRegistration,
 	 *
 	 * @serial
 	 */
-	private MethodConstraints methodConstraints;
+	private final MethodConstraints methodConstraints;
 
 	public static SerialForm[] serialForm() {
 	    return new SerialForm[] {
@@ -478,52 +419,5 @@ public abstract class Registration implements MailboxPullRegistration,
         private ProxyTrustIterator getProxyTrustIterator() {
             return new SingletonProxyTrustIterator(mailbox);
         }//end getProxyTrustIterator
-
-	/**
-	 * Verifies that the registrationID, lease and mailbox fields are 
-	 * not null, that mailbox implements RemoteMethodControl, and that the 
-	 * mailbox proxy has the appropriate method constraints.
-	 *
-	 * @throws InvalidObjectException if registrationID, lease or mailbox
-	 *         is null, if mailbox does not implement RemoteMethodControl, 
-	 *         or if server has the wrong constraints
-	 */
-	private void readObject(ObjectInputStream s)
-	    throws IOException, ClassNotFoundException
-	{
-            /* Note that basic validation of the fields of this class was
-             * already performed in the readObject() method of this class'
-             * super class.
-             */
-            s.defaultReadObject();
-            /* Verify the server and its constraints */
-            ConstrainableProxyUtil.verifyConsistentConstraints(methodConstraints,
-                                                        mailbox,
-                                                        methodMap1);
-            if( !(lease instanceof ConstrainableLandlordLease) ) {
-                throw new InvalidObjectException
-                                ("Registration.readObject failure - "
-                                 +"lease is not an instance of "
-                                 +"ConstrainableLandlordLease");
-            }//endif
-
-            if( !(listener instanceof ListenerProxy.ConstrainableListenerProxy) ) {
-                throw new InvalidObjectException
-                                ("Registration.readObject failure - "
-                                 +"listener is not an instance of "
-                                 +"ListenerProxy.ConstrainableListenerProxy");
-            }//endif
-
-            /* Verify listener's ID */
-            if(!registrationID.equals(
-	       ((ListenerProxy.ConstrainableListenerProxy)listener).registrationID)) 
-            {
-                throw new InvalidObjectException
-                                        ("Registration.readObject "
-                                         +"failure - listener ID "
-                                         +"is not equal to "
-                                         +"proxy ID");
-            }            
-	}
     }
 }

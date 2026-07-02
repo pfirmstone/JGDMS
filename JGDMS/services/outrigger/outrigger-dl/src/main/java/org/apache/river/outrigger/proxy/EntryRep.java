@@ -63,10 +63,9 @@ import net.jini.core.entry.SerialEntry;
  * @see Entry
  */
 @AtomicSerial
-public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializable {
-    static final long serialVersionUID = 3L;
+public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 
-    // Synchronization isn't used where volatile access would be atomic.  
+    // Synchronization isn't used where volatile access would be atomic.
     // External operations should synchronize if atomicicity is required for 
     // multiple operations.
     // Synchronization is used where multiple fields are accessed or one field
@@ -983,58 +982,6 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 	    return 1;
 	}
     }
-
-    /**
-     * Use <code>readObject</code> method to capture whether or
-     * not integrity was being enforced when this object was
-     * unmarshalled, and to perform basic integrity checks.
-     * @param in stream used to de-serialize.
-     * @throws IOException
-     * @throws ClassNotFoundException
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	if (className == null)
-	    throw new InvalidObjectException("null className");
-
-	if (values == null)
-	    throw new InvalidObjectException("null values");
-
-	if (superclasses == null)
-	    throw new InvalidObjectException("null superclasses");
-
-	if (hashes == null) 
-	    throw new InvalidObjectException("null hashes");
-
-	if (hashes.length != superclasses.length)
-	    throw new InvalidObjectException("hashes.length (" +
-                hashes.length + ") does not equal  superclasses.length (" +
-	        superclasses.length + ")");
-
-	// get value for integrity flag
-	integrity = MarshalledWrapper.integrityEnforced(in);
-    }
-
-    /** 
-     * We should always have data in the stream, if this method
-     * gets called there is something wrong.
-     * @throws InvalidObjectException
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new 
-	    InvalidObjectException("SpaceProxy should always have data");
-    }
-
-    /**
-     * @param out stream to write out default serial form.
-     * @throws IOException 
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-
 
     // -------------------------------------------------------
     // Methods required by LeasedResource and StorableResource

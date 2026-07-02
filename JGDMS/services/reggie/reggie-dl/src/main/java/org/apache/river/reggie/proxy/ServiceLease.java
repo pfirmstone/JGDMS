@@ -18,10 +18,6 @@
 package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamException;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.UnknownLeaseException;
@@ -133,31 +129,4 @@ public abstract class ServiceLease extends RegistrarLease {
 	return LEASE_TYPE;
     }
 
-    /**
-     * Writes the service ID, encoded as specified by the ServiceID.writeBytes
-     * method.
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-	serviceID.writeBytes(out);
-    }
-
-    /**
-     * Reads the service ID, encoded as specified by the ServiceID.writeBytes
-     * method.
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	serviceID = new ServiceID(in);
-    }
-
-    /**
-     * Throws InvalidObjectException, since data for this class is required.
-     */
-    private void readObjectNoData() throws ObjectStreamException {
-	throw new InvalidObjectException("no data");
-    }
-    
 }

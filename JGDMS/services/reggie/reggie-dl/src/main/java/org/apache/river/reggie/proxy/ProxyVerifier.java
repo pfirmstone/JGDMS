@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,14 +19,15 @@ package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lookup.ServiceID;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Trust verifier for smart proxies used by Reggie.
@@ -34,9 +35,30 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * @author Sun Microsystems, Inc.
  *
  */
-public final class ProxyVerifier implements TrustVerifier, Serializable {
+@AtomicSerial
+public final class ProxyVerifier implements TrustVerifier {
 
-    private static final long serialVersionUID = 2L;
+    private static final String SERVER = "server";
+    private static final String REGISTRAR_ID_MOST_SIG = "registrarIDMostSig";
+    private static final String REGISTRAR_ID_LEAST_SIG = "registrarIDLeastSig";
+
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            /** @serialField Canonical service reference. */
+            new SerialForm(SERVER, RemoteMethodControl.class),
+            /** @serialField Most significant bits of the registrar's service ID. */
+            new SerialForm(REGISTRAR_ID_MOST_SIG, Long.TYPE),
+            /** @serialField Least significant bits of the registrar's service ID. */
+            new SerialForm(REGISTRAR_ID_LEAST_SIG, Long.TYPE)
+        };
+    }
+
+    public static void serialize(PutArg arg, ProxyVerifier pv) throws IOException{
+        arg.put(SERVER, pv.server);
+        arg.put(REGISTRAR_ID_MOST_SIG, pv.registrarID.getMostSignificantBits());
+        arg.put(REGISTRAR_ID_LEAST_SIG, pv.registrarID.getLeastSignificantBits());
+        arg.writeArgs();
+    }
 
     /**
      * Canonical service reference, used for comparison with inner server
@@ -49,7 +71,7 @@ public final class ProxyVerifier implements TrustVerifier, Serializable {
      * The registrar's service ID, used for comparison with registrar service
      * IDs extracted from smart proxies to verify.
      */
-    private transient ServiceID registrarID;
+    private final ServiceID registrarID;
 
     /**
      * Constructs proxy verifier which compares server references extracted
@@ -68,6 +90,36 @@ public final class ProxyVerifier implements TrustVerifier, Serializable {
 	}
 	this.server = (RemoteMethodControl) server;
 	this.registrarID = registrarID;
+    }
+
+    /**
+     * Verifies that the deserialized server reference implements both
+     * RemoteMethodControl and TrustEquivalence, mirroring the validation
+     * formerly performed in readObject.
+     */
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
+	Object server = arg.get(SERVER, null);
+	if (!(server instanceof RemoteMethodControl)) {
+	    throw new InvalidObjectException(
+		"server does not implement RemoteMethodControl");
+	} else if (!(server instanceof TrustEquivalence)) {
+	    throw new InvalidObjectException(
+		"server does not implement TrustEquivalence");
+	}
+	return arg;
+    }
+
+    public ProxyVerifier(GetArg arg) throws IOException, ClassNotFoundException {
+	this(check(arg), true);
+    }
+
+    private ProxyVerifier(GetArg arg, boolean check)
+	throws IOException, ClassNotFoundException
+    {
+	server = (RemoteMethodControl) arg.get(SERVER, null);
+	registrarID = new ServiceID(
+		arg.get(REGISTRAR_ID_MOST_SIG, 0L),
+		arg.get(REGISTRAR_ID_LEAST_SIG, 0L));
     }
 
     /**
@@ -120,35 +172,5 @@ public final class ProxyVerifier implements TrustVerifier, Serializable {
 	    server.setConstraints(inputServer.getConstraints());
 	return trustEquiv.checkTrustEquivalence(inputServer) &&
 	       registrarID.equals(inputRegistrarID);
-    }
-
-    /**
-     * Writes the default serializable field value for this instance, followed
-     * by the registrar's service ID encoded as specified by the
-     * ServiceID.writeBytes method.
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-	registrarID.writeBytes(out);
-    }
-
-    /**
-     * Reads the default serializable field value for this instance, followed
-     * by the registrar's service ID encoded as specified by the
-     * ServiceID.writeBytes method.  Verifies that the deserialized registrar
-     * reference implements both RemoteMethodControl and TrustEquivalence.
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	registrarID = new ServiceID(in);
-	if (!(server instanceof RemoteMethodControl)) {
-	    throw new InvalidObjectException(
-		"server does not implement RemoteMethodControl");
-	} else if (!(server instanceof TrustEquivalence)) {
-	    throw new InvalidObjectException(
-		"server does not implement TrustEquivalence");
-	}
     }
 }

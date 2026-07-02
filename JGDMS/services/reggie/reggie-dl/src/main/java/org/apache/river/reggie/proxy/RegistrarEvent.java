@@ -19,8 +19,6 @@ package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.Proxy;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
@@ -185,28 +183,6 @@ public abstract class RegistrarEvent extends ServiceEvent implements ProxyAccess
     @Override
     public ServiceID getServiceID() {
 	return servID;
-    }
-
-    /**
-     * Writes the default serializable field value for this instance, followed
-     * by the serviceItem's service ID encoded as specified by the
-     * ServiceID.writeBytes method.
-     */
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-	servID.writeBytes(out);
-    }
-
-    /**
-     * Reads the default serializable field value for this instance, followed
-     * by the serviceItem's service ID encoded as specified by the
-     * ServiceID.writeBytes method. 
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	servID = new ServiceID(in);
     }
 
     public Object getProxy() {

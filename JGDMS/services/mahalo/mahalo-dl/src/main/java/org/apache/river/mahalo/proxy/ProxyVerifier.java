@@ -22,7 +22,6 @@ import org.apache.river.landlord.ConstrainableLandlordLease;
 import org.apache.river.landlord.Landlord;
 import org.apache.river.landlord.LandlordProxyVerifier;
 import java.io.IOException;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -39,9 +38,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /** Defines a trust verifier for the smart proxies of a Mahalo server. */
 @AtomicSerial
-public final class ProxyVerifier implements TrustVerifier, Serializable {
-
-    private static final long serialVersionUID = 1L;
+public final class ProxyVerifier implements TrustVerifier {
 
     /** Logger for logging information about this instance */
     private static final Logger logger = 

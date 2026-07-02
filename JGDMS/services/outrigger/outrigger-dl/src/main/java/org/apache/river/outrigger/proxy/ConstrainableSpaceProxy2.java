@@ -20,7 +20,6 @@ package org.apache.river.outrigger.proxy;
 import org.apache.river.landlord.ConstrainableLandlordLease;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
 import java.util.Collection;
@@ -47,10 +46,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @AtomicSerial
 public final class ConstrainableSpaceProxy2 extends SpaceProxy2
-    implements RemoteMethodControl 
+    implements RemoteMethodControl
 {
-    static final long serialVersionUID = 1L;
-
     /**
      * Array containing element pairs in which each pair of elements
      * represents a mapping between two methods having the following
@@ -278,21 +275,6 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
      */
     private ProxyTrustIterator getProxyTrustIterator() {
 	return new SingletonProxyTrustIterator(space);
-    }
-
-    private void readObject(ObjectInputStream s)  
-	throws IOException, ClassNotFoundException
-    {
-	s.defaultReadObject();
-
-	/* Basic validation of space, spaceUuid, and 
-	 * serverMaxServerQueryTimeout was performed by
-	 * SpaceProxy2.readObject(), we just need to verify than
-	 * space implements RemoteMethodControl and that it has
-	 * appropriate constraints. 
-	 */
-	ConstrainableProxyUtil.verifyConsistentConstraints(
-	    methodConstraints, space, methodMapArray);
     }
 
     protected Lease constructLease(Uuid uuid, long expiration) {

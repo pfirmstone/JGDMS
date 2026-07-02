@@ -19,8 +19,6 @@ package org.apache.river.outrigger.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 
 import net.jini.core.transaction.UnknownTransactionException;
@@ -45,10 +43,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @AtomicSerial
 public abstract class ParticipantProxy implements TransactionParticipant, ReferentUuid,
-				  Serializable, ProxyAccessor
+				  ProxyAccessor
 {
-    static final long serialVersionUID = 1L;
-
     /**
      * The remote server this proxy works with.
      * Package protected so it can be read by subclasses and proxy verifier.
@@ -120,34 +116,6 @@ public abstract class ParticipantProxy implements TransactionParticipant, Refere
 	if (spaceUuid == null) 
 	    throw new NullPointerException("spaceUuid must be non-null");
 	return true;
-    }
-
-    /**
-     * Read this object back and validate state.
-     * @param in stream used to de-serialize.
-     * @throws IOException
-     * @throws ClassNotFoundException
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-
-	if (space == null) 
-	    throw new InvalidObjectException("null server reference");
-	    
-	if (spaceUuid == null)
-	    throw new InvalidObjectException("null Uuid");
-    }
-
-    /** 
-     * We should always have data in the stream, if this method
-     * gets called there is something wrong.
-     * @throws InvalidObjectException
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new 
-	    InvalidObjectException("SpaceProxy should always have data");
     }
 
     @Override

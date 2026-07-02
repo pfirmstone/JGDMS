@@ -20,8 +20,6 @@ package org.apache.river.reggie.proxy;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
@@ -48,8 +46,6 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 public final class ConstrainableServiceLease
     extends ServiceLease implements RemoteMethodControl
 {
-    private static final long serialVersionUID = 2L;
-
     /** Mappings between Lease and Registrar methods */
     private static final Method[] methodMappings = {
 	Util.getMethod(Lease.class, "cancel", new Class[0]),
@@ -184,20 +180,5 @@ public final class ConstrainableServiceLease
      */
     private ProxyTrustIterator getProxyTrustIterator() {
 	return new SingletonProxyTrustIterator(server);
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-
-    /**
-     * Verifies that the client constraints for this proxy are consistent with
-     * those set on the underlying server ref.
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	verifyConsistentConstraints(constraints, server);
     }
 }

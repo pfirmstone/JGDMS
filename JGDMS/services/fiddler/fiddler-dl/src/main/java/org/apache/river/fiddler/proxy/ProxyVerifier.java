@@ -18,7 +18,6 @@
 package org.apache.river.fiddler.proxy;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
@@ -41,9 +40,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * @since 2.0
  */
 @AtomicSerial
-public final class ProxyVerifier implements Serializable, TrustVerifier {
-
-    private static final long serialVersionUID = 2L;
+public final class ProxyVerifier implements TrustVerifier {
 
     /** The canonical instance of the inner proxy to the service. This
      *  instance will be used by the <code>isTrusted</code> method 

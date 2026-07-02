@@ -20,11 +20,6 @@ package org.apache.river.reggie.proxy;
 import org.apache.river.proxy.MarshalledWrapper;
 import org.apache.river.reggie.proxy.ClassMapper.EntryField;
 import java.io.IOException;
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -58,15 +53,8 @@ import org.apache.river.api.io.Valid;
  *
  */
 @AtomicSerial
-public final class EntryRep implements Serializable, Cloneable {
+public final class EntryRep implements Cloneable {
 
-    private static final long serialVersionUID = 2L;
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("eclass", EntryClass.class),
-        new ObjectStreamField("codebase", String.class),
-        new ObjectStreamField("fields", Object[].class)
-    };
-    
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             /** @serialField The Class of the Entry converted to EntryClass. */
@@ -141,13 +129,7 @@ public final class EntryRep implements Serializable, Cloneable {
 	fields = Valid.copy(arg.get("fields", null, Object[].class));
 	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
     }
-    
-    private void writeObject(ObjectOutputStream out) throws IOException{
-	synchronized (fields){
-	    out.defaultWriteObject();
-	}
-    }
-    
+
     /**
      * For clone and Reggie
      */
@@ -415,11 +397,4 @@ public final class EntryRep implements Serializable, Cloneable {
 	}
 	return entries;
     }
-    
-     private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
-}
 }

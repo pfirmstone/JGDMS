@@ -18,11 +18,6 @@
 package org.apache.river.norm.proxy;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectOutputStream.PutField;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -35,21 +30,10 @@ import org.apache.river.proxy.MarshalledWrapper;
  * NormServer.getLeases}.
  */
 @AtomicSerial
-public final class GetLeasesResult implements Serializable {
-    private static final long serialVersionUID = 1;
+public final class GetLeasesResult {
 
-    /**
-     * @serialField marshalledLeases MarshalledInstance[] The marshalled
-     *		    leases.
-     */
-    private static final ObjectStreamField[] serialPersistentFields = {
-	/* Make sure the marshalled leases array is not shared */
-	new ObjectStreamField(
-	    "marshalledLeases", MarshalledInstance[].class, true)
-    };
-
-    /** Whether to verify codebase integrity. */
-    private transient boolean verifyCodebaseIntegrity;
+    /** Whether to verify codebase integrity.  Not part of the wire form. */
+    private final boolean verifyCodebaseIntegrity;
 
     /** The marshalled leases. */
     final MarshalledInstance[] marshalledLeases;
@@ -72,20 +56,21 @@ public final class GetLeasesResult implements Serializable {
      * @param marshalledLeases the leases being returned by the call
      */
     public GetLeasesResult(MarshalledInstance[] marshalledLeases) {
-	this.marshalledLeases = 
+	this.marshalledLeases =
 		marshalledLeases != null ?
 		marshalledLeases.clone() : new MarshalledInstance[0];
+	this.verifyCodebaseIntegrity = false;
     }
 
     GetLeasesResult(GetArg arg) throws IOException, ClassNotFoundException {
-	this(check(arg));
-	verifyCodebaseIntegrity = MarshalledWrapper.integrityEnforced(arg);
+	this.marshalledLeases = check(arg);
+	this.verifyCodebaseIntegrity = MarshalledWrapper.integrityEnforced(arg);
     }
-    
+
     private static MarshalledInstance[] check(GetArg arg) throws IOException, ClassNotFoundException {
-	MarshalledInstance []  marshalledLeases = (MarshalledInstance[]) 
+	MarshalledInstance []  marshalledLeases = (MarshalledInstance[])
 		arg.get("marshalledLeases", null);
-	return marshalledLeases == null ? new MarshalledInstance [0] 
+	return marshalledLeases == null ? new MarshalledInstance [0]
 		: marshalledLeases;
     }
 
@@ -94,19 +79,5 @@ public final class GetLeasesResult implements Serializable {
      */
     boolean verifyCodebaseIntegrity() {
 	return verifyCodebaseIntegrity;
-    }
-
-    /* Set transient fields. */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	verifyCodebaseIntegrity = MarshalledWrapper.integrityEnforced(in);
-    }
-    
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	PutField pf = out.putFields();
-	pf.put("marshalledLeases", marshalledLeases);
-	out.writeFields();
     }
 }

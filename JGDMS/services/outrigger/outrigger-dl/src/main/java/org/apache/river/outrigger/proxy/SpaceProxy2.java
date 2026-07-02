@@ -19,8 +19,6 @@ package org.apache.river.outrigger.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import java.rmi.MarshalException;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
@@ -75,10 +73,8 @@ import org.apache.river.landlord.LandlordLease;
 // @see OutriggerSpace
 @AtomicSerial
 public abstract class SpaceProxy2 implements TupleSpace, Administrable, ReferentUuid,
-			     Serializable, ProxyAccessor
+			     ProxyAccessor
 {
-    static final long serialVersionUID = 1L;
-
     /**
      * The remote server this proxy works with.
      * Package protected so it can be read by subclasses and proxy verifier
@@ -171,7 +167,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	return value;
     }
     
-    private SpaceProxy2( OutriggerServer space, Uuid spaceUuid, 
+    private SpaceProxy2( OutriggerServer space, Uuid spaceUuid,
 	    long serverMaxServerQueryTimeout, long maxServerQueryTimeout ){
 	this.space = space;
 	this.spaceUuid = spaceUuid;
@@ -179,10 +175,37 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	this.maxServerQueryTimeout = maxServerQueryTimeout;
     }
 
+    private SpaceProxy2( boolean check, OutriggerServer space, Uuid spaceUuid,
+	    long serverMaxServerQueryTimeout, long maxServerQueryTimeout ){
+	this(space, spaceUuid, serverMaxServerQueryTimeout, maxServerQueryTimeout);
+    }
+
     SpaceProxy2(GetArg arg) throws IOException, ClassNotFoundException {
-	this((OutriggerServer) arg.get("space", null),
+	this(serialCheck((OutriggerServer) arg.get("space", null),
+			(Uuid) arg.get("spaceUuid", null),
+			arg.get("serverMaxServerQueryTimeout", -1L)),
+		(OutriggerServer) arg.get("space", null),
 		(Uuid) arg.get("spaceUuid", null),
-		arg.get("serverMaxServerQueryTimeout", -1L));
+		arg.get("serverMaxServerQueryTimeout", -1L),
+		setMaxServerQueryTimeout(arg.get("serverMaxServerQueryTimeout", -1L)));
+    }
+
+    /**
+     * Validate the invariants formerly checked by {@code readObject}: a
+     * non-null server reference, a non-null {@code Uuid}, and a positive
+     * {@code serverMaxServerQueryTimeout}.
+     */
+    private static boolean serialCheck(OutriggerServer space, Uuid spaceUuid,
+	    long serverMaxServerQueryTimeout) throws InvalidObjectException
+    {
+	if (space == null)
+	    throw new InvalidObjectException("null server reference");
+	if (spaceUuid == null)
+	    throw new InvalidObjectException("null Uuid");
+	if (serverMaxServerQueryTimeout <= 0)
+	    throw new InvalidObjectException("Bad serverMaxServerQueryTimeout " +
+		"value:" + serverMaxServerQueryTimeout);
+	return true;
     }
 
     @Override
@@ -278,12 +301,12 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	    maxServerQueryTimeout = maxServerQueryTimeoutPropertyValue;
 	else if (serverMaxServerQueryTimeout > 0)
 	    maxServerQueryTimeout = serverMaxServerQueryTimeout;
-	else 
-	    /* should never get here, the constructor and readObject
-	     * check to make sure that serverMaxServerQueryTimeout
-	     * is positive.
+	else
+	    /* should never get here, the constructor and the (GetArg)
+	     * deserialization constructor check to make sure that
+	     * serverMaxServerQueryTimeout is positive.
 	     */
-	    throw new 
+	    throw new
 	        AssertionError("serverMaxServerQueryTimeout invalid:" + 
 			       serverMaxServerQueryTimeout);
 
@@ -293,38 +316,6 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 		Long.valueOf(maxServerQueryTimeout));
 	}
 	return maxServerQueryTimeout;
-    }
-
-    /**
-     * Read this object back setting the <code>maxServerQueryTimeout</code>
-     * field and validate state.
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-
-	if (space == null) 
-	    throw new InvalidObjectException("null server reference");
-	    
-	if (spaceUuid == null)
-	    throw new InvalidObjectException("null Uuid");
-
-	if (serverMaxServerQueryTimeout <= 0)
-	    throw new 
-		InvalidObjectException("Bad serverMaxServerQueryTimeout " +
-		    "value:" + serverMaxServerQueryTimeout);
-
-	maxServerQueryTimeout = setMaxServerQueryTimeout(serverMaxServerQueryTimeout);
-    }
-
-    /** 
-     * We should always have data in the stream, if this method
-     * gets called there is something wrong.
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new 
-	    InvalidObjectException("SpaceProxy2 should always have data");
     }
 
     // --------------------------------------------------

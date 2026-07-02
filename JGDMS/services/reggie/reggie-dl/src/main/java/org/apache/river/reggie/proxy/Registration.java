@@ -20,9 +20,6 @@ package org.apache.river.reggie.proxy;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
@@ -47,11 +44,9 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *
  */
 @AtomicSerial
-public abstract class Registration implements ServiceRegistration, ReferentUuid, Serializable
+public abstract class Registration implements ServiceRegistration, ReferentUuid
 {
 
-    private static final long serialVersionUID = 2L;
-    
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("server", Registrar.class),
@@ -243,25 +238,5 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid,
     @Override
     public String toString() {
 	return getClass().getName() + "[" + lease + "]";
-    }
-
-
-    /** Verifies that member fields are non-null. */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	if (server == null) {
-	    throw new InvalidObjectException("null server");
-	} else if (lease == null) {
-	    throw new InvalidObjectException("null lease");
-	}
-    }
-
-    /**
-     * Throws InvalidObjectException, since data for this class is required.
-     */
-    private void readObjectNoData() throws ObjectStreamException {
-	throw new InvalidObjectException("no data");
     }
 }

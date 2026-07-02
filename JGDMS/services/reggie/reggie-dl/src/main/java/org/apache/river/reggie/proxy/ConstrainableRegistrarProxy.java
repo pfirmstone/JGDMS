@@ -19,8 +19,6 @@ package org.apache.river.reggie.proxy;
 
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
 import net.jini.admin.Administrable;
@@ -48,8 +46,6 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 public final class ConstrainableRegistrarProxy
     extends RegistrarProxy implements RemoteMethodControl
 {
-    private static final long serialVersionUID = 2L;
-
     /** Mappings between ServiceRegistrar and Registrar methods */
     static final Method[] methodMappings = {
 	Util.getMethod(ServiceRegistrar.class, "getEntryClasses",
@@ -178,21 +174,5 @@ public final class ConstrainableRegistrarProxy
      */
     private ProxyTrustIterator getProxyTrustIterator() {
 	return new SingletonProxyTrustIterator(server);
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-
-    /**
-     * Verifies that the client constraints for this proxy are consistent with
-     * those set on the underlying server ref.
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	ConstrainableProxyUtil.verifyConsistentConstraints(
-	    constraints, server, methodMappings);
     }
 }

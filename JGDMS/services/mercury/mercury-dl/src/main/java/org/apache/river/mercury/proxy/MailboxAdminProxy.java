@@ -19,9 +19,6 @@ package org.apache.river.mercury.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
@@ -49,10 +46,8 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
  * @since 1.1
  */
 @AtomicSerial
-public abstract class MailboxAdminProxy implements MailboxAdmin, Serializable,
+public abstract class MailboxAdminProxy implements MailboxAdmin,
 	ReferentUuid, ProxyAccessor {
-
-    private static final long serialVersionUID = 2L;
 
     /**
      * The registrar
@@ -219,46 +214,6 @@ public abstract class MailboxAdminProxy implements MailboxAdmin, Serializable,
     public boolean equals(Object o) {
         return ReferentUuids.compare(this,o);
     }
-    
-   /** When an instance of this class is deserialized, this method is
-     *  automatically invoked. This implementation of this method validates
-     *  the state of the deserialized instance.
-     *
-     * @throws InvalidObjectException if the state of the
-     *         deserialized instance of this class is found to be invalid.
-     */
-    private void readObject(ObjectInputStream s)
-                               throws IOException, ClassNotFoundException
-    {
-        s.defaultReadObject();
-        /* Verify server */
-        if(server == null) {
-            throw new InvalidObjectException("MailboxProxy.readObject "
-                                             +"failure - server "
-                                             +"field is null");
-        }//endif
-        /* Verify proxyID */
-        if(proxyID == null) {
-            throw new InvalidObjectException("MailboxProxy.proxyID "
-                                             +"failure - proxyID "
-                                             +"field is null");
-        }//endif
-    }//end readObject
-
-    /** During deserialization of an instance of this class, if it is found
-     *  that the stream contains no data, this method is automatically
-     *  invoked. Because it is expected that the stream should always
-     *  contain data, this implementation of this method simply declares
-     *  that something must be wrong.
-     *
-     * @throws InvalidObjectException to indicate that there
-     *         was no data in the stream during deserialization of an
-     *         instance of this class; declaring that something is wrong.
-     */
-    private void readObjectNoData() throws ObjectStreamException {
-        throw new InvalidObjectException("no data found when attempting to "
-                                         +"deserialize MailboxProxy instance");
-    }//end readObjectNoData
 
     public Object getProxy() {
 	return server;
@@ -269,9 +224,7 @@ public abstract class MailboxAdminProxy implements MailboxAdmin, Serializable,
     static final class ConstrainableMailboxAdminProxy extends MailboxAdminProxy
                                                implements RemoteMethodControl
     {
-        private static final long serialVersionUID = 2L;
-
-        /** Constructs a new <code>ConstrainableMailboxAdminProxy</code> 
+        /** Constructs a new <code>ConstrainableMailboxAdminProxy</code>
 	 *  instance.
          *  <p>
          *  For a description of all but the <code>methodConstraints</code>
@@ -348,31 +301,6 @@ public abstract class MailboxAdminProxy implements MailboxAdmin, Serializable,
         private ProxyTrustIterator getProxyTrustIterator() {
 	    return new SingletonProxyTrustIterator(server);
         }//end getProxyTrustIterator
-	
-	
-        /** Performs various functions related to the trust verification
-         *  process for the current instance of this proxy class, as
-         *  detailed in the description for this class.
-         *
-         * @throws <code>InvalidObjectException</code> if any of the
-         *         requirements for trust verification (as detailed in the 
-         *         class description) are not satisfied.
-         */
-        private void readObject(ObjectInputStream s)  
-                                   throws IOException, ClassNotFoundException
-        {
-            /* Note that basic validation of the fields of this class was
-             * already performed in the readObject() method of this class'
-             * super class.
-             */
-            s.defaultReadObject();
-            // Verify that the server implements RemoteMethodControl
-            if( !(server instanceof RemoteMethodControl) ) {
-                throw new InvalidObjectException
-                              ("MailboxAdminProxy.readObject failure - server "
-                               +"does not implement RemoteMethodControl");
-            }//endif
-        }//end readObject  
 
     }//end class ConstrainableMailboxAdminProxy
 }

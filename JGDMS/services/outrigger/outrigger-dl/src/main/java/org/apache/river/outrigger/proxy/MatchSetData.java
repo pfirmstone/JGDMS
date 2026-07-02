@@ -30,8 +30,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * data. Also holds initial lease time.
  */
 @AtomicSerial
-public class MatchSetData implements java.io.Serializable {
-    private static final long serialVersionUID = 1L;
+public class MatchSetData {
 
     /**
      * <code>Uuid</code> for iteration and associated lease. 

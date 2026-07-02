@@ -19,8 +19,6 @@ package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceTemplate;
@@ -42,10 +40,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *
  */
 @AtomicSerial
-public class Template implements Serializable {
+public class Template {
 
-    private static final long serialVersionUID = 2L;
-    
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("serviceID", ServiceID.class),
@@ -152,19 +148,5 @@ public class Template implements Serializable {
 		attributeSetTemplates != null ?
 		attributeSetTemplates.clone():
 		null;
-    }
-    
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-    
-    /**
-     * Serialization evolution support
-     * @serialData 
-     */
-    private void readObject(java.io.ObjectInputStream in)
-	throws java.io.IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
     }
 }

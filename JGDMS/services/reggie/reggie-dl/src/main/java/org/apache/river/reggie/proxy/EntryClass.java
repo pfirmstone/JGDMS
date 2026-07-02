@@ -21,10 +21,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
@@ -56,22 +52,13 @@ import org.apache.river.proxy.MarshalledWrapper;
  * @see ClassMapper
  */
 @AtomicSerial
-public class EntryClass implements Serializable {
+public class EntryClass {
 
-    private static final long serialVersionUID = 2L;
-    
     private static final String NAME = "name";
     private static final String HASH = "hash";
     private static final String SUPERCLASS = "superclass";
     private static final String NUM_FIELDS = "numFields";
-    
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(NAME, String.class),
-        new ObjectStreamField(HASH, Long.TYPE),
-        new ObjectStreamField(SUPERCLASS, EntryClass.class),
-        new ObjectStreamField(NUM_FIELDS, Integer.TYPE)
-    };
-    
+
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             /** @serialField Class name */
@@ -414,34 +401,6 @@ public class EntryClass implements Serializable {
 		"Unable to calculate @SerialEntry type hash for " + name, e);
 	}
 	return hash;
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-    }
-
-
-    /**
-     * Samples integrity protection setting (if any) of the stream from which
-     * this instance is being deserialized and checks that valid values
-     * for this object have been read from the stream.
-     */
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-	if (name == null)
-	    throw new InvalidObjectException("name cannot be null");
-	if (hash == 0)
-	    throw new InvalidObjectException("hash cannot be zero");
-	integrity = MarshalledWrapper.integrityEnforced(in);
-    }
-
-    /**
-     * Throws InvalidObjectException, since data for this class is required.
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new InvalidObjectException("no data");
     }
 
 }

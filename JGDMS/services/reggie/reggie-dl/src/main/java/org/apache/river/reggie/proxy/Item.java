@@ -18,9 +18,6 @@
 package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.lang.reflect.Proxy;
 import java.rmi.MarshalException;
 import java.rmi.NoSuchObjectException;
@@ -60,18 +57,8 @@ import org.apache.river.proxy.Bootstrap;
  *
  */
 @AtomicSerial
-public final class Item implements Serializable, Cloneable {
+public final class Item implements Cloneable {
 
-    private static final long serialVersionUID = 2L;
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("serviceID", ServiceID.class),
-        new ObjectStreamField("serviceType", ServiceType.class),
-        new ObjectStreamField("codebase", String.class),
-        new ObjectStreamField("service", MarshalledWrapper.class),
-        new ObjectStreamField("attributeSets", EntryRep[].class),
-        new ObjectStreamField("bootstrapProxy", java.lang.reflect.Proxy.class)
-    };
-    
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             /** @serialField ServiceItem.serviceID. */
@@ -321,10 +308,6 @@ public final class Item implements Serializable, Cloneable {
 	}
 	return items;
     }
-    
-    private synchronized void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
-}
 
     /**
      * @return the serviceID

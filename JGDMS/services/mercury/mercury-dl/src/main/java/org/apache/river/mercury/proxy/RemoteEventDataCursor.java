@@ -18,7 +18,6 @@
 package org.apache.river.mercury.proxy;
 
 import java.io.IOException;
-import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -30,8 +29,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * @since 2.1
  */
 @AtomicSerial
-public class RemoteEventDataCursor implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class RemoteEventDataCursor {
 
     private final long readCount;
     private final long readPosition;

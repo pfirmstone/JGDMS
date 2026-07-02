@@ -18,7 +18,6 @@
 package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
-import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -32,10 +31,8 @@ import org.apache.river.proxy.CodebaseProvider;
  *
  */
 @AtomicSerial
-public class EntryClassBase implements Serializable {
+public class EntryClassBase {
 
-    private static final long serialVersionUID = 2L;
-    
     private static final String ECLASS = "eclass";
     private static final String CODEBASE = "codebase";
     
