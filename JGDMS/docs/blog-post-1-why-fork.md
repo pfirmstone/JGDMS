@@ -151,7 +151,7 @@ import net.jini.core.constraint.*;
 org.apache.river.start {
     serviceDescriptors = new ServiceDescriptor[] {
         new NonActivatableServiceDescriptor(
-            "http://host.example.org:8080/hello-service-dl.jar", // export codebase — proxy JAR, served over the network
+            "httpmd://host.example.org:8080/hello-service-dl.jar;sha-256=a732fe7d083c14b2438b7a3bd578499da98cfeda96f9108cb1254fe8ab1234da", // export codebase — proxy JAR over content-verified httpmd
             "hello-service.policy",                 // service security policy file
             "file:hello-service-impl.jar",          // import codebase — impl JAR, loaded locally by the server JVM
             "net.example.HelloServiceImpl",         // implementation class
@@ -180,11 +180,12 @@ net.example.HelloServiceImpl {
 ```
 
 The two codebases play different roles. The **export codebase** is the *proxy* codebase — the
-classes a remote client downloads to talk to the service — so it must be reachable over the network
-(served by an HTTP class server); a `file:` URL is visible only to the local JVM and a client could
-never fetch it. The **import codebase** is the server's own implementation classpath, loaded
-locally, so `file:` is correct there. For content-verified proxy codebases, JGDMS serves them over
-`httpmd:` (the SHA-256-in-the-URL scheme covered in Parts 2 and 4).
+classes a remote client downloads to talk to the service — so it must be reachable over the network.
+It is served over `httpmd:`, whose `;sha-256=` parameter pins the JAR's content hash so the client
+verifies exactly which bytes it fetched (the integrity scheme SCAP and `DigestGrant` build on —
+Parts 2 and 4); a plain `http:` URL would be reachable too, but without that check. A `file:` URL is
+visible only to the local JVM, so a client could never fetch it. The **import codebase** is the
+server's own implementation classpath, loaded locally, so `file:` is correct there.
 
 ### Step 3 — Launch
 
