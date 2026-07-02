@@ -70,7 +70,7 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <release>21</release>
+                    <release>8</release>
                 </configuration>
             </plugin>
             <plugin>

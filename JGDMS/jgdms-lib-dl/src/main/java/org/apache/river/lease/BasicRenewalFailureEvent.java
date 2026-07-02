@@ -125,7 +125,7 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
      * @deprecated Use the MarshalledInstance-handback constructor;
      *             java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries.
      */
-    @Deprecated(forRemoval = true)
+    @Deprecated
     public BasicRenewalFailureEvent(LeaseRenewalSet source, 
 				    long seqNum,
 				    MarshalledObject handback,

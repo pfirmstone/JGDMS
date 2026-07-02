@@ -118,13 +118,38 @@ import net.jini.loader.LoadClass;
  * class from within a privileged security context.
  * 
  * <p>
- * <h2>NOTE AND TODO:</h2>
- * This service provider will be updated to use {@link java.util.ServiceLoader}
- * and the OSGi service registry, for compatibility with modular environments
- * and the simplification this implementation.  This class will remain to provide 
- * indirection for all local service providers, to allow compatibility
- * with both modular environments.
- * 
+ * <h2>OSGi awareness</h2>
+ * {@link #providers(Class, ClassLoader)} (and the {@link #providers(Class)} /
+ * {@link #installedProviders(Class)} convenience forms that delegate to it) is
+ * OSGi-aware.  When this class is running inside an OSGi framework — detected by
+ * {@link OSGiServiceIterator}, the platform bundle's {@code BundleActivator},
+ * flipping an internal flag on {@code start} — {@code providers} returns a
+ * {@link ChainedIterator} that unions two provider relationships that must both
+ * be served:
+ * <ul>
+ *   <li><b>co-loaded providers</b> (e.g. a per-package {@code MarshalDelegate}
+ *       loaded by the same loader as its served classes, or a proxy-codebase jar
+ *       that is not an OSGi bundle) — found by a <em>within-loader</em> scan of
+ *       the given loader's {@code META-INF/services}, which works under OSGi and
+ *       is <em>not</em> the broken consumer-side {@link java.util.ServiceLoader}
+ *       cross-bundle scan; and</li>
+ *   <li><b>cross-bundle SPIs</b> (e.g. a discovery-provider factory whose impl
+ *       lives in a different bundle from the requesting facade) — obtained from
+ *       the OSGi service registry, since a consumer bundle cannot see another
+ *       bundle's {@code META-INF/services}.</li>
+ * </ul>
+ * Outside OSGi, {@code providers} is the plain within-loader
+ * {@code META-INF/services} scan, which resolves both relationships because
+ * everything shares one loader.
+ *
+ * <p>{@link #providerNames(Class, ClassLoader)} is deliberately <em>not</em>
+ * cross-bundle OSGi-aware: it is the name-only, within-loader scan used to filter
+ * co-loaded candidates (by package / defining loader) before paying the load and
+ * static-initialisation cost.  The OSGi registry holds providers in <em>other</em>
+ * loaders, which a co-loaded lookup never selects, so unioning it there would be
+ * meaningless.  A cross-bundle SPI must use {@code providers}, not
+ * {@code providerNames}.
+ *
  * @author Sun Microsystems, Inc.
  * 
  * @since 2.0

@@ -531,7 +531,7 @@ public interface JavaSpace05 extends JavaSpace {
      *         <code>listener</code> is <code>null</code> 
      * @deprecated
      */
-    @Deprecated(forRemoval = true)
+    @Deprecated
     public EventRegistration
 	registerForAvailabilityEvent(Collection          tmpls, 
 				     Transaction         txn,

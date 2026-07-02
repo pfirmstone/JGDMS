@@ -233,7 +233,7 @@ public class LeaseUnmarshalException extends AtomicException {
      * the DER schema that {@link MarshalledObject} drops. To be removed in a
      * future release.
      */
-    @Deprecated(forRemoval = true)
+    @Deprecated
     public LeaseUnmarshalException(String  message,
 				   Lease[] leases,
 				   MarshalledObject[] marshalledLeases,
@@ -259,7 +259,7 @@ public class LeaseUnmarshalException extends AtomicException {
      * the DER schema that {@link MarshalledObject} drops. To be removed in a
      * future release.
      */
-    @Deprecated(forRemoval = true)
+    @Deprecated
     public LeaseUnmarshalException(Lease[] leases,
 				   MarshalledObject[] marshalledLeases,
 				   Throwable[] exceptions)
@@ -397,7 +397,7 @@ public class LeaseUnmarshalException extends AtomicException {
      * represented as a {@link MarshalledObject}, in which case this method
      * fails. To be removed in a future release.
      */
-    @Deprecated(forRemoval = true)
+    @Deprecated
     public MarshalledObject[] getMarshalledLeases() {
 	MarshalledObject[] marshalledLeases =
 		new MarshalledObject[stillMarshalledLeases.length];

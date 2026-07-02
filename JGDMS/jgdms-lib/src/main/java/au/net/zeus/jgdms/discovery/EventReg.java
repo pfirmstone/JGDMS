@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package net.jini.lookup;
+package au.net.zeus.jgdms.discovery;
 
 import net.jini.core.lease.Lease;
 

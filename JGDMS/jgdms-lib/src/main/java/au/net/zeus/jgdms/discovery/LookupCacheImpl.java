@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package net.jini.lookup;
+package au.net.zeus.jgdms.discovery;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
@@ -69,6 +69,14 @@ import net.jini.io.MarshalledInstance;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
+import net.jini.lookup.LookupCache;
+import net.jini.lookup.SafeServiceRegistrar;
+import net.jini.lookup.ServiceAttributesAccessor;
+import net.jini.lookup.ServiceDiscoveryEvent;
+import net.jini.lookup.ServiceDiscoveryListener;
+import net.jini.lookup.ServiceIDAccessor;
+import net.jini.lookup.ServiceItemFilter;
+import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.concurrent.RC;
@@ -84,7 +92,7 @@ import org.apache.river.thread.ObservableFutureTask;
 
 /**
  * Internal implementation of the LookupCache interface. Instances of this class
- * are used in the blocking versions of ServiceDiscoveryManager.lookup() and are returned by
+ * are used in the blocking versions of ServiceDiscoveryManagerImpl.lookup() and are returned by
  * createLookupCache.
  */
 final class LookupCacheImpl implements LookupCache {
@@ -160,12 +168,12 @@ final class LookupCacheImpl implements LookupCache {
      * assigned to the most recently created ServiceIdTask.
      */
     private final AtomicLong taskSeqN;
-    private final ServiceDiscoveryManager sdm;
+    private final ServiceDiscoveryManagerImpl sdm;
     private final boolean useInsecureLookup;
 
     LookupCacheImpl(ServiceTemplate tmpl, ServiceItemFilter filter, 
             ServiceDiscoveryListener sListener, long leaseDuration,
-            ServiceDiscoveryManager sdm, boolean useInsecureLookup) 
+            ServiceDiscoveryManagerImpl sdm, boolean useInsecureLookup) 
                                                     throws RemoteException 
     {
         this.useInsecureLookup = useInsecureLookup;
@@ -278,8 +286,8 @@ final class LookupCacheImpl implements LookupCache {
 
 	@Override
 	public void run() {
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER)){
-                ServiceDiscoveryManager.log(Level.FINER, 
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER)){
+                ServiceDiscoveryManagerImpl.log(Level.FINER, 
                     "ServiceDiscoveryManager - RegisterListenerTask started");
             }
 	    long duration = cache.getLeaseDuration();
@@ -330,8 +338,8 @@ final class LookupCacheImpl implements LookupCache {
 			cache.bCacheTerminated
 		);
 	    } finally {
-                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER)){
-                    ServiceDiscoveryManager.log(Level.FINER, 
+                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER)){
+                    ServiceDiscoveryManagerImpl.log(Level.FINER, 
                         "ServiceDiscoveryManager - RegisterListenerTask completed");
                 }
 	    }
@@ -358,8 +366,8 @@ final class LookupCacheImpl implements LookupCache {
 
 	@Override
 	public void run() {
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST)){
-                ServiceDiscoveryManager.log(Level.FINEST, 
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST)){
+                ServiceDiscoveryManagerImpl.log(Level.FINEST, 
                     "ServiceDiscoveryManager - ProxyRegDropTask started");
             }
             // Maybe registrar was discarded before the RegisterLookupListener 
@@ -399,8 +407,8 @@ final class LookupCacheImpl implements LookupCache {
                     cache.removeServiceNotify(dlcl.filteredItem);
                 }
 	    } //end loop
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST)){
-                ServiceDiscoveryManager.log(Level.FINEST, 
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST)){
+                ServiceDiscoveryManagerImpl.log(Level.FINEST, 
                     "ServiceDiscoveryManager - ProxyRegDropTask completed");
             }
 	} //end run
@@ -442,8 +450,8 @@ final class LookupCacheImpl implements LookupCache {
 
 	@Override
 	public void run() {
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST)){
-                ServiceDiscoveryManager.log(Level.FINEST, 
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST)){
+                ServiceDiscoveryManagerImpl.log(Level.FINEST, 
                     "ServiceDiscoveryManager - ServiceDiscardTimerTask started");
             }
 	    try {
@@ -491,7 +499,7 @@ final class LookupCacheImpl implements LookupCache {
 			filteredItem = item.clone();
 			//retry the filter
 			if (cache.useInsecureLookup){
-			    if (ServiceDiscoveryManager.filterPassed(filteredItem, cache.filter)) {
+			    if (ServiceDiscoveryManagerImpl.filterPassed(filteredItem, cache.filter)) {
                                 addFilteredItemToMap = true;
 			    } else {
 				//'quietly' remove the item
@@ -502,7 +510,7 @@ final class LookupCacheImpl implements LookupCache {
 			    // We're dealing with a bootstrap proxy.
 			    // The filter may not be expecting a bootstrap proxy.
 			    try {
-				if(ServiceDiscoveryManager.filterPassed(filteredItem, cache.filter)){
+				if(ServiceDiscoveryManagerImpl.filterPassed(filteredItem, cache.filter)){
                                     addFilteredItemToMap = true;
                                 } else {
                                     //'quietly' remove the item
@@ -510,13 +518,13 @@ final class LookupCacheImpl implements LookupCache {
                                     notify = false;
                                 } //endif
 			    } catch (SecurityException ex){
-                                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-                                    ServiceDiscoveryManager.log(Level.FINE, 
+                                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+                                    ServiceDiscoveryManagerImpl.log(Level.FINE, 
                                         "Exception caught, while attempting to filter a bootstrap proxy", ex);
                                 }
 				try {
 				    filteredItem.service = ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
-				    if(ServiceDiscoveryManager.filterPassed(filteredItem, cache.filter)){
+				    if(ServiceDiscoveryManagerImpl.filterPassed(filteredItem, cache.filter)){
                                         addFilteredItemToMap = true;
                                     } else {
                                         //'quietly' remove the item
@@ -524,8 +532,8 @@ final class LookupCacheImpl implements LookupCache {
                                         notify = false;
                                     } //endif
 				} catch (RemoteException ex1) {
-				    if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-                                        ServiceDiscoveryManager.log(Level.FINE, 
+				    if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+                                        ServiceDiscoveryManagerImpl.log(Level.FINE, 
                                             "Exception caught, while attempting to filter a bootstrap proxy", ex1);
                                     }
                                     //'quietly' remove the item
@@ -533,13 +541,13 @@ final class LookupCacheImpl implements LookupCache {
                                     notify = false;
 				}
 			    } catch (ClassCastException ex){
-				if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-                                    ServiceDiscoveryManager.log(Level.FINE, 
+				if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+                                    ServiceDiscoveryManagerImpl.log(Level.FINE, 
                                         "Exception caught, while attempting to filter a bootstrap proxy", ex);
                                 }
 				try {
 				    filteredItem.service = ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
-				    if(ServiceDiscoveryManager.filterPassed(filteredItem, cache.filter)){
+				    if(ServiceDiscoveryManagerImpl.filterPassed(filteredItem, cache.filter)){
                                         addFilteredItemToMap = true;
                                     } else {
                                         //'quietly' remove the item
@@ -547,8 +555,8 @@ final class LookupCacheImpl implements LookupCache {
                                         notify = false;
                                     } //endif
 				} catch (RemoteException ex1) {
-				    if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-                                        ServiceDiscoveryManager.log(Level.FINE, 
+				    if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+                                        ServiceDiscoveryManagerImpl.log(Level.FINE, 
                                             "Exception caught, while attempting to filter a bootstrap proxy", ex1);
                                     }
                                     //'quietly' remove the item
@@ -576,8 +584,8 @@ final class LookupCacheImpl implements LookupCache {
 		    if (aor.notify) cache.addServiceNotify(aor.itemToSend);
 		}
 	    } finally {
-                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST)){
-                    ServiceDiscoveryManager.log(Level.FINEST, 
+                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST)){
+                    ServiceDiscoveryManagerImpl.log(Level.FINEST, 
                         "ServiceDiscoveryManager - ServiceDiscardTimerTask completed");
                 }
 	    }
@@ -666,8 +674,8 @@ final class LookupCacheImpl implements LookupCache {
 	try {
 	    lookupListenerExporter.unexport(true);
 	} catch (IllegalStateException e) {
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST)){
-                ServiceDiscoveryManager.log(
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST)){
+                ServiceDiscoveryManagerImpl.log(
                     Level.FINEST, 
                     "IllegalStateException occurred while unexporting the cache's remote event listener",
                     e
@@ -675,8 +683,8 @@ final class LookupCacheImpl implements LookupCache {
             }
 	}
         incomingEventExecutor.shutdownNow();
-        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST)){
-            ServiceDiscoveryManager.log(
+        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST)){
+            ServiceDiscoveryManagerImpl.log(
                 Level.FINEST, 
                 "ServiceDiscoveryManager - LookupCache terminated"
             );
@@ -932,8 +940,8 @@ final class LookupCacheImpl implements LookupCache {
 	    try {
 		sdm.leaseRenewalMgr.remove(eReg.lease);
 	    } catch (Exception e) {
-                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER)){
-                    ServiceDiscoveryManager.log(
+                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER)){
+                    ServiceDiscoveryManagerImpl.log(
                         Level.FINER, 
                         "exception occurred while removing an event registration lease",
                         e
@@ -965,8 +973,8 @@ final class LookupCacheImpl implements LookupCache {
         if (theEvent.getSource() == null) {
 	    return;
 	}
-        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-            ServiceDiscoveryManager.log(
+        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+            ServiceDiscoveryManagerImpl.log(
                 Level.FINE, 
                 "HandleServiceEventTask submitted"
             );
@@ -1001,8 +1009,8 @@ final class LookupCacheImpl implements LookupCache {
 
         @Override
         public void run() {
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER)){
-                ServiceDiscoveryManager.log(Level.FINER,"HandleServiceEventTask started");
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER)){
+                ServiceDiscoveryManagerImpl.log(Level.FINER,"HandleServiceEventTask started");
             }
             try {
                 if (item == null){
@@ -1028,8 +1036,8 @@ final class LookupCacheImpl implements LookupCache {
                                 attributes = ((ServiceAttributesAccessor)proxy).getServiceAttributes();
                                 item = new ServiceItem(theEvent.getServiceID(), proxy, attributes);
                             } catch (IOException ex) {
-                                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-                                    ServiceDiscoveryManager.log(
+                                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+                                    ServiceDiscoveryManagerImpl.log(
                                         Level.FINE, 
                                         "exception thrown while attempting to establish contact via a bootstrap proxy",
                                         ex
@@ -1127,11 +1135,11 @@ final class LookupCacheImpl implements LookupCache {
                     }
                 }
             } catch (RuntimeException e){
-                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER))
-                    ServiceDiscoveryManager.log(Level.FINER, "HandleServiceEventTask threw a RuntimeException", e);
+                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER))
+                    ServiceDiscoveryManagerImpl.log(Level.FINER, "HandleServiceEventTask threw a RuntimeException", e);
             } finally {
-                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER))
-                    ServiceDiscoveryManager.log(Level.FINER, "HandleServiceEventTask completed");
+                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER))
+                    ServiceDiscoveryManagerImpl.log(Level.FINER, "HandleServiceEventTask completed");
             }
         }
 
@@ -1189,8 +1197,8 @@ final class LookupCacheImpl implements LookupCache {
 	/* Look for any gaps in the event sequence. */
         if (delta == 1) {
             //no gap, handle current event
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-                ServiceDiscoveryManager.log(
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+                ServiceDiscoveryManagerImpl.log(
                     Level.FINE, 
                     "No gap, handle current ServiceEvent, ServiceID: {0} transition: {1}",
                     new Object[]{sid, transition}
@@ -1225,8 +1233,8 @@ final class LookupCacheImpl implements LookupCache {
             return;
         } 
         if (delta == 0) {// Repeat event, ignore.
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-                ServiceDiscoveryManager.log(
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+                ServiceDiscoveryManagerImpl.log(
                     Level.FINE, 
                     "Repeat ServiceEvent, ignore, ServiceID: {0} transition: {1}",
                     new Object[]{sid, transition}
@@ -1235,8 +1243,8 @@ final class LookupCacheImpl implements LookupCache {
             return;
         } 
         if (delta < 0) { // Old event, ignore.
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-                ServiceDiscoveryManager.log(
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+                ServiceDiscoveryManagerImpl.log(
                     Level.FINE, 
                     "Old ServiceEvent, ignore, ServiceID: {0} transition: {1}",
                     new Object[]{sid, transition}
@@ -1245,8 +1253,8 @@ final class LookupCacheImpl implements LookupCache {
             return;
         } 
         //gap in event sequence, request snapshot
-        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-            ServiceDiscoveryManager.log(
+        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+            ServiceDiscoveryManagerImpl.log(
                 Level.FINE, 
                 "Gap in ServiceEvent sequence, performing lookup, ServiceID: {0} transition: {1}",
                 new Object[]{sid, transition}
@@ -1305,8 +1313,8 @@ final class LookupCacheImpl implements LookupCache {
                 continue;
             }
             if (items[i].serviceID == null  && !useInsecureLookup){
-                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE))
-                    ServiceDiscoveryManager.log(Level.FINE, 
+                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE))
+                    ServiceDiscoveryManagerImpl.log(Level.FINE, 
                         "ServiceItem contained null serviceID field, attempting to retrieve again");
                 try {
                     ServiceID id = ((ServiceIDAccessor)items[i].service).serviceID();
@@ -1314,8 +1322,8 @@ final class LookupCacheImpl implements LookupCache {
                     if (id == null) continue;
                     items[i].serviceID = id;
                 } catch ( IOException e){
-                    if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE))
-                        ServiceDiscoveryManager.log(Level.FINE, 
+                    if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE))
+                        ServiceDiscoveryManagerImpl.log(Level.FINE, 
                             "ServiceItem contained null serviceID field, attempt to retrieve again failed, ignoring",
                             e);
                     continue;
@@ -1352,8 +1360,8 @@ final class LookupCacheImpl implements LookupCache {
      */
     
     private void newOldService(ProxyReg reg, ServiceID id, ServiceItem item, boolean matchMatchEvent) {
-        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-            ServiceDiscoveryManager.log(
+        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+            ServiceDiscoveryManagerImpl.log(
                 Level.FINE, 
                 "newOldService called, ServiceItem: {0}",
                 new Object[]{item}
@@ -1366,8 +1374,8 @@ final class LookupCacheImpl implements LookupCache {
             if (itemReg == null) {
                 if (!eventRegMap.containsKey(reg)) {
                     /* reg must have been discarded, simply return */
-                    if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER))
-                        ServiceDiscoveryManager.log(
+                    if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER))
+                        ServiceDiscoveryManagerImpl.log(
                             Level.FINER, 
                             "eventRegMap doesn't contain ProxyReg, returning, ServiceItem: {0}",
                             new Object[]{item}
@@ -1380,8 +1388,8 @@ final class LookupCacheImpl implements LookupCache {
                 if (existed != null) {
                     itemReg = existed;
                     if (itemReg.isDiscarded()) {
-                        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER)){
-                            ServiceDiscoveryManager.log(
+                        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER)){
+                            ServiceDiscoveryManagerImpl.log(
                                 Level.FINER, 
                                 "newOldService, discarded returning, ServiceItem: {0}",
                                 new Object[]{item}
@@ -1389,8 +1397,8 @@ final class LookupCacheImpl implements LookupCache {
                         }
                         return;
                     }
-                    if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER)){
-                        ServiceDiscoveryManager.log(
+                    if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER)){
+                        ServiceDiscoveryManagerImpl.log(
                             Level.FINER, 
                             "newOldService, previously discovered, ServiceItem: {0}",
                             new Object[]{item}
@@ -1399,8 +1407,8 @@ final class LookupCacheImpl implements LookupCache {
                     previouslyDiscovered = true;
                 }
             } else if (itemReg.isDiscarded()) {
-                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER)){
-                    ServiceDiscoveryManager.log(
+                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER)){
+                    ServiceDiscoveryManagerImpl.log(
                         Level.FINER, 
                         "newOldService, discarded returning, ServiceItem: {0}",
                         new Object[]{item}
@@ -1408,8 +1416,8 @@ final class LookupCacheImpl implements LookupCache {
                 }
                 return;
             } else {
-                 if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER)){
-                    ServiceDiscoveryManager.log(
+                 if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER)){
+                    ServiceDiscoveryManagerImpl.log(
                         Level.FINER, 
                         "newOldService, previously discovered, ServiceItem: {0}",
                         new Object[]{item}
@@ -1430,11 +1438,11 @@ final class LookupCacheImpl implements LookupCache {
                 } //endif
             } //endif
         } catch (RuntimeException e) {
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE))
-                ServiceDiscoveryManager.log(Level.FINE, "Runtime exception thrown in newOldService call", e);
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE))
+                ServiceDiscoveryManagerImpl.log(Level.FINE, "Runtime exception thrown in newOldService call", e);
         } finally {
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER))
-                ServiceDiscoveryManager.log(Level.FINER, 
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER))
+                ServiceDiscoveryManagerImpl.log(Level.FINER, 
                         "newOldService call complete, ServiceItem: {0}",
                         new Object[]{item});
         }
@@ -1528,8 +1536,8 @@ final class LookupCacheImpl implements LookupCache {
 	/* Save the pre-event state. Update the post-event state after
 	 * applying the filter.
 	 */
-        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
-            ServiceDiscoveryManager.log(
+        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE)){
+            ServiceDiscoveryManagerImpl.log(
                 Level.FINE, 
                 "itemMatchMatchChange called, ServiceID: {0} ",
                 new Object[]{srvcID}
@@ -1579,10 +1587,10 @@ final class LookupCacheImpl implements LookupCache {
         
         @Override
         public ServiceItemReg apply(ServiceID t, ServiceItemReg itemReg) {
-            boolean loggable = ServiceDiscoveryManager.logger.isLoggable(Level.FINER);
+            boolean loggable = ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER);
             if (! reg.equals(itemReg)) {
                 if (loggable)
-                    ServiceDiscoveryManager.log(
+                    ServiceDiscoveryManagerImpl.log(
                         Level.FINER, 
                         "PreEventState.apply, ServiceItemReg's not equal, returning. ServiceID: {0}",
                         new Object[]{t}
@@ -1595,14 +1603,14 @@ final class LookupCacheImpl implements LookupCache {
 	    if (itemReg.proxyNotUsedToTrackChange(proxy, newItem)) {
 		// not tracking
                 if (loggable)
-                    ServiceDiscoveryManager.log(
+                    ServiceDiscoveryManagerImpl.log(
                         Level.FINER, 
                         "PreEventState.apply, proxyNotUsedToTrackChange. ServiceID: {0}",
                         new Object[]{t}
                     );
 		if (matchMatchEvent) {
                     if (loggable)
-                        ServiceDiscoveryManager.log(
+                        ServiceDiscoveryManagerImpl.log(
                             Level.FINER, 
                             "PreEventState.apply, matchMatchEvent true returning. ServiceID: {0}",
                             new Object[]{t}
@@ -1611,7 +1619,7 @@ final class LookupCacheImpl implements LookupCache {
 		}
 		if (notDiscarded) {
                     if (loggable)
-                        ServiceDiscoveryManager.log(
+                        ServiceDiscoveryManagerImpl.log(
                             Level.FINER, 
                             "PreEventState.apply, notifyServiceRemoved true returning. ServiceID: {0}",
                             new Object[]{t}
@@ -1619,7 +1627,7 @@ final class LookupCacheImpl implements LookupCache {
 		    return itemReg;
 		}
                 if (loggable)
-                    ServiceDiscoveryManager.log(
+                    ServiceDiscoveryManagerImpl.log(
                         Level.FINER, 
                         "PreEventState.apply, proxyChanged = proxy. ServiceID: {0}",
                         new Object[]{t}
@@ -1628,7 +1636,7 @@ final class LookupCacheImpl implements LookupCache {
 	    } //endif
 	    if (!notDiscarded) {
                 if (loggable)
-                    ServiceDiscoveryManager.log(
+                    ServiceDiscoveryManagerImpl.log(
                         Level.FINER, 
                         "PreEventState.apply, !notifyServiceRemoved, replacProxyUsedToTrackChange ServiceID: {0}",
                         new Object[]{t}
@@ -1646,7 +1654,7 @@ final class LookupCacheImpl implements LookupCache {
 	    if (matchMatchEvent || sameVersion(newItem, oldItem)) {
 		if (!notDiscarded) {
                     if (loggable)
-                        ServiceDiscoveryManager.log(
+                        ServiceDiscoveryManagerImpl.log(
                             Level.FINER, 
                             "PreEventState.apply, matchMatchEvent || sameVersion && !notifyServiceRemoved return itemReg, no need to filter ServiceID: {0}",
                             new Object[]{t}
@@ -1663,7 +1671,7 @@ final class LookupCacheImpl implements LookupCache {
 		attrsChanged = !LookupAttributes.equal(newItem.attributeSets, oldItem.attributeSets);
 		if (!attrsChanged) {
                     if (loggable)
-                        ServiceDiscoveryManager.log(
+                        ServiceDiscoveryManagerImpl.log(
                             Level.FINER, 
                             "PreEventState.apply, matchMatchEvent || sameVersion && !attrsChanged return itemReg, no need to filter ServiceID: {0}",
                             new Object[]{t}
@@ -1673,7 +1681,7 @@ final class LookupCacheImpl implements LookupCache {
 	    } else {
 		//(!matchMatchEvent && !same version) ==> re-registration
                 if (loggable)
-                    ServiceDiscoveryManager.log(
+                    ServiceDiscoveryManagerImpl.log(
                         Level.FINER, 
                         "PreEventState.apply, !matchMatchEvent &&! sameVersion ==> re-registrattion, versionChanged. ServiceID: {0}",
                         new Object[]{t}
@@ -1681,7 +1689,7 @@ final class LookupCacheImpl implements LookupCache {
 		versionChanged = true;
 	    } //endif
             if (loggable)
-                ServiceDiscoveryManager.log(
+                ServiceDiscoveryManagerImpl.log(
                     Level.FINER, 
                     "PreEventState.apply, need to filter true. ServiceID: {0}",
                     new Object[]{t}
@@ -1717,8 +1725,8 @@ final class LookupCacheImpl implements LookupCache {
 	    MarshalledInstance mi1 = new MarshalledInstance(service1);
 	    fullyEqual = mi0.fullyEquals(mi1);
 	} catch (IOException e) {
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.INFO)){
-                ServiceDiscoveryManager.log(
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.INFO)){
+                ServiceDiscoveryManagerImpl.log(
                     Level.INFO, 
                     "failure marshalling old and new services for equality check",
                     e
@@ -1751,12 +1759,12 @@ final class LookupCacheImpl implements LookupCache {
      */
     private void addServiceNotify(ServiceItem item, ServiceDiscoveryListener srvcListener) {
 	eventNotificationExecutor.execute(new ServiceNotifyDo(null, item, ITEM_ADDED, srvcListener, this));
-	if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST)) {
+	if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST)) {
 	    try {
 		throw new Exception("Back Trace");
 	    } catch (Exception ex) {
 		ex.fillInStackTrace();
-                ServiceDiscoveryManager.log(
+                ServiceDiscoveryManagerImpl.log(
                     Level.FINEST, 
                     "Log back trace",
                     ex
@@ -1793,12 +1801,12 @@ final class LookupCacheImpl implements LookupCache {
 	    while (iter.hasNext()) {
 		ServiceDiscoveryListener sl = iter.next();
 		eventNotificationExecutor.execute(new ServiceNotifyDo(oldItem, item, action, sl, this));
-		if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST)) {
+		if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST)) {
 		    try {
 			throw new Exception("Back Trace");
 		    } catch (Exception ex) {
 			ex.fillInStackTrace();
-                        ServiceDiscoveryManager.log(
+                        ServiceDiscoveryManagerImpl.log(
                             Level.FINEST, 
                             "Log back trace",
                             ex
@@ -1840,8 +1848,8 @@ final class LookupCacheImpl implements LookupCache {
 		boolean lookupCacheNull = lookupCache == null;
 		boolean oldItemNull = oldItem == null;
 		boolean itemNull = item == null;
-                if (ServiceDiscoveryManager.logger.isLoggable(Level.INFO))
-                    ServiceDiscoveryManager.log(
+                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.INFO))
+                    ServiceDiscoveryManagerImpl.log(
                         Level.INFO, 
                         "ServiceDiscoveryEvent constructor threw NullPointerException, lookupCache null? {0} oldItem null? {1} item null? {2}",
                         new Object[]{lookupCacheNull, oldItemNull, itemNull}
@@ -1877,7 +1885,7 @@ final class LookupCacheImpl implements LookupCache {
                 );
 	    lookupListenerExporter = 
                 sdm.thisConfig.getEntry(
-                    ServiceDiscoveryManager.COMPONENT_NAME,
+                    ServiceDiscoveryManagerImpl.COMPONENT_NAME,
                     "eventListenerExporter",
                     Exporter.class, 
                     defaultExporter
@@ -1893,7 +1901,7 @@ final class LookupCacheImpl implements LookupCache {
 	try {
 	    eventNotificationExecutor = 
                 sdm.thisConfig.getEntry(
-                    ServiceDiscoveryManager.COMPONENT_NAME,
+                    ServiceDiscoveryManagerImpl.COMPONENT_NAME,
                     "eventNotificationExecutor",
                     ExecutorService.class
                 );
@@ -1907,7 +1915,7 @@ final class LookupCacheImpl implements LookupCache {
 	 */
 	try {
 	    cacheTaskMgr = sdm.thisConfig.getEntry(
-                    ServiceDiscoveryManager.COMPONENT_NAME,
+                    ServiceDiscoveryManagerImpl.COMPONENT_NAME,
                     "cacheExecutorService",
                     ExecutorService.class
             );
@@ -1942,7 +1950,7 @@ final class LookupCacheImpl implements LookupCache {
 	try {
 	    serviceDiscardTimerTaskMgr = 
                 sdm.thisConfig.getEntry(
-                    ServiceDiscoveryManager.COMPONENT_NAME,
+                    ServiceDiscoveryManagerImpl.COMPONENT_NAME,
                     "discardExecutorService",
                     ScheduledExecutorService.class
                 );
@@ -1959,7 +1967,7 @@ final class LookupCacheImpl implements LookupCache {
          */
         try {
             incomingEventExecutor = sdm.thisConfig.getEntry(
-                ServiceDiscoveryManager.COMPONENT_NAME, 
+                ServiceDiscoveryManagerImpl.COMPONENT_NAME, 
                 "ServiceEventExecutorService", 
                 ExecutorService.class
             );
@@ -2024,8 +2032,8 @@ final class LookupCacheImpl implements LookupCache {
             if (task instanceof Comparable && o.task instanceof Comparable){
                 return ((Comparable)task).compareTo(o.task);
             }
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST))
-                ServiceDiscoveryManager.log(
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST))
+                ServiceDiscoveryManagerImpl.log(
                     Level.FINEST, 
                     "task not instanceof Comparable {0}",
                     new Object [] {task.getClass().getCanonicalName()}
@@ -2075,15 +2083,15 @@ final class LookupCacheImpl implements LookupCache {
      * <code>serviceIdMap</code> is left unchanged.
      */
     private ServiceItem filterMaybeDiscard(ServiceID srvcID, ServiceItemReg itemReg, ServiceItem item, boolean sendEvent) {
-        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE))
-            ServiceDiscoveryManager.log(
+        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE))
+            ServiceDiscoveryManagerImpl.log(
                 Level.FINE,
                 "filterMaybeDiscard called, ServiceID: {0}", 
                 new Object [] {srvcID}
             );
 	if ((item == null) || (item.service == null)) {
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER))
-                ServiceDiscoveryManager.log(
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER))
+                ServiceDiscoveryManagerImpl.log(
                     Level.FINER,
                     "filterMaybeDiscard, item or service was null, returning null, ServiceID: {0}", 
                     new Object []{srvcID}
@@ -2105,8 +2113,8 @@ final class LookupCacheImpl implements LookupCache {
 			    ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
                     addFilteredItemToMap = true;
 		} catch (RemoteException ex) {
-                    if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE))
-                        ServiceDiscoveryManager.log(Level.FINE,
+                    if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE))
+                        ServiceDiscoveryManagerImpl.log(Level.FINE,
 			    "Exception thrown while trying to download service proxy",
 			    ex
                         );
@@ -2125,8 +2133,8 @@ final class LookupCacheImpl implements LookupCache {
                         filteredItem.service = ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
                         pass = filter.check(filteredItem);
                     } catch (RemoteException ex1) {
-                        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE))
-                            ServiceDiscoveryManager.log(Level.FINE, 
+                        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE))
+                            ServiceDiscoveryManagerImpl.log(Level.FINE, 
                                 "Exception thrown while trying to download service proxy",
                                 ex1
                             );
@@ -2138,8 +2146,8 @@ final class LookupCacheImpl implements LookupCache {
                         filteredItem.service = ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
                         pass = filter.check(filteredItem);
                     } catch (RemoteException ex1) {
-                        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE))
-                            ServiceDiscoveryManager.log(Level.FINE, 
+                        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINE))
+                            ServiceDiscoveryManagerImpl.log(Level.FINE, 
                                 "Exception thrown while trying to download service proxy",
                                 ex1
                             );
@@ -2150,8 +2158,8 @@ final class LookupCacheImpl implements LookupCache {
             /* Handle filter pass */
             if (pass && !discardRetryLater && filteredItem.service != null) {
                 addFilteredItemToMap = true;
-                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER))
-                    ServiceDiscoveryManager.log(Level.FINER, 
+                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER))
+                    ServiceDiscoveryManagerImpl.log(Level.FINER, 
                         "filterMaybeDiscard, filter passed, ServiceID: {0}", 
                         new Object[]{srvcID}
                     );
@@ -2164,8 +2172,8 @@ final class LookupCacheImpl implements LookupCache {
         if (pes.notifyRemoved && pes.oldFilteredItem != null) {
             removeServiceNotify(pes.oldFilteredItem);
         }
-        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER))
-            ServiceDiscoveryManager.log(Level.FINER, 
+        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER))
+            ServiceDiscoveryManagerImpl.log(Level.FINER, 
                 "filterMaybeDiscard, returning filtered ServiceItem: {0}",
                 new Object []{pes.filteredItemPass}
             );
@@ -2271,8 +2279,8 @@ final class LookupCacheImpl implements LookupCache {
      * discarded; otherwise, sends a removed event.
      */
     private void handleMatchNoMatch(ServiceRegistrar proxy, ServiceID srvcID) {
-        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINER))
-            ServiceDiscoveryManager.log(Level.FINER, 
+        if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINER))
+            ServiceDiscoveryManagerImpl.log(Level.FINER, 
                 "handleMatchNoMatch called, ServiceID: {0}",
                 new Object []{srvcID}
             );
@@ -2378,8 +2386,8 @@ final class LookupCacheImpl implements LookupCache {
 		}
 		if (deps.isEmpty()) {
 		    executor.submit(future);
-                    if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST))
-                        ServiceDiscoveryManager.log(
+                    if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST))
+                        ServiceDiscoveryManagerImpl.log(
                             Level.FINEST, 
                             "ServiceDiscoveryManager {0} submitted to executor task queue",
                             new Object []{t.toString()}
@@ -2387,8 +2395,8 @@ final class LookupCacheImpl implements LookupCache {
 		} else {
 		    DependencyLinker linker = new DependencyLinker(executor, deps, future);
 		    linker.register();
-                    if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST))
-                        ServiceDiscoveryManager.log(
+                    if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST))
+                        ServiceDiscoveryManagerImpl.log(
                                 Level.FINEST, 
                                 "ServiceDiscoveryManager {0} registered dependencies", 
                                 new Object [] {t.toString()}
@@ -2396,8 +2404,8 @@ final class LookupCacheImpl implements LookupCache {
 		}
 	    } else {
 		executor.submit(future);
-                if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST))
-                    ServiceDiscoveryManager.log(Level.FINEST, 
+                if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST))
+                    ServiceDiscoveryManagerImpl.log(Level.FINEST, 
                         "ServiceDiscoveryManager {0} submitted to executor task queue",
                         new Object []{t.toString()}
                     );
@@ -2414,8 +2422,8 @@ final class LookupCacheImpl implements LookupCache {
 	    } else {
 		t = e;
 	    }
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST))
-                ServiceDiscoveryManager.log(
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST))
+                ServiceDiscoveryManagerImpl.log(
                     Level.FINEST,
                     "ServiceDiscoveryManager {0} completed execution", 
                     new Object[]{t.toString()}
@@ -2434,8 +2442,8 @@ final class LookupCacheImpl implements LookupCache {
 		Object t = w.getTask();
 		if (t instanceof CacheTask && ((CacheTask) t).isFromProxy(reg)) {
 		    w.cancel(true); // Also causes task to be removed
-                    if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST))
-                        ServiceDiscoveryManager.log(
+                    if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST))
+                        ServiceDiscoveryManagerImpl.log(
                             Level.FINEST,
                             "ServiceDiscoveryManager {0} cancelled", 
                             new Object[]{t.toString()}
@@ -2482,8 +2490,8 @@ final class LookupCacheImpl implements LookupCache {
 	protected CacheTask(ProxyReg reg, long seqN) {
 	    this.reg = reg;
 	    this.thisTaskSeqN = seqN;
-            if (ServiceDiscoveryManager.logger.isLoggable(Level.FINEST))
-                ServiceDiscoveryManager.log(
+            if (ServiceDiscoveryManagerImpl.logger.isLoggable(Level.FINEST))
+                ServiceDiscoveryManagerImpl.log(
                     Level.FINEST,
                     "ServiceDiscoveryManager {0} constructed", 
                     new Object[]{toString()}
