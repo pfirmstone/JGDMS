@@ -136,10 +136,130 @@ public interface HelloService extends Remote {
 
 The per-method security requirements are **not** written in Java. In JGDMS a method's
 constraints are a *configuration* concern — they are declared in the service's configuration file
-(Step 2) and applied by the exporter the `Configuration` builds. Keeping them out of the code lets
+(Step 3) and applied by the exporter the `Configuration` builds. Keeping them out of the code lets
 an operator tighten or relax the wire requirements without recompiling the service.
 
-### Step 2 — Write the ServiceStarter configuration
+### Step 2 — Implement the service
+
+The implementation extends **`AbstractJiniService`**, which supplies every piece
+of Jini infrastructure boilerplate — exporting the service, building the client
+proxy, generating a stable `ServiceID`, starting discovery, joining lookup
+services, and the `Administrable` / `JoinAdmin` / `DestroyAdmin` admin surface.
+Your subclass writes only two template methods plus the business logic.
+
+Three small types work together, mirroring the split JGDMS uses for its own
+services — Reggie, the lookup service, is built exactly this way:
+
+**(a) A backend interface** — the single `Remote` interface the exported server
+stub satisfies. A JERI stub only carries interfaces reachable through a `Remote`
+interface, so the client contract and the infrastructure accessors the framework
+invokes are aggregated into one:
+
+```java
+// HelloServiceBackend.java — packaged in the downloadable hello-service-dl.jar
+public interface HelloServiceBackend extends Remote,
+        HelloService,                         // the client-facing contract (Step 1)
+        ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor,
+        CodebaseAccessor, Administrable, JoinAdmin, DestroyAdmin {
+    // no methods of its own — purely an aggregator
+}
+```
+
+Without this, an impl that merely `implements Administrable, JoinAdmin, …` would
+*not* expose those methods on its stub — they are unreachable through any
+`Remote` interface, so admin calls would silently fail over the wire.
+
+**(b) The service implementation** — extends `AbstractJiniService` and implements
+the backend interface. The base class already provides every aggregated method;
+you supply two template methods (`createProxy`, `getServiceInterfaces`) and your
+business logic:
+
+```java
+// HelloServiceImpl.java — the server object, loaded locally
+import net.jini.activation.arg.ActivationID;
+import net.jini.id.Uuid;
+import org.apache.river.start.lifecycle.LifeCycle;
+import au.net.zeus.jgdms.service.support.AbstractJiniService;
+
+public class HelloServiceImpl extends AbstractJiniService
+        implements HelloServiceBackend {
+
+    // Must match the configuration component name used in Step 3.
+    static final String COMPONENT = "net.example.HelloServiceImpl";
+
+    // ServiceStarter (non-activatable) entry point.
+    public HelloServiceImpl(String[] configArgs, LifeCycle lifeCycle) throws Exception {
+        super(configArgs, lifeCycle, COMPONENT, HelloService.class);
+    }
+
+    // Phoenix (activatable) entry point.
+    public HelloServiceImpl(ActivationID id, String[] data) throws Exception {
+        super(id, data, COMPONENT, HelloService.class);
+    }
+
+    // Template 1 — wrap the exported stub in the downloadable smart proxy.
+    @Override protected Object createProxy(Object stub, Uuid serviceUuid) {
+        return HelloServiceProxy.create((HelloService) stub, serviceUuid);
+    }
+
+    // Template 2 — the interface(s) clients discover this service by.
+    @Override protected Class<?>[] getServiceInterfaces() {
+        return new Class<?>[]{ HelloService.class };
+    }
+
+    // Business logic — guard every remote call with the ready-state check,
+    // which rejects calls that arrive before start() completes or after
+    // destroy(). Real services delegate this to a plain-Java object so the
+    // business logic stays free of infrastructure.
+    @Override public String greet(String name) throws RemoteException {
+        getReadyState().check();
+        return "Hello, " + name + "!";
+    }
+}
+```
+
+**(c) The smart proxy** — what actually travels to clients. It extends
+`AbstractSmartProxy` and forwards each call to the server stub. `@AtomicSerial`
+puts it through JGDMS's validated, hardened deserialization (Part 2); `@Stateless`
+declares it holds no serialized state of its own — the server reference and proxy
+id live on the base class:
+
+```java
+// HelloServiceProxy.java — packaged in hello-service-dl.jar, downloaded to clients
+@AtomicSerial @Stateless
+public class HelloServiceProxy extends AbstractSmartProxy implements HelloService {
+
+    // Returns a Constrainable subclass when the stub carries method
+    // constraints, so the client can tighten them via RemoteMethodControl.
+    public static AbstractSmartProxy create(HelloService server, Uuid proxyID) {
+        return server instanceof RemoteMethodControl
+            ? new ConstrainableHelloServiceProxy(server, proxyID,
+                  ((RemoteMethodControl) server).getConstraints())
+            : new HelloServiceProxy(server, proxyID);
+    }
+
+    public HelloServiceProxy(HelloService server, Uuid proxyID) { super(server, proxyID); }
+
+    // Validated deserialization constructor required by @AtomicSerial.
+    public HelloServiceProxy(GetArg arg) throws IOException, ClassNotFoundException {
+        super(arg);
+    }
+
+    @Override public String greet(String name) throws RemoteException {
+        return ((HelloService) server).greet(name);
+    }
+}
+```
+
+This is the same three-way split the two codebases in the next step point at:
+`HelloService` lives in the client-facing **api** jar; `HelloServiceBackend` and
+`HelloServiceProxy` live in the downloadable **`-dl`** jar (the *export
+codebase*); and `HelloServiceImpl` is the server object loaded locally from the
+impl jar (the *import codebase*). A client only ever sees the clean
+`HelloService` — the backend interface and smart proxy are the machinery that
+puts it there.
+
+### Step 3 — Write the ServiceStarter configuration
 
 ```
 // hello-service.config — Jini configuration file
@@ -187,7 +307,7 @@ Parts 2 and 4); a plain `http:` URL would be reachable too, but without that che
 visible only to the local JVM, so a client could never fetch it. The **import codebase** is the
 server's own implementation classpath, loaded locally, so `file:` is correct there.
 
-### Step 3 — Launch
+### Step 4 — Launch
 
 ```sh
 # lib/ is the JGDMS distribution's lib directory. The launcher needs the whole runtime
