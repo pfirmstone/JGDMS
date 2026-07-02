@@ -113,7 +113,7 @@ The BAE uses [ASM](https://asm.ow2.io/)-based visitors to analyze every class in
   only behind a permission check). A naked, unguarded `<clinit>` like the one in the introduction
   is caught as `BLOCKING`. (The full enum also carries `BLOCKING_DECLARED` — see the
   `PERMISSIONS.LIST` step below — plus `NATIVE_OPACITY` and `CYCLE`.)
-- **`AtomicSerialComplianceVisitor`** — verifies that every `Serializable` class crossing a JERI
+- **`AtomicSerialComplianceVisitor`** — verifies that every `marshaled` class crossing a JERI
   wire follows the `@AtomicSerial` protocol. Violations produce a `DANGEROUS` verdict.
 - **Cyclic `<clinit>` detector** — detects circular class-initializer dependency chains that would
   deadlock JVM class loading.
