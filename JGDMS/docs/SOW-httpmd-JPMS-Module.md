@@ -1,9 +1,31 @@
 # SOW — httpmd as a JPMS Module
 
+> **RETIRED (2026-07-02) — superseded, not started.** The role-neutral-worker bootstrap no
+> longer needs httpmd. Integrity for downloaded code now comes from the DirtyChai
+> **`SecureClassLoader` digest stamp** (the class-defining loader computes the content
+> digest of the fetched bytes and gates on `LoadClassPermission` for that digest), so the
+> transport URL is untrusted and scheme-agnostic (plain `https`/`file` via stock JDK
+> handlers) — httpmd's URL-embedded `;sha-256=` is redundant with the plan-supplied digest
+> **for the bootstrap's load-authorization gate** (the plan already names the digest), and
+> no trusted transport handler needs to sit in the static root. This also dissolved the whole
+> `net.jini.security`-as-a-JPMS-module effort that existed only to make httpmd a clean
+> module (`RevocablePolicy→DynamicPolicy` back-edge; the unmigrated leaf types
+> `ExternallyVoidablePermissionGrant`/`AdvisoryDynamicPermissions`/`LocalPrincipalProvider`).
+> **httpmd URLs stay in JGDMS unchanged, used by proxies** — and for a reason beyond
+> integrity: a downloaded codebase is cached locally keyed by URL (first download wins,
+> shared across the class loaders of proxies from different services), so with a *plain*
+> URL an updated remote target is masked by the stale cached version and can't coexist;
+> putting the digest **in the URL identity** (httpmd) makes an update a distinct identity →
+> fetched fresh and able to coexist (rolling upgrade). A proxy concern, not merely legacy
+> integrity; it is simply off the worker **bootstrap** path (whose platform fetch is
+> single-version with a plan-supplied digest). If httpmd-as-a-module is ever wanted on its
+> own merits, revive §2 below.
+> See [DESIGN-attested-role-neutral-worker.md](DESIGN-attested-role-neutral-worker.md) §3/§4/§10/§14.
+
 *Prerequisite/consumer relationship with
 [SOW-Role-Neutral-Worker-Bootstrap.md](SOW-Role-Neutral-Worker-Bootstrap.md) §4, and
 context in [DESIGN-attested-role-neutral-worker.md](DESIGN-attested-role-neutral-worker.md).
-Status: SOW / not started.*
+Status: RETIRED / superseded (see banner).*
 
 ## 1. Problem
 

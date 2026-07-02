@@ -1,13 +1,26 @@
 # JGDMS-STD-003: Multi-Subject Identity Architecture
 
 **Status:** Draft  
-**Version:** 3.3  
+**Version:** 3.4  
 **Applies to:** DirtyChai (JDK fork), JGDMS  
-**Supersedes:** JGDMS-STD-003 v3.2  
+**Supersedes:** JGDMS-STD-003 v3.3  
 
 ---
 
 ## Change Log
+
+### v3.4 changes from v3.3 (2026-07-02)
+
+Clarifies that digest-based code identity is produced by the DirtyChai `SecureClassLoader`
+stamping a `DigestCodeSource` on **every** loaded domain (any URL scheme) — not only by an
+`httpmd:` URL carrying the hash in-band. The transport URL is therefore untrusted and
+scheme-agnostic; `httpmd:` is the off-DirtyChai / in-band way to carry the same digest.
+Updated the code-identity key-properties bullet and added a `DigestCodeSource` glossary
+row (the `httpmd:` row now cross-references it). **No change to the receiver-scoring model**
+— §10.4/§10.5 already read the digest from *either* a `DigestCodeSource` field or an
+`httpmd:` URL parameter. Aligns with the role-neutral-worker load gate
+(`DESIGN-attested-role-neutral-worker.md`), where the loader-stamped digest lets code be
+fetched from any URL and gated by `LoadClassPermission` on that digest.
 
 ### v3.3 changes from v3.2 (2026-07-01)
 
@@ -367,7 +380,10 @@ domains.
 **Key properties:**
 - Travels as `ProtectionDomain`s in a serialized ACC — not via `SCOPED_SUBJECT`
 - Shed at `doPrivileged` boundaries on the receiving JVM (not in `privilegedContext`)
-- `httpmd:` URLs carry SHA-256 signatures — code identity verified without loading
+- Code identity is verified by digest without loading — on DirtyChai the
+  `SecureClassLoader` stamps a `DigestCodeSource` (content digest) on **every** domain
+  regardless of URL scheme, so the transport URL is untrusted; off DirtyChai an `httpmd:`
+  URL carries the same SHA-256 in-band
 - The receiving side **keeps every transmitted domain as a reducer** — it does **not**
   strip "unverifiable" domains. Removing a domain drops a constraint and therefore
   *elevates* privilege (fail-open); an unverifiable (digest-less) domain is retained and
@@ -1294,7 +1310,8 @@ Non-SPIFFE deployments are unaffected.
 | `doPrivileged` boundary | Code vouches for itself; remote process identity shed; environmental and operational identity preserved |
 | `neverPrivileged` | ACC containing static unprivileged `ProtectionDomain` — prevents all Subject injection; used for daemon threads |
 | `LoadClassPermission` | Permission checked at class load time gating whether a class may be loaded into a given SPIFFE workload |
-| `httpmd:` URL | `httpmd://host/path#SHA256:hash` — code identity verifiable by hash without loading; used in `RemotePolicy` grants |
+| `DigestCodeSource` | A `CodeSource` whose identity is an `(algorithm, digest)` pair, not a URL. On DirtyChai the `SecureClassLoader` stamps one on **every** loaded domain (any URL scheme) — so digest-based code identity needs no `httpmd:` URL, and the transport URL is untrusted. |
+| `httpmd:` URL | `httpmd://host/path#SHA256:hash` — carries the SHA-256 in the URL so code identity is verifiable by hash without loading; used in `RemotePolicy` grants. The off-DirtyChai / in-band equivalent of the `DigestCodeSource` the DirtyChai `SecureClassLoader` stamps automatically. |
 | `DomainCombiner` | Retained as Java API compatibility layer for ACC serializer; `SubjectDomainCombiner` deprecated |
 | DirtyChai `SpiffeCredentialManager` | Bootstrap JDK implementation in `au.zeus.jdk.authorization.spire`; constructs sealed `SpiffeSubject extends WorkerSubject`; used by `SecureClassLoader` |
 | JGDMS `SpiffeCredentialManager` | Application implementation in `net.jini.jeri.ssl`; constructs vanilla `Subject` with `X500Principal` + `SpiffePrincipal`; manages TLS credentials; `AutoCloseable` |

@@ -33,7 +33,7 @@ syntax ignores `digest` clauses and ignores the JAR manifest file.
 |------|---------|
 | `CodeSource` | `java.security.CodeSource` — a (URL, certificate-set) pair that identifies where code was loaded from. |
 | `DigestCodeSource` | `java.security.DigestCodeSource` — a `CodeSource` sub-type (introduced in JDK 24 / DirtyChai) whose identity is a single `(String algorithm, byte[] digest)` pair rather than a URL. |
-| HTTPMD URL | A URL with scheme `httpmd:` whose path encodes a message-digest algorithm and hex value; serves as an integrity-verified codebase URL (pre-existing, JGDMS 2.0+). |
+| HTTPMD URL | A URL with scheme `httpmd:` whose path encodes a message-digest algorithm and hex value; serves as an integrity-verified codebase URL (pre-existing, JGDMS 2.0+). It carries the digest **in-band**; on DirtyChai the `SecureClassLoader` instead stamps a `DigestCodeSource` on every loaded domain for any URL scheme, so an `httpmd:` URL is not required to obtain digest-based code identity (the transport URL is then untrusted). |
 | Permissions.list | The file `META-INF/Permissions.list` inside a JAR archive; declares the permissions the JAR requires, in policy-file `permission` syntax. |
 | BAE | Bytecode Analysis Engine (JGDMS-STD-002) — reads `Permissions.list` at analysis time. |
 | ProtectionDomain | `java.security.ProtectionDomain` — the runtime container that associates a class with its `CodeSource` and the permissions granted to it. |

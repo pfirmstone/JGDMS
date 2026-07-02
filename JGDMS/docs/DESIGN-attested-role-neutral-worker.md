@@ -1,10 +1,10 @@
-# DESIGN — Attested Role-Neutral Worker Bootstrap (DirtyChai + SPIFFE + httpmd)
+# DESIGN — Attested Role-Neutral Worker Bootstrap (DirtyChai + SPIFFE + digest-stamped loading)
 
-*Status: DESIGN / direction (2026-07-02). The trust primitives referenced here
-exist; the end-to-end bootstrap pipeline (bootstrap `main`, HTTPS plan server,
-role→plan mapping, and copying the httpmd provider into `java.base`) is not yet
-built. Portions in `java.base` are **DirtyChai** — advisory only here; the DirtyChai
-maintainers write that source (OpenJDK no-AI-contribution policy).*
+*Status: DESIGN / direction (updated 2026-07-02). The authorization primitives
+referenced here exist; the end-to-end bootstrap pipeline (bootstrap `main`, HTTPS plan
+server, role→plan mapping) and the DirtyChai `SecureClassLoader` digest-stamp gate are
+not yet built. Portions in `java.base` are **DirtyChai** — advisory only here; the
+DirtyChai maintainers write that source (OpenJDK no-AI-contribution policy).*
 
 ## 1. Summary
 
@@ -36,10 +36,21 @@ that turns an attested identity into a running role.
 
 ## 3. The two pre-existing trust primitives
 
-- **httpmd — content integrity.** `net.jini.url.httpmd` (`Handler`,
-  `HttpmdIntegrityVerifier`, `HttpmdUtil`, in `jgdms-url-integrity`) is a URL protocol
-  handler whose `;sha-256=` parameter pins the fetched jar's content hash. It
-  guarantees *these exact bytes*; it says nothing about authenticity/authorization.
+- **Content-addressed loading — integrity.** The class-defining `SecureClassLoader`
+  (DirtyChai `java.base`) computes the content digest of the fetched bytes and stamps it
+  into the class's `ProtectionDomain`/`CodeSource`. The transport URL is **untrusted and
+  scheme-agnostic** (`https`, `file`, a CAS, a peer — any). This makes *these exact bytes*
+  the thing the authorization decision keys on; it says nothing by itself about
+  authenticity/authorization. (`net.jini.url.httpmd` — the `;sha-256=` URL handler in
+  `jgdms-url-integrity` — stays in JGDMS for **proxy** codebases. A downloaded codebase is
+  cached locally keyed by **URL** (first download wins, shared across the many class loaders
+  of proxies from different services); with a **plain** URL an updated remote target is
+  masked by the stale cached first version and cannot coexist, whereas an **httpmd** URL
+  makes the digest **part of the codebase identity**, so an updated build is a distinct
+  identity — fetched fresh, and able to coexist with the old during a rolling upgrade. That
+  is a proxy concern; the bootstrap's platform fetch is single-version and takes its digest
+  from the plan (the same digest-as-identity property), so httpmd is **not** on this path —
+  the loader's own digest stamp is enough, no trusted transport handler needed here.)
 - **SPIFFE + DirtyChai — identity & authorization.** DirtyChai's `java.base` carries
   the SPIFFE/SPIRE stack (`au.zeus.jdk.authorization.spire.SpiffeCredentialManager`,
   `SpiffeX509KeyManager`, `SpiffeX509TrustManager`, `SpiffeSubject`), the policy
@@ -55,7 +66,8 @@ that turns an attested identity into a running role.
 
 A class from a downloaded codebase is *defined* only if **both** hold:
 
-1. **Content integrity (httpmd):** the fetched bytes match the pinned `;sha-256=`.
+1. **Content integrity (digest stamp):** the class-defining `SecureClassLoader` computes
+   the content digest of the fetched bytes (the transport URL is untrusted).
 2. **Authorization (SPIFFE policy):** that digest holds `LoadClassPermission` per
    DirtyChai's SPIFFE-anchored policy (`DigestGrant` keyed on the content digest,
    vouched by an SVID).
@@ -80,14 +92,15 @@ This is a verified-boot property extended from integrity to authorization.
      (a) codebase list  = the digest-keyed policy grants (LoadClassPermission)
      (b) configuration  = the net.jini.config.Configuration for this instance
      (c) start sequence = declarative launch plan (entry codebase/main, ordering)
-5. Bootstrap fetches each granted digest (httpmd/CAS), verifies the digest, and the
-   two-factor gate (§4) admits only granted content; installs the config; runs the
-   sequence → the role is running (now it enters the JERI/Jini world).
+5. Bootstrap fetches each granted codebase from any URL (https/file/CAS/peer); the
+   class-defining SecureClassLoader stamps the computed digest and the two-factor gate
+   (§4) admits only granted content; installs the config; runs the sequence → the role
+   is running (now it enters the JERI/Jini world).
 ```
 
 The bootstrap tier deliberately speaks **plain HTTPS + SPIFFE mTLS, not a Jini call**
 — so no proxy codebase must be downloaded to make the *first* request. That is the
-chicken-and-egg breaker: you cannot `java -cp httpmd://…` (the system class loader
+chicken-and-egg breaker: you cannot `java -cp https://…` (the system class loader
 takes file paths, not protocol URLs), so a minimal launcher must exist statically;
 making its first hop plain HTTPS avoids needing any downloaded code to perform it.
 
@@ -124,7 +137,7 @@ Consequences:
 
 - **Enumeration and authorization are the same object** — they cannot drift. Add /
   update / revoke a codebase = add / edit / drop a grant; revocation is content-precise.
-- **Location independence** — any httpmd mirror, CAS, local cache, or offline peer can
+- **Location independence** — any mirror, CAS, local cache, or offline peer can
   serve the bytes; only the digest gates loading. This is what makes the disconnected
   HaLOW/mesh profile viable (a peer hands you bytes; if the digest is granted, run it).
 - **Untrusted mirrors by design** — a hostile mirror can only serve content that
@@ -178,19 +191,23 @@ The one role-agnostic executable baked into the image. Properties:
 ## 10. Static image root vs dynamic
 
 **Baked into the image (the static root):** the DirtyChai JVM + `java.base` river
-security primitives; the httpmd URL verifier; the SPIRE trust anchor (bootstrap trust
-bundle) + attestation client + SVID machinery
+security primitives (including the digest-stamping `SecureClassLoader` + the
+`LoadClassPermission` gate); the SPIRE trust anchor (bootstrap trust bundle) +
+attestation client + SVID machinery
 (`SpiffeCredentialManager`/`KeyManager`/`TrustManager`); the **bootstrap main**; and a
 minimal static grant authorizing exactly those to run before any policy is fetched.
 
-The httpmd verifier and the bootstrap main are explicit **JPMS modules** on the static
-module path (**not** `java.base`) — resolved into the boot/app module layer at launch,
-so non-overridable by downloaded code (which loads into child/codebase classloaders, the
-unnamed module). Modularity is confined to this minimal static root; the split-package
-history + OSGi layout of the rest of JGDMS is left untouched (it loads dynamically), and
-the sole permitted split package `org.apache.river.api.security` — a compatibility
-bridge for classes migrated into DirtyChai — is sourced from `java.base`, never owned by
-a static-root module. See the bootstrap SOW §4.
+The **bootstrap main** is the only explicit **JPMS module** on the static module path
+(**not** `java.base`) — resolved into the boot/app module layer at launch, so
+non-overridable by downloaded code (which loads into child/codebase classloaders, the
+unnamed module). The integrity half of the gate needs no module of its own: the digest
+stamp lives in the `java.base` `SecureClassLoader` (boot-loaded, unoverridable), so **no
+httpmd module is required** — content integrity comes from the class-defining loader, not
+a transport handler. Modularity is confined to this minimal static root; the
+split-package history + OSGi layout of the rest of JGDMS is left untouched (it loads
+dynamically), and the sole permitted split package `org.apache.river.api.security` — a
+compatibility bridge for classes migrated into DirtyChai — is sourced from `java.base`,
+never owned by a static-root module. See the bootstrap SOW §4.
 
 **Dynamic (fetched at runtime, content-verified, SPIFFE-authorized):** the SVID, the
 SPIFFE policy (grants), the codebase digests + bytes (the whole JGDMS runtime and the
@@ -210,14 +227,14 @@ and (iii) the **two-factor gate** in `java.base` (unoverridable).
 | Rogue bootstrap HTTPS server | Rejected — the worker verifies the server's SVID against the trust bundle before trusting any plan. |
 | Attacker-chosen digest on the command line / plan | No `LoadClassPermission` for it → classes never define. The digest is not self-authorizing. |
 | Rogue container tries to assume a role | Gets only the SVID its *attestation* entitles it to; the policy scopes `LoadClassPermission` to that identity. Weak attestation (leakable join token) is the real risk — use hardware/cloud/SAT roots. |
-| Downloaded runtime tries to weaken enforcement | Cannot — the gate, policy, verifier, and SM live in `java.base`, boot-loaded, unoverridable by downloaded code. |
+| Downloaded runtime tries to weaken enforcement | Cannot — the gate, policy, digest-stamping loader, and SM live in `java.base`, boot-loaded, unoverridable by downloaded code. |
 
 ## 12. Sharp edges / open considerations
 
 1. **Bootstrap window.** Before the SVID/policy exist, only the statically-granted root
    set may load; the static grant must cover exactly the bootstrap main + SVID
-   machinery + httpmd verifier (same strictness as the existing DigestGrant boot-window
-   gate). Keep this set minimal.
+   machinery (same strictness as the existing DigestGrant boot-window gate). Keep this
+   set minimal.
 2. **Role-assignment authorization** happens at SPIRE registration (attestable
    selectors → role SVID); guard that surface and root it in strong attestation.
 3. **Stateful roles.** Compute is fungible; state and identity are not. A worker
@@ -239,24 +256,26 @@ This composes primitives that already exist rather than inventing new ones:
 `URLPermission` + `LoadClassPermission`, auth-before-download);
 `org.apache.river.api.security.{PermissionGrant, PrincipalGrant, DigestGrant}`;
 `SpiffePrincipal`; the policy service (`spiffe://…/host/policy`); the ServiceStarter
-(`org.apache.river.start`) and `net.jini.config.Configuration`; and `net.jini.url.httpmd`.
+(`org.apache.river.start`) and `net.jini.config.Configuration`. (Integrity here comes from
+the DirtyChai `SecureClassLoader` digest stamp, **not** `net.jini.url.httpmd`, which stays
+in JGDMS for legacy proxy-codebase integrity, off this path.)
 
 ## 14. Implementation status
 
-**Exists:** the two-factor primitives (httpmd; SPIFFE policy + `LoadClassPermission` +
-`DigestGrant` in DirtyChai); per-codebase grants; `CodebaseAccessor` digest publication;
+**Exists:** the authorization half (SPIFFE policy + `LoadClassPermission` + `DigestGrant`
+in DirtyChai); per-codebase grants; `CodebaseAccessor` digest publication;
 SPIFFE-principal-keyed grants; the policy service.
 
-**Missing / to build:** make httpmd (`jgdms-url-integrity`) an explicit **JPMS module**
-with a `URLStreamHandlerProvider` for the `httpmd` scheme (its packages
-`net.jini.url.{file,httpmd,https}` are verified clean; it stays a static-root module,
-**not** a `java.base` copy — scoped in
-[SOW-httpmd-JPMS-Module.md](SOW-httpmd-JPMS-Module.md); see also the split-package rule); the
-**bootstrap main** — also a JPMS module, scoped in
-[SOW-Role-Neutral-Worker-Bootstrap.md](SOW-Role-Neutral-Worker-Bootstrap.md); the
-**bootstrap HTTPS server** and the
-role→plan (codebases/config/sequence) mapping keyed by SVID identity; the static
-root-grant; the digest-only grant convention (comment the URL) in the policy generation
-(`tools/policy-condenser`).
+**Missing / to build:** the DirtyChai `SecureClassLoader` **digest stamp** — compute the
+content digest of fetched bytes at define time, stamp it into the `ProtectionDomain`, and
+gate on `LoadClassPermission` for that digest (this is the integrity half; **DirtyChai,
+advisory** — humans write it, and it flips the existing per-*URL* grant in
+`PreferredProxyCodebaseProvider` to per-*digest*); the **bootstrap main** — a JPMS module,
+scoped in [SOW-Role-Neutral-Worker-Bootstrap.md](SOW-Role-Neutral-Worker-Bootstrap.md); the
+**bootstrap HTTPS server** and the role→plan (codebases/config/sequence) mapping keyed by
+SVID identity; the static root-grant; the digest-only grant convention (comment the URL)
+in the policy generation (`tools/policy-condenser`). *(httpmd is no longer on this path —
+the loader's digest stamp supersedes it; [SOW-httpmd-JPMS-Module.md](SOW-httpmd-JPMS-Module.md)
+is retired.)*
 
 **DirtyChai portions are advisory only** — humans write `java.base` source.
