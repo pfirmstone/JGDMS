@@ -250,7 +250,8 @@ SPIFFE-principal-keyed grants; the policy service.
 **Missing / to build:** make httpmd (`jgdms-url-integrity`) an explicit **JPMS module**
 with a `URLStreamHandlerProvider` for the `httpmd` scheme (its packages
 `net.jini.url.{file,httpmd,https}` are verified clean; it stays a static-root module,
-**not** a `java.base` copy — see the bootstrap SOW §4 and the split-package rule); the
+**not** a `java.base` copy — scoped in
+[SOW-httpmd-JPMS-Module.md](SOW-httpmd-JPMS-Module.md); see also the split-package rule); the
 **bootstrap main** — also a JPMS module, scoped in
 [SOW-Role-Neutral-Worker-Bootstrap.md](SOW-Role-Neutral-Worker-Bootstrap.md); the
 **bootstrap HTTPS server** and the

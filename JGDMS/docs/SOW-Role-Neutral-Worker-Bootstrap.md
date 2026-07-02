@@ -46,7 +46,8 @@ interpreter; fail-closed error handling.
 **Does NOT own (separate items):**
 - the **bootstrap HTTPS server** and the role→plan authoring (server-side).
 - SPIRE deployment / node-attestor configuration.
-- (Prerequisite, JGDMS not DirtyChai, covered in §4:) converting **httpmd
+- (Prerequisite, JGDMS not DirtyChai, scoped in
+  [SOW-httpmd-JPMS-Module.md](SOW-httpmd-JPMS-Module.md):) converting **httpmd
   (`jgdms-url-integrity`) into a JPMS module** + `URLStreamHandlerProvider` — the
   bootstrap module depends on it being a resolvable static-root module.
 - the **digest-only grant convention** (comment the `codeBase` URL) in policy
@@ -61,7 +62,8 @@ artifact, built as an explicit **JPMS module** (`module au.net.zeus.jgdms.bootst
 and launched with `java -p <static-modules> -m au.net.zeus.jgdms.bootstrap/<Main>`.
 Launching a *resolved module* (rather than a classpath) is itself the clean
 chicken-and-egg breaker — no `-cp` file-path list, no `java -cp httpmd://…`. The
-**httpmd** provider becomes a JPMS module too (`jgdms-url-integrity` gains a
+**httpmd** provider becomes a JPMS module too — scoped separately in
+[SOW-httpmd-JPMS-Module.md](SOW-httpmd-JPMS-Module.md) (`jgdms-url-integrity` gains a
 `module-info.java`), registering its handler the JPMS-native way via `provides
 java.net.spi.URLStreamHandlerProvider with …` (a small provider for the `httpmd`
 scheme) instead of the legacy `-Djava.protocol.handler.pkgs=net.jini.url`. Being
@@ -159,7 +161,8 @@ Exist: the SPIFFE stack in DirtyChai (`SpiffeCredentialManager`/`X509KeyManager`
 `X509TrustManager`), `LoadClassPermission` / `DigestGrant` / `SpiffePolicyFile`,
 `net.jini.url.httpmd`, `ServiceStarter` (`org.apache.river.start`),
 `net.jini.config.Configuration`, `CodebaseAccessor`.
-Blocked-on / parallel items (§3): the httpmd JPMS-module conversion (§4), the bootstrap
+Blocked-on / parallel items (§3): the httpmd JPMS-module conversion
+([SOW-httpmd-JPMS-Module.md](SOW-httpmd-JPMS-Module.md)), the bootstrap
 HTTPS server + role→plan mapping, and the policy-condenser digest-only-grant convention.
 
 ## 9. Caveats / non-goals
