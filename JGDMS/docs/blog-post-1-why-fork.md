@@ -151,7 +151,7 @@ import net.jini.core.constraint.*;
 org.apache.river.start {
     serviceDescriptors = new ServiceDescriptor[] {
         new NonActivatableServiceDescriptor(
-            "httpmd://host.example.org:8080/hello-service-dl.jar;sha-256=a732fe7d083c14b2438b7a3bd578499da98cfeda96f9108cb1254fe8ab1234da", // export codebase — proxy JAR over content-verified httpmd
+            "httpmd://host.example.org:8080/hello-service-dl.jar;sha-256=cafebabedeadbeef5ca1ab1e5afec0deacce55eddeadc0defeedfacedecafbad", // export codebase — proxy JAR over content-verified httpmd
             "hello-service.policy",                 // service security policy file
             "file:hello-service-impl.jar",          // import codebase — impl JAR, loaded locally by the server JVM
             "net.example.HelloServiceImpl",         // implementation class
