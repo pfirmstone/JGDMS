@@ -241,7 +241,9 @@ SPIFFE-principal-keyed grants; the policy service.
 **Missing / to build:** copy the httpmd provider into DirtyChai `java.base` (small,
 bounded dep set — `net.jini.security.{IntegrityVerifier, Security}`,
 `org.apache.river.logging.*`, optional `net.pack200.Pack200`; the OSGi annotations are
-compile-time only); the **bootstrap main**; the **bootstrap HTTPS server** and the
+compile-time only); the **bootstrap main** — scoped in
+[SOW-Role-Neutral-Worker-Bootstrap.md](SOW-Role-Neutral-Worker-Bootstrap.md); the
+**bootstrap HTTPS server** and the
 role→plan (codebases/config/sequence) mapping keyed by SVID identity; the static
 root-grant; the digest-only grant convention (comment the URL) in the policy generation
 (`tools/policy-condenser`).
