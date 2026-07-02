@@ -66,7 +66,7 @@ public class ExpirationWarningEvent extends RemoteEvent {
      * @deprecated Use {@link #ExpirationWarningEvent(LeaseRenewalSet, long, MarshalledInstance)};
      *             java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries.
      */
-    @Deprecated(forRemoval = true)
+    @Deprecated
     public ExpirationWarningEvent(LeaseRenewalSet  source, 
                                   long             seqNum, 
                                   MarshalledObject handback)

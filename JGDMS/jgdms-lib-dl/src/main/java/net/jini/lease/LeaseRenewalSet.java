@@ -386,7 +386,7 @@ public interface LeaseRenewalSet {
      * @deprecated Use {@link #setExpirationWarningListener(RemoteEventListener, long, MarshalledInstance)};
      *             java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries.
      */
-    @Deprecated(forRemoval = true)
+    @Deprecated
     public EventRegistration setExpirationWarningListener(
 	                         RemoteEventListener listener,
 				 long                minWarning,
@@ -489,7 +489,7 @@ public interface LeaseRenewalSet {
      * @deprecated Use {@link #setRenewalFailureListener(RemoteEventListener, MarshalledInstance)};
      *             java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries.
      */
-    @Deprecated(forRemoval = true)
+    @Deprecated
     public EventRegistration setRenewalFailureListener(
 				 RemoteEventListener listener,
 				 MarshalledObject    handback)

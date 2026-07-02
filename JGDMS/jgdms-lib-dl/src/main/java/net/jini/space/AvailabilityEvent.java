@@ -115,7 +115,7 @@ public abstract class AvailabilityEvent extends RemoteEvent {
      *        <code>null</code>
      * @deprecated
      */
-    @Deprecated(forRemoval = true)
+    @Deprecated
     protected AvailabilityEvent(JavaSpace        source,
 				long             eventID,
 				long             seqNum,

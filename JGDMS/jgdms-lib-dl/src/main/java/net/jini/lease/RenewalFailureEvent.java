@@ -61,7 +61,7 @@ public abstract class RenewalFailureEvent extends RemoteEvent {
      * @deprecated Use {@link #RenewalFailureEvent(LeaseRenewalSet, long, MarshalledInstance)};
      *             java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries.
      */
-    @Deprecated(forRemoval = true)
+    @Deprecated
     public RenewalFailureEvent(LeaseRenewalSet  source, 
 			       long             seqNum,
 			       MarshalledObject handback)
