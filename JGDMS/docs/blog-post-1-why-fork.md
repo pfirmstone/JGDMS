@@ -151,9 +151,9 @@ import net.jini.core.constraint.*;
 org.apache.river.start {
     serviceDescriptors = new ServiceDescriptor[] {
         new NonActivatableServiceDescriptor(
-            "file:hello-service-dl.jar",            // export codebase — downloadable proxy JAR
+            "http://host.example.org:8080/hello-service-dl.jar", // export codebase — proxy JAR, served over the network
             "hello-service.policy",                 // service security policy file
-            "file:hello-service-impl.jar",          // import codebase — implementation JAR
+            "file:hello-service-impl.jar",          // import codebase — impl JAR, loaded locally by the server JVM
             "net.example.HelloServiceImpl",         // implementation class
             new String[]{ "hello-service.config" }  // configuration passed to service
         )
@@ -178,6 +178,13 @@ net.example.HelloServiceImpl {
             null));                                     // server permission class (null = none)
 }
 ```
+
+The two codebases play different roles. The **export codebase** is the *proxy* codebase — the
+classes a remote client downloads to talk to the service — so it must be reachable over the network
+(served by an HTTP class server); a `file:` URL is visible only to the local JVM and a client could
+never fetch it. The **import codebase** is the server's own implementation classpath, loaded
+locally, so `file:` is correct there. For content-verified proxy codebases, JGDMS serves them over
+`httpmd:` (the SHA-256-in-the-URL scheme covered in Parts 2 and 4).
 
 ### Step 3 — Launch
 
