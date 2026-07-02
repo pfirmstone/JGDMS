@@ -183,6 +183,15 @@ bundle) + attestation client + SVID machinery
 (`SpiffeCredentialManager`/`KeyManager`/`TrustManager`); the **bootstrap main**; and a
 minimal static grant authorizing exactly those to run before any policy is fetched.
 
+The httpmd verifier and the bootstrap main are explicit **JPMS modules** on the static
+module path (**not** `java.base`) — resolved into the boot/app module layer at launch,
+so non-overridable by downloaded code (which loads into child/codebase classloaders, the
+unnamed module). Modularity is confined to this minimal static root; the split-package
+history + OSGi layout of the rest of JGDMS is left untouched (it loads dynamically), and
+the sole permitted split package `org.apache.river.api.security` — a compatibility
+bridge for classes migrated into DirtyChai — is sourced from `java.base`, never owned by
+a static-root module. See the bootstrap SOW §4.
+
 **Dynamic (fetched at runtime, content-verified, SPIFFE-authorized):** the SVID, the
 SPIFFE policy (grants), the codebase digests + bytes (the whole JGDMS runtime and the
 role code), the configuration, and the start sequence.
@@ -238,10 +247,11 @@ This composes primitives that already exist rather than inventing new ones:
 `DigestGrant` in DirtyChai); per-codebase grants; `CodebaseAccessor` digest publication;
 SPIFFE-principal-keyed grants; the policy service.
 
-**Missing / to build:** copy the httpmd provider into DirtyChai `java.base` (small,
-bounded dep set — `net.jini.security.{IntegrityVerifier, Security}`,
-`org.apache.river.logging.*`, optional `net.pack200.Pack200`; the OSGi annotations are
-compile-time only); the **bootstrap main** — scoped in
+**Missing / to build:** make httpmd (`jgdms-url-integrity`) an explicit **JPMS module**
+with a `URLStreamHandlerProvider` for the `httpmd` scheme (its packages
+`net.jini.url.{file,httpmd,https}` are verified clean; it stays a static-root module,
+**not** a `java.base` copy — see the bootstrap SOW §4 and the split-package rule); the
+**bootstrap main** — also a JPMS module, scoped in
 [SOW-Role-Neutral-Worker-Bootstrap.md](SOW-Role-Neutral-Worker-Bootstrap.md); the
 **bootstrap HTTPS server** and the
 role→plan (codebases/config/sequence) mapping keyed by SVID identity; the static

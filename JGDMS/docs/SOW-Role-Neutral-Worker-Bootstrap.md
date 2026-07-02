@@ -46,23 +46,67 @@ interpreter; fail-closed error handling.
 **Does NOT own (separate items):**
 - the **bootstrap HTTPS server** and the role→plan authoring (server-side).
 - SPIRE deployment / node-attestor configuration.
-- copying the **httpmd provider into DirtyChai `java.base`** (DirtyChai task, advisory).
+- (Prerequisite, JGDMS not DirtyChai, covered in §4:) converting **httpmd
+  (`jgdms-url-integrity`) into a JPMS module** + `URLStreamHandlerProvider` — the
+  bootstrap module depends on it being a resolvable static-root module.
 - the **digest-only grant convention** (comment the `codeBase` URL) in policy
   generation — a `tools/policy-condenser` change.
 - **stateful-role** state binding (identity-scoped volumes / decryption).
 - the **offline cached-plan** path beyond the minimal hook (see P5).
 
-## 4. Module & build placement — the DirtyChai boundary
+## 4. Module & build placement — JPMS static root, mind the highlander principle
 
-The `main` can ultimately live in DirtyChai `java.base` (fully static, zero local
-jars) — but that is DirtyChai source (humans write it; OpenJDK no-AI policy). To keep
-it **AI-implementable and testable now**, build it first as a small JGDMS module — a
-thin bootstrap jar (`au.net.zeus.jgdms.bootstrap`) shipped as a local classpath jar —
-designed so it can later be folded into `java.base` unchanged (no dependency on
-anything not already in the static root). Java target: **8/11** (it runs before the
-runtime is loaded, on the widest floor; no Java 9+ APIs). Keep it dependency-light: the
-SPIFFE stack + httpmd verifier are reached as already-present platform facilities, not
-bundled.
+The bootstrap `main` does **not** belong in DirtyChai `java.base`; it stays a **JGDMS**
+artifact, built as an explicit **JPMS module** (`module au.net.zeus.jgdms.bootstrap`)
+and launched with `java -p <static-modules> -m au.net.zeus.jgdms.bootstrap/<Main>`.
+Launching a *resolved module* (rather than a classpath) is itself the clean
+chicken-and-egg breaker — no `-cp` file-path list, no `java -cp httpmd://…`. The
+**httpmd** provider becomes a JPMS module too (`jgdms-url-integrity` gains a
+`module-info.java`), registering its handler the JPMS-native way via `provides
+java.net.spi.URLStreamHandlerProvider with …` (a small provider for the `httpmd`
+scheme) instead of the legacy `-Djava.protocol.handler.pkgs=net.jini.url`. Being
+resolved into the boot/app module layer at launch makes both modules
+**non-overridable by downloaded code** (which loads into child/codebase classloaders,
+i.e. the unnamed module) — so the integrity half of the two-factor gate stays
+trustworthy **without** `java.base` surgery. A `module-info` is ignored on the
+classpath, and coexists with the existing bnd/OSGi manifest, so this stays
+non-breaking for non-modular use.
+
+Run target: these run on the **worker's DirtyChai JVM** (not downloaded to arbitrary
+clients), so the `-dl` Java-8-floor rule does **not** apply — they can be modern
+modules (and `module-info` needs 9+ anyway; a multi-release jar can keep the classes at
+a lower floor if ever needed).
+
+**Highlander caveat (JPMS "there can be only one").** JPMS demands each package be owned
+by exactly ONE module, unique module names, and one `URLStreamHandlerProvider` winning
+per scheme. JGDMS today is **entirely non-JPMS** (0 `module-info`; OSGi/bnd, which
+tolerates flexible sharing) and has split-package history — wholesale JPMS-modularising
+JGDMS would collide immediately. Therefore:
+
+- **Confine explicit JPMS modules to the minimal STATIC ROOT** (bootstrap + httpmd +
+  only what they strictly need), each **self-contained** — depending on `java.base`
+  (+ DirtyChai-exported SPIFFE APIs) and each other, **not** on the broader
+  split-package JGDMS jars.
+- **Do NOT modularise the rest of JGDMS.** The downloaded runtime (all of JGDMS + role
+  code, split packages + OSGi manifests) loads **dynamically into child/codebase
+  classloaders** (the unnamed module), where the one-package-one-module rule does not
+  bind it. We get a clean modular static root without untangling JGDMS's package layout.
+- **Verified (2026-07-02):** `jgdms-url-integrity`'s packages
+  (`net.jini.url.{file,httpmd,https}`) are owned solely by it — no split — so it is a
+  clean module candidate.
+- **Split-package rule (the JGDMS invariant, Peter 07-02):** the ONLY split package
+  permitted in JGDMS is **`org.apache.river.api.security`** — and it exists **purely as
+  a compatibility bridge for JGDMS classes that migrated INTO DirtyChai**: `java.base`
+  holds the authoritative copy, and JGDMS retains the package only so non-DirtyChai /
+  legacy classpaths still resolve it (on DirtyChai the `java.base` copy is what runs).
+  Every other package is single-owner. Consequences for the static root: httpmd's direct deps
+  (`net.jini.security.*`, `org.apache.river.logging.*`) are clean and safe to
+  `requires`; and the one rule for any static-root module is that it must **source
+  `org.apache.river.api.security` from `java.base`** (DirtyChai owns that package in the
+  module graph) and **never own or bundle it** — else it collides with `java.base` and
+  JPMS rejects it. (This split is also precisely why the broader JGDMS jars cannot be
+  wholesale JPMS-modularised, and why the downloaded runtime stays in the unnamed
+  module.)
 
 ## 5. The plan wire format (P0)
 
@@ -96,7 +140,9 @@ HTTPS server**; plus one **end-to-end** test where a worker becomes a minimal se
 
 ## 7. Phasing
 
-- **P0** — plan wire format + interpreter skeleton (parse + validate only; no fetch).
+- **P0** — scaffold the bootstrap JPMS module + httpmd `module-info` /
+  `URLStreamHandlerProvider` (§4); plan wire format + interpreter skeleton (parse +
+  validate only; no fetch).
 - **P1** — SPIFFE-mTLS HTTPS client + mutual auth (present SVID; verify server SVID;
   fail-closed); uses the DirtyChai SPIFFE key/trust managers.
 - **P2** — policy install + digest-verified codebase fetch (httpmd/CAS) under the
@@ -113,8 +159,8 @@ Exist: the SPIFFE stack in DirtyChai (`SpiffeCredentialManager`/`X509KeyManager`
 `X509TrustManager`), `LoadClassPermission` / `DigestGrant` / `SpiffePolicyFile`,
 `net.jini.url.httpmd`, `ServiceStarter` (`org.apache.river.start`),
 `net.jini.config.Configuration`, `CodebaseAccessor`.
-Blocked-on / parallel items (§3): the httpmd-into-`java.base` copy, the bootstrap HTTPS
-server + role→plan mapping, and the policy-condenser digest-only-grant convention.
+Blocked-on / parallel items (§3): the httpmd JPMS-module conversion (§4), the bootstrap
+HTTPS server + role→plan mapping, and the policy-condenser digest-only-grant convention.
 
 ## 9. Caveats / non-goals
 
