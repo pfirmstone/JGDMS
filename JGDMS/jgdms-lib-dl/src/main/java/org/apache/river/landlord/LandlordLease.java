@@ -19,7 +19,6 @@ package org.apache.river.landlord;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
@@ -46,9 +45,8 @@ import org.apache.river.lease.ID;
  * @since 2.0
  */
 @AtomicSerial
-public class LandlordLease extends AbstractLease 
+public class LandlordLease extends AbstractLease
 		implements ReferentUuid, ID<Uuid>, ProxyAccessor {
-    static final long serialVersionUID = 2L;
 
     /**
      * A universally unique ID that identifies the lease this object
@@ -228,31 +226,6 @@ public class LandlordLease extends AbstractLease
     public String toString() {
 	return "LandlordLease:" + cookie + " landlord:" + landlord +
 	    " landlordUuid:" + landlordUuid + " " + super.toString();
-    }
-
-    /** Read this object back validating state.*/
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
-
-	if (cookie == null)
-	    throw new InvalidObjectException("null cookie reference");
-
-	if (landlord == null)
-	    throw new InvalidObjectException("null landlord reference");
-
-	if (landlordUuid == null)
-	    throw new InvalidObjectException("null landlordUuid reference");
-    }
-
-    /** 
-     * We should always have data in the stream, if this method
-     * gets called there is something wrong.
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new 
-	    InvalidObjectException("LandlordLease should always have data");
     }
 
     @Override

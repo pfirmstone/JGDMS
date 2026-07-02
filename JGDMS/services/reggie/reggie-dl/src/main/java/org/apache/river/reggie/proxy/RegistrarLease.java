@@ -41,8 +41,6 @@ import org.apache.river.lease.ID;
 @AtomicSerial
 public abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<Uuid> {
 
-    private static final long serialVersionUID = 2L;
-    
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("server", Registrar.class),

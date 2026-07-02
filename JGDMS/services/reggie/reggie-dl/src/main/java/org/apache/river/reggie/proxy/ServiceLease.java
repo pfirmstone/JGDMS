@@ -38,9 +38,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 @AtomicSerial
 public abstract class ServiceLease extends RegistrarLease {
 
-    private static final long serialVersionUID = 2L;
     /** The type of the lease used in toString() calls. */
-    private static final String LEASE_TYPE = "service";   
+    private static final String LEASE_TYPE = "service";
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{

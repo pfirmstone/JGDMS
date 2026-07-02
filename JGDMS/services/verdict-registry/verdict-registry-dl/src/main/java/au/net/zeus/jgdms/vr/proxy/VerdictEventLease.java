@@ -58,8 +58,6 @@ import org.apache.river.lease.AbstractLeaseMap;
 @AtomicSerial
 public final class VerdictEventLease extends AbstractLease {
 
-    private static final long serialVersionUID = 1L;
-
     private static final String SERVER   = "server";
     private static final String LEASE_ID = "leaseId";
 

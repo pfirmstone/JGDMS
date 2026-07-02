@@ -20,8 +20,6 @@ package org.apache.river.lease;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
@@ -42,10 +40,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *
  */
 @AtomicSerial
-public abstract class AbstractLease implements Lease, java.io.Serializable {
+public abstract class AbstractLease implements Lease {
 
-    private static final long serialVersionUID = -9067179156916102052L;
-    
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("serialFormat", Integer.TYPE),
@@ -63,8 +59,8 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
     /**
      * Converts an absolute expiration to the value placed on the wire: the
      * relative duration when {@code serialFormat} is {@link Lease#DURATION},
-     * the absolute expiration when {@link Lease#ABSOLUTE}. Shared by the
-     * {@code @AtomicSerial} write path and the JOSS {@code writeObject}.
+     * the absolute expiration when {@link Lease#ABSOLUTE}. Used by the
+     * {@code @AtomicSerial} {@link #serialize} write path.
      */
     private static long adjustedVal(int format, long expiration){
         long val = expiration;
@@ -176,52 +172,4 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
      */
     protected abstract long doRenew(long duration)
 	throws UnknownLeaseException, LeaseDeniedException, RemoteException;
-
-    /**
-     * @serialData a long, which is the absolute expiration if serialFormat
-     * is ABSOLUTE, or the relative duration if serialFormat is DURATION
-     */
-    private void writeObject(ObjectOutputStream stream) throws IOException {
-        int format = this.serialFormat;
-        long val = adjustedVal(format, this.expiration);
-        java.io.ObjectOutputStream.PutField pf = stream.putFields();
-        pf.put("serialFormat", format);
-        stream.writeFields();
-        stream.writeLong(val);
-    }
-
-    /**
-     * Throws an <code>InvalidObjectException</code>.
-     *
-     * @throws InvalidObjectException unconditionally
-     */
-    private synchronized void readObjectNoData() throws InvalidObjectException {
-	throw new InvalidObjectException("no data in stream");
-    }
-
-    /**
-     * If serialFormat is DURATION, add the current time to the expiration,
-     * to make it absolute (and if the result of the addition is negative,
-     * correct the overflow by resetting the expiration to Long.MAX_VALUE).
-     *
-     * @throws InvalidObjectException if serialFormat is neither ABSOLUTE
-     * nor DURATION
-     */
-    private void readObject(ObjectInputStream stream)
-	throws IOException, ClassNotFoundException
-    {
-	stream.defaultReadObject();
-	long val = stream.readLong();
-	if (serialFormat == Lease.DURATION) {
-	    long dur = val;
-	    val += System.currentTimeMillis();
-	    // If we add two positive numbers, and the result is negative,
-	    // we must have overflowed, so use Long.MAX_VALUE
-	    if (val < 0 && dur > 0) 
-		val = Long.MAX_VALUE;
-	} else if (serialFormat != Lease.ABSOLUTE) {
-	    throw new InvalidObjectException("invalid serial format");
-	}
-	expiration = val;
-    }
 }

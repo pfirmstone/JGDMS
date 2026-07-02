@@ -40,7 +40,6 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 @AtomicSerial
 public abstract class EventLease extends RegistrarLease {
 
-    private static final long serialVersionUID = 2L;
     /** The type of the lease used in toString() calls. */
     private static final String LEASE_TYPE = "event";
     
