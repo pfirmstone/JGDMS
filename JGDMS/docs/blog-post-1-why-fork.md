@@ -267,6 +267,7 @@ import net.jini.jeri.*;
 import net.jini.jeri.ssl.*;
 import net.jini.constraint.*;
 import net.jini.core.constraint.*;
+import net.example.HelloService;   // for the ClassLoader passed to AtomicILFactory
 
 org.apache.river.start {
     serviceDescriptors = new ServiceDescriptor[] {
@@ -284,7 +285,7 @@ net.example.HelloServiceImpl {
     // Per-method security requirements — the configuration concern from Step 1.
     serverExporter = new BasicJeriExporter(
         SslServerEndpoint.getInstance(0),               // TLS on a random port
-        new BasicILFactory(
+        new AtomicILFactory(                            // atomic = validated, hardened (de)serialization
             new BasicMethodConstraints(                 // apply to every method
                 new InvocationConstraints(
                     new InvocationConstraint[] {
@@ -295,7 +296,8 @@ net.example.HelloServiceImpl {
                         AtomicInputValidation.YES       // hardened deserialization of arguments
                     },
                     null)),                             // no preferred-only constraints
-            null));                                     // server permission class (null = none)
+            null,                                       // server permission class (null = none)
+            HelloService.class.getClassLoader()));      // loader AtomicILFactory resolves classes with
 }
 ```
 
