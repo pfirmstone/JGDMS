@@ -237,66 +237,52 @@ public class HelloServiceImpl extends AbstractJiniService
 }
 ```
 
-**(c) The smart proxy** — what actually travels to clients. It extends
-`AbstractSmartProxy` and forwards each call to the server stub. `@AtomicSerial`
-puts it through JGDMS's validated, hardened deserialization (Part 2); `@Stateless`
-declares it holds no serialized state of its own — the server reference and proxy
-id live on the base class. Its `create()` factory returns the nested
-**constrainable** variant when the exported stub implements `RemoteMethodControl`
-— which it does under the SSL endpoint in Step 3 — so the proxy a client actually
-receives itself implements `RemoteMethodControl` and can have its per-method wire
-constraints tightened:
+**(c) The smart proxy** — what actually travels to clients. Because a JGDMS
+service is always exported over JERI, its exported stub is always a
+`RemoteMethodControl`, so the proxy is **always constrainable** — there is no
+plain variant. It extends `AbstractSmartProxy.ConstrainableSmartProxy` (which is
+what makes the proxy itself a `RemoteMethodControl`) and forwards each call to the
+server stub. `@AtomicSerial` puts it through JGDMS's validated, hardened
+deserialization (Part 2); `@Stateless` declares it adds no serialized state of its
+own — the server reference and proxy id live on the base class, the constraints on
+the server stub. The `create()` factory **fails closed**: it refuses a stub that
+isn't a `RemoteMethodControl` rather than return a proxy whose security
+requirements can't even be expressed. A client tightens its own per-method wire
+constraints via `setConstraints(...)`:
 
 ```java
 // HelloServiceProxy.java — packaged in hello-service-dl.jar, downloaded to clients
 @AtomicSerial @Stateless
-public class HelloServiceProxy extends AbstractSmartProxy implements HelloService {
+public class HelloServiceProxy
+        extends AbstractSmartProxy.ConstrainableSmartProxy
+        implements HelloService {
 
-    // Returns a Constrainable subclass when the stub carries method
-    // constraints, so the client can tighten them via RemoteMethodControl.
-    public static AbstractSmartProxy create(HelloService server, Uuid proxyID) {
-        return server instanceof RemoteMethodControl
-            ? new ConstrainableHelloServiceProxy(server, proxyID,
-                  ((RemoteMethodControl) server).getConstraints())
-            : new HelloServiceProxy(server, proxyID);
+    // Fail closed: a JERI-exported stub is always a RemoteMethodControl. If it
+    // isn't, refuse — never return a proxy that can't express its constraints.
+    public static HelloServiceProxy create(HelloService server, Uuid proxyID) {
+        if (!(server instanceof RemoteMethodControl))
+            throw new IllegalArgumentException("server stub is not constrainable");
+        return new HelloServiceProxy(server, proxyID,
+                ((RemoteMethodControl) server).getConstraints());
     }
 
-    public HelloServiceProxy(HelloService server, Uuid proxyID) { super(server, proxyID); }
+    public HelloServiceProxy(HelloService server, Uuid proxyID,
+                             MethodConstraints constraints) {
+        super(server, proxyID, constraints);
+    }
 
     // Validated deserialization constructor required by @AtomicSerial.
     public HelloServiceProxy(GetArg arg) throws IOException, ClassNotFoundException {
         super(arg);
     }
 
-    @Override public String greet(String name) throws RemoteException {
-        return ((HelloService) server).greet(name);
+    // A client can tighten the per-method wire requirements on its own calls.
+    @Override public RemoteMethodControl setConstraints(MethodConstraints constraints) {
+        return new HelloServiceProxy((HelloService) server, getReferentUuid(), constraints);
     }
 
-    // The constrainable variant create() hands to clients when the stub is a
-    // RemoteMethodControl. Extending ConstrainableSmartProxy is what makes the
-    // proxy itself a RemoteMethodControl, so a client can call setConstraints(…)
-    // to tighten the per-method wire requirements on its own calls.
-    @AtomicSerial @Stateless
-    public static final class ConstrainableHelloServiceProxy
-            extends AbstractSmartProxy.ConstrainableSmartProxy
-            implements HelloService {
-
-        public ConstrainableHelloServiceProxy(HelloService server, Uuid proxyID,
-                                              MethodConstraints constraints) {
-            super(server, proxyID, constraints);
-        }
-
-        public ConstrainableHelloServiceProxy(GetArg arg)
-                throws IOException, ClassNotFoundException { super(arg); }
-
-        @Override public RemoteMethodControl setConstraints(MethodConstraints constraints) {
-            return new ConstrainableHelloServiceProxy(
-                    (HelloService) server, getReferentUuid(), constraints);
-        }
-
-        @Override public String greet(String name) throws RemoteException {
-            return ((HelloService) server).greet(name);
-        }
+    @Override public String greet(String name) throws RemoteException {
+        return ((HelloService) server).greet(name);
     }
 }
 ```
