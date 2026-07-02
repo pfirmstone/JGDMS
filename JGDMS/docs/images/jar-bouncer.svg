@@ -163,18 +163,18 @@
   <text x="610" y="314" text-anchor="middle"
         font-family="Arial,sans-serif" font-size="9" fill="#aaffcc">SHA-256 verified ✓</text>
   <!-- Good JAR speech bubble -->
-  <path d="M538 140
-           L682 140 Q692 140 692 150
-           L692 186 Q692 196 682 196
-           L618 196 Q608 196 608 186
-           L608 178 L596 186 L608 168
-           L608 150 Q608 140 618 140 Z"
+  <path d="M566 140
+           L686 140 Q696 140 696 150
+           L696 186 Q696 196 686 196
+           L634 196 L622 210 L610 196
+           L566 196 Q556 196 556 186
+           L556 150 Q556 140 566 140 Z"
         fill="#eeffee" stroke="#44aa66" stroke-width="1.5"/>
-  <text x="615" y="160" text-anchor="middle"
+  <text x="626" y="160" text-anchor="middle"
         font-family="Arial,sans-serif" font-size="10" fill="#004418">Quorum of BAE</text>
-  <text x="615" y="174" text-anchor="middle"
+  <text x="626" y="174" text-anchor="middle"
         font-family="Arial,sans-serif" font-size="10" fill="#004418">engines approved me!</text>
-  <text x="615" y="188" text-anchor="middle"
+  <text x="626" y="188" text-anchor="middle"
         font-family="Arial,sans-serif" font-size="9" fill="#006622">Right this way, sir.</text>
   <!-- Green checkmark entry indicator -->
   <circle cx="498" cy="265" r="24" fill="#009933" opacity="0.9"/>

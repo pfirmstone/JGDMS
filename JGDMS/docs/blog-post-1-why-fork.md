@@ -125,28 +125,19 @@ compiled on OpenJDK — no recompilation is required when switching the runtime.
 The fastest path to a running JGDMS service is a `ServiceStarter` configuration that specifies
 which services to launch, which endpoint to export, and what method constraints to enforce.
 
-### Step 1 — Define the service interface with method constraints
+### Step 1 — Define the service interface
 
 ```java
 // HelloService.java — the remote interface
 public interface HelloService extends Remote {
     String greet(String name) throws RemoteException;
 }
-
-// HelloServiceConstraints.java — per-method security requirements
-InvocationConstraints constraints = new InvocationConstraints(
-    Arrays.asList(
-        ServerAuthentication.YES,    // server must present a valid certificate
-        ClientAuthentication.YES,    // client must authenticate
-        Confidentiality.YES,         // TLSv1.3 encryption
-        Integrity.YES,               // MAC-covered
-        AtomicInputValidation.YES    // hardened deserialization for all arguments
-    ),
-    Collections.emptyList()
-);
-MethodConstraints methodConstraints =
-    new BasicMethodConstraints(constraints);
 ```
+
+The per-method security requirements are **not** written in Java. In JGDMS a method's
+constraints are a *configuration* concern — they are declared in the service's configuration file
+(Step 2) and applied by the exporter the `Configuration` builds. Keeping them out of the code lets
+an operator tighten or relax the wire requirements without recompiling the service.
 
 ### Step 2 — Write the ServiceStarter configuration
 
@@ -154,6 +145,7 @@ MethodConstraints methodConstraints =
 // hello-service.config — Jini configuration file
 import net.jini.jeri.*;
 import net.jini.jeri.ssl.*;
+import net.jini.constraint.*;
 import net.jini.core.constraint.*;
 
 org.apache.river.start {
@@ -169,18 +161,33 @@ org.apache.river.start {
 }
 
 net.example.HelloServiceImpl {
+    // Per-method security requirements — the configuration concern from Step 1.
     serverExporter = new BasicJeriExporter(
-        SslServerEndpoint.getInstance(0),           // TLS on a random port
-        new BasicILFactory(methodConstraints, null) // enforce constraints on every call
-    );
+        SslServerEndpoint.getInstance(0),               // TLS on a random port
+        new BasicILFactory(
+            new BasicMethodConstraints(                 // apply to every method
+                new InvocationConstraints(
+                    new InvocationConstraint[] {
+                        ServerAuthentication.YES,       // server presents a valid certificate
+                        ClientAuthentication.YES,       // client must authenticate
+                        Confidentiality.YES,            // TLSv1.3 encryption
+                        Integrity.YES,                  // MAC-covered
+                        AtomicInputValidation.YES       // hardened deserialization of arguments
+                    },
+                    null)),                             // no preferred-only constraints
+            null));                                     // server permission class (null = none)
 }
 ```
 
 ### Step 3 — Launch
 
 ```sh
+# lib/ is the JGDMS distribution's lib directory. The launcher needs the whole runtime
+# (service-starter, platform, lib, jeri, rmi-tls, …), so put every jar there on the classpath.
 java -Djava.security.policy=start-service.policy \
-     -jar lib/start.jar hello-service.config
+     -cp "lib/*" \
+     org.apache.river.start.ServiceStarter \
+     hello-service.config
 ```
 
 The service self-registers with the Jini Lookup Service at `lookup.example.org:4160`. Any client
