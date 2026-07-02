@@ -36,15 +36,21 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  * over a JERI transport channel.
  *
  * <p>Use the {@link #create(HelloService, Uuid)} factory method rather than
- * constructing directly.  The factory automatically returns a
- * {@link ConstrainableHelloServiceProxy} when the server stub implements
- * {@link RemoteMethodControl} (i.e. when the service is exported over an
- * SSL/TLS or Kerberos endpoint with method constraints).
+ * constructing directly.  The factory ALWAYS returns a
+ * {@link ConstrainableHelloServiceProxy}; it fails closed (throws) when the
+ * server stub does not implement {@link RemoteMethodControl}.  This class is
+ * {@code abstract} precisely so that no plain, non-constrainable proxy can ever
+ * be constructed or appear as a deserialized wire type — the constrainable form
+ * is the only concrete wire proxy, which prevents a silent constraint
+ * downgrade (a client that asked for Integrity/ServerAuthentication/
+ * Confidentiality can never be handed a proxy that has silently lost them).
  *
  * <h2>Serialization</h2>
  * This class is annotated with {@link AtomicSerial} and provides a
  * {@code (GetArg)} constructor for validated atomic deserialization, as
- * required by the JGDMS wire-serialisation standard.
+ * required by the JGDMS wire-serialisation standard.  Being abstract, it is
+ * never itself a wire instance; the {@code (GetArg)} constructor exists only so
+ * concrete subclasses may chain to it.
  *
  * @see HelloService
  * @see AbstractSmartProxy
@@ -54,56 +60,68 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  */
 @AtomicSerial
 @Stateless  // no own serialized state; server + proxyID live on AbstractSmartProxy
-public class HelloServiceProxy
+public abstract class HelloServiceProxy
         extends AbstractSmartProxy
         implements HelloService {
 
     private static final long serialVersionUID = 1L;
 
     /**
-     * Factory method — returns a {@link ConstrainableHelloServiceProxy} when
-     * {@code server} implements {@link RemoteMethodControl}, otherwise a plain
-     * {@code HelloServiceProxy}.
+     * Factory method — ALWAYS returns a {@link ConstrainableHelloServiceProxy}.
+     *
+     * <p>Fails closed: if {@code server} does not implement
+     * {@link RemoteMethodControl} the service was not exported with a
+     * constrainable endpoint, so no secure proxy can be produced and this
+     * method throws rather than silently returning a plain proxy that would
+     * drop the client's security constraints.
      *
      * @param server  the remote server stub; must not be {@code null}
      * @param proxyID the service's stable unique identifier; must not be
      *                {@code null}
-     * @return the appropriate proxy instance
+     * @return the constrainable proxy instance
+     * @throws IllegalArgumentException if {@code server} is not a
+     *         {@link RemoteMethodControl} (i.e. the service was not exported
+     *         with a constrainable endpoint)
      */
     public static AbstractSmartProxy create(HelloService server, Uuid proxyID) {
-        if (server instanceof RemoteMethodControl) {
-            // Preserve the constraints already configured on the exported
-            // stub: building the bootstrap proxy must NOT strip them (passing
-            // null here would call setConstraints(null) and discard the
-            // server's integrity/authentication requirements). Clients later
-            // narrow via RemoteMethodControl.setConstraints on the proxy.
-            MethodConstraints serverConstraints =
-                    ((RemoteMethodControl) server).getConstraints();
-            return new ConstrainableHelloServiceProxy(server, proxyID,
-                                                      serverConstraints);
+        if (!(server instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                    "service must be exported with a constrainable endpoint: "
+                    + "server does not implement RemoteMethodControl");
         }
-        return new HelloServiceProxy(server, proxyID);
+        // Preserve the constraints already configured on the exported
+        // stub: building the bootstrap proxy must NOT strip them (passing
+        // null here would call setConstraints(null) and discard the
+        // server's integrity/authentication requirements). Clients later
+        // narrow via RemoteMethodControl.setConstraints on the proxy.
+        MethodConstraints serverConstraints =
+                ((RemoteMethodControl) server).getConstraints();
+        return new ConstrainableHelloServiceProxy(server, proxyID,
+                                                  serverConstraints);
     }
 
     /**
-     * Creates a new proxy wrapping the given server stub.
+     * Creates a new proxy wrapping the given server stub.  Only invoked by
+     * subclass constructors — this class is abstract.
      *
      * @param server  the remote server stub; must not be {@code null}
      * @param proxyID the service's stable unique identifier; must not be
      *                {@code null}
      */
-    public HelloServiceProxy(HelloService server, Uuid proxyID) {
+    protected HelloServiceProxy(HelloService server, Uuid proxyID) {
         super(server, proxyID);
     }
 
     /**
-     * {@link AtomicSerial} deserialization constructor.
+     * {@link AtomicSerial} deserialization constructor.  Only chained to by
+     * concrete subclasses — this class is abstract and is never itself a wire
+     * instance.
      *
      * @param arg the deserialization argument bag
      * @throws IOException            if deserialization validation fails
      * @throws ClassNotFoundException if a required class cannot be found
      */
-    public HelloServiceProxy(GetArg arg)
+    protected HelloServiceProxy(GetArg arg)
             throws IOException, ClassNotFoundException {
         super(arg);
     }

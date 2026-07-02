@@ -1,9 +1,5 @@
 package au.net.zeus.jgdms.policy.proxy;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.rmi.RemoteException;
 import java.util.Arrays;
 import net.jini.admin.Administrable;
@@ -48,13 +44,20 @@ public class RemotePolicyServiceProxyTest {
     }
 
     @Test
-    public void testAtomicSerialRoundTrip() throws Exception {
-        RemotePolicyServiceProxy proxy = new RemotePolicyServiceProxy(plainServer, serviceId);
+    public void testConstrainableProxyCarriesIdentityAndStub() throws Exception {
+        // The constrainable proxy is now the only concrete form; its stored
+        // stub is constrainableServer.setConstraints(null), which returns the
+        // same instance.  A full marshal round-trip of the constrainable form
+        // routes the stub through the ProxySerializer codebase-substitution
+        // machinery (it is a CodebaseAccessor + RemoteMethodControl), which is
+        // an integration concern covered by the qa suite; here we assert the
+        // proxy carries the identity and stub it was built with.
+        RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy proxy =
+                new RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy(
+                        constrainableServer, serviceId, null);
 
-        RemotePolicyServiceProxy roundTrip = roundTrip(proxy);
-
-        assertEquals(serviceId, roundTrip.getReferentUuid());
-        assertEquals(plainServer, roundTrip.getProxy());
+        assertEquals(serviceId, proxy.getReferentUuid());
+        assertEquals(constrainableServer, proxy.getProxy());
     }
 
     @Test
@@ -63,11 +66,12 @@ public class RemotePolicyServiceProxyTest {
         assertTrue(proxy instanceof RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy);
     }
 
-    @Test
-    public void testCreateReturnsPlain() {
-        Object proxy = RemotePolicyServiceProxy.create(plainServer, serviceId);
-        assertTrue(proxy instanceof RemotePolicyServiceProxy);
-        assertTrue(!(proxy instanceof RemoteMethodControl));
+    @Test(expected = IllegalArgumentException.class)
+    public void testCreateFailsClosedForNonConstrainableServer() {
+        // The base proxy is abstract; a non-RMC server was not exported with a
+        // constrainable endpoint, so create() must reject it rather than return
+        // a plain proxy that would silently drop the client's constraints.
+        RemotePolicyServiceProxy.create(plainServer, serviceId);
     }
 
     @Test
@@ -86,73 +90,72 @@ public class RemotePolicyServiceProxyTest {
 
     @Test
     public void testDelegatesReplace() throws Exception {
-        RemotePolicyServiceProxy proxy = new RemotePolicyServiceProxy(plainServer, serviceId);
+        RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy proxy =
+                new RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy(
+                        constrainableServer, serviceId, null);
         String[] grants = new String[]{"g1", "g2"};
 
         proxy.replace(grants);
 
-        assertArrayEquals(grants, plainServer.lastReplaceGrants);
+        assertArrayEquals(grants, constrainableServer.lastReplaceGrants);
     }
 
     @Test
     public void testDelegatesGetCurrentGrants() throws Exception {
-        RemotePolicyServiceProxy proxy = new RemotePolicyServiceProxy(plainServer, serviceId);
-        plainServer.currentGrants = new String[]{"x"};
+        RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy proxy =
+                new RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy(
+                        constrainableServer, serviceId, null);
+        constrainableServer.currentGrants = new String[]{"x"};
 
         assertArrayEquals(new String[]{"x"}, proxy.getCurrentGrants());
     }
 
     @Test
     public void testDelegatesRegisterForPolicyUpdates() throws Exception {
-        RemotePolicyServiceProxy proxy = new RemotePolicyServiceProxy(plainServer, serviceId);
+        RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy proxy =
+                new RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy(
+                        constrainableServer, serviceId, null);
         RemoteEventListener listener = new RemoteEventListener() {
             @Override
             public void notify(net.jini.core.event.RemoteEvent theEvent) {
             }
         };
         MarshalledInstance handback = new MarshalledInstance("h");
-        plainServer.registrationToReturn = new EventRegistration(7L, plainServer, null, 0L);
+        constrainableServer.registrationToReturn = new EventRegistration(7L, constrainableServer, null, 0L);
 
         EventRegistration result = proxy.registerForPolicyUpdates(listener, handback, 123L);
 
-        assertSame(plainServer.registrationToReturn, result);
-        assertSame(listener, plainServer.lastListener);
-        assertSame(handback, plainServer.lastHandback);
-        assertEquals(123L, plainServer.lastDuration);
+        assertSame(constrainableServer.registrationToReturn, result);
+        assertSame(listener, constrainableServer.lastListener);
+        assertSame(handback, constrainableServer.lastHandback);
+        assertEquals(123L, constrainableServer.lastDuration);
     }
 
     @Test
     public void testDelegatesRenewLease() throws Exception {
-        RemotePolicyServiceProxy proxy = new RemotePolicyServiceProxy(plainServer, serviceId);
+        RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy proxy =
+                new RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy(
+                        constrainableServer, serviceId, null);
         Uuid id = UuidFactory.generate();
-        plainServer.renewResult = 987L;
+        constrainableServer.renewResult = 987L;
 
         long result = proxy.renewPolicyLease(id, 321L);
 
         assertEquals(987L, result);
-        assertEquals(id, plainServer.lastLeaseId);
-        assertEquals(321L, plainServer.lastDuration);
+        assertEquals(id, constrainableServer.lastLeaseId);
+        assertEquals(321L, constrainableServer.lastDuration);
     }
 
     @Test
     public void testDelegatesCancelLease() throws Exception {
-        RemotePolicyServiceProxy proxy = new RemotePolicyServiceProxy(plainServer, serviceId);
+        RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy proxy =
+                new RemotePolicyServiceProxy.ConstrainableRemotePolicyServiceProxy(
+                        constrainableServer, serviceId, null);
         Uuid id = UuidFactory.generate();
 
         proxy.cancelPolicyLease(id);
 
-        assertEquals(id, plainServer.lastCancelledLeaseId);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> T roundTrip(T value) throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream out = new ObjectOutputStream(baos);
-        out.writeObject(value);
-        out.flush();
-
-        ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-        return (T) in.readObject();
+        assertEquals(id, constrainableServer.lastCancelledLeaseId);
     }
 
     private static class MockServer implements RemotePolicyService,

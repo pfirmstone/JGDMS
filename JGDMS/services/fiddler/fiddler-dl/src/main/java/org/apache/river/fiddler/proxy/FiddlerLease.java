@@ -53,7 +53,7 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
  *
  */
 @AtomicSerial
-public class FiddlerLease extends AbstractLease 
+public abstract class FiddlerLease extends AbstractLease
                    implements ReferentUuid, ID<Uuid>
 {
 
@@ -131,20 +131,20 @@ public class FiddlerLease extends AbstractLease
                                            Uuid leaseID,
                                            long expiration)
     {
-        if(server instanceof RemoteMethodControl) {
-            return new ConstrainableFiddlerLease(server,
-                                                 serverID,
-                                                 registrationID,
-                                                 leaseID,
-                                                 expiration,
-                                                 null);//method constraints
-        } else {
-            return new FiddlerLease(server,
-                                    serverID,
-                                    registrationID,
-                                    leaseID,
-                                    expiration);
+        // Always constrainable; fail closed when the server was not exported
+        // with a constrainable endpoint.  The constrainable proxy is the only
+        // concrete wire form (this class is abstract).
+        if(!(server instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                "service must be exported with a constrainable endpoint: "
+                + "server does not implement RemoteMethodControl");
         }//endif
+        return new ConstrainableFiddlerLease(server,
+                                             serverID,
+                                             registrationID,
+                                             leaseID,
+                                             expiration,
+                                             null);//method constraints
     }//end createLease
 
     /**
@@ -165,11 +165,11 @@ public class FiddlerLease extends AbstractLease
      *                       granting entity
      * @param expiration     the time of expiration of the lease being granted
      */
-    private FiddlerLease(Fiddler server,
-                         Uuid serverID,
-                         Uuid registrationID,
-                         Uuid leaseID,
-                         long expiration)
+    FiddlerLease(Fiddler server,
+                 Uuid serverID,
+                 Uuid registrationID,
+                 Uuid leaseID,
+                 long expiration)
     {
         super(expiration);
         this.server         = server;
@@ -652,19 +652,21 @@ public class FiddlerLease extends AbstractLease
 	}
 	
 	private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException{
-	    FiddlerLease fl = new FiddlerLease(arg);
-	    MethodConstraints methodConstraints 
+	    // Read the superclass field directly rather than constructing a plain
+	    // FiddlerLease (now abstract); super(arg) still runs its validation.
+	    Fiddler server = (Fiddler) arg.get("server", null);
+	    MethodConstraints methodConstraints
 		    = arg.get("methodConstraints", null, MethodConstraints.class);
 	    MethodConstraints proxyCon = null;
-	    if (fl.server instanceof RemoteMethodControl && 
-		(proxyCon = ((RemoteMethodControl)fl.server).getConstraints()) != null) {
+	    if (server instanceof RemoteMethodControl &&
+		(proxyCon = ((RemoteMethodControl)server).getConstraints()) != null) {
 		// Constraints set during proxy deserialization.
 		return ConstrainableProxyUtil.reverseTranslateConstraints(
 			proxyCon, methodMapArray);
 	    }
 	    ConstrainableProxyUtil.verifyConsistentConstraints
                                                        (methodConstraints,
-                                                        fl.server,
+                                                        server,
                                                         methodMapArray);
 	    return methodConstraints;
 	}

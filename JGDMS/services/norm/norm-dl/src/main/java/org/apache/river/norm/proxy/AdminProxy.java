@@ -42,7 +42,7 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
  */
 @AtomicSerial
 @Stateless
-public class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin {
+public abstract class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin {
     private static final long serialVersionUID = 1;
 
     /**
@@ -50,11 +50,15 @@ public class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin
      * RemoteMethodControl if the server does.
      */
     public static AdminProxy create(NormServer server, Uuid serverUuid) {
-	if (server instanceof RemoteMethodControl) {
-	    return new ConstrainableAdminProxy(server, serverUuid);
-	} else {
-	    return new AdminProxy(server, serverUuid);
+	// Always constrainable; fail closed when the server was not exported
+	// with a constrainable endpoint.  The constrainable proxy is the only
+	// concrete wire form (this class is abstract).
+	if (!(server instanceof RemoteMethodControl)) {
+	    throw new IllegalArgumentException(
+		"service must be exported with a constrainable endpoint: "
+		+ "server does not implement RemoteMethodControl");
 	}
+	return new ConstrainableAdminProxy(server, serverUuid);
     }
 
     /** Creates an instance of this class. */

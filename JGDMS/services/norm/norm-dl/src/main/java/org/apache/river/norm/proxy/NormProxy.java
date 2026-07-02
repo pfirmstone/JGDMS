@@ -42,7 +42,7 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
  */
 @AtomicSerial
 @Stateless
-public class NormProxy extends AbstractProxy
+public abstract class NormProxy extends AbstractProxy
     implements LeaseRenewalService, Administrable
 {
     private static final long serialVersionUID = 1;
@@ -55,11 +55,15 @@ public class NormProxy extends AbstractProxy
      * @param serverUuid the unique ID for the server
      */
     public static NormProxy create(NormServer server, Uuid serverUuid) {
-	if (server instanceof RemoteMethodControl) {
-	    return new ConstrainableNormProxy(server, serverUuid);
-	} else {
-	    return new NormProxy(server, serverUuid);
+	// Always constrainable; fail closed when the server was not exported
+	// with a constrainable endpoint.  The constrainable proxy is the only
+	// concrete wire form (this class is abstract).
+	if (!(server instanceof RemoteMethodControl)) {
+	    throw new IllegalArgumentException(
+		"service must be exported with a constrainable endpoint: "
+		+ "server does not implement RemoteMethodControl");
 	}
+	return new ConstrainableNormProxy(server, serverUuid);
     }
 
     /** Creates an instance of this class. */
@@ -115,8 +119,10 @@ public class NormProxy extends AbstractProxy
 	}
 	
 	private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
-	    NormProxy np = new NormProxy(arg);
-	    if (!(np.server instanceof RemoteMethodControl)) {
+	    // Read the superclass field directly rather than constructing a plain
+	    // NormProxy (now abstract); super(arg) still runs AbstractProxy checks.
+	    Object server = arg.get("server", null, NormServer.class);
+	    if (!(server instanceof RemoteMethodControl)) {
 		throw new InvalidObjectException(
 		    "server must implement RemoteMethodControl");
 	    }

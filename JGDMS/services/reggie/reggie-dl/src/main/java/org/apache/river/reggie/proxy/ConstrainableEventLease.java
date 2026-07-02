@@ -101,14 +101,16 @@ public final class ConstrainableEventLease
      */
     private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException{
 	MethodConstraints constraints = (MethodConstraints) arg.get(CONSTRAINTS, null);
-	EventLease el = new EventLease(arg);
+	// Read the superclass field directly rather than constructing a plain
+	// EventLease (now abstract); super(arg) still runs its validation.
+	Registrar server = (Registrar) arg.get("server", null);
 	MethodConstraints proxyCon = null;
-	if (el.server instanceof RemoteMethodControl && 
-	    (proxyCon = ((RemoteMethodControl)el.server).getConstraints()) != null) {
+	if (server instanceof RemoteMethodControl &&
+	    (proxyCon = ((RemoteMethodControl)server).getConstraints()) != null) {
 	    // Constraints set during proxy deserialization.
 	    return reverseTranslateConstraints(proxyCon);
 	}
-	verifyConsistentConstraints(constraints, el.server);
+	verifyConsistentConstraints(constraints, server);
 	return constraints;
     }
     

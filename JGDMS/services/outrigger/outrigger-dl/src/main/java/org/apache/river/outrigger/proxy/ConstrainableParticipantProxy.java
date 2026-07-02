@@ -67,14 +67,16 @@ public final class ConstrainableParticipantProxy extends ParticipantProxy
     }
     
     private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
-	ParticipantProxy pp = new ParticipantProxy(arg);
-	
+	// Read the superclass field directly rather than constructing a plain
+	// ParticipantProxy (now abstract); super(arg) still runs its validation.
+	Object space = arg.get("space", null, TransactionParticipant.class);
+
 	/* Basic validation of space and spaceUuid, was performed by
 	 * ParticipantProxy.readObject(), we just need to verify than
-	 * space implements RemoteMethodControl.	
+	 * space implements RemoteMethodControl.
 	 */
 
-	if(!(pp.space instanceof RemoteMethodControl) ) {
+	if(!(space instanceof RemoteMethodControl) ) {
 	    throw new InvalidObjectException(
 	        "space does not implement RemoteMethodControl");
 	}

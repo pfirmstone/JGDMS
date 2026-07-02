@@ -42,7 +42,7 @@ public final class ConstrainableRegistration
 {
     private static final long serialVersionUID = 2L;
     
-    private static final String CONSTRAINTS = "constriants";
+    private static final String CONSTRAINTS = "constraints";
     
     public static SerialForm [] serialForm(){
         return new SerialForm[]{
@@ -59,17 +59,19 @@ public final class ConstrainableRegistration
     private final MethodConstraints constraints;
 
     private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
-	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
-	Registration reg = new Registration(arg);
+	MethodConstraints constraints = (MethodConstraints) arg.get(CONSTRAINTS, null);
+	// Read the superclass field directly rather than constructing a plain
+	// Registration (now abstract); super(arg) still runs its validation.
+	Registrar server = (Registrar) arg.get("server", null);
 	MethodConstraints proxyCon = null;
-	if (reg.server instanceof RemoteMethodControl && 
-	    (proxyCon = ((RemoteMethodControl)reg.server).getConstraints()) != null) {
+	if (server instanceof RemoteMethodControl &&
+	    (proxyCon = ((RemoteMethodControl)server).getConstraints()) != null) {
 	    // Constraints set during proxy deserialization.
 	    return ConstrainableProxyUtil.reverseTranslateConstraints(
 		    proxyCon, methodMappings);
 	}
 	ConstrainableProxyUtil.verifyConsistentConstraints(
-	    constraints, reg.server, methodMappings);
+	    constraints, server, methodMappings);
 	return constraints;
     }
    

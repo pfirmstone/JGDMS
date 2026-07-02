@@ -197,11 +197,13 @@ public final class ConstrainableAdminProxy extends AdminProxy
     }
     
     private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
-	AdminProxy ap = new AdminProxy(arg);
+	// Read the superclass field directly rather than constructing a plain
+	// AdminProxy (now abstract); super(arg) still runs its validation.
+	Object admin = arg.get("admin", null, OutriggerAdmin.class);
 	MethodConstraints methodConstraints = arg.get("methodConstraints", null, MethodConstraints.class);
 	MethodConstraints proxyCon = null;
-	if (ap.admin instanceof RemoteMethodControl && 
-	    (proxyCon = ((RemoteMethodControl)ap.admin).getConstraints()) != null) {
+	if (admin instanceof RemoteMethodControl &&
+	    (proxyCon = ((RemoteMethodControl)admin).getConstraints()) != null) {
 	    // Constraints set during proxy deserialization.
 	    return ConstrainableProxyUtil.reverseTranslateConstraints(
 		    proxyCon, methodMapArray);
@@ -212,7 +214,7 @@ public final class ConstrainableAdminProxy extends AdminProxy
 	 * constraints.
 	 */
 	ConstrainableProxyUtil.verifyConsistentConstraints(
-	    methodConstraints, ap.admin, methodMapArray);
+	    methodConstraints, admin, methodMapArray);
 	return methodConstraints;
     }
 

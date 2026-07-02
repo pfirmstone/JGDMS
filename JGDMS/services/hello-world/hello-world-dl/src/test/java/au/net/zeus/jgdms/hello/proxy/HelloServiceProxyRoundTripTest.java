@@ -19,15 +19,11 @@ package au.net.zeus.jgdms.hello.proxy;
 
 import au.net.zeus.jgdms.api.hello.HelloService;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.rmi.Remote;
 import net.jini.admin.Administrable;
 import net.jini.admin.JoinAdmin;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
@@ -39,9 +35,6 @@ import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.api.io.AtomicSerial;
-import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.junit.Test;
@@ -90,73 +83,63 @@ public class HelloServiceProxyRoundTripTest {
     }
 
     /**
-     * A {@link HelloServiceProxy} wrapping a backend-implementing server
-     * survives an AtomicSerial marshal/unmarshal round-trip: the output path
-     * runs {@code AbstractSmartProxy.serialize}, and the input path runs the
-     * {@code (GetArg)} constructor and {@code checkServer} on the deserialized
-     * server.  Identity (the {@link Uuid}) is preserved.
+     * The {@link HelloServiceProxy#create} factory now ALWAYS returns the
+     * constrainable form, and the base {@code HelloServiceProxy} is abstract so
+     * a plain, non-constrainable wire proxy can never be produced.  This is the
+     * security invariant: the constrainable proxy is the only concrete wire
+     * form, so a client that requested Integrity/ServerAuthentication/
+     * Confidentiality cannot be silently handed a downgraded proxy.
+     *
+     * <p>A full marshal/unmarshal round-trip of the constrainable proxy is an
+     * integration concern: because the server stub is itself a constrainable
+     * {@link CodebaseAccessor}, the AtomicSerial output path routes it through
+     * the {@code ProxySerializer} codebase-substitution machinery, which needs
+     * a live bootstrap proxy / {@code ProxyCodebaseSpi} provider that only
+     * exists in the qa export environment.  That round-trip is therefore
+     * covered in the qa integration suite, not here.
      */
     @Test
-    public void testProxyAtomicRoundTrip() throws Exception {
-        FakeBackend server = new FakeBackend("svc-1");
+    public void testFactoryAlwaysReturnsConstrainableForm() {
+        ConstrainableBackend server = new ConstrainableBackend("svc-1");
         Uuid uuid = UuidFactory.generate();
 
         AbstractSmartProxy proxy = HelloServiceProxy.create(server, uuid);
-        assertTrue("non-constrainable server yields a plain proxy",
-                proxy instanceof HelloServiceProxy);
+        assertTrue("constrainable server yields the constrainable proxy",
+                proxy instanceof HelloServiceProxy.ConstrainableHelloServiceProxy);
+        assertTrue("the only concrete proxy form implements RemoteMethodControl",
+                proxy instanceof RemoteMethodControl);
+        assertEquals("identity is carried by the constrainable proxy",
+                uuid, proxy.getReferentUuid());
+    }
 
-        AbstractSmartProxy back = (AbstractSmartProxy) atomicRoundTrip(proxy);
-
-        assertEquals("identity preserved across round-trip",
-                uuid, back.getReferentUuid());
-        assertEquals("round-tripped proxy equals the original", proxy, back);
-        assertTrue("server survives and still implements the backend",
-                back.getProxy() instanceof HelloServiceBackend);
+    /**
+     * The factory fails closed: a server stub that was not exported with a
+     * constrainable endpoint (does not implement {@link RemoteMethodControl})
+     * is rejected rather than silently wrapped in a plain proxy that would drop
+     * the client's security constraints.
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void testFactoryFailsClosedOnNonConstrainableServer() {
+        FakeBackend server = new FakeBackend("svc-1");   // not RemoteMethodControl
+        HelloServiceProxy.create(server, UuidFactory.generate());
     }
 
     // --------------------------------------------------------------- helpers
 
-    private static Object atomicRoundTrip(Object o) throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new AtomicMarshalOutputStream(baos, null);
-        oos.writeObject(o);
-        oos.flush();
-        oos.close();
-        ObjectInputStream ois = AtomicMarshalInputStream.create(
-                new ByteArrayInputStream(baos.toByteArray()),
-                null, false, null, null, false);
-        return ois.readObject();
-    }
-
     /**
-     * Serializable {@link HelloServiceBackend} fixture standing in for an
-     * exported stub.  It is {@code @AtomicSerial} so it marshals through the
-     * atomic codec without the JERI/RMI runtime; method bodies are never
-     * invoked by serialization or {@code checkServer} (which only does
-     * {@code instanceof} checks), so they throw.
+     * {@link HelloServiceBackend} fixture standing in for an exported stub that
+     * was NOT exported over a constrainable endpoint — it does not implement
+     * {@link RemoteMethodControl}.  Method bodies are never invoked (the factory
+     * only does {@code instanceof} checks), so they throw.  Used to exercise the
+     * fail-closed path of the {@code create} factory.
      */
-    @AtomicSerial
-    public static final class FakeBackend
-            implements HelloServiceBackend, Serializable {
-
-        private static final long serialVersionUID = 1L;
+    public static class FakeBackend implements HelloServiceBackend {
 
         private final String id;
 
         public FakeBackend(String id) { this.id = id; }
 
-        public FakeBackend(GetArg arg) throws IOException, ClassNotFoundException {
-            this.id = (String) arg.get("id", null);
-        }
-
-        public static SerialForm[] serialForm() {
-            return new SerialForm[]{ new SerialForm("id", String.class) };
-        }
-
-        public static void serialize(PutArg arg, FakeBackend o) throws IOException {
-            arg.put("id", o.id);
-            arg.writeArgs();
-        }
+        String id() { return id; }
 
         private static UnsupportedOperationException nope() {
             return new UnsupportedOperationException("fixture method not invoked");
@@ -186,5 +169,22 @@ public class HelloServiceProxyRoundTripTest {
         @Override public void removeLookupLocators(LookupLocator[] l) { throw nope(); }
         @Override public void setLookupLocators(LookupLocator[] l) { throw nope(); }
         @Override public void destroy() { throw nope(); }
+    }
+
+    /**
+     * {@link HelloServiceBackend} fixture that additionally implements
+     * {@link RemoteMethodControl}, standing in for a stub exported over a
+     * constrainable (SSL/TLS) endpoint — the only kind the {@code create}
+     * factory now accepts.  {@code setConstraints} returns {@code this}, so the
+     * constrainable proxy's constraint application is a deterministic no-op
+     * suitable for a unit test.
+     */
+    public static final class ConstrainableBackend extends FakeBackend
+            implements RemoteMethodControl {
+
+        public ConstrainableBackend(String id) { super(id); }
+
+        @Override public RemoteMethodControl setConstraints(MethodConstraints c) { return this; }
+        @Override public MethodConstraints getConstraints() { return null; }
     }
 }

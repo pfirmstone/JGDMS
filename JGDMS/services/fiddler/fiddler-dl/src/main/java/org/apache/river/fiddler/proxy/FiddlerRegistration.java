@@ -64,7 +64,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * @see net.jini.discovery.LookupDiscoveryRegistration
  */
 @AtomicSerial
-public class FiddlerRegistration implements LookupDiscoveryRegistration, 
+public abstract class FiddlerRegistration implements LookupDiscoveryRegistration,
                                      ReferentUuid, Serializable
 {
 
@@ -150,12 +150,16 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
                                                    Uuid registrationID,
                                                    EventRegistration eventReg)
     {
-        if(server instanceof RemoteMethodControl) {
-            return new ConstrainableFiddlerRegistration
-                                    (server, registrationID, eventReg, null);
-        } else {
-            return new FiddlerRegistration(server, registrationID, eventReg);
+        // Always constrainable; fail closed when the server was not exported
+        // with a constrainable endpoint.  The constrainable proxy is the only
+        // concrete wire form (this class is abstract).
+        if(!(server instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                "service must be exported with a constrainable endpoint: "
+                + "server does not implement RemoteMethodControl");
         }//endif
+        return new ConstrainableFiddlerRegistration
+                                (server, registrationID, eventReg, null);
     }//end createRegistration
 
     /**
@@ -178,9 +182,9 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
      *                       the renewal or cancellation of the registration 
      *                       being constructed.
      */
-    private FiddlerRegistration(Fiddler server,
-                                Uuid registrationID,
-                                EventRegistration eventReg)
+    FiddlerRegistration(Fiddler server,
+                        Uuid registrationID,
+                        EventRegistration eventReg)
     {
 	this.server         = server;
 	this.registrationID = registrationID;
@@ -1308,25 +1312,29 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
 	}
 	
 	private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
-	    FiddlerRegistration fr = new FiddlerRegistration(arg);
-	    MethodConstraints methodConstraints 
+	    // Read the superclass fields directly rather than constructing a plain
+	    // FiddlerRegistration (now abstract); super(arg) still runs its checks.
+	    Fiddler frServer = (Fiddler) arg.get("server", null);
+	    EventRegistration frEventReg =
+		    arg.get("eventReg", null, EventRegistration.class);
+	    MethodConstraints methodConstraints
 		    = arg.get("methodConstraints", null, MethodConstraints.class);
 	    /* Verify server1 constraints */
 	    MethodConstraints proxyCon = null;
-	    if (fr.server instanceof RemoteMethodControl && 
-		(proxyCon = ((RemoteMethodControl)fr.server).getConstraints()) != null) {
+	    if (frServer instanceof RemoteMethodControl &&
+		(proxyCon = ((RemoteMethodControl)frServer).getConstraints()) != null) {
 		// Constraints set during proxy deserialization.
 		methodConstraints = ConstrainableProxyUtil.reverseTranslateConstraints(
 			proxyCon, methodMapArray);
 	    } else {
 		ConstrainableProxyUtil.verifyConsistentConstraints
                                                        (methodConstraints,
-                                                        fr.server,
+                                                        frServer,
                                                         methodMapArray);
 	    }
 
             /* Verify server3 constraints */
-            Object source = fr.eventReg.getSource();
+            Object source = frEventReg.getSource();
             if( !(source instanceof FiddlerProxy.ConstrainableFiddlerProxy) ) {
                 throw new InvalidObjectException
                               ("ConstrainableFiddlerRegistration.readObject "
@@ -1334,7 +1342,7 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
                                +" of ConstrainableFiddlerProxy");
             }//endif
             /* Verify server4 constraints */
-            Object lease = fr.eventReg.getLease();
+            Object lease = frEventReg.getLease();
             if( !(lease instanceof FiddlerLease.ConstrainableFiddlerLease) ) {
                 throw new InvalidObjectException
                               ("ConstrainableFiddlerRegistration.readObject "

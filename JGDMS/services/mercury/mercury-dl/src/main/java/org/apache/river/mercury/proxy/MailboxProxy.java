@@ -54,7 +54,7 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
  * @since 1.1
  */
 @AtomicSerial
-public class MailboxProxy implements PullEventMailbox,
+public abstract class MailboxProxy implements PullEventMailbox,
     Administrable, Serializable, ReferentUuid, ProxyAccessor
 {
 
@@ -98,15 +98,21 @@ public class MailboxProxy implements PullEventMailbox,
         if (mailbox == null || id == null) {
             throw new IllegalArgumentException("Cannot accept null arguments");
         }
-        if (mailbox instanceof RemoteMethodControl) {
-            return new ConstrainableMailboxProxy(mailbox, id, null);
-        } else {
-            return new MailboxProxy(mailbox, id);
+        // Always constrainable; fail closed when the server was not exported
+        // with a constrainable endpoint, so a plain proxy that would silently
+        // drop the client's security constraints can never be produced.  The
+        // constrainable proxy is the only concrete wire form (this class is
+        // abstract).
+        if (!(mailbox instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                "service must be exported with a constrainable endpoint: "
+                + "server does not implement RemoteMethodControl");
         }
+        return new ConstrainableMailboxProxy(mailbox, id, null);
     }
 
     /** Convenience constructor. */
-    private MailboxProxy(MailboxBackEnd mailbox, Uuid proxyID) {
+    MailboxProxy(MailboxBackEnd mailbox, Uuid proxyID) {
 	this.mailbox = mailbox;
 	this.proxyID = proxyID;
     }
@@ -255,9 +261,12 @@ public class MailboxProxy implements PullEventMailbox,
 	}
 	
 	private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
-	    MailboxProxy mp = new MailboxProxy(arg);
+	    // Read the superclass field directly rather than constructing a plain
+	    // MailboxProxy (now abstract); super(arg) still runs MailboxProxy's
+	    // own field validation.
+	    Object mailbox = arg.get("mailbox", null, MailboxBackEnd.class);
 	    // Verify that the server implements RemoteMethodControl
-            if( !(mp.mailbox instanceof RemoteMethodControl) ) {
+            if( !(mailbox instanceof RemoteMethodControl) ) {
                 throw new InvalidObjectException(
 		    "MailboxAdminProxy.readObject failure - mailbox " +
 		    "does not implement constrainable functionality ");

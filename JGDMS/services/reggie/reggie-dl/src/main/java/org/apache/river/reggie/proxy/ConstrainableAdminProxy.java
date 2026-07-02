@@ -58,17 +58,19 @@ public final class ConstrainableAdminProxy
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
-    private static MethodConstraints checkConstraints(GetArg arg) 
+    private static MethodConstraints checkConstraints(GetArg arg)
 	    throws IOException, ClassNotFoundException{
 	MethodConstraints constraints = arg.get(CONSTRAINTS, null, MethodConstraints.class);
-	AdminProxy sup = new AdminProxy(arg);
+	// Read the superclass field directly rather than constructing a plain
+	// AdminProxy (now abstract); super(arg) still runs its validation.
+	Registrar server = (Registrar) arg.get("server", null);
 	MethodConstraints proxyCon = null;
-	if (sup.server instanceof RemoteMethodControl && 
-	    (proxyCon = ((RemoteMethodControl)sup.server).getConstraints()) != null) {
+	if (server instanceof RemoteMethodControl &&
+	    (proxyCon = ((RemoteMethodControl)server).getConstraints()) != null) {
 	    // Constraints set during proxy deserialization.
 	    return reverseTranslateConstraints(proxyCon);
 	}
-	verifyConsistentConstraints(constraints, sup.server);
+	verifyConsistentConstraints(constraints, server);
 	return constraints;
     }
     

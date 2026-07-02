@@ -18,6 +18,7 @@
 package org.apache.river.mercury.proxy;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -97,18 +98,24 @@ public final class MercuryProxyMarshalDelegate implements MarshalDelegate {
 
     @Override
     public Object create(Class<?> c, GetArg arg) throws IOException, ClassNotFoundException {
-        if (c == ListenerProxy.class)               return new ListenerProxy(arg);
         if (c == ConstrainableListenerProxy.class)  return new ConstrainableListenerProxy(arg);
-        if (c == MailboxAdminProxy.class)           return new MailboxAdminProxy(arg);
         if (c == ConstrainableMailboxAdminProxy.class) return new ConstrainableMailboxAdminProxy(arg);
-        if (c == MailboxProxy.class)                return new MailboxProxy(arg);
         if (c == ConstrainableMailboxProxy.class)   return new ConstrainableMailboxProxy(arg);
         if (c == ProxyVerifier.class)               return new ProxyVerifier(arg);
-        if (c == Registration.class)                return new Registration(arg);
         if (c == ConstrainableRegistration.class)   return new ConstrainableRegistration(arg);
         if (c == RemoteEventDataCursor.class)       return new RemoteEventDataCursor(arg);
         if (c == RemoteEventData.class)             return new RemoteEventData(arg);
         if (c == RemoteEventIteratorData.class)     return new RemoteEventIteratorData(arg);
+        // ListenerProxy / MailboxAdminProxy / MailboxProxy / Registration are
+        // abstract: they are never a wire leaf, only the superclass slice of a
+        // Constrainable* leaf above.  A stream naming one of them as the leaf
+        // class is malformed (a downgrade attempt), so fail closed.
+        if (c == ListenerProxy.class || c == MailboxAdminProxy.class
+                || c == MailboxProxy.class || c == Registration.class) {
+            throw new InvalidObjectException(
+                "abstract base proxy " + c.getName()
+                + " cannot be a wire leaf; expected a Constrainable* subclass");
+        }
         throw new IllegalArgumentException(unhandled(c));
     }
 

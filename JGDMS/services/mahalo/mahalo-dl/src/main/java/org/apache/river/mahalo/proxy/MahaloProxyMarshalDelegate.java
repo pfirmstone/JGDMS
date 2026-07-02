@@ -18,6 +18,7 @@
 package org.apache.river.mahalo.proxy;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -80,10 +81,17 @@ public final class MahaloProxyMarshalDelegate implements MarshalDelegate {
     @Override
     public Object create(Class<?> c, GetArg arg) throws IOException, ClassNotFoundException {
         if (c == ProxyVerifier.class)                 return new ProxyVerifier(arg);
-        if (c == TxnMgrAdminProxy.class)              return new TxnMgrAdminProxy(arg);
         if (c == ConstrainableTxnMgrAdminProxy.class) return new ConstrainableTxnMgrAdminProxy(arg);
-        if (c == TxnMgrProxy.class)                   return new TxnMgrProxy(arg);
         if (c == ConstrainableTxnMgrProxy.class)      return new ConstrainableTxnMgrProxy(arg);
+        // TxnMgrProxy / TxnMgrAdminProxy are abstract: they are never a wire
+        // leaf, so their fields are only ever read as the superclass slice of a
+        // Constrainable* leaf above.  A stream naming one of them as the leaf
+        // class is malformed (a downgrade attempt), so fail closed.
+        if (c == TxnMgrAdminProxy.class || c == TxnMgrProxy.class) {
+            throw new InvalidObjectException(
+                "abstract base proxy " + c.getName()
+                + " cannot be a wire leaf; expected a Constrainable* subclass");
+        }
         throw new IllegalArgumentException(unhandled(c));
     }
 

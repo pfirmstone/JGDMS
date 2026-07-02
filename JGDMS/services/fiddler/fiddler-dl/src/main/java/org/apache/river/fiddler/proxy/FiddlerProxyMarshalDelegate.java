@@ -18,6 +18,7 @@
 package org.apache.river.fiddler.proxy;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -102,16 +103,22 @@ public final class FiddlerProxyMarshalDelegate implements MarshalDelegate {
 
     @Override
     public Object create(Class<?> c, GetArg arg) throws IOException, ClassNotFoundException {
-        if (c == FiddlerProxy.class)                     return new FiddlerProxy(arg);
         if (c == ConstrainableFiddlerProxy.class)        return new ConstrainableFiddlerProxy(arg);
-        if (c == FiddlerAdminProxy.class)                return new FiddlerAdminProxy(arg);
         if (c == ConstrainableFiddlerAdminProxy.class)   return new ConstrainableFiddlerAdminProxy(arg);
-        if (c == FiddlerRegistration.class)              return new FiddlerRegistration(arg);
         if (c == ConstrainableFiddlerRegistration.class) return new ConstrainableFiddlerRegistration(arg);
-        if (c == FiddlerLease.class)                     return new FiddlerLease(arg);
         if (c == ConstrainableFiddlerLease.class)        return new ConstrainableFiddlerLease(arg);
         if (c == FiddlerRenewResults.class)              return new FiddlerRenewResults(arg);
         if (c == ProxyVerifier.class)                    return new ProxyVerifier(arg);
+        // FiddlerProxy / FiddlerAdminProxy / FiddlerRegistration / FiddlerLease
+        // are abstract: they are never a wire leaf, only the superclass slice of
+        // a Constrainable* leaf above.  A stream naming one of them as the leaf
+        // class is malformed (a downgrade attempt), so fail closed.
+        if (c == FiddlerProxy.class || c == FiddlerAdminProxy.class
+                || c == FiddlerRegistration.class || c == FiddlerLease.class) {
+            throw new InvalidObjectException(
+                "abstract base proxy " + c.getName()
+                + " cannot be a wire leaf; expected a Constrainable* subclass");
+        }
         throw new IllegalArgumentException(unhandled(c));
     }
 

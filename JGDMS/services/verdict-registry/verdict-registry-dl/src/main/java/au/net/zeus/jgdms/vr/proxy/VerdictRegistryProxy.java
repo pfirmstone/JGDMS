@@ -62,54 +62,60 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  */
 @AtomicSerial
 @Stateless  // no own serialized state; server + proxyID live on AbstractSmartProxy
-public class VerdictRegistryProxy
+public abstract class VerdictRegistryProxy
         extends AbstractSmartProxy
         implements VerdictRegistry {
 
     private static final long serialVersionUID = 1L;
 
     /**
-     * Factory method — returns a {@link ConstrainableVerdictRegistryProxy}
-     * when {@code server} implements {@link RemoteMethodControl}, otherwise a
-     * plain {@code VerdictRegistryProxy}.
+     * Factory method — ALWAYS returns a
+     * {@link ConstrainableVerdictRegistryProxy}, and fails closed when the
+     * server stub does not implement {@link RemoteMethodControl}.  This class is
+     * {@code abstract} so the constrainable form is the only concrete wire proxy
+     * — a client that requested Integrity/ServerAuthentication/Confidentiality
+     * can never be handed a plain proxy that silently dropped them.
      *
      * @param server  the remote server stub; must be non-null
      * @param proxyID the service's stable unique identifier; must be non-null
-     * @return the appropriate proxy instance
+     * @return the constrainable proxy instance
+     * @throws IllegalArgumentException if {@code server} does not implement
+     *         {@link RemoteMethodControl}
      */
     public static AbstractSmartProxy create(VerdictRegistry server, Uuid proxyID) {
-        if (server instanceof RemoteMethodControl) {
-            // Preserve the constraints already configured on the exported stub;
-            // passing null would call setConstraints(null) and discard them.
-            MethodConstraints serverConstraints =
-                    ((RemoteMethodControl) server).getConstraints();
-            return new ConstrainableVerdictRegistryProxy(
-                    server, proxyID, serverConstraints);
+        if (!(server instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                    "service must be exported with a constrainable endpoint: "
+                    + "server does not implement RemoteMethodControl");
         }
-        return new VerdictRegistryProxy(server, proxyID);
+        // Preserve the constraints already configured on the exported stub;
+        // passing null would call setConstraints(null) and discard them.
+        MethodConstraints serverConstraints =
+                ((RemoteMethodControl) server).getConstraints();
+        return new ConstrainableVerdictRegistryProxy(
+                server, proxyID, serverConstraints);
     }
 
     /**
-     * Creates a new proxy wrapping the given server stub.
-     *
-     * <p>Prefer the {@link #create(VerdictRegistry, Uuid)} factory method,
-     * which automatically returns a constrainable proxy when the server stub
-     * implements {@link RemoteMethodControl}.
+     * Creates a new proxy wrapping the given server stub.  Only invoked by
+     * subclass constructors — this class is abstract.
      *
      * @param server  the remote server stub; must be non-null
      * @param proxyID the service's stable unique identifier; must be non-null
      */
-    public VerdictRegistryProxy(VerdictRegistry server, Uuid proxyID) {
+    protected VerdictRegistryProxy(VerdictRegistry server, Uuid proxyID) {
         super(server, proxyID);
     }
 
     /**
-     * {@link AtomicSerial} deserialization constructor.
+     * {@link AtomicSerial} deserialization constructor.  Only chained to by the
+     * concrete subclass — this class is abstract and is never itself a wire
+     * instance.
      *
      * @param arg the deserialization argument bag
      * @throws IOException if deserialization validation fails
      */
-    public VerdictRegistryProxy(GetArg arg) throws IOException, ClassNotFoundException {
+    protected VerdictRegistryProxy(GetArg arg) throws IOException, ClassNotFoundException {
         super(arg);
     }
 

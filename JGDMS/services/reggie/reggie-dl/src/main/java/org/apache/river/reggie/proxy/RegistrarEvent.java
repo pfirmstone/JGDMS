@@ -43,7 +43,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *
  */
 @AtomicSerial
-public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
+public abstract class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
 
     private static final long serialVersionUID = 2L;
     

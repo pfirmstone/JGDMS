@@ -49,7 +49,7 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
  * @since 1.1
  */
 @AtomicSerial
-public class MailboxAdminProxy implements MailboxAdmin, Serializable, 
+public abstract class MailboxAdminProxy implements MailboxAdmin, Serializable,
 	ReferentUuid, ProxyAccessor {
 
     private static final long serialVersionUID = 2L;
@@ -89,11 +89,15 @@ public class MailboxAdminProxy implements MailboxAdmin, Serializable,
      * @param id the ID of the server
      */
     public static MailboxAdminProxy create(MailboxBackEnd mailbox, Uuid id) {
-        if (mailbox instanceof RemoteMethodControl) {
-            return new ConstrainableMailboxAdminProxy(mailbox, id, null);
-        } else {
-            return new MailboxAdminProxy(mailbox, id);
+        // Always constrainable; fail closed when the server was not exported
+        // with a constrainable endpoint.  The constrainable proxy is the only
+        // concrete wire form (this class is abstract).
+        if (!(mailbox instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                "service must be exported with a constrainable endpoint: "
+                + "server does not implement RemoteMethodControl");
         }
+        return new ConstrainableMailboxAdminProxy(mailbox, id, null);
     }
 
     MailboxAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
@@ -117,7 +121,7 @@ public class MailboxAdminProxy implements MailboxAdmin, Serializable,
     }
 
     /** Simple constructor. */
-    private MailboxAdminProxy(MailboxBackEnd server, Uuid serviceProxyID) {
+    MailboxAdminProxy(MailboxBackEnd server, Uuid serviceProxyID) {
 	this.server = server;
 	this.proxyID = serviceProxyID;
     }
@@ -289,9 +293,11 @@ public class MailboxAdminProxy implements MailboxAdmin, Serializable,
 	}
 	
 	private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
-	    MailboxAdminProxy map = new MailboxAdminProxy(arg);
+	    // Read the superclass field directly rather than constructing a plain
+	    // MailboxAdminProxy (now abstract); super(arg) still runs its checks.
+	    Object server = arg.get("server", null, MailboxBackEnd.class);
 	    // Verify that the server implements RemoteMethodControl
-            if( !(map.server instanceof RemoteMethodControl) ) 
+            if( !(server instanceof RemoteMethodControl) )
                 throw new InvalidObjectException
                               ("MailboxAdminProxy.readObject failure - server "
                                +"does not implement RemoteMethodControl");

@@ -51,7 +51,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *
  */
 @AtomicSerial
-public class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
+public abstract class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
 
     private static final long serialVersionUID = 2L;
 
@@ -103,11 +103,15 @@ public class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializab
     public static FiddlerAdminProxy createAdminProxy(Fiddler server,
                                                      Uuid proxyID)
     {
-        if(server instanceof RemoteMethodControl) {
-            return new ConstrainableFiddlerAdminProxy(server, proxyID, null);
-        } else {
-            return new FiddlerAdminProxy(server, proxyID);
+        // Always constrainable; fail closed when the server was not exported
+        // with a constrainable endpoint.  The constrainable proxy is the only
+        // concrete wire form (this class is abstract).
+        if(!(server instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                "service must be exported with a constrainable endpoint: "
+                + "server does not implement RemoteMethodControl");
         }//endif
+        return new ConstrainableFiddlerAdminProxy(server, proxyID, null);
     }//end createAdminProxy
 
     /**
@@ -119,7 +123,7 @@ public class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializab
      * @param proxyID the unique identifier assigned by the service to each
      *                instance of this proxy
      */
-    private FiddlerAdminProxy(Fiddler server, Uuid proxyID) {
+    FiddlerAdminProxy(Fiddler server, Uuid proxyID) {
 	this.server  = server;
 	this.proxyID = proxyID;
     }//end constructor
@@ -865,12 +869,14 @@ public class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializab
         }//end constructor
 
 	private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
-	    FiddlerAdminProxy fap = new FiddlerAdminProxy(arg);
-	    MethodConstraints methodConstraints = (MethodConstraints) 
+	    // Read the superclass field directly rather than constructing a plain
+	    // FiddlerAdminProxy (now abstract); super(arg) still runs its checks.
+	    Fiddler server = (Fiddler) arg.get("server", null);
+	    MethodConstraints methodConstraints = (MethodConstraints)
 		    arg.get("methodConstraints", null);
 	    MethodConstraints proxyCon = null;
-	    if (fap.server instanceof RemoteMethodControl && 
-		(proxyCon = ((RemoteMethodControl)fap.server).getConstraints()) != null) {
+	    if (server instanceof RemoteMethodControl &&
+		(proxyCon = ((RemoteMethodControl)server).getConstraints()) != null) {
 		// Constraints set during proxy deserialization.
 		return ConstrainableProxyUtil.reverseTranslateConstraints(
 			proxyCon, methodMapArray);
@@ -878,10 +884,10 @@ public class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializab
 	    /* Verify the server and its constraints */
             ConstrainableProxyUtil.verifyConsistentConstraints
                                                        (methodConstraints,
-                                                        fap.server,
+                                                        server,
                                                         methodMapArray);
 	    return methodConstraints;
-	}	
+	}
 	
 	ConstrainableFiddlerAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg, check(arg));

@@ -41,7 +41,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *
  */
 @AtomicSerial
-public class EventLease extends RegistrarLease {
+public abstract class EventLease extends RegistrarLease {
 
     private static final long serialVersionUID = 2L;
     /** The type of the lease used in toString() calls. */
@@ -75,10 +75,16 @@ public class EventLease extends RegistrarLease {
 				  Uuid leaseID,
 				  long expiration)
     {
-	return (server instanceof RemoteMethodControl) ?
-	    new ConstrainableEventLease(
-		server, registrarID, eventID, leaseID, expiration, null, true) :
-	    new EventLease(server, registrarID, eventID, leaseID, expiration);
+	// Always constrainable; fail closed when the server was not exported
+	// with a constrainable endpoint.  The constrainable lease is the only
+	// concrete wire form (this class is abstract).
+	if (!(server instanceof RemoteMethodControl)) {
+	    throw new IllegalArgumentException(
+		"service must be exported with a constrainable endpoint: "
+		+ "server does not implement RemoteMethodControl");
+	}
+	return new ConstrainableEventLease(
+	    server, registrarID, eventID, leaseID, expiration, null, true);
     }
 
     private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{

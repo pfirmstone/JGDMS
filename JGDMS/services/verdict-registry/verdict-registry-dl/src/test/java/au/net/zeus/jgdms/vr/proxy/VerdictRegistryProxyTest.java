@@ -65,8 +65,8 @@ public class VerdictRegistryProxyTest {
 
     /**
      * Minimal mock that implements {@link VerdictRegistry} and
-     * {@link Administrable}.  Used to test the plain (non-constrainable)
-     * proxy path.
+     * {@link Administrable}.  Used to test the fail-closed factory path
+     * (a non-constrainable server is now rejected).
      */
     static class MockVrServer implements VerdictRegistry, Administrable {
 
@@ -175,6 +175,13 @@ public class VerdictRegistryProxyTest {
 
         @Override
         public RemoteMethodControl setConstraints(MethodConstraints constraints) {
+            // Return this for a no-op (null) constraint change so that the
+            // constrainable proxy stores this very stub — keeping getProxy()/
+            // getAdmin()/delegation identity assertions meaningful in tests.
+            if (constraints == null) {
+                this.appliedConstraints = null;
+                return this;
+            }
             return new MockRmcVrServer(adminObject, constraints);
         }
 
@@ -199,17 +206,30 @@ public class VerdictRegistryProxyTest {
         rmcServer   = new MockRmcVrServer("admin");
     }
 
+    /**
+     * Builds the constrainable proxy directly from an RMC server with null
+     * (no-op) constraints.  Because {@code MockRmcVrServer.setConstraints(null)}
+     * returns {@code this}, the proxy stores {@code server} itself, so identity
+     * assertions on the stored stub remain meaningful.
+     */
+    private static VerdictRegistryProxy.ConstrainableVerdictRegistryProxy constrainable(
+            MockRmcVrServer server, Uuid id) {
+        return new VerdictRegistryProxy.ConstrainableVerdictRegistryProxy(server, id, null);
+    }
+
+    // The constrainable proxy is a sibling of VerdictRegistryProxy (both extend
+    // AbstractSmartProxy), not a subclass, so tests hold it via that common type.
+
     // =========================================================================
-    // Factory method — type selection
+    // Factory method — always constrainable, fail closed
     // =========================================================================
 
-    @Test
-    public void testCreateReturnsPlainProxyForNonConstrainableServer() {
-        AbstractSmartProxy proxy = VerdictRegistryProxy.create(plainServer, serviceId);
-        assertTrue("create() with non-RMC server must return a VerdictRegistryProxy",
-                proxy instanceof VerdictRegistryProxy);
-        assertFalse("plain proxy must NOT be constrainable",
-                proxy instanceof RemoteMethodControl);
+    @Test(expected = IllegalArgumentException.class)
+    public void testCreateFailsClosedForNonConstrainableServer() {
+        // The base proxy is abstract; a non-RMC server was not exported with a
+        // constrainable endpoint, so create() must reject it rather than return
+        // a plain proxy that would silently drop the client's constraints.
+        VerdictRegistryProxy.create(plainServer, serviceId);
     }
 
     @Test
@@ -217,22 +237,22 @@ public class VerdictRegistryProxyTest {
         AbstractSmartProxy proxy = VerdictRegistryProxy.create(rmcServer, serviceId);
         assertTrue("create() with RMC server must return a ConstrainableVerdictRegistryProxy",
                 proxy instanceof VerdictRegistryProxy.ConstrainableVerdictRegistryProxy);
-        assertTrue("constrainable proxy must implement RemoteMethodControl",
+        assertTrue("the only concrete proxy form must implement RemoteMethodControl",
                 proxy instanceof RemoteMethodControl);
     }
 
     // =========================================================================
-    // Construction guard tests
+    // Construction guard tests (on the constrainable proxy — the only form)
     // =========================================================================
 
     @Test(expected = IllegalArgumentException.class)
     public void testConstructionNullServerThrowsIAE() {
-        new VerdictRegistryProxy(null, serviceId);
+        new VerdictRegistryProxy.ConstrainableVerdictRegistryProxy(null, serviceId, null);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testConstructionNullProxyIdThrowsIAE() {
-        new VerdictRegistryProxy(plainServer, null);
+        new VerdictRegistryProxy.ConstrainableVerdictRegistryProxy(rmcServer, null, null);
     }
 
     // =========================================================================
@@ -241,9 +261,9 @@ public class VerdictRegistryProxyTest {
 
     @Test
     public void testGetProxyReturnsServerStub() {
-        VerdictRegistryProxy proxy = new VerdictRegistryProxy(plainServer, serviceId);
-        assertSame("getProxy() must return the original server stub",
-                plainServer, proxy.getProxy());
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy proxy = constrainable(rmcServer, serviceId);
+        assertSame("getProxy() must return the (null-constrained) server stub",
+                rmcServer, proxy.getProxy());
     }
 
     // =========================================================================
@@ -252,7 +272,7 @@ public class VerdictRegistryProxyTest {
 
     @Test
     public void testGetReferentUuidReturnsConstructorArgument() {
-        VerdictRegistryProxy proxy = new VerdictRegistryProxy(plainServer, serviceId);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy proxy = constrainable(rmcServer, serviceId);
         assertEquals("getReferentUuid() must return the UUID supplied at construction",
                 serviceId, proxy.getReferentUuid());
     }
@@ -263,23 +283,23 @@ public class VerdictRegistryProxyTest {
 
     @Test
     public void testTwoProxiesWithSameUuidAreEqual() {
-        VerdictRegistryProxy a = new VerdictRegistryProxy(new MockVrServer("adminA"), serviceId);
-        VerdictRegistryProxy b = new VerdictRegistryProxy(new MockVrServer("adminB"), serviceId);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy a = constrainable(new MockRmcVrServer("adminA"), serviceId);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy b = constrainable(new MockRmcVrServer("adminB"), serviceId);
         assertEquals("proxies wrapping the same service UUID must be equal", a, b);
     }
 
     @Test
     public void testTwoProxiesWithSameUuidHaveSameHashCode() {
-        VerdictRegistryProxy a = new VerdictRegistryProxy(new MockVrServer("adminA"), serviceId);
-        VerdictRegistryProxy b = new VerdictRegistryProxy(new MockVrServer("adminB"), serviceId);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy a = constrainable(new MockRmcVrServer("adminA"), serviceId);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy b = constrainable(new MockRmcVrServer("adminB"), serviceId);
         assertEquals("proxies wrapping the same service UUID must share a hash code",
                 a.hashCode(), b.hashCode());
     }
 
     @Test
     public void testProxiesWithDifferentUuidsAreNotEqual() {
-        VerdictRegistryProxy a = new VerdictRegistryProxy(plainServer, UuidFactory.generate());
-        VerdictRegistryProxy b = new VerdictRegistryProxy(plainServer, UuidFactory.generate());
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy a = constrainable(rmcServer, UuidFactory.generate());
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy b = constrainable(rmcServer, UuidFactory.generate());
         assertFalse("proxies with distinct UUIDs must not be equal", a.equals(b));
     }
 
@@ -289,19 +309,19 @@ public class VerdictRegistryProxyTest {
 
     @Test
     public void testGetVerdictDelegatesToServer() throws RemoteException {
-        VerdictRegistryProxy proxy = new VerdictRegistryProxy(plainServer, serviceId);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy proxy = constrainable(rmcServer, serviceId);
         Set<Uri> urls = Collections.emptySet();
         proxy.getVerdict(urls);
         assertTrue("getVerdict() must delegate to the server stub",
-                plainServer.getVerdictCalled);
+                rmcServer.getVerdictCalled);
         assertSame("getVerdict() must pass the URL set unchanged to the server",
-                urls, plainServer.lastGetVerdictRequest);
+                urls, rmcServer.lastGetVerdictRequest);
     }
 
     @Test
     public void testGetVerdictReturnsServerResult() throws RemoteException {
         // Use a minimal RegistryVerdict stand-in — null is a valid return per the javadoc
-        VerdictRegistryProxy proxy = new VerdictRegistryProxy(plainServer, serviceId);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy proxy = constrainable(rmcServer, serviceId);
         RegistryVerdict result = proxy.getVerdict(Collections.<Uri>emptySet());
         assertNull("getVerdict() must return the server's response (null in this mock)",
                 result);
@@ -309,26 +329,26 @@ public class VerdictRegistryProxyTest {
 
     @Test
     public void testRegisterAnalysisEngineDelegatesToServer() throws RemoteException {
-        VerdictRegistryProxy proxy = new VerdictRegistryProxy(plainServer, serviceId);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy proxy = constrainable(rmcServer, serviceId);
         proxy.registerAnalysisEngine("engine-1", null, "SHA256withRSA");
         assertTrue("registerAnalysisEngine() must delegate to the server stub",
-                plainServer.registerEngineCalled);
+                rmcServer.registerEngineCalled);
     }
 
     @Test
     public void testRevokeAnalysisEngineDelegatesToServer() throws RemoteException {
-        VerdictRegistryProxy proxy = new VerdictRegistryProxy(plainServer, serviceId);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy proxy = constrainable(rmcServer, serviceId);
         proxy.revokeAnalysisEngine("engine-1");
         assertTrue("revokeAnalysisEngine() must delegate to the server stub",
-                plainServer.revokeEngineCalled);
+                rmcServer.revokeEngineCalled);
     }
 
     @Test
     public void testReportCrashDelegatesToServer() throws RemoteException {
-        VerdictRegistryProxy proxy = new VerdictRegistryProxy(plainServer, serviceId);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy proxy = constrainable(rmcServer, serviceId);
         proxy.reportCrash(null);
         assertTrue("reportCrash() must delegate to the server stub",
-                plainServer.reportCrashCalled);
+                rmcServer.reportCrashCalled);
     }
 
     // =========================================================================
@@ -338,8 +358,8 @@ public class VerdictRegistryProxyTest {
     @Test
     public void testGetAdminDelegatesToServer() throws RemoteException {
         Object adminObj = new Object();
-        MockVrServer server = new MockVrServer(adminObj);
-        VerdictRegistryProxy proxy = new VerdictRegistryProxy(server, serviceId);
+        MockRmcVrServer server = new MockRmcVrServer(adminObj);
+        VerdictRegistryProxy.ConstrainableVerdictRegistryProxy proxy = constrainable(server, serviceId);
         assertSame("getAdmin() must delegate to the server stub",
                 adminObj, proxy.getAdmin());
     }

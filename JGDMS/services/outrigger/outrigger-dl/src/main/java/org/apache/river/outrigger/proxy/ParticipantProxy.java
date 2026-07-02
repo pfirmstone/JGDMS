@@ -44,7 +44,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * @author Sun Microsystems, Inc.
  */
 @AtomicSerial
-public class ParticipantProxy implements TransactionParticipant, ReferentUuid,
+public abstract class ParticipantProxy implements TransactionParticipant, ReferentUuid,
 				  Serializable, ProxyAccessor
 {
     static final long serialVersionUID = 1L;

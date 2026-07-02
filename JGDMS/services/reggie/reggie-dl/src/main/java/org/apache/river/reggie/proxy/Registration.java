@@ -47,7 +47,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *
  */
 @AtomicSerial
-public class Registration implements ServiceRegistration, ReferentUuid, Serializable 
+public abstract class Registration implements ServiceRegistration, ReferentUuid, Serializable
 {
 
     private static final long serialVersionUID = 2L;
@@ -128,9 +128,15 @@ public class Registration implements ServiceRegistration, ReferentUuid, Serializ
      * whether given server implements RemoteMethodControl.
      */
     public static Registration getInstance(Registrar server, ServiceLease lease) {
-	return (server instanceof RemoteMethodControl) ?
-	    new ConstrainableRegistration(server, lease, null, true) :
-	    new Registration(server, lease);
+	// Always constrainable; fail closed when the server was not exported
+	// with a constrainable endpoint.  The constrainable proxy is the only
+	// concrete wire form (this class is abstract).
+	if (!(server instanceof RemoteMethodControl)) {
+	    throw new IllegalArgumentException(
+		"service must be exported with a constrainable endpoint: "
+		+ "server does not implement RemoteMethodControl");
+	}
+	return new ConstrainableRegistration(server, lease, null, true);
     }
 
     /**
@@ -141,13 +147,17 @@ public class Registration implements ServiceRegistration, ReferentUuid, Serializ
     public static Object getInstance(Object server, ServiceLease lease,
 	    MethodConstraints constraints) throws InvalidObjectException {
 	if (server instanceof Registrar){
-	    if (server instanceof RemoteMethodControl) {
-		ConstrainableProxyUtil.verifyConsistentConstraints(
-		constraints, server, methodMappings);
-		return new ConstrainableRegistration((Registrar)server, lease, constraints, false) ;
-	    }else{
-		return new Registration((Registrar)server, lease);
+	    // Always constrainable; fail closed when the server was not exported
+	    // with a constrainable endpoint.  The constrainable proxy is the only
+	    // concrete wire form (this class is abstract).
+	    if (!(server instanceof RemoteMethodControl)) {
+		throw new IllegalArgumentException(
+		    "service must be exported with a constrainable endpoint: "
+		    + "server does not implement RemoteMethodControl");
 	    }
+	    ConstrainableProxyUtil.verifyConsistentConstraints(
+	    constraints, server, methodMappings);
+	    return new ConstrainableRegistration((Registrar)server, lease, constraints, false) ;
 	}
 	throw new ClassCastException("server must be an instance of Registrar");
     }

@@ -51,7 +51,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * @author Sun Microsystems, Inc.
  */
 @AtomicSerial
-public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
+public abstract class SetProxy extends AbstractProxy implements LeaseRenewalSet {
     private static final long serialVersionUID = 2;
 
     /** 
@@ -80,15 +80,19 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
      * @param lease the lease set's lease
      */
     public static SetProxy create(NormServer server, Uuid id, Lease lease) {
-	if (server instanceof RemoteMethodControl) {
-	    return new ConstrainableSetProxy(server, id, lease, null);
-	} else {
-	    return new SetProxy(server, id, lease);
+	// Always constrainable; fail closed when the server was not exported
+	// with a constrainable endpoint.  The constrainable proxy is the only
+	// concrete wire form (this class is abstract).
+	if (!(server instanceof RemoteMethodControl)) {
+	    throw new IllegalArgumentException(
+		"service must be exported with a constrainable endpoint: "
+		+ "server does not implement RemoteMethodControl");
 	}
+	return new ConstrainableSetProxy(server, id, lease, null);
     }
 
     /** Simple constructor. */
-    private SetProxy(NormServer server, Uuid id, Lease lease) {
+    SetProxy(NormServer server, Uuid id, Lease lease) {
 	super(server, id);
 	if (lease == null) {
 	    throw new NullPointerException("lease cannot be null");
@@ -526,26 +530,29 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 	    this.server2 = server2;
 	}
 
-	private static MethodConstraints check(GetArg arg) 
+	private static MethodConstraints check(GetArg arg)
 		throws IOException, ClassNotFoundException {
-	    SetProxy sp = new SetProxy(arg);
-	    if (!(sp.server instanceof RemoteMethodControl)) {
+	    // Read the superclass fields directly rather than constructing a plain
+	    // SetProxy (now abstract); super(arg) still runs AbstractProxy checks.
+	    NormServer spServer = arg.get("server", null, NormServer.class);
+	    Object spLease = arg.get("ourLease", null);
+	    if (!(spServer instanceof RemoteMethodControl)) {
 		throw new InvalidObjectException(
 		    "server does not implement RemoteMethodControl");
-	    } else if (!(sp.ourLease instanceof ConstrainableLandlordLease)) {
+	    } else if (!(spLease instanceof ConstrainableLandlordLease)) {
 		throw new InvalidObjectException(
 		    "ourLease is not a ConstrainableLandlordLease");
 	    }
-	    MethodConstraints methodConstraints = 
+	    MethodConstraints methodConstraints =
 		    arg.get("methodConstraints", null, MethodConstraints.class);
 	    MethodConstraints proxyCon = null;
-	    if ((proxyCon = ((RemoteMethodControl)sp.server).getConstraints()) != null) {
+	    if ((proxyCon = ((RemoteMethodControl)spServer).getConstraints()) != null) {
 		// Constraints set during proxy deserialization.
 		return ConstrainableProxyUtil.reverseTranslateConstraints(
 			proxyCon, methodMap1);
 	    }
 	    ConstrainableProxyUtil.verifyConsistentConstraints(
-		methodConstraints, sp.server, methodMap1);
+		methodConstraints, spServer, methodMap1);
 	    return methodConstraints;
 	}
 

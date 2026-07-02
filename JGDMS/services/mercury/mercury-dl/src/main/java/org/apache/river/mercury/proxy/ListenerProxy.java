@@ -58,7 +58,7 @@ import org.apache.river.api.io.Valid;
  * @since 1.1
  */
 @AtomicSerial
-public class ListenerProxy implements RemoteEventListener, Serializable,
+public abstract class ListenerProxy implements RemoteEventListener, Serializable,
 	ReferentUuid, ProxyAccessor {
 
     private static final long serialVersionUID = 2L;
@@ -100,11 +100,15 @@ public class ListenerProxy implements RemoteEventListener, Serializable,
     static ListenerProxy create(Uuid id, MailboxBackEnd server) {
 	if (server == null || id == null)
             throw new IllegalArgumentException("Cannot accept null arguments");
-        if (server instanceof RemoteMethodControl) {
-            return new ConstrainableListenerProxy(server, id, null);
-        } else {
-            return new ListenerProxy(server, id);
+        // Always constrainable; fail closed when the server was not exported
+        // with a constrainable endpoint.  The constrainable proxy is the only
+        // concrete wire form (this class is abstract).
+        if (!(server instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                "service must be exported with a constrainable endpoint: "
+                + "server does not implement RemoteMethodControl");
         }
+        return new ConstrainableListenerProxy(server, id, null);
     }
 
     ListenerProxy(GetArg arg) throws IOException, ClassNotFoundException {
@@ -120,7 +124,7 @@ public class ListenerProxy implements RemoteEventListener, Serializable,
     }
 
     /** Simple constructor */
-    private ListenerProxy(MailboxBackEnd ref, Uuid regID) {
+    ListenerProxy(MailboxBackEnd ref, Uuid regID) {
         server = ref;
         registrationID = regID;
     }
@@ -261,21 +265,23 @@ public class ListenerProxy implements RemoteEventListener, Serializable,
 	    super(arg);
 	    methodConstraints = constraints;
 	}
-	private static MethodConstraints check(GetArg arg) 
+	private static MethodConstraints check(GetArg arg)
 		throws IOException, ClassNotFoundException {
-	    ListenerProxy lp = new ListenerProxy(arg);
+	    // Read the superclass field directly rather than constructing a plain
+	    // ListenerProxy (now abstract); super(arg) still runs its validation.
+	    MailboxBackEnd server = arg.get("server", null, MailboxBackEnd.class);
 	    MethodConstraints methodConstraints =
 		    arg.get("methodConstraints", null, MethodConstraints.class);
 	    MethodConstraints proxyCon = null;
-	    if (lp.server instanceof RemoteMethodControl && 
-		(proxyCon = ((RemoteMethodControl)lp.server).getConstraints()) != null) {
+	    if (server instanceof RemoteMethodControl &&
+		(proxyCon = ((RemoteMethodControl)server).getConstraints()) != null) {
 		// Constraints set during proxy deserialization.
 		return ConstrainableProxyUtil.reverseTranslateConstraints(
 			proxyCon, methodMap1);
 	    }
 	    /* Verify the server and its constraints */
             ConstrainableProxyUtil.verifyConsistentConstraints(methodConstraints,
-                                                        lp.server,
+                                                        server,
                                                         methodMap1);
 	    return methodConstraints;
 	}

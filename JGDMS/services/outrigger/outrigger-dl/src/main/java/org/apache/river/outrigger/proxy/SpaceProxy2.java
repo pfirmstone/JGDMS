@@ -74,7 +74,7 @@ import org.apache.river.landlord.LandlordLease;
  */
 // @see OutriggerSpace
 @AtomicSerial
-public class SpaceProxy2 implements TupleSpace, Administrable, ReferentUuid,
+public abstract class SpaceProxy2 implements TupleSpace, Administrable, ReferentUuid,
 			     Serializable, ProxyAccessor
 {
     static final long serialVersionUID = 1L;

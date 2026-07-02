@@ -51,8 +51,8 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
  * @since 1.1
  */
 @AtomicSerial
-public class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin, 
-    Serializable, ReferentUuid, ProxyAccessor 
+public abstract class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
+    Serializable, ReferentUuid, ProxyAccessor
 {
 
     private static final long serialVersionUID = 2L;
@@ -85,23 +85,30 @@ public class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
     }
 
     /**
-     * Creates an administrable transaction manager proxy,
-     * returning an instance
-     * that implements RemoteMethodControl if the server does too.
+     * Creates an administrable transaction manager proxy.
+     *
+     * <p>Always returns the constrainable {@link ConstrainableTxnMgrAdminProxy},
+     * and fails closed if the server proxy does not implement
+     * {@link RemoteMethodControl}: producing a plain proxy would silently drop
+     * the client's security constraints.  The constrainable proxy is therefore
+     * the only concrete wire form (this class is {@code abstract}).
      *
      * @param txnMgr the server proxy
      * @param id the ID of the server
+     * @throws IllegalArgumentException if {@code txnMgr} does not implement
+     *         {@link RemoteMethodControl}
      */
     public static TxnMgrAdminProxy create(TxnManager txnMgr, Uuid id) {
-        if (txnMgr instanceof RemoteMethodControl) {
-            return new ConstrainableTxnMgrAdminProxy(txnMgr, id, null);
-        } else {
-            return new TxnMgrAdminProxy(txnMgr, id);
+        if (!(txnMgr instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                "service must be exported with a constrainable endpoint: "
+                + "server does not implement RemoteMethodControl");
         }
+        return new ConstrainableTxnMgrAdminProxy(txnMgr, id, null);
     }
 
     /** Simple constructor. */
-    private TxnMgrAdminProxy(TxnManager server, Uuid serviceProxyID) {
+    TxnMgrAdminProxy(TxnManager server, Uuid serviceProxyID) {
 	this.server = server;
 	this.proxyID = serviceProxyID;
     }
@@ -297,11 +304,14 @@ public class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
 	    super(check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) 
+	private static GetArg check(GetArg arg)
 		throws IOException, ClassNotFoundException{
-	    TxnMgrAdminProxy p = new TxnMgrAdminProxy(arg);
+	    // Validate the superclass field directly from the stream rather than
+	    // constructing a plain TxnMgrAdminProxy (which is now abstract).  The
+	    // super(arg) chain still runs TxnMgrAdminProxy(GetArg)'s own checks.
+	    Object server = arg.get("server", null, TxnManager.class);
 	    // Verify that the server implements RemoteMethodControl
-            if( !(p.server instanceof RemoteMethodControl) ) {
+            if( !(server instanceof RemoteMethodControl) ) {
                 throw new InvalidObjectException
                               ("TxnMgrAdminProxy.readObject failure - server "
                                +"does not implement RemoteMethodControl");

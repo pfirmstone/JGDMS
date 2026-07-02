@@ -66,7 +66,7 @@ import org.apache.river.proxy.MarshalledWrapper;
  *
  */
 @AtomicSerial
-public class RegistrarProxy 
+public abstract class RegistrarProxy
     implements ServiceRegistrar, SafeServiceRegistrar, ProxyAccessor, Administrable, ReferentUuid, Serializable
 {
     private static final long serialVersionUID = 2L;
@@ -107,9 +107,15 @@ public class RegistrarProxy
     public static RegistrarProxy getInstance(Registrar server,
 				      ServiceID registrarID)
     {
-	return (server instanceof RemoteMethodControl) ?
-	    new ConstrainableRegistrarProxy(server, registrarID, null) :
-	    new RegistrarProxy(server, registrarID);
+	// Always constrainable; fail closed when the server was not exported
+	// with a constrainable endpoint.  The constrainable proxy is the only
+	// concrete wire form (this class is abstract).
+	if (!(server instanceof RemoteMethodControl)) {
+	    throw new IllegalArgumentException(
+		"service must be exported with a constrainable endpoint: "
+		+ "server does not implement RemoteMethodControl");
+	}
+	return new ConstrainableRegistrarProxy(server, registrarID, null);
     }
 
     private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{

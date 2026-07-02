@@ -36,7 +36,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * Outrigger's implementation of <code>AvailabilityEvent</code>
  */
 @AtomicSerial
-public class OutriggerAvailabilityEvent extends AvailabilityEvent implements ProxyAccessor {
+public abstract class OutriggerAvailabilityEvent extends AvailabilityEvent implements ProxyAccessor {
     private static final long serialVersionUID = 1L;
 
     /** The entry that triggered the event */

@@ -805,19 +805,23 @@ public class OutriggerServerImpl
                             log.uuidOp(topUuid);
                     }		
 
-                    if (ourRemoteRef instanceof RemoteMethodControl) {
-                        spaceProxy = new ConstrainableSpaceProxy2(ourRemoteRef, topUuid,
-                            maxServerQueryTimeout, null);
-                        adminProxy = 
-                            new ConstrainableAdminProxy(ourRemoteRef, topUuid, null);
-                        participantProxy =
-                            new ConstrainableParticipantProxy(ourRemoteRef, topUuid, null);
-                    } else {
-                        spaceProxy = new SpaceProxy2(ourRemoteRef, topUuid, 
-                                                     maxServerQueryTimeout);
-                        adminProxy = new AdminProxy(ourRemoteRef, topUuid);
-                        participantProxy = new ParticipantProxy(ourRemoteRef, topUuid);
+                    // Always constrainable; fail closed when the server was not
+                    // exported with a constrainable endpoint.  The constrainable
+                    // proxies are the only concrete wire forms (their plain bases
+                    // are abstract), so a client can never be handed a proxy that
+                    // silently dropped its security constraints.
+                    if (!(ourRemoteRef instanceof RemoteMethodControl)) {
+                        throw new IllegalStateException(
+                            "service must be exported with a constrainable "
+                            + "endpoint: server does not implement "
+                            + "RemoteMethodControl");
                     }
+                    spaceProxy = new ConstrainableSpaceProxy2(ourRemoteRef, topUuid,
+                        maxServerQueryTimeout, null);
+                    adminProxy =
+                        new ConstrainableAdminProxy(ourRemoteRef, topUuid, null);
+                    participantProxy =
+                        new ConstrainableParticipantProxy(ourRemoteRef, topUuid, null);
 
                     leaseFactory = new LeaseFactory(ourRemoteRef, topUuid);
 

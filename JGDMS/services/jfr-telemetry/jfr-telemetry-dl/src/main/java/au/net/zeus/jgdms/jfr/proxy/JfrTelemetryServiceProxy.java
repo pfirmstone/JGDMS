@@ -51,52 +51,62 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  */
 @AtomicSerial
 @Stateless  // no own serialized state; server + proxyID live on AbstractSmartProxy
-public class JfrTelemetryServiceProxy
+public abstract class JfrTelemetryServiceProxy
         extends AbstractSmartProxy
         implements JfrTelemetryService {
 
     private static final long serialVersionUID = 1L;
 
     /**
-     * Factory method — returns a {@link ConstrainableJfrTelemetryServiceProxy}
-     * when {@code server} implements {@link RemoteMethodControl}, otherwise a
-     * plain {@code JfrTelemetryServiceProxy}.
+     * Factory method — ALWAYS returns a
+     * {@link ConstrainableJfrTelemetryServiceProxy}, and fails closed when the
+     * server stub does not implement {@link RemoteMethodControl}.  This class is
+     * {@code abstract} so the constrainable form is the only concrete wire proxy
+     * — a client that requested Integrity/ServerAuthentication/Confidentiality
+     * can never be handed a plain proxy that silently dropped them.
      *
      * @param server  the remote server stub; must be non-null
      * @param proxyID the service's stable unique identifier; must be non-null
-     * @return the appropriate proxy instance
+     * @return the constrainable proxy instance
+     * @throws IllegalArgumentException if {@code server} does not implement
+     *         {@link RemoteMethodControl}
      */
     public static AbstractSmartProxy create(JfrTelemetryService server,
                                             Uuid proxyID) {
-        if (server instanceof RemoteMethodControl) {
-            // Preserve the constraints already configured on the exported stub;
-            // passing null would call setConstraints(null) and discard them.
-            MethodConstraints serverConstraints =
-                    ((RemoteMethodControl) server).getConstraints();
-            return new ConstrainableJfrTelemetryServiceProxy(
-                    server, proxyID, serverConstraints);
+        if (!(server instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                    "service must be exported with a constrainable endpoint: "
+                    + "server does not implement RemoteMethodControl");
         }
-        return new JfrTelemetryServiceProxy(server, proxyID);
+        // Preserve the constraints already configured on the exported stub;
+        // passing null would call setConstraints(null) and discard them.
+        MethodConstraints serverConstraints =
+                ((RemoteMethodControl) server).getConstraints();
+        return new ConstrainableJfrTelemetryServiceProxy(
+                server, proxyID, serverConstraints);
     }
 
     /**
-     * Creates a new proxy wrapping the given server stub.
+     * Creates a new proxy wrapping the given server stub.  Only invoked by
+     * subclass constructors — this class is abstract.
      *
      * @param server  the remote server stub; must be non-null
      * @param proxyID the service's stable unique identifier; must be non-null
      */
-    public JfrTelemetryServiceProxy(JfrTelemetryService server, Uuid proxyID) {
+    protected JfrTelemetryServiceProxy(JfrTelemetryService server, Uuid proxyID) {
         super(server, proxyID);
     }
 
     /**
-     * {@link AtomicSerial} deserialization constructor.
+     * {@link AtomicSerial} deserialization constructor.  Only chained to by the
+     * concrete subclass — this class is abstract and is never itself a wire
+     * instance.
      *
      * @param arg the deserialization argument bag
      * @throws IOException            if deserialization validation fails
      * @throws ClassNotFoundException if a required class cannot be found
      */
-    public JfrTelemetryServiceProxy(GetArg arg)
+    protected JfrTelemetryServiceProxy(GetArg arg)
             throws IOException, ClassNotFoundException {
         super(arg);
     }

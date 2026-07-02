@@ -214,23 +214,25 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
     }
     
     private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
-	SpaceProxy2 sp2 = new SpaceProxy2(arg);
+	// Read the superclass field directly rather than constructing a plain
+	// SpaceProxy2 (now abstract); super(arg) still runs its validation.
+	Object space = arg.get("space", null, OutriggerServer.class);
 	MethodConstraints methodConstraints = arg.get("methodConstraints", null, MethodConstraints.class);
 	MethodConstraints proxyCon = null;
-	if (sp2.space instanceof RemoteMethodControl && 
-	    (proxyCon = ((RemoteMethodControl)sp2.space).getConstraints()) != null) {
+	if (space instanceof RemoteMethodControl &&
+	    (proxyCon = ((RemoteMethodControl)space).getConstraints()) != null) {
 	    // Constraints set during proxy deserialization.
 	    return ConstrainableProxyUtil.reverseTranslateConstraints(
 		    proxyCon, methodMapArray);
 	}
-	/* Basic validation of space, spaceUuid, and 
+	/* Basic validation of space, spaceUuid, and
 	 * serverMaxServerQueryTimeout was performed by
 	 * SpaceProxy2.readObject(), we just need to verify than
 	 * space implements RemoteMethodControl and that it has
-	 * appropriate constraints. 
+	 * appropriate constraints.
 	 */
 	ConstrainableProxyUtil.verifyConsistentConstraints(
-	    methodConstraints, sp2.space, methodMapArray);
+	    methodConstraints, space, methodMapArray);
 	return methodConstraints;
     }
 

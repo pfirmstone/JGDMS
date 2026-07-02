@@ -60,7 +60,7 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
  * @since 1.1
  */
 @AtomicSerial
-public class TxnMgrProxy implements TransactionManager, Administrable, Serializable, 
+public abstract class TxnMgrProxy implements TransactionManager, Administrable, Serializable,
     ReferentUuid, ProxyAccessor
 {
 
@@ -94,22 +94,31 @@ public class TxnMgrProxy implements TransactionManager, Administrable, Serializa
     }
 
     /**
-     * Creates a transaction manager proxy, returning an instance
-     * that implements RemoteMethodControl if the server does too.
+     * Creates a transaction manager proxy.
+     *
+     * <p>Always returns the constrainable {@link ConstrainableTxnMgrProxy}, and
+     * fails closed if the server proxy does not implement
+     * {@link RemoteMethodControl}: a non-constrainable server was not exported
+     * with a constrainable endpoint, so producing a plain proxy would silently
+     * drop the client's security constraints.  The constrainable proxy is
+     * therefore the only concrete wire form (this class is {@code abstract}).
      *
      * @param txnMgr the server proxy
      * @param id the ID of the server
+     * @throws IllegalArgumentException if {@code txnMgr} does not implement
+     *         {@link RemoteMethodControl}
      */
     public static TxnMgrProxy create(TxnManager txnMgr, Uuid id) {
-        if (txnMgr instanceof RemoteMethodControl) {
-            return new ConstrainableTxnMgrProxy(check(txnMgr, id), id, null);
-        } else {
-            return new TxnMgrProxy(check(txnMgr, id), id);
+        if (!(txnMgr instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                "service must be exported with a constrainable endpoint: "
+                + "server does not implement RemoteMethodControl");
         }
+        return new ConstrainableTxnMgrProxy(check(txnMgr, id), id, null);
     }
 
     /** Convenience constructor. */
-    private TxnMgrProxy(TxnManager txnMgr, Uuid id) {
+    TxnMgrProxy(TxnManager txnMgr, Uuid id) {
 	this.backend = txnMgr;
 	this.proxyID = id;
     }
@@ -289,11 +298,14 @@ public class TxnMgrProxy implements TransactionManager, Administrable, Serializa
 	    super(check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) 
+	private static GetArg check(GetArg arg)
 		throws IOException, ClassNotFoundException {
-	    TxnMgrProxy p = new TxnMgrProxy(arg);
+	    // Validate the superclass fields directly from the stream rather than
+	    // constructing a plain TxnMgrProxy (which is now abstract).  The
+	    // super(arg) chain still runs TxnMgrProxy(GetArg)'s own validation.
+	    Object backend = arg.get("backend", null);
 	    // Verify that the server implements RemoteMethodControl
-            if( !(p.backend instanceof RemoteMethodControl) ) {
+            if( !(backend instanceof RemoteMethodControl) ) {
                 throw new InvalidObjectException(
 		    "ConstrainableTxnMgrProxy.readObject failure - backend " +
 		    "does not implement constrainable functionality ");

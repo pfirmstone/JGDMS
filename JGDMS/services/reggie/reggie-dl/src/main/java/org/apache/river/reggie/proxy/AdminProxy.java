@@ -52,7 +52,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *
  */
 @AtomicSerial
-public class AdminProxy
+public abstract class AdminProxy
     implements DiscoveryAdmin, JoinAdmin, DestroyAdmin,
 	       ReferentUuid, Serializable
 {
@@ -172,9 +172,15 @@ public class AdminProxy
      * whether given server implements RemoteMethodControl.
      */
     public static AdminProxy getInstance(Registrar server, ServiceID registrarID) {
-	return (server instanceof RemoteMethodControl) ?
-	    new ConstrainableAdminProxy(server, registrarID, null) :
-	    new AdminProxy(server, registrarID);
+	// Always constrainable; fail closed when the server was not exported
+	// with a constrainable endpoint.  The constrainable proxy is the only
+	// concrete wire form (this class is abstract).
+	if (!(server instanceof RemoteMethodControl)) {
+	    throw new IllegalArgumentException(
+		"service must be exported with a constrainable endpoint: "
+		+ "server does not implement RemoteMethodControl");
+	}
+	return new ConstrainableAdminProxy(server, registrarID, null);
     }
 
     static MethodConstraints translateConstraints(MethodConstraints constraints){

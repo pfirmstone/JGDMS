@@ -58,8 +58,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * @since 1.1
  */ 
 @AtomicSerial
-public class Registration implements MailboxPullRegistration, 
-    Serializable, ReferentUuid, ProxyAccessor 
+public abstract class Registration implements MailboxPullRegistration,
+    Serializable, ReferentUuid, ProxyAccessor
 {
 
     private static final long serialVersionUID = 2L;
@@ -104,15 +104,19 @@ public class Registration implements MailboxPullRegistration,
     public static Registration create(Uuid id, MailboxBackEnd server, Lease lease) {
 	if (id == null || server == null || lease == null)
             throw new IllegalArgumentException("Cannot accept null arguments");
-	if (server instanceof RemoteMethodControl) {
-	    return new ConstrainableRegistration(id, server, lease, null);
-	} else {
-	    return new Registration(id, server, ListenerProxy.create(id, server), lease);
+	// Always constrainable; fail closed when the server was not exported
+	// with a constrainable endpoint.  The constrainable proxy is the only
+	// concrete wire form (this class is abstract).
+	if (!(server instanceof RemoteMethodControl)) {
+	    throw new IllegalArgumentException(
+		"service must be exported with a constrainable endpoint: "
+		+ "server does not implement RemoteMethodControl");
 	}
+	return new ConstrainableRegistration(id, server, lease, null);
     }
 
     /** Convenience constructor */
-    private Registration(Uuid id, MailboxBackEnd srv, ListenerProxy proxy, Lease l) {
+    Registration(Uuid id, MailboxBackEnd srv, ListenerProxy proxy, Lease l) {
         registrationID = id;
         mailbox = srv;
         listener = proxy;
@@ -377,12 +381,18 @@ public class Registration implements MailboxPullRegistration,
 	}
 	
 	private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
-	    Registration r = new Registration(arg);
-	    MethodConstraints methodConstraints = (MethodConstraints) 
+	    // Read the superclass fields directly rather than constructing a
+	    // plain Registration (now abstract).  super(arg) still runs
+	    // Registration(GetArg)'s own field validation.
+	    MailboxBackEnd rMailbox = arg.get("mailbox", null, MailboxBackEnd.class);
+	    Lease rLease = arg.get("lease", null, Lease.class);
+	    ListenerProxy rListener = arg.get("listener", null, ListenerProxy.class);
+	    Uuid rRegistrationID = arg.get("registrationID", null, Uuid.class);
+	    MethodConstraints methodConstraints = (MethodConstraints)
 		    arg.get("methodConstraints", null, MethodConstraints.class);
 	    MethodConstraints proxyCon = null;
-	    if (r.mailbox instanceof RemoteMethodControl && 
-		(proxyCon = ((RemoteMethodControl)r.mailbox).getConstraints()) != null) {
+	    if (rMailbox instanceof RemoteMethodControl &&
+		(proxyCon = ((RemoteMethodControl)rMailbox).getConstraints()) != null) {
 		// Constraints set during proxy deserialization.
 		methodConstraints = ConstrainableProxyUtil.reverseTranslateConstraints(
 			proxyCon, methodMap1);
@@ -390,17 +400,17 @@ public class Registration implements MailboxPullRegistration,
 		/* Verify the server and its constraints */
 		ConstrainableProxyUtil.verifyConsistentConstraints(
 							methodConstraints,
-                                                        r.mailbox,
+                                                        rMailbox,
                                                         methodMap1);
 	    }
-            if( !(r.lease instanceof ConstrainableLandlordLease) ) {
+            if( !(rLease instanceof ConstrainableLandlordLease) ) {
                 throw new InvalidObjectException
                                 ("Registration.readObject failure - "
                                  +"lease is not an instance of "
                                  +"ConstrainableLandlordLease");
             }//endif
 
-            if( !(r.listener instanceof ListenerProxy.ConstrainableListenerProxy) ) {
+            if( !(rListener instanceof ListenerProxy.ConstrainableListenerProxy) ) {
                 throw new InvalidObjectException
                                 ("Registration.readObject failure - "
                                  +"listener is not an instance of "
@@ -408,15 +418,15 @@ public class Registration implements MailboxPullRegistration,
             }//endif
 
             /* Verify listener's ID */
-            if(!r.registrationID.equals(
-	       ((ListenerProxy.ConstrainableListenerProxy)r.listener).registrationID)) 
+            if(!rRegistrationID.equals(
+	       ((ListenerProxy.ConstrainableListenerProxy)rListener).registrationID))
             {
                 throw new InvalidObjectException
                                         ("Registration.readObject "
                                          +"failure - listener ID "
                                          +"is not equal to "
                                          +"proxy ID");
-            }   
+            }
 	    return methodConstraints;
 	}
 	

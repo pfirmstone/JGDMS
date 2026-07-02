@@ -52,7 +52,7 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
  *
  */
 @AtomicSerial
-public class FiddlerProxy implements Administrable, LookupDiscoveryService,
+public abstract class FiddlerProxy implements Administrable, LookupDiscoveryService,
                               ReferentUuid, ProxyAccessor, Serializable
 {
     private static final long serialVersionUID = 2L;
@@ -104,11 +104,15 @@ public class FiddlerProxy implements Administrable, LookupDiscoveryService,
     public static FiddlerProxy createServiceProxy(Fiddler server,
                                                   Uuid proxyID)
     {
-        if(server instanceof RemoteMethodControl) {
-            return new ConstrainableFiddlerProxy(server, proxyID, null);
-        } else {
-            return new FiddlerProxy(server, proxyID);
+        // Always constrainable; fail closed when the server was not exported
+        // with a constrainable endpoint.  The constrainable proxy is the only
+        // concrete wire form (this class is abstract).
+        if(!(server instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                "service must be exported with a constrainable endpoint: "
+                + "server does not implement RemoteMethodControl");
         }//endif
+        return new ConstrainableFiddlerProxy(server, proxyID, null);
     }//end createServiceProxy
 
     /**
@@ -131,7 +135,7 @@ public class FiddlerProxy implements Administrable, LookupDiscoveryService,
      * @param proxyID the unique identifier assigned by the service to each
      *                instance of this proxy
      */
-    private FiddlerProxy(Fiddler server, Uuid proxyID) {
+    FiddlerProxy(Fiddler server, Uuid proxyID) {
 	this.server  = server;
 	this.proxyID = proxyID;
     }//end constructor
@@ -480,20 +484,22 @@ public class FiddlerProxy implements Administrable, LookupDiscoveryService,
 	 * @throws IOException 
 	 */
 	private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
-	    FiddlerProxy fp = new FiddlerProxy(arg);
-	    MethodConstraints methodConstraints 
+	    // Read the superclass field directly rather than constructing a plain
+	    // FiddlerProxy (now abstract); super(arg) still runs its validation.
+	    Fiddler server = (Fiddler) arg.get("server", null);
+	    MethodConstraints methodConstraints
 		    = (MethodConstraints) arg.get("methodConstraints", null);
 	    /* Verify the server and its constraints */
 	    MethodConstraints proxyCon = null;
-	    if (fp.server instanceof RemoteMethodControl && 
-		(proxyCon = ((RemoteMethodControl)fp.server).getConstraints()) != null) {
+	    if (server instanceof RemoteMethodControl &&
+		(proxyCon = ((RemoteMethodControl)server).getConstraints()) != null) {
 		// Constraints set during proxy deserialization.
 		return ConstrainableProxyUtil.reverseTranslateConstraints(
 			proxyCon, methodMapArray);
 	    }
             ConstrainableProxyUtil.verifyConsistentConstraints
                                                        (methodConstraints,
-                                                        fp.server,
+                                                        server,
                                                         methodMapArray);
 	    return methodConstraints;
 	}

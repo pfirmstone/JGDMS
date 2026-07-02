@@ -45,7 +45,7 @@ import org.apache.river.admin.AdminIterator;
  * @see JavaSpaceAdmin 
  */
 @AtomicSerial
-public class AdminProxy implements JavaSpaceAdmin, ReferentUuid, Serializable {
+public abstract class AdminProxy implements JavaSpaceAdmin, ReferentUuid, Serializable {
     private static final long serialVersionUID = 1L;
     
     /** Reference to the actual remote admin object. */

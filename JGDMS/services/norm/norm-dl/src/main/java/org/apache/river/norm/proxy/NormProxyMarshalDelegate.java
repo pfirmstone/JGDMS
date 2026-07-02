@@ -18,6 +18,7 @@
 package org.apache.river.norm.proxy;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -97,14 +98,19 @@ public final class NormProxyMarshalDelegate implements MarshalDelegate {
     @Override
     public Object create(Class<?> c, GetArg arg) throws IOException, ClassNotFoundException {
         // AbstractProxy is abstract -> never a concrete leaf -> no create.
-        if (c == SetProxy.class)              return new SetProxy(arg);
         if (c == ConstrainableSetProxy.class) return new ConstrainableSetProxy(arg);
         if (c == GetLeasesResult.class)       return new GetLeasesResult(arg);
         if (c == ProxyVerifier.class)         return new ProxyVerifier(arg);
-        if (c == AdminProxy.class)            return new AdminProxy(arg);
         if (c == ConstrainableAdminProxy.class) return new ConstrainableAdminProxy(arg);
-        if (c == NormProxy.class)             return new NormProxy(arg);
         if (c == ConstrainableNormProxy.class) return new ConstrainableNormProxy(arg);
+        // SetProxy / AdminProxy / NormProxy are abstract: never a wire leaf,
+        // only the superclass slice of a Constrainable* leaf above.  A stream
+        // naming one as the leaf is malformed (a downgrade attempt) -> fail closed.
+        if (c == SetProxy.class || c == AdminProxy.class || c == NormProxy.class) {
+            throw new InvalidObjectException(
+                "abstract base proxy " + c.getName()
+                + " cannot be a wire leaf; expected a Constrainable* subclass");
+        }
         throw new IllegalArgumentException(unhandled(c));
     }
 

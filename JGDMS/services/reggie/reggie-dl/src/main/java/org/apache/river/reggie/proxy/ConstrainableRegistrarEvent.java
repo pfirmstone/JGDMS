@@ -95,11 +95,14 @@ public class ConstrainableRegistrarEvent extends RegistrarEvent implements Remot
     }
     
     private static MethodConstraints check(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException{
-	RegistrarEvent regEvent = new RegistrarEvent(arg);
-	Object server = regEvent.getSource();
+	// Read the event source directly rather than constructing a plain
+	// RegistrarEvent (now abstract); super(arg) still runs its validation.
+	// The "source" field is declared by the RemoteEvent ancestor and is
+	// flattened into this GetArg by the AtomicSerial codec.
+	Object server = arg.get("source", null);
 	if (server instanceof RemoteMethodControl){
 	    return ((RemoteMethodControl) server).getConstraints();
-	} 
+	}
 	throw new InvalidObjectException("Registrar not an instanceof RemoteMethodControl");
     }
 
