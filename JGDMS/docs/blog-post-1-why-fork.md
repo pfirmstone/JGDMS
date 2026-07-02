@@ -241,7 +241,11 @@ public class HelloServiceImpl extends AbstractJiniService
 `AbstractSmartProxy` and forwards each call to the server stub. `@AtomicSerial`
 puts it through JGDMS's validated, hardened deserialization (Part 2); `@Stateless`
 declares it holds no serialized state of its own — the server reference and proxy
-id live on the base class:
+id live on the base class. Its `create()` factory returns the nested
+**constrainable** variant when the exported stub implements `RemoteMethodControl`
+— which it does under the SSL endpoint in Step 3 — so the proxy a client actually
+receives itself implements `RemoteMethodControl` and can have its per-method wire
+constraints tightened:
 
 ```java
 // HelloServiceProxy.java — packaged in hello-service-dl.jar, downloaded to clients
@@ -266,6 +270,33 @@ public class HelloServiceProxy extends AbstractSmartProxy implements HelloServic
 
     @Override public String greet(String name) throws RemoteException {
         return ((HelloService) server).greet(name);
+    }
+
+    // The constrainable variant create() hands to clients when the stub is a
+    // RemoteMethodControl. Extending ConstrainableSmartProxy is what makes the
+    // proxy itself a RemoteMethodControl, so a client can call setConstraints(…)
+    // to tighten the per-method wire requirements on its own calls.
+    @AtomicSerial @Stateless
+    public static final class ConstrainableHelloServiceProxy
+            extends AbstractSmartProxy.ConstrainableSmartProxy
+            implements HelloService {
+
+        public ConstrainableHelloServiceProxy(HelloService server, Uuid proxyID,
+                                              MethodConstraints constraints) {
+            super(server, proxyID, constraints);
+        }
+
+        public ConstrainableHelloServiceProxy(GetArg arg)
+                throws IOException, ClassNotFoundException { super(arg); }
+
+        @Override public RemoteMethodControl setConstraints(MethodConstraints constraints) {
+            return new ConstrainableHelloServiceProxy(
+                    (HelloService) server, getReferentUuid(), constraints);
+        }
+
+        @Override public String greet(String name) throws RemoteException {
+            return ((HelloService) server).greet(name);
+        }
     }
 }
 ```
