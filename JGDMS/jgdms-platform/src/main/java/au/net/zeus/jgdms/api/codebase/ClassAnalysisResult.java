@@ -40,6 +40,8 @@ import org.apache.river.api.io.Valid;
  *       analysis,</li>
  *   <li>the {@link AtomicSerialVerdict} from the {@code @AtomicSerial}
  *       compliance check,</li>
+ *   <li>the {@link ConstrainableProxyVerdict} from the constrainable-smart-proxy
+ *       contract analysis,</li>
  *   <li>if {@link ClinitVerdict#BLOCKING}: the call chain from
  *       {@code <clinit>} to the blocking sink,</li>
  *   <li>if {@link ClinitVerdict#CYCLE}: the set of class names that form the
@@ -64,6 +66,7 @@ public final class ClassAnalysisResult implements Serializable {
     private static final String CLASS_NAME        = "className";
     private static final String CLINIT_VERDICT     = "clinitVerdict";
     private static final String ATOMIC_VERDICT     = "atomicVerdict";
+    private static final String PROXY_VERDICT       = "constrainableProxyVerdict";
     private static final String BLOCKING_CALL_PATH = "blockingCallPath";
     private static final String CYCLE_PARTICIPANTS  = "cycleParticipants";
 
@@ -72,6 +75,7 @@ public final class ClassAnalysisResult implements Serializable {
         new ObjectStreamField(CLASS_NAME,        String.class),
         new ObjectStreamField(CLINIT_VERDICT,     ClinitVerdict.class),
         new ObjectStreamField(ATOMIC_VERDICT,     AtomicSerialVerdict.class),
+        new ObjectStreamField(PROXY_VERDICT,       ConstrainableProxyVerdict.class),
         new ObjectStreamField(BLOCKING_CALL_PATH, String[].class),
         new ObjectStreamField(CYCLE_PARTICIPANTS,  String[].class)
     };
@@ -81,6 +85,7 @@ public final class ClassAnalysisResult implements Serializable {
             new SerialForm(CLASS_NAME,        String.class),
             new SerialForm(CLINIT_VERDICT,     ClinitVerdict.class),
             new SerialForm(ATOMIC_VERDICT,     AtomicSerialVerdict.class),
+            new SerialForm(PROXY_VERDICT,       ConstrainableProxyVerdict.class),
             new SerialForm(BLOCKING_CALL_PATH, String[].class),
             new SerialForm(CYCLE_PARTICIPANTS,  String[].class)
         };
@@ -90,6 +95,7 @@ public final class ClassAnalysisResult implements Serializable {
         arg.put(CLASS_NAME,        r.className);
         arg.put(CLINIT_VERDICT,     r.clinitVerdict);
         arg.put(ATOMIC_VERDICT,     r.atomicVerdict);
+        arg.put(PROXY_VERDICT,       r.constrainableProxyVerdict);
         arg.put(BLOCKING_CALL_PATH, r.blockingCallPath.toArray(new String[0]));
         arg.put(CYCLE_PARTICIPANTS,  r.cycleParticipants.toArray(new String[0]));
         arg.writeArgs();
@@ -102,6 +108,8 @@ public final class ClassAnalysisResult implements Serializable {
             throw new InvalidObjectException("clinitVerdict must not be null");
         if (arg.get(ATOMIC_VERDICT, null, AtomicSerialVerdict.class) == null)
             throw new InvalidObjectException("atomicVerdict must not be null");
+        if (arg.get(PROXY_VERDICT, null, ConstrainableProxyVerdict.class) == null)
+            throw new InvalidObjectException("constrainableProxyVerdict must not be null");
         String[] bcp = (String[]) arg.get(BLOCKING_CALL_PATH, null);
         if (bcp != null) Valid.nullElement(bcp, "blockingCallPath must not contain null elements");
         String[] cp = (String[]) arg.get(CYCLE_PARTICIPANTS, null);
@@ -117,6 +125,9 @@ public final class ClassAnalysisResult implements Serializable {
 
     /** Verdict from the {@code @AtomicSerial} compliance check. */
     private final AtomicSerialVerdict atomicVerdict;
+
+    /** Verdict from the constrainable-smart-proxy contract analysis. */
+    private final ConstrainableProxyVerdict constrainableProxyVerdict;
 
     /**
      * Call chain from {@code <clinit>} to the blocking sink, expressed as
@@ -147,6 +158,8 @@ public final class ClassAnalysisResult implements Serializable {
         className      = (String) arg.get(CLASS_NAME, null);
         clinitVerdict  = arg.get(CLINIT_VERDICT, null, ClinitVerdict.class);
         atomicVerdict  = arg.get(ATOMIC_VERDICT, null, AtomicSerialVerdict.class);
+        constrainableProxyVerdict =
+                arg.get(PROXY_VERDICT, null, ConstrainableProxyVerdict.class);
         String[] bcp   = (String[]) arg.get(BLOCKING_CALL_PATH, null);
         blockingCallPath = (bcp != null && bcp.length > 0)
                 ? Collections.unmodifiableList(toList(bcp))
@@ -163,6 +176,8 @@ public final class ClassAnalysisResult implements Serializable {
      * @param className        internal binary class name; must be non-null
      * @param clinitVerdict    {@code <clinit>} blocking verdict; must be non-null
      * @param atomicVerdict    {@code @AtomicSerial} compliance verdict; must be non-null
+     * @param constrainableProxyVerdict constrainable-smart-proxy contract
+     *                         verdict; must be non-null
      * @param blockingCallPath call chain to the blocking sink, or empty list;
      *                         must be non-null
      * @param cycleParticipants class names in the {@code <clinit>} cycle, or
@@ -172,17 +187,21 @@ public final class ClassAnalysisResult implements Serializable {
     public ClassAnalysisResult(String className,
                                 ClinitVerdict clinitVerdict,
                                 AtomicSerialVerdict atomicVerdict,
+                                ConstrainableProxyVerdict constrainableProxyVerdict,
                                 List<String> blockingCallPath,
                                 List<String> cycleParticipants) {
         if (className == null)         throw new NullPointerException("className");
         if (clinitVerdict == null)     throw new NullPointerException("clinitVerdict");
         if (atomicVerdict == null)     throw new NullPointerException("atomicVerdict");
+        if (constrainableProxyVerdict == null)
+            throw new NullPointerException("constrainableProxyVerdict");
         if (blockingCallPath == null)  throw new NullPointerException("blockingCallPath");
         if (cycleParticipants == null) throw new NullPointerException("cycleParticipants");
 
         this.className         = className;
         this.clinitVerdict     = clinitVerdict;
         this.atomicVerdict     = atomicVerdict;
+        this.constrainableProxyVerdict = constrainableProxyVerdict;
         this.blockingCallPath  = Collections.unmodifiableList(new ArrayList<String>(blockingCallPath));
         this.cycleParticipants = Collections.unmodifiableList(new ArrayList<String>(cycleParticipants));
     }
@@ -203,6 +222,15 @@ public final class ClassAnalysisResult implements Serializable {
      * @return never {@code null}
      */
     public AtomicSerialVerdict getAtomicVerdict() { return atomicVerdict; }
+
+    /**
+     * Returns the verdict from the constrainable-smart-proxy contract analysis.
+     *
+     * @return never {@code null}
+     */
+    public ConstrainableProxyVerdict getConstrainableProxyVerdict() {
+        return constrainableProxyVerdict;
+    }
 
     /**
      * Returns the call chain from {@code <clinit>} to the blocking sink.
@@ -227,7 +255,8 @@ public final class ClassAnalysisResult implements Serializable {
     public String toString() {
         return "ClassAnalysisResult{className='" + className
                 + "', clinit=" + clinitVerdict
-                + ", atomic=" + atomicVerdict + '}';
+                + ", atomic=" + atomicVerdict
+                + ", proxy=" + constrainableProxyVerdict + '}';
     }
 
     private static List<String> toList(String[] arr) {

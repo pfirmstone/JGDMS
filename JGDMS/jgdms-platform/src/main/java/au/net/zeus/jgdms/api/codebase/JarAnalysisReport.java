@@ -509,6 +509,10 @@ public final class JarAnalysisReport implements Serializable {
      *       {@code VALIDATION_ORDER}, {@code MISSING_SERIAL_FORM}, or
      *       {@code UNTYPED_GET}
      *       → {@link VerdictType#DANGEROUS}</li>
+     *   <li>Any {@link ConstrainableProxyVerdict#JAVA_SERIALIZATION} — a smart
+     *       proxy that implements {@code java.io.Serializable}, an unvalidated
+     *       deserialization path with no legitimate use on the wire
+     *       → {@link VerdictType#DANGEROUS}</li>
      *   <li>Any {@link ClinitVerdict#NATIVE_OPACITY},
      *       {@link ClinitVerdict#BLOCKING_GUARDED}, or
      *       {@link AtomicSerialVerdict#NOT_ANNOTATED}
@@ -517,6 +521,19 @@ public final class JarAnalysisReport implements Serializable {
      *       the blocking path is only reachable when the caller holds the
      *       guarding permission; a policy that denies that permission prevents
      *       the block.</li>
+     *   <li>The JAR's {@code META-INF/PERMISSIONS.LIST} requests a raw network
+     *       connection ({@link java.net.SocketPermission})
+     *       → {@link VerdictType#INCONCLUSIVE} (unless a DANGEROUS signal was
+     *       already found).  All JGDMS remote communication goes through JERI,
+     *       whose endpoint (platform code) holds the {@code SocketPermission}
+     *       under {@code doPrivileged}; a downloaded proxy JAR that asks to open
+     *       its own socket is therefore talking to the network outside that
+     *       machinery — <em>irrespective of whether it also ships a
+     *       constrainable proxy</em>, because a proper proxy leaves the transport
+     *       to JERI and would not need the permission itself.  This is not proof
+     *       of malice (a <em>trusted</em> codebase may have a legitimate reason,
+     *       e.g. an embedded-device integration), so it is not {@code DANGEROUS};
+     *       but it is not confirmed safe either and needs a trust decision.</li>
      *   <li>Otherwise → {@link VerdictType#SAFE}</li>
      * </ol>
      *
@@ -538,13 +555,42 @@ public final class JarAnalysisReport implements Serializable {
                     || av == AtomicSerialVerdict.UNTYPED_GET) {
                 return VerdictType.DANGEROUS;
             }
+            // A smart proxy that implements java.io.Serializable is an
+            // unvalidated deserialization path (readObject/default) with no
+            // legitimate use on the wire — dangerous outright.
+            if (r.getConstrainableProxyVerdict() == ConstrainableProxyVerdict.JAVA_SERIALIZATION) {
+                return VerdictType.DANGEROUS;
+            }
             if (cv == ClinitVerdict.NATIVE_OPACITY
                     || cv == ClinitVerdict.BLOCKING_GUARDED
                     || av == AtomicSerialVerdict.NOT_ANNOTATED) {
                 inconclusive = true;
             }
         }
+        // A JAR that asks to open its own network connection is talking to the
+        // network outside JERI (which normally owns socket access).  Legitimate
+        // for a trusted codebase, so not DANGEROUS — but never confirmed safe.
+        if (requestsRawNetworkConnection()) {
+            inconclusive = true;
+        }
         return inconclusive ? VerdictType.INCONCLUSIVE : VerdictType.SAFE;
+    }
+
+    /**
+     * Returns {@code true} if any {@code META-INF/PERMISSIONS.LIST} line requests
+     * a {@link java.net.SocketPermission} — i.e. the JAR asks to open a raw
+     * network connection of its own.
+     */
+    private boolean requestsRawNetworkConnection() {
+        final String prefix = "permission java.net.SocketPermission";
+        for (String line : declaredPermissions) {
+            if (line.startsWith(prefix)) {
+                if (line.length() == prefix.length()) return true;
+                char c = line.charAt(prefix.length());
+                if (c == ' ' || c == '\t' || c == '"' || c == ';') return true;
+            }
+        }
+        return false;
     }
 
     @Override

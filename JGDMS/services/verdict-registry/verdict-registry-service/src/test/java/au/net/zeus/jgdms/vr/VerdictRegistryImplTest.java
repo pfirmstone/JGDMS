@@ -37,6 +37,7 @@ import net.jini.id.UuidFactory;
 import au.net.zeus.jgdms.api.codebase.AtomicSerialVerdict;
 import au.net.zeus.jgdms.api.codebase.ClassAnalysisResult;
 import au.net.zeus.jgdms.api.codebase.ClinitVerdict;
+import au.net.zeus.jgdms.api.codebase.ConstrainableProxyVerdict;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
@@ -497,8 +498,12 @@ public class VerdictRegistryImplTest {
                 "e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
 
         String hash = "aa11";
+        // Two declared permissions + URLs, exercising signature verification over
+        // canonicalBytes().  Deliberately NOT a network permission: a
+        // SocketPermission would derive INCONCLUSIVE (JGDMS proxies leave the
+        // transport to JERI), which is neither published SAFE nor DANGEROUS.
         String[] perms = {
-            "permission java.net.SocketPermission \"*\", \"connect\";",
+            "permission java.util.PropertyPermission \"*\", \"read\";",
             "permission java.io.FilePermission \"/tmp/-\", \"read\";"
         };
         String[] urls = { "http://example.com/lib.jar" };
@@ -663,6 +668,7 @@ public class VerdictRegistryImplTest {
                 ? ClinitVerdict.BLOCKING : ClinitVerdict.CLEAN;
         results.put("com/example/Foo", new ClassAnalysisResult(
                 "com/example/Foo", cv, AtomicSerialVerdict.COMPLIANT,
+                ConstrainableProxyVerdict.NA,
                 Collections.<String>emptyList(),
                 Collections.<String>emptyList()));
 

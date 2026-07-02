@@ -51,11 +51,16 @@ public enum ConstrainableProxyVerdict {
     COMPLIANT,
 
     /**
-     * The class is a concrete smart proxy (a subclass of
-     * {@code AbstractSmartProxy}) that is <em>not</em> constrainable — it does
-     * not reach {@code RemoteMethodControl}, so a client cannot impose
+     * The class is a concrete smart proxy that is <em>not</em> constrainable —
+     * it does not reach {@code RemoteMethodControl}, so a client cannot impose
      * {@code Integrity}/{@code ServerAuthentication}/{@code Confidentiality} on
      * its calls and it cannot participate in proxy-trust verification.
+     *
+     * <p>The existence of a constrainable sibling or subclass does not clear this
+     * verdict: which concrete proxy a factory returns is a runtime decision on
+     * the server reference's type ({@code server instanceof RemoteMethodControl}),
+     * which static analysis cannot resolve — this concrete class can still be the
+     * instance on the wire, a live constraint-downgrade path.
      */
     NON_CONSTRAINABLE,
 
@@ -75,15 +80,37 @@ public enum ConstrainableProxyVerdict {
     CONSTRAINTS_NOT_APPLIED,
 
     /**
+     * The class is an in-scope smart proxy (it crosses the wire and holds a
+     * remote reference) that implements {@code java.io.Serializable} <em>at
+     * all</em> — whether or not it is also {@code @AtomicSerial}.
+     *
+     * <p>Plain Java serialization is the insecure deserialization path JGDMS
+     * uncouples from, and it is flagged outright: if the class is {@code
+     * @AtomicSerial} as well, the {@code java.io} path
+     * ({@code readObject}/default deserialization) is an unvalidated backdoor
+     * that bypasses the validating {@code (GetArg)} constructor; if it is not,
+     * there is no validation at all.  Either way {@code @AtomicSerial} must be
+     * the sole wire path, so {@code java.io.Serializable} is discouraged entirely
+     * on smart proxies.
+     */
+    JAVA_SERIALIZATION,
+
+    /**
      * The class bytes could not be parsed.  Reported fail-secure so the codebase
      * is refused rather than trusted by default.
      */
     UNREADABLE,
 
     /**
-     * The class is not a smart proxy (it neither subclasses
-     * {@code AbstractSmartProxy} nor implements {@code RemoteMethodControl}), so
-     * the constrainable-proxy contract does not apply.
+     * The constrainable-proxy contract does not apply to this class.  This
+     * covers: an interface; an <em>abstract</em> class (never the runtime type
+     * of a deserialized wire instance — its concrete leaves carry their own
+     * verdicts); a class that does not cross the wire (neither
+     * {@code @AtomicSerial}/{@code @Stateless} nor {@code Serializable}); and a
+     * connection-less value object that crosses the wire but holds no remote
+     * reference (no {@code Remote}-typed field, no {@code ProxyAccessor}, does
+     * not extend {@code AbstractSmartProxy}) — just deserialized data, not a
+     * smart proxy.
      */
     NA
 }

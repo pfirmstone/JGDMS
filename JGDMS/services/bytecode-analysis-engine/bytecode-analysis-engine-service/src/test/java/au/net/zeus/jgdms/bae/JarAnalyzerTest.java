@@ -24,12 +24,17 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import au.net.zeus.jgdms.api.codebase.AnalysisException;
 import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
+import au.net.zeus.jgdms.api.codebase.AtomicSerialVerdict;
 import au.net.zeus.jgdms.api.codebase.ClassAnalysisResult;
 import au.net.zeus.jgdms.api.codebase.ClinitVerdict;
+import au.net.zeus.jgdms.api.codebase.ConstrainableProxyVerdict;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
 import org.objectweb.asm.ClassWriter;
@@ -202,6 +207,80 @@ public class JarAnalyzerTest {
                 new AnalysisRequest(jarBytes, HASH, null));
         assertEquals(VerdictType.SAFE, report.deriveVerdictType());
         assertEquals(1, report.getDeclaredPermissions().length);
+    }
+
+    // =========================================================================
+    // PERMISSIONS.LIST — raw network connection without a constrainable proxy
+    // =========================================================================
+
+    /**
+     * A JAR whose {@code PERMISSIONS.LIST} requests a raw
+     * {@link java.net.SocketPermission} but contains no constrainable proxy is
+     * talking to the network outside JERI.  It is not proof of malice (a trusted
+     * codebase might legitimately do this), so the verdict is not
+     * {@link VerdictType#DANGEROUS} — but it is not confirmed safe either, so it
+     * must be {@link VerdictType#INCONCLUSIVE}.
+     */
+    @Test
+    public void testSocketPermission_NoConstrainableProxy_isInconclusive()
+            throws IOException, AnalysisException {
+        String content =
+                "permission java.net.SocketPermission \"host:1234\", \"connect\";\n";
+        byte[] jarBytes = buildJar(minimalClassBytes(), content);
+        JarAnalysisReport report = analyzer.analyze(
+                new AnalysisRequest(jarBytes, HASH, null));
+        assertEquals(VerdictType.INCONCLUSIVE, report.deriveVerdictType());
+    }
+
+    /**
+     * A {@link java.net.SocketPermission} request stays
+     * {@link VerdictType#INCONCLUSIVE} <em>even when</em> the JAR contains a
+     * constrainable proxy ({@link ConstrainableProxyVerdict#COMPLIANT}): JERI
+     * normally owns socket access under {@code doPrivileged}, so a proper proxy
+     * would leave the transport to JERI and not need the permission itself — the
+     * request is anomalous regardless of the proxy.  Verified directly against
+     * {@link JarAnalysisReport#deriveVerdictType()}.
+     */
+    @Test
+    public void testSocketPermission_EvenWithConstrainableProxy_isInconclusive() {
+        Map<String, ClassAnalysisResult> results =
+                new LinkedHashMap<String, ClassAnalysisResult>();
+        results.put("p/GoodProxy", new ClassAnalysisResult(
+                "p/GoodProxy",
+                ClinitVerdict.CLEAN,
+                AtomicSerialVerdict.COMPLIANT,
+                ConstrainableProxyVerdict.COMPLIANT,
+                Collections.<String>emptyList(),
+                Collections.<String>emptyList()));
+        JarAnalysisReport report = new JarAnalysisReport(
+                HASH, results, new byte[]{ 0 },
+                new String[]{ "permission java.net.SocketPermission \"*\", \"connect\";" },
+                new String[0]);
+        assertEquals(VerdictType.INCONCLUSIVE, report.deriveVerdictType());
+    }
+
+    /**
+     * A smart proxy that uses java.io serialization
+     * ({@link ConstrainableProxyVerdict#JAVA_SERIALIZATION}) escalates the whole
+     * report to {@link VerdictType#DANGEROUS} — an unvalidated deserialization
+     * path with no legitimate use, stronger than the raw-network signal
+     * (INCONCLUSIVE).  Verified directly against
+     * {@link JarAnalysisReport#deriveVerdictType()}.
+     */
+    @Test
+    public void testJavaSerializationProxy_isDangerous() {
+        Map<String, ClassAnalysisResult> results =
+                new LinkedHashMap<String, ClassAnalysisResult>();
+        results.put("p/SerialProxy", new ClassAnalysisResult(
+                "p/SerialProxy",
+                ClinitVerdict.CLEAN,
+                AtomicSerialVerdict.COMPLIANT,
+                ConstrainableProxyVerdict.JAVA_SERIALIZATION,
+                Collections.<String>emptyList(),
+                Collections.<String>emptyList()));
+        JarAnalysisReport report = new JarAnalysisReport(
+                HASH, results, new byte[]{ 0 }, new String[0], new String[0]);
+        assertEquals(VerdictType.DANGEROUS, report.deriveVerdictType());
     }
 
     // =========================================================================

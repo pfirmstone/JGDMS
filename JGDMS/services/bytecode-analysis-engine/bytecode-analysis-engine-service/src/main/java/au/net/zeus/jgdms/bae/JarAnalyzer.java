@@ -45,6 +45,7 @@ import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
 import au.net.zeus.jgdms.api.codebase.AtomicSerialVerdict;
 import au.net.zeus.jgdms.api.codebase.ClassAnalysisResult;
 import au.net.zeus.jgdms.api.codebase.ClinitVerdict;
+import au.net.zeus.jgdms.api.codebase.ConstrainableProxyVerdict;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 
 /**
@@ -70,6 +71,11 @@ import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
  *       sinks or unregistered native calls.</li>
  *   <li>{@link AtomicSerialComplianceVisitor#analyze} checks the class for
  *       {@code @AtomicSerial} protocol compliance.</li>
+ *   <li>{@link ConstrainableProxyComplianceVisitor#verdict} resolves the
+ *       constrainable-smart-proxy contract for the class against a whole-JAR
+ *       facts map ({@link ConstrainableProxyComplianceVisitor#extract extracted}
+ *       once up front), catching non-constrainable proxies and silent
+ *       {@code setConstraints} downgrades.</li>
  * </ol>
  * <p>After per-class analysis, {@link ClinitBlockingVisitor#detectClinitCycles}
  * is run once to find circular {@code <clinit>} dependency cycles; cycle
@@ -199,6 +205,19 @@ final class JarAnalyzer {
         Set<String> cyclicClasses =
                 ClinitBlockingVisitor.detectClinitCycles(callGraph);
 
+        // ---- Phase 2a': Extract constrainable-proxy facts (whole-JAR) --------
+        // Two-pass: gather per-class facts first, then resolve each verdict
+        // against the whole-JAR map (super-chain, in-JAR subclasses, the type a
+        // setConstraints override constructs).  Keyed by internal name, matching
+        // rawClasses / ClassAnalysisResult.
+        Map<String, ConstrainableProxyComplianceVisitor.ProxyClassFacts> proxyFacts =
+                new HashMap<String, ConstrainableProxyComplianceVisitor.ProxyClassFacts>(
+                        rawClasses.size());
+        for (Map.Entry<String, byte[]> e : rawClasses.entrySet()) {
+            proxyFacts.put(e.getKey(),
+                    ConstrainableProxyComplianceVisitor.extract(e.getValue()));
+        }
+
         // ---- Phase 2b: Per-class analysis ------------------------------------
         Map<String, ClassAnalysisResult> results =
                 new LinkedHashMap<String, ClassAnalysisResult>(
@@ -210,6 +229,7 @@ final class JarAnalyzer {
                     failedClass,
                     ClinitVerdict.BLOCKING,
                     AtomicSerialVerdict.MISSING_CONSTRUCTOR,
+                    ConstrainableProxyVerdict.UNREADABLE,
                     Collections.singletonList(failedClass + " (parse failure)"),
                     Collections.<String>emptyList()));
         }
@@ -260,6 +280,11 @@ final class JarAnalyzer {
             AtomicSerialVerdict atomicVerdict =
                     AtomicSerialComplianceVisitor.analyze(classBytes);
 
+            // Constrainable-smart-proxy contract (resolved against the whole JAR)
+            ConstrainableProxyVerdict proxyVerdict =
+                    ConstrainableProxyComplianceVisitor.verdict(
+                            proxyFacts.get(className), proxyFacts);
+
             // Build cycle participant list for CYCLE verdicts
             List<String> cycleParticipants;
             if (clinitResult.verdict == ClinitVerdict.CYCLE) {
@@ -272,6 +297,7 @@ final class JarAnalyzer {
                     className,
                     clinitResult.verdict,
                     atomicVerdict,
+                    proxyVerdict,
                     clinitResult.callPath,
                     cycleParticipants));
         }
