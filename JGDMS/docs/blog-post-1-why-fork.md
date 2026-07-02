@@ -147,6 +147,25 @@ proxy, generating a stable `ServiceID`, starting discovery, joining lookup
 services, and the `Administrable` / `JoinAdmin` / `DestroyAdmin` admin surface.
 Your subclass writes only two template methods plus the business logic.
 
+A **djinn** is a Jini federation — the live set of services and lookup services
+that have discovered one another on the network — and `AbstractJiniService` is
+what makes your service a well-behaved member of one without your writing a line
+of the discovery, join, or lease protocol. Its `start()` runs the whole join
+sequence: it drives multicast and unicast discovery through a
+`LookupDiscoveryManager`, then hands the proxy to a `JoinManager` that registers
+with every lookup service it finds — and keeps registering as others appear or
+restart. Those registrations are *leased*, and the `JoinManager` renews them in
+the background, so if the JVM dies the leases simply expire and the lookup
+services evict the stale service on their own — the self-healing an
+address-based mesh never gives you for free. A stable `ServiceID` (persisted
+through a `ReliableLog` when a persistence directory is configured) means a
+restart re-joins as the *same* service rather than a duplicate, while the
+inherited `JoinAdmin` lets operators re-group, re-locate, and re-attribute the
+service as the djinn evolves. And `destroy()` leaves cleanly — cancelling every
+lookup lease, terminating discovery, and unexporting the endpoint — so a
+decommissioned service drops out of the djinn at once instead of lingering as a
+stale entry. All of it is inherited; your subclass never touches it.
+
 Three small types work together, mirroring the split JGDMS uses for its own
 services — Reggie, the lookup service, is built exactly this way:
 
