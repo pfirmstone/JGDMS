@@ -54,6 +54,8 @@
 
   <modules>
     <module>jgdms-marshal-delegate-processor</module>
+    <module>jgdms-service-annotations</module>
+    <module>jgdms-service-proxy-processor</module>
     <module>jgdms-collections</module>
     <module>jgdms-pref-class-loader</module>
     <module>jgdms-activation-parameters</module>

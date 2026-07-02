@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+~ Licensed to the Apache Software Foundation (ASF) under one or more
+~ contributor license agreements.  See the NOTICE file distributed with
+~ this work for additional information regarding copyright ownership.
+~ The ASF licenses this file to You under the Apache License, Version 2.0
+~ (the "License"); you may not use this file except in compliance with
+~ the License.  You may obtain a copy of the License at
+~
+~     http://www.apache.org/licenses/LICENSE-2.0
+~
+~ Unless required by applicable law or agreed to in writing, software
+~ distributed under the License is distributed on an "AS IS" BASIS,
+~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+~ See the License for the specific language governing permissions and
+~ limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>au.net.zeus</groupId>
+        <artifactId>jgdms</artifactId>
+        <version>3.1.1-SNAPSHOT</version>
+    </parent>
+
+    <groupId>au.net.zeus.jgdms.tools</groupId>
+    <artifactId>service-proxy-processor</artifactId>
+
+    <name>Tool :: @JiniService/@SmartProxy service-proxy annotation processor</name>
+    <description>Annotation processor that generates the mechanical service-proxy
+        boilerplate for @JiniService / @SmartProxy annotated interfaces: the
+        server-side backend (internal wire) interface, the single constrainable
+        proxy with a fail-closed create() factory, and optionally the service
+        wrapper -- without modifying the annotated class.  Ships a validate-only
+        mode that emits warnings for constrainability / contract violations.
+        Depends only on the JDK (java.compiler); it references the JGDMS API and
+        the service-proxy annotations by name.
+    </description>
+
+    <dependencies>
+        <!-- Test-only: the JUnit runner and the JDK compiler API drive the
+             processor over in-memory sources; no compile dependency is needed
+             because the processor references every JGDMS/annotation type by
+             name (source-retained annotations, javax.lang.model). -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <release>21</release>
+                    <!-- this module IS an annotation processor; do not run processors on it -->
+                    <proc>none</proc>
+                    <!-- do not inherit the parent's processor path: it points back at this module -->
+                    <annotationProcessorPaths combine.self="override"/>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
