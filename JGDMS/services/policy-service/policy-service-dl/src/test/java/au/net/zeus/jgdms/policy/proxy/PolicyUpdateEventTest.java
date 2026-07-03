@@ -1,10 +1,7 @@
 package au.net.zeus.jgdms.policy.proxy;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -36,11 +33,9 @@ public class PolicyUpdateEventTest {
 
     @SuppressWarnings("unchecked")
     private static <T> T roundTrip(T value) throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream out = new ObjectOutputStream(baos);
-        out.writeObject(value);
-        out.flush();
-        ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-        return (T) in.readObject();
+        // java.io serialization is disabled on the event hierarchy
+        // (readObject/writeObject throw NotSerializableException); marshal via
+        // the @AtomicSerial engine that RemoteEvent actually uses on the wire.
+        return (T) new AtomicMarshalledInstance(value).get(false);
     }
 }

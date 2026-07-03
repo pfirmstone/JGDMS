@@ -18,15 +18,12 @@
 
 package net.jini.core.event;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -93,39 +90,19 @@ public class RemoteEventTest {
 	assertEquals(expResult, result);
     }
     
+    /**
+     * java.io serialization is disabled on RemoteEvent (readObject/writeObject
+     * throw); the wire form is @AtomicSerial. Round-trip via the atomic engine.
+     */
     @Test
-    public void testSerialization() {
-	ObjectOutputStream oos = null;
+    @SuppressWarnings("deprecation")
+    public void testSerialization() throws Exception {
 	System.out.println("test serialization");
-	MarshalledObject expResult = m;
-	try {
-	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	    oos = new ObjectOutputStream(baos);
-	    oos.writeObject(e);
-	    oos.flush();
-	    byte[] bytes = baos.toByteArray();
-	    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-	    ObjectInputStream ois = new ObjectInputStream(bais);
-	    RemoteEvent result = (RemoteEvent) ois.readObject();
-	    MarshalledObject moResult = result.getRegistrationObject();
-	    Object srcResult = result.getSource();
-	    long iDResult = result.getID();
-	    long seqResult = result.getSequenceNumber();
-	    assertEquals(expResult, moResult);
-	    assertEquals(source, srcResult);
-	    assertEquals(10L, iDResult);
-	    assertEquals(25L, seqResult);
-	} catch (IOException ex) {
-	    Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
-	} catch (ClassNotFoundException ex) {
-	    Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
-	} finally {
-	    try {
-		oos.close();
-	    } catch (IOException ex) {
-		Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
-	    }
-	}
+	RemoteEvent result = new AtomicMarshalledInstance(e).get(false, RemoteEvent.class);
+	assertEquals(m, result.getRegistrationObject());
+	assertEquals(source, result.getSource());
+	assertEquals(10L, result.getID());
+	assertEquals(25L, result.getSequenceNumber());
     }
 
 }

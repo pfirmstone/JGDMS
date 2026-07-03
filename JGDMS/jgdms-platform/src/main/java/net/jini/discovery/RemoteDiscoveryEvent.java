@@ -19,6 +19,7 @@ package net.jini.discovery;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.NotSerializableException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -756,33 +757,36 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
         return i;
     }//end indexFirstNull
 
+    /**
+     * @throws NotSerializableException always -- java.io serialization is
+     * disabled; this event is marshalled via {@code @AtomicSerial}.
+     */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
+	throw new NotSerializableException(
+	    "java.io serialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (PutArg)");
     }
 
-    /** 
-     * When an instance of this class is deserialized, this method is
-     * automatically invoked. This implementation of this method validates
-     * the state of the deserialized instance, and additionally determines
-     * whether or not codebase integrity verification was performed when
-     * unmarshalling occurred.
+    /**
+     * java.io deserialization is disabled; reconstruct via {@code @AtomicSerial}
+     * (the {@link #RemoteDiscoveryEvent(GetArg)} constructor), which performs
+     * the source/state validation and captures the integrity/atomicity flags.
      *
-     * @throws InvalidObjectException if the state of the
-     *         deserialized instance of this class is found to be invalid.
+     * @throws NotSerializableException always
      */
-    private void readObject(ObjectInputStream s)  
+    private void readObject(ObjectInputStream s)
                                throws IOException, ClassNotFoundException
     {
-        s.defaultReadObject();
-        /* Verify source */
-        if(getSource() == null) {
-            throw new InvalidObjectException("RemoteDiscoveryEvent.readObject "
-                                            +"failure - source field is null");
-        }//endif
-        /* Retrieve the value of the integrity flag */
-        integrity = integrityEnforced(s);
-	atomic = false; // Atomic streams don't call readObject.
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
     }//end readObject
+
+    private void readObjectNoData() throws java.io.ObjectStreamException {
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
+    }
 
 }//end class RemoteDiscoveryEvent
 

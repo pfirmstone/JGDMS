@@ -19,6 +19,7 @@ package net.jini.space;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.NotSerializableException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
@@ -148,32 +149,35 @@ public abstract class AvailabilityEvent extends RemoteEvent {
 	this.visibilityTransition = visibilityTransition;
     }
 
+    /**
+     * @throws NotSerializableException always -- java.io serialization is
+     * disabled; this event is marshalled via {@code @AtomicSerial}.
+     */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
+	throw new NotSerializableException(
+	    "java.io serialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (PutArg)");
     }
 
     /**
-     * @throws InvalidObjectException if {@link #source} is <code>null</code>
-     * or is not a {@link JavaSpace}
+     * java.io deserialization is disabled; reconstruct via {@code @AtomicSerial}
+     * (the {@link #AvailabilityEvent(GetArg)} constructor), which performs the
+     * source/{@link JavaSpace} validation.
+     *
+     * @throws NotSerializableException always
      */
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException
     {
-	in.defaultReadObject();
-
-	if (getSource() == null)
-	    throw new InvalidObjectException("null source reference");
-
-	if (!(getSource() instanceof JavaSpace)) 
-	    throw new InvalidObjectException("source is not a JavaSpace");
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
     }
 
-    /** 
-     * @throws InvalidObjectException if called
-     */
-    private void readObjectNoData() throws InvalidObjectException {
-	throw new InvalidObjectException(
-	    "AvailabilityEvent should always have data");
+    private void readObjectNoData() throws java.io.ObjectStreamException {
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
     }
 
     /**

@@ -20,9 +20,7 @@ package net.jini.core.event;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream.GetField;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamField;
+import java.io.NotSerializableException;
 import java.rmi.MarshalledObject;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
@@ -83,29 +81,18 @@ import org.apache.river.api.io.Valid;
  * RemoteEvent object being sent occurs outside of the scope of the
  * transaction (but is visible within the transaction).
  * <p>
- * In future it is planned for RemoteEvent to become immutable and all state
- * made private, all fields will be made final and private.
+ * The event state fields are {@code final}; a {@code RemoteEvent} is immutable
+ * once constructed.
  * <p>
- * This change breaks compatibility for subclasses that access these fields
- * directly.  For other classes, all fields were accessible
- * via public API getter methods.
- * <p>
- * To allow an upgrade path for subclasses that extend RemoteEvent and
- * provide public setter methods for these fields, it is recommended to
- * override all public methods and maintain state independently using 
- * transient fields.  The subclass should also use RemoteEvent getter 
- * methods to set these transient fields during de-serialization.
- * <p>
- * Subclasses will be responsible for synchronization of mutable state.
- * <p>
- * writeObject, instead of writing RemoteEvent fields, writes the 
-     * result of all getter methods to the ObjectOutputStream, during serialization,
- * preserving serial form compatibility wither earlier versions, while 
- * also allowing mutable subclasses to maintain full serial compatibility.
- * <p>
- * Mutable subclasses honoring this contract will be compatible with all 
- * versions since Jini 1.0.
- * 
+ * {@code RemoteEvent} crosses the wire only via its {@code @AtomicSerial} form
+ * (the validating {@link #RemoteEvent(GetArg)} constructor). java.io
+ * serialization is disabled -- {@code readObject}/{@code writeObject} throw
+ * {@link java.io.NotSerializableException} -- so a crafted java.io stream
+ * cannot reconstruct an instance while bypassing {@code @AtomicSerial}
+ * validation. Because java.io deserialization invokes the superclass
+ * {@code readObject} first, this also blocks JOSS reconstruction of every
+ * subclass.
+ *
  * @author Sun Microsystems, Inc.
  *
  * @since 1.0
@@ -114,16 +101,7 @@ import org.apache.river.api.io.Valid;
 public class RemoteEvent extends java.util.EventObject {
 
     private static final long serialVersionUID = 1777278867291906446L;
-    
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("source", Object.class),
-        new ObjectStreamField("eventID", long.class),
-        new ObjectStreamField("seqNum", long.class),
-        new ObjectStreamField("handback", MarshalledObject.class),
-        new ObjectStreamField("miHandback", MarshalledInstance.class)
-    };
-    
+
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("source", Object.class),
@@ -148,14 +126,14 @@ public class RemoteEvent extends java.util.EventObject {
      * @since 1.0
      * @serial
      */
-    protected long eventID;
+    protected final long eventID;
 
     /**
      * The event sequence number.
      * @since 1.0
      * @serial
      */
-    protected long seqNum;
+    protected final long seqNum;
 
     /**
      * The handback object.
@@ -164,14 +142,14 @@ public class RemoteEvent extends java.util.EventObject {
      * @deprecated
      */
     @Deprecated
-    protected MarshalledObject handback;
-    
+    protected final MarshalledObject handback;
+
     /**
      * The registration handback object.
      * @since 3.1
      * @serial
      */
-    protected MarshalledInstance miHandback;
+    protected final MarshalledInstance miHandback;
 
     private static Object check(GetArg arg) throws IOException, ClassNotFoundException {
 	Object source = Valid.notNull(arg.get("source", null),"source cannot be null");
@@ -202,9 +180,13 @@ public class RemoteEvent extends java.util.EventObject {
 	eventID = arg.get("eventID", -1L);
 	seqNum = arg.get("seqNum", -1L);
 	handback = arg.get("handback", null, MarshalledObject.class);
+	MarshalledInstance mi;
 	try{
-	    miHandback = arg.get("miHandback", null, MarshalledInstance.class); // Type check
-	} catch (IllegalArgumentException ex){} // Ignore, earlier version.
+	    mi = arg.get("miHandback", null, MarshalledInstance.class); // Type check
+	} catch (IllegalArgumentException ex){ // Ignore, earlier version.
+	    mi = null;
+	}
+	miHandback = mi;
     }
 
     /**
@@ -325,47 +307,40 @@ public class RemoteEvent extends java.util.EventObject {
     }
 
     /**
-     * Serialization support
-     * @param stream ObjectInputStream
-     * @throws ClassNotFoundException if class not found.
-     * @throws java.io.IOException if a problem occurs during de-serialization.
-     * @serial
-     * @since 1.0
+     * java.io deserialization is disabled; reconstruct via {@code @AtomicSerial}
+     * (the {@link #RemoteEvent(GetArg)} constructor) instead. Poisoning this
+     * superclass hook also blocks JOSS reconstruction of every subclass, since
+     * java.io invokes the superclass {@code readObject} first.
+     *
+     * @throws NotSerializableException always
      */
-    private void readObject(java.io.ObjectInputStream stream)
+    private void readObject(java.io.ObjectInputStream in)
 	throws java.io.IOException, ClassNotFoundException
     {
-	GetField fields = stream.readFields();
-	super.source = fields.get("source", null);
-	eventID = fields.get("eventID", 0L);
-	seqNum = fields.get("seqNum", 0L);
-	handback = (MarshalledObject) fields.get("handback", null);
-	try {
-	    miHandback = (MarshalledInstance) fields.get("miHandback", null);
-	} catch (IllegalArgumentException ex){} // Ignore, previous serial form.
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
     }
-       
+
     /**
-     * Write object writes the return values of getter methods to the stream, 
-     * allowing subclasses to override values written to the stream without
-     * changing serial form.
-     * 
-     * Note that when the deprecated handback field is removed a null value will be sent
-     * in the stream, serial form will remain unchanged for compatiblity.
-     * 
-     * @param stream
-     * @throws java.io.IOException 
-     * @serial
-     * @since 3.0
+     * @throws NotSerializableException always
      */
-    private void writeObject(java.io.ObjectOutputStream stream) throws java.io.IOException
+    private void readObjectNoData() throws java.io.ObjectStreamException {
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
+    }
+
+    /**
+     * java.io serialization is disabled; this class is marshalled via its
+     * {@code @AtomicSerial} form ({@link #serialize}) instead.
+     *
+     * @throws NotSerializableException always
+     */
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException
     {
-	ObjectOutputStream.PutField fields = stream.putFields();
-	fields.put("source", getSource());
-	fields.put("eventID", getID());
-	fields.put("seqNum", getSequenceNumber());
-	fields.put("handback", getRegistrationObject());
-	fields.put("miHandback", getRegistrationInstance());
-	stream.writeFields();
+	throw new NotSerializableException(
+	    "java.io serialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (PutArg)");
     }
 }

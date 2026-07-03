@@ -19,8 +19,7 @@ package net.jini.core.lookup;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectOutputStream;
-import java.io.ObjectOutputStream.PutField;
+import java.io.NotSerializableException;
 //import net.jini.core.entry.Entry;
 //import net.jini.lookup.ServiceAttributesAccessor;
 //import net.jini.lookup.ServiceIDAccessor;
@@ -56,12 +55,6 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
     private static final String SERVICE_ID = "serviceID";
     private static final String TRANSITION = "transition";
     
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final java.io.ObjectStreamField[] serialPersistentFields = {
-        new java.io.ObjectStreamField(SERVICE_ID, ServiceID.class),
-        new java.io.ObjectStreamField(TRANSITION, Long.TYPE)
-    };
-
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm(SERVICE_ID, ServiceID.class),
@@ -74,14 +67,7 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
         arg.writeArgs();
     }
 
-    // DUAL-PATH: PutArg overload for the neutral @AtomicSerial serialize() path
     private static void putArgs(PutArg field, ServiceEvent e){
-        field.put(SERVICE_ID, e.serviceID);
-        field.put(TRANSITION, e.transition);
-    }
-
-    // DUAL-PATH: PutField overload for the JOSS writeObject() path
-    private static void putArgs(PutField field, ServiceEvent e){
         field.put(SERVICE_ID, e.serviceID);
         field.put(TRANSITION, e.transition);
     }
@@ -262,22 +248,32 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	return null;
     }
     
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	putArgs(out.putFields(), this);
-        out.writeFields();
-    }
-    
     /**
-     * Serialization evolution support
-     * @serial 
-     * @param stream ObjectInputStream
-     * @throws ClassNotFoundException if class not found.
-     * @throws java.io.IOException if a problem occurs during de-serialization.
+     * @throws NotSerializableException always -- java.io serialization is
+     * disabled; this event is marshalled via {@code @AtomicSerial}.
      */
-    private void readObject(java.io.ObjectInputStream stream)
+    private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+	throw new NotSerializableException(
+	    "java.io serialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (PutArg)");
+    }
+
+    /**
+     * @throws NotSerializableException always -- java.io deserialization is
+     * disabled; reconstruct via {@code @AtomicSerial} (GetArg).
+     */
+    private void readObject(java.io.ObjectInputStream in)
 	throws java.io.IOException, ClassNotFoundException
     {
-	stream.defaultReadObject();
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
+    }
+
+    private void readObjectNoData() throws java.io.ObjectStreamException {
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
     }
 }
 

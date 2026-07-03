@@ -1,9 +1,6 @@
 package au.net.zeus.jgdms.policy.proxy;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.HashSet;
 import java.util.Set;
@@ -15,6 +12,11 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.security.RemotePolicyService;
 import org.junit.Test;
 
@@ -142,17 +144,43 @@ public class PolicyEventLeaseTest {
 
     @SuppressWarnings("unchecked")
     private static <T> T roundTrip(T value) throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream out = new ObjectOutputStream(baos);
-        out.writeObject(value);
-        out.flush();
-        ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-        return (T) in.readObject();
+        // AbstractLease no longer implements java.io.Serializable; marshal via
+        // the @AtomicSerial engine (the sole wire path for the lease hierarchy).
+        return (T) new AtomicMarshalledInstance(value).get(false);
     }
 
-    private static final class StubPolicyServer implements RemotePolicyService, java.io.Serializable {
-        private static final long serialVersionUID = 1L;
-        private final Uuid identity = UuidFactory.generate();
+    // The atomic engine is the sole wire path for the lease hierarchy, so the
+    // lease's server field must itself be @AtomicSerial (plain java.io.Serializable
+    // is rejected by ObjOutputStream). Only the server identity is on the wire;
+    // that is what canBatch()/equals() compare after the round-trip.
+    // Package-private (not private) so the marshal-delegate processor can emit a
+    // per-package MarshalDelegate for in-package dispatch; a PRIVATE nested
+    // @AtomicSerial class cannot be served by a delegate and the engine's
+    // reflective serialForm() fallback cannot access it.
+    @AtomicSerial
+    static final class StubPolicyServer implements RemotePolicyService {
+        private static final String IDENTITY = "identity";
+
+        private final Uuid identity;
+
+        public static SerialForm[] serialForm() {
+            return new SerialForm[]{
+                new SerialForm(IDENTITY, Uuid.class)
+            };
+        }
+
+        public static void serialize(PutArg arg, StubPolicyServer s) throws IOException {
+            arg.put(IDENTITY, s.identity);
+            arg.writeArgs();
+        }
+
+        public StubPolicyServer(GetArg arg) throws IOException, ClassNotFoundException {
+            this.identity = arg.get(IDENTITY, null, Uuid.class);
+        }
+
+        StubPolicyServer() {
+            this.identity = UuidFactory.generate();
+        }
 
         Uuid lastRenewLeaseId;
         long lastRenewDuration;

@@ -111,6 +111,18 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!--
+                      RemoteEventTest round-trips a RemoteEvent through the
+                      AtomicSerial codec, which resolves classes via
+                      RMIClassLoader. The PreferredClassProvider RMIClassLoaderSpi
+                      impl (jgdms-pref-class-loader) is not on this module's test
+                      classpath, so use the JDK default provider for these in-JVM
+                      round-trip unit tests; the full preferred-class path is
+                      covered in qa.
+                    -->
+                    <argLine>-Djava.rmi.server.RMIClassLoaderSpi=default</argLine>
+                </configuration>
             </plugin>
         </plugins>
     </build>
