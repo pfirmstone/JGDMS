@@ -20,6 +20,8 @@ package au.net.zeus.jgdms.downloader;
 import au.net.zeus.jgdms.api.codebase.CodebaseDownloader;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.downloader.CodebaseDownloaderImpl.EngineEntry;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import au.net.zeus.jgdms.service.support.JiniServiceParameters;
 import java.io.IOException;
@@ -38,7 +40,6 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceItem;
-import net.jini.id.Uuid;
 import net.jini.lookup.LookupCache;
 import net.jini.lookup.ServiceDiscoveryEvent;
 import net.jini.lookup.ServiceDiscoveryListener;
@@ -113,6 +114,9 @@ import org.apache.river.start.lifecycle.LifeCycle;
  * @see AbstractJiniService
  * @since 3.1.1
  */
+@JiniService(
+        api   = CodebaseDownloader.class,   // the service (remote) API interface
+        proxy = ProxyType.DYNAMIC)          // the raw exported stub is the client proxy
 public class ActivatableCodebaseDownloaderImpl
         extends AbstractJiniService
         implements CodebaseDownloader {
@@ -244,18 +248,11 @@ public class ActivatableCodebaseDownloaderImpl
         submitInitialUrls();
     }
 
-    @Override
-    protected Object createProxy(Object stub, Uuid serviceUuid) {
-        // The CodebaseDownloader is not a client-facing service; there is
-        // no smart proxy.  The raw server stub is returned so that operators
-        // can invoke submitForAnalysis() for administrative purposes.
-        return stub;
-    }
-
-    @Override
-    protected Class<?>[] getServiceInterfaces() {
-        return new Class<?>[]{ CodebaseDownloader.class };
-    }
+    // createProxy() and getServiceInterfaces() are inherited:
+    // this is a DYNAMIC service (there is no smart proxy — the raw exported stub
+    // is returned so operators can invoke submitForAnalysis() administratively),
+    // and getServiceInterfaces() reads api() = { CodebaseDownloader.class } from
+    // the @JiniService annotation above.
 
     // -------------------------------------------------------------------------
     // CodebaseDownloader

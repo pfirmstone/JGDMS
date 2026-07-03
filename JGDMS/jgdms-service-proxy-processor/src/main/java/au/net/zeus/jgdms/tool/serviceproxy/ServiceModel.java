@@ -19,6 +19,7 @@ package au.net.zeus.jgdms.tool.serviceproxy;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -36,11 +37,14 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
 /**
- * The distilled model of a single {@code @JiniService} API interface: its
- * abstract (public) methods, the resolved internal wire ({@code protocol})
- * interface, the requested proxy shape ({@code proxy} / {@code codebase}), and
- * whether the developer has already hand-written the backend interface or the
- * proxy class (in which case the processor validates but does not generate them).
+ * The distilled model of a single {@code @JiniService} <em>implementation</em>
+ * class: the resolved public API interface (from {@code api()}, or inferred from
+ * the impl's implemented interfaces minus the JGDMS infrastructure set), that
+ * interface's abstract (public) methods, the resolved internal wire
+ * ({@code protocol}) interface, the requested proxy shape ({@code proxy} /
+ * {@code codebase}), and whether the developer has already hand-written the
+ * backend interface or the proxy class (in which case the processor validates but
+ * does not generate them).
  *
  * <p>The {@code proxy} ({@link ProxyType}) and {@code codebase} elements are read
  * off the annotation and stored.  Generation is shape-dispatched (JGDMS-STD-009
@@ -69,6 +73,25 @@ import javax.lang.model.util.Types;
  */
 final class ServiceModel {
 
+    /**
+     * The JGDMS infrastructure interfaces excluded when {@code api()} is empty and
+     * the service API is inferred from the impl's implemented interfaces (mirrors
+     * the runtime rule in {@code AbstractJiniService.resolveServiceInterfaces}).
+     */
+    static final Set<String> INFRA_INTERFACES = new java.util.LinkedHashSet<>(java.util.Arrays.asList(
+            "net.jini.admin.Administrable",
+            "net.jini.admin.JoinAdmin",
+            "org.apache.river.admin.DestroyAdmin",
+            "net.jini.lookup.ServiceProxyAccessor",
+            "net.jini.lookup.ServiceIDAccessor",
+            "net.jini.lookup.ServiceAttributesAccessor",
+            "net.jini.export.CodebaseAccessor",
+            "net.jini.core.constraint.RemoteMethodControl"));
+
+    /** The annotated service <em>implementation</em> class (carries @JiniService). */
+    final TypeElement impl;
+
+    /** The resolved public API (remote) interface the proxy is generated for. */
     final TypeElement api;
 
     /** The public (abstract) methods declared by the API interface hierarchy. */
@@ -120,7 +143,8 @@ final class ServiceModel {
     /** Set by validation when a fatal error was reported (suppresses generation). */
     boolean hadError;
 
-    private ServiceModel(TypeElement api) {
+    private ServiceModel(TypeElement impl, TypeElement api) {
+        this.impl = impl;
         this.api = api;
     }
 
@@ -144,41 +168,31 @@ final class ServiceModel {
         return protocolIsApi;
     }
 
-    static ServiceModel of(TypeElement api, Elements elements, Types types, Messager messager) {
-        ServiceModel m = new ServiceModel(api);
-        String simple = api.getSimpleName().toString();
-        m.backendSimpleName = simple + "Backend";
-
-        // Collect the public abstract API methods (skip static/default methods
-        // and Object methods; the API is an interface).
-        for (Element e : elements.getAllMembers(api)) {
-            if (e.getKind() != ElementKind.METHOD) {
-                continue;
-            }
-            ExecutableElement me = (ExecutableElement) e;
-            if (me.getModifiers().contains(Modifier.STATIC)
-                    || me.getModifiers().contains(Modifier.DEFAULT)) {
-                continue;
-            }
-            if (me.getEnclosingElement() != null
-                    && "java.lang.Object".contentEquals(
-                        ((TypeElement) me.getEnclosingElement()).getQualifiedName())) {
-                continue;
-            }
-            m.apiMethods.add(me);
-        }
-
-        // Read @JiniService members.
-        AnnotationMirror ann = annotation(api, ServiceProxyProcessor.JINI_SERVICE);
+    /**
+     * Builds the model from the annotated <em>implementation</em> class.  Reads
+     * {@code @JiniService} off {@code impl}, resolves the primary API interface
+     * from {@code api()} (or infers it from the impl's implemented interfaces minus
+     * {@link #INFRA_INTERFACES}), and collects that interface's methods.
+     *
+     * @return the model, or {@code null} if the API interface cannot be resolved
+     *         (a diagnostic has then already been emitted against {@code impl})
+     */
+    static ServiceModel of(TypeElement impl, Elements elements, Types types, Messager messager) {
+        // Read @JiniService members off the implementation class.
+        AnnotationMirror ann = annotation(impl, ServiceProxyProcessor.JINI_SERVICE);
         TypeMirror protocol = null;
         String component = "";
         ProxyType proxyType = ProxyType.DYNAMIC;
         boolean codebase = false;
+        List<TypeMirror> apiTypes = new ArrayList<>();
         if (ann != null) {
             for (var en : ann.getElementValues().entrySet()) {
                 String name = en.getKey().getSimpleName().toString();
                 AnnotationValue av = en.getValue();
                 switch (name) {
+                    case "api":
+                        collectClassArray(av, apiTypes);
+                        break;
                     case "protocol":
                         if (av.getValue() instanceof TypeMirror) {
                             protocol = (TypeMirror) av.getValue();
@@ -199,6 +213,38 @@ final class ServiceModel {
                         break;
                 }
             }
+        }
+
+        // Resolve the primary API interface: the first api() element, or -- when
+        // api() is empty -- inferred from the impl's implemented interfaces minus
+        // the JGDMS infrastructure set (symmetric with the runtime rule in
+        // AbstractJiniService.resolveServiceInterfaces).
+        TypeElement api = resolveApi(impl, apiTypes, types, messager);
+        if (api == null) {
+            return null; // diagnostic already emitted
+        }
+
+        ServiceModel m = new ServiceModel(impl, api);
+        String simple = api.getSimpleName().toString();
+        m.backendSimpleName = simple + "Backend";
+
+        // Collect the public abstract API methods (skip static/default methods
+        // and Object methods; the API is an interface).
+        for (Element e : elements.getAllMembers(api)) {
+            if (e.getKind() != ElementKind.METHOD) {
+                continue;
+            }
+            ExecutableElement me = (ExecutableElement) e;
+            if (me.getModifiers().contains(Modifier.STATIC)
+                    || me.getModifiers().contains(Modifier.DEFAULT)) {
+                continue;
+            }
+            if (me.getEnclosingElement() != null
+                    && "java.lang.Object".contentEquals(
+                        ((TypeElement) me.getEnclosingElement()).getQualifiedName())) {
+                continue;
+            }
+            m.apiMethods.add(me);
         }
         // protocol default (Void.class) means "same as the annotated API".  A
         // distinct protocol is the translating-smart-proxy signal that gates
@@ -251,6 +297,90 @@ final class ServiceModel {
         }
 
         return m;
+    }
+
+    /**
+     * Reads a {@code Class<?>[]}-valued annotation member into {@code out} as a
+     * list of {@code TypeMirror} (survives the {@code MirroredTypesException} that
+     * reading live {@code Class} values would throw).
+     */
+    private static void collectClassArray(AnnotationValue av, List<TypeMirror> out) {
+        Object v = av.getValue();
+        if (v instanceof List<?>) {
+            for (Object o : (List<?>) v) {
+                if (o instanceof AnnotationValue) {
+                    Object inner = ((AnnotationValue) o).getValue();
+                    if (inner instanceof TypeMirror) {
+                        out.add((TypeMirror) inner);
+                    }
+                }
+            }
+        } else if (v instanceof TypeMirror) {
+            out.add((TypeMirror) v);
+        }
+    }
+
+    /**
+     * Resolves the primary API interface for the annotated impl: the first
+     * {@code api()} element when present, else the sole interface inferred from the
+     * impl's implemented interfaces minus {@link #INFRA_INTERFACES} (symmetric with
+     * {@code AbstractJiniService.resolveServiceInterfaces}).  Emits a fail-closed
+     * diagnostic (and returns {@code null}) if the primary is not a resolvable
+     * interface, or if inference is empty or ambiguous.
+     */
+    private static TypeElement resolveApi(TypeElement impl, List<TypeMirror> apiTypes,
+                                          Types types, Messager messager) {
+        if (!apiTypes.isEmpty()) {
+            TypeElement api = asInterfaceElement(apiTypes.get(0), types);
+            if (api == null) {
+                messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
+                    "@JiniService api() must name a remote interface.", impl);
+                return null;
+            }
+            return api;
+        }
+        // Infer from the impl's implemented interfaces, minus infrastructure.
+        List<TypeElement> inferred = new ArrayList<>();
+        for (TypeMirror iface : impl.getInterfaces()) {
+            TypeElement te = asInterfaceElement(iface, types);
+            if (te != null && !INFRA_INTERFACES.contains(te.getQualifiedName().toString())) {
+                inferred.add(te);
+            }
+        }
+        if (inferred.isEmpty()) {
+            messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
+                "@JiniService on " + impl.getQualifiedName() + " has an empty api()"
+                + " and no service interface could be inferred (the class implements"
+                + " only infrastructure interfaces); declare api() explicitly.", impl);
+            return null;
+        }
+        if (inferred.size() > 1) {
+            StringBuilder names = new StringBuilder();
+            for (TypeElement te : inferred) {
+                if (names.length() > 0) {
+                    names.append(", ");
+                }
+                names.append(te.getQualifiedName());
+            }
+            messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
+                "@JiniService on " + impl.getQualifiedName() + " has an empty api()"
+                + " and the service interface is ambiguous (" + names + "); declare"
+                + " api() explicitly.", impl);
+            return null;
+        }
+        return inferred.get(0);
+    }
+
+    /** The {@link TypeElement} of a declared interface type, or {@code null}. */
+    private static TypeElement asInterfaceElement(TypeMirror tm, Types types) {
+        if (tm == null || tm.getKind() != TypeKind.DECLARED) {
+            return null;
+        }
+        Element el = ((DeclaredType) tm).asElement();
+        if (el instanceof TypeElement && el.getKind() == ElementKind.INTERFACE) {
+            return (TypeElement) el;
+        }
+        return null;
     }
 
     private static String qualify(String pkg, String simple) {

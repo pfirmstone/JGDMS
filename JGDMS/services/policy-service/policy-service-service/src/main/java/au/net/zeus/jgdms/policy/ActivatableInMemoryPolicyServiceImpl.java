@@ -19,6 +19,8 @@ package au.net.zeus.jgdms.policy;
 
 import au.net.zeus.jgdms.policy.proxy.RemotePolicyServiceBackend;
 import au.net.zeus.jgdms.policy.proxy.RemotePolicyServiceProxy;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import au.net.zeus.jgdms.service.support.JiniServiceParameters;
 import java.io.IOException;
@@ -77,6 +79,10 @@ import org.apache.river.start.lifecycle.LifeCycle;
  * @see AbstractJiniService
  * @since 3.1.1
  */
+@JiniService(
+        api      = RemotePolicyService.class,   // the service (remote) API interface
+        proxy    = ProxyType.SMART,             // wraps the stub in a generated smart proxy
+        codebase = true)                        // ships a downloadable -dl proxy jar
 public class ActivatableInMemoryPolicyServiceImpl
         extends AbstractJiniService
         implements RemotePolicyServiceBackend {
@@ -162,10 +168,8 @@ public class ActivatableInMemoryPolicyServiceImpl
         return RemotePolicyServiceProxy.create((RemotePolicyService) stub, serviceUuid);
     }
 
-    @Override
-    protected Class<?>[] getServiceInterfaces() {
-        return new Class<?>[]{ RemotePolicyService.class };
-    }
+    // getServiceInterfaces() is inherited: it reads api() = { RemotePolicyService.class }
+    // from the @JiniService annotation above.
 
     /**
      * Shuts down the event-dispatch thread pool when the service is destroyed.

@@ -19,8 +19,6 @@ package au.net.zeus.jgdms.api.hello;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import au.net.zeus.jgdms.service.annotation.JiniService;
-import au.net.zeus.jgdms.service.annotation.ProxyType;
 
 /**
  * Client-facing remote service interface for the Hello World example service.
@@ -41,13 +39,18 @@ import au.net.zeus.jgdms.service.annotation.ProxyType;
  * {@code Registrar} backend.
  *
  * <h2>Generated boilerplate ({@code @JiniService})</h2>
- * This interface is annotated with {@link JiniService}, so the
+ * The {@code @JiniService} annotation that drives service-proxy generation lives
+ * on the service <em>implementation</em>
+ * ({@link au.net.zeus.jgdms.hello.HelloWorldServiceImpl}), <em>not</em> on this
+ * interface — proxy type, codebase, and config component are deployment concerns
+ * of the implementor, so this interface stays a pure {@link Remote} contract.
+ * There the annotation reads {@code @JiniService(api = HelloService.class,
+ * proxy = ProxyType.DYNAMIC)}, and because the proxy type is
+ * {@code DYNAMIC} (and this service's protocol equals its API), the
  * service-proxy annotation processor
- * ({@code au.net.zeus.jgdms.tool.serviceproxy.ServiceProxyProcessor})
- * <em>generates</em> the mechanical boilerplate that used to be hand-written.
- * Because {@link #proxy()} is {@link ProxyType#DYNAMIC} (and this service's
- * protocol equals its API), the processor emits <em>nothing at all</em>: no
- * backend interface, no proxy class, and no invocation-layer factory.
+ * ({@code au.net.zeus.jgdms.tool.serviceproxy.ServiceProxyProcessor}) emits
+ * <em>nothing at all</em>: no backend interface, no proxy class, and no
+ * invocation-layer factory.
  * <ul>
  *   <li>The non-{@link Remote} admin interfaces
  *       ({@code Administrable}/{@code JoinAdmin}/{@code DestroyAdmin}) are appended
@@ -68,8 +71,8 @@ import au.net.zeus.jgdms.service.annotation.ProxyType;
  * {@link java.lang.reflect.Proxy} dynamic stub itself, returned to clients
  * directly.  Nothing is written by hand.
  *
- * <p>{@code proxy = }{@link ProxyType#DYNAMIC} selects JGDMS-STD-009 §6 shape 1
- * (the exported dynamic-proxy stub <em>is</em> the client proxy — one fat
+ * <p>{@code proxy = DYNAMIC} selects JGDMS-STD-009 §6 shape 1 (the exported
+ * dynamic-proxy stub <em>is</em> the client proxy — one fat
  * {@code java.lang.reflect.Proxy} implementing the API, the appended admin
  * interfaces, the {@link Remote} accessors, and
  * {@link net.jini.core.constraint.RemoteMethodControl}).  {@code codebase = false}
@@ -98,15 +101,11 @@ import au.net.zeus.jgdms.service.annotation.ProxyType;
  * </ul>
  *
  * @see au.net.zeus.jgdms.hello.HelloWorldServiceImpl
- * @see JiniService
+ * @see au.net.zeus.jgdms.service.annotation.JiniService
  * @since 3.1.1
  * @author Peter Firmstone
  * @author GitHub Copilot
  */
-@JiniService(
-        proxy     = ProxyType.DYNAMIC,          // shape 1: runtime java.lang.reflect.Proxy stub, no proxy class
-        codebase  = false,                      // no downloadable -dl jar; proxy is the JERI dynamic stub
-        component = "au.net.zeus.jgdms.hello")  // config component for the service wrapper
 public interface HelloService extends Remote {
 
     /**

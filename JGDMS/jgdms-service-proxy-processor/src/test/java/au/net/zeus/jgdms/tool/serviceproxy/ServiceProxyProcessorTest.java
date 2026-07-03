@@ -26,7 +26,10 @@ import static org.junit.Assert.assertTrue;
  * shape-dispatched generation (JGDMS-STD-009 §6 + §14).  Each test drives the
  * processor over in-memory sources via {@link ProcessorHarness}.
  *
- * <p>Generation is gated per shape:
+ * <p>{@code @JiniService} lives on the service <em>implementation</em> class and
+ * names its API interface(s) with {@code api()} (or leaves {@code api()} empty for
+ * inference); the processor reads it off the impl, resolves the API interface, and
+ * generates against that.  Generation is gated per shape:
  * <ul>
  *   <li>the backend (wire) interface only when {@code protocol() != api()} (a
  *       translating smart proxy); a do-nothing proxy ({@code protocol == api})
@@ -49,10 +52,14 @@ public class ServiceProxyProcessorTest {
             .add("hello.HelloService",
                 "package hello;"
                 + " import java.rmi.Remote;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name);"   // missing throws RemoteException
                 + " }")
+            .add("hello.HelloServiceImpl",
+                "package hello;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) { return name; } }")
             .run();
         assertTrue(r.allMessages(),
             r.hasError("must declare 'throws java.rmi.RemoteException'"));
@@ -65,25 +72,31 @@ public class ServiceProxyProcessorTest {
             .add("hello.HelloService",
                 "package hello;"
                 + " import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException;"
                 + " }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
     }
 
     @Test
-    public void jiniServiceOnClassIsError() {
+    public void jiniServiceOnInterfaceIsError() {
+        // @JiniService belongs on the implementation, not the API interface.
         ProcessorHarness.Result r = new ProcessorHarness()
             .option("-Aserviceproxy.validateOnly")
             .add("hello.HelloService",
-                "package hello;"
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " @au.net.zeus.jgdms.service.annotation.JiniService"
-                + " public class HelloService {}")
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
             .run();
         assertTrue(r.allMessages(),
-            r.hasError("must annotate the public API interface"));
+            r.hasError("belongs on the service implementation, not the interface"));
     }
 
     @Test
@@ -92,10 +105,14 @@ public class ServiceProxyProcessorTest {
             .option("-Aserviceproxy.validateOnly")
             .add("hello.HelloService",
                 "package hello; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
                 + " public interface HelloService {"
                 + "   String greet(String name) throws RemoteException;"
                 + " }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .run();
         assertTrue(r.allMessages(), r.hasError("must extend java.rmi.Remote"));
     }
@@ -107,10 +124,14 @@ public class ServiceProxyProcessorTest {
             .add("hello.HelloService",
                 "package hello;"
                 + " import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException;"
                 + " }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .add("hello.HelloServiceBackend",
                 "package hello; import java.rmi.Remote;"
                 + " public interface HelloServiceBackend extends Remote, HelloService,"
@@ -128,10 +149,14 @@ public class ServiceProxyProcessorTest {
             .add("hello.HelloService",
                 "package hello;"
                 + " import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException;"
                 + " }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .add("hello.HelloServiceBackend",
                 "package hello; import java.rmi.Remote;"
                 + " public interface HelloServiceBackend extends Remote, HelloService,"
@@ -154,10 +179,14 @@ public class ServiceProxyProcessorTest {
             .add("hello.HelloService",
                 "package hello;"
                 + " import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException;"
                 + " }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             // concrete proxy extending AbstractSmartProxy directly -> fail-open plain variant
             .add("hello.proxy.HelloServiceProxy",
                 "package hello.proxy;"
@@ -174,10 +203,14 @@ public class ServiceProxyProcessorTest {
             .add("hello.HelloService",
                 "package hello;"
                 + " import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException;"
                 + " }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .add("hello.proxy.ConstrainableHelloServiceProxy",
                 "package hello.proxy;"
                 + " public class ConstrainableHelloServiceProxy"
@@ -202,6 +235,43 @@ public class ServiceProxyProcessorTest {
         assertTrue(r.allMessages(), r.hasError("must implement its declared api"));
     }
 
+    @Test
+    public void emptyApiInferredFromImplementedInterface() {
+        // api() left empty -> the processor infers HelloService from the impl's
+        // implemented interfaces (minus the infrastructure set) and validates it.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .option("-Aserviceproxy.validateOnly")
+            .add("hello.HelloService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService"  // no api() -> inferred
+                + " public class HelloServiceImpl implements HelloService,"
+                + "   net.jini.admin.Administrable {"  // an infra iface, must be ignored
+                + "   public String greet(String name) throws RemoteException { return name; }"
+                + "   public Object getAdmin() { return null; } }")
+            .run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+    }
+
+    @Test
+    public void emptyApiWithNoServiceInterfaceIsError() {
+        // api() empty and the impl implements only infrastructure interfaces:
+        // nothing to infer -> fail-closed.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .option("-Aserviceproxy.validateOnly")
+            .add("hello.HelloServiceImpl",
+                "package hello;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService"
+                + " public class HelloServiceImpl implements net.jini.admin.Administrable {"
+                + "   public Object getAdmin() { return null; } }")
+            .run();
+        assertTrue(r.allMessages(),
+            r.hasError("no service interface could be inferred"));
+    }
+
     // ------------------------------------------------------------------ generation
 
     @Test
@@ -210,9 +280,13 @@ public class ServiceProxyProcessorTest {
             .option("-Aserviceproxy.validateOnly")
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .run();
         assertTrue("validate-only must generate nothing: " + r.generated.keySet(),
             r.generated.isEmpty());
@@ -233,9 +307,14 @@ public class ServiceProxyProcessorTest {
                 + "   String greetInternal(String name) throws RemoteException; }")
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService(protocol = HelloProtocol.class)"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class,"
+                + "     protocol = HelloProtocol.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
         String backend = r.generated.get("hello.HelloServiceBackend");
@@ -265,9 +344,14 @@ public class ServiceProxyProcessorTest {
                 + "   String greetInternal(String name) throws RemoteException; }")
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService(protocol = HelloProtocol.class)"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class,"
+                + "     protocol = HelloProtocol.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .add("hello.HelloServiceBackend",
                 "package hello; import java.rmi.Remote;"
                 + " public interface HelloServiceBackend extends Remote, HelloService,"
@@ -292,11 +376,15 @@ public class ServiceProxyProcessorTest {
         ProcessorHarness h = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String sayHello(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
                 + " import au.net.zeus.jgdms.service.annotation.JiniService;"
                 + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
-                + " @JiniService(proxy = ProxyType.SMART)"
-                + " public interface HelloService extends Remote {"
-                + "   String sayHello(String name) throws RemoteException; }");
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String sayHello(String name) throws RemoteException { return name; } }");
         ProcessorHarness.Result r = h.run();
         assertFalse(r.allMessages(), r.hasAnyError());
         String proxy = r.generated.get("hello.ConstrainableHelloServiceProxy");
@@ -322,11 +410,15 @@ public class ServiceProxyProcessorTest {
         ProcessorHarness h = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String sayHello(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
                 + " import au.net.zeus.jgdms.service.annotation.JiniService;"
                 + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
-                + " @JiniService(proxy = ProxyType.SMART)"
-                + " public interface HelloService extends Remote {"
-                + "   String sayHello(String name) throws RemoteException; }");
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String sayHello(String name) throws RemoteException { return name; } }");
         ProcessorHarness.Result gen = h.run();
         assertFalse(gen.allMessages(), gen.hasAnyError());
         // The generated backend + proxy must compile against the stubs.
@@ -343,13 +435,19 @@ public class ServiceProxyProcessorTest {
             .add("svc.Svc",
                 "package svc; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " import java.util.List;"
-                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
-                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
-                + " @JiniService(proxy = ProxyType.SMART)"
                 + " public interface Svc extends Remote {"
                 + "   <T> List<T> pick(T[] items) throws RemoteException;"
                 + "   void log(String fmt, Object... args) throws RemoteException;"
-                + "   int count() throws RemoteException; }");
+                + "   int count() throws RemoteException; }")
+            .add("svc.SvcImpl",
+                "package svc; import java.rmi.RemoteException; import java.util.List;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = Svc.class, proxy = ProxyType.SMART)"
+                + " public class SvcImpl implements Svc {"
+                + "   public <T> List<T> pick(T[] items) throws RemoteException { return null; }"
+                + "   public void log(String fmt, Object... args) throws RemoteException {}"
+                + "   public int count() throws RemoteException { return 0; } }");
         ProcessorHarness.Result gen = h.run();
         assertFalse(gen.allMessages(), gen.hasAnyError());
         String proxy = gen.generated.get("svc.ConstrainableSvcProxy");
@@ -374,11 +472,15 @@ public class ServiceProxyProcessorTest {
         ProcessorHarness.Result r = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
-                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
-                + " @JiniService(proxy = ProxyType.SMART, codebase = true)"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART, codebase = true)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
         assertFalse("SMART + protocol==api generates NO backend: " + r.generated.keySet(),
@@ -399,11 +501,16 @@ public class ServiceProxyProcessorTest {
                 + "   String greet(String name) throws RemoteException; }")
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
-                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
-                + " @JiniService(proxy = ProxyType.SMART, codebase = true, protocol = HelloProtocol.class)"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART,"
+                + "     codebase = true, protocol = HelloProtocol.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
         assertTrue("SMART + protocol!=api generates the backend: " + r.generated.keySet(),
@@ -425,11 +532,15 @@ public class ServiceProxyProcessorTest {
         ProcessorHarness.Result r = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
-                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
-                + " @JiniService(proxy = ProxyType.DYNAMIC)"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.DYNAMIC)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
         assertTrue("DYNAMIC + protocol==api must generate NOTHING: " + r.generated.keySet(),
@@ -445,9 +556,13 @@ public class ServiceProxyProcessorTest {
         ProcessorHarness.Result r = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(api = HelloService.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
         assertTrue("default (DYNAMIC) must generate NOTHING: " + r.generated.keySet(),

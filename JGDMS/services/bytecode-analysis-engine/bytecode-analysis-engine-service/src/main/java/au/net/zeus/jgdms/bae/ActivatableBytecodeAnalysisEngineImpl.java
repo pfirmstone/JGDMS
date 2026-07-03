@@ -32,6 +32,8 @@ import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineBackend;
 import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy;
 import org.apache.river.config.Config;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import au.net.zeus.jgdms.service.support.JiniServiceParameters;
 import org.apache.river.start.lifecycle.LifeCycle;
@@ -84,6 +86,10 @@ import org.apache.river.start.lifecycle.LifeCycle;
  * @see AbstractJiniService
  * @since 3.1.1
  */
+@JiniService(
+        api      = BytecodeAnalysisEngine.class,   // the service (remote) API interface
+        proxy    = ProxyType.SMART,                // wraps the stub in a generated smart proxy
+        codebase = true)                           // ships a downloadable -dl proxy jar
 public class ActivatableBytecodeAnalysisEngineImpl
         extends AbstractJiniService
         implements BytecodeAnalysisEngineBackend {
@@ -166,10 +172,8 @@ public class ActivatableBytecodeAnalysisEngineImpl
         return BytecodeAnalysisEngineProxy.create((BytecodeAnalysisEngine) stub, serviceUuid);
     }
 
-    @Override
-    protected Class<?>[] getServiceInterfaces() {
-        return new Class<?>[]{ BytecodeAnalysisEngine.class };
-    }
+    // getServiceInterfaces() is inherited: it reads api() = { BytecodeAnalysisEngine.class }
+    // from the @JiniService annotation above.
 
     /**
      * Destroys this service: initiates shutdown of the analysis engine (which
