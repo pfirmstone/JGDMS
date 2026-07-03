@@ -38,6 +38,8 @@ import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.net.Uri;
 import org.apache.river.config.Config;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import au.net.zeus.jgdms.service.support.JiniServiceParameters;
 import org.apache.river.start.lifecycle.LifeCycle;
@@ -98,6 +100,10 @@ import au.net.zeus.jgdms.vr.proxy.VerdictRegistryProxy;
  * @see AbstractJiniService
  * @since 3.1.1
  */
+@JiniService(
+        api      = VerdictRegistry.class,   // the service (remote) API interface
+        proxy    = ProxyType.SMART,         // wraps the stub in a generated smart proxy
+        codebase = true)                    // ships a downloadable -dl proxy jar
 public class ActivatableVerdictRegistryImpl
         extends AbstractJiniService
         implements VerdictRegistryBackend {
@@ -199,10 +205,8 @@ public class ActivatableVerdictRegistryImpl
         return VerdictRegistryProxy.create((VerdictRegistry) stub, serviceUuid);
     }
 
-    @Override
-    protected Class<?>[] getServiceInterfaces() {
-        return new Class<?>[]{ VerdictRegistry.class };
-    }
+    // getServiceInterfaces() is inherited: it reads api() = { VerdictRegistry.class }
+    // from the @JiniService annotation above.
 
     // -------------------------------------------------------------------------
     // VerdictRegistry — delegate all calls to the core implementation

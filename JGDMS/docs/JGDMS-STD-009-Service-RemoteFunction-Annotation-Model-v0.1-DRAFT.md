@@ -97,13 +97,28 @@ Service-vs-Function axis (§1), realised by **separate, unrelated** base classes
 A `@JiniService` **MUST** be realised `extends AbstractJiniService`
 (`services/jgdms-service-support/.../AbstractJiniService.java`).
 
+**Placement — on the implementation, not the interface.** `@JiniService`
+**MUST** annotate the concrete service *implementation* class (the
+`AbstractJiniService` subclass), **not** the API interface. Its attributes —
+`proxy`, `codebase`, `component`, `protocol` — are *implementation and deployment*
+choices: two implementations of one interface may legitimately pick `DYNAMIC` vs
+`SMART`, different codebases, or different config components. The API interface
+therefore stays a pure `Remote` contract carrying **no** annotation. The service
+(remote) API interface(s) are named by the **`api()`** element (or **inferred**
+from the impl's implemented interfaces minus the JGDMS infrastructure set when
+`api()` is empty). The processor **MUST** emit a compile **error** if `@JiniService`
+is found on an interface. The annotation is `@Retention(RUNTIME)`: besides driving
+the processor at compile time, `AbstractJiniService.getServiceInterfaces()`
+reflects it at runtime to resolve the service API (§4).
+
 Keys:
 
 ```java
 @JiniService(
+    api       = FooService.class,    // service (remote) API interface(s); empty = infer
     proxy     = ProxyType.DYNAMIC,   // DYNAMIC (default) | SMART
     codebase  = false,               // ship a downloadable -dl jar?  default false
-    protocol  = Void.class,          // internal wire interface; Void = same as the annotated API
+    protocol  = Void.class,          // internal wire interface; Void = same as api()
     component = "")                  // config component for the generated wrapper
 ```
 
@@ -160,10 +175,30 @@ configured **regardless of codebase**. This is why it *always* extends
 `AbstractJiniService` (§12), whereas a function's base class is conditional (§7).
 
 The three interface roles from the SOW **MUST** remain distinct: public API
-interface (`-api`), internal service interface (wire methods; may differ from the
-API — cf. Reggie's `Registrar` vs `ServiceRegistrar`), and the generated
-constrainable wrapping (`-dl`). Conflating them is what produced the original four
-`AbstractSmartProxy` round-trip flaws.
+interface (`-api`, named by `api()`), internal service interface (wire methods; may
+differ from the API — cf. Reggie's `Registrar` vs `ServiceRegistrar`; named by
+`protocol()`), and the generated constrainable wrapping (`-dl`). Conflating them is
+what produced the original four `AbstractSmartProxy` round-trip flaws.
+
+**Runtime resolution in `AbstractJiniService`.** Because the annotation is now
+`RUNTIME`-retained and impl-side (§3.1), two former template methods are
+**concrete** on the base class:
+
+- `getServiceInterfaces()` is **generated behaviour, not hand-written**: it reflects
+  `@JiniService` off the concrete class (walking up the superclass chain, since the
+  annotation is not `@Inherited`), returns `api()` when non-empty, and otherwise
+  **infers** the service API from the class's implemented interfaces **minus** the
+  infrastructure set (`Administrable`, `JoinAdmin`, `DestroyAdmin`, the bootstrap
+  accessors `ServiceProxyAccessor` / `ServiceIDAccessor` /
+  `ServiceAttributesAccessor` / `CodebaseAccessor`, `RemoteMethodControl`, and the
+  bare `Remote` marker). The result is resolved **once** and cached (no per-call
+  recomputation, no `ThreadLocal` — this codebase targets virtual threads). A class
+  with **no** `@JiniService` fails fast at construction. The inference rule is
+  **symmetric** with the processor's (§6, §3.1).
+- `createProxy(stub, uuid)` has a **default body** `return stub;` — correct for a
+  `DYNAMIC` service (shapes 1 & 2), whose exported JERI stub *is* the client proxy. A
+  `SMART` service **overrides** it to return its generated/hand-written smart proxy;
+  the method stays overridable (not `final`).
 
 ---
 
@@ -780,18 +815,24 @@ shared utility**, never a common superclass that implies IS-A.
 
 The annotation *processor* work (per the SOW) proceeds:
 
-1. **Annotation API** — add `ProxyType { DYNAMIC, SMART }` and the `codebase` boolean
-   to `@JiniService` in `jgdms-service-annotations`; retire `generate[]`.
-   `--release 8`. Retiring `generate[]` is **coupled to the processor**
-   (`ServiceProxyProcessor` / `ServiceModel` and their tests reference it), so this
-   step is **not** annotation-only despite touching the annotation module.
+1. **Annotation API** — add `ProxyType { DYNAMIC, SMART }`, the `codebase` boolean,
+   and the `api()` `Class<?>[]` element to `@JiniService` in
+   `jgdms-service-annotations`, and make it `@Retention(RUNTIME)` (so
+   `AbstractJiniService` can reflect it); retire `generate[]`. `--release 8`. Both
+   the `api()` addition and the impl-side placement are **coupled to the processor**
+   (`ServiceProxyProcessor` / `ServiceModel` and their tests read the annotation off
+   the impl and resolve `api()`) and to the runtime (`AbstractJiniService`'s
+   now-concrete `getServiceInterfaces()` / `createProxy()`), so this step is **not**
+   annotation-only despite touching the annotation module.
 2. **Shape dispatch** — derive the generated shape from `proxy × codebase` (§6).
 3. **Smart shell** — the constrainable-only `@AtomicSerial` delegate-wrapper (shape 3).
 4. **`-dl` jar packaging + `PREFERRED.LIST`** — the `-dl` jar carries the service's
    *declared* interface(s), **shared never preferred** (RULE-C3); reuse the
    marshal-delegate `META-INF/services` merge pattern for any registration.
-5. **Wire into the build** and migrate hello-world (`@JiniService(DYNAMIC)`, shape 1)
-   as the golden-diff oracle.
+5. **Wire into the build** and migrate hello-world — `@JiniService(api =
+   HelloService.class, proxy = DYNAMIC)` on the `HelloWorldServiceImpl`
+   *implementation* (shape 1), the API interface left a bare `Remote` contract — as
+   the golden-diff oracle.
 
 `@JiniService` is built **first**; the listener form of `@RemoteFunction` rides the
 same dynamic-proxy plumbing almost for free. The **filter runtime** (§8) is the

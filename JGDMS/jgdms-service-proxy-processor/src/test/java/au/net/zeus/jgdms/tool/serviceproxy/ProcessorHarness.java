@@ -163,8 +163,9 @@ final class ProcessorHarness {
         addStub("au.net.zeus.jgdms.service.annotation.JiniService",
                 "package au.net.zeus.jgdms.service.annotation;"
                 + " import java.lang.annotation.*;"
-                + " @Retention(RetentionPolicy.SOURCE) @Target(ElementType.TYPE)"
+                + " @Retention(RetentionPolicy.RUNTIME) @Target(ElementType.TYPE)"
                 + " public @interface JiniService {"
+                + "   Class<?>[] api() default {};"
                 + "   ProxyType proxy() default ProxyType.DYNAMIC;"
                 + "   boolean codebase() default false;"
                 + "   Class<?> protocol() default Void.class;"

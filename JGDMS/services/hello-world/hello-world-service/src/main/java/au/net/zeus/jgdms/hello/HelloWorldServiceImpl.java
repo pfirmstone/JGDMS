@@ -19,8 +19,9 @@ package au.net.zeus.jgdms.hello;
 
 import java.rmi.RemoteException;
 import net.jini.activation.arg.ActivationID;
-import net.jini.id.Uuid;
 import au.net.zeus.jgdms.api.hello.HelloService;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import org.apache.river.start.lifecycle.LifeCycle;
 
@@ -72,6 +73,17 @@ import org.apache.river.start.lifecycle.LifeCycle;
  * full Jini configuration, including SSL transport setup and method
  * constraints.
  *
+ * <h2>Service-proxy generation ({@code @JiniService})</h2>
+ * This <em>implementation</em> class carries the
+ * {@link JiniService @JiniService} annotation — proxy type, codebase, and config
+ * component are deployment concerns of the implementor, so they live here rather
+ * than on the {@link HelloService} API interface.  {@code proxy = }
+ * {@link ProxyType#DYNAMIC} selects JGDMS-STD-009 §6 shape 1: the exported JERI
+ * dynamic-proxy stub is itself the client proxy, so the processor generates
+ * nothing and {@link #createProxy(Object, net.jini.id.Uuid)} is inherited
+ * unchanged (its default returns the stub).  {@link #getServiceInterfaces()} is
+ * likewise inherited: it reads {@code api()} from this annotation.
+ *
  * @see HelloServiceImpl
  * @see HelloService
  * @see AbstractJiniService
@@ -79,6 +91,11 @@ import org.apache.river.start.lifecycle.LifeCycle;
  * @author Peter Firmstone
  * @author GitHub Copilot
  */
+@JiniService(
+        api       = HelloService.class,         // the service (remote) API interface
+        proxy     = ProxyType.DYNAMIC,          // shape 1: runtime java.lang.reflect.Proxy stub, no proxy class
+        codebase  = false,                      // no downloadable -dl jar; proxy is the JERI dynamic stub
+        component = "au.net.zeus.jgdms.hello")  // config component for the service wrapper
 public class HelloWorldServiceImpl
         extends AbstractJiniService
         implements HelloService {
@@ -125,24 +142,12 @@ public class HelloWorldServiceImpl
     // -------------------------------------------------------------------------
     // AbstractJiniService template methods
     // -------------------------------------------------------------------------
-
-    @Override
-    protected Object createProxy(Object stub, Uuid serviceUuid) {
-        // DYNAMIC (JGDMS-STD-009 §6 shape 1): the exported JERI stub is itself
-        // the client proxy.  Because the service is exported through the
-        // framework-default net.jini.jeri.DynamicILFactory (installed by
-        // JiniServiceParameters, carrying the Jini admin interfaces), this stub is
-        // a java.lang.reflect.Proxy that already implements HelloService, the
-        // appended admin interfaces (Administrable/JoinAdmin/DestroyAdmin), the
-        // Remote bootstrap accessors, and RemoteMethodControl.  There is no
-        // generated proxy class to wrap it in, so it is returned directly.
-        return stub;
-    }
-
-    @Override
-    protected Class<?>[] getServiceInterfaces() {
-        return new Class<?>[]{ HelloService.class };
-    }
+    //
+    // createProxy() and getServiceInterfaces() are inherited unchanged:
+    // this is a DYNAMIC service (§6 shape 1), so the exported JERI stub is
+    // itself the client proxy (the default createProxy returns it), and
+    // getServiceInterfaces() reads api() = { HelloService.class } from the
+    // @JiniService annotation above.
 
     // -------------------------------------------------------------------------
     // HelloService — delegate all calls to the core implementation

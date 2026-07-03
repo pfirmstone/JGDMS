@@ -37,6 +37,13 @@
     </description>
 
     <dependencies>
+        <!-- @JiniService is now RUNTIME-retained and reflected by
+             AbstractJiniService.getServiceInterfaces(); needed at compile+runtime. -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms.tools</groupId>
+            <artifactId>service-proxy-annotations</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-platform</artifactId>
@@ -56,6 +63,12 @@
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-activation</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

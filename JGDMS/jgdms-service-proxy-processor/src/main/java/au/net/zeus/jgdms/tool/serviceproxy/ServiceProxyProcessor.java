@@ -55,9 +55,10 @@ import javax.tools.JavaFileObject;
  * {@code MarshalDelegateProcessor}.
  *
  * <p>The processor references the JGDMS API and the service-proxy annotations by
- * fully-qualified name (the annotations are {@code SOURCE}-retained and consumed
- * through {@code javax.lang.model}), so it depends only on the JDK's
- * {@code java.compiler} module.
+ * fully-qualified name (consumed through {@code javax.lang.model} at compile
+ * time, independent of their retention — {@code @JiniService} is now
+ * {@code RUNTIME}-retained so {@code AbstractJiniService} can reflect it), so it
+ * depends only on the JDK's {@code java.compiler} module.
  *
  * <h2>Modes</h2>
  * <ul>
@@ -172,9 +173,21 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         TypeElement jini = elements.getTypeElement(JINI_SERVICE);
         if (jini != null) {
             for (Element e : round.getElementsAnnotatedWith(jini)) {
-                if (e.getKind() != ElementKind.INTERFACE) {
+                // @JiniService belongs on the service IMPLEMENTATION class, not on
+                // the API interface: proxy type, codebase, and config component are
+                // implementation/deployment concerns, so the interface stays a pure
+                // Remote contract.  Reject interface placement fail-closed.
+                if (e.getKind() == ElementKind.INTERFACE) {
                     messager.printMessage(Kind.ERROR,
-                        "@JiniService must annotate the public API interface, not a "
+                        "@JiniService belongs on the service implementation, not the "
+                        + "interface " + ((TypeElement) e).getQualifiedName()
+                        + "; annotate the concrete AbstractJiniService subclass and name"
+                        + " the API interface(s) with api().", e);
+                    continue;
+                }
+                if (e.getKind() != ElementKind.CLASS) {
+                    messager.printMessage(Kind.ERROR,
+                        "@JiniService must annotate the service implementation class, not a "
                         + e.getKind().toString().toLowerCase() + ".", e);
                     continue;
                 }
@@ -203,8 +216,11 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
 
     // ---------------------------------------------------------------- @JiniService
 
-    private void processJiniService(TypeElement api) throws IOException {
-        ServiceModel model = ServiceModel.of(api, elements, types, messager);
+    private void processJiniService(TypeElement impl) throws IOException {
+        ServiceModel model = ServiceModel.of(impl, elements, types, messager);
+        if (model == null) {
+            return; // api() could not be resolved; error already reported
+        }
         validateJiniService(model);
         if (validateOnly || model.hadError) {
             return;
@@ -258,16 +274,16 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
     // ------------------------------------------------------------------ validation
 
     /**
-     * Emits the design note's validation-mode diagnostics for a {@code @JiniService}
-     * API interface; never modifies the class.
+     * Emits the design note's validation-mode diagnostics for the {@code @JiniService}
+     * implementation and its resolved API interface; never modifies either.
      */
     private void validateJiniService(ServiceModel m) {
-        // Every API method must declare RemoteException (a Remote interface
-        // whose methods cannot signal transport failure is malformed).
+        // The resolved service API type must be a Remote interface (a Remote
+        // interface whose methods cannot signal transport failure is malformed).
         if (!isRemote(m.api.asType())) {
             messager.printMessage(Kind.ERROR,
-                "@JiniService interface " + m.api.getQualifiedName()
-                + " must extend java.rmi.Remote.", m.api);
+                "@JiniService api() interface " + m.api.getQualifiedName()
+                + " must extend java.rmi.Remote.", m.impl);
             m.hadError = true;
         }
         for (ExecutableElement method : m.apiMethods) {
@@ -400,7 +416,7 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         }
         b.append(" {\n}\n");
 
-        JavaFileObject src = filer.createSourceFile(fqn, m.api);
+        JavaFileObject src = filer.createSourceFile(fqn, m.impl);
         try (PrintWriter pw = new PrintWriter(src.openWriter())) {
             pw.print(b);
         }
@@ -523,7 +539,7 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
 
         b.append("}\n");
 
-        JavaFileObject src = filer.createSourceFile(fqn, m.api);
+        JavaFileObject src = filer.createSourceFile(fqn, m.impl);
         try (PrintWriter pw = new PrintWriter(src.openWriter())) {
             pw.print(b);
         }

@@ -5,6 +5,8 @@ import net.jini.activation.arg.ActivationID;
 import net.jini.id.Uuid;
 import ${package}.proxy.${serviceName}ServiceBackend;
 import ${package}.proxy.${serviceName}ServiceProxy;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import org.apache.river.start.lifecycle.LifeCycle;
 
@@ -36,6 +38,11 @@ import org.apache.river.start.lifecycle.LifeCycle;
  * @see AbstractJiniService
  * @since 1.0
  */
+@JiniService(
+        api      = ${serviceName}Service.class,   // the service (remote) API interface
+        proxy    = ProxyType.SMART,               // wraps the stub in a generated smart proxy
+        codebase = true,                          // ships a downloadable -dl proxy jar
+        component = COMPONENT)
 public class ${serviceName}ServiceImpl
         extends AbstractJiniService
         implements ${serviceName}ServiceBackend {
@@ -89,10 +96,8 @@ public class ${serviceName}ServiceImpl
                 (${serviceName}Service) stub, serviceUuid);
     }
 
-    @Override
-    protected Class<?>[] getServiceInterfaces() {
-        return new Class<?>[]{ ${serviceName}Service.class };
-    }
+    // getServiceInterfaces() is inherited: it reads api() = { ${serviceName}Service.class }
+    // from the @JiniService annotation above.
 
     // -------------------------------------------------------------------------
     // ${serviceName}Service — delegate all calls to the core implementation

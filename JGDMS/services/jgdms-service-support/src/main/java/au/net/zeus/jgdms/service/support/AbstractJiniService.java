@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.service.support;
 
 import au.net.zeus.jgdms.proxy.AdminProxy;
+import au.net.zeus.jgdms.service.annotation.JiniService;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -25,6 +26,8 @@ import java.io.OutputStream;
 import java.io.InputStream;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
@@ -79,19 +82,21 @@ import org.apache.river.thread.ReadyState;
  *
  * <h2>Usage</h2>
  * <ol>
+ *   <li>Annotate the concrete service class with
+ *       {@link au.net.zeus.jgdms.service.annotation.JiniService @JiniService},
+ *       naming its {@code api()} interface(s) (or leaving {@code api()} empty to
+ *       have them inferred).  {@link #getServiceInterfaces()} reads this at
+ *       construction — a class with no {@code @JiniService} fails fast.</li>
  *   <li>Subclass {@link JiniServiceParameters}, read service-specific
  *       configuration in the subclass constructor, and let any
  *       {@link net.jini.config.ConfigurationException} propagate naturally.
  *       All validation happens before the service object is created.</li>
- *   <li>Extend {@code AbstractJiniService} and implement the two template
- *       methods:
- *       <ul>
- *         <li>{@link #createProxy(Object, Uuid)} — wrap the exported server stub
- *             in the appropriate smart proxy</li>
- *         <li>{@link #getServiceInterfaces()} — return the remote service
- *             interface(s), used as the codebase fallback</li>
- *       </ul>
- *   </li>
+ *   <li>Extend {@code AbstractJiniService}.  A
+ *       {@link au.net.zeus.jgdms.service.annotation.ProxyType#DYNAMIC} service
+ *       needs no template-method override at all; a
+ *       {@link au.net.zeus.jgdms.service.annotation.ProxyType#SMART} service
+ *       overrides {@link #createProxy(Object, Uuid)} to wrap the exported server
+ *       stub in its generated smart proxy.</li>
  *   <li>Override {@link #onExported(Object)} if post-export work is needed
  *       (e.g. providing the server stub to a delegate implementation).</li>
  * </ol>
@@ -114,6 +119,26 @@ public abstract class AbstractJiniService
 
     private static final Logger logger =
             Logger.getLogger(AbstractJiniService.class.getName());
+
+    /**
+     * The JGDMS infrastructure interfaces excluded when {@link JiniService#api()}
+     * is empty and the service interfaces are inferred from the implemented
+     * interface set (mirrors the annotation processor's inference rule).  These
+     * are the caller-facing framework interfaces every JGDMS service stub carries
+     * — the admin interfaces, the bootstrap accessors, and
+     * {@code RemoteMethodControl} — none of which is the service's own API.
+     */
+    private static final Set<String> INFRA_INTERFACES = Set.of(
+            "net.jini.admin.Administrable",
+            "net.jini.admin.JoinAdmin",
+            "org.apache.river.admin.DestroyAdmin",
+            "net.jini.lookup.ServiceProxyAccessor",
+            "net.jini.lookup.ServiceIDAccessor",
+            "net.jini.lookup.ServiceAttributesAccessor",
+            "net.jini.export.CodebaseAccessor",
+            "net.jini.core.constraint.RemoteMethodControl",
+            // The bare Remote marker is never itself a service API.
+            "java.rmi.Remote");
 
     // -------------------------------------------------------------------------
     // Infrastructure fields — set from JiniServiceParameters in constructor
@@ -159,6 +184,17 @@ public abstract class AbstractJiniService
      * and runs the start body as the resulting Subject.
      */
     private final LoginContext loginContext;
+
+    /**
+     * The service (remote) interfaces this service advertises, resolved once from
+     * the {@link JiniService} annotation on the concrete class and cached (never
+     * recomputed per call, and no {@link ThreadLocal} — this codebase targets
+     * virtual threads).  Resolved eagerly in the constructor so a missing
+     * {@code @JiniService} fails fast at construction rather than at first use.
+     *
+     * @see #getServiceInterfaces()
+     */
+    private final Class<?>[] serviceInterfaces;
 
     // -------------------------------------------------------------------------
     // Volatile post-start fields
@@ -246,6 +282,67 @@ public abstract class AbstractJiniService
         this.encodedCerts          = params.encodedCerts.clone();
         this.persistDir            = params.persistDir;
         this.lifeCycle             = lifeCycle;
+        this.serviceInterfaces     = resolveServiceInterfaces();
+    }
+
+    /**
+     * Resolves the service (remote) interfaces from the {@link JiniService}
+     * annotation on the concrete service class.
+     *
+     * <p>Walks up the superclass chain so that a subclass of an already-annotated
+     * service still finds the annotation (the annotation is not
+     * {@link java.lang.annotation.Inherited}, and {@code @Inherited} would in any
+     * case only cover the direct concrete class, not intermediate abstract bases).
+     * If {@link JiniService#api()} is non-empty it is returned verbatim; otherwise
+     * the interfaces are inferred from the concrete class's implemented interfaces
+     * minus the JGDMS infrastructure interfaces ({@link #INFRA_INTERFACES}).
+     *
+     * @return the resolved, non-empty service interface array
+     * @throws IllegalStateException if the concrete class (or an ancestor) carries
+     *         no {@code @JiniService}, or if inference yields no interfaces
+     */
+    private Class<?>[] resolveServiceInterfaces() {
+        Class<?> concrete = getClass();
+        JiniService ann = null;
+        for (Class<?> c = concrete; c != null && c != Object.class; c = c.getSuperclass()) {
+            ann = c.getAnnotation(JiniService.class);
+            if (ann != null) {
+                break;
+            }
+        }
+        if (ann == null) {
+            throw new IllegalStateException(
+                    "service implementation " + concrete.getName()
+                    + " (or an ancestor) must be annotated with @"
+                    + JiniService.class.getName()
+                    + "; getServiceInterfaces() now derives the service API from it");
+        }
+        Class<?>[] api = ann.api();
+        if (api != null && api.length > 0) {
+            return api.clone();
+        }
+        // Infer: the interfaces implemented by the concrete class hierarchy DOWN TO
+        // (but not including) AbstractJiniService, minus the infrastructure set.
+        // Stopping at AbstractJiniService is essential — otherwise the base class's
+        // own framework SPIs (ProxyAccessor, Startable, the accessors, admin) would
+        // be mistaken for the service API.
+        Set<Class<?>> inferred = new LinkedHashSet<>();
+        for (Class<?> c = concrete; c != null && c != AbstractJiniService.class
+                && c != Object.class; c = c.getSuperclass()) {
+            for (Class<?> iface : c.getInterfaces()) {
+                if (!INFRA_INTERFACES.contains(iface.getName())) {
+                    inferred.add(iface);
+                }
+            }
+        }
+        if (inferred.isEmpty()) {
+            throw new IllegalStateException(
+                    "@" + JiniService.class.getSimpleName() + " on " + concrete.getName()
+                    + " has an empty api() and no service interface could be inferred"
+                    + " (the class implements only infrastructure interfaces); declare"
+                    + " api() explicitly");
+        }
+        return inferred.toArray(new Class<?>[0]);
     }
 
     /**
@@ -558,36 +655,48 @@ public abstract class AbstractJiniService
     }
 
     /**
-     * Wraps the raw exported server stub in the service's smart client proxy.
+     * Wraps the raw exported server stub in the service's client proxy.
      *
-     * <p>Implementations should return an instance of a class that extends
-     * {@link au.net.zeus.jgdms.proxy.AbstractSmartProxy}, passing {@code stub} and {@code serviceUuid}
-     * to the superclass constructor.  This ensures the proxy carries the
-     * stable service UUID needed for correct {@code equals()} / {@code hashCode()}
-     * behaviour and {@link net.jini.id.ReferentUuid} identity.
+     * <p>The default implementation returns the {@code stub} unchanged — the
+     * correct behaviour for a {@link au.net.zeus.jgdms.service.annotation.ProxyType#DYNAMIC}
+     * service (JGDMS-STD-009 §6 shapes 1 &amp; 2), whose exported JERI stub is
+     * itself the client proxy.
+     *
+     * <p>A {@link au.net.zeus.jgdms.service.annotation.ProxyType#SMART} service
+     * overrides this to return its generated smart proxy — an instance of a class
+     * that extends {@link au.net.zeus.jgdms.proxy.AbstractSmartProxy}, passing
+     * {@code stub} and {@code serviceUuid} to the superclass constructor so the
+     * proxy carries the stable service UUID needed for correct {@code equals()} /
+     * {@code hashCode()} behaviour and {@link net.jini.id.ReferentUuid} identity.
      *
      * @param stub        the exported server stub; never {@code null}
      * @param serviceUuid the stable unique identifier generated for this
      *                    service instance; never {@code null}
-     * @return the smart proxy to advertise in lookup services; must be
-     *         non-null
+     * @return the proxy to advertise in lookup services; must be non-null
      */
-    protected abstract Object createProxy(Object stub, Uuid serviceUuid);
+    protected Object createProxy(Object stub, Uuid serviceUuid) {
+        return stub;
+    }
 
     /**
-     * Returns the remote service interfaces implemented by this service.
+     * Returns the remote service (API) interfaces this service advertises.
+     *
+     * <p>Resolved once from the {@link JiniService @JiniService} annotation on the
+     * concrete service class (see {@link #resolveServiceInterfaces()}) and cached:
+     * if {@link JiniService#api()} is non-empty it is returned; otherwise the
+     * interfaces are inferred from the class's implemented interfaces minus the
+     * JGDMS infrastructure ones.  The concrete class (or an ancestor) MUST carry
+     * {@code @JiniService}, or construction fails.
      *
      * <p>The first element is used as the fallback argument to
      * {@link CodebaseProvider#getClassAnnotation(Class)} when no explicit
      * codebase annotation has been configured.
      *
-     * <p>A service may implement more than one remote interface; returning
-     * all of them here allows future infrastructure to register the service
-     * under each interface in the lookup service.
-     *
-     * @return the service interface classes; must be non-null and non-empty
+     * @return the service interface classes; non-null and non-empty
      */
-    protected abstract Class<?>[] getServiceInterfaces();
+    protected final Class<?>[] getServiceInterfaces() {
+        return serviceInterfaces.clone();
+    }
 
     // -------------------------------------------------------------------------
     // ReadyState access for subclasses

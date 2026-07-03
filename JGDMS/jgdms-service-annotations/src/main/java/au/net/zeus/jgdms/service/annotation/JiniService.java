@@ -24,28 +24,48 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a JGDMS service's public API interface so the service-proxy annotation
- * processor can generate the mechanical service-proxy boilerplate for it: the
- * server-side backend (internal wire) interface, the single constrainable proxy
- * class (with a fail-closed {@code create} factory) for a {@link ProxyType#SMART}
- * service, and, optionally, the service wrapper.
+ * Marks a JGDMS service's <em>implementation</em> class so the service-proxy
+ * annotation processor can generate the mechanical service-proxy boilerplate for
+ * it: the server-side backend (internal wire) interface, the single constrainable
+ * proxy class (with a fail-closed {@code create} factory) for a
+ * {@link ProxyType#SMART} service, and, optionally, the service wrapper.
  *
- * <p>The annotation is placed on the <em>public API interface</em> — the clean,
- * client-facing contract (for example {@code HelloService}) — <em>not</em> on
- * the service implementation.  The processor never edits the annotated type; it
- * only emits new source files, exactly like the sibling
- * {@code MarshalDelegateProcessor}.  In the common (thin, one-to-one forwarding)
- * case nothing else needs to be written by hand.
+ * <p>The annotation belongs on the concrete service <em>implementation</em> class
+ * — a concrete {@code au.net.zeus.jgdms.service.support.AbstractJiniService}
+ * subclass (for example {@code HelloWorldServiceImpl}) — <em>not</em> on the
+ * service API interface.  The attributes here ({@link #proxy()},
+ * {@link #codebase()}, {@link #component()}, {@link #protocol()}) are
+ * implementation and deployment concerns — the wire protocol, whether behaviour
+ * downloads, the config component — so they are the implementor's choice, per
+ * deployment.  The API interface stays a pure {@link java.rmi.Remote} contract
+ * carrying nothing: two implementations of the same interface may legitimately
+ * choose {@code DYNAMIC} vs {@code SMART}, different codebases, or different config
+ * components.  Placing this annotation on an interface is a compile error.
+ *
+ * <p>The service (remote) interface(s) the proxy is generated for — the ones
+ * {@code getServiceInterfaces()} returns — are named by {@link #api()}.  When
+ * {@link #api()} is left empty they are <em>inferred</em> from the interfaces the
+ * annotated class implements, minus the JGDMS infrastructure interfaces
+ * ({@code Administrable}, {@code JoinAdmin}, {@code DestroyAdmin}, the bootstrap
+ * accessors {@code ServiceProxyAccessor} / {@code ServiceIDAccessor} /
+ * {@code ServiceAttributesAccessor} / {@code CodebaseAccessor}, and
+ * {@code RemoteMethodControl}).
+ *
+ * <p>The processor never edits the annotated class; it only emits new source
+ * files, exactly like the sibling {@code MarshalDelegateProcessor}.  In the common
+ * (thin, one-to-one forwarding) case nothing else needs to be written by hand.
  *
  * <h2>Example</h2>
  * <pre>{@code
  * @JiniService(
+ *     api       = HelloService.class,   // the service (remote) API interface(s)
  *     proxy     = ProxyType.DYNAMIC,    // DYNAMIC (default) | SMART
  *     codebase  = false,                // ship a downloadable -dl jar?  (default false)
- *     protocol  = HelloService.class,   // internal wire interface (default: the annotated API)
+ *     protocol  = HelloService.class,   // internal wire interface (default: the api)
  *     component = "net.example.hello")  // config component for the generated wrapper
- * public interface HelloService extends Remote {
- *     String greet(String name) throws RemoteException;
+ * public class HelloWorldServiceImpl extends AbstractJiniService
+ *         implements HelloService {
+ *     ...
  * }
  * }</pre>
  *
@@ -53,12 +73,13 @@ import java.lang.annotation.Target;
  * The design keeps three interface roles distinct (see the design note
  * <cite>Service Proxy Annotation Processor</cite>):
  * <ul>
- *   <li>the <b>public API interface</b> — the type carrying this annotation,
- *       shipped in the {@code -api} jar and written by the developer;</li>
+ *   <li>the <b>public API interface</b> — the clean, client-facing contract named
+ *       by {@link #api()}, shipped in the {@code -api} jar; a pure {@code Remote}
+ *       type carrying no annotation;</li>
  *   <li>the <b>internal service (backend) interface</b> — the remote (wire)
  *       methods the exported stub implements and the proxy invokes on the
- *       {@code server}; named by {@link #protocol()}, defaulting to the public
- *       API itself;</li>
+ *       {@code server}; named by {@link #protocol()}, defaulting to the
+ *       {@link #api()};</li>
  *   <li>the <b>constrainable wrapping</b> — the sole {@code RemoteMethodControl}
  *       proxy <em>class</em>, generated only for a {@link ProxyType#SMART}
  *       service.</li>
@@ -82,14 +103,39 @@ import java.lang.annotation.Target;
  * <p>The generated proxy shape is derived from {@link #proxy()} and
  * {@link #codebase()} (see JGDMS-STD-009 §3.1, §6); it is not enumerated by hand.
  *
+ * <p>This annotation is retained at {@link RetentionPolicy#RUNTIME}: besides being
+ * consumed by the annotation processor at compile time, {@code AbstractJiniService}
+ * reflects it at runtime to resolve {@code getServiceInterfaces()}.
+ *
  * @see ProxyType
  * @see SmartProxy
  * @since 3.1.1
  */
 @Documented
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface JiniService {
+
+    /**
+     * The service (remote) API interface(s) the generated proxy is produced for,
+     * and that {@code AbstractJiniService.getServiceInterfaces()} returns.
+     *
+     * <p>Defaults to an empty array, which both the annotation processor and the
+     * runtime interpret as "infer from the implemented interfaces": the interfaces
+     * the annotated class implements, minus the JGDMS infrastructure interfaces
+     * ({@code net.jini.admin.Administrable}, {@code net.jini.admin.JoinAdmin},
+     * {@code org.apache.river.admin.DestroyAdmin}, the bootstrap accessors
+     * {@code net.jini.lookup.ServiceProxyAccessor} /
+     * {@code net.jini.lookup.ServiceIDAccessor} /
+     * {@code net.jini.lookup.ServiceAttributesAccessor} /
+     * {@code net.jini.export.CodebaseAccessor}, and
+     * {@code net.jini.core.constraint.RemoteMethodControl}).  Naming the
+     * interface(s) explicitly is clearer and is required when the inference would
+     * be ambiguous.
+     *
+     * @return the service API interface(s); empty (the default) to infer them
+     */
+    Class<?>[] api() default {};
 
     /**
      * The internal service (backend / wire) interface the exported server stub
@@ -97,13 +143,13 @@ public @interface JiniService {
      * reference.
      *
      * <p>Defaults to {@link Void Void.class}, which the processor interprets as
-     * "same as the annotated public API interface" — the thin, one-to-one
-     * forwarding case, where the public API and the wire interface coincide.
-     * Supply a distinct interface when the proxy translates public-API calls
-     * into a coarser or finer internal protocol (a smart proxy).
+     * "same as the {@link #api()} interface" — the thin, one-to-one forwarding
+     * case, where the public API and the wire interface coincide.  Supply a
+     * distinct interface when the proxy translates public-API calls into a coarser
+     * or finer internal protocol (a smart proxy).
      *
      * @return the internal wire interface, or {@code Void.class} to default to
-     *         the annotated API interface
+     *         the {@link #api()} interface
      */
     Class<?> protocol() default Void.class;
 
