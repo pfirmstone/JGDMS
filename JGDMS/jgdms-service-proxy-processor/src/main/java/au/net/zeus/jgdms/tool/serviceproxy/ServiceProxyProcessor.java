@@ -67,7 +67,18 @@ import javax.tools.JavaFileObject;
  *       original {@code AbstractSmartProxy} round-trip flaws before generation
  *       existed.</li>
  *   <li><b>generate</b> (default) — additionally emits the backend interface
- *       (this phase), the constrainable proxy, and optionally the wrapper.</li>
+ *       (unless hand-written) and, for a {@code SMART} service only, the
+ *       constrainable proxy class; the wrapper follows in a later phase.  The
+ *       backend interface is generated for every service, but the constrainable
+ *       proxy <em>class</em> is generated only when
+ *       {@code proxy() == }{@link au.net.zeus.jgdms.service.annotation.ProxyType#SMART}
+ *       (JGDMS-STD-009 §6, shape 3).  A {@code DYNAMIC} service (shapes 1 &amp; 2)
+ *       is exported as a runtime {@link java.lang.reflect.Proxy} the client
+ *       already holds the interface for, so it generates no proxy class.  The
+ *       {@code codebase} axis of the §6 shape dispatch (the interfaces-only
+ *       {@code -dl} packaging of shape 2, and the SMART {@code -dl}-vs-shared
+ *       packaging) is a follow-on task: {@code model.codebase()} is read and
+ *       stored but not yet acted on.</li>
  * </ul>
  *
  * @see au.net.zeus.jgdms.service.annotation.JiniService
@@ -175,13 +186,26 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         if (validateOnly || model.hadError) {
             return;
         }
-        if (model.generateBackend && !model.backendHandWritten) {
+        // Shape dispatch (JGDMS-STD-009 §6): the BACKEND (wire) interface is
+        // generated for every service -- both a DYNAMIC and a SMART service need
+        // it -- unless it is already hand-written.  The constrainable proxy
+        // *class*, however, is generated ONLY for a SMART service (shape 3): a
+        // DYNAMIC service (shapes 1 & 2) is exported as a runtime
+        // java.lang.reflect.Proxy the client already has the interface for, so it
+        // generates no proxy class.
+        //
+        // The codebase() flag is NOT acted on here: shape-2 (DYNAMIC + codebase)
+        // interfaces-only -dl packaging and the SMART -dl-vs-shared-codebase
+        // packaging are a deferred design pass.  model.codebase() is read and
+        // stored but does not gate generation.  Wrapper (P4) and smart-proxy
+        // shell (P3) generation land in later phases.
+        if (!model.backendHandWritten) {
             writeBackend(model);
         }
-        if (model.generateProxy && model.proxyHandWritten == null) {
+        if (model.proxyType() == ServiceModel.ProxyType.SMART
+                && model.proxyHandWritten == null) {
             writeProxy(model);
         }
-        // Wrapper (P4) and smart-proxy shell (P3) generation land in later phases.
     }
 
     // ------------------------------------------------------------------ validation

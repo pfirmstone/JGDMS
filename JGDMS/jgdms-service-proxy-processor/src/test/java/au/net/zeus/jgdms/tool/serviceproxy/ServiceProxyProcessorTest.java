@@ -258,10 +258,15 @@ public class ServiceProxyProcessorTest {
 
     @Test
     public void generatesConstrainableProxy() {
+        // A hand-written constrainable proxy IS a SMART proxy, so the golden-diff
+        // fixture that drives this shape declares proxy = ProxyType.SMART (§6
+        // shape 3 is the only shape that emits a proxy class).
         ProcessorHarness h = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(proxy = ProxyType.SMART)"
                 + " public interface HelloService extends Remote {"
                 + "   String sayHello(String name) throws RemoteException; }");
         ProcessorHarness.Result r = h.run();
@@ -285,10 +290,13 @@ public class ServiceProxyProcessorTest {
 
     @Test
     public void generatedProxyCompiles() {
+        // SMART: the golden proxy-class fixture (only shape 3 emits a proxy class).
         ProcessorHarness h = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(proxy = ProxyType.SMART)"
                 + " public interface HelloService extends Remote {"
                 + "   String sayHello(String name) throws RemoteException; }");
         ProcessorHarness.Result gen = h.run();
@@ -302,11 +310,14 @@ public class ServiceProxyProcessorTest {
 
     @Test
     public void generatedProxyPreservesGenericsVarargsAndThrows() {
+        // SMART: signature-fidelity is checked on the generated proxy class.
         ProcessorHarness h = new ProcessorHarness()
             .add("svc.Svc",
                 "package svc; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " import java.util.List;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(proxy = ProxyType.SMART)"
                 + " public interface Svc extends Remote {"
                 + "   <T> List<T> pick(T[] items) throws RemoteException;"
                 + "   void log(String fmt, Object... args) throws RemoteException;"
@@ -327,18 +338,63 @@ public class ServiceProxyProcessorTest {
     }
 
     @Test
-    public void doesNotGenerateBackendWhenNotRequested() {
+    public void generatesConstrainableProxyForSmart() {
+        // Shape 3 (JGDMS-STD-009 §6): a SMART service generates BOTH the backend
+        // wire interface AND the constrainable proxy class.  This is the golden
+        // proxy-class case (only a SMART service emits a proxy class).
         ProcessorHarness.Result r = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " import au.net.zeus.jgdms.service.annotation.JiniService;"
-                + " import au.net.zeus.jgdms.service.annotation.JiniService.Generate;"
-                + " @JiniService(generate = { Generate.PROXY })"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(proxy = ProxyType.SMART, codebase = true)"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException; }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
-        assertFalse("BACKEND not requested",
+        assertTrue("SMART generates the backend: " + r.generated.keySet(),
             r.generated.containsKey("hello.HelloServiceBackend"));
+        assertTrue("SMART generates the constrainable proxy class: " + r.generated.keySet(),
+            r.generated.containsKey("hello.ConstrainableHelloServiceProxy"));
+    }
+
+    @Test
+    public void dynamicGeneratesBackendButNoProxyClass() {
+        // Shape 1 (JGDMS-STD-009 §6): a DYNAMIC service (the default) is exported
+        // as a runtime java.lang.reflect.Proxy the client already holds the
+        // interface for, so it generates the backend wire interface but NO
+        // constrainable proxy class.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.HelloService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(proxy = ProxyType.DYNAMIC)"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+        assertTrue("DYNAMIC still generates the backend: " + r.generated.keySet(),
+            r.generated.containsKey("hello.HelloServiceBackend"));
+        assertFalse("DYNAMIC must NOT generate a proxy class: " + r.generated.keySet(),
+            r.generated.containsKey("hello.ConstrainableHelloServiceProxy"));
+    }
+
+    @Test
+    public void defaultProxyTypeIsDynamicAndGeneratesNoProxyClass() {
+        // The default @JiniService (no proxy element) is DYNAMIC, so it too emits
+        // the backend but no proxy class -- the shape-1 default coverage.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.HelloService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+        assertTrue("default (DYNAMIC) generates the backend: " + r.generated.keySet(),
+            r.generated.containsKey("hello.HelloServiceBackend"));
+        assertFalse("default (DYNAMIC) must NOT generate a proxy class: " + r.generated.keySet(),
+            r.generated.containsKey("hello.ConstrainableHelloServiceProxy"));
     }
 }

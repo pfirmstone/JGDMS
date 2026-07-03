@@ -38,9 +38,18 @@ import javax.lang.model.util.Types;
 /**
  * The distilled model of a single {@code @JiniService} API interface: its
  * abstract (public) methods, the resolved internal wire ({@code protocol})
- * interface, the requested {@code generate} set, and whether the developer has
- * already hand-written the backend interface or the proxy class (in which case
- * the processor validates but does not generate them).
+ * interface, the requested proxy shape ({@code proxy} / {@code codebase}), and
+ * whether the developer has already hand-written the backend interface or the
+ * proxy class (in which case the processor validates but does not generate them).
+ *
+ * <p>The {@code proxy} ({@link ProxyType}) and {@code codebase} elements are read
+ * off the annotation and stored.  The processor generates the BACKEND (wire)
+ * interface for every service, but the constrainable PROXY <em>class</em> only
+ * when {@code proxyType == }{@link ProxyType#SMART} (JGDMS-STD-009 §6, shape 3):
+ * a {@code DYNAMIC} service is a runtime {@code java.lang.reflect.Proxy} and
+ * generates no proxy class.  The {@code codebase} axis of the §6 shape dispatch
+ * ({@code -dl} packaging) is a follow-on task; {@code codebase} is stored but not
+ * yet acted on.
  *
  * <p>All resolution is name- and mirror-based; nothing here loads a live
  * {@code Class}, so the processor depends only on {@code java.compiler}.
@@ -58,9 +67,20 @@ final class ServiceModel {
     /** {@code component} config name for the generated wrapper (may be empty). */
     String component = "";
 
-    boolean generateBackend;
-    boolean generateProxy;
-    boolean generateWrapper;
+    /**
+     * The declared proxy type ({@code proxy} element), mirroring
+     * {@code au.net.zeus.jgdms.service.annotation.ProxyType}.  Gates constrainable
+     * proxy-class generation: the class is emitted only when this is
+     * {@link ProxyType#SMART} (JGDMS-STD-009 §6, shape 3); a {@link ProxyType#DYNAMIC}
+     * service generates no proxy class.
+     */
+    ProxyType proxyType = ProxyType.DYNAMIC;
+
+    /**
+     * The declared {@code codebase} flag: whether the service ships a downloadable
+     * {@code -dl} jar.  Stored only; not yet acted on by codegen.
+     */
+    boolean codebase;
 
     /** Conventional simple name of the backend interface: {@code <Api>Backend}. */
     String backendSimpleName;
@@ -79,6 +99,16 @@ final class ServiceModel {
 
     private ServiceModel(TypeElement api) {
         this.api = api;
+    }
+
+    /** @return the declared proxy type ({@code proxy} element); {@link ProxyType#DYNAMIC} by default. */
+    ProxyType proxyType() {
+        return proxyType;
+    }
+
+    /** @return the declared {@code codebase} flag ({@code false} by default). */
+    boolean codebase() {
+        return codebase;
     }
 
     static ServiceModel of(TypeElement api, Elements elements, Types types, Messager messager) {
@@ -108,8 +138,9 @@ final class ServiceModel {
         // Read @JiniService members.
         AnnotationMirror ann = annotation(api, ServiceProxyProcessor.JINI_SERVICE);
         TypeMirror protocol = null;
-        List<String> generate = null;
         String component = "";
+        ProxyType proxyType = ProxyType.DYNAMIC;
+        boolean codebase = false;
         if (ann != null) {
             for (var en : ann.getElementValues().entrySet()) {
                 String name = en.getKey().getSimpleName().toString();
@@ -123,8 +154,13 @@ final class ServiceModel {
                     case "component":
                         component = String.valueOf(av.getValue());
                         break;
-                    case "generate":
-                        generate = enumConstants(av);
+                    case "proxy":
+                        proxyType = ProxyType.from(enumConstant(av));
+                        break;
+                    case "codebase":
+                        if (av.getValue() instanceof Boolean) {
+                            codebase = (Boolean) av.getValue();
+                        }
                         break;
                     default:
                         break;
@@ -138,14 +174,11 @@ final class ServiceModel {
             m.protocol = protocol;
         }
         m.component = component;
-        // generate default is all three.
-        if (generate == null) {
-            m.generateBackend = m.generateProxy = m.generateWrapper = true;
-        } else {
-            m.generateBackend = generate.contains("BACKEND");
-            m.generateProxy = generate.contains("PROXY");
-            m.generateWrapper = generate.contains("WRAPPER");
-        }
+        // proxy gates constrainable proxy-class generation (SMART only, §6 shape
+        // 3); codebase is read and stored but not yet acted on for -dl packaging
+        // (a follow-on task).
+        m.proxyType = proxyType;
+        m.codebase = codebase;
 
         // Detect a hand-written backend interface with the conventional name in
         // the API's package.
@@ -220,21 +253,38 @@ final class ServiceModel {
         return null;
     }
 
-    /** Reads an array-of-enum annotation value into a list of constant names. */
-    @SuppressWarnings("unchecked")
-    private static List<String> enumConstants(AnnotationValue av) {
-        List<String> out = new ArrayList<>();
+    /** Reads a single enum-valued annotation member as its constant name, or null. */
+    private static String enumConstant(AnnotationValue av) {
         Object v = av.getValue();
-        if (v instanceof List<?>) {
-            for (Object o : (List<?>) v) {
-                if (o instanceof AnnotationValue) {
-                    Object ev = ((AnnotationValue) o).getValue();
-                    if (ev instanceof VariableElement) {
-                        out.add(((VariableElement) ev).getSimpleName().toString());
+        if (v instanceof VariableElement) {
+            return ((VariableElement) v).getSimpleName().toString();
+        }
+        return null;
+    }
+
+    /**
+     * The processor-side mirror of
+     * {@code au.net.zeus.jgdms.service.annotation.ProxyType}.  The processor has
+     * no compile dependency on the annotations module (it reads everything by
+     * name via {@code javax.lang.model}), so the enum is restated here; its
+     * constant names MUST track the annotation's.
+     */
+    enum ProxyType {
+        /** A {@code java.lang.reflect.Proxy} invoked remotely (default). */
+        DYNAMIC,
+        /** A downloaded smart proxy whose behaviour runs locally. */
+        SMART;
+
+        /** Maps a constant name (from the annotation) to a value; defaults to {@link #DYNAMIC}. */
+        static ProxyType from(String name) {
+            if (name != null) {
+                for (ProxyType t : values()) {
+                    if (t.name().equals(name)) {
+                        return t;
                     }
                 }
             }
+            return DYNAMIC;
         }
-        return out;
     }
 }

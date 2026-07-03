@@ -27,8 +27,8 @@ import java.lang.annotation.Target;
  * Marks a JGDMS service's public API interface so the service-proxy annotation
  * processor can generate the mechanical service-proxy boilerplate for it: the
  * server-side backend (internal wire) interface, the single constrainable proxy
- * (with a fail-closed {@code create} factory), and, optionally, the service
- * wrapper.
+ * class (with a fail-closed {@code create} factory) for a {@link ProxyType#SMART}
+ * service, and, optionally, the service wrapper.
  *
  * <p>The annotation is placed on the <em>public API interface</em> — the clean,
  * client-facing contract (for example {@code HelloService}) — <em>not</em> on
@@ -40,9 +40,10 @@ import java.lang.annotation.Target;
  * <h2>Example</h2>
  * <pre>{@code
  * @JiniService(
+ *     proxy     = ProxyType.DYNAMIC,    // DYNAMIC (default) | SMART
+ *     codebase  = false,                // ship a downloadable -dl jar?  (default false)
  *     protocol  = HelloService.class,   // internal wire interface (default: the annotated API)
- *     component = "net.example.hello",  // config component for the generated wrapper
- *     generate  = { Generate.BACKEND, Generate.PROXY, Generate.WRAPPER })
+ *     component = "net.example.hello")  // config component for the generated wrapper
  * public interface HelloService extends Remote {
  *     String greet(String name) throws RemoteException;
  * }
@@ -59,15 +60,29 @@ import java.lang.annotation.Target;
  *       {@code server}; named by {@link #protocol()}, defaulting to the public
  *       API itself;</li>
  *   <li>the <b>constrainable wrapping</b> — the sole {@code RemoteMethodControl}
- *       proxy, always generated.</li>
+ *       proxy <em>class</em>, generated only for a {@link ProxyType#SMART}
+ *       service.</li>
  * </ul>
  *
- * <p>Every generated proxy is constrainable: there is no non-constrainable
- * variant.  A JGDMS service stub exported through JERI always implements
- * {@code RemoteMethodControl}, so the generated {@code create} factory fails
- * closed — it throws rather than degrading to a plain proxy when the
- * {@code server} reference is not a {@code RemoteMethodControl}.
+ * <p>The constrainable proxy <em>class</em> is generated for a
+ * {@link ProxyType#SMART} service only (JGDMS-STD-009 §6, shape 3): a smart proxy
+ * downloads its behaviour, so a constrainable {@code @AtomicSerial} shell must
+ * wrap it.  A {@link ProxyType#DYNAMIC} service (the default) is exported as a
+ * runtime {@link java.lang.reflect.Proxy} the client already holds the interface
+ * for — constrainable by JERI construction — and generates <em>no</em> proxy
+ * class (§6, shapes 1 &amp; 2).
  *
+ * <p>When a proxy class <em>is</em> generated it is the sole, constrainable form:
+ * there is no non-constrainable variant.  A JGDMS service stub exported through
+ * JERI always implements {@code RemoteMethodControl}, so the generated
+ * {@code create} factory fails closed — it throws rather than degrading to a
+ * plain proxy when the {@code server} reference is not a
+ * {@code RemoteMethodControl}.
+ *
+ * <p>The generated proxy shape is derived from {@link #proxy()} and
+ * {@link #codebase()} (see JGDMS-STD-009 §3.1, §6); it is not enumerated by hand.
+ *
+ * @see ProxyType
  * @see SmartProxy
  * @since 3.1.1
  */
@@ -95,49 +110,35 @@ public @interface JiniService {
     /**
      * The configuration component name passed to the generated service wrapper's
      * {@code AbstractJiniService} superclass constructors (the
-     * {@code COMPONENT} argument).  Ignored when {@link Generate#WRAPPER} is not
-     * requested.
+     * {@code COMPONENT} argument).
      *
-     * @return the configuration component name; empty when no wrapper is
-     *         generated
+     * @return the configuration component name; empty when unset
      */
     String component() default "";
 
     /**
-     * Which artifacts the processor should generate for this service.
+     * How the service's behaviour reaches the caller: as a dynamic proxy invoked
+     * remotely ({@link ProxyType#DYNAMIC}), or as a downloaded smart proxy that
+     * runs locally in the receiver's JVM ({@link ProxyType#SMART}).
      *
-     * <p>Defaults to all three ({@link Generate#BACKEND}, {@link Generate#PROXY},
-     * {@link Generate#WRAPPER}).  Narrow the set when a hand-written artifact
-     * already exists — for example omit {@link Generate#BACKEND} to keep a
-     * hand-written backend interface while still generating the proxy.
+     * <p>Together with {@link #codebase()} this selects the generated proxy shape
+     * (see JGDMS-STD-009 §6).  Defaults to {@link ProxyType#DYNAMIC} — the common
+     * case, a service whose public API interface the client already holds.
      *
-     * @return the artifacts to generate
+     * @return the proxy type; {@link ProxyType#DYNAMIC} by default
      */
-    Generate[] generate() default { Generate.BACKEND, Generate.PROXY, Generate.WRAPPER };
+    ProxyType proxy() default ProxyType.DYNAMIC;
 
     /**
-     * The artifacts the processor can generate for a {@link JiniService}.
+     * Whether the service ships a downloadable {@code -dl} jar carrying its
+     * declared interface(s) so a receiver that lacks the class can resolve it.
+     *
+     * <p>An independent axis from {@link #proxy()} (a service may ship a codebase
+     * regardless of proxy type — see JGDMS-STD-009 §3.1, §6 shape 2).  Defaults to
+     * {@code false}: no downloadable jar, the receiver already holds the classes.
+     *
+     * @return {@code true} to ship a downloadable {@code -dl} jar; {@code false}
+     *         (the default) otherwise
      */
-    enum Generate {
-
-        /**
-         * The server-side backend (internal wire) interface,
-         * {@code <Api>Backend}, aggregating the public API with the fixed set of
-         * JGDMS infrastructure interfaces (bootstrap accessors,
-         * {@code Administrable}, {@code JoinAdmin}, {@code DestroyAdmin}).
-         */
-        BACKEND,
-
-        /**
-         * The single constrainable proxy, {@code Constrainable<Api>Proxy}, with
-         * its fail-closed {@code create} factory.
-         */
-        PROXY,
-
-        /**
-         * The service wrapper, {@code <Api>ServiceImpl}, extending
-         * {@code AbstractJiniService} and implementing the backend interface.
-         */
-        WRAPPER
-    }
+    boolean codebase() default false;
 }

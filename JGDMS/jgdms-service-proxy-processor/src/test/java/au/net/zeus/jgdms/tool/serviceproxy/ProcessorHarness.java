@@ -154,16 +154,21 @@ final class ProcessorHarness {
                 + "     public MethodConstraints getConstraints() { return null; }"
                 + "   } }");
         // The annotations under test (SOURCE-retained; the real ones live in the
-        // annotations module, restated here so the harness is standalone).
+        // annotations module, restated here so the harness is standalone).  Must
+        // track the real au.net.zeus.jgdms.service.annotation.JiniService /
+        // ProxyType exactly (proxy + codebase; generate[]/Generate retired).
+        addStub("au.net.zeus.jgdms.service.annotation.ProxyType",
+                "package au.net.zeus.jgdms.service.annotation;"
+                + " public enum ProxyType { DYNAMIC, SMART }");
         addStub("au.net.zeus.jgdms.service.annotation.JiniService",
                 "package au.net.zeus.jgdms.service.annotation;"
                 + " import java.lang.annotation.*;"
                 + " @Retention(RetentionPolicy.SOURCE) @Target(ElementType.TYPE)"
                 + " public @interface JiniService {"
+                + "   ProxyType proxy() default ProxyType.DYNAMIC;"
+                + "   boolean codebase() default false;"
                 + "   Class<?> protocol() default Void.class;"
-                + "   String component() default \"\";"
-                + "   Generate[] generate() default { Generate.BACKEND, Generate.PROXY, Generate.WRAPPER };"
-                + "   enum Generate { BACKEND, PROXY, WRAPPER } }");
+                + "   String component() default \"\"; }");
         addStub("au.net.zeus.jgdms.service.annotation.SmartProxy",
                 "package au.net.zeus.jgdms.service.annotation;"
                 + " import java.lang.annotation.*;"
