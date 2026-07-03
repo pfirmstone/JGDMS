@@ -43,13 +43,26 @@ import javax.lang.model.util.Types;
  * proxy class (in which case the processor validates but does not generate them).
  *
  * <p>The {@code proxy} ({@link ProxyType}) and {@code codebase} elements are read
- * off the annotation and stored.  The processor generates the BACKEND (wire)
- * interface for every service, but the constrainable PROXY <em>class</em> only
- * when {@code proxyType == }{@link ProxyType#SMART} (JGDMS-STD-009 §6, shape 3):
- * a {@code DYNAMIC} service is a runtime {@code java.lang.reflect.Proxy} and
- * generates no proxy class.  The {@code codebase} axis of the §6 shape dispatch
- * ({@code -dl} packaging) is a follow-on task; {@code codebase} is stored but not
- * yet acted on.
+ * off the annotation and stored.  Generation is shape-dispatched (JGDMS-STD-009
+ * §6):
+ * <ul>
+ *   <li>the BACKEND (wire) interface is generated only when the smart proxy
+ *       <em>translates</em> the API into a distinct internal protocol
+ *       ({@link #protocolIsApi() protocol != api}); a do-nothing proxy needs
+ *       none, since the API interface is already the wire interface;</li>
+ *   <li>the constrainable PROXY <em>class</em> is generated only when
+ *       {@code proxyType == }{@link ProxyType#SMART} (§6, shape 3): a
+ *       {@code DYNAMIC} service is a runtime {@code java.lang.reflect.Proxy} and
+ *       generates no proxy class;</li>
+ *   <li>a {@code DYNAMIC} service generates no server-side ILFactory either: the
+ *       non-{@code Remote} admin interfaces are appended to the exported stub's
+ *       interface and dispatch sets by the reusable framework factory
+ *       {@code net.jini.jeri.DynamicILFactory}, which the JGDMS service support
+ *       installs by default (§14 [RESOLVED]).  So a {@code DYNAMIC} service with
+ *       {@code protocol == api} generates nothing at all.</li>
+ * </ul>
+ * The {@code codebase} axis of the §6 shape dispatch ({@code -dl} packaging) is a
+ * follow-on task; {@code codebase} is stored but not yet acted on.
  *
  * <p>All resolution is name- and mirror-based; nothing here loads a live
  * {@code Class}, so the processor depends only on {@code java.compiler}.
@@ -63,6 +76,16 @@ final class ServiceModel {
 
     /** Resolved internal wire interface ({@code protocol}); defaults to {@link #api}. */
     TypeMirror protocol;
+
+    /**
+     * True when {@code protocol()} was left at its default ({@code Void.class}),
+     * i.e. the internal wire interface is the public API itself ({@code protocol
+     * == api}).  A do-nothing DYNAMIC proxy has {@code protocol == api} and needs
+     * NO generated backend interface: the API interface is already the wire
+     * interface (JGDMS-STD-009 §6, shapes 1 &amp; 2).  A generated backend interface
+     * is emitted only for the translating case {@code protocol != api}.
+     */
+    boolean protocolIsApi = true;
 
     /** {@code component} config name for the generated wrapper (may be empty). */
     String component = "";
@@ -109,6 +132,16 @@ final class ServiceModel {
     /** @return the declared {@code codebase} flag ({@code false} by default). */
     boolean codebase() {
         return codebase;
+    }
+
+    /**
+     * @return {@code true} when the internal wire {@code protocol} is the public
+     *         API itself ({@code protocol == api}); {@code false} when the
+     *         developer set a distinct translating {@code protocol}.  When
+     *         {@code true}, no backend interface is generated (§6 shapes 1 &amp; 2).
+     */
+    boolean protocolIsApi() {
+        return protocolIsApi;
     }
 
     static ServiceModel of(TypeElement api, Elements elements, Types types, Messager messager) {
@@ -167,11 +200,17 @@ final class ServiceModel {
                 }
             }
         }
-        // protocol default (Void.class) means "same as the annotated API".
+        // protocol default (Void.class) means "same as the annotated API".  A
+        // distinct protocol is the translating-smart-proxy signal that gates
+        // backend-interface generation (protocol != api); the do-nothing default
+        // leaves protocolIsApi true so no backend is generated (§6 shapes 1 & 2).
         if (protocol == null || isVoid(protocol)) {
             m.protocol = api.asType();
+            m.protocolIsApi = true;
         } else {
             m.protocol = protocol;
+            m.protocolIsApi = types.isSameType(types.erasure(protocol),
+                                               types.erasure(api.asType()));
         }
         m.component = component;
         // proxy gates constrainable proxy-class generation (SMART only, §6 shape

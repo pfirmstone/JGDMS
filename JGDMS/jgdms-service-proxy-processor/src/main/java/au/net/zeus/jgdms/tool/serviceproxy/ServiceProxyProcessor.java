@@ -66,19 +66,27 @@ import javax.tools.JavaFileObject;
  *       generates nothing.  Independently useful: it would have caught the
  *       original {@code AbstractSmartProxy} round-trip flaws before generation
  *       existed.</li>
- *   <li><b>generate</b> (default) — additionally emits the backend interface
- *       (unless hand-written) and, for a {@code SMART} service only, the
- *       constrainable proxy class; the wrapper follows in a later phase.  The
- *       backend interface is generated for every service, but the constrainable
- *       proxy <em>class</em> is generated only when
+ *   <li><b>generate</b> (default) — shape-dispatched emission (JGDMS-STD-009
+ *       {@code §6} + {@code §14} [RESOLVED]): the <b>backend</b> (internal wire)
+ *       interface only when the smart proxy <em>translates</em> the API into a
+ *       distinct protocol ({@code protocol() != api()}) and unless it is
+ *       hand-written -- a do-nothing proxy ({@code protocol == api}, shapes 1 &amp; 2)
+ *       needs none because the API interface is already the wire interface; and the
+ *       single constrainable <b>proxy class</b> only when
  *       {@code proxy() == }{@link au.net.zeus.jgdms.service.annotation.ProxyType#SMART}
  *       (JGDMS-STD-009 §6, shape 3).  A {@code DYNAMIC} service (shapes 1 &amp; 2)
  *       is exported as a runtime {@link java.lang.reflect.Proxy} the client
- *       already holds the interface for, so it generates no proxy class.  The
- *       {@code codebase} axis of the §6 shape dispatch (the interfaces-only
- *       {@code -dl} packaging of shape 2, and the SMART {@code -dl}-vs-shared
- *       packaging) is a follow-on task: {@code model.codebase()} is read and
- *       stored but not yet acted on.</li>
+ *       already holds the interface for, so it generates no proxy class -- and no
+ *       server-side ILFactory either: its non-{@code Remote} admin interfaces are
+ *       supplied to the exported stub by the reusable framework factory
+ *       {@link net.jini.jeri.DynamicILFactory}, which the JGDMS service support
+ *       installs by default (mirroring {@link net.jini.jeri.ProxyTrustILFactory}'s
+ *       {@code ProxyTrust} append).  A {@code DYNAMIC} service with
+ *       {@code protocol == api} therefore generates NOTHING and still gets admin
+ *       dispatch with neither codegen nor config.  The {@code codebase} axis of the
+ *       §6 shape dispatch (the interfaces-only {@code -dl} packaging of shape 2, and
+ *       the SMART {@code -dl}-vs-shared packaging) is a follow-on task:
+ *       {@code model.codebase()} is read and stored but not yet acted on.</li>
  * </ul>
  *
  * @see au.net.zeus.jgdms.service.annotation.JiniService
@@ -104,6 +112,21 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
      * aggregates (mirrors {@code HelloServiceBackend} and Reggie's
      * {@code Registrar}).  Order is the emission order in the generated
      * {@code extends} clause; {@code Remote} and the public API precede these.
+     *
+     * <p>The set is grounded in
+     * {@code au.net.zeus.jgdms.service.support.AbstractJiniService}, whose
+     * {@code implements} clause enumerates exactly the interfaces a JGDMS service
+     * exposes to callers: the {@code Remote} accessors
+     * ({@code ServiceProxyAccessor}, {@code ServiceAttributesAccessor},
+     * {@code ServiceIDAccessor}, {@code CodebaseAccessor}) plus the non-{@code Remote}
+     * admin interfaces ({@code Administrable}, {@code JoinAdmin}, {@code DestroyAdmin}).
+     * ({@code ProxyAccessor} and {@code Startable} from that clause are local
+     * server-lifecycle SPIs, not caller-facing, and are deliberately excluded.)
+     *
+     * <p>For a DYNAMIC service the non-{@code Remote} admin interfaces are supplied
+     * to the exported stub not by any generated code but by the reusable framework
+     * factory {@link net.jini.jeri.DynamicILFactory}, which the JGDMS service
+     * support installs by default (JGDMS-STD-009 §14 [RESOLVED]).
      */
     static final String[] BACKEND_INFRA = {
         "net.jini.lookup.ServiceProxyAccessor",
@@ -186,26 +209,50 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         if (validateOnly || model.hadError) {
             return;
         }
-        // Shape dispatch (JGDMS-STD-009 §6): the BACKEND (wire) interface is
-        // generated for every service -- both a DYNAMIC and a SMART service need
-        // it -- unless it is already hand-written.  The constrainable proxy
-        // *class*, however, is generated ONLY for a SMART service (shape 3): a
-        // DYNAMIC service (shapes 1 & 2) is exported as a runtime
-        // java.lang.reflect.Proxy the client already has the interface for, so it
-        // generates no proxy class.
+        // Shape dispatch (JGDMS-STD-009 §6 + §14 [RESOLVED]):
+        //
+        // (A) BACKEND (wire) interface -- generated ONLY when the smart proxy
+        //     translates the API into a distinct internal protocol
+        //     (protocol() != api()), and unless it is already hand-written.  A
+        //     do-nothing proxy (protocol == api, §6 shapes 1 & 2) needs NO backend
+        //     interface: the API interface is already the wire interface, so
+        //     aggregating it under a named Remote super-interface buys nothing.
+        //
+        // (B) DYNAMIC admin dispatch -- a DYNAMIC service is exported as a runtime
+        //     java.lang.reflect.Proxy the client already holds the interface for,
+        //     so it emits no proxy class (shape 3 only).  It ALSO generates no
+        //     server-side ILFactory: its full interface set -- API + non-Remote
+        //     admin (Administrable/JoinAdmin/DestroyAdmin) -- is supplied at export
+        //     by the reusable library factory {@link net.jini.jeri.DynamicILFactory},
+        //     which the JGDMS service framework installs by default (§14
+        //     [RESOLVED]).  DynamicILFactory overrides getRemoteInterfaces to append
+        //     the extra (admin) interfaces to the exported stub, feeding BOTH its
+        //     cast set and the server dispatch set
+        //     (AbstractILFactory.getInvocationDispatcherMethods draws only from
+        //     getRemoteInterfaces); the Remote accessors are already picked up by
+        //     super.getRemoteInterfaces (Remote-filtered).  So a DYNAMIC service
+        //     with protocol == api generates NOTHING -- no backend, no proxy, no
+        //     ILFactory -- and gets admin dispatch with neither codegen nor config.
+        //
+        // (C) The constrainable proxy *class* is generated ONLY for a SMART
+        //     service (shape 3).
         //
         // The codebase() flag is NOT acted on here: shape-2 (DYNAMIC + codebase)
         // interfaces-only -dl packaging and the SMART -dl-vs-shared-codebase
         // packaging are a deferred design pass.  model.codebase() is read and
         // stored but does not gate generation.  Wrapper (P4) and smart-proxy
         // shell (P3) generation land in later phases.
-        if (!model.backendHandWritten) {
+        if (!model.protocolIsApi() && !model.backendHandWritten) {
             writeBackend(model);
         }
-        if (model.proxyType() == ServiceModel.ProxyType.SMART
-                && model.proxyHandWritten == null) {
-            writeProxy(model);
+        if (model.proxyType() == ServiceModel.ProxyType.SMART) {
+            if (model.proxyHandWritten == null) {
+                writeProxy(model);
+            }
         }
+        // DYNAMIC (shapes 1 & 2): no proxy class and no ILFactory are generated;
+        // the framework's default net.jini.jeri.DynamicILFactory supplies the
+        // admin dispatch at export.
     }
 
     // ------------------------------------------------------------------ validation

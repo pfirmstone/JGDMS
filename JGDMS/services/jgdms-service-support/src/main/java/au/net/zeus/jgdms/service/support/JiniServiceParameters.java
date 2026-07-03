@@ -20,14 +20,17 @@ package au.net.zeus.jgdms.service.support;
 import javax.security.auth.login.LoginContext;
 import net.jini.activation.ActivationExporter;
 import net.jini.activation.arg.ActivationID;
+import net.jini.admin.Administrable;
+import net.jini.admin.JoinAdmin;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.export.Exporter;
-import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.DynamicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
+import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.config.Config;
 
 /**
@@ -44,8 +47,12 @@ import org.apache.river.config.Config;
  * The following entries are read from the given {@code component} name:
  * <ul>
  *   <li>{@code serverExporter} ({@link Exporter}) — used to export the
- *       service; defaults to a {@link BasicJeriExporter} over TCP (or an
- *       {@link ActivationExporter} wrapping one when {@code activationID}
+ *       service; defaults to a {@link BasicJeriExporter} over TCP whose
+ *       invocation-layer factory is a {@link net.jini.jeri.DynamicILFactory}
+ *       carrying the Jini admin interfaces ({@link Administrable},
+ *       {@link JoinAdmin}, {@link DestroyAdmin}), so the exported stub gets full
+ *       admin-over-wire dispatch with no per-service code generation or config
+ *       (or an {@link ActivationExporter} wrapping one when {@code activationID}
  *       is non-null)</li>
  *   <li>{@code loginContext} ({@link LoginContext}, default {@code null})
  *       — when present, {@link AbstractJiniService#start()} performs a JAAS
@@ -79,6 +86,23 @@ import org.apache.river.config.Config;
  * @since 3.1.1
  */
 public abstract class JiniServiceParameters {
+
+    /**
+     * The general Jini admin interfaces the default exporter forces onto every
+     * exported service stub.  These are non-{@link java.rmi.Remote Remote}
+     * (their methods declare {@code throws RemoteException} but the interfaces do
+     * not extend {@code Remote}), so a JERI dynamic proxy would not carry them
+     * unless they are appended explicitly.  Supplying them to
+     * {@link net.jini.jeri.DynamicILFactory} feeds BOTH the stub's cast set and the
+     * server invocation-dispatcher set, giving a DYNAMIC (or SMART) service full
+     * admin-over-wire dispatch with no per-service code generation or configuration
+     * -- the exact interface set the old aggregate service backend carried.
+     *
+     * @see net.jini.jeri.DynamicILFactory
+     */
+    private static final Class[] JINI_ADMIN = {
+        Administrable.class, JoinAdmin.class, DestroyAdmin.class
+    };
 
     /** Exporter used to export the service over the wire. */
     final Exporter exporter;
@@ -146,16 +170,18 @@ public abstract class JiniServiceParameters {
                     activationID,
                     new BasicJeriExporter(
                             TcpServerEndpoint.getInstance(0),
-                            new AtomicILFactory(
+                            new DynamicILFactory(
                                     null, null,
-                                    serviceInterface.getClassLoader()),
+                                    serviceInterface.getClassLoader(),
+                                    JINI_ADMIN),
                             false, true));
         } else {
             defaultExporter = new BasicJeriExporter(
                     TcpServerEndpoint.getInstance(0),
-                    new AtomicILFactory(
+                    new DynamicILFactory(
                             null, null,
-                            serviceInterface.getClassLoader()),
+                            serviceInterface.getClassLoader(),
+                            JINI_ADMIN),
                     false, true);
         }
 

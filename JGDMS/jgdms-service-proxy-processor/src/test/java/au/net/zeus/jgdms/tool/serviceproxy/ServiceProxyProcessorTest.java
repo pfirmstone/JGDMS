@@ -23,8 +23,20 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link ServiceProxyProcessor}: validate-only diagnostics (P0) and
- * backend-interface generation (P1).  Each test drives the processor over
- * in-memory sources via {@link ProcessorHarness}.
+ * shape-dispatched generation (JGDMS-STD-009 §6 + §14).  Each test drives the
+ * processor over in-memory sources via {@link ProcessorHarness}.
+ *
+ * <p>Generation is gated per shape:
+ * <ul>
+ *   <li>the backend (wire) interface only when {@code protocol() != api()} (a
+ *       translating smart proxy); a do-nothing proxy ({@code protocol == api})
+ *       gets none;</li>
+ *   <li>a {@code DYNAMIC} service (with {@code protocol == api}) generates
+ *       NOTHING -- no backend, no proxy class, and no ILFactory: its admin
+ *       interfaces are supplied at export by the reusable framework factory
+ *       {@code net.jini.jeri.DynamicILFactory};</li>
+ *   <li>a {@code SMART} service gets the constrainable proxy class.</li>
+ * </ul>
  */
 public class ServiceProxyProcessorTest {
 
@@ -208,10 +220,20 @@ public class ServiceProxyProcessorTest {
 
     @Test
     public void generatesBackendInterface() {
+        // The backend (wire) interface is generated only for a TRANSLATING smart
+        // proxy -- protocol() != api().  Here HelloService's internal protocol is a
+        // distinct HelloProtocol interface, so a backend that aggregates the API +
+        // infra under Remote IS emitted (§6 shape-3 translating case).  (A
+        // do-nothing proxy with protocol == api gets no backend -- see
+        // dynamicProtocolIsApiGeneratesNothing.)
         ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.HelloProtocol",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloProtocol extends Remote {"
+                + "   String greetInternal(String name) throws RemoteException; }")
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(protocol = HelloProtocol.class)"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException; }")
             .run();
@@ -234,10 +256,16 @@ public class ServiceProxyProcessorTest {
 
     @Test
     public void doesNotGenerateBackendWhenHandWritten() {
+        // protocol != api so a backend WOULD be generated -- but it is hand-written,
+        // so the processor must validate and NOT regenerate it.
         ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.HelloProtocol",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloProtocol extends Remote {"
+                + "   String greetInternal(String name) throws RemoteException; }")
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.JiniService"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService(protocol = HelloProtocol.class)"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String name) throws RemoteException; }")
             .add("hello.HelloServiceBackend",
@@ -338,10 +366,11 @@ public class ServiceProxyProcessorTest {
     }
 
     @Test
-    public void generatesConstrainableProxyForSmart() {
-        // Shape 3 (JGDMS-STD-009 §6): a SMART service generates BOTH the backend
-        // wire interface AND the constrainable proxy class.  This is the golden
-        // proxy-class case (only a SMART service emits a proxy class).
+    public void smartWithDefaultProtocolGeneratesProxyButNoBackend() {
+        // Shape 3 (JGDMS-STD-009 §6): a SMART service with the DEFAULT protocol
+        // (protocol == api -- a one-to-one forwarding smart proxy) generates the
+        // constrainable proxy class but NO backend interface: the API interface is
+        // already the wire interface, so there is nothing to translate.
         ProcessorHarness.Result r = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
@@ -352,18 +381,47 @@ public class ServiceProxyProcessorTest {
                 + "   String greet(String name) throws RemoteException; }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
-        assertTrue("SMART generates the backend: " + r.generated.keySet(),
+        assertFalse("SMART + protocol==api generates NO backend: " + r.generated.keySet(),
             r.generated.containsKey("hello.HelloServiceBackend"));
         assertTrue("SMART generates the constrainable proxy class: " + r.generated.keySet(),
             r.generated.containsKey("hello.ConstrainableHelloServiceProxy"));
     }
 
     @Test
-    public void dynamicGeneratesBackendButNoProxyClass() {
-        // Shape 1 (JGDMS-STD-009 §6): a DYNAMIC service (the default) is exported
-        // as a runtime java.lang.reflect.Proxy the client already holds the
-        // interface for, so it generates the backend wire interface but NO
-        // constrainable proxy class.
+    public void smartWithDistinctProtocolGeneratesBackendAndProxy() {
+        // Shape 3 translating case: a SMART service whose protocol() differs from
+        // its api() (the proxy translates the API into a distinct internal wire
+        // protocol) generates BOTH the backend wire interface AND the proxy class.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.HelloProtocol",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloProtocol extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(proxy = ProxyType.SMART, codebase = true, protocol = HelloProtocol.class)"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+        assertTrue("SMART + protocol!=api generates the backend: " + r.generated.keySet(),
+            r.generated.containsKey("hello.HelloServiceBackend"));
+        assertTrue("SMART generates the constrainable proxy class: " + r.generated.keySet(),
+            r.generated.containsKey("hello.ConstrainableHelloServiceProxy"));
+    }
+
+    @Test
+    public void dynamicProtocolIsApiGeneratesNothing() {
+        // Shape 1 (JGDMS-STD-009 §6 + §14 [RESOLVED]): a DYNAMIC service with
+        // protocol == api (a do-nothing dynamic proxy) generates NOTHING:
+        //   - NO backend interface   (the API interface is already the wire type),
+        //   - NO constrainable proxy class (only shape 3 does),
+        //   - NO ILFactory: the non-Remote admin interfaces are supplied to the
+        //     exported stub at export by the reusable framework factory
+        //     net.jini.jeri.DynamicILFactory, which the JGDMS service support
+        //     installs by default (neither codegen nor config required).
         ProcessorHarness.Result r = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
@@ -374,16 +432,16 @@ public class ServiceProxyProcessorTest {
                 + "   String greet(String name) throws RemoteException; }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
-        assertTrue("DYNAMIC still generates the backend: " + r.generated.keySet(),
-            r.generated.containsKey("hello.HelloServiceBackend"));
-        assertFalse("DYNAMIC must NOT generate a proxy class: " + r.generated.keySet(),
-            r.generated.containsKey("hello.ConstrainableHelloServiceProxy"));
+        assertTrue("DYNAMIC + protocol==api must generate NOTHING: " + r.generated.keySet(),
+            r.generated.isEmpty());
     }
 
     @Test
-    public void defaultProxyTypeIsDynamicAndGeneratesNoProxyClass() {
-        // The default @JiniService (no proxy element) is DYNAMIC, so it too emits
-        // the backend but no proxy class -- the shape-1 default coverage.
+    public void defaultProxyTypeIsDynamicGeneratesNothing() {
+        // The default @JiniService (no proxy element, default protocol) is DYNAMIC
+        // with protocol == api, so it emits nothing at all -- no backend, no proxy
+        // class, and no ILFactory.  Admin dispatch comes from the framework's
+        // default net.jini.jeri.DynamicILFactory (the shape-1 default).
         ProcessorHarness.Result r = new ProcessorHarness()
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
@@ -392,9 +450,7 @@ public class ServiceProxyProcessorTest {
                 + "   String greet(String name) throws RemoteException; }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
-        assertTrue("default (DYNAMIC) generates the backend: " + r.generated.keySet(),
-            r.generated.containsKey("hello.HelloServiceBackend"));
-        assertFalse("default (DYNAMIC) must NOT generate a proxy class: " + r.generated.keySet(),
-            r.generated.containsKey("hello.ConstrainableHelloServiceProxy"));
+        assertTrue("default (DYNAMIC) must generate NOTHING: " + r.generated.keySet(),
+            r.generated.isEmpty());
     }
 }
