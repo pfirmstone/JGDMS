@@ -1,0 +1,362 @@
+// ============================================================================
+// DRAFT — SMART-proxy companion to the "Security Baked Into the JVM" series,
+// following the 1b temperature post. Same style/quality as 1b.
+//
+// FLAG(peter): the header block below is a BEST-GUESS reconstruction. Replace it
+// wholesale with the EXACT :page-*: fields your other posts use (attribute
+// names, category/tag spelling, permalink scheme, date attribute, author key).
+// The numbering — whether this is "1c", a later part, or a subsection — is
+// yours to set; I have left the doctitle number-free.
+//
+// JEKYLL: for the _posts/ directory this file must be renamed
+//   YYYY-MM-DD-security-baked-into-jvm-smart-proxy.adoc
+// using your actual publish date (jekyll requires the date prefix).
+// ============================================================================
+= Security Baked Into the JVM: When the Proxy Runs on the Client
+:page-layout: post
+:page-authors: pfirmstone
+:page-category: Technical
+:page-tags: Java, security, JGDMS, Jini, distributed, mobile-code
+:page-date: 2026-07-03
+:page-excerpt: The temperature post exported a DYNAMIC proxy — behaviour stayed on the server, only the interface travelled. A SMART proxy is the opposite: downloaded code that runs in the client's JVM. That has always been Jini's most powerful and most dangerous feature, and it is exactly where @JiniService earns the phrase "baked in" — it will not let you compile a smart proxy that ignores its security constraints.
+// :page-permalink: /security-baked-into-jvm/1c/   // TODO(peter): confirm your slug convention and numbering
+
+In the link:/security-baked-into-jvm/1b/[temperature post] the sensor was exported as a *DYNAMIC*
+proxy: a `java.lang.reflect.Proxy` whose behaviour stayed on the server, invoked remotely over
+the constrained, atomic/DER wire. I noted in passing that the other option, `ProxyType.SMART`,
+was "for a downloaded smart proxy that runs behaviour locally — not what a plain sensor needs."
+
+This post is about when you *do* need it, and why that is the most security-sensitive thing this
+whole series touches. A smart proxy is *downloaded code that runs in the client's JVM*. That is
+Jini's most powerful feature — and, historically, its scariest. So it is the sharpest test of
+"security baked into the JVM": if the framework is going to hand a client a remote object and let
+it execute, the safeguards had better not be something a service author can forget to write. As
+we'll see, with `@JiniService` you *cannot compile a smart proxy that ignores its constraints* —
+that refusal is the centrepiece.
+
+== When client-side behaviour is genuinely the point
+
+The only reason to choose SMART over DYNAMIC is that some behaviour genuinely belongs on the
+client. Not "it's neat" — it has to *pay for* downloading and trust-verifying mobile code.
+Reggie, the JGDMS lookup service, is the canonical example: its smart proxy does template
+matching and result filtering in the client's VM so a lookup doesn't round-trip for every
+candidate.
+
+Staying in the temperature domain, here is a small case that earns it. A `RegionTemperatureService`
+fronts many field sensors. Clients read a given station repeatedly and want a *smoothed* value.
+If the proxy caches the last reading per station and computes the moving average locally, repeated
+reads are served without touching the wire — only a cache miss crosses the (constrained, atomic)
+network. The aggregation is the client-side behaviour; that is what makes SMART the right call.
+
+[source,java]
+----
+package com.example.region;
+
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
+
+@JiniService(
+        proxy     = ProxyType.SMART,          // download behaviour, run it on the client
+        codebase  = true,                     // ship the proxy's code as a downloadable jar
+        component = "com.example.region")     // config component for the service wrapper
+public interface RegionTemperatureService extends Remote {
+
+    /** Smoothed reading for a station — a moving average the proxy maintains locally. */
+    double smoothedCelsius(String stationId) throws RemoteException;
+}
+----
+
+The public API interface stays clean — one method, no security types on it, exactly as before.
+`proxy = ProxyType.SMART` is the whole difference: the enum's own javadoc calls SMART "a smart
+proxy whose behaviour is downloaded" and "the only shape for which the processor generates a
+constrainable, `@AtomicSerial` proxy class." `codebase = true` says the proxy's *code* ships as a
+downloadable jar for clients that don't already hold it.
+
+[NOTE]
+====
+*Honest status.* The constrainable proxy *class* is generated today (that's what the rest of this
+post shows). Automatically *packaging and publishing* it as a downloadable `-dl` codebase jar is
+an explicit deferred follow-on: the processor reads and stores `model.codebase()` but "does not
+yet act on it" (see the shape-dispatch note at the top of `ServiceProxyProcessor`). So read
+`codebase = true` here as declaring intent; you still wire the `-dl` jar's publication by hand for
+now.
+// TODO(peter): confirm current -dl packaging status before publishing — update this note if the
+// codebase axis has since been implemented.
+====
+
+== The delegate: your client-side behaviour, and nothing security-sensitive
+
+An annotation processor can only *emit new files* — it can never add members to your class. So the
+smart proxy's behaviour is supplied through a developer-written *delegate*, marked `@SmartProxy`.
+The delegate is a plain class (not remote, not the serialized proxy) that implements the public
+API, holds the typed server stub, and carries the client-side logic — here, the per-station cache
+and the moving average:
+
+[source,java]
+----
+package com.example.region;
+
+import java.rmi.RemoteException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import au.net.zeus.jgdms.service.annotation.SmartProxy;
+
+// api  = the client-facing contract the generated shell exposes and forwards here
+// protocol = the internal wire interface this delegate calls on the server stub
+@SmartProxy(api = RegionTemperatureService.class, protocol = RegionProtocol.class)
+public final class RegionSmartLogic implements RegionTemperatureService {
+
+    private final RegionProtocol server;                   // internal wire interface
+    private final Map<String, MovingAverage> smoothed;     // client-side state, rebuilt lazily
+
+    public RegionSmartLogic(RegionProtocol server) {
+        this.server   = server;
+        this.smoothed = new ConcurrentHashMap<>();
+    }
+
+    @Override
+    public double smoothedCelsius(String stationId) throws RemoteException {
+        MovingAverage avg = smoothed.get(stationId);
+        if (avg != null && avg.isFresh()) {
+            return avg.value();                            // served entirely client-side
+        }
+        double raw = server.rawCelsius(stationId);         // cache miss: cross the wire (once)
+        return smoothed.computeIfAbsent(stationId, k -> new MovingAverage())
+                       .add(raw);
+    }
+}
+----
+
+Two things are worth stressing, both enforced by the processor:
+
+* The delegate *must implement its declared `api`*. A `@SmartProxy(api = RegionTemperatureService.class)`
+  class that does not implement `RegionTemperatureService` is a build error — the processor emits
+  "must implement its declared api". The client-facing contract can't drift from what the proxy
+  actually offers.
+* The delegate carries *no* constraint handling, no `setConstraints`, no trust plumbing. That is
+  deliberate: the security-load-bearing shell is *generated*, not hand-written, so you cannot get
+  it subtly wrong. You write behaviour; the framework writes the safety.
+
+Because this delegate *translates* the public API into a distinct internal protocol
+(`protocol = RegionProtocol.class` differs from `api` — `RegionProtocol` is the developer-written
+wire interface declaring `rawCelsius`), the processor also generates a *backend interface*,
+`RegionTemperatureServiceBackend`, that the exported server stub implements: it aggregates
+`java.rmi.Remote`, the public API, and the required infrastructure interfaces
+(`ServiceProxyAccessor`, `ServiceAttributesAccessor`, `ServiceIDAccessor`, `CodebaseAccessor`,
+`Administrable`, `JoinAdmin`, `DestroyAdmin`) under one `Remote` type. A non-translating smart
+proxy (`protocol == api`) gets no generated backend; this one does. (If you hand-write
+`RegionTemperatureServiceBackend` yourself, the processor validates it and does not regenerate it.)
+
+Only serialized *state* is a concern for the wire, and most smart proxies serialize only
+`{ server, proxyID }` — caches and endpoints are rebuilt lazily on the client — so the generated
+shell is `@Stateless`. (Durable proxy state, if you ever need it, is declared with
+`@SmartProxy.State`, and the processor generates the validated serial plumbing. The cache above is
+transient, so we need none of that.)
+
+== What the processor generates — and what it refuses to generate
+
+For `proxy = SMART` the processor emits exactly one constrainable proxy class (JGDMS-STD-009 §6,
+shape 3). Its shape is fixed, and the golden-fixture tests pin every line of it. The generated
+class:
+
+* is `public final`, annotated `@org.apache.river.api.io.AtomicSerial` and
+  `@org.apache.river.api.io.AtomicSerial.Stateless`;
+* `extends au.net.zeus.jgdms.proxy.AbstractSmartProxy.ConstrainableSmartProxy` — the *constrainable*
+  base, which `implements net.jini.core.constraint.RemoteMethodControl`;
+* `implements` the public API (`RegionTemperatureService`), forwarding each method to a delegate
+  instance rebuilt from the validated `server`;
+* exposes a fail-closed factory
+  `public static au.net.zeus.jgdms.proxy.AbstractSmartProxy create(RegionTemperatureService server, net.jini.id.Uuid proxyID)`.
+
+That factory is the crux. It *fails closed*: if `server` is not a `RemoteMethodControl`, it throws
+`IllegalArgumentException` rather than degrading to a plain, constraint-dropping proxy. There is no
+non-constrainable variant to fall back to.
+
+And here is the refusal that makes SMART safe to offer at all. The old `AbstractSmartProxy` has
+two bases: the plain `AbstractSmartProxy` and the nested `ConstrainableSmartProxy`. A hand-written
+proxy that extends `AbstractSmartProxy` *directly* is the fail-open plain variant — it wouldn't
+carry `RemoteMethodControl`, so config-declared constraints would silently not bind. The processor
+treats that as a *compile error*: "is a concrete non-constrainable smart proxy (does not implement
+... `AbstractSmartProxy.ConstrainableSmartProxy`)". You literally cannot compile a smart proxy that
+ignores constraints. The generated class only ever reaches `ConstrainableSmartProxy`, and a
+hand-written one that doesn't is rejected at build time.
+
+The build-time gate, drawn:
+
+[plantuml,jgdms-smart-buildgate,svg,alt="At build time the processor either generates a ConstrainableSmartProxy or fails the build for a non-constrainable or api-mismatched smart proxy",width=820,height=280]
+....
+skinparam monochrome true
+skinparam shadowing false
+
+rectangle "@SmartProxy(api=RegionTemperatureService,\nprotocol=RegionProtocol)\nRegionSmartLogic (your behaviour)" as DEL
+rectangle "ServiceProxyProcessor\n(SMART => STD-009 §6 shape 3)" as PROC
+rectangle "GENERATED (ok)\nfinal @AtomicSerial @Stateless proxy\nextends AbstractSmartProxy.ConstrainableSmartProxy\nimplements RegionTemperatureService\nstatic create(...) fails closed" as OK
+rectangle "BUILD ERROR\n\"non-constrainable smart proxy\"\n(extends AbstractSmartProxy directly)\nor \"must implement its declared api\"" as ERR
+
+DEL --> PROC
+PROC --> OK : delegate implements api\n+ proxy reaches ConstrainableSmartProxy
+PROC --> ERR : fail-open / api mismatch
+....
+
+The service impl wires it in by returning the generated proxy from `createProxy` — via that same
+fail-closed `create(...)`:
+
+[source,java]
+----
+package com.example.region;
+
+import net.jini.id.Uuid;
+import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
+import au.net.zeus.jgdms.service.support.AbstractJiniService;
+// ... activation / lifecycle constructors elided ...
+
+public class RegionServiceImpl
+        extends AbstractJiniService
+        implements RegionTemperatureService {
+
+    static final String COMPONENT = "com.example.region";
+
+    @Override
+    protected Object createProxy(Object stub, Uuid serviceUuid) {
+        // SMART (STD-009 §6 shape 3): hand the exported, constrainable server stub to
+        // the generated proxy's fail-closed factory. If the stub is not a
+        // RemoteMethodControl (i.e. the service wasn't exported with a constrainable
+        // endpoint), create(...) THROWS — it never returns a plain, constraint-dropping
+        // proxy. The returned smart proxy is what the client downloads and runs.
+        // The generated class is named Constrainable<Api>Proxy (processor derives
+        // "Constrainable" + api.getSimpleName() + "Proxy"), in the api's package.
+        return ConstrainableRegionTemperatureServiceProxy.create(
+                (RegionTemperatureService) stub, serviceUuid);
+    }
+
+    @Override
+    protected Class<?>[] getServiceInterfaces() {
+        return new Class<?>[]{ RegionTemperatureService.class };
+    }
+
+    // rawCelsius(...) etc. are served over the generated RegionTemperatureServiceBackend,
+    // which the exported stub implements; the smart-proxy delegate calls RegionProtocol.
+}
+----
+
+== The runtime: download, trust-verify, then serve locally
+
+Now the dangerous part, made safe. The client receives the smart proxy as a serialized object,
+downloads its code from the service's codebase, and — before trusting it — *verifies* it. This is
+where several JGDMS mechanisms from earlier in the series line up on one object:
+
+* *Trust verification.* `ConstrainableSmartProxy` participates in the ProxyTrust protocol: its
+  `getProxyTrustIterator()` returns a `SingletonProxyTrustIterator` wrapping the server stub, so
+  the client's trust infrastructure (`ProxyTrust` / a `TrustVerifier`) can confirm the downloaded
+  object was produced by a server the client already trusts, over an integrity-protected codebase.
+  An unverified proxy is not trusted, and therefore not used.
+* *Constraints bind to the downloaded object.* Because the proxy `implements RemoteMethodControl`,
+  the `Integrity` / `Confidentiality` / `ClientAuthentication` you declare in config attach to
+  *this* object. Its deserialization constructor validates that the deserialized `server`
+  implements `RemoteMethodControl` *before any field is assigned* (the `@AtomicSerial` contract),
+  and `setConstraints` applies your constraints to the underlying stub. A smart proxy whose server
+  wasn't constrainable is rejected on the way in.
+* *The delegate's own remote calls still ride the atomic codec.* Every cache-miss call the
+  delegate makes on `server` (`rawCelsius`) goes over `AtomicILFactory` — the deterministic,
+  DER-style, atomic-input-validated wire form from the temperature post, *not* JOSS. Downloading
+  behaviour does not downgrade the wire.
+
+So the powerful part — caching and averaging in the client VM — happens only *after* the object
+has earned trust, and the only time it crosses the network it does so under the same constrained,
+atomic guarantees as the DYNAMIC sensor:
+
+[plantuml,jgdms-smart-runtime,svg,alt="The client downloads and trust-verifies the smart proxy, serves cached reads locally, and only crosses the constrained atomic wire on a cache miss",width=780,height=380]
+....
+skinparam monochrome true
+skinparam shadowing false
+
+participant Client
+participant "Trust infrastructure\n(ProxyTrust / TrustVerifier)" as Trust
+participant "Downloaded smart proxy\n(ConstrainableSmartProxy,\nRemoteMethodControl)" as Proxy
+participant "Server stub / endpoint\n(config constraints, atomic codec)" as Server
+
+Client -> Proxy : receive serialized proxy, download codebase
+Client -> Trust : verify proxy (integrity-checked codebase)
+alt proxy trusted
+    Trust --> Client : trusted
+    Client -> Proxy : smoothedCelsius("STN-7")
+    alt cache hit (fresh)
+        Proxy --> Client : moving average (served in-VM, no wire)
+    else cache miss
+        Proxy -> Server : rawCelsius("STN-7")\n(Integrity, Confidentiality, ClientAuth)
+        Server --> Proxy : reading (integrity-checked, atomic decode)
+        Proxy --> Client : updated moving average
+    end
+else proxy not trusted
+    Trust --> Client : rejected — proxy not used
+end
+hide footbox
+....
+
+== The constraints still live in config
+
+As in the temperature post, the API interface says nothing about Integrity or Confidentiality.
+They are declared in the deployment configuration under the same `component` name, bound by the
+exporter, over the atomic codec — and here they matter doubly, because they are what the *downloaded*
+proxy carries:
+
+[source,groovy]
+----
+import com.example.region.RegionTemperatureService
+import net.jini.core.constraint.Integrity
+import net.jini.core.constraint.Confidentiality
+import net.jini.core.constraint.ClientAuthentication
+import net.jini.core.constraint.InvocationConstraints
+import net.jini.constraint.BasicMethodConstraints
+import net.jini.jeri.BasicJeriExporter
+import net.jini.jeri.DynamicILFactory
+import net.jini.jeri.ssl.SslServerEndpoint
+import net.jini.admin.Administrable
+import net.jini.admin.JoinAdmin
+import org.apache.river.admin.DestroyAdmin
+
+'com.example.region' {
+
+    serverExporter = new BasicJeriExporter(
+        SslServerEndpoint.getInstance(0),
+        new DynamicILFactory(                       // extends AtomicILFactory — atomic/DER, not JOSS
+            new BasicMethodConstraints(
+                new InvocationConstraints(
+                    [Integrity.YES, Confidentiality.YES, ClientAuthentication.YES],
+                    null
+                )
+            ),
+            null,
+            RegionTemperatureService.classLoader,
+            [Administrable, JoinAdmin, DestroyAdmin] as Class[]
+        ),
+        false, true
+    )
+
+    initialLookupGroups = [''] as String[]
+}
+----
+
+The exporter constrains the *server* stub; the fail-closed `create(...)` reads those constraints
+off the stub and applies them to the smart proxy, so the object the client downloads is born
+already constrained. If the stub weren't constrainable, `create(...)` would throw and no proxy
+would ship — the same fail-fast discipline, one layer earlier.
+// TODO(peter): confirm the codebase/trust entries a SMART service needs in config for the -dl
+// codebase and ProxyTrust verifier once the deferred -dl packaging lands.
+
+== Where this leaves us
+
+DYNAMIC kept behaviour on the server and sent only the interface; SMART sends behaviour to the
+client — the feature that made Jini powerful and the one that made it frightening. The safety that
+makes it usable is not something a service author is trusted to hand-write: `@JiniService` *refuses
+to generate a fail-open smart proxy*, rejects a delegate that doesn't implement its API, and emits
+a constrainable, trust-verifiable, atomic-serialized proxy whose factory fails closed. Constraints
+still live in config, the wire is still atomic, and least privilege is untouched — the framework
+just won't let you compile the insecure version. That is what "baked in" means when the code runs
+on the client.
+
+Next: SCAP, the pipeline that audits third-party JARs *before* any client deserializes an object
+from them — the layer beneath even a trust-verified smart proxy, deciding whether an arriving
+class earns the right to run at all.
