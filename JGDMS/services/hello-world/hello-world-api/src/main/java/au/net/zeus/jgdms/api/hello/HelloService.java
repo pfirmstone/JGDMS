@@ -19,6 +19,8 @@ package au.net.zeus.jgdms.api.hello;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
 
 /**
  * Client-facing remote service interface for the Hello World example service.
@@ -31,11 +33,47 @@ import java.rmi.RemoteException;
  * <p>It deliberately carries <em>only</em> the service operation.  The
  * infrastructure capabilities a JGDMS service stub must also expose
  * (bootstrap accessors, {@code Administrable}, {@code JoinAdmin},
- * {@code DestroyAdmin}) live on the server-side backend interface
- * {@link au.net.zeus.jgdms.hello.proxy.HelloServiceBackend}, not here — so a
- * client sees the clean service contract, exactly as Reggie clients see
+ * {@code DestroyAdmin}) are appended to the exported dynamic-proxy stub at
+ * export time by the framework-default invocation-layer factory
+ * {@link net.jini.jeri.DynamicILFactory}, not declared here — so a client sees the
+ * clean service contract, exactly as Reggie clients see
  * {@link net.jini.core.lookup.ServiceRegistrar} rather than the internal
  * {@code Registrar} backend.
+ *
+ * <h2>Generated boilerplate ({@code @JiniService})</h2>
+ * This interface is annotated with {@link JiniService}, so the
+ * service-proxy annotation processor
+ * ({@code au.net.zeus.jgdms.tool.serviceproxy.ServiceProxyProcessor})
+ * <em>generates</em> the mechanical boilerplate that used to be hand-written.
+ * Because {@link #proxy()} is {@link ProxyType#DYNAMIC} (and this service's
+ * protocol equals its API), the processor emits <em>nothing at all</em>: no
+ * backend interface, no proxy class, and no invocation-layer factory.
+ * <ul>
+ *   <li>The non-{@link Remote} admin interfaces
+ *       ({@code Administrable}/{@code JoinAdmin}/{@code DestroyAdmin}) are appended
+ *       to the exported stub's interface AND server dispatch sets by the reusable
+ *       framework factory {@link net.jini.jeri.DynamicILFactory} — a
+ *       {@link net.jini.jeri.AtomicILFactory} subclass whose
+ *       {@code getRemoteInterfaces} override appends its extra interfaces, mirroring
+ *       {@code net.jini.jeri.ProxyTrustILFactory}'s {@code ProxyTrust} append.  The
+ *       JGDMS service support installs it as the default exporter, supplying the
+ *       admin interfaces, so a DYNAMIC service gets full admin dispatch with
+ *       neither codegen nor config.  The {@link Remote} bootstrap accessors
+ *       ({@code ServiceProxyAccessor}/{@code ServiceIDAccessor}/
+ *       {@code ServiceAttributesAccessor}/{@code CodebaseAccessor}) are picked
+ *       up automatically by {@code super.getRemoteInterfaces}.</li>
+ * </ul>
+ * There is <em>no</em> generated backend interface and <em>no</em> generated
+ * proxy class: the client proxy is the JERI-exported
+ * {@link java.lang.reflect.Proxy} dynamic stub itself, returned to clients
+ * directly.  Nothing is written by hand.
+ *
+ * <p>{@code proxy = }{@link ProxyType#DYNAMIC} selects JGDMS-STD-009 §6 shape 1
+ * (the exported dynamic-proxy stub <em>is</em> the client proxy — one fat
+ * {@code java.lang.reflect.Proxy} implementing the API, the appended admin
+ * interfaces, the {@link Remote} accessors, and
+ * {@link net.jini.core.constraint.RemoteMethodControl}).  {@code codebase = false}
+ * because there is no downloaded smart-proxy jar to ship.
  *
  * <h2>Usage</h2>
  * Clients discover an implementation of this interface via
@@ -60,11 +98,15 @@ import java.rmi.RemoteException;
  * </ul>
  *
  * @see au.net.zeus.jgdms.hello.HelloWorldServiceImpl
- * @see au.net.zeus.jgdms.hello.proxy.HelloServiceBackend
+ * @see JiniService
  * @since 3.1.1
  * @author Peter Firmstone
  * @author GitHub Copilot
  */
+@JiniService(
+        proxy     = ProxyType.DYNAMIC,          // shape 1: runtime java.lang.reflect.Proxy stub, no proxy class
+        codebase  = false,                      // no downloadable -dl jar; proxy is the JERI dynamic stub
+        component = "au.net.zeus.jgdms.hello")  // config component for the service wrapper
 public interface HelloService extends Remote {
 
     /**

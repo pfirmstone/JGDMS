@@ -35,11 +35,18 @@
         A minimal Hello World example demonstrating how to build a JGDMS
         service with a smart proxy, secure constraints, and a client that
         discovers the service via ServiceDiscoveryManager.
+
+        "Blog 1a": HelloService is annotated with @JiniService(proxy = SMART),
+        so the service-proxy annotation processor generates the server-side
+        backend interface and the constrainable smart proxy class that were
+        previously hand-written in a separate hello-world-dl module.  Because
+        the committed processor emits the generated proxy into the API
+        interface's own package, those generated classes now live in
+        hello-world-api and the separate -dl module has been retired.
     </description>
 
     <modules>
         <module>hello-world-api</module>
-        <module>hello-world-dl</module>
         <module>hello-world-service</module>
         <module>hello-world-client</module>
     </modules>

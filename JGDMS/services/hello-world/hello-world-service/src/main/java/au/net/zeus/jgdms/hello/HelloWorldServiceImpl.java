@@ -21,8 +21,6 @@ import java.rmi.RemoteException;
 import net.jini.activation.arg.ActivationID;
 import net.jini.id.Uuid;
 import au.net.zeus.jgdms.api.hello.HelloService;
-import au.net.zeus.jgdms.hello.proxy.HelloServiceBackend;
-import au.net.zeus.jgdms.hello.proxy.HelloServiceProxy;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import org.apache.river.start.lifecycle.LifeCycle;
 
@@ -33,8 +31,13 @@ import org.apache.river.start.lifecycle.LifeCycle;
  * the full JGDMS service infrastructure:
  * <ul>
  *   <li>Reads all configuration from a Jini {@link net.jini.config.Configuration}</li>
- *   <li>Exports itself via a configurable {@link net.jini.export.Exporter}</li>
- *   <li>Builds a {@link HelloServiceProxy} for clients</li>
+ *   <li>Exports itself via a configurable {@link net.jini.export.Exporter}
+ *       whose invocation-layer factory is the framework-default
+ *       {@link net.jini.jeri.DynamicILFactory} (DYNAMIC shape), so the exported
+ *       {@link java.lang.reflect.Proxy} stub carries the admin interfaces with no
+ *       per-service code generation or configuration</li>
+ *   <li>Returns that exported dynamic-proxy stub directly to clients — there is
+ *       no generated smart-proxy class to wrap it in (JGDMS-STD-009 §6 shape 1)</li>
  *   <li>Registers with Jini lookup services via a
  *       {@link net.jini.lookup.JoinManager}</li>
  * </ul>
@@ -78,7 +81,7 @@ import org.apache.river.start.lifecycle.LifeCycle;
  */
 public class HelloWorldServiceImpl
         extends AbstractJiniService
-        implements HelloServiceBackend {
+        implements HelloService {
 
     /** Configuration component name for this service. */
     static final String COMPONENT = "au.net.zeus.jgdms.hello";
@@ -125,7 +128,15 @@ public class HelloWorldServiceImpl
 
     @Override
     protected Object createProxy(Object stub, Uuid serviceUuid) {
-        return HelloServiceProxy.create((HelloService) stub, serviceUuid);
+        // DYNAMIC (JGDMS-STD-009 §6 shape 1): the exported JERI stub is itself
+        // the client proxy.  Because the service is exported through the
+        // framework-default net.jini.jeri.DynamicILFactory (installed by
+        // JiniServiceParameters, carrying the Jini admin interfaces), this stub is
+        // a java.lang.reflect.Proxy that already implements HelloService, the
+        // appended admin interfaces (Administrable/JoinAdmin/DestroyAdmin), the
+        // Remote bootstrap accessors, and RemoteMethodControl.  There is no
+        // generated proxy class to wrap it in, so it is returned directly.
+        return stub;
     }
 
     @Override

@@ -37,14 +37,13 @@
     </description>
 
     <dependencies>
-        <dependency>
+        <dependency><!-- hello-world-api carries the client-facing HelloService
+                 interface.  DYNAMIC shape: the client proxy is the JERI-exported
+                 dynamic stub (its admin interfaces appended by the framework-default
+                 net.jini.jeri.DynamicILFactory), so there are no downloaded
+                 smart-proxy classes (the -dl module was retired). -->
             <groupId>au.net.zeus.jgdms.hello</groupId>
             <artifactId>hello-world-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>au.net.zeus.jgdms.hello</groupId>
-            <artifactId>hello-world-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

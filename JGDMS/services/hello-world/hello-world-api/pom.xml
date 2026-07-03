@@ -33,8 +33,19 @@
     <description>
         Client-facing remote service interface (HelloService) for the Hello
         World example.  Shared by the client and the server-side
-        implementation; deliberately free of infrastructure interfaces so
-        clients see only the service contract.
+        implementation.
+
+        HelloService is annotated with @JiniService(proxy = DYNAMIC), so the
+        service-proxy annotation processor GENERATES NOTHING (protocol == api):
+        no proxy class, no backend interface, and no invocation-layer factory.
+        The client proxy is the JERI-exported java.lang.reflect.Proxy dynamic stub
+        itself (JGDMS-STD-009 §6 shape 1), and its non-Remote admin interfaces are
+        appended by the reusable framework factory net.jini.jeri.DynamicILFactory,
+        which the JGDMS service support installs as the default exporter — so a
+        DYNAMIC service needs neither codegen nor config.  This module depends on
+        jgdms-jeri (the round-trip test exports through JERI using DynamicILFactory)
+        and jgdms-lib-dl (the admin interfaces and Remote bootstrap accessors the
+        test references).
     </description>
 
     <dependencies>
@@ -43,5 +54,72 @@
             <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- The round-trip test exports through JERI (BasicJeriExporter /
+             TcpServerEndpoint) using net.jini.jeri.DynamicILFactory (jgdms-jeri). -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-jeri</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- The round-trip test references the admin interfaces
+             net.jini.admin.Administrable / JoinAdmin and
+             org.apache.river.admin.DestroyAdmin (the extra set passed to
+             DynamicILFactory) and the Remote bootstrap accessors
+             net.jini.lookup.Service* — all of which live in jgdms-lib-dl. -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-lib-dl</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- @JiniService / ProxyType: SOURCE-retained, so provided scope keeps
+             the annotations off the runtime/client classpath. -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms.tools</groupId>
+            <artifactId>service-proxy-annotations</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- Built for Java 21 to match the rest of the example
+                         reactor (jgdms-jeri / AtomicILFactory target). -->
+                    <release>21</release>
+                    <annotationProcessorPaths combine.children="append">
+                        <!-- Validates the @JiniService contract.  For
+                             @JiniService(proxy = DYNAMIC, protocol == api) it
+                             generates nothing; admin dispatch comes from the
+                             framework-default net.jini.jeri.DynamicILFactory. -->
+                        <path>
+                            <groupId>au.net.zeus.jgdms.tools</groupId>
+                            <artifactId>service-proxy-processor</artifactId>
+                            <version>${project.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!--
+                      The in-JVM JERI export round-trip resolves the dynamic-proxy
+                      stub's classes via RMIClassLoader.  The JDK default provider
+                      is sufficient and avoids the unresolved-SPI failure; the full
+                      preferred-class path is covered in qa.
+                    -->
+                    <argLine>-Djava.rmi.server.RMIClassLoaderSpi=default</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

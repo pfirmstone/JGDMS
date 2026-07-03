@@ -38,14 +38,11 @@
     </description>
 
     <dependencies>
-        <dependency>
+        <dependency><!-- hello-world-api now carries the GENERATED backend interface and
+                 constrainable smart proxy (the retired -dl module's content),
+                 emitted by the @JiniService service-proxy processor. -->
             <groupId>au.net.zeus.jgdms.hello</groupId>
             <artifactId>hello-world-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>au.net.zeus.jgdms.hello</groupId>
-            <artifactId>hello-world-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
