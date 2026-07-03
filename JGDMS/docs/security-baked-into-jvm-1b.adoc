@@ -1,0 +1,426 @@
+// ============================================================================
+// DRAFT — post "1b" for Nicolas Fränkel's "Security Baked Into the JVM" series.
+// FLAG(peter): the header block below is a BEST-GUESS reconstruction from the
+// rendered post 1. Please replace it wholesale with the EXACT header fields your
+// other posts use (attribute names, category/tag spelling, permalink scheme,
+// date attribute, author key). The BODY is the valuable part; the header is
+// yours to normalise.
+//
+// JEKYLL: for the _posts/ directory this file must be renamed
+//   YYYY-MM-DD-security-baked-into-jvm-1b.adoc
+// using Nicolas's actual publish date (jekyll requires the date prefix).
+// ============================================================================
+= Security Baked Into the JVM, Part 1b: One Annotation Instead of a Proxy Layer
+:page-layout: post
+:page-authors: pfirmstone
+:page-category: Technical
+:page-tags: Java, security, JGDMS, Jini, distributed
+:page-date: 2026-07-03
+:page-excerpt: In Part 1 the HelloService interface stayed a plain Remote interface and the security lived in configuration. This companion post shows the boilerplate that used to sit between that interface and the wire — the smart proxy, the backend interface, the per-service invocation-layer factory — and how a single @JiniService annotation makes it disappear while picking the hardened, atomic/DER serialization factory for you.
+// :page-permalink: /security-baked-into-jvm/1b/   // TODO(peter): confirm your slug convention for a "1b" URL
+
+The principle Part 1 established is the one I want to keep: the service interface stays a plain
+`Remote` interface, and the authentication, encryption and hardened deserialization are
+*declared in configuration and enforced at the call boundary* — never written into the service
+API. That separation is the whole design. This companion post shows it end-to-end on a *new*
+service, taking the real, committed JGDMS code as the source of truth for exactly how the pieces
+fit together.
+
+== Two details worth getting exactly right
+
+Before the new example, two small things are worth pinning down, because they are precisely the
+points where a Jini deployment can look correct and still undo the very thing this series is
+about. Both are easy to get right once, and `@JiniService` gets the second one right *for* you.
+
+=== Use the modern namespace
+
+The bootstrap classes moved a long time ago. The service launcher and its descriptors live under
+`org.apache.river.start` — for example `org.apache.river.start.ServiceStarter` and
+`org.apache.river.start.NonActivatableServiceDescriptor` (JGDMS module `service-starter`). The
+old `com.sun.jini.start` names are the pre-Apache Sun namespace; JGDMS keeps them alive only in a
+`jini-2.1-compat` shim for legacy binaries, not as the path new services should use. So a launch
+looks like this, `org.apache.river` throughout:
+
+[source]
+----
+java -Djava.security.policy=temperature-service.policy \
+     -cp <classpath> \
+     org.apache.river.start.ServiceStarter \
+     temperature-start.config
+----
+
+This is cosmetic next to the second point, but it matters for a security series: the modern
+classes are the ones carrying the modern defaults, and mixing in the old namespace is a signal
+that other things may be dated too.
+
+=== Pick the serialization factory that has integrity baked in
+
+This is the one that actually matters. When you export a service through JERI, the
+*invocation-layer factory* decides how arguments and return values are turned into bytes on the
+wire. There are two you can reach for, and they are not security-equivalent:
+
+* `net.jini.jeri.BasicILFactory` produces proxies whose object stream is *ordinary Java Object
+  Serialization* (JOSS) — the default `readObject`/`writeObject` machinery. That stream is
+  exactly the attack surface this entire series exists to shrink: it is the substrate for
+  deserialization gadget chains, it is non-deterministic, and it offers no object-layer integrity
+  check. Reaching for `BasicILFactory` quietly opts your service back into the thing you are
+  trying to leave behind.
+* `net.jini.jeri.AtomicILFactory` produces proxies over *atomic serialization* instead: an
+  `AtomicInvocationHandler` / `AtomicInvocationDispatcher` pair, a deterministic DER-style wire
+  form, and *atomic input validation* on the way in. Anything exported through it must implement
+  `org.apache.river.api.io.AtomicSerial`, so there is no arbitrary-`readObject` gadget surface,
+  and the wire form is integrity-checkable — which is what lets the `Integrity.YES` you declared
+  in config actually mean something at the object layer, not just at the socket.
+
+`AtomicILFactory extends BasicILFactory`; the hardened codec is the subclass, and choosing the
+base class is choosing the weaker one. That single decision is easy to get wrong by habit — most
+older Jini examples reach straight for `BasicILFactory` — and getting it wrong is silent: the
+service works, the tests pass, and only the wire codec is soft.
+
+Here is the payoff of the annotation, and the reason it belongs in a series called *baked in*:
+`@JiniService` never lets you make that choice by hand. For `proxy = DYNAMIC` the framework
+default exporter uses `net.jini.jeri.DynamicILFactory`, which `extends AtomicILFactory` — so the
+atomic/DER codec with input validation is what you get, by default, without naming a factory at
+all. The secure serialization factory is selected *for* you; the insecure one is not on the menu.
+
+// ---------------------------------------------------------------------------
+// TODO(peter): if you want the contrast even more explicit for readers coming
+// straight from Part 1, this is the natural spot for a one-line, non-pointed
+// aside noting that DYNAMIC/AtomicILFactory is the pattern to carry forward. I
+// have kept it framed as "the pattern", not as a correction of Part 1, per the
+// no-public-dunk guidance — adjust the temperature to taste.
+// ---------------------------------------------------------------------------
+
+With those two settled, the rest of the post is about how much hand-written machinery sits
+between your interface and that guarantee — and how the annotation removes it.
+
+== The proxy layer you used to hand-write
+
+Between the clean interface a client sees and the bytes that actually cross the network, a
+classic Jini service has a *proxy layer*: a smart proxy the client downloads and runs locally, a
+separate backend interface the proxy forwards to, and a per-service invocation-layer factory that
+stitches the two together and stamps the security defaults — including that factory choice —
+onto the exported stub. Historically you hand-wrote all of it. Every one of those hand-written
+classes is a place to get security subtly wrong, the factory choice above being the sharpest one.
+
+This post takes a small temperature sensor and shows two things: the boilerplate that layer used
+to cost, and how the `@JiniService` annotation (JGDMS-STD-009) collapses it to the annotation
+itself plus a one-line `createProxy`. The security story does not change: constraints stay in the
+deployment configuration, bound by the exporter, over the atomic codec. What changes is how
+little code sits between your interface and that guarantee.
+
+== The example: a temperature sensor
+
+Keep it minimal — one read method, no state, no arguments to smuggle attacks through:
+
+[source,java]
+----
+package com.example.sensor;
+
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+
+public interface TemperatureReadingService extends Remote {
+
+    /** @return the current reading in degrees Celsius. */
+    double currentCelsius() throws RemoteException;
+}
+----
+
+That is the whole client-facing contract, and — exactly as in Part 1 — it stays a plain
+`Remote` interface. No security annotations, no constraint types, nothing about proxies. A
+client that discovers this service casts the result to `TemperatureReadingService` and calls
+`currentCelsius()`. Everything else is infrastructure.
+
+== Before: the proxy layer, by hand
+
+To publish that one method securely, the old recipe asked you to write, by hand:
+
+* a *backend (wire) interface* — often distinct from the public API, carrying the methods the
+  exported stub actually implements and the proxy invokes on the server;
+* a *smart proxy* class — the object serialized to the client, implementing
+  `TemperatureReadingService` on the client side and forwarding to the backend, plus a
+  constrainable wrapper implementing `RemoteMethodControl` so per-call constraints can be
+  attached;
+* a *per-service invocation-layer factory* — and here you had to remember to reach for
+  `AtomicILFactory`, not `BasicILFactory`, or the whole service silently ran over JOSS — so the
+  exported stub carries the Jini admin interfaces (`Administrable`, `JoinAdmin`, `DestroyAdmin`)
+  and the bootstrap accessors, not just `currentCelsius`, over the hardened codec;
+* and the *config wiring* that ties a specific endpoint, factory and constraint set together.
+
+Sketched, the smart-proxy plumbing looked like this — note how much of it is mechanical
+forwarding whose only job is to be *constrainable* and to reach the backend:
+
+[source,java]
+----
+// The old way — mechanical, and every line is a chance to weaken a default.
+final class TemperatureProxy
+        implements TemperatureReadingService, RemoteMethodControl, Serializable {
+
+    private final TemperatureBackend server;   // the wire interface, hand-written
+    private final MethodConstraints  constraints;
+
+    public double currentCelsius() throws RemoteException {
+        return server.currentCelsius();        // forward to the backend
+    }
+
+    // ... setConstraints/getConstraints boilerplate so the proxy is constrainable,
+    // ... a constrainable sub-form, an @AtomicSerial reader, a fail-closed factory ...
+}
+----
+
+None of that is business logic. It is a security-load-bearing shim that every service reimplements,
+and the failure modes are quiet: reach for `BasicILFactory` and the wire quietly falls back to
+JOSS; forget to make the proxy constrainable and constraints silently stop being enforced; let a
+factory degrade to a plain proxy when the server reference isn't a `RemoteMethodControl` and
+you've lost integrity without an error. That is precisely the class of mistake that shouldn't be
+a per-service decision.
+
+== After: one annotation
+
+Here is the same service under `@JiniService`. The annotation goes on the *public API
+interface* — the clean, client-facing contract — never on the implementation:
+
+[source,java]
+----
+package com.example.sensor;
+
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
+
+@JiniService(
+        proxy     = ProxyType.DYNAMIC,        // DYNAMIC (default) | SMART
+        codebase  = false,                    // no downloadable -dl jar to ship
+        component = "com.example.sensor")     // config component for the wrapper
+public interface TemperatureReadingService extends Remote {
+
+    double currentCelsius() throws RemoteException;
+}
+----
+
+The three attributes that matter here:
+
+* `proxy = ProxyType.DYNAMIC` — the default. The service is exported as a
+  `java.lang.reflect.Proxy` the client already holds the interface for; it is *constrainable by
+  JERI construction*, so there is no proxy class to generate. (The other value, `ProxyType.SMART`,
+  is for a downloaded smart proxy that runs behaviour locally — that *does* generate a
+  constrainable proxy class, wrapping a `@SmartProxy` delegate. Not what a plain sensor needs.)
+* `codebase = false` — no downloadable `-dl` jar; the receiver already holds the interface.
+* `component = "com.example.sensor"` — the configuration component name the generated wrapper
+  reads its entries from. This is the same component key the deployment `.config` uses below.
+
+Because `proxy = DYNAMIC` and the protocol equals the API (no `protocol` attribute, so it
+defaults to the annotated interface), the annotation processor emits *nothing at all*: no
+backend interface, no proxy class, no invocation-layer factory. The `TemperatureProxy` sketch
+above simply ceases to exist — and with it, the chance to pick the wrong factory. A generated
+backend interface appears only when `protocol() != api()` — a smart proxy translating public
+calls into a different internal protocol. The thin, one-to-one sensor is the common case, and it
+costs one annotation.
+
+The implementation wrapper supplies the business logic and returns the exported stub. Under
+DYNAMIC the exported stub *is* the client proxy, so `createProxy` returns it unchanged:
+
+[source,java]
+----
+package com.example.sensor;
+
+import net.jini.id.Uuid;
+import au.net.zeus.jgdms.service.support.AbstractJiniService;
+// ... activation / lifecycle constructors elided ...
+
+public class TemperatureServiceImpl
+        extends AbstractJiniService
+        implements TemperatureReadingService {
+
+    static final String COMPONENT = "com.example.sensor";
+
+    @Override
+    protected Object createProxy(Object stub, Uuid serviceUuid) {
+        // DYNAMIC (JGDMS-STD-009 §6 shape 1): the exported JERI stub is already the
+        // client proxy — it implements TemperatureReadingService, the appended admin
+        // interfaces, the bootstrap accessors and RemoteMethodControl. Nothing to wrap.
+        return stub;
+    }
+
+    @Override
+    protected Class<?>[] getServiceInterfaces() {
+        return new Class<?>[]{ TemperatureReadingService.class };
+    }
+
+    @Override
+    public double currentCelsius() {
+        getReadyState().check();
+        return 21.5d;                          // a real sensor would read hardware here
+    }
+}
+----
+
+== What actually gets exported
+
+The interesting part is what the framework hands the client. It is *one* dynamic proxy — a
+"fat" `java.lang.reflect.Proxy` — carrying all of:
+
+* the public API (`TemperatureReadingService`);
+* the non-`Remote` Jini admin interfaces (`Administrable`, `JoinAdmin`, `DestroyAdmin`);
+* the `Remote` bootstrap accessors (`ServiceProxyAccessor`, `ServiceIDAccessor`,
+  `ServiceAttributesAccessor`, `CodebaseAccessor`);
+* and `net.jini.core.constraint.RemoteMethodControl` — every JERI dynamic proxy is
+  constrainable, which is exactly what lets the config-declared constraints bind to it.
+
+No generated proxy class is involved. The admin interfaces are appended at export time by a
+*reusable framework factory*, `net.jini.jeri.DynamicILFactory` — an `AtomicILFactory` subclass
+(so the hardened atomic/DER codec, not JOSS) whose `getRemoteInterfaces` override appends its
+extra interfaces to both the client cast set and the server dispatch set. The JGDMS service
+support (`JiniServiceParameters`) installs it as the default exporter, supplying
+`{Administrable, JoinAdmin, DestroyAdmin}` as the extra set. So a DYNAMIC service gets full
+admin-over-wire dispatch, over the atomic codec, with neither code generation nor a line of
+config.
+
+The generation-and-export path, from annotation to fat proxy:
+
+[plantuml,jgdms-1b-annotation-flow,svg,alt="From @JiniService annotation through the processor and framework-default AtomicILFactory-based exporter to the fat dynamic proxy",width=800,height=250]
+....
+skinparam monochrome true
+skinparam shadowing false
+
+rectangle "@JiniService(proxy=DYNAMIC)\non TemperatureReadingService" as ANN
+rectangle "ServiceProxyProcessor\n(annotation processor)" as PROC
+rectangle "DYNAMIC + protocol==api\n=> emits NOTHING\n(no proxy class, no backend,\nno per-service ILFactory)" as GEN
+rectangle "Framework default exporter\nBasicJeriExporter +\nDynamicILFactory extends AtomicILFactory\n(atomic/DER codec) +\n{Administrable, JoinAdmin, DestroyAdmin}" as EXP
+rectangle "Fat java.lang.reflect.Proxy\nAPI + admin ifaces + accessors\n+ RemoteMethodControl" as PROXY
+
+ANN --> PROC
+PROC --> GEN
+GEN --> EXP
+EXP --> PROXY
+....
+
+== The security throughline
+
+Here is where it ties back to the series. Less hand-written proxy and exporter code is not
+merely convenience — *it is fewer places to get security wrong*. The proxy layer is exactly the
+part that has to be constrainable, has to fail closed, and has to use the hardened codec rather
+than JOSS. Making it a per-service hand-written concern means each service can quietly regress a
+default.
+
+`@JiniService` bakes those defaults in:
+
+* the exported stub is *always* a constrainable proxy implementing `RemoteMethodControl`, so
+  per-call constraints can be enforced — you can't accidentally ship a non-constrainable one;
+* the invocation-layer factory is a `DynamicILFactory`, which `extends AtomicILFactory`, so
+  proxies enforce *integrity at the object layer* — the deterministic, DER-style,
+  `AtomicSerial`-validated wire form, *not* the JOSS Java-serialization stream `BasicILFactory`
+  would have given you;
+* the admin interfaces are appended by the framework, not by service-specific code that might
+  forget them.
+
+And — this is the whole point of the separation — *none of that moves security into code*.
+Integrity and Confidentiality are still declared in the deployment `.config`, still bound by the
+exporter, still enforced at the call boundary, and the export still *fails fast* if the transport
+can't meet them. The annotation removes boilerplate, and removes the chance to pick the JOSS
+factory, without relocating one security decision from config into the source, and without
+weakening least privilege.
+
+== The constraints still live in config
+
+Continuing the "constraints in config, not code" thread: the annotated interface says nothing
+about Integrity or Confidentiality. Those are declared in the deployment configuration, under the
+same `component` name the annotation named, and bound by the exporter. Here is the production
+SSL/TLS exporter for the sensor — note it is the framework's *same* `DynamicILFactory` (still an
+`AtomicILFactory`, so still the atomic codec), just handed an explicit endpoint and a minimum
+constraint set:
+
+[source,groovy]
+----
+import com.example.sensor.TemperatureReadingService
+import net.jini.core.constraint.Integrity
+import net.jini.core.constraint.Confidentiality
+import net.jini.core.constraint.ClientAuthentication
+import net.jini.core.constraint.InvocationConstraints
+import net.jini.constraint.BasicMethodConstraints
+import net.jini.jeri.BasicJeriExporter
+import net.jini.jeri.DynamicILFactory
+import net.jini.jeri.ssl.SslServerEndpoint
+import net.jini.admin.Administrable
+import net.jini.admin.JoinAdmin
+import org.apache.river.admin.DestroyAdmin
+
+'com.example.sensor' {
+
+    serverExporter = new BasicJeriExporter(
+        SslServerEndpoint.getInstance(0),
+        new DynamicILFactory(                       // extends AtomicILFactory — atomic/DER, not JOSS
+            new BasicMethodConstraints(
+                new InvocationConstraints(
+                    [Integrity.YES, Confidentiality.YES, ClientAuthentication.YES],
+                    null
+                )
+            ),
+            null,
+            TemperatureReadingService.classLoader,
+            [Administrable, JoinAdmin, DestroyAdmin] as Class[]
+        ),
+        false, true
+    )
+
+    initialLookupGroups = [''] as String[]
+}
+----
+
+`BasicMethodConstraints`, `InvocationConstraints`, `Integrity`, `Confidentiality`,
+`ClientAuthentication` are the real JGDMS constraint classes, from `net.jini.constraint` and
+`net.jini.core.constraint`. A server's minimum constraints are built as
+`new BasicMethodConstraints(new InvocationConstraints(required, preferred))` — there is no
+separate "default method constraints" type; `BasicMethodConstraints` *is* the class the exporter
+takes. The constraint set here is the *minimum* every inbound call must satisfy:
+integrity-protected, confidential, and client-authenticated. If the transport can't meet them,
+the call is refused at the boundary rather than downgraded — and because the codec underneath is
+atomic, that `Integrity.YES` is enforceable at the object layer, not just the socket.
+
+And the zero-config alternative: omit `serverExporter` entirely and the framework default (plain
+TCP, admin interfaces appended, atomic codec, no encryption) exports the fat stub for local
+development. You move to the block above for production. Either way the *interface and the
+annotation are untouched* — you re-deploy config, you don't recompile the contract.
+
+At runtime, the constrainable proxy is what enforces those config-declared constraints on every
+call, failing fast when they can't be met:
+
+[plantuml,jgdms-1b-runtime-sequence,svg,alt="A call flows client to constrainable proxy to exporter to impl, failing fast if the configured constraints are unmet",width=760,height=330]
+....
+skinparam monochrome true
+skinparam shadowing false
+
+participant Client
+participant "Constrainable proxy\n(RemoteMethodControl)" as Proxy
+participant "Exporter / SSL endpoint\n(config constraints, atomic codec)" as Endpoint
+participant "TemperatureServiceImpl" as Impl
+
+Client -> Proxy : currentCelsius()
+Proxy -> Endpoint : invoke with required constraints\n(Integrity, Confidentiality, ClientAuth)
+alt transport satisfies constraints
+    Endpoint -> Impl : dispatch currentCelsius()
+    Impl --> Endpoint : 21.5
+    Endpoint --> Proxy : 21.5 (integrity-checked, atomic decode)
+    Proxy --> Client : 21.5
+else constraints unmet
+    Endpoint --> Proxy : fail fast (constraint not satisfied)
+    Proxy --> Client : exception — no downgrade
+end
+hide footbox
+....
+
+== Where this leaves us
+
+The series' promise is that security is declared in configuration and enforced at the call
+boundary, and the interface stays clean. This post shows the layer that promise used to cost — a
+hand-written smart proxy, backend interface and per-service factory, with a live chance to pick
+JOSS over the atomic codec at every service — and how `@JiniService` collapses it to an
+annotation and a one-line `createProxy`, with the secure defaults (a constrainable proxy, the
+atomic/DER integrity codec via `DynamicILFactory`/`AtomicILFactory`, the admin interfaces) baked
+in rather than re-typed, and re-decided, per service.
+
+Next I'll take the codebase side seriously: SCAP, the pipeline that audits third-party JARs
+*before* any client deserializes an object from them. The proxy may be constrainable and the
+codec atomic — but the class that arrives still has to earn its right to run.
