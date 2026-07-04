@@ -198,18 +198,43 @@ SignedObject ::= SEQUENCE {
 -- Section 7.6 Substituted Standard Types
 -- ============================================================================
 
--- ILLUSTRATIVE: `Element` in CollectionField/MapField is an intentional
--- placeholder in the spec prose ("behavioural collection ... Element"), not a
--- named wire type anywhere else in the document. Stubbed here as OCTET STRING
--- (an opaque per-element DER encoding, consistent with EntryFieldValue's
--- `present OCTET STRING` pattern used for the same purpose in section 7.7.2)
--- so the module compiles; not a defect to be fixed in the spec (see
--- validation report, classification ILLUSTRATIVE).
+-- ILLUSTRATIVE: `Element` (and the `key`/`value` positions in the map types) is
+-- an intentional placeholder for a per-element DER encoding. Stubbed here as
+-- OCTET STRING (opaque per-element DER, consistent with EntryFieldValue's
+-- `present OCTET STRING` pattern, section 7.7.2) so the module compiles; the
+-- real element wire-type is carried in the schema token (set:/bag:/map:/...) not
+-- the ASN.1 type. A concrete collection field substitutes its element type.
 Element ::= OCTET STRING
 
--- behavioural collection (Set/Map/List): order NOT relied upon by receiver
-CollectionField ::= SEQUENCE (SIZE(0..maxCollection)) OF Element
-MapField        ::= SEQUENCE (SIZE(0..maxCollection)) OF SEQUENCE { key Element, value Element }
+-- Section 7.6 / 3.8 collection field types, one per ordering discipline. The
+-- discipline is fixed by the declared Java type at schema-generation time and
+-- baked into the schema wire-type token; the ASN.1 container type below pins the
+-- wire TAG that goes with each token (built codec, branch der-collection-codec):
+--
+--   CANONICALISE (non-deterministic-order Set/Map) -> SET OF, UNIVERSAL tag 0x31.
+--     A SET OF is octet-sorted per X.690 section 11.6; a conformant DER decoder
+--     rejects an out-of-order SET OF, giving the section 11.6 ascending-order
+--     guarantee at the type layer (Option A).
+--       set:  -> CanonicalSet      (octet-sorted, distinct elements)
+--       bag:  -> CanonicalMultiset (octet-sorted, duplicates permitted)
+--       map:  -> CanonicalMap      (SET OF SEQUENCE{key,value}; entries octet-sorted
+--                                   by the encoded KEY, per-entry SEQUENCE tag 0x30)
+--   PRESERVE (deterministic-order List/Deque/LinkedHash*/Sorted*/Enum*/... ) ->
+--     SEQUENCE OF, UNIVERSAL tag 0x30, iteration order emitted verbatim.
+--       orderedset: -> OrderedSetField   (order kept, distinct elements)
+--       list:       -> ListField         (order kept, duplicates permitted)
+--       orderedmap: -> OrderedMapField    (SEQUENCE OF SEQUENCE{key,value}, both 0x30)
+--
+-- SIZE(0..maxCollection) is inclusive: the codec accepts exactly maxCollection
+-- (65536) elements/entries and rejects maxCollection+1 (section 4.5).
+
+CanonicalSet      ::= SET      (SIZE(0..maxCollection)) OF Element
+CanonicalMultiset ::= SET      (SIZE(0..maxCollection)) OF Element
+CanonicalMap      ::= SET      (SIZE(0..maxCollection)) OF SEQUENCE { key Element, value Element }
+
+OrderedSetField   ::= SEQUENCE (SIZE(0..maxCollection)) OF Element
+ListField         ::= SEQUENCE (SIZE(0..maxCollection)) OF Element
+OrderedMapField   ::= SEQUENCE (SIZE(0..maxCollection)) OF SEQUENCE { key Element, value Element }
 
 StackTraceElement ::= SEQUENCE {
     declaringClass  UTF8String,

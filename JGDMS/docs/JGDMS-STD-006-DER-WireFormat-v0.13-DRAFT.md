@@ -97,8 +97,9 @@
 >   `DelayQueue`, `SynchronousQueue`) — insertion/FIFO order is race-dependent, hence not
 >   deterministic; contrast the non-concurrent `LinkedHashSet`/`ArrayDeque`, which preserve;
 >   and `PriorityQueue`/`PriorityBlockingQueue` (iterator disclaims order — priority order
->   rebuilt at the receiver) — octet-sorted per X.690 §11.6 (design-now/build-later — the
->   codec has no `set:`/`map:` token yet). The subsection
+>   rebuilt at the receiver) — octet-sorted per X.690 §11.6. (The codec now implements all
+>   six collection tokens with the pinned `SET OF`/`SEQUENCE OF` tags and §11.6 order
+>   enforcement — branch `der-collection-codec`.) The subsection
 >   documents the deliberate consequence that serialized byte-equality is
 >   **order-sensitive** for preserved types and **stricter than object `equals`** for
 >   the insertion-ordered `LinkedHashSet`/`LinkedHashMap` (they inherit the
@@ -442,11 +443,32 @@ it is preserved only for the deterministic-order types and otherwise canonicalis
 
 The canonical (octet-sort) rule for the canonicalise side is the X.690 §11.6 SET OF
 order (each element encoded to canonical DER, the element encodings sorted as octet
-strings); it is stated as design-now/build-later here — the built codec has no
-`set:`/`map:` wire-type token yet — and its full mechanics are recorded in the
-collection-ordering memo (`docs/der-collection-ordering-research.md`). An encoder MUST
-NOT derive collection order from any `hashCode`/`identityHashCode` or hash-bucket
-iteration order (that order is per-run, machine-dependent, and reproducible nowhere).
+strings); its full mechanics are recorded in the collection-ordering memo
+(`docs/der-collection-ordering-research.md`). An encoder MUST NOT derive collection
+order from any `hashCode`/`identityHashCode` or hash-bucket iteration order (that order
+is per-run, machine-dependent, and reproducible nowhere).
+
+**Wire tag and decoder obligations (NORMATIVE).** The two disciplines are distinguished
+on the wire by their ASN.1 container, not only by the schema token:
+
+- A **canonicalise** collection (`set:`, `bag:`, `map:`) is a **`SET OF`** — universal
+  tag **`0x31`** — whose elements (or, for `map:`, whose per-entry `SEQUENCE`s) are in
+  X.690 §11.6 ascending octet order. A `map:` is `SET OF SEQUENCE { key, value }`: the
+  outer container is `SET OF` (`0x31`) and each entry is a `SEQUENCE` (**`0x30`**); the
+  entries are octet-ordered by the **encoded key** only (keys are unique values, so the
+  key order is a total order; value octets never participate — see §7.6).
+- A **preserve** collection (`orderedset:`, `list:`, `orderedmap:`) is a **`SEQUENCE OF`**
+  — universal tag **`0x30`** — carrying the iterator's order verbatim. An `orderedmap:`
+  is `SEQUENCE OF SEQUENCE { key, value }` (both containers `0x30`).
+
+A conformant DER decoder **MUST reject** (fail-secure, principle 6): (a) a canonicalise
+collection whose elements — or whose `map:` entries, by encoded key — are **not in
+strictly ascending §11.6 order** (an unsorted `SET OF` is not valid DER, X.690 §10.1 /
+§11.6); (b) a **wrong container tag** for the declared token (a `SEQUENCE OF` `0x30`
+where the token requires a `SET OF` `0x31`, or vice versa); (c) a **duplicate** element
+encoding in a `set:`/`orderedset:` field, or a duplicate key encoding in a
+`map:`/`orderedmap:` field (a `bag:` multiset retains duplicates). This rejection is
+mandatory for **every** conformant decoder, JVM and non-JVM alike.
 
 A consequence is deliberate and must be understood, and it is scoped precisely: for a
 preserved type, element order is part of the serialized identity, so serialized
@@ -734,10 +756,17 @@ domain-count ceilings are merged into this same table (`maxDomains`/`maxCerts`/
 `maxCertLen`/`maxDigestLen`) rather than kept as separate per-section names — the
 `UrlCodeSourceRecord` and `DigestCodeSourceRecord` certificate paths share one bound.
 
+`maxCollection` is written `SIZE(0..maxCollection)` on the six §7.6 collection types,
+**inclusive** — exactly `maxCollection` (65536) elements/entries are accepted and
+`maxCollection + 1` is rejected before allocation. **Every** conformant decoder MUST
+enforce this cap, JVM and non-JVM alike: it is enforced by the built Java codec (branch
+`der-collection-codec`) on all six collection loops, so it is not a non-JVM-only
+obligation.
+
 | Constant | Value | Applies to |
 |---|---|---|
 | `maxFields` | 65535 | `AtomicSerialSchemaRecord.fields`, `EntrySchemaRecord.fields`, `EntryRecord.fieldValues`, `EntryTemplate.fieldValues` |
-| `maxCollection` | 65536 | §7.6 `CollectionField` / `MapField` elements (per-type schemas MAY declare tighter bounds) |
+| `maxCollection` | 65536 | §7.6 collection-field element/entry count — the six discipline types `CanonicalSet`/`CanonicalMultiset`/`CanonicalMap`/`OrderedSetField`/`ListField`/`OrderedMapField` (`SIZE(0..maxCollection)`, inclusive; per-type schemas MAY declare tighter bounds). Enforced by **every** decoder, JVM and non-JVM (built codec, branch der-collection-codec). |
 | `maxStackFrames` | 2048 | `ThrowableRecord.stackTrace` |
 | `maxCauseDepth` | 64 | `ThrowableRecord.cause` nesting (closes part of open item on §7.6) |
 | `maxGroups` | 128 | discovery `groups` sequences (§7.7.7, §7.7.8) |
@@ -1254,9 +1283,22 @@ DER's read-only decoded structure. There is therefore **no `MapSerializer`,
 `SetSerializer`, or `ListSerializer` wire type.** A collection-valued field is:
 
 ```asn1
--- collection field (Set/Map/List): order discipline set by the declared type (§3.8)
-CollectionField ::= SEQUENCE SIZE(0..maxCollection) OF Element   -- §4.5
-MapField        ::= SEQUENCE SIZE(0..maxCollection) OF SEQUENCE { key Element, value Element }   -- §4.5
+-- Collection field types, one per ordering discipline (§3.8). The discipline is
+-- fixed by the declared type at schema-generation time and baked into the schema
+-- wire-type token (set:/bag:/map:/orderedset:/list:/orderedmap:); the ASN.1
+-- container below pins the wire TAG that goes with each token.
+
+-- CANONICALISE (non-deterministic order) -> SET OF, universal tag 0x31,
+-- octet-sorted per X.690 §11.6; a decoder MUST reject an out-of-order SET OF.
+CanonicalSet      ::= SET      SIZE(0..maxCollection) OF Element                                  -- token set:  (distinct)
+CanonicalMultiset ::= SET      SIZE(0..maxCollection) OF Element                                  -- token bag:  (dups permitted)
+CanonicalMap      ::= SET      SIZE(0..maxCollection) OF SEQUENCE { key Element, value Element }  -- token map:  (entries octet-sorted by encoded KEY; per-entry SEQUENCE 0x30)
+
+-- PRESERVE (deterministic order) -> SEQUENCE OF, universal tag 0x30, iterator
+-- order emitted verbatim.
+OrderedSetField   ::= SEQUENCE SIZE(0..maxCollection) OF Element                                  -- token orderedset: (distinct)
+ListField         ::= SEQUENCE SIZE(0..maxCollection) OF Element                                  -- token list:       (dups permitted)
+OrderedMapField   ::= SEQUENCE SIZE(0..maxCollection) OF SEQUENCE { key Element, value Element }  -- token orderedmap: (both containers 0x30)
 -- the receiving object imposes uniqueness/null-policy at construction (§3.8)
 ```
 
@@ -1270,12 +1312,14 @@ unspecified (`HashSet`, `HashMap`, `ConcurrentHashMap`; the concurrent insertion
 collections `CopyOnWriteArraySet`, `ConcurrentLinkedQueue`/`ConcurrentLinkedDeque`, the
 blocking queues/deques `ArrayBlockingQueue`/`LinkedBlockingQueue`/`LinkedBlockingDeque`,
 `LinkedTransferQueue`, `DelayQueue`, `SynchronousQueue`; and
-`PriorityQueue`/`PriorityBlockingQueue`) is octet-sorted into the §3.8 canonical order
-(design-now/build-later; the codec has no `set:`/`map:` token yet). The `Properties` row
-below is a **canonicalise** case (it is `Hashtable`-based, so its iteration order is
-non-deterministic). The normative home for this rule is §3.8;
-this section only records that collection-valued fields obey it. For preserved types,
-note that serialized byte-equality is order-sensitive and (for the insertion-ordered
+`PriorityQueue`/`PriorityBlockingQueue`) is octet-sorted into the §3.8 canonical order.
+Preserve fields carry the `SEQUENCE OF` tag `0x30`; canonicalise fields carry the
+`SET OF` tag `0x31` and MUST be in §11.6 ascending order (a decoder rejects an
+out-of-order `SET OF` or the wrong container tag — §3.8). The `Properties` row below is a
+**canonicalise** case (it is `Hashtable`-based, so its iteration order is
+non-deterministic). The normative home for this rule is §3.8; this section only records
+that collection-valued fields obey it. For preserved types, note that serialized
+byte-equality is order-sensitive and (for the insertion-ordered
 `LinkedHashSet`/`LinkedHashMap`) stricter than object `equals` — see §3.8.
 
 The irreducible substituted types requiring their own DER form:
@@ -1505,9 +1549,10 @@ and `LoadClassPermission` apply unchanged.
 ServiceItemRecord ::= SEQUENCE {
     serviceId   ServiceID,
     -- behavioural; unordered (§3.8): a Jini attribute set is order-independent, so
-    -- this SEQUENCE OF is a canonicalise (non-deterministic-order) collection whose
-    -- future ordering home is the §3.8 octet-sort rule (design-now/build-later).
-    -- No element position here is order-significant.
+    -- no element position here is order-significant. [OPEN — align to §3.8/§7.6: a
+    -- canonicalise (non-deterministic-order) collection is a SET OF (tag 0x31) in
+    -- octet-sorted order under the pinned Option-A rule; whether this fixed §7.7
+    -- record field adopts SET OF or stays SEQUENCE OF is a §7.7 record decision.]
     attributes  SEQUENCE (SIZE(0..64)) OF EntryRecord,  -- 64 = Jini spec attribute limit
     proxy       ProxyDescriptor
 }
@@ -1530,8 +1575,9 @@ ServiceTemplateRecord ::= SEQUENCE {
     -- [OPEN] Confirm whether interface type identity uses the same hash scheme.
     requiredInterfaces  [1] IMPLICIT SEQUENCE (SIZE(0..maxInterfaces)) OF OCTET STRING (SIZE(32)) OPTIONAL,   -- §4.5
     -- behavioural; unordered (§3.8): an attribute-template set is order-independent
-    -- (mirrors ServiceItemRecord.attributes) -- a canonicalise (non-deterministic-order)
-    -- collection, future ordering per the §3.8 octet-sort rule (design-now/build-later).
+    -- (mirrors ServiceItemRecord.attributes). [OPEN — align to §3.8/§7.6 as for
+    -- ServiceItemRecord.attributes: canonicalise = SET OF (0x31) octet-sorted under
+    -- Option A; SET-OF-vs-SEQUENCE-OF here is a §7.7 record decision.]
     attributeTemplates  [2] IMPLICIT SEQUENCE (SIZE(0..64)) OF EntryTemplate OPTIONAL    -- same 64 ceiling as ServiceItemRecord.attributes
 }
 ```
@@ -2086,8 +2132,13 @@ A conforming implementation:
    serialized byte-equality as **order-sensitive** for preserved types, and stricter
    than object `equals` for the insertion-ordered `LinkedHashSet`/`LinkedHashMap` — i.e.
    it must not assume that object `equals` implies byte-equality for those two types
-   (§3.8, §7.7.2). *(Design-now/build-later: the codec has no `set:`/`map:` wire-type
-   token yet, so this obligation binds when the token is introduced.)*
+   (§3.8, §7.7.2). A canonicalise collection is a **`SET OF`** (tag `0x31`) and a preserve
+   collection a **`SEQUENCE OF`** (tag `0x30`); a conformant decoder **MUST reject** a
+   canonicalise collection not in §11.6 ascending order, the wrong container tag, a
+   duplicate in a `set:`/`orderedset:`/`map:`/`orderedmap:` field, and a count exceeding
+   `maxCollection` (§3.8, §4.5, §7.6). This obligation is **live**: all six collection
+   tokens, the §11.6 order check, and the `maxCollection` cap are built (branch
+   `der-collection-codec`), enforced by every conformant decoder, JVM and non-JVM alike.
 
 ---
 
