@@ -42,17 +42,12 @@ import java.util.Objects;
  * }
  * </pre>
  *
- * <h2>No codebaseAnnotation (v0.13)</h2>
+ * <h2>No codebase annotation</h2>
  * <p>
- * The former {@code codebaseAnnotation UTF8String OPTIONAL} field is REMOVED
- * (STD-006 v0.13). It contradicted S8.3 (the DER format carries no codebase
- * annotation at any level), reintroduced the S8.1 stale-URL hazards, and made the
- * module invalid ASN.1 (S4.5 distinct-tag rule: two adjacent UTF8Strings, one
- * OPTIONAL, forcing a positional count rule no schema-driven decoder can express).
- * The authenticated {@code CodebaseAccessor} channel (S8.2) is the ONLY codebase
- * mechanism. {@link #decode(DerReader)} rejects any record carrying trailing
- * content after {@code payloadFormat} -- which includes every legacy record that
- * carried the annotation.
+ * The record carries no codebase annotation. The authenticated
+ * {@code CodebaseAccessor} channel (S8.2) is the ONLY codebase mechanism (S8.3).
+ * The record is exactly four fields; {@link #decode(DerReader)} rejects any
+ * record carrying trailing content after {@code payloadFormat} (fail-secure).
  *
  * <h2>schemaBytes</h2>
  * <p>
@@ -233,8 +228,7 @@ public final class MarshalledInstanceRecord {
      * @return the decoded record
      * @throws DerException if the encoding is malformed, any constraint is violated,
      *                      or the record carries trailing content after
-     *                      {@code payloadFormat} (which includes the pre-v0.13
-     *                      {@code codebaseAnnotation} field)
+     *                      {@code payloadFormat}
      */
     public static MarshalledInstanceRecord decode(byte[] der) throws DerException {
         Objects.requireNonNull(der, "der");
@@ -251,10 +245,7 @@ public final class MarshalledInstanceRecord {
      * at the outer SEQUENCE TLV.
      *
      * <p>The record is exactly four fields; anything after {@code payloadFormat} is
-     * rejected (fail-secure). A pre-v0.13 record that carried the withdrawn
-     * {@code codebaseAnnotation} therefore fails to decode: its annotation is read
-     * as {@code payloadFormat} and the real {@code payloadFormat} becomes trailing
-     * content.
+     * rejected (fail-secure).
      *
      * @param reader the reader positioned at the SEQUENCE TLV
      * @return the decoded record
@@ -287,7 +278,7 @@ public final class MarshalledInstanceRecord {
         if (seq.hasMore()) {
             throw new DerException(
                     "MarshalledInstanceRecord: unexpected trailing content after payloadFormat"
-                    + " (the pre-v0.13 codebaseAnnotation field was withdrawn; STD-006 S7.8/S8.3)");
+                    + " (STD-006 S7.8: the record is exactly four fields)");
         }
 
         return new MarshalledInstanceRecord(

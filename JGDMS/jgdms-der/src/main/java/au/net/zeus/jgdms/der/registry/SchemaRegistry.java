@@ -97,14 +97,13 @@ public interface SchemaRegistry {
      * list (same {@code (wireName, wireType)} pairs, same order). Classes present
      * in B but not in A are permitted (their fields receive defaults). Classes
      * present in A but not in B mean A-data would be stored-but-unconsumed: not
-     * lossless, returns {@code false}.
+     * lossless, returns {@code false}. Comparing only the two leaf records would
+     * give wrong answers when the hierarchy itself evolves (STD-006 S11.4/S11.6),
+     * which is why the rule is chain-wise.
      *
      * <p>Returns {@code false} if either digest is unknown or either chain cannot
      * be completely retrieved from this registry -- fail-secure: an unjudgeable
      * chain is never reported compatible.
-     *
-     * <p>The pre-v0.13 contract compared only the two leaf records; that rule gave
-     * wrong answers when the hierarchy itself evolved (STD-006 S11.4/S11.6).
      *
      * @param schemaDigestA 32-byte digest of the earlier/narrower leaf schema
      * @param schemaDigestB 32-byte digest of the later/wider leaf schema

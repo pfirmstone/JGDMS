@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Implements the S12.4 schema resolution decision tree (STD-006 v0.13 --
+ * Implements the S12.4 schema resolution decision tree (STD-006 S12.4,
  * fail-secure).
  *
  * <p>When a receiver needs to decode a {@link MarshalledInstanceRecord} payload:
@@ -48,15 +48,13 @@ import java.util.Objects;
  *       ({@link Branch#EMBEDDED}).</li>
  * </ol>
  *
- * <h2>No registry at decode time (v0.13)</h2>
+ * <h2>No registry at decode time</h2>
  * <p>
- * The pre-v0.13 resolver consulted a {@link SchemaRegistry} when the embedded
- * schema was absent or corrupt, then fell back to the local schema with
- * {@code GetArg} defaults. Both fallbacks are withdrawn: the embedded schema is
- * unconditionally required by S7.8, so data without a usable embedded schema is
- * non-conforming and rejected. The registry's purposes are caching, sharing,
- * archival, and offline compatibility queries -- never a decode-time recovery
- * path for malformed instances.
+ * The embedded schema is unconditionally required by S7.8: data without a usable
+ * embedded schema is non-conforming and rejected. A {@link SchemaRegistry} is
+ * never consulted at decode time to recover a missing or corrupt schema; its
+ * purposes are caching, sharing, archival, and offline compatibility queries --
+ * never decode-time recovery for malformed instances.
  */
 public final class SchemaResolver {
 
@@ -74,9 +72,8 @@ public final class SchemaResolver {
     public record Result(SchemaChain.Result chain, Branch branch) {}
 
     /**
-     * The two S12.4 resolution branches (v0.13; the pre-v0.13 {@code REGISTRY} and
-     * {@code DEFAULT_LOCAL} fallback branches are withdrawn -- their conditions are
-     * now rejections).
+     * The two S12.4 resolution branches. An absent, corrupt, or digest-mismatched
+     * embedded schema is not a branch -- it is a rejection ({@link DerException}).
      */
     public enum Branch {
         /**

@@ -34,15 +34,14 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Phase 5.1 and 5.2 acceptance tests (updated for STD-006 v0.13: the
- * {@code codebaseAnnotation} field is withdrawn and the {@code schemaDigest}
- * field is verified against {@code schemaBytes}).
+ * Phase 5.1 and 5.2 acceptance tests (the record is four fields; {@code
+ * schemaDigest} is verified against {@code schemaBytes}).
  *
  * <h2>Phase 5.1 -- MarshalledInstanceRecord</h2>
  * <ul>
  *   <li>5.1.1 -- Round-trip: encode -> decode -> equal (four-field record).</li>
- *   <li>5.1.2 -- A legacy (pre-v0.13) record carrying the withdrawn
- *               {@code codebaseAnnotation} field is REJECTED on decode.</li>
+ *   <li>5.1.2 -- A record with an extra trailing UTF8String after {@code
+ *               payloadFormat} is REJECTED (strict four-field decode).</li>
  *   <li>5.1.3 -- {@code schemaDigest} in the record equals SHA-256 of the leaf record
  *               in {@code schemaBytes}.</li>
  *   <li>5.1.4 -- The embedded schema chain decodes back to records in leaf-first order
@@ -50,7 +49,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *   <li>5.1.5 -- {@code fromChain} helper builds the record; round-trips correctly.</li>
  *   <li>5.1.6 -- Illegal schemaDigest length throws {@link IllegalArgumentException}.</li>
  *   <li>5.1.7 -- A record whose {@code schemaDigest} does not match the embedded leaf
- *               schema is REJECTED (v0.13 S7.8 schemaDigest verification).</li>
+ *               schema is REJECTED (S7.8 schemaDigest verification).</li>
  * </ul>
  *
  * <h2>Phase 5.2 -- decode using the embedded schema</h2>
@@ -91,25 +90,26 @@ class MarshalledInstanceRecordTest {
     }
 
     // =========================================================================
-    // 5.1.2 -- legacy record with the withdrawn codebaseAnnotation is REJECTED
+    // 5.1.2 -- a record with trailing content after payloadFormat is REJECTED
     // =========================================================================
 
     /**
-     * 5.1.2 -- STD-006 v0.13 withdrew the {@code codebaseAnnotation} field (S7.8/S8.3);
-     * the decoder must reject a pre-v0.13 record that carries it. We hand-build the
-     * legacy five-field encoding (payload, schema, digest, annotation, format) and
-     * assert the decode fails rather than silently misreading the annotation as the
+     * 5.1.2 -- {@code MarshalledInstanceRecord} is exactly four fields (S7.8/S8.3);
+     * the decoder must reject a record carrying trailing content after {@code
+     * payloadFormat}. We hand-build a five-field SEQUENCE -- an extra UTF8String
+     * (a would-be codebase annotation) inserted before {@code payloadFormat} -- and
+     * assert the decode fails rather than silently misreading the extra field as the
      * payload format.
      */
     @Test
-    void test_5_1_2_LegacyCodebaseAnnotation_Rejected() throws Exception {
+    void test_5_1_2_TrailingContent_Rejected() throws Exception {
         VersionedRecord orig = new VersionedRecord(7, "test", "with-codebase");
         SchemaChain.Result chain = SchemaGenerator.generateChain(VersionedRecord.class);
         byte[] payload = ObjectCodec.encodeHierarchy(orig, chain);
         MarshalledInstanceRecord rec = MarshalledInstanceRecord.fromChain(chain, payload);
 
-        // Hand-build the pre-v0.13 five-field SEQUENCE with the annotation present
-        byte[] legacy = DerWriter.writeSequence(List.of(
+        // Hand-build a five-field SEQUENCE with an extra UTF8String present
+        byte[] extended = DerWriter.writeSequence(List.of(
                 DerWriter.writeOctetString(rec.payloadBytes()),
                 DerWriter.writeOctetString(rec.schemaBytes()),
                 DerWriter.writeOctetString(rec.schemaDigest()),
@@ -118,8 +118,8 @@ class MarshalledInstanceRecordTest {
         ));
 
         assertThrows(DerException.class,
-                () -> MarshalledInstanceRecord.decode(legacy),
-                "A legacy record carrying codebaseAnnotation must be rejected");
+                () -> MarshalledInstanceRecord.decode(extended),
+                "A record carrying trailing content after payloadFormat must be rejected");
     }
 
     // =========================================================================
@@ -218,11 +218,11 @@ class MarshalledInstanceRecordTest {
     // =========================================================================
 
     /**
-     * 5.1.7 -- STD-006 v0.13 S7.8 "schemaDigest verification": the digest field is a
+     * 5.1.7 -- STD-006 S7.8 "schemaDigest verification": the digest field is a
      * routing hint that MUST be verified against the embedded leaf record before use.
      * We build a record whose schemaBytes hold a two-field schema but whose digest
      * field is the receiver's current three-field digest (a lying digest that would
-     * have hijacked the pre-v0.13 fast path); resolution must reject it.
+     * otherwise route the fast path to the wrong schema); resolution must reject it.
      */
     @Test
     void test_5_1_7_SchemaDigestMismatch_Rejected() throws Exception {

@@ -49,7 +49,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link ConcurrentHashMap#putIfAbsent} provides the compare-and-store atomicity
  * needed for idempotent registration without external locking.
  *
- * <h2>isCompatible: chain-wise (STD-006 v0.13 S12.2)</h2>
+ * <h2>isCompatible: chain-wise (STD-006 S12.2)</h2>
  * <p>
  * {@link #isCompatible(byte[], byte[])} judges lossless forward compatibility over
  * the FULL hierarchy chain, not just the leaf record: for every record in A's
@@ -59,8 +59,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@code GetArg} defaults and are permitted; classes present only in A mean data
  * loss and fail the test. An unknown digest or an incompletely retrievable chain
  * returns {@code false} (fail-secure: an unjudgeable chain is not reported
- * compatible). The pre-v0.13 leaf-only prefix rule gave wrong answers across the
- * S11.4/S11.6 hierarchy evolutions.
+ * compatible). A leaf-only prefix rule would give wrong answers across the
+ * S11.4/S11.6 hierarchy evolutions, which is why the rule is chain-wise.
  */
 public final class InMemorySchemaRegistry implements SchemaRegistry {
 
@@ -149,7 +149,7 @@ public final class InMemorySchemaRegistry implements SchemaRegistry {
     /**
      * {@inheritDoc}
      *
-     * <p>Chain-wise (v0.13): retrieves the complete chain for both leaf digests,
+     * <p>Chain-wise: retrieves the complete chain for both leaf digests,
      * indexes B's chain by {@code className}, and requires every record in A's
      * chain to have a same-named counterpart in B whose ordered field list starts
      * with A's (same {@code wireName} and {@code wireType} for every pair).

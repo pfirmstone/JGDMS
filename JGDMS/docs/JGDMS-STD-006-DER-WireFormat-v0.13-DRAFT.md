@@ -1073,7 +1073,7 @@ The irreducible substituted types requiring their own DER form:
 | `URI` | `URISerializer` | `UTF8String` (RFC 3986) | [PROPOSED] |
 | `UID` (`java.rmi.server.UID`) | `UIDSerializer` | `SEQUENCE { unique INTEGER, time INTEGER, count INTEGER }` | **[OPEN: confirm field set]** |
 | `File` | `FileSerializer` | `UTF8String` path **[OPEN: platform path semantics — is File even sent across runtimes? May be JVM-internal only]** | **[OPEN]** |
-| `MarshalledObject` | `MarshalledObjectSerializer` | nested frame around a `MarshalledInstanceRecord` (§7.8) — NO codebase annotation (§8.3; the v0.12 sketch's `codebaseAnnotation` slot is withdrawn with §7.8's) | **[OPEN: this is itself a serialized-object container — define carefully; it nests the wire format inside itself and needs explicit depth/size bounds]** |
+| `MarshalledObject` | `MarshalledObjectSerializer` | nested frame around a `MarshalledInstanceRecord` (§7.8) — no codebase annotation (§8.3) | **[OPEN: this is itself a serialized-object container — define carefully; it nests the wire format inside itself and needs explicit depth/size bounds]** |
 | `StackTraceElement` | `StackTraceElementSerializer` | `SEQUENCE { declaringClass UTF8String, methodName UTF8String, fileName UTF8String OPTIONAL, lineNumber INTEGER }` | [PROPOSED] |
 | `X500Principal` | `X500PrincipalSerializer` | `OCTET STRING` = `X500Principal.getEncoded()` — opaque & verbatim (§3.8), never re-encoded | **[RESOLVED — opaque octets; see note below]** |
 | `Date` | `DateSerializer` | `INTEGER` epoch-millis | **[OPEN: epoch-millis INTEGER vs GeneralizedTime — recommend epoch-millis for exact round-trip and no timezone ambiguity]** |
@@ -1596,13 +1596,10 @@ MarshalledInstanceRecord ::= SEQUENCE {
     -- Payload encoding format identifier.
     payloadFormat      UTF8String     -- "JGDMS-STD-006/DER"
 
-    -- NOTE (v0.13): the former `codebaseAnnotation UTF8String OPTIONAL` field is
-    -- REMOVED.  It contradicted §8.3 (the DER format carries no codebase
-    -- annotation at any level), reintroduced the §8.1 stale-URL hazards, and made
-    -- this module invalid ASN.1 (§4.5 distinct-tag rule: two adjacent UTF8Strings,
-    -- one OPTIONAL).  The authenticated `CodebaseAccessor` channel (§8.2) is the
-    -- ONLY codebase mechanism; a decoder MUST reject a record containing a
-    -- trailing UTF8String after payloadFormat.
+    -- NOTE: there is no codebase-annotation field. The authenticated
+    -- `CodebaseAccessor` channel (§8.2) is the ONLY codebase mechanism (§8.3).
+    -- The record is exactly these four fields; a decoder MUST reject a record
+    -- containing trailing content after payloadFormat (fail-secure, principle 6).
 }
 ```
 
@@ -1750,10 +1747,8 @@ This architecture eliminates every failure class enumerated in §8.1:
 The DER object stream carries **no codebase annotation field** at any level —
 not per-object, not per-frame, not as a stream header. There is no frame-level
 codebase table, no URL annotation alongside class descriptors, no concept equivalent
-to `java.rmi.server.codebase`. (Until v0.13, `MarshalledInstanceRecord` §7.8 carried
-an optional per-object "backup URL" annotation that contradicted this section; it
-has been removed. This statement is now true without exception, and a conforming
-decoder rejects a record carrying the legacy field.)
+to `java.rmi.server.codebase`. (This holds without exception, including §7.8
+`MarshalledInstanceRecord`.)
 
 Code identity reaches the receiver via the `AccessControlContextRecord` (§7.2), which
 is a first-class wire type in its own right. That is the complete code-identity

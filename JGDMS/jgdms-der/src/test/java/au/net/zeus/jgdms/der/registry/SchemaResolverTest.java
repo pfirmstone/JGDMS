@@ -35,12 +35,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Phase 7.3 -- SchemaResolver S12.4 decision-tree acceptance tests
- * (rewritten for STD-006 v0.13: fail-secure resolution).
+ * (STD-006 S12.4: fail-secure resolution).
  *
- * <p>The v0.13 tree has two branches and two rejections; the pre-v0.13
- * {@code REGISTRY} and {@code DEFAULT_LOCAL} fallback branches are withdrawn --
- * a registry is never consulted at decode time and a record without a usable
- * embedded schema is rejected, never decoded against a guessed schema:
+ * <p>The tree has two branches and two rejections; a registry is never
+ * consulted at decode time, and a record without a usable embedded schema is
+ * rejected, never decoded against a guessed schema:
  *
  * <ul>
  *   <li>7.3.1 -- <b>LOCAL_MATCH</b>: verified embedded digest matches the local
@@ -51,7 +50,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *               {@link DerException}; no registry or local fallback.</li>
  *   <li>7.3.4 -- <b>REJECT (lying digest)</b>: {@code schemaDigest} that does not
  *               match the embedded leaf record -> {@link DerException}; the
- *               pre-v0.13 fast path can no longer be hijacked by a digest that
+ *               fast path can no longer be hijacked by a digest that
  *               impersonates the receiver's local schema.</li>
  * </ul>
  */
@@ -166,9 +165,8 @@ class SchemaResolverTest {
 
     /**
      * 7.3.3 -- S7.8 requires the embedded schema unconditionally; a record with
-     * empty {@code schemaBytes} is non-conforming and MUST be rejected (v0.13
-     * S12.4). The pre-v0.13 resolver fell back to a registry and then to the local
-     * schema with defaults -- both fallbacks are withdrawn as permissive
+     * empty {@code schemaBytes} is non-conforming and MUST be rejected (S12.4).
+     * There is no fallback to a registry or to the local schema with defaults
      * (design principle 6).
      */
     @Test
@@ -201,10 +199,10 @@ class SchemaResolverTest {
 
     /**
      * 7.3.4 -- The digest field is a routing hint that MUST be verified against the
-     * embedded leaf record before use (v0.13 S7.8). A lying digest -- here, one that
+     * embedded leaf record before use (S7.8). A lying digest -- here, one that
      * impersonates the receiver's CURRENT local schema while the embedded schema
-     * differs -- would have hijacked the pre-v0.13 fast path into decoding the
-     * payload against the wrong schema. It must be rejected.
+     * differs -- would otherwise route the fast-path comparison to the wrong
+     * schema. It must be rejected.
      */
     @Test
     void test_7_3_4_LyingDigest_Rejected() throws Exception {
