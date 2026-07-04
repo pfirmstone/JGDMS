@@ -44,11 +44,13 @@ import org.junit.Test;
 
 /**
  * Constraint-support tests for the plaintext Unix domain socket (UDS) JERI
- * transport, guarding the 2026-07-03 change to {@link Constraints} that made the
- * INTEGRITY entries byte-identical to {@code net.jini.jeri.tcp.Constraints}: the
- * transport no longer claims {@code Integrity.YES} at all, and now reports
- * {@code Integrity.NO} as PARTIAL_SUPPORT (exactly as TCP).  {@code
- * Confidentiality.YES} remains the one genuine transport (locality) claim.
+ * transport, guarding that {@link Constraints} is byte-identical to {@code
+ * net.jini.jeri.tcp.Constraints} for increment 1: the transport claims neither
+ * {@code Integrity.YES} nor {@code Confidentiality.YES}.  A bare {@code
+ * Confidentiality.YES} requirement is rejected at {@code distill} exactly as
+ * plaintext TCP rejects it; confidentiality-by-locality is deferred to
+ * increment 2 (F2), where {@code SO_PEERCRED}/SVID actually verifies the peer is
+ * local and owner-authorized.
  *
  * <h2>The empirically-established integrity model (verified 2026-07-03)</h2>
  *
@@ -205,48 +207,66 @@ public class UdsConstraintEnforcementTest {
         }
     }
 
-    // ----------------------------------------- CONFIDENTIALITY: the genuine claim
+    // ------------------------------- CONFIDENTIALITY: byte-identical to TCP (F2)
 
     /**
-     * {@code Confidentiality.YES} is the one genuine transport (locality) claim
-     * and is FULL_SUPPORT at the UDS endpoint: {@code Constraints.distill} must
-     * accept it and leave NO unfulfilled requirement for higher layers.
+     * F2 PRIMARY ASSERTION.  For increment 1 the UDS transport does NOT claim
+     * {@code Confidentiality.YES}: distilling a bare {@code Confidentiality.YES}
+     * <em>requirement</em> must throw {@link UnsupportedConstraintException},
+     * exactly as {@code net.jini.jeri.tcp.Constraints} does over plaintext.  The
+     * former UDS-only {@code Confidentiality.YES -> FULL_SUPPORT} claim was an
+     * over-claim: it was made statically by the client endpoint from a
+     * deserialized path with no verification the far end is a local, owner-only
+     * peer, and stood even when the server's owner-only gate could not be
+     * applied.  Confidentiality-by-locality is deferred to increment 2.
      */
-    @Test
-    public void testDistillFullySatisfiesConfidentialityYes() throws Exception {
-        Constraints.Distilled d =
-                Constraints.distill(new InvocationConstraints(Confidentiality.YES, null), false);
-        InvocationConstraints unfulfilled = d.getUnfulfilledConstraints();
-        Assert.assertFalse(
-                "Confidentiality.YES is FULL_SUPPORT at the UDS transport and must "
-                        + "leave no unfulfilled requirement, was: " + unfulfilled,
-                unfulfilled.requirements().contains(Confidentiality.YES));
+    @Test(expected = UnsupportedConstraintException.class)
+    public void testDistillRejectsBareConfidentialityYesRequirement() throws Exception {
+        // relativeOK=false models client-side distillation.
+        Constraints.distill(new InvocationConstraints(Confidentiality.YES, null), false);
     }
 
     /**
-     * Directly probes the transport: a {@link UdsEndpoint#newRequest} for a
-     * {@code Confidentiality.YES} requirement must be accepted (the endpoint
-     * claims FULL_SUPPORT), i.e. {@code Constraints.distill} must not throw and
-     * the returned iterator offers an attempt.
+     * Live TCP-parity assertion (F2): a bare {@code Confidentiality.YES}
+     * requirement is rejected identically by the plaintext TCP transport, so the
+     * UDS behaviour introduces no divergence.  Probes {@code
+     * net.jini.jeri.tcp.TcpEndpoint#newRequest} directly and asserts the
+     * resulting attempt surfaces {@link UnsupportedConstraintException}, exactly
+     * as {@link #testEndpointRejectsConfidentialityYesRequirement} asserts for
+     * UDS.
      */
     @Test
-    public void testEndpointAcceptsConfidentialityYesRequirement() throws Exception {
+    public void testTcpAlsoRejectsConfidentialityYes() throws Exception {
+        net.jini.jeri.Endpoint tcp =
+                net.jini.jeri.tcp.TcpEndpoint.getInstance("127.0.0.1", 1);
+        assertRequirementSurfacesUnsupported(
+                tcp, new InvocationConstraints(Confidentiality.YES, null),
+                "plaintext TCP must reject a bare Confidentiality.YES requirement");
+    }
+
+    /**
+     * Directly probes the UDS transport: a {@link UdsEndpoint#newRequest} for a
+     * {@code Confidentiality.YES} requirement must surface {@link
+     * UnsupportedConstraintException} (the endpoint no longer claims it),
+     * byte-identical to plaintext TCP above.
+     */
+    @Test
+    public void testEndpointRejectsConfidentialityYesRequirement() throws Exception {
         UdsEndpoint ep = UdsEndpoint.getInstance(socketPath.toString());
-        OutboundRequestIterator it =
-                ep.newRequest(new InvocationConstraints(Confidentiality.YES, null));
-        Assert.assertNotNull("newRequest for Confidentiality.YES returned null", it);
-        Assert.assertTrue("iterator for a supported requirement should offer an attempt",
-                it.hasNext());
+        assertRequirementSurfacesUnsupported(
+                ep, new InvocationConstraints(Confidentiality.YES, null),
+                "UDS must reject a bare Confidentiality.YES requirement (F2)");
     }
 
     /**
      * End-to-end: a client that REQUIRES {@code Confidentiality.YES} over UDS
-     * completes a real loopback call -- the transport satisfies it by locality, so
-     * there is no {@link UnsupportedConstraintException} (contrast the
-     * {@code Integrity.YES} requirement above).
+     * now sees an {@link UnsupportedConstraintException} surfaced from the call
+     * attempt (wrapped by the invocation layer), exactly as it does for the
+     * {@code Integrity.YES} requirement and exactly as plaintext TCP does for
+     * {@code Confidentiality.YES}.
      */
     @Test
-    public void testConfidentialityYesRequirementOverUdsSucceeds() throws Exception {
+    public void testConfidentialityYesRequirementOverUdsRejectedLikeTcp() throws Exception {
         EchoImpl impl = new EchoImpl();
         Exporter exporter = newExporter();
         Echo proxy = (Echo) exporter.export(impl);
@@ -255,7 +275,16 @@ public class UdsConstraintEnforcementTest {
                     new InvocationConstraints(Confidentiality.YES, null));
             Echo constrained = (Echo)
                     ((RemoteMethodControl) proxy).setConstraints(mc);
-            Assert.assertEquals("echo:hi", constrained.echo("hi"));
+            try {
+                constrained.echo("hi");
+                Assert.fail("expected Confidentiality.YES over plaintext UDS to be "
+                        + "unsupported at the transport (as it is for plaintext TCP)");
+            } catch (RemoteException e) {
+                Assert.assertTrue(
+                        "the failure cause must be an UnsupportedConstraintException "
+                                + "for Confidentiality.YES, was: " + rootCause(e),
+                        hasUnsupportedConfidentialityCause(e));
+            }
         } finally {
             exporter.unexport(true);
         }
@@ -272,9 +301,17 @@ public class UdsConstraintEnforcementTest {
     }
 
     private static boolean hasUnsupportedIntegrityCause(Throwable t) {
+        return hasUnsupportedCauseFor(t, "Integrity.YES");
+    }
+
+    private static boolean hasUnsupportedConfidentialityCause(Throwable t) {
+        return hasUnsupportedCauseFor(t, "Confidentiality.YES");
+    }
+
+    private static boolean hasUnsupportedCauseFor(Throwable t, String needle) {
         for (Throwable c = t; c != null; c = c.getCause()) {
             if (c instanceof UnsupportedConstraintException
-                    && String.valueOf(c.getMessage()).contains("Integrity.YES")) {
+                    && String.valueOf(c.getMessage()).contains(needle)) {
                 return true;
             }
             if (c.getCause() == c) {
@@ -282,6 +319,34 @@ public class UdsConstraintEnforcementTest {
             }
         }
         return false;
+    }
+
+    /**
+     * Drives {@code endpoint.newRequest(constraints)} and asserts the resulting
+     * attempt surfaces an {@link UnsupportedConstraintException} (either at
+     * {@code distill} time, so the iterator throws on {@code next()}, or wrapped
+     * as an {@link IOException}).  Works uniformly for UDS and TCP endpoints.
+     */
+    private static void assertRequirementSurfacesUnsupported(
+            net.jini.jeri.Endpoint endpoint,
+            InvocationConstraints constraints,
+            String message)
+    {
+        OutboundRequestIterator it = endpoint.newRequest(constraints);
+        Assert.assertNotNull("newRequest returned null", it);
+        Assert.assertTrue("iterator should offer at least one attempt", it.hasNext());
+        try {
+            it.next();
+            Assert.fail(message + " (expected UnsupportedConstraintException, "
+                    + "none thrown)");
+        } catch (UnsupportedConstraintException expected) {
+            // good
+        } catch (IOException e) {
+            Assert.assertTrue(message + " (IOException without an "
+                    + "UnsupportedConstraintException cause: " + rootCause(e) + ")",
+                    e instanceof UnsupportedConstraintException
+                            || hasUnsupportedCauseFor(e, "YES"));
+        }
     }
 
     // Reference the constraint type so an accidental unused-import cleanup does not
