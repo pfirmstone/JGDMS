@@ -269,6 +269,55 @@ public final class UdsServerEndpoint implements ServerEndpoint {
     }
 
     /**
+     * TEST-ONLY fault-injection seam for the HIGH-1 regression test.
+     *
+     * <p>This is a package-private static hook that is <em>inert by default</em>
+     * ({@code null}) and has <b>zero production behaviour</b>: it is only
+     * consulted at the END of {@link LE#restrictPermissions}, <em>after</em> the
+     * real owner-only POSIX mode or ACL has actually been applied and verified.
+     * When a test in this package installs an injector, it converts a
+     * fully-successful restriction into a thrown {@link IOException}, letting the
+     * test drive the "bind succeeded, then a post-gate failure" path so the
+     * {@code boundHere} socket-file cleanup in {@link LE#listen} is exercised.
+     *
+     * <p><b>Security invariants of this seam:</b>
+     * <ul>
+     * <li>It is package-private, so it is NOT reachable or settable from outside
+     *     {@code net.jini.jeri.uds}; no external code can install a fault.
+     * <li>It only ever <em>adds</em> a failure after the real gate ran; it can
+     *     never make {@code restrictPermissions} <em>succeed</em> where it would
+     *     otherwise fail, so it creates no fail-open / F1-bypass path.
+     * <li>Default {@code null} means the production code path is byte-for-byte the
+     *     same as without the seam (the {@code if (injector != null)} check is the
+     *     only added instruction, and it is never true in production).
+     * </ul>
+     * The installing test must reset it to {@code null} in a {@code finally} so
+     * it cannot leak between tests.
+     **/
+    static volatile java.util.function.Consumer<Path> restrictPermissionsFaultInjector;
+
+    /**
+     * Invokes the test-only fault injector, if one is installed, AFTER the real
+     * owner-only gate has been applied.  A no-op in production (injector null).
+     * Any unchecked exception the injector raises is surfaced as an {@link
+     * IOException} so it flows through {@code listen}'s normal failure path.
+     **/
+    private static void firePostRestrictFaultIfInjected(Path socketPath)
+	throws IOException
+    {
+	java.util.function.Consumer<Path> injector = restrictPermissionsFaultInjector;
+	if (injector != null) {
+	    try {
+		injector.accept(socketPath);
+	    } catch (RuntimeException e) {
+		throw new IOException(
+		    "test-only restrictPermissions fault after owner-only gate "
+			+ "applied to " + socketPath, e);
+	    }
+	}
+    }
+
+    /**
      * Returns the Unix domain socket path that this
      * <code>UdsServerEndpoint</code> listens on.
      *
@@ -666,7 +715,6 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 			       PosixFilePermission.OWNER_EXECUTE);
 		try {
 		    posix.setPermissions(ownerOnly);
-		    return;
 		} catch (IOException e) {
 		    // A failed chmod is a SECURITY failure, not a FINE log.
 		    throw new IOException(
@@ -674,10 +722,17 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 			    + " to owner-only (rwx------); refusing to bind an "
 			    + "unprotected control socket", e);
 		}
+		// The real owner-only mode is now applied; only then may the
+		// test-only fault fire (see restrictPermissionsFaultInjector).
+		firePostRestrictFaultIfInjected(socketPath);
+		return;
 	    }
 
 	    // Non-POSIX (e.g. Windows/NTFS): try an owner-only ACL.
 	    if (applyOwnerOnlyAcl(socketPath)) {
+		// The real owner-only ACL is now applied; only then may the
+		// test-only fault fire (see restrictPermissionsFaultInjector).
+		firePostRestrictFaultIfInjected(socketPath);
 		return;
 	    }
 

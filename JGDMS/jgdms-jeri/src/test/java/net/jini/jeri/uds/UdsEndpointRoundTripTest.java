@@ -541,6 +541,50 @@ public class UdsEndpointRoundTripTest {
         }
     }
 
+    /**
+     * HIGH-1 regression, the ACTUAL {@code boundHere}-cleanup branch.  Unlike
+     * {@link #testFailedListenLeavesNoSocketFile} (whose failure lands at {@code
+     * bind}, so the socket is never created), this test installs the package-only
+     * test seam {@code UdsServerEndpoint.restrictPermissionsFaultInjector}, which
+     * fires ONLY after the real owner-only gate has been applied to a
+     * successfully-bound socket.  So the socket file DOES exist on disk when the
+     * failure is raised, exercising exactly the {@code if (!ok && boundHere)
+     * Files.deleteIfExists(socketPath)} cleanup in {@code LE.listen}.  Asserts
+     * (a) the listen/export propagates the failure AND (b) no socket file remains.
+     */
+    @Test
+    public void testRestrictPermissionsFailureAfterBindLeavesNoSocketFile()
+            throws Exception {
+        final boolean[] fired = { false };
+        // The injector runs only after the real gate applied to a bound socket;
+        // assert the file is actually present at that moment, then throw.
+        UdsServerEndpoint.restrictPermissionsFaultInjector = (Path p) -> {
+            fired[0] = true;
+            Assert.assertTrue("seam must fire only after the socket was bound and "
+                    + "the real owner-only gate applied (file must exist here)",
+                    Files.exists(p, java.nio.file.LinkOption.NOFOLLOW_LINKS));
+            throw new RuntimeException("test-only forced restrictPermissions failure");
+        };
+        Exporter exporter = newExporter();
+        boolean failed = false;
+        try {
+            exporter.export(new EchoImpl());
+        } catch (Exception expected) {
+            failed = true;
+        } finally {
+            try { exporter.unexport(true); } catch (Exception ignore) { }
+            // Reset the seam so it cannot leak into any other test.
+            UdsServerEndpoint.restrictPermissionsFaultInjector = null;
+        }
+        Assert.assertTrue("the injected post-gate fault must have actually fired "
+                + "(bind succeeded and the real gate ran)", fired[0]);
+        Assert.assertTrue("listen must propagate the post-gate failure", failed);
+        Assert.assertFalse("a listen that failed AFTER a successful bind must remove "
+                + "the socket file it created (HIGH-1 boundHere-cleanup branch); a "
+                + "leftover here is the unprotected control socket F1 prevents",
+                Files.exists(socketPath, java.nio.file.LinkOption.NOFOLLOW_LINKS));
+    }
+
     // --------------------------------------------------------------------- helpers
 
     /**
