@@ -603,6 +603,167 @@ public class ServiceProxyProcessorTest {
     }
 
     @Test
+    public void smartWithCodebaseFalseIsFullySupported() {
+        // JGDMS-STD-009 §6 / Unit-3 scope item 3: SMART + codebase=false is a
+        // legitimate shape (proxy served from a SHARED codebase; proxy identity is
+        // endpoint + codebase, not an identity smell).  The processor MUST emit the
+        // constrainable proxy with NO error and NO warning -- codebase only gates
+        // -dl-vs-shared PACKAGING, never codegen.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.HelloService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART,"
+                + "     codebase = false)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
+            .run();
+        assertFalse("SMART + codebase=false must not error:\n" + r.allMessages(),
+            r.hasAnyError());
+        assertFalse("SMART + codebase=false must not warn:\n" + r.allMessages(),
+            r.hasWarning("codebase"));
+        assertTrue("SMART still generates the constrainable proxy class: "
+                + r.generated.keySet(),
+            r.generated.containsKey("hello.ConstrainableHelloServiceProxy"));
+    }
+
+    // -------------------------------------------------- multi-interface services
+
+    @Test
+    public void smartMultiInterfaceGeneratesProxyForAll() {
+        // JGDMS-STD-009 §3.1/§4: a SMART service declaring MULTIPLE api interfaces
+        // generates a single proxy that implements ALL of them and forwards every
+        // interface's methods -- each dispatched through the interface that
+        // declares it (casting every method to a single api would not compile when
+        // a method belongs to a sibling interface).
+        ProcessorHarness h = new ProcessorHarness()
+            .add("multi.Foo",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   String foo(String s) throws RemoteException; }")
+            .add("multi.Bar",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   int bar(int n) throws RemoteException; }")
+            .add("multi.MultiImpl",
+                "package multi; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = { Foo.class, Bar.class }, proxy = ProxyType.SMART)"
+                + " public class MultiImpl implements Foo, Bar {"
+                + "   public String foo(String s) throws RemoteException { return s; }"
+                + "   public int bar(int n) throws RemoteException { return n; } }");
+        ProcessorHarness.Result gen = h.run();
+        assertFalse(gen.allMessages(), gen.hasAnyError());
+        String proxy = gen.generated.get("multi.ConstrainableFooProxy");
+        assertTrue("proxy is named after the PRIMARY api; got " + gen.generated.keySet(),
+            proxy != null);
+        assertTrue("implements BOTH api interfaces:\n" + proxy,
+            proxy.contains("implements multi.Foo, multi.Bar"));
+        assertTrue("forwards foo() through Foo:\n" + proxy,
+            proxy.contains("return ((multi.Foo) server).foo(s);"));
+        assertTrue("forwards bar() through Bar:\n" + proxy,
+            proxy.contains("return ((multi.Bar) server).bar(n);"));
+        ProcessorHarness.Result compiled = h.compileGenerated(gen);
+        assertTrue("multi-interface proxy must compile:\n" + compiled.allMessages()
+                + "\n" + proxy, compiled.success);
+    }
+
+    @Test
+    public void smartMultiInterfaceInferredFromImpl() {
+        // api() empty: BOTH service interfaces are inferred from the impl (minus the
+        // infrastructure Administrable) -- multiple inferred interfaces are the
+        // multi-interface case, NOT an ambiguity error.
+        ProcessorHarness h = new ProcessorHarness()
+            .add("multi.Foo",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   String foo(String s) throws RemoteException; }")
+            .add("multi.Bar",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   int bar(int n) throws RemoteException; }")
+            .add("multi.MultiImpl",
+                "package multi; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(proxy = ProxyType.SMART)"  // no api() -> inferred
+                + " public class MultiImpl implements Foo, Bar, net.jini.admin.Administrable {"
+                + "   public String foo(String s) throws RemoteException { return s; }"
+                + "   public int bar(int n) throws RemoteException { return n; }"
+                + "   public Object getAdmin() { return null; } }");
+        ProcessorHarness.Result gen = h.run();
+        assertFalse(gen.allMessages(), gen.hasAnyError());
+        String proxy = gen.generated.get("multi.ConstrainableFooProxy");
+        assertTrue("proxy generated for inferred multi-api; got " + gen.generated.keySet(),
+            proxy != null);
+        assertTrue("implements both inferred api interfaces (infra excluded):\n" + proxy,
+            proxy.contains("implements multi.Foo, multi.Bar"));
+        ProcessorHarness.Result compiled = h.compileGenerated(gen);
+        assertTrue("inferred multi-interface proxy must compile:\n"
+                + compiled.allMessages() + "\n" + proxy, compiled.success);
+    }
+
+    @Test
+    public void emptyApiMultipleInferredIsNotAmbiguous() {
+        // Regression: an impl implementing MORE THAN ONE service interface with an
+        // empty api() previously failed with an "ambiguous" error; it is now the
+        // legitimate multi-interface case (symmetric with the runtime
+        // AbstractJiniService.getServiceInterfaces()).
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .option("-Aserviceproxy.validateOnly")
+            .add("multi.Foo",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   String foo(String s) throws RemoteException; }")
+            .add("multi.Bar",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   int bar(int n) throws RemoteException; }")
+            .add("multi.MultiImpl",
+                "package multi; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService"
+                + " public class MultiImpl implements Foo, Bar {"
+                + "   public String foo(String s) throws RemoteException { return s; }"
+                + "   public int bar(int n) throws RemoteException { return n; } }")
+            .run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+    }
+
+    @Test
+    public void dynamicMultiInterfaceGeneratesNothing() {
+        // A DYNAMIC multi-interface service with protocol == api is still shape 1:
+        // the exported java.lang.reflect.Proxy carries every api interface, so the
+        // processor generates nothing (no proxy class, no backend).
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("multi.Foo",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   String foo(String s) throws RemoteException; }")
+            .add("multi.Bar",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   int bar(int n) throws RemoteException; }")
+            .add("multi.MultiImpl",
+                "package multi; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = { Foo.class, Bar.class }, proxy = ProxyType.DYNAMIC)"
+                + " public class MultiImpl implements Foo, Bar {"
+                + "   public String foo(String s) throws RemoteException { return s; }"
+                + "   public int bar(int n) throws RemoteException { return n; } }")
+            .run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+        assertTrue("DYNAMIC multi + protocol==api generates NOTHING: " + r.generated.keySet(),
+            r.generated.isEmpty());
+    }
+
+    @Test
     public void defaultProxyTypeIsDynamicGeneratesNothing() {
         // The default @JiniService (no proxy element, default protocol) is DYNAMIC
         // with protocol == api, so it emits nothing at all -- no backend, no proxy

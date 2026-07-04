@@ -98,8 +98,10 @@ final class ServiceModel {
 
     /**
      * The resolved <em>primary</em> public API (remote) interface — the first of
-     * {@link #apiInterfaces} — the one the (SMART) proxy class and backend interface
-     * are generated for.
+     * {@link #apiInterfaces}.  Used for naming (the {@code <Api>Backend} /
+     * {@code Constrainable<Api>Proxy} conventions) and for diagnostics; the (SMART)
+     * proxy class and backend interface are generated against it, while the full set
+     * the proxy implements and forwards is {@link #apiInterfaces}.
      */
     final TypeElement api;
 
@@ -110,11 +112,16 @@ final class ServiceModel {
      * that is not a bootstrap accessor (see {@link #resolveApi}).  Mirrors the runtime
      * {@code AbstractJiniService.getServiceInterfaces()} full set; {@link #api} is the
      * first element.  An empty {@code api()} that yields several interfaces is NOT an
-     * error (it was, before multi-interface convergence).
+     * error (it was, before multi-interface convergence).  JGDMS-STD-009 §3.1/§4: the
+     * generated shell and backend cover the method set across <em>all</em> of these.
      */
     final List<TypeElement> apiInterfaces = new ArrayList<>();
 
-    /** The public (abstract) methods declared by the API interface hierarchy. */
+    /**
+     * The public (abstract) methods declared across <em>all</em>
+     * {@link #apiInterfaces}, deduplicated by erased signature (an override common
+     * to two api interfaces yields a single forwarding method).
+     */
     final List<ExecutableElement> apiMethods = new ArrayList<>();
 
     /** Resolved internal wire interface ({@code protocol}); defaults to {@link #api}. */
@@ -239,8 +246,9 @@ final class ServiceModel {
 
         // Resolve ALL API interfaces: every api() element, or -- when api() is empty
         // -- inferred from the impl's implemented interfaces via the shared allowlist
-        // (symmetric with the runtime rule in AbstractJiniService.classify).  The
-        // first is the primary the proxy/backend is generated for; the rest are
+        // (symmetric with the runtime rule in AbstractJiniService.classify, which
+        // likewise returns ALL of them and does not treat multiple as ambiguous).
+        // The first is the primary the proxy/backend is generated for; the rest are
         // registered on the model (multi-interface registration, D2).
         List<TypeElement> apis = resolveApi(impl, apiTypes, types, messager);
         if (apis.isEmpty()) {
@@ -253,23 +261,33 @@ final class ServiceModel {
         String simple = api.getSimpleName().toString();
         m.backendSimpleName = simple + "Backend";
 
-        // Collect the public abstract API methods (skip static/default methods
-        // and Object methods; the API is an interface).
-        for (Element e : elements.getAllMembers(api)) {
-            if (e.getKind() != ElementKind.METHOD) {
-                continue;
+        // Collect the public abstract API methods across ALL api interfaces
+        // (JGDMS-STD-009 §3.1/§4: the generated shell must cover every api
+        // interface's method set, not just the primary's).  Skip static/default
+        // and java.lang.Object methods; deduplicate by erased signature so a method
+        // common to two api interfaces yields a single forwarding method (emitting
+        // it twice would fail to compile).
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        for (TypeElement iface : apis) {
+            for (Element e : elements.getAllMembers(iface)) {
+                if (e.getKind() != ElementKind.METHOD) {
+                    continue;
+                }
+                ExecutableElement me = (ExecutableElement) e;
+                if (me.getModifiers().contains(Modifier.STATIC)
+                        || me.getModifiers().contains(Modifier.DEFAULT)) {
+                    continue;
+                }
+                Element enclosing = me.getEnclosingElement();
+                if (enclosing instanceof TypeElement
+                        && "java.lang.Object".contentEquals(
+                            ((TypeElement) enclosing).getQualifiedName())) {
+                    continue;
+                }
+                if (seen.add(methodKey(me, types))) {
+                    m.apiMethods.add(me);
+                }
             }
-            ExecutableElement me = (ExecutableElement) e;
-            if (me.getModifiers().contains(Modifier.STATIC)
-                    || me.getModifiers().contains(Modifier.DEFAULT)) {
-                continue;
-            }
-            if (me.getEnclosingElement() != null
-                    && "java.lang.Object".contentEquals(
-                        ((TypeElement) me.getEnclosingElement()).getQualifiedName())) {
-                continue;
-            }
-            m.apiMethods.add(me);
         }
         // protocol default (Void.class) means "same as the annotated API".  A
         // distinct protocol is the translating-smart-proxy signal that gates
@@ -352,7 +370,8 @@ final class ServiceModel {
      * shared allowlist — api = {interfaces extending {@link #REMOTE_NAME Remote}} −
      * {the four {@link #BOOTSTRAP_ACCESSORS accessors}} − {@code Remote} itself
      * (symmetric with {@code AbstractJiniService.classify}).  The first element is the
-     * primary the proxy/backend is generated for.
+     * primary the proxy/backend is generated for; the generated shell forwards the
+     * method set across all of them ({@link #apiMethods}).
      *
      * <p>Multi-interface convergence: an empty {@code api()} that resolves to several
      * interfaces is NO LONGER an error (previously "ambiguous"); all are registered,
@@ -456,6 +475,20 @@ final class ServiceModel {
             }
         }
         return false;
+    }
+
+    /** A dedup key for a method: simple name + erased parameter type names. */
+    private static String methodKey(ExecutableElement m, Types types) {
+        StringBuilder sb = new StringBuilder(m.getSimpleName().toString()).append('(');
+        boolean first = true;
+        for (VariableElement p : m.getParameters()) {
+            if (!first) {
+                sb.append(',');
+            }
+            first = false;
+            sb.append(types.erasure(p.asType()).toString());
+        }
+        return sb.append(')').toString();
     }
 
     /** The {@link TypeElement} of a declared interface type, or {@code null}. */
