@@ -44,7 +44,7 @@ cell — read them; the single glyphs are lossy.
 
 | Framework | XLang | Schema | Canon | **VEq** | ColOrd | SecDec | Cyclic | Evolve | Sign | Compact | Stream/ZC | Standard |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **JGDMS-STD-006 (DER)** | ✓¹ | ✓ | ✓ | **✓** | ✓ | ✓² | ✗³ | ✓ | ✓ | ~ᵃ | ~ᵇ | ✓ (X.690) |
+| **JGDMS-STD-006 (DER)** | ✓¹ | ✓ | ✓ | **✓** | ✓ | ✓² | ✗³ | ✓⁴² | ✓ | ~ | ~ | ✓ (X.690) |
 | ASN.1 DER (generic X.690) | ✓ | ✓ | ✓ | ✗⁴ | ~⁵ | n/a⁶ | ✗ | ~⁷ | ✓ | ~ | ✗ | ✓ (X.690) |
 | Java Serialization (JOSS) | ✗⁸ | ~⁹ | ✗¹⁰ | ✗¹⁰ | ~ | ✗¹¹ | ✓ | ~¹² | ✗¹⁰ | ~ | ✗ | ✗¹³ |
 | Protocol Buffers (proto3) | ✓ | ✓ | ✗¹⁴ | ✗¹⁴ | ✗ | ✓¹⁵ | ✗ | ✓ | ~¹⁴ | ✓ | ~¹⁶ | ✗¹⁷ |
@@ -127,6 +127,24 @@ cell — read them; the single glyphs are lossy.
    "design-now/build-later"). So the *design* provides VEq for unordered collections
    and no surveyed competitor does; the *shipped codec* does not provide it yet.
    Preserve-side value-equality (`List`, `SortedSet`, arrays) does hold today.
+42. **Evolve — imperative, code-driven `@AtomicSerial` reconciliation (STD-001).** A
+   record decodes into a `GetArg` of **named, typed** fields; the deserializing
+   constructor reads them with **explicit defaults for absent fields** — the typed
+   3-arg form `arg.get("name", default, Type.class)` (and primitive forms
+   `arg.get("name", default)`) verified against the source: `GetArg` in
+   `org.apache.river.api.io.AtomicSerial` declares `get(String, boolean|byte|…|long)`
+   and `<T> T get(String, T, Class<T>)`. Because reconciliation is ordinary Java in
+   the constructor, evolution is essentially **unbounded**: add/remove fields with
+   defaults (STD-006 §3.9 cases (b)/(c) handle new-data/old-code and old-data/new-code
+   both ways), **compute new fields from old ones**, change representation, and — per
+   STD-001 RULE-3 — run a static `check(GetArg)` **before any field is set**, so
+   **cross-field invariants are enforced at construction** (the spec's own example
+   rejects an out-of-range `port` and empty `serviceId`/`host` before the object
+   exists). The schema-digest (§7.8) identifies the *shape*; the migration logic lives
+   in *code*. This is strictly more expressive than the declarative reader/writer
+   models and, unlike them, validates invariants during decode — but it costs
+   per-version constructor code, which Avro's automatic resolution does not (see the
+   Tradeoffs section and footnote 19).
 
 **ASN.1 DER (generic X.690)**
 
@@ -331,6 +349,16 @@ Evidence-based; each claim maps to the matrix and spec sections.
   enabling migration, archival, forensic reading, and polyglot access years later.
   Avro/Protobuf/Thrift also decouple data from code via schema; STD-006's addition is
   that the schema is *self-carried and content-addressed* in the instance itself.
+- **Evolution is code-driven and invariant-enforcing, not just declarative.** Records
+  decode into a `GetArg` of named, typed fields; the `@AtomicSerial` deserializing
+  constructor reconciles versions in ordinary Java — explicit defaults for absent
+  fields, new fields computed from old, representation changes, cross-field
+  reconciliation — and a static `check(GetArg)` **enforces invariants before the
+  object is constructed** (STD-001 RULE-3). This is strictly more expressive than the
+  declarative reader/writer models (Avro/Protobuf/Thrift), and it catches
+  invariant-violating data *at decode*, which those models structurally cannot. The
+  cost is per-version constructor code where Avro resolves automatically — an honest
+  two-sided tradeoff, detailed in the Tradeoffs section and footnote 42.
 
 ---
 
@@ -375,9 +403,21 @@ better.
 - **No cyclic graphs.** Deliberate (footnote 3), but a real functional limitation if
   an application genuinely needs shared/cyclic object graphs. JOSS, Kryo, Fory, and
   (via pointers) Cap'n Proto support them; STD-006 forbids them by design.
-- **Schema evolution is good but not best-in-class.** STD-006's `GetArg` +
-  digest-chained schema handles old-code/new-data and vice versa cleanly, but Avro's
-  reader/writer schema resolution is a more mature, more general evolution model.
+- **Schema evolution — Avro wins on *zero-code automatic* resolution, not on
+  evolution overall.** The declarative models (Avro reader/writer schema resolution
+  with defaults/aliases/type-promotion, Protobuf field numbers, Thrift field ids)
+  reconcile reader≠writer differences **automatically, with no per-version code** —
+  Avro's is the strongest of these, and STD-006 does **not** do that: its
+  `@AtomicSerial` reconciliation is *imperative*, so a developer writes the
+  deserializing constructor. In exchange, STD-006's evolution is strictly more
+  **expressive** (arbitrary code-driven migration — compute new fields from old,
+  change representation, cross-field reconciliation) and it **enforces invariants at
+  construction**, which the declarative models structurally cannot (a decoded
+  Avro/Protobuf message can violate application invariants with nothing catching it
+  until later). The honest tradeoff is two-sided: **expressiveness +
+  invariant-enforcement-at-decode (STD-006 wins) vs zero-code automatic reader/writer
+  resolution for the declarative subset (Avro wins).** Calling either "a stronger
+  evolution model" outright would be one-sided.
 
 ---
 
