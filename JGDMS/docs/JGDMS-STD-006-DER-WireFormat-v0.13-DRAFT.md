@@ -74,6 +74,15 @@
 > - **§7.8 — schema-identity comment corrected**: `className` is part of
 >   `AtomicSerialSchemaRecord`, so identical field lists under different class names
 >   hash differently (the previous wording claimed otherwise).
+> - *(review addendum, 2026-07-04)* — ASN.1 grammar validation (open item 20,
+>   `docs/asn1/`): value references renamed to conformant case (`maxFields` …,
+>   `leaseForever`/`leaseAny`); §7.2/§7.3 ceilings promoted from comments to value
+>   assignments (`maxDomains`/`maxCerts`/`maxCertLen`/`maxDigestLen`; the duplicate
+>   `MAX_CERT_COUNT`/`MAX_CERT_BYTES` names merged into `maxCerts`/`maxCertLen`);
+>   §4.3 `AlgorithmIdentifier` parameters-absent rule (RFC 5280/8702); §4.6 (new)
+>   tagging mode `EXPLICIT TAGS` with `ReducingDomainRecord` arms marked
+>   `IMPLICIT`; §7.7.7 `MulticastTbs` concretised into
+>   `MulticastAnnouncementTbs`/`MulticastRequestTbs`; two Markdown fence fixes.
 >
 > **Changes in v0.12 (from v0.11):**
 > - §6.3/6.4, §7.2, §7.6, §8.2, §9, §10 — **§7.2 reconciled with the as-built
@@ -553,6 +562,18 @@ The allowed algorithm OIDs correspond to the DirtyChai `DigestCodeSource` allow-
 (SHA-256, SHA-384, SHA-512, SHA-512/256, SHA3-256, SHA3-384, SHA3-512). An unknown
 or disallowed OID is a decode failure (fail-secure). **[PROPOSED — confirm OID set]**
 
+`AlgorithmIdentifier` is the RFC 5280 §4.1.1.2 structure: `SEQUENCE { algorithm
+OBJECT IDENTIFIER, parameters ANY DEFINED BY algorithm OPTIONAL }`. For every OID in
+the allow-list above, a conforming STD-006 encoder MUST omit `parameters` entirely,
+and a conforming decoder MUST reject an `AlgorithmIdentifier` in which `parameters`
+is present — including `NULL` (fail-secure; one logical value has exactly one
+encoding). This follows the stricter of the CMS conventions (RFC 5754 prefers absent
+for SHA-2; RFC 8702 requires absent for SHA-3) and removes any dependency on the 1988
+`ANY` construct for the algorithm set this standard allows. This rule applies to
+STD-006-native `AlgorithmIdentifier` values only; `AlgorithmIdentifier`s embedded
+inside opaque-octet structures (X.509 certificates, `X500Principal`, §3.8 carve-out)
+are carried verbatim and never inspected or re-encoded.
+
 ### 4.4 Object Identity / Type Discrimination
 
 Each top-level wire object is wrapped in a structure carrying an explicit type
@@ -587,20 +608,76 @@ modules is likewise being removed — §11 note — for the independent reason t
 every variable-length field to have a schema- or profile-declared maximum; a bare
 `SIZE(0..MAX)` satisfies neither. The following named ceilings are the profile
 bounds for every `MAX` occurrence in §7; a conforming decoder (JVM or not) enforces
-them identically, rejecting before allocation. §7.2's `MAX_DOMAINS`/`MAX_CERTS`/
-`MAX_DIGEST_LEN`/`MAX_CERT_LEN` established the pattern.
+them identically, rejecting before allocation. §7.2/§7.3's certificate- and
+domain-count ceilings are merged into this same table (`maxDomains`/`maxCerts`/
+`maxCertLen`/`maxDigestLen`) rather than kept as separate per-section names — the
+`UrlCodeSourceRecord` and `DigestCodeSourceRecord` certificate paths share one bound.
 
 | Constant | Value | Applies to |
 |---|---|---|
-| `MAX-FIELDS` | 65535 | `AtomicSerialSchemaRecord.fields`, `EntrySchemaRecord.fields`, `EntryRecord.fieldValues`, `EntryTemplate.fieldValues` |
-| `MAX-COLLECTION` | 65536 | §7.6 `CollectionField` / `MapField` elements (per-type schemas MAY declare tighter bounds) |
-| `MAX-STACK-FRAMES` | 2048 | `ThrowableRecord.stackTrace` |
-| `MAX-CAUSE-DEPTH` | 64 | `ThrowableRecord.cause` nesting (closes part of open item on §7.6) |
-| `MAX-GROUPS` | 128 | discovery `groups` sequences (§7.7.7, §7.7.8) |
-| `MAX-KNOWN-SERVICE-IDS` | 256 | `MulticastRequestRecord.knownServiceIds` (datagram-bounded anyway) |
-| `MAX-OPERATIONS` | 1024 | `ServiceSpecRecord.operations` |
-| `MAX-PARAMETERS` | 255 | `OperationDescriptor.parameters` |
-| `MAX-INTERFACES` | 64 | `ServiceTemplateRecord.requiredInterfaces` |
+| `maxFields` | 65535 | `AtomicSerialSchemaRecord.fields`, `EntrySchemaRecord.fields`, `EntryRecord.fieldValues`, `EntryTemplate.fieldValues` |
+| `maxCollection` | 65536 | §7.6 `CollectionField` / `MapField` elements (per-type schemas MAY declare tighter bounds) |
+| `maxStackFrames` | 2048 | `ThrowableRecord.stackTrace` |
+| `maxCauseDepth` | 64 | `ThrowableRecord.cause` nesting (closes part of open item on §7.6) |
+| `maxGroups` | 128 | discovery `groups` sequences (§7.7.7, §7.7.8) |
+| `maxKnownServiceIds` | 256 | `MulticastRequestRecord.knownServiceIds` (datagram-bounded anyway) |
+| `maxOperations` | 1024 | `ServiceSpecRecord.operations` |
+| `maxParameters` | 255 | `OperationDescriptor.parameters` |
+| `maxInterfaces` | 64 | `ServiceTemplateRecord.requiredInterfaces` |
+| `maxDomains` | 4096 | `AccessControlContextRecord.domains` (§7.2) |
+| `maxCerts` | 100 | `UrlCodeSourceRecord.certificates` (§7.2) and `DigestCodeSourceRecord.certificates` (§7.3) — shared bound |
+| `maxCertLen` | 65536 | per-certificate `OCTET STRING` length, both §7.2 and §7.3 certificate paths |
+| `maxDigestLen` | 512 | `DigestValue.digest` (§7.2) |
+
+```asn1
+maxFields          INTEGER ::= 65535
+maxCollection      INTEGER ::= 65536
+maxStackFrames     INTEGER ::= 2048
+maxCauseDepth      INTEGER ::= 64
+maxGroups          INTEGER ::= 128
+maxKnownServiceIds INTEGER ::= 256
+maxOperations      INTEGER ::= 1024
+maxParameters      INTEGER ::= 255
+maxInterfaces      INTEGER ::= 64
+maxDomains         INTEGER ::= 4096
+maxCerts           INTEGER ::= 100     -- shared: UrlCodeSourceRecord and DigestCodeSourceRecord cert paths
+maxCertLen         INTEGER ::= 65536
+maxDigestLen       INTEGER ::= 512
+```
+
+### 4.6 Tagging Mode (NORMATIVE)
+
+Every ASN.1 module in this standard is `DEFINITIONS EXPLICIT TAGS`. Every context tag
+this standard uses is additionally written `IMPLICIT` explicitly at its use site
+(e.g. `certificates [0] IMPLICIT SEQUENCE …`, `nullCs [0] IMPLICIT NULL` in §7.2). The
+module default therefore governs only future untagged additions — it never silently
+changes the meaning of a tag already written down, because every tag this standard
+defines spells out its own disposition.
+
+EXPLICIT is chosen as the defensive default, for two reasons:
+
+1. It keeps the underlying universal tag visible under every context tag, which is
+   one fewer thing a non-JVM decoder can get wrong when a field is added later and a
+   spec editor forgets to write `IMPLICIT`.
+2. X.680 §31.2.7 forbids `IMPLICIT` tagging of a `CHOICE` or `ANY` alternative unless
+   that alternative itself carries an explicit tag. Every `CHOICE` in this standard
+   (`ReducingDomainRecord` §7.2, `ProxyDescriptor` §7.7.4, `EntryFieldValue` §7.7.2)
+   already tags each arm explicitly, so `EXPLICIT TAGS` forecloses this hazard for
+   any future `CHOICE` arm without relying on every editor remembering the rule.
+
+This is **not** a claim that `EXPLICIT TAGS` and `IMPLICIT TAGS` produce identical
+bytes for this module — they do not in general, and did not for the three
+`ReducingDomainRecord` arms before this revision marked them `IMPLICIT` (§7.2). The
+correct and now-true statement is narrower: because every context tag in this
+standard is written `IMPLICIT` explicitly, the module-level `EXPLICIT`/`IMPLICIT`
+default is inert for this standard's own types — it matters only for a future
+addition that introduces a bare `[n]` tag without stating its disposition, which
+conformance to this section forbids.
+
+This choice is orthogonal to §4.4's open item (OID-rooted vs `ENUMERATED` type
+discrimination) — that item is about *which* discriminator mechanism to use; this
+section is about how *any* context tag in this standard's modules is resolved to
+bytes once written.
 
 ---
 
@@ -844,24 +921,27 @@ independently verified at the receiver.)
 
 ```asn1
 -- Codebase identity of one reducing domain. NO principals, NO permissions.
+-- Arms are IMPLICIT (§4.6): NULL/SEQUENCE types, so IMPLICIT tagging of a CHOICE
+-- alternative is legal (X.680 §31.2.7 forbids it only for CHOICE/ANY alternatives
+-- without an explicit tag, which is not the case here — each arm has its own [n]).
 ReducingDomainRecord ::= CHOICE {
     -- A genuinely null-CodeSource domain at the sender (dynamic proxy, lambda,
     -- bootstrap). It is a real reducer; dropping it would ELEVATE authority.
     -- Reconstructed codebase-less + principal-bearing -> matches principal-only grants.
-    nullCs      [0] NULL,
+    nullCs      [0] IMPLICIT NULL,
 
     -- A DirtyChai java.security.DigestCodeSource: self-describing codebase identity
     -- pinned by content hash. Reconstructed verbatim; the digest is re-verified later,
     -- at policy/class-load time via DigestGrant -- NOT in the codec.
-    digest      [1] DigestCodeSourceRecord,   -- see §7.3
+    digest      [1] IMPLICIT DigestCodeSourceRecord,   -- see §7.3
 
     -- Any other CodeSource that carries a location URL.
-    url         [2] UrlCodeSourceRecord
+    url         [2] IMPLICIT UrlCodeSourceRecord
 }
 
 UrlCodeSourceRecord ::= SEQUENCE {
-    locationUri     UTF8String,                                    -- RFC 3986; locator
-    certificates    SEQUENCE SIZE(0..100) OF OCTET STRING OPTIONAL -- MAX_CERTS; each = X509Certificate.getEncoded(), opaque & verbatim (§3.8), SIZE(1..65536)
+    locationUri     UTF8String,                                              -- RFC 3986; locator
+    certificates    SEQUENCE SIZE(0..maxCerts) OF OCTET STRING (SIZE(1..maxCertLen)) OPTIONAL -- each = X509Certificate.getEncoded(), opaque & verbatim (§3.8)
 }
 
 AccessControlContextRecord ::= SEQUENCE {
@@ -870,12 +950,12 @@ AccessControlContextRecord ::= SEQUENCE {
     -- split and no separate count of suppressed domains.  The ONE exclusion is the
     -- platform jrt:/java.base module domain (see the java.base security note below):
     -- the encoder MUST drop it and the decoder MUST refuse to reconstruct it.
-    domains     SEQUENCE SIZE(0..4096) OF ReducingDomainRecord     -- MAX_DOMAINS
+    domains     SEQUENCE SIZE(0..maxDomains) OF ReducingDomainRecord     -- §4.5
 }
 
 DigestValue ::= SEQUENCE {
     algorithm   AlgorithmIdentifier,
-    digest      OCTET STRING
+    digest      OCTET STRING (SIZE(1..maxDigestLen))
 }
 ```
 
@@ -911,8 +991,8 @@ certs := int n(0..100); { object der(byte[] <=65536) } * n
   (one policy evaluation, not N). A plain identity-equality `ProtectionDomain` — reserved for
   ClassLoader domains — defeats that dedup; reconstructing with one was a virtual-thread
   scaling bug, fixed alongside `isJavaBaseModule`.
-- **DoS bounds are part of the contract:** `MAX_DOMAINS = 4096`, `MAX_CERTS = 100`,
-  `MAX_DIGEST_LEN = 512`, `MAX_CERT_LEN = 65536`. A non-JVM decoder MUST enforce the
+- **DoS bounds are part of the contract:** `maxDomains = 4096`, `maxCerts = 100`,
+  `maxDigestLen = 512`, `maxCertLen = 65536` (§4.5). A non-JVM decoder MUST enforce the
   same ceilings.
 - **Why every domain travels.** A null-CodeSource domain is a genuine reducer; omitting
   it — as an earlier "domain-stripping" serializer did, and as a verifiable-vs-`anonCount`
@@ -948,7 +1028,7 @@ DigestCodeSourceRecord ::= SEQUENCE {
     locationUri     UTF8String,          -- RFC 3986; locator, not trust anchor
     -- [0] IMPLICIT context tag (§4.5 distinct-tag rule): untagged, this SEQUENCE OF
     -- would collide with the DigestValue SEQUENCE that follows (both tag 0x30).
-    certificates    [0] IMPLICIT SEQUENCE SIZE(0..100) OF OCTET STRING OPTIONAL,  -- MAX_CERT_COUNT; each = X509Certificate.getEncoded(), opaque & verbatim (§3.8), SIZE(1..65536)
+    certificates    [0] IMPLICIT SEQUENCE SIZE(0..maxCerts) OF OCTET STRING (SIZE(1..maxCertLen)) OPTIONAL,  -- each = X509Certificate.getEncoded(), opaque & verbatim (§3.8)
     digest          DigestValue
     -- equality/identity is (uri, certs, algorithm, digestBytes) per DigestCodeSource
     -- a plain CodeSource (no digest) is a DISTINCT identity and MUST NOT be
@@ -964,8 +1044,10 @@ DigestCodeSourceRecord ::= SEQUENCE {
   conforming decoder to parse and re-encode the certificate, and a non-strict-DER
   certificate would then fail its own digest. Order within the `SEQUENCE` is the
   certificate-path order and is order-significant (§3.8) — never sorted or deduplicated.
-- The DOS bounds (MAX_CERT_COUNT=100, MAX_CERT_BYTES=64KiB, MAX_DIGEST_BYTES=512)
-  become schema `SIZE` constraints so a non-JVM decoder enforces them identically.
+- The DOS bounds (`maxCerts`=100, `maxCertLen`=64KiB, `maxDigestLen`=512 — §4.5;
+  merged with the §7.2 `UrlCodeSourceRecord` certificate-path bounds, since both are
+  the same logical ceiling) become schema `SIZE` constraints so a non-JVM decoder
+  enforces them identically.
 - Whether the `httpmd:` URL form is represented as `locationUri` with the digest in
   the fragment, or normalised into the explicit `digest` field. **Recommendation:**
   normalise into the explicit field; the `httpmd:` fragment was an in-band trick
@@ -1052,8 +1134,8 @@ DER's read-only decoded structure. There is therefore **no `MapSerializer`,
 
 ```asn1
 -- behavioural collection (Set/Map/List): order NOT relied upon by receiver
-CollectionField ::= SEQUENCE SIZE(0..MAX-COLLECTION) OF Element   -- §4.5
-MapField        ::= SEQUENCE SIZE(0..MAX-COLLECTION) OF SEQUENCE { key Element, value Element }   -- §4.5
+CollectionField ::= SEQUENCE SIZE(0..maxCollection) OF Element   -- §4.5
+MapField        ::= SEQUENCE SIZE(0..maxCollection) OF SEQUENCE { key Element, value Element }   -- §4.5
 -- the receiving object imposes ordering/uniqueness/null-policy at construction (§3.8)
 ```
 
@@ -1112,8 +1194,8 @@ ThrowableRecord ::= SEQUENCE {
     className     UTF8String,
     message       UTF8String OPTIONAL,
     -- ORDER-SIGNIFICANT (§3.8): stack frames are top-of-stack first
-    stackTrace    SEQUENCE SIZE(0..MAX-STACK-FRAMES) OF StackTraceElement,  -- §4.5
-    cause         ThrowableRecord OPTIONAL   -- acyclic; nesting <= MAX-CAUSE-DEPTH (§4.5)
+    stackTrace    SEQUENCE SIZE(0..maxStackFrames) OF StackTraceElement,  -- §4.5
+    cause         ThrowableRecord OPTIONAL   -- acyclic; nesting <= maxCauseDepth (§4.5)
 }
 ```
 
@@ -1125,8 +1207,8 @@ ThrowableRecord ::= SEQUENCE {
 - `Date`: settle epoch-millis vs `GeneralizedTime` (recommend epoch-millis).
 - `MarshalledObject`: define the nested-frame structure; it embeds the wire format
   recursively and needs explicit depth/size bounds.
-- `Throwable`: bounds RESOLVED in §4.5 (`MAX-STACK-FRAMES` = 2048,
-  `MAX-CAUSE-DEPTH` = 64) — confirm the numbers.
+- `Throwable`: bounds RESOLVED in §4.5 (`maxStackFrames` = 2048,
+  `maxCauseDepth` = 64) — confirm the numbers.
 - `File`: determine whether `File` is ever transmitted cross-runtime or is
   JVM-internal only; if cross-runtime, define platform-neutral path semantics.
 
@@ -1158,7 +1240,7 @@ EntrySchemaRecord ::= SEQUENCE {
     superclassHash  OCTET STRING (SIZE(32)) OPTIONAL,
     -- ORDER-SIGNIFICANT (§3.8): field[i] corresponds to fieldValues[i] in EntryRecord.
     -- Any reordering changes the hash and creates a distinct type identity.
-    fields          SEQUENCE (SIZE(1..MAX-FIELDS)) OF EntryWireFieldDef   -- §4.5
+    fields          SEQUENCE (SIZE(1..maxFields)) OF EntryWireFieldDef   -- §4.5
 }
 ```
 
@@ -1204,7 +1286,7 @@ EntryRecord ::= SEQUENCE {
     schemaHash      OCTET STRING (SIZE(32)),        -- identifies the @SerialEntry class
     -- ORDER-SIGNIFICANT (§3.8): fieldValues[i] corresponds to fields[i]
     -- in the EntrySchemaRecord identified by schemaHash.
-    fieldValues     SEQUENCE (SIZE(1..MAX-FIELDS)) OF EntryFieldValue   -- §4.5
+    fieldValues     SEQUENCE (SIZE(1..maxFields)) OF EntryFieldValue   -- §4.5
 }
 ```
 
@@ -1247,7 +1329,7 @@ TypeDescriptor ::= SEQUENCE {
 OperationDescriptor ::= SEQUENCE {
     name        UTF8String (SIZE(1..255)),
     -- ORDER-SIGNIFICANT (§3.8): parameter order is part of the method signature.
-    parameters  SEQUENCE (SIZE(0..MAX-PARAMETERS)) OF TypeDescriptor,   -- §4.5
+    parameters  SEQUENCE (SIZE(0..maxParameters)) OF TypeDescriptor,   -- §4.5
     returnType  TypeDescriptor
 }
 
@@ -1255,7 +1337,7 @@ ServiceSpecRecord ::= SEQUENCE {
     -- Desired Java interface name; proxy factory generates this interface.
     interfaceName  UTF8String (SIZE(1..1024)),
     -- ORDER-SIGNIFICANT (§3.8): operation order determines generated interface layout.
-    operations     SEQUENCE (SIZE(1..MAX-OPERATIONS)) OF OperationDescriptor,   -- §4.5
+    operations     SEQUENCE (SIZE(1..maxOperations)) OF OperationDescriptor,   -- §4.5
     -- Protocol identifier: "coap", "mqtt", "http", "jeri-der", etc.
     protocol       UTF8String (SIZE(1..255)),
     -- Protocol-specific endpoint URI (e.g. "coap://[::1]:5683/sensor").
@@ -1296,7 +1378,7 @@ EntryTemplate ::= SEQUENCE {
     -- ORDER-SIGNIFICANT (§3.8): fieldValues[i] matches fields[i].
     -- absent = wildcard (matches any value including null).
     -- present = must byte-match the stored EntryRecord fieldValues[i].
-    fieldValues   SEQUENCE (SIZE(1..MAX-FIELDS)) OF EntryFieldValue   -- §4.5
+    fieldValues   SEQUENCE (SIZE(1..maxFields)) OF EntryFieldValue   -- §4.5
 }
 
 -- Context tags per §4.5 distinct-tag rule: requiredInterfaces and
@@ -1306,7 +1388,7 @@ ServiceTemplateRecord ::= SEQUENCE {
     serviceId           [0] IMPLICIT ServiceID OPTIONAL,
     -- Interface hashes: schemaHash of each required service interface.
     -- [OPEN] Confirm whether interface type identity uses the same hash scheme.
-    requiredInterfaces  [1] IMPLICIT SEQUENCE (SIZE(0..MAX-INTERFACES)) OF OCTET STRING (SIZE(32)) OPTIONAL,   -- §4.5
+    requiredInterfaces  [1] IMPLICIT SEQUENCE (SIZE(0..maxInterfaces)) OF OCTET STRING (SIZE(32)) OPTIONAL,   -- §4.5
     attributeTemplates  [2] IMPLICIT SEQUENCE (SIZE(0..64)) OF EntryTemplate OPTIONAL    -- same 64 ceiling as ServiceItemRecord.attributes
 }
 ```
@@ -1319,15 +1401,15 @@ ServiceTemplateRecord ::= SEQUENCE {
 --   Lease.ANY     = -1             -- "any duration the grantor chooses is acceptable"
 -- These are DISTINCT and both may appear in requestedDuration; conflating them
 -- (encoding ANY as FOREVER) turns a modest request into an unbounded one.
-LeaseForever INTEGER ::= 9223372036854775807
-LeaseAny     INTEGER ::= -1
+leaseForever INTEGER ::= 9223372036854775807
+leaseAny     INTEGER ::= -1
 
 LeaseRecord ::= SEQUENCE {
     leaseId     OCTET STRING (SIZE(16)),   -- UUID
     grantorId   ServiceID,
-    -- Absolute expiry in epoch-millis.  LeaseForever = no expiry.
-    -- LeaseAny is NOT valid here: a granted lease always has a definite expiry
-    -- or LeaseForever.
+    -- Absolute expiry in epoch-millis.  leaseForever = no expiry.
+    -- leaseAny is NOT valid here: a granted lease always has a definite expiry
+    -- or leaseForever.
     expiry      INTEGER,
     renewable   BOOLEAN                    -- MANDATORY, no DEFAULT (§4.5)
 }
@@ -1335,13 +1417,14 @@ LeaseRecord ::= SEQUENCE {
 LeaseRenewalRecord ::= SEQUENCE {
     leaseId           OCTET STRING (SIZE(16)),
     -- Requested additional duration in milliseconds (positive), or one of the
-    -- named values: LeaseAny (grantor picks), LeaseForever (request no expiry).
+    -- named values: leaseAny (grantor picks), leaseForever (request no expiry).
     requestedDuration INTEGER
 }
 
 LeaseCancellationRecord ::= SEQUENCE {
     leaseId OCTET STRING (SIZE(16))
 }
+```
 
 ### 7.7.7 Multicast Discovery Wire Types
 
@@ -1401,7 +1484,7 @@ MulticastAnnouncementRecord ::= SEQUENCE {
     host            UTF8String (SIZE(1..253)),       -- Registrar unicast host
     port            INTEGER (1..65535),              -- Registrar unicast port
     -- ORDER-SIGNIFICANT (§3.8): group membership order is preserved
-    groups          SEQUENCE (SIZE(0..MAX-GROUPS)) OF UTF8String,   -- §4.5
+    groups          SEQUENCE (SIZE(0..maxGroups)) OF UTF8String,   -- §4.5
     serviceId       ServiceID,                       -- stable Registrar identity
     -- X500Principal Subject DN of the signer (MUST be non-empty; see above)
     signerPrincipal UTF8String,
@@ -1426,10 +1509,10 @@ MulticastRequestRecord ::= SEQUENCE {
     host            UTF8String (SIZE(1..253)),       -- client unicast host
     port            INTEGER (1..65535),              -- client unicast port
     -- ORDER-SIGNIFICANT (§3.8)
-    groups          SEQUENCE (SIZE(0..MAX-GROUPS)) OF UTF8String,           -- §4.5
+    groups          SEQUENCE (SIZE(0..maxGroups)) OF UTF8String,           -- §4.5
     -- ORDER-SIGNIFICANT (§3.8): ServiceIDs already known to the client.
     -- A Registrar whose ServiceID appears here need not respond.
-    knownServiceIds SEQUENCE (SIZE(0..MAX-KNOWN-SERVICE-IDS)) OF ServiceID, -- §4.5
+    knownServiceIds SEQUENCE (SIZE(0..maxKnownServiceIds)) OF ServiceID, -- §4.5
     signerPrincipal UTF8String,
     signerCert      [0] IMPLICIT OCTET STRING OPTIONAL,   -- §4.5 distinct-tag rule
     signature       OCTET STRING
@@ -1441,21 +1524,38 @@ MulticastRequestRecord ::= SEQUENCE {
 constructed as:
 
 ```asn1
-MulticastTbs ::= SEQUENCE {
-    -- Domain-separation prefix: SIGNED BUT NOT TRANSMITTED.  Both values are
-    -- already known to the verifier from the discovery packet header (the
-    -- protocol-2 format-ID negotiation), so transmitting them would be
-    -- redundant; binding them into the TBS prevents a signature produced under
-    -- one format/version from verifying under another (cross-format /
-    -- cross-protocol signature reuse).
-    formatName      UTF8String,     -- e.g. "net.jini.discovery.spiffe.SHA256withECDSA"
-    protocolVersion INTEGER,        -- discovery protocol version (currently 2)
-    -- ...followed by all fields of the record preceding `signature`, in the
-    -- order declared (including signerCert when present).
+-- Domain-separation prefix: SIGNED BUT NOT TRANSMITTED.  Both values are
+-- already known to the verifier from the discovery packet header (the
+-- protocol-2 format-ID negotiation), so transmitting them would be
+-- redundant; binding them into the TBS prevents a signature produced under
+-- one format/version from verifying under another (cross-format /
+-- cross-protocol signature reuse).
+
+MulticastAnnouncementTbs ::= SEQUENCE {
+    formatName      UTF8String,     -- SIGNED, NOT TRANSMITTED (known from packet header)
+    protocolVersion INTEGER,        -- SIGNED, NOT TRANSMITTED
+    sequenceNumber  INTEGER,
+    host            UTF8String (SIZE(1..253)),
+    port            INTEGER (1..65535),
+    groups          SEQUENCE (SIZE(0..maxGroups)) OF UTF8String,
+    serviceId       ServiceID,
+    signerPrincipal UTF8String,
+    signerCert      [0] IMPLICIT OCTET STRING OPTIONAL
+}
+
+MulticastRequestTbs ::= SEQUENCE {
+    formatName      UTF8String,     -- SIGNED, NOT TRANSMITTED
+    protocolVersion INTEGER,        -- SIGNED, NOT TRANSMITTED
+    host            UTF8String (SIZE(1..253)),
+    port            INTEGER (1..65535),
+    groups          SEQUENCE (SIZE(0..maxGroups)) OF UTF8String,
+    knownServiceIds SEQUENCE (SIZE(0..maxKnownServiceIds)) OF ServiceID,
+    signerPrincipal UTF8String,
+    signerCert      [0] IMPLICIT OCTET STRING OPTIONAL
 }
 ```
 
-The signer computes that `SEQUENCE` once and signs its octets; the verifier
+The signer computes the applicable `SEQUENCE` once and signs its octets; the verifier
 reconstructs the identical `SEQUENCE` from the packet-header format name/version and
 the received fields, and verifies. The embedded `signerCert` is opaque octets (§3.8)
 and contributes its verbatim bytes (with its `[0]` context tag as encoded), so a
@@ -1520,7 +1620,7 @@ UnicastResponseRecord ::= SEQUENCE {
                                               -- multicast announcement host)
     port        INTEGER (1..65535),           -- Registrar JERI port
     -- ORDER-SIGNIFICANT (§3.8): group membership order preserved
-    groups      SEQUENCE (SIZE(0..MAX-GROUPS)) OF UTF8String,   -- §4.5
+    groups      SEQUENCE (SIZE(0..maxGroups)) OF UTF8String,   -- §4.5
     serviceId   ServiceID,
     -- ProxyDescriptor CHOICE (§7.7.4):
     --   [0] JeriEndpointRecord — Registrar speaks JERI DER natively
@@ -1541,7 +1641,6 @@ stub directly), or whether a new subtype is required.
 the correct factory path in JGDMS for constructing an `SslEndpoint` +
 `AtomicILFactory` stub from `(host, port, spiffeId)` without a prior unicast
 handshake.
-```
 
 ### 7.8 MarshalledInstance
 
@@ -1565,7 +1664,7 @@ AtomicSerialSchemaRecord ::= SEQUENCE {
     -- SHA-256(DER(parent AtomicSerialSchemaRecord)); absent when parent is Object
     parentSchemaHash OCTET STRING (SIZE(32)) OPTIONAL,
     -- ORDER-SIGNIFICANT (§3.8): field[i] corresponds to payload position i
-    fields           SEQUENCE (SIZE(0..MAX-FIELDS)) OF AtomicSerialFieldDef   -- §4.5
+    fields           SEQUENCE (SIZE(0..maxFields)) OF AtomicSerialFieldDef   -- §4.5
 }
 
 -- Schema version = SHA-256(DER(AtomicSerialSchemaRecord))
@@ -1797,10 +1896,10 @@ A conforming implementation:
    demonstrate byte-for-byte survival of a non-strict-DER ("BER-ish") certificate and
    of a `Name` bearing a `TeletexString` attribute value.
 8. Computes signatures over the canonical DER of the `tbs` (§7.4.1), and over the
-   `MulticastTbs` `SEQUENCE` — which binds the signed-but-not-transmitted format
-   name and protocol version ahead of the record fields — for record-level
-   signatures (§7.7.7), verifying against the received octets without re-encoding
-   them.
+   applicable `MulticastAnnouncementTbs`/`MulticastRequestTbs` `SEQUENCE` — which
+   binds the signed-but-not-transmitted format name and protocol version ahead of
+   the record fields — for record-level signatures (§7.7.7), verifying against the
+   received octets without re-encoding them.
 9. Runs the STD-001 `check()` validation contract on decoded values before treating
    any object as constructed.
 10. Replicates the encoder obligations documented here — the order-significant
@@ -1851,7 +1950,7 @@ Consolidated list of every **[OPEN]** above, for the next working session:
    cross-runtime applicability; confirm whether `Permission` travels at all
    (`PermissionSerializer` deleted 2026-06).
    (`Float`/`Double`/`Character` RESOLVED — STD-008 §17.3. `Throwable` bounds
-   RESOLVED v0.13 — §4.5 `MAX-STACK-FRAMES`/`MAX-CAUSE-DEPTH`, numbers to confirm.)
+   RESOLVED v0.13 — §4.5 `maxStackFrames`/`maxCauseDepth`, numbers to confirm.)
 9. §7.7.1 — **Hash algorithm migration** (most consequential): settle Option A/B/C
    for coexistence of RULE-7 legacy hash with DER `SHA-256(DER(...))`. Recommendation:
    Option B (version tag in `EntryRecord`). Confirm before implementation.
@@ -1863,12 +1962,13 @@ Consolidated list of every **[OPEN]** above, for the next working session:
     Confirm whether interface type identity uses `EntrySchemaRecord` hash scheme.
 13. §7.7.6 — **RESOLVED (v0.13).** The prior text conflated `Lease.ANY` (`-1`, "any
     duration acceptable") with `Lease.FOREVER` (`Long.MAX_VALUE`). Both are now
-    distinct named values (`LeaseAny`, `LeaseForever`); `requestedDuration` admits
-    both, `expiry` admits only `LeaseForever`.
-14. §7.7.7 — **RESOLVED (v0.13).** Signature input is the `MulticastTbs` canonical
-    DER `SEQUENCE` (never raw field concatenation), and it now binds the
-    signed-but-not-transmitted format name + protocol version as a
-    domain-separation prefix (prevents cross-format signature reuse).
+    distinct named values (`leaseAny`, `leaseForever`); `requestedDuration` admits
+    both, `expiry` admits only `leaseForever`.
+14. §7.7.7 — **RESOLVED (v0.13).** Signature input is the applicable
+    `MulticastAnnouncementTbs`/`MulticastRequestTbs` canonical DER `SEQUENCE` (never
+    raw field concatenation), and it now binds the signed-but-not-transmitted format
+    name + protocol version as a domain-separation prefix (prevents cross-format
+    signature reuse).
 15. §7.7.7 — **MTU constraint**: measure actual P-256 SVID cert size from deployed
     SPIRE instance. If cert + principal + signature exceeds datagram budget, settle
     one of: cert-on-first-announcement-only, cert-reference-with-fetch, or minimum
@@ -1888,9 +1988,9 @@ Consolidated list of every **[OPEN]** above, for the next working session:
     invalid ASN.1 (X.680 distinct-tag violations on `OPTIONAL` components — §4.5);
     all are fixed in v0.13, but only compiler validation proves no others remain.
 21. §4.5 — confirm the [PROPOSED] profile ceiling numbers
-    (`MAX-FIELDS`, `MAX-COLLECTION`, `MAX-STACK-FRAMES`, `MAX-CAUSE-DEPTH`,
-    `MAX-GROUPS`, `MAX-KNOWN-SERVICE-IDS`, `MAX-OPERATIONS`, `MAX-PARAMETERS`,
-    `MAX-INTERFACES`).
+    (`maxFields`, `maxCollection`, `maxStackFrames`, `maxCauseDepth`,
+    `maxGroups`, `maxKnownServiceIds`, `maxOperations`, `maxParameters`,
+    `maxInterfaces`).
 
 ---
 

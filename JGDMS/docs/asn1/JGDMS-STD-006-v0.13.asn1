@@ -1,0 +1,473 @@
+-- JGDMS-STD-006-v0.13.asn1
+--
+-- Consolidated, COMPILING ASN.1 module for JGDMS-STD-006 (DER Wire Format) v0.13-DRAFT,
+-- assembled from the asn1-fenced snippets in:
+--   JGDMS/docs/JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md  (sections 4.3, 4.5, 7.1-7.8)
+--
+-- This file is a VALIDATION ARTIFACT for open item 20 ("validate every ASN.1 module
+-- against a real ASN.1 compiler"). It is not itself normative; see the accompanying
+-- JGDMS-STD-006-v0.13-validation.md for the classified list of every deviation between
+-- this compiling module and the spec prose, and for the proposed spec wording changes
+-- (NOT applied here; the spec source is untouched).
+--
+-- Compiled and round-trip-tested with Python asn1tools 0.167.0, the 'der' codec.
+--
+-- ============================================================================
+-- TAGGING MODE DECISION
+-- ============================================================================
+-- DEFINITIONS EXPLICIT TAGS is used, per spec section 4.6 (added in the
+-- review addendum, 2026-07-04): every context tag this standard defines is
+-- additionally written IMPLICIT explicitly at its use site, so the module
+-- default governs only future untagged additions.
+--
+-- The ReducingDomainRecord CHOICE arms (section 7.2) are the one place where
+-- this module previously differed from the spec: the original spec prose left
+-- them bare `[0]`/`[1]`/`[2]` (no EXPLICIT/IMPLICIT qualifier), which under
+-- DEFINITIONS EXPLICIT TAGS wraps each arm in an extra constructed tag,
+-- different bytes from IMPLICIT. Section 4.6 fixed the spec to mark all three
+-- arms IMPLICIT (legal: NULL/SEQUENCE types, not CHOICE/ANY themselves, so
+-- X.680 section 31.2.7's restriction does not apply), and this module now
+-- matches (nullCs/digest/url all `[n] IMPLICIT`). This was a genuine
+-- byte-on-the-wire difference, not a stylistic one; both TAGS modes do NOT
+-- produce identical bytes for this type once a bare `[n]` tag is involved.
+--
+-- EXPLICIT TAGS remains the chosen module default because:
+--   1. It keeps the underlying UNIVERSAL tag visible under every context tag,
+--      which is one fewer thing a non-JVM decoder can get wrong when a field
+--      is added later and a spec editor forgets to write IMPLICIT.
+--   2. X.680 section 31.2.7 forbids IMPLICIT tagging of a CHOICE or ANY
+--      alternative unless that alternative itself carries an explicit tag.
+--      Every CHOICE in this module (ReducingDomainRecord, ProxyDescriptor)
+--      tags each arm explicitly, foreclosing that hazard. EntryFieldValue
+--      (section 7.7.2) is the one CHOICE left untagged, matching the spec
+--      exactly; see the byte-equality note at its definition below.
+-- ============================================================================
+
+JGDMS-STD-006
+{ iso(1) identified-organization(3) dod(6) internet(1) private(4)
+  enterprise(1) jgdms(999999) std006(6) v13(13) }
+DEFINITIONS
+EXPLICIT TAGS ::=
+BEGIN
+
+-- ============================================================================
+-- Section 4.5 Profile size ceilings (value assignments)
+--
+-- SPEC-DEFECT: the spec table (section 4.5) spells these MAX-FIELDS,
+-- MAX-COLLECTION, MAX-STACK-FRAMES, MAX-CAUSE-DEPTH, MAX-GROUPS,
+-- MAX-KNOWN-SERVICE-IDS, MAX-OPERATIONS, MAX-PARAMETERS, MAX-INTERFACES; all
+-- upper-case-leading identifiers. ASN.1 (X.680 section 12.3) requires a
+-- valuereference to begin with a lower-case letter; an upper-case-leading
+-- identifier is parsed as a typereference, and standalone `MAX` besides is a
+-- reserved word inside a SIZE/value-range constraint (X.680 section 51.6, the
+-- "MAX" keyword denoting the upper end of a PermittedAlphabet/SIZE range).
+-- `SIZE(0..MAX-FIELDS)` is therefore not merely non-conformant style, it fails
+-- to parse as a value reference at all under a strict grammar (and some tools
+-- may mis-parse it as `SIZE(0..MAX)` followed by a dangling `-FIELDS`).
+-- Renamed here to lower-camelCase value references, per the recommended
+-- spelling in the validation report.
+-- ============================================================================
+
+maxFields            INTEGER ::= 65535
+maxCollection        INTEGER ::= 65536
+maxStackFrames       INTEGER ::= 2048
+maxCauseDepth        INTEGER ::= 64
+maxGroups            INTEGER ::= 128
+maxKnownServiceIds   INTEGER ::= 256
+maxOperations        INTEGER ::= 1024
+maxParameters        INTEGER ::= 255
+maxInterfaces        INTEGER ::= 64
+
+-- Section 7.2 named ceilings (established pattern predating section 4.5's
+-- table; same SPEC-DEFECT class. MAX_DOMAINS / MAX_CERTS / MAX_DIGEST_LEN /
+-- MAX_CERT_LEN use underscore-separated upper-case names in prose, not
+-- valuereferences at all in the original snippets (they were comments, not
+-- ASN.1). Given proper value-assignment status here for the SIZE constraints
+-- that use them.
+
+maxDomains    INTEGER ::= 4096
+maxCerts      INTEGER ::= 100
+maxDigestLen  INTEGER ::= 512
+maxCertLen    INTEGER ::= 65536
+-- Section 7.3 DigestCodeSourceRecord.certificates shares maxCerts/maxCertLen
+-- with the section 7.2 UrlCodeSourceRecord certificate path; the spec's
+-- MAX_CERT_COUNT/MAX_CERT_BYTES names (section 7.3) were the same logical
+-- bound under a different name and are merged here into maxCerts/maxCertLen
+-- (spec section 4.5, review addendum).
+
+-- ============================================================================
+-- Section 4.3 AlgorithmIdentifier (RFC 5280, imported conceptually "from X.509")
+--
+-- SPEC-GAP: the spec says AlgorithmIdentifier is "reused... the X.509
+-- structure" but never states a normative import source (module name + OID
+-- for a machine-readable IMPORT). Defined locally here per RFC 5280 section
+-- 4.1.1.2. `parameters ANY OPTIONAL` (1988/1990 ASN.1 `ANY`) is accepted by
+-- asn1tools (see validation report), so no OCTET-STRING STUB substitution was
+-- needed in practice.
+-- ============================================================================
+
+AlgorithmIdentifier ::= SEQUENCE {
+    algorithm   OBJECT IDENTIFIER,
+    parameters  ANY OPTIONAL
+}
+
+-- ============================================================================
+-- Section 7.1 Identity: UserSubjectBlock and Principal
+-- ============================================================================
+
+Principal ::= SEQUENCE {
+    className   UTF8String,
+    name        UTF8String
+}
+
+UserSubject ::= SEQUENCE {
+    -- ORDER-SIGNIFICANT (section 3.8): the principal sequence order is intrinsic.
+    principals  SEQUENCE (SIZE(0..64)) OF Principal
+}
+
+UserSubjectBlock ::= SEQUENCE {
+    -- ORDER-SIGNIFICANT (section 3.8): outermost-first; subjects[0] is the primary user.
+    subjects    SEQUENCE (SIZE(0..16)) OF UserSubject
+}
+
+-- ============================================================================
+-- Section 7.2 Authorization: AccessControlContext and reducing domains
+-- ============================================================================
+
+-- Codebase identity of one reducing domain. NO principals, NO permissions.
+-- Arms are IMPLICIT (spec section 4.6): legal here because NULL/SEQUENCE are not
+-- CHOICE or ANY types themselves (X.680 section 31.2.7 forbids IMPLICIT tagging
+-- of a CHOICE/ANY alternative without an explicit tag; not the case here).
+ReducingDomainRecord ::= CHOICE {
+    nullCs      [0] IMPLICIT NULL,
+    digest      [1] IMPLICIT DigestCodeSourceRecord,
+    url         [2] IMPLICIT UrlCodeSourceRecord
+}
+
+UrlCodeSourceRecord ::= SEQUENCE {
+    locationUri     UTF8String,
+    certificates    SEQUENCE (SIZE(0..maxCerts)) OF OCTET STRING (SIZE(1..maxCertLen)) OPTIONAL
+}
+
+AccessControlContextRecord ::= SEQUENCE {
+    -- ORDER-SIGNIFICANT (section 3.8): captured domain order is preserved end to end.
+    domains     SEQUENCE (SIZE(0..maxDomains)) OF ReducingDomainRecord
+}
+
+DigestValue ::= SEQUENCE {
+    algorithm   AlgorithmIdentifier,
+    digest      OCTET STRING (SIZE(1..maxDigestLen))
+}
+
+-- ============================================================================
+-- Section 7.3 Code Identity: DigestCodeSourceRecord
+-- ============================================================================
+
+DigestCodeSourceRecord ::= SEQUENCE {
+    locationUri     UTF8String,
+    -- [0] IMPLICIT context tag (section 4.5 distinct-tag rule): untagged, this
+    -- SEQUENCE OF would collide with the DigestValue SEQUENCE that follows
+    -- (both tag 0x30). maxCerts/maxCertLen shared with the section 7.2
+    -- UrlCodeSourceRecord certificate path; same logical bound (section 4.5).
+    certificates    [0] IMPLICIT SEQUENCE (SIZE(0..maxCerts)) OF OCTET STRING (SIZE(1..maxCertLen)) OPTIONAL,
+    digest          DigestValue
+}
+
+-- ============================================================================
+-- Section 7.4 SCAP Data Objects; illustrative skeletons ([OPEN] in spec)
+-- ============================================================================
+
+AnalysisRequest ::= SEQUENCE {
+    packedJarBytes  OCTET STRING,
+    contentHash     DigestValue,
+    originalUri     UTF8String,
+    maxBfsDepth     INTEGER (0..MAX)
+    -- bare MAX as sole upper bound is legal ASN.1 (X.680 section 51.6);
+    -- compiled as written, unmodified from the spec text.
+}
+
+SignedObject ::= SEQUENCE {
+    tbs         OCTET STRING,
+    signature   SEQUENCE {
+        algorithm   AlgorithmIdentifier,
+        value       OCTET STRING
+    }
+}
+
+-- ============================================================================
+-- Section 7.6 Substituted Standard Types
+-- ============================================================================
+
+-- ILLUSTRATIVE: `Element` in CollectionField/MapField is an intentional
+-- placeholder in the spec prose ("behavioural collection ... Element"), not a
+-- named wire type anywhere else in the document. Stubbed here as OCTET STRING
+-- (an opaque per-element DER encoding, consistent with EntryFieldValue's
+-- `present OCTET STRING` pattern used for the same purpose in section 7.7.2)
+-- so the module compiles; not a defect to be fixed in the spec (see
+-- validation report, classification ILLUSTRATIVE).
+Element ::= OCTET STRING
+
+-- behavioural collection (Set/Map/List): order NOT relied upon by receiver
+CollectionField ::= SEQUENCE (SIZE(0..maxCollection)) OF Element
+MapField        ::= SEQUENCE (SIZE(0..maxCollection)) OF SEQUENCE { key Element, value Element }
+
+StackTraceElement ::= SEQUENCE {
+    declaringClass  UTF8String,
+    methodName      UTF8String,
+    fileName        UTF8String OPTIONAL,
+    lineNumber      INTEGER
+}
+
+ThrowableRecord ::= SEQUENCE {
+    className     UTF8String,
+    message       UTF8String OPTIONAL,
+    -- ORDER-SIGNIFICANT (section 3.8): stack frames are top-of-stack first
+    stackTrace    SEQUENCE (SIZE(0..maxStackFrames)) OF StackTraceElement,
+    cause         ThrowableRecord OPTIONAL
+    -- acyclic; nesting <= maxCauseDepth
+}
+
+-- Section 7.6 table row: proposed Permission DER form (context tags per
+-- section 4.5: a name-only encoding must be distinguishable from an
+-- actions-only one).
+Permission ::= SEQUENCE {
+    className   UTF8String,
+    name        [0] IMPLICIT UTF8String OPTIONAL,
+    actions     [1] IMPLICIT UTF8String OPTIONAL
+}
+
+-- ============================================================================
+-- Section 7.7.1 Entry Schema Identity
+-- ============================================================================
+
+EntryWireFieldDef ::= SEQUENCE {
+    wireName  UTF8String (SIZE(1..255)),
+    wireType  UTF8String (SIZE(1..1024))
+}
+
+EntrySchemaRecord ::= SEQUENCE {
+    className       UTF8String (SIZE(1..1024)),
+    -- superclassHash absent when direct superclass is Object.
+    superclassHash  OCTET STRING (SIZE(32)) OPTIONAL,
+    -- ORDER-SIGNIFICANT (section 3.8): field[i] corresponds to fieldValues[i] in EntryRecord.
+    fields          SEQUENCE (SIZE(1..maxFields)) OF EntryWireFieldDef
+}
+
+-- ============================================================================
+-- Section 7.7.2 Entry Instances
+-- ============================================================================
+
+-- Reverted to the spec's untagged CHOICE (byte-equality-matching-critical per
+-- section 7.7.2: EntryRecord template matching relies on this exact encoding).
+-- The untagged form is valid ASN.1; the alternatives are already distinguished
+-- by their own tags, NULL vs OCTET STRING (X.680 section 30.6 distinct-tag rule
+-- for CHOICE arms is satisfied without added context tags).
+EntryFieldValue ::= CHOICE {
+    absent  NULL,
+    present OCTET STRING
+}
+
+EntryRecord ::= SEQUENCE {
+    hashAlgorithm   INTEGER (1..255),
+    schemaHash      OCTET STRING (SIZE(32)),
+    -- ORDER-SIGNIFICANT (section 3.8): fieldValues[i] corresponds to fields[i]
+    fieldValues     SEQUENCE (SIZE(1..maxFields)) OF EntryFieldValue
+}
+
+-- ============================================================================
+-- Section 7.7.3 Service Identity
+-- ============================================================================
+
+ServiceID ::= OCTET STRING (SIZE(16))
+
+-- ============================================================================
+-- Section 7.7.4 Proxy Descriptor
+-- ============================================================================
+
+JeriEndpointRecord ::= SEQUENCE {
+    spiffeId    UTF8String (SIZE(1..2048)),
+    host        UTF8String (SIZE(1..253)),
+    port        INTEGER (1..65535),
+    tlsRequired BOOLEAN
+}
+
+TypeDescriptor ::= SEQUENCE {
+    typeName  UTF8String (SIZE(1..1024)),
+    nullable  BOOLEAN
+}
+
+OperationDescriptor ::= SEQUENCE {
+    name        UTF8String (SIZE(1..255)),
+    -- ORDER-SIGNIFICANT (section 3.8): parameter order is part of the method signature.
+    parameters  SEQUENCE (SIZE(0..maxParameters)) OF TypeDescriptor,
+    returnType  TypeDescriptor
+}
+
+ServiceSpecRecord ::= SEQUENCE {
+    interfaceName  UTF8String (SIZE(1..1024)),
+    -- ORDER-SIGNIFICANT (section 3.8): operation order determines generated interface layout.
+    operations     SEQUENCE (SIZE(1..maxOperations)) OF OperationDescriptor,
+    protocol       UTF8String (SIZE(1..255)),
+    endpoint       UTF8String (SIZE(1..2048))
+}
+
+ProxyDescriptor ::= CHOICE {
+    jeriEndpoint  [0] IMPLICIT JeriEndpointRecord,
+    serviceSpec   [1] IMPLICIT ServiceSpecRecord
+}
+
+-- ============================================================================
+-- Section 7.7.5 ServiceItem and ServiceTemplate
+-- ============================================================================
+
+ServiceItemRecord ::= SEQUENCE {
+    serviceId   ServiceID,
+    attributes  SEQUENCE (SIZE(0..64)) OF EntryRecord,
+    proxy       ProxyDescriptor
+}
+
+EntryTemplate ::= SEQUENCE {
+    hashAlgorithm INTEGER (1..255),
+    schemaHash    OCTET STRING (SIZE(32)),
+    -- ORDER-SIGNIFICANT (section 3.8): fieldValues[i] matches fields[i].
+    fieldValues   SEQUENCE (SIZE(1..maxFields)) OF EntryFieldValue
+}
+
+-- Context tags per section 4.5 distinct-tag rule: requiredInterfaces and
+-- attributeTemplates are both SEQUENCE OF (tag 0x30) and both OPTIONAL;
+-- untagged they are indistinguishable when only one is present.
+ServiceTemplateRecord ::= SEQUENCE {
+    serviceId           [0] IMPLICIT ServiceID OPTIONAL,
+    requiredInterfaces  [1] IMPLICIT SEQUENCE (SIZE(0..maxInterfaces)) OF OCTET STRING (SIZE(32)) OPTIONAL,
+    attributeTemplates  [2] IMPLICIT SEQUENCE (SIZE(0..64)) OF EntryTemplate OPTIONAL
+}
+
+-- ============================================================================
+-- Section 7.7.6 Lease Records
+-- ============================================================================
+
+-- Named values, matching net.jini.core.lease.Lease exactly:
+--   Lease.FOREVER = Long.MAX_VALUE : "never expires" / "request forever"
+--   Lease.ANY     = -1             : "any duration the grantor chooses is acceptable"
+leaseForever INTEGER ::= 9223372036854775807
+leaseAny     INTEGER ::= -1
+
+LeaseRecord ::= SEQUENCE {
+    leaseId     OCTET STRING (SIZE(16)),
+    grantorId   ServiceID,
+    -- Absolute expiry in epoch-millis.  leaseForever = no expiry.
+    expiry      INTEGER,
+    renewable   BOOLEAN
+}
+
+LeaseRenewalRecord ::= SEQUENCE {
+    leaseId           OCTET STRING (SIZE(16)),
+    requestedDuration INTEGER
+}
+
+LeaseCancellationRecord ::= SEQUENCE {
+    leaseId OCTET STRING (SIZE(16))
+}
+
+-- ============================================================================
+-- Section 7.7.7 Multicast Discovery Wire Types
+-- ============================================================================
+
+-- Multicast announcement: sent periodically by a Registrar on UDP port 4160.
+MulticastAnnouncementRecord ::= SEQUENCE {
+    sequenceNumber  INTEGER,
+    host            UTF8String (SIZE(1..253)),
+    port            INTEGER (1..65535),
+    -- ORDER-SIGNIFICANT (section 3.8): group membership order is preserved
+    groups          SEQUENCE (SIZE(0..maxGroups)) OF UTF8String,
+    serviceId       ServiceID,
+    signerPrincipal UTF8String,
+    -- [0] IMPLICIT context tag (section 4.5): untagged, an absent signerCert
+    -- makes the signature OCTET STRING indistinguishable from it.
+    signerCert      [0] IMPLICIT OCTET STRING OPTIONAL,
+    signature       OCTET STRING
+}
+
+-- Multicast request: sent by a client seeking Registrars.
+MulticastRequestRecord ::= SEQUENCE {
+    host            UTF8String (SIZE(1..253)),
+    port            INTEGER (1..65535),
+    -- ORDER-SIGNIFICANT (section 3.8)
+    groups          SEQUENCE (SIZE(0..maxGroups)) OF UTF8String,
+    -- ORDER-SIGNIFICANT (section 3.8): ServiceIDs already known to the client.
+    knownServiceIds SEQUENCE (SIZE(0..maxKnownServiceIds)) OF ServiceID,
+    signerPrincipal UTF8String,
+    signerCert      [0] IMPLICIT OCTET STRING OPTIONAL,
+    signature       OCTET STRING
+}
+
+-- TBS (to-be-signed) content (NORMATIVE in spec prose).
+--
+-- The spec's original single illustrative `MulticastTbs` type (whose last
+-- field was a prose ellipsis, not concrete ASN.1) has been concretised in the
+-- spec (section 7.7.7, review addendum 2026-07-04) into the two types below:
+-- one per distinct wire record (announcement vs request), each listing its
+-- record's actual preceding fields verbatim. This module matches the spec.
+
+MulticastAnnouncementTbs ::= SEQUENCE {
+    formatName      UTF8String,
+    protocolVersion INTEGER,
+    sequenceNumber  INTEGER,
+    host            UTF8String (SIZE(1..253)),
+    port            INTEGER (1..65535),
+    groups          SEQUENCE (SIZE(0..maxGroups)) OF UTF8String,
+    serviceId       ServiceID,
+    signerPrincipal UTF8String,
+    signerCert      [0] IMPLICIT OCTET STRING OPTIONAL
+    -- signature is NOT included here: it is the value computed over this TBS.
+}
+
+MulticastRequestTbs ::= SEQUENCE {
+    formatName      UTF8String,
+    protocolVersion INTEGER,
+    host            UTF8String (SIZE(1..253)),
+    port            INTEGER (1..65535),
+    groups          SEQUENCE (SIZE(0..maxGroups)) OF UTF8String,
+    knownServiceIds SEQUENCE (SIZE(0..maxKnownServiceIds)) OF ServiceID,
+    signerPrincipal UTF8String,
+    signerCert      [0] IMPLICIT OCTET STRING OPTIONAL
+}
+
+-- ============================================================================
+-- Section 7.7.8 Unicast Discovery Response
+-- ============================================================================
+
+UnicastResponseRecord ::= SEQUENCE {
+    host        UTF8String (SIZE(1..253)),
+    port        INTEGER (1..65535),
+    -- ORDER-SIGNIFICANT (section 3.8): group membership order preserved
+    groups      SEQUENCE (SIZE(0..maxGroups)) OF UTF8String,
+    serviceId   ServiceID,
+    proxy       ProxyDescriptor
+}
+
+-- ============================================================================
+-- Section 7.8 MarshalledInstance
+-- ============================================================================
+
+AtomicSerialFieldDef ::= SEQUENCE {
+    wireName  UTF8String (SIZE(1..255)),
+    wireType  UTF8String (SIZE(1..1024))
+}
+
+AtomicSerialSchemaRecord ::= SEQUENCE {
+    className        UTF8String (SIZE(1..1024)),
+    -- SHA-256(DER(parent AtomicSerialSchemaRecord)); absent when parent is Object
+    parentSchemaHash OCTET STRING (SIZE(32)) OPTIONAL,
+    -- ORDER-SIGNIFICANT (section 3.8): field[i] corresponds to payload position i
+    fields           SEQUENCE (SIZE(0..maxFields)) OF AtomicSerialFieldDef
+}
+
+MarshalledInstanceRecord ::= SEQUENCE {
+    payloadBytes       OCTET STRING,
+    schemaBytes        OCTET STRING,
+    schemaDigest       OCTET STRING (SIZE(32)),
+    payloadFormat      UTF8String
+}
+
+END
