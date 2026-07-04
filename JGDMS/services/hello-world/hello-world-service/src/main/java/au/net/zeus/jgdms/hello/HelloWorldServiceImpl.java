@@ -120,7 +120,8 @@ public class HelloWorldServiceImpl
     public HelloWorldServiceImpl(ActivationID activationID,
                                  String[] data)
             throws Exception {
-        super(activationID, data, COMPONENT, HelloService.class);
+        super(activationID, data, COMPONENT, HelloService.class,
+                HelloWorldServiceImpl.class);
         this.impl = new HelloServiceImpl();
     }
 
@@ -135,7 +136,8 @@ public class HelloWorldServiceImpl
     public HelloWorldServiceImpl(String[] configArgs,
                                  LifeCycle lifeCycle)
             throws Exception {
-        super(configArgs, lifeCycle, COMPONENT, HelloService.class);
+        super(configArgs, lifeCycle, COMPONENT, HelloService.class,
+                HelloWorldServiceImpl.class);
         this.impl = new HelloServiceImpl();
     }
 

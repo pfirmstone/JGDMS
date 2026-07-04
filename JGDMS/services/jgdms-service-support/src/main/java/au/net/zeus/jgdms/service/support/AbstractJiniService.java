@@ -24,6 +24,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.InputStream;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.LinkedHashSet;
@@ -35,6 +37,8 @@ import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.admin.Administrable;
 import net.jini.admin.JoinAdmin;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
@@ -121,23 +125,44 @@ public abstract class AbstractJiniService
             Logger.getLogger(AbstractJiniService.class.getName());
 
     /**
-     * The JGDMS infrastructure interfaces excluded when {@link JiniService#api()}
-     * is empty and the service interfaces are inferred from the implemented
-     * interface set (mirrors the annotation processor's inference rule).  These
-     * are the caller-facing framework interfaces every JGDMS service stub carries
-     * — the admin interfaces, the bootstrap accessors, and
-     * {@code RemoteMethodControl} — none of which is the service's own API.
+     * The four JGDMS bootstrap-accessor interfaces.  Each extends {@link Remote},
+     * so without an explicit exclusion the {@link #classify service-interface
+     * inference} would mistake them for the service API.  They carry the framework's
+     * bootstrap contract (proxy/serviceID/attributes/codebase accessors), not the
+     * service's own API, so they are subtracted from the inferred api set (design
+     * decision D6).
      */
-    private static final Set<String> INFRA_INTERFACES = Set.of(
-            "net.jini.admin.Administrable",
-            "net.jini.admin.JoinAdmin",
-            "org.apache.river.admin.DestroyAdmin",
+    private static final Set<String> BOOTSTRAP_ACCESSORS = Set.of(
             "net.jini.lookup.ServiceProxyAccessor",
             "net.jini.lookup.ServiceIDAccessor",
             "net.jini.lookup.ServiceAttributesAccessor",
-            "net.jini.export.CodebaseAccessor",
+            "net.jini.export.CodebaseAccessor");
+
+    /**
+     * The non-{@link Remote} framework interfaces that are neither service API nor
+     * admin-facet interfaces: {@link Administrable} (stays on the thin service stub,
+     * deliberately absent from the admin facet — the canonical Jini contract is that
+     * {@code Administrable.getAdmin()} returns a proxy that is
+     * {@code JoinAdmin}/{@code DestroyAdmin} but NOT {@code Administrable}),
+     * {@link net.jini.core.constraint.RemoteMethodControl}, {@link Startable},
+     * {@link ProxyAccessor} (a server-lifecycle SPI that {@code AbstractJiniService}
+     * itself implements — NOT an administrative interface), and the bare
+     * {@code Remote} marker.  Everything else non-{@code Remote} the impl implements
+     * is an admin-style interface reached via {@code getAdmin()} (design decision D6).
+     *
+     * <p>{@code ProxyAccessor} MUST be listed here: {@code AbstractJiniService}
+     * directly implements it, so without this exclusion every service's derived admin
+     * set would be {@code {JoinAdmin, DestroyAdmin, ProxyAccessor}} rather than exactly
+     * {@code {JoinAdmin, DestroyAdmin}}, forcing the common case off the stable
+     * {@code ConstrainableAdminProxy} wire form.
+     *
+     * @see #classify(Class)
+     */
+    private static final Set<String> NON_ADMIN_NON_REMOTE = Set.of(
+            "net.jini.admin.Administrable",
             "net.jini.core.constraint.RemoteMethodControl",
-            // The bare Remote marker is never itself a service API.
+            "org.apache.river.api.util.Startable",
+            "net.jini.export.ProxyAccessor",
             "java.rmi.Remote");
 
     // -------------------------------------------------------------------------
@@ -196,6 +221,24 @@ public abstract class AbstractJiniService
      */
     private final Class<?>[] serviceInterfaces;
 
+    /**
+     * The admin facet interfaces derived once from the concrete class's interface
+     * closure (see {@link #resolveAdminInterfaces()}, design decision D1) and cached.
+     * Always contains {@link JoinAdmin} and {@link DestroyAdmin}; may contain
+     * additional admin interfaces a subclass declares.  Consulted by
+     * {@link #adminFacetInterfaces()} when building the admin facet in
+     * {@link #createAdminProxy(Object, Uuid)}.
+     */
+    private final Class<?>[] adminIfaces;
+
+    /**
+     * Optional method constraints applied to the admin facet (design decision D4),
+     * or {@code null} to inherit the server reference's constraints unchanged.
+     * Read from the {@code adminConstraints} config entry via
+     * {@link JiniServiceParameters}.
+     */
+    private final MethodConstraints adminConstraints;
+
     // -------------------------------------------------------------------------
     // Volatile post-start fields
     // -------------------------------------------------------------------------
@@ -214,6 +257,14 @@ public abstract class AbstractJiniService
      * Set once during {@link #start()}, together with {@code serviceId}.
      */
     private volatile Uuid serviceUuid;
+
+    /**
+     * The admin facet proxy returned by {@link #getAdmin()} (design decision D3).
+     * Built once in {@link #doStart()} — right after the server stub and
+     * {@link #serviceUuid} are set — and cached; {@link #getAdmin()} simply returns
+     * it after a {@link ReadyState} check.  {@code null} until {@link #doStart()}.
+     */
+    private volatile Object adminProxy;
 
     /** Manages discovery and lookup-service registration. Set during {@link #start()}. */
     private volatile JoinManager joiner;
@@ -281,8 +332,80 @@ public abstract class AbstractJiniService
         this.certPathEncoding      = params.certPathEncoding;
         this.encodedCerts          = params.encodedCerts.clone();
         this.persistDir            = params.persistDir;
+        this.adminConstraints      = params.adminConstraints;
         this.lifeCycle             = lifeCycle;
         this.serviceInterfaces     = resolveServiceInterfaces();
+        this.adminIfaces           = resolveAdminInterfaces();
+    }
+
+    /**
+     * The single, shared interface classifier (design decision D6): partitions the
+     * interfaces an {@code implClass} implements into the service <em>api</em> set,
+     * the <em>admin</em> facet set, and the framework <em>infra</em> remainder,
+     * under one allowlist rule reused verbatim by both {@link #resolveServiceInterfaces()}
+     * and {@link #resolveAdminInterfaces()} (and mirrored name-for-name by the
+     * annotation processor's {@code ServiceModel}).
+     *
+     * <ul>
+     *   <li><b>api</b>   = {implemented interfaces that extend {@link Remote}} minus
+     *       the four {@link #BOOTSTRAP_ACCESSORS bootstrap accessors} minus
+     *       {@code Remote} itself.</li>
+     *   <li><b>admin</b> = {implemented non-{@code Remote} interfaces} minus
+     *       {@link #NON_ADMIN_NON_REMOTE} ({@link Administrable},
+     *       {@code RemoteMethodControl}, {@link Startable}, {@code Remote}) — i.e.
+     *       {@link JoinAdmin}, {@link DestroyAdmin}, and ANY custom non-{@code Remote}
+     *       admin interface the impl declares (a {@code FooAdmin}), all reached via
+     *       {@code Administrable.getAdmin()}.</li>
+     *   <li><b>infra</b> = everything else (the bootstrap accessors,
+     *       {@code Administrable}, {@code RemoteMethodControl}, {@code Startable},
+     *       {@code Remote}).</li>
+     * </ul>
+     *
+     * <p>The whole interface closure of {@code implClass} is walked (super-interfaces
+     * and superclasses included), so {@code JoinAdmin}/{@code DestroyAdmin} declared
+     * on {@code AbstractJiniService} itself, and any custom admin interface declared
+     * on a subclass, are all seen.
+     *
+     * @param implClass the concrete service implementation class
+     * @return the classification of {@code implClass}'s interfaces
+     */
+    static Classification classify(Class<?> implClass) {
+        Set<Class<?>> all = new LinkedHashSet<>();
+        collectAllInterfaces(implClass, all);
+        Set<Class<?>> api = new LinkedHashSet<>();
+        Set<Class<?>> admin = new LinkedHashSet<>();
+        for (Class<?> iface : all) {
+            String name = iface.getName();
+            if ("java.rmi.Remote".equals(name)) {
+                continue;
+            }
+            if (Remote.class.isAssignableFrom(iface)) {
+                // Remote interface: a service API unless it is a bootstrap accessor.
+                if (!BOOTSTRAP_ACCESSORS.contains(name)) {
+                    api.add(iface);
+                }
+            } else if (!NON_ADMIN_NON_REMOTE.contains(name)) {
+                // Non-Remote interface that is not framework scaffolding: admin.
+                admin.add(iface);
+            }
+        }
+        return new Classification(
+                api.toArray(new Class<?>[0]),
+                admin.toArray(new Class<?>[0]));
+    }
+
+    /**
+     * The result of {@link #classify(Class)}: the service {@code api} interfaces and
+     * the {@code admin}-facet interfaces.  Both arrays are shared internally and must
+     * not be mutated by callers.
+     */
+    static final class Classification {
+        final Class<?>[] api;
+        final Class<?>[] admin;
+        Classification(Class<?>[] api, Class<?>[] admin) {
+            this.api = api;
+            this.admin = admin;
+        }
     }
 
     /**
@@ -294,8 +417,10 @@ public abstract class AbstractJiniService
      * {@link java.lang.annotation.Inherited}, and {@code @Inherited} would in any
      * case only cover the direct concrete class, not intermediate abstract bases).
      * If {@link JiniService#api()} is non-empty it is returned verbatim; otherwise
-     * the interfaces are inferred from the concrete class's implemented interfaces
-     * minus the JGDMS infrastructure interfaces ({@link #INFRA_INTERFACES}).
+     * ALL service interfaces are inferred via the shared {@link #classify(Class)
+     * classifier} (design decisions D2, D6) — multi-interface inference: every
+     * implemented {@code Remote} interface that is not a bootstrap accessor is
+     * registered, and ambiguity is no longer an error.
      *
      * @return the resolved, non-empty service interface array
      * @throws IllegalStateException if the concrete class (or an ancestor) carries
@@ -321,28 +446,54 @@ public abstract class AbstractJiniService
         if (api != null && api.length > 0) {
             return api.clone();
         }
-        // Infer: the interfaces implemented by the concrete class hierarchy DOWN TO
-        // (but not including) AbstractJiniService, minus the infrastructure set.
-        // Stopping at AbstractJiniService is essential — otherwise the base class's
-        // own framework SPIs (ProxyAccessor, Startable, the accessors, admin) would
-        // be mistaken for the service API.
-        Set<Class<?>> inferred = new LinkedHashSet<>();
-        for (Class<?> c = concrete; c != null && c != AbstractJiniService.class
-                && c != Object.class; c = c.getSuperclass()) {
-            for (Class<?> iface : c.getInterfaces()) {
-                if (!INFRA_INTERFACES.contains(iface.getName())) {
-                    inferred.add(iface);
-                }
-            }
-        }
-        if (inferred.isEmpty()) {
+        // Infer ALL service interfaces via the shared classifier (D2, D6): every
+        // implemented Remote interface minus the bootstrap accessors and Remote.
+        Class<?>[] inferred = classify(concrete).api;
+        if (inferred.length == 0) {
             throw new IllegalStateException(
                     "@" + JiniService.class.getSimpleName() + " on " + concrete.getName()
                     + " has an empty api() and no service interface could be inferred"
                     + " (the class implements only infrastructure interfaces); declare"
                     + " api() explicitly");
         }
-        return inferred.toArray(new Class<?>[0]);
+        return inferred;
+    }
+
+    /**
+     * Derives the admin facet's interface set (design decision D5/D6) via the shared
+     * {@link #classify(Class) classifier}.  The set is every non-{@code Remote}
+     * interface the concrete class's closure declares minus the framework
+     * scaffolding ({@link Administrable}, {@code RemoteMethodControl},
+     * {@link Startable}, {@code Remote}).  What survives is {@link JoinAdmin},
+     * {@link DestroyAdmin} (always present — {@code AbstractJiniService} directly
+     * implements them), and any additional admin interface a subclass declares (a
+     * custom {@code FooAdmin}), picked up automatically.
+     *
+     * @return the admin facet interface classes; never {@code null}, and in
+     *         practice never empty (always contains {@code JoinAdmin} and
+     *         {@code DestroyAdmin})
+     */
+    private Class<?>[] resolveAdminInterfaces() {
+        return classify(getClass()).admin;
+    }
+
+    /**
+     * Recursively collects every interface (super-interfaces included) implemented
+     * by {@code cl} and its superclasses into {@code out}, each once.
+     *
+     * @param cl  the class whose interface closure to walk
+     * @param out the accumulating set (also the recursion guard)
+     */
+    private static void collectAllInterfaces(Class<?> cl, Set<Class<?>> out) {
+        if (cl == null || cl == Object.class) {
+            return;
+        }
+        for (Class<?> iface : cl.getInterfaces()) {
+            if (out.add(iface)) {
+                collectAllInterfaces(iface, out);
+            }
+        }
+        collectAllInterfaces(cl.getSuperclass(), out);
     }
 
     /**
@@ -364,7 +515,7 @@ public abstract class AbstractJiniService
      * <pre>
      * public MyServiceImpl(String[] configArgs, LifeCycle lifeCycle)
      *         throws Exception {
-     *     super(configArgs, lifeCycle, COMPONENT, MyService.class);
+     *     super(configArgs, lifeCycle, COMPONENT, MyService.class, MyServiceImpl.class);
      * }
      * </pre>
      *
@@ -376,19 +527,25 @@ public abstract class AbstractJiniService
      * @param serviceInterface the primary remote interface of the service;
      *                         used to build a default exporter and for
      *                         codebase fallback
+     * @param serviceImpl      the concrete service implementation class (this
+     *                         subclass's own {@code .class} literal); its derived
+     *                         admin set (design decision D5) becomes the default
+     *                         exporter's dispatch-only set so that any custom
+     *                         non-{@code Remote} admin interface also dispatches
      * @throws Exception if configuration reading or parameter validation
      *                   fails
      */
     protected AbstractJiniService(String[] configArgs,
                                   LifeCycle lifeCycle,
                                   String component,
-                                  Class<?> serviceInterface)
+                                  Class<?> serviceInterface,
+                                  Class<?> serviceImpl)
             throws Exception {
         this(new DefaultJiniServiceParameters(
                      ConfigurationProvider.getInstance(
                              configArgs,
                              serviceInterface.getClassLoader()),
-                     component, null, serviceInterface),
+                     component, null, serviceInterface, serviceImpl),
              lifeCycle);
     }
 
@@ -411,7 +568,7 @@ public abstract class AbstractJiniService
      * <pre>
      * public MyServiceImpl(ActivationID activationID, String[] data)
      *         throws Exception {
-     *     super(activationID, data, COMPONENT, MyService.class);
+     *     super(activationID, data, COMPONENT, MyService.class, MyServiceImpl.class);
      * }
      * </pre>
      *
@@ -424,19 +581,25 @@ public abstract class AbstractJiniService
      * @param serviceInterface the primary remote interface of the service;
      *                         used to build a default exporter and for
      *                         codebase fallback
+     * @param serviceImpl      the concrete service implementation class (this
+     *                         subclass's own {@code .class} literal); its derived
+     *                         admin set (design decision D5) becomes the default
+     *                         exporter's dispatch-only set so that any custom
+     *                         non-{@code Remote} admin interface also dispatches
      * @throws Exception if configuration reading or parameter validation
      *                   fails
      */
     protected AbstractJiniService(ActivationID activationID,
                                   String[] data,
                                   String component,
-                                  Class<?> serviceInterface)
+                                  Class<?> serviceInterface,
+                                  Class<?> serviceImpl)
             throws Exception {
         this(new DefaultJiniServiceParameters(
                      ConfigurationProvider.getInstance(
                              data,
                              serviceInterface.getClassLoader()),
-                     component, activationID, serviceInterface),
+                     component, activationID, serviceInterface, serviceImpl),
              null);
     }
 
@@ -554,6 +717,12 @@ public abstract class AbstractJiniService
         Object proxy = createProxy(stub, uuid);
         outerProxy = proxy;
         serviceUuid = uuid;
+
+        // Build the admin facet once (design decision D3): a separate proxy over
+        // the SAME single JERI export as the thin service stub, carrying the admin
+        // interfaces (JoinAdmin/DestroyAdmin/derived) that the service stub itself
+        // deliberately does NOT expose.  Cached for getAdmin().
+        adminProxy = createAdminProxy(stub, uuid);
 
         LookupDiscoveryManager discoveryMgr = new LookupDiscoveryManager(
                 initialLookupGroups, initialLookupLocators, null);
@@ -859,32 +1028,107 @@ public abstract class AbstractJiniService
     // -------------------------------------------------------------------------
 
     /**
-     * Returns an {@link AdminProxy} for this service.
+     * Returns the admin facet for this service — the canonical Jini
+     * {@link Administrable} contract.
      *
-     * <p>The admin proxy implements {@link JoinAdmin} (allowing clients to
-     * modify the lookup-service groups, locators, and attributes the service
-     * registers with) and {@link DestroyAdmin} (allowing clients to shut the
-     * service down).  If the server stub implements
-     * {@link net.jini.core.constraint.RemoteMethodControl} the returned proxy
-     * is automatically the constrainable variant.
+     * <p>The returned proxy is a <em>separate</em> object from the service proxy:
+     * it implements {@link JoinAdmin} (modifying the lookup-service groups,
+     * locators, and attributes the service registers with), {@link DestroyAdmin}
+     * (shutting the service down), any additional admin interface the concrete
+     * class declares, and {@link net.jini.core.constraint.RemoteMethodControl}
+     * (constrainable) — but it does NOT implement {@link Administrable} or the
+     * bootstrap accessors.  Conversely, the service proxy itself is
+     * {@link Administrable} but NOT {@code JoinAdmin}/{@code DestroyAdmin}.
      *
-     * <p>Subclasses may override this method to return a richer admin object,
-     * but should ensure the returned object still implements at least
-     * {@link JoinAdmin} and {@link DestroyAdmin}.
+     * <p>The facet is built once in {@link #doStart()} (design decision D3) and
+     * cached; this method simply performs a {@link ReadyState} check and returns
+     * the cached instance.  It shares the service's single JERI export — the admin
+     * methods still dispatch over that one export (see
+     * {@link #createAdminProxy(Object, Uuid)}), so there is no second endpoint.
      *
-     * @return an admin proxy for this service
+     * @return the cached admin facet for this service
      * @throws RemoteException if the service has not been started
      */
     @Override
     public Object getAdmin() throws RemoteException {
         readyState.check();
-        Object stub = serverStub;
-        Uuid uuid = serviceUuid;
-        if (stub instanceof Remote && stub instanceof JoinAdmin
-                && stub instanceof DestroyAdmin && uuid != null) {
-            return AdminProxy.create((Remote) stub, uuid);
+        return adminProxy;
+    }
+
+    /**
+     * Builds the admin facet: a proxy that carries the admin interfaces
+     * ({@link #adminFacetInterfaces()}) which the thin service stub deliberately
+     * does not expose, dispatching over the SAME single JERI export as the service
+     * stub (design decision D2 — a FACET over the same server reference, NOT a
+     * second export).
+     *
+     * <p>For the default {@link au.net.zeus.jgdms.service.annotation.ProxyType#DYNAMIC}
+     * shape the exported {@code serverStub} is a {@link java.lang.reflect.Proxy}
+     * whose invocation handler holds the {@link net.jini.jeri.ObjectEndpoint}.  This
+     * method creates a second {@code Proxy} over that same handler (hence the same
+     * endpoint) implementing the admin interfaces, then wraps it in the
+     * {@code @AtomicSerial} {@link AdminProxy} (which returns its constrainable
+     * variant because the facet implements {@code RemoteMethodControl}).  Because
+     * the admin interfaces' methods were registered on the server invocation
+     * dispatcher (they are in the exporter's {@code extra} set — only stripped from
+     * the client stub's cast set), calls through the facet dispatch over the single
+     * export.
+     *
+     * <p>When an {@code adminConstraints} config entry is present (design decision
+     * D4) it is applied to the facet via
+     * {@link net.jini.core.constraint.RemoteMethodControl#setConstraints}, letting
+     * administration require stronger authentication than ordinary service calls
+     * without a second endpoint.
+     *
+     * <p>This {@code protected} method is a documented seam: a future change could
+     * override it to opt into a physically separate export for administration, and
+     * a {@link au.net.zeus.jgdms.service.annotation.ProxyType#SMART} service whose
+     * {@code serverStub} is not a dynamic {@code Proxy} may override it to build the
+     * facet from its own server reference.
+     *
+     * @param serverStub the exported server stub (for DYNAMIC services a
+     *                   {@link java.lang.reflect.Proxy}); never {@code null}
+     * @param id         the stable service UUID; never {@code null}
+     * @return the admin facet proxy, or {@code serverStub} unchanged if a facet
+     *         could not be built (e.g. the stub is not a dynamic proxy and this
+     *         method was not overridden)
+     */
+    protected Object createAdminProxy(Object serverStub, Uuid id) {
+        if (serverStub == null || id == null
+                || !Proxy.isProxyClass(serverStub.getClass())) {
+            // Not a dynamic-proxy export we can re-facet; a SMART service that
+            // needs an admin facet should override this method.
+            return serverStub;
         }
-        return stub;
+        InvocationHandler handler = Proxy.getInvocationHandler(serverStub);
+        ClassLoader cl = serverStub.getClass().getClassLoader();
+        Remote facet = (Remote) Proxy.newProxyInstance(
+                cl, adminFacetInterfaces(), handler);
+        if (adminConstraints != null && facet instanceof RemoteMethodControl) {
+            facet = (Remote) ((RemoteMethodControl) facet)
+                    .setConstraints(adminConstraints);
+        }
+        return AdminProxy.create(facet, id, adminIfaces.clone());
+    }
+
+    /**
+     * Returns the interface set the admin facet {@link java.lang.reflect.Proxy}
+     * implements: {@link Remote} (so the facet is assignable to the {@code Remote}
+     * field of {@link AdminProxy} — the admin interfaces themselves do not extend
+     * {@code Remote}), {@link RemoteMethodControl} (constrainable), and the derived
+     * admin interfaces ({@link #adminIfaces} from {@link #resolveAdminInterfaces()},
+     * always {@link JoinAdmin} + {@link DestroyAdmin} + any custom admin interface).
+     *
+     * @return the admin facet's proxy interface set; never {@code null} or empty
+     */
+    protected final Class<?>[] adminFacetInterfaces() {
+        Set<Class<?>> ifaces = new LinkedHashSet<>();
+        ifaces.add(Remote.class);
+        ifaces.add(RemoteMethodControl.class);
+        for (Class<?> a : adminIfaces) {
+            ifaces.add(a);
+        }
+        return ifaces.toArray(new Class<?>[0]);
     }
 
     // -------------------------------------------------------------------------

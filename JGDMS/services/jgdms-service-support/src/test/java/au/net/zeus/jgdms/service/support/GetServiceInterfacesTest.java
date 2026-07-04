@@ -20,12 +20,18 @@ package au.net.zeus.jgdms.service.support;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Arrays;
+import java.util.List;
 import net.jini.admin.Administrable;
+import net.jini.admin.JoinAdmin;
 import net.jini.config.EmptyConfiguration;
+import net.jini.export.ProxyAccessor;
+import org.apache.river.admin.DestroyAdmin;
 import au.net.zeus.jgdms.service.annotation.JiniService;
 import org.junit.Test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -82,6 +88,17 @@ public class GetServiceInterfacesTest {
         Class<?>[] serviceInterfaces() { return getServiceInterfaces(); }
     }
 
+    // --- api() empty, MULTIPLE service interfaces -> all inferred (multi) -----
+
+    @JiniService
+    static final class InferredMulti extends AbstractJiniService
+            implements FooService, BarService {
+        InferredMulti() throws Exception { super(params(), null); }
+        @Override public String foo(String s) { return s; }
+        @Override public String bar(String s) { return s; }
+        Class<?>[] serviceInterfaces() { return getServiceInterfaces(); }
+    }
+
     // --- no @JiniService -> fail fast at construction -------------------------
 
     static final class Unannotated extends AbstractJiniService implements FooService {
@@ -122,6 +139,49 @@ public class GetServiceInterfacesTest {
         assertArrayEquals("inferred set must be the service API only, no infra: "
                 + Arrays.toString(got),
                 new Class<?>[]{ FooService.class }, got);
+    }
+
+    @Test
+    public void infersAllServiceInterfacesWhenApiEmpty() throws Exception {
+        // Multi-interface convergence (design decision D2): an empty api() with
+        // several Remote service interfaces infers and registers them ALL, in
+        // declaration order — it is NOT ambiguous.
+        Class<?>[] got = new InferredMulti().serviceInterfaces();
+        assertArrayEquals("both Remote service interfaces must be inferred: "
+                + Arrays.toString(got),
+                new Class<?>[]{ FooService.class, BarService.class }, got);
+    }
+
+    @Test
+    public void classifyPutsAdminInterfacesInAdminSetNotProxyAccessor() {
+        // The derived admin set must be exactly {JoinAdmin, DestroyAdmin}:
+        // ProxyAccessor (non-Remote, implemented by AbstractJiniService itself) and
+        // Administrable must NOT leak into it, or the common case would be forced off
+        // the stable ConstrainableAdminProxy wire form.
+        List<Class<?>> admin = Arrays.asList(
+                AbstractJiniService.classify(InferredMulti.class).admin);
+        assertTrue("admin set must contain JoinAdmin: " + admin,
+                admin.contains(JoinAdmin.class));
+        assertTrue("admin set must contain DestroyAdmin: " + admin,
+                admin.contains(DestroyAdmin.class));
+        assertFalse("ProxyAccessor must NOT be classified as an admin interface: " + admin,
+                admin.contains(ProxyAccessor.class));
+        assertFalse("Administrable must NOT be classified as an admin interface: " + admin,
+                admin.contains(Administrable.class));
+        assertEquals("admin set must be exactly {JoinAdmin, DestroyAdmin}: " + admin,
+                2, admin.size());
+    }
+
+    @Test
+    public void classifyApiExcludesAdminAndAccessors() {
+        // The api set is the client contract only: the Remote service interfaces,
+        // never the admin interfaces or the Remote bootstrap accessors.
+        List<Class<?>> api = Arrays.asList(
+                AbstractJiniService.classify(InferredMulti.class).api);
+        assertTrue(api.contains(FooService.class));
+        assertTrue(api.contains(BarService.class));
+        assertFalse("JoinAdmin is admin, not api: " + api, api.contains(JoinAdmin.class));
+        assertEquals("api must be exactly the two service interfaces: " + api, 2, api.size());
     }
 
     @Test

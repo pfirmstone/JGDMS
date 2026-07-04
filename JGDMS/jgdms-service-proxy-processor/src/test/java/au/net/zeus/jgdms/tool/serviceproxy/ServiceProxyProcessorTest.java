@@ -257,6 +257,61 @@ public class ServiceProxyProcessorTest {
     }
 
     @Test
+    public void emptyApiWithMultipleServiceInterfacesInfersAllNoAmbiguity() {
+        // Multi-interface convergence (design decision D2): an empty api() with TWO
+        // Remote service interfaces is NO LONGER "ambiguous" -- both are inferred and
+        // registered via the shared allowlist (extends Remote, minus the four
+        // accessors), exactly as the runtime AbstractJiniService.classify does.  Being
+        // DYNAMIC with protocol == api, it still generates nothing.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.HelloService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .add("hello.ByeService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface ByeService extends Remote {"
+                + "   String bye(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService"  // empty api() -> infer BOTH
+                + " public class HelloServiceImpl implements HelloService, ByeService {"
+                + "   public String greet(String name) throws RemoteException { return name; }"
+                + "   public String bye(String name) throws RemoteException { return name; } }")
+            .run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+        assertTrue("DYNAMIC multi-interface must generate NOTHING: " + r.generated.keySet(),
+            r.generated.isEmpty());
+    }
+
+    @Test
+    public void emptyApiIgnoresNonRemoteCustomAdminInterface() {
+        // Allowlist convergence: a non-Remote custom admin-style interface declared
+        // directly on the impl is NOT part of the inferred api (it is the
+        // administrative contract, reached via getAdmin()).  Only HelloService (the
+        // Remote interface) is the api, so there is no "must extend Remote" error.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.HelloService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .add("hello.FooAdmin",
+                "package hello; import java.rmi.RemoteException;"
+                + " public interface FooAdmin {"       // NOT Remote -> admin, not api
+                + "   void foo() throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.JiniService"  // empty api()
+                + " public class HelloServiceImpl implements HelloService, FooAdmin {"
+                + "   public String greet(String name) throws RemoteException { return name; }"
+                + "   public void foo() throws RemoteException {} }")
+            .run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+        assertTrue("DYNAMIC must generate NOTHING: " + r.generated.keySet(),
+            r.generated.isEmpty());
+    }
+
+    @Test
     public void emptyApiWithNoServiceInterfaceIsError() {
         // api() empty and the impl implements only infrastructure interfaces:
         // nothing to infer -> fail-closed.

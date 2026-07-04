@@ -107,4 +107,31 @@ public final class DefaultJiniServiceParameters extends JiniServiceParameters {
             throws ConfigurationException {
         super(config, component, activationID, serviceInterface);
     }
+
+    /**
+     * Reads all common Jini service configuration entries and derives the default
+     * exporter's per-service dispatch-only admin set from {@code serviceImpl}
+     * (design decision D5).
+     *
+     * @param config           the Jini configuration; must be non-null
+     * @param component        the configuration component name; must be non-null
+     * @param activationID     the Phoenix activation ID, or {@code null} for
+     *                         non-activatable deployments
+     * @param serviceInterface the primary remote interface of the service; must be
+     *                         non-null
+     * @param serviceImpl      the concrete service implementation class whose derived
+     *                         admin set becomes the exporter's dispatch-only set, or
+     *                         {@code null} to fall back to {@code {JoinAdmin,
+     *                         DestroyAdmin}}
+     * @throws ConfigurationException if any mandatory configuration entry is missing,
+     *                                of the wrong type, or otherwise invalid
+     */
+    public DefaultJiniServiceParameters(Configuration config,
+                                        String component,
+                                        ActivationID activationID,
+                                        Class<?> serviceInterface,
+                                        Class<?> serviceImpl)
+            throws ConfigurationException {
+        super(config, component, activationID, serviceInterface, serviceImpl);
+    }
 }

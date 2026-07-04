@@ -17,6 +17,9 @@
  */
 package au.net.zeus.jgdms.api.hello;
 
+import au.net.zeus.jgdms.proxy.AdminProxy;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -28,7 +31,10 @@ import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
 import net.jini.export.CodebaseAccessor;
 import net.jini.export.Exporter;
+import net.jini.id.Uuid;
+import net.jini.id.UuidFactory;
 import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.DynamicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
@@ -38,41 +44,40 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 /**
- * Round-trip / contract test for the Hello World service-proxy boilerplate that
- * is now <em>generated</em> from {@code @JiniService(proxy = DYNAMIC)} by the
- * service-proxy annotation processor.
+ * Round-trip / contract test for the Hello World DYNAMIC service proxy and its
+ * {@code getAdmin()} admin facet (JGDMS @JiniService admin-proxy design, unit 2).
  *
- * <p>For the DYNAMIC shape (JGDMS-STD-009 §6 shape 1) the processor generates
- * <em>no</em> proxy class, <em>no</em> backend interface, and <em>no</em>
- * ILFactory — the client proxy <b>is</b> the JERI-exported
- * {@link java.lang.reflect.Proxy} dynamic stub, and its admin interfaces are
- * supplied by the reusable framework factory
- * {@link net.jini.jeri.DynamicILFactory}, a {@link net.jini.jeri.AtomicILFactory}
- * subclass whose {@code getRemoteInterfaces} override <em>appends</em> the
- * non-{@link Remote} admin interfaces
- * ({@link Administrable}/{@link JoinAdmin}/{@link DestroyAdmin}) to the exported
- * stub's interface AND server-dispatch sets.  The JGDMS service framework installs
- * it by default, so a DYNAMIC service needs neither codegen nor config.
+ * <p>The framework default installs a {@link net.jini.jeri.DynamicILFactory} with
+ * <em>two disjoint</em> extra-interface sets:
+ * <ul>
+ *   <li>{@code castAndDispatch = {Administrable}} — appended to BOTH the client stub
+ *       cast set and the server dispatcher, so the exported stub is
+ *       {@link Administrable};</li>
+ *   <li>{@code dispatchOnly = {JoinAdmin, DestroyAdmin}} — registered on the server
+ *       invocation dispatcher only and <em>stripped</em> from the client stub, so the
+ *       thin service stub is NOT {@code JoinAdmin}/{@code DestroyAdmin}.</li>
+ * </ul>
+ * The admin interfaces are reached instead through a SEPARATE facet proxy (as
+ * {@code Administrable.getAdmin()} returns): a second {@link java.lang.reflect.Proxy}
+ * built over the SAME invocation handler (hence the same endpoint) that implements the
+ * admin interfaces, wrapped in the {@code @AtomicSerial} {@link AdminProxy}.  Because
+ * the admin methods' JRMP hashes are registered on the one server dispatcher (they are
+ * in {@code dispatchOnly}), an admin call through the facet dispatches over the single
+ * shared export — no second endpoint (JGDMS-STD-009 §6 shapes 1 &amp; 2 + §14).
  *
- * <p>This test exports a {@link HelloService} implementation through JERI using
- * {@link net.jini.jeri.DynamicILFactory} with the same admin interface set the
- * framework default supplies, and asserts that the resulting stub has exactly the
- * fat interface set the DYNAMIC shape promises: it is a
- * {@link java.lang.reflect.Proxy}; it implements the public {@link HelloService}
- * API, the appended admin interfaces, the {@link Remote} bootstrap accessors, and
- * {@link RemoteMethodControl}; and a loopback call to {@link HelloService#sayHello}
- * forwards to the exported implementation.
- *
- * <p>The export is a real in-JVM JERI loopback over TCP (no mocking), so the test
+ * <p>These are real in-JVM JERI loopback exports over TCP (no mocking), so the test
  * needs the JDK default {@code RMIClassLoaderSpi} — configured via the surefire
  * {@code argLine} in this module's pom.
  */
 public class HelloServiceProxyRoundTripTest {
 
+    /** A distinctive value the admin fixture returns so a dispatched admin call is observable. */
+    private static final String[] ADMIN_GROUPS = { "admin-dispatch-ok" };
+
     /**
-     * The exported DYNAMIC stub must be a {@link java.lang.reflect.Proxy} — the
-     * whole point of shape 1 is that there is no generated proxy class; the
-     * runtime dynamic proxy is the client proxy.
+     * The exported DYNAMIC stub must be a {@link java.lang.reflect.Proxy} — the whole
+     * point of shape 1 is that there is no generated proxy class; the runtime dynamic
+     * proxy is the client proxy.
      */
     @Test
     public void testExportedStubIsDynamicProxy() throws Exception {
@@ -87,20 +92,18 @@ public class HelloServiceProxyRoundTripTest {
     }
 
     /**
-     * The exported DYNAMIC stub must carry the full fat interface set: the public
-     * API, the non-Remote admin interfaces appended by
-     * {@link net.jini.jeri.DynamicILFactory#getRemoteInterfaces}, the Remote
-     * bootstrap accessors picked up by {@code super.getRemoteInterfaces}, and
-     * {@link RemoteMethodControl} (every JERI dynamic proxy is constrainable).
+     * The exported DYNAMIC stub carries the CLIENT-facing set: the public API, the
+     * cast-and-dispatch admin gateway {@link Administrable}, the {@link Remote}
+     * bootstrap accessors, and {@link RemoteMethodControl}.
      */
     @Test
-    public void testExportedStubImplementsFatInterfaceSet() throws Exception {
+    public void testExportedStubImplementsClientFacingSet() throws Exception {
         Exporter exporter = newExporter();
         try {
             Object proxy = exporter.export(new HelloServiceFixture());
             for (Class<?> required : new Class<?>[]{
                     HelloService.class,
-                    Administrable.class, JoinAdmin.class, DestroyAdmin.class,
+                    Administrable.class,
                     ServiceProxyAccessor.class, ServiceAttributesAccessor.class,
                     ServiceIDAccessor.class, CodebaseAccessor.class,
                     RemoteMethodControl.class}) {
@@ -114,9 +117,28 @@ public class HelloServiceProxyRoundTripTest {
     }
 
     /**
+     * The exported client stub must NOT be {@link JoinAdmin}/{@link DestroyAdmin}:
+     * those are {@code dispatchOnly}, stripped from the client cast set.  Administration
+     * is reached only through the separate {@code getAdmin()} facet.
+     */
+    @Test
+    public void testExportedStubIsNotAdminEnabled() throws Exception {
+        Exporter exporter = newExporter();
+        try {
+            Object proxy = exporter.export(new HelloServiceFixture());
+            assertFalse("dispatch-only JoinAdmin must be stripped from the client stub",
+                    proxy instanceof JoinAdmin);
+            assertFalse("dispatch-only DestroyAdmin must be stripped from the client stub",
+                    proxy instanceof DestroyAdmin);
+        } finally {
+            exporter.unexport(true);
+        }
+    }
+
+    /**
      * A loopback call on the exported DYNAMIC stub forwards
-     * {@link HelloService#sayHello} to the backing implementation over a real
-     * in-JVM JERI round-trip.
+     * {@link HelloService#sayHello} to the backing implementation over a real in-JVM
+     * JERI round-trip.
      */
     @Test
     public void testStubForwardsSayHello() throws Exception {
@@ -129,34 +151,140 @@ public class HelloServiceProxyRoundTripTest {
         }
     }
 
+    /**
+     * The heart of the design: the {@code getAdmin()} facet — a second
+     * {@link java.lang.reflect.Proxy} over the SAME invocation handler as the stub,
+     * carrying the admin interfaces, wrapped in {@link AdminProxy} — IS
+     * {@code JoinAdmin}/{@code DestroyAdmin}/{@code RemoteMethodControl}, and an admin
+     * call through it dispatches over the single shared export to the backing impl.
+     */
+    @Test
+    public void testAdminFacetIsAdminEnabledAndDispatches() throws Exception {
+        Exporter exporter = newExporter();
+        try {
+            Object stub = exporter.export(new HelloServiceFixture());
+
+            // Build the admin facet exactly as AbstractJiniService.createAdminProxy
+            // does: a second Proxy over the SAME handler (hence same endpoint), then
+            // the @AtomicSerial AdminProxy wrapper.
+            Object admin = adminFacet(stub, UuidFactory.generate(),
+                    new Class<?>[]{ JoinAdmin.class, DestroyAdmin.class });
+
+            assertTrue("admin facet must be JoinAdmin", admin instanceof JoinAdmin);
+            assertTrue("admin facet must be DestroyAdmin", admin instanceof DestroyAdmin);
+            assertTrue("admin facet must be constrainable (RemoteMethodControl)",
+                    admin instanceof RemoteMethodControl);
+
+            // An admin call must dispatch over the shared backend to the fixture.
+            String[] groups = ((JoinAdmin) admin).getLookupGroups();
+            assertArrayEquals("admin call must dispatch over the shared export to the impl",
+                    ADMIN_GROUPS, groups);
+        } finally {
+            exporter.unexport(true);
+        }
+    }
+
+    /**
+     * The admin factory fails CLOSED (like reggie): when the facet is not a
+     * {@link RemoteMethodControl}, {@link AdminProxy#create(Remote, Uuid, Class[])}
+     * throws rather than degrading to a non-constrainable proxy.
+     */
+    @Test
+    public void testAdminFactoryFailsClosedWhenNotConstrainable() {
+        // A Remote (so it fits AdminProxy.create's parameter) admin proxy that is
+        // deliberately NOT a RemoteMethodControl.
+        Remote notConstrainable = (Remote) Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{ Remote.class, JoinAdmin.class, DestroyAdmin.class },
+                THROWING);
+        try {
+            AdminProxy.create(notConstrainable, UuidFactory.generate(),
+                    new Class<?>[]{ JoinAdmin.class, DestroyAdmin.class });
+            fail("admin factory must fail closed when the facet is not RemoteMethodControl");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage(),
+                    expected.getMessage().contains("RemoteMethodControl"));
+        }
+    }
+
+    /**
+     * PARKED wire form: an admin set larger than exactly {@code {JoinAdmin,
+     * DestroyAdmin}} (a custom non-{@code Remote} admin interface) is fail-closed —
+     * the dynamic multi-admin-interface wire form is not shipped.
+     */
+    @Test
+    public void testLargerAdminSetIsParkedFailClosed() {
+        Remote facet = (Remote) Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{ Remote.class, RemoteMethodControl.class,
+                                JoinAdmin.class, DestroyAdmin.class, FooAdmin.class },
+                THROWING);
+        try {
+            AdminProxy.create(facet, UuidFactory.generate(),
+                    new Class<?>[]{ JoinAdmin.class, DestroyAdmin.class, FooAdmin.class });
+            fail("larger admin sets must be parked / fail closed");
+        } catch (UnsupportedOperationException expected) {
+            assertTrue(expected.getMessage(),
+                    expected.getMessage().contains("parked"));
+        }
+    }
+
     // --------------------------------------------------------------- helpers
 
     /**
-     * Builds a plain-TCP {@link BasicJeriExporter} whose invocation-layer factory
-     * is a {@link net.jini.jeri.DynamicILFactory} carrying the Jini admin
-     * interfaces — the same wiring the framework default installs for the DYNAMIC
-     * shape (see {@code JiniServiceParameters}).
+     * Builds the admin facet the way {@code AbstractJiniService.createAdminProxy}
+     * does: a second {@link java.lang.reflect.Proxy} over the exported stub's
+     * invocation handler (so it shares the endpoint), implementing
+     * {@code Remote + RemoteMethodControl + adminIfaces}, wrapped in {@link AdminProxy}.
+     */
+    private static Object adminFacet(Object stub, Uuid id, Class<?>[] adminIfaces) {
+        InvocationHandler handler = Proxy.getInvocationHandler(stub);
+        ClassLoader cl = stub.getClass().getClassLoader();
+        Class<?>[] facetIfaces = new Class<?>[adminIfaces.length + 2];
+        facetIfaces[0] = Remote.class;
+        facetIfaces[1] = RemoteMethodControl.class;
+        System.arraycopy(adminIfaces, 0, facetIfaces, 2, adminIfaces.length);
+        Remote facet = (Remote) Proxy.newProxyInstance(cl, facetIfaces, handler);
+        return AdminProxy.create(facet, id, adminIfaces);
+    }
+
+    /**
+     * Builds a plain-TCP {@link BasicJeriExporter} whose invocation-layer factory is a
+     * {@link net.jini.jeri.DynamicILFactory} with the two disjoint extra sets the
+     * framework default installs for the DYNAMIC shape (see {@code JiniServiceParameters}):
+     * {@code castAndDispatch = {Administrable}} and {@code dispatchOnly = {JoinAdmin,
+     * DestroyAdmin}}.
      */
     private static Exporter newExporter() {
         return new BasicJeriExporter(
                 TcpServerEndpoint.getInstance(0),
-                new net.jini.jeri.DynamicILFactory(
+                new DynamicILFactory(
                         null, null,
                         HelloServiceProxyRoundTripTest.class.getClassLoader(),
-                        new Class[]{
-                            Administrable.class, JoinAdmin.class, DestroyAdmin.class
-                        }),
+                        new Class[]{ Administrable.class },                 // castAndDispatch
+                        new Class[]{ JoinAdmin.class, DestroyAdmin.class }), // dispatchOnly
                 false, true);
     }
 
+    /** A handler for facets whose methods must never be invoked in a test. */
+    private static final InvocationHandler THROWING = new InvocationHandler() {
+        @Override public Object invoke(Object proxy, Method method, Object[] args) {
+            throw new UnsupportedOperationException("handler method not invoked: " + method);
+        }
+    };
+
+    /** A custom non-{@code Remote} admin interface used to drive the parked-path test. */
+    public interface FooAdmin {
+        void foo() throws RemoteException;
+    }
+
     /**
-     * Minimal remote fixture that implements the public {@link HelloService} API,
-     * the admin interfaces, and the {@link Remote} bootstrap accessors — exactly
-     * the interface set a real {@code AbstractJiniService} exposes.  Exporting it
-     * through {@link net.jini.jeri.DynamicILFactory} produces the fat DYNAMIC stub
-     * under test.  {@code sayHello} returns a greeting so the forwarding test can
-     * observe the loopback call; the infrastructure methods are never invoked by
-     * these tests and throw.
+     * Minimal remote fixture implementing the public {@link HelloService} API, the
+     * admin interfaces, and the {@link Remote} bootstrap accessors — the interface set
+     * a real {@code AbstractJiniService} exposes.  {@code sayHello} returns a greeting
+     * and {@code getLookupGroups} returns {@link #ADMIN_GROUPS} so the forwarding and
+     * admin-dispatch tests can observe the loopback call; the remaining infrastructure
+     * methods are never invoked by these tests and throw.
      */
     public static final class HelloServiceFixture
             implements HelloService,
@@ -180,10 +308,11 @@ public class HelloServiceProxyRoundTripTest {
         @Override public byte[] getCodebaseDigest() { throw nope(); }
         @Override public int[] getDigestOffsets() { throw nope(); }
         @Override public Object getAdmin() { throw nope(); }
+        // Observable admin method: a dispatched getLookupGroups() reaches here.
+        @Override public String[] getLookupGroups() { return ADMIN_GROUPS.clone(); }
         @Override public Entry[] getLookupAttributes() { throw nope(); }
         @Override public void addLookupAttributes(Entry[] a) { throw nope(); }
         @Override public void modifyLookupAttributes(Entry[] t, Entry[] a) { throw nope(); }
-        @Override public String[] getLookupGroups() { throw nope(); }
         @Override public void addLookupGroups(String[] g) { throw nope(); }
         @Override public void removeLookupGroups(String[] g) { throw nope(); }
         @Override public void setLookupGroups(String[] g) { throw nope(); }

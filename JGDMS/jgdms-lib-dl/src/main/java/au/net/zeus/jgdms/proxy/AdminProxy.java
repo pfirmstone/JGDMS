@@ -20,9 +20,13 @@ package au.net.zeus.jgdms.proxy;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.Serializable;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import net.jini.admin.JoinAdmin;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
@@ -55,6 +59,15 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
  * returns a {@link ConstrainableAdminProxy} when the server stub implements
  * {@link RemoteMethodControl}, exactly mirroring the pattern used by all
  * other JGDMS service admin proxies.
+ *
+ * <p>The derived-set factory {@link #create(Remote, Uuid, Class[])} takes the admin
+ * interface set a service derives from its implemented interfaces (always
+ * {@link JoinAdmin} + {@link DestroyAdmin}, plus any custom admin interface): for
+ * the common {@code {JoinAdmin, DestroyAdmin}} set it returns the fixed
+ * {@link ConstrainableAdminProxy} (stable {@code @AtomicSerial} wire form); for a
+ * larger set it returns a constrainable dynamic {@link java.lang.reflect.Proxy}
+ * admin stub (see {@link DynamicAdminProxy}).  Both fail closed when the facet is
+ * not a {@link RemoteMethodControl}.
  *
  * <h2>Typed transient fields</h2>
  * After validation, the {@code server} reference is also stored in two
@@ -151,9 +164,106 @@ public class AdminProxy
      */
     public static AdminProxy create(Remote server, Uuid proxyID) {
         if (server instanceof RemoteMethodControl) {
-            return new ConstrainableAdminProxy(server, proxyID, null);
+            // Preserve the stub's existing constraints (mirrors the generated smart
+            // proxy create); passing null would call setConstraints(null) and discard
+            // them.
+            MethodConstraints mc = ((RemoteMethodControl) server).getConstraints();
+            return new ConstrainableAdminProxy(server, proxyID, mc);
         }
         return new AdminProxy(server, proxyID);
+    }
+
+    /**
+     * Creates an admin proxy for a caller-supplied set of admin interfaces.
+     *
+     * <p>This is the derived-set entry point used by
+     * {@code AbstractJiniService}: the concrete service derives its admin
+     * interface set (always {@link JoinAdmin} + {@link DestroyAdmin}, plus any
+     * custom admin interface the implementation declares) and passes it here.
+     *
+     * <ul>
+     *   <li>When {@code adminIfaces} is exactly {@code {JoinAdmin, DestroyAdmin}}
+     *       (order-insensitive) the fixed {@link ConstrainableAdminProxy} is
+     *       returned — its {@code @AtomicSerial} wire form is unchanged, so this is
+     *       the stable common case.</li>
+     *   <li>A larger set (a service declaring a custom non-{@code Remote} admin
+     *       interface) is <strong>PARKED / fail-closed</strong>: see
+     *       {@link DynamicAdminProxy} for why the dynamic multi-admin-interface wire
+     *       form is not shipped, and this method throws
+     *       {@link UnsupportedOperationException} rather than returning a proxy that
+     *       cannot round-trip under the {@code @AtomicSerial}/Constrainable-only wire
+     *       regime.</li>
+     * </ul>
+     *
+     * <p>Fail-closed: {@code server} MUST implement {@link RemoteMethodControl}
+     * (every JGDMS service stub exported through JERI does); otherwise an
+     * {@link IllegalArgumentException} is thrown rather than degrading to a
+     * non-constrainable proxy.
+     *
+     * @param server      the admin facet stub; must implement
+     *                    {@link RemoteMethodControl} and every interface in
+     *                    {@code adminIfaces}; must be non-null
+     * @param proxyID     the service UUID; must be non-null
+     * @param adminIfaces the derived admin interface set; must be non-null and
+     *                    contain at least {@link JoinAdmin} and {@link DestroyAdmin}
+     * @return a constrainable admin proxy
+     * @throws IllegalArgumentException if {@code server} is not a
+     *         {@link RemoteMethodControl}, or does not implement every interface in
+     *         {@code adminIfaces}
+     * @throws UnsupportedOperationException if {@code adminIfaces} is larger than
+     *         exactly {@code {JoinAdmin, DestroyAdmin}} (the parked dynamic wire form)
+     */
+    public static Object create(Remote server, Uuid proxyID, Class<?>[] adminIfaces) {
+        if (server == null) throw new IllegalArgumentException("server cannot be null");
+        if (proxyID == null) throw new IllegalArgumentException("proxyID cannot be null");
+        if (!(server instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                    "service must be exported with a constrainable endpoint: "
+                    + "admin facet does not implement RemoteMethodControl");
+        }
+        if (adminIfaces == null) {
+            throw new IllegalArgumentException("adminIfaces cannot be null");
+        }
+        for (Class<?> a : adminIfaces) {
+            if (!a.isInstance(server)) {
+                throw new IllegalArgumentException(
+                        "admin facet must implement " + a.getName());
+            }
+        }
+        if (isExactlyJoinAndDestroy(adminIfaces)) {
+            // Common case: the stable fixed constrainable wire form.  Preserve the
+            // facet's CURRENT constraints — e.g. a stronger adminConstraints (design
+            // decision D4) that AbstractJiniService.createAdminProxy applied to the
+            // facet — rather than clearing them by passing null (which would call
+            // setConstraints(null) and silently discard the admin-only authentication).
+            MethodConstraints mc = ((RemoteMethodControl) server).getConstraints();
+            return new ConstrainableAdminProxy(server, proxyID, mc);
+        }
+        // PARKED (fail-closed): a larger admin set would need the dynamic
+        // java.lang.reflect.Proxy admin form (DynamicAdminProxy), whose Serializable
+        // (non-@AtomicSerial) handler has no sound wire form under
+        // AtomicMarshalInputStream (the @AtomicSerial/Constrainable-only regime).
+        // Rather than ship a proxy that cannot round-trip, refuse fail-closed until
+        // the multi-admin-interface wire form is reviewed.  See DynamicAdminProxy.
+        throw new UnsupportedOperationException(
+                "admin interface sets larger than {JoinAdmin, DestroyAdmin} are not "
+                + "yet supported: the dynamic admin proxy wire form is parked for "
+                + "review (see AdminProxy.DynamicAdminProxy). Declared admin set: "
+                + java.util.Arrays.toString(adminIfaces));
+    }
+
+    /**
+     * Returns {@code true} iff {@code ifaces} is exactly the set
+     * {@code {JoinAdmin, DestroyAdmin}} (order-insensitive, duplicates ignored).
+     */
+    private static boolean isExactlyJoinAndDestroy(Class<?>[] ifaces) {
+        Set<Class<?>> set = new LinkedHashSet<>();
+        for (Class<?> c : ifaces) {
+            set.add(c);
+        }
+        return set.size() == 2
+                && set.contains(JoinAdmin.class)
+                && set.contains(DestroyAdmin.class);
     }
 
     // -------------------------------------------------------------------------
@@ -423,6 +533,166 @@ public class AdminProxy
 
         /**
          * Returns a proxy trust iterator that yields this object's server.
+         * Found reflectively by {@code BasicJeriTrustVerifier}.
+         */
+        private ProxyTrustIterator getProxyTrustIterator() {
+            return new SingletonProxyTrustIterator(server);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Dynamic admin proxy — for admin interface sets larger than {JoinAdmin,
+    // DestroyAdmin}
+    // -------------------------------------------------------------------------
+
+    /**
+     * <strong>PARKED — NOT SHIPPED (unreached; retained for review).</strong>
+     *
+     * <p>This is the intended dynamic admin form for admin interface sets larger than
+     * {@code {JoinAdmin, DestroyAdmin}} (a service that also declares a custom
+     * non-{@code Remote} {@code FooAdmin}).  It is <em>not</em> reachable:
+     * {@link AdminProxy#create(Remote, Uuid, Class[])} throws
+     * {@link UnsupportedOperationException} for such sets rather than returning one of
+     * these.  The reason is the wire form: the client-facing object is a
+     * {@link java.lang.reflect.Proxy} whose {@link InvocationHandler} is this
+     * <em>plain {@link Serializable}</em> (NOT {@code @AtomicSerial}) class.  Under
+     * {@code AtomicMarshalInputStream} — the DER/atomic engine that is the only
+     * sanctioned wire path in the {@code @AtomicSerial}/Constrainable-only regime —
+     * such a handler has no sound reconstruction: it can only travel via the engine's
+     * deprecated "best-effort" reflective {@code Serializable} path (which the regime
+     * is removing), and on the write side, because this handler is a
+     * {@link ProxyAccessor}, it is intercepted by the {@code ProxySerializer}
+     * codebase-substitution mechanism intended for downloaded smart proxies, not for a
+     * shared {@code @AtomicSerial} admin proxy.  Shipping it would weaken the
+     * wire-format invariant, so it is fail-closed pending Peter's design review of a
+     * constrainable, {@code @AtomicSerial} multi-admin-interface wire form.
+     *
+     * <p>A constrainable, {@link Serializable} delegating {@link InvocationHandler}
+     * backing a {@link java.lang.reflect.Proxy} admin stub over a caller-supplied
+     * admin interface set (used when the derived admin set is larger than
+     * {@code {JoinAdmin, DestroyAdmin}} — e.g. a service that also implements a
+     * custom {@code FooAdmin}).
+     *
+     * <p>The client-facing object is a {@code java.lang.reflect.Proxy} that
+     * implements {@code adminIfaces} plus {@link RemoteMethodControl},
+     * {@link ReferentUuid} and {@link ProxyAccessor}; every call delegates to
+     * {@code server} — the admin facet, which already implements those interfaces
+     * over the shared JERI export.  Identity is UUID-based (via {@code proxyID}),
+     * matching {@link AdminProxy}.
+     *
+     * <p>The handler is {@link Serializable}: the client-side {@code Proxy}
+     * serialises by writing this handler (which writes {@code server} and
+     * {@code proxyID}) plus its interface list, and is reconstituted as an
+     * equivalent {@code Proxy} on the receiver — no per-service admin proxy class
+     * is required.  {@code adminIfaces} carries the interface set so the receiver
+     * rebuilds the same shape.
+     */
+    static final class DynamicAdminProxy
+            implements InvocationHandler, ReferentUuid, ProxyAccessor, Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        /** The admin facet stub; implements every interface in {@link #adminIfaces}
+         *  plus {@link RemoteMethodControl}. */
+        private final Remote server;
+        /** The service UUID (identity). */
+        private final Uuid proxyID;
+        /** The admin interface set the client proxy exposes. */
+        private final Class<?>[] adminIfaces;
+
+        private DynamicAdminProxy(Remote server, Uuid proxyID, Class<?>[] adminIfaces) {
+            this.server = server;
+            this.proxyID = proxyID;
+            this.adminIfaces = adminIfaces.clone();
+        }
+
+        /**
+         * Builds the client-facing dynamic admin {@link java.lang.reflect.Proxy}.
+         *
+         * @param server      the admin facet stub (constrainable; implements every
+         *                    interface in {@code adminIfaces})
+         * @param proxyID     the service UUID
+         * @param adminIfaces the admin interface set to expose
+         * @return a {@code Proxy} over {@code adminIfaces} + {@code RemoteMethodControl}
+         *         + {@code ReferentUuid} + {@code ProxyAccessor}
+         */
+        static Object create(Remote server, Uuid proxyID, Class<?>[] adminIfaces) {
+            DynamicAdminProxy handler =
+                    new DynamicAdminProxy(server, proxyID, adminIfaces);
+            return Proxy.newProxyInstance(
+                    handlerLoader(server, adminIfaces),
+                    handler.proxyInterfaces(),
+                    handler);
+        }
+
+        /**
+         * The interfaces the client-facing {@code Proxy} implements: the admin set
+         * plus the framework interfaces {@code RemoteMethodControl},
+         * {@code ReferentUuid} and {@code ProxyAccessor}.
+         */
+        private Class<?>[] proxyInterfaces() {
+            Set<Class<?>> set = new LinkedHashSet<>();
+            for (Class<?> a : adminIfaces) {
+                set.add(a);
+            }
+            set.add(RemoteMethodControl.class);
+            set.add(ReferentUuid.class);
+            set.add(ProxyAccessor.class);
+            return set.toArray(new Class<?>[0]);
+        }
+
+        private static ClassLoader handlerLoader(Remote server, Class<?>[] adminIfaces) {
+            ClassLoader cl = server.getClass().getClassLoader();
+            return cl != null ? cl : DynamicAdminProxy.class.getClassLoader();
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args)
+                throws Throwable {
+            Class<?> decl = method.getDeclaringClass();
+            String name = method.getName();
+            // java.lang.Object methods
+            if (decl == Object.class) {
+                switch (name) {
+                    case "hashCode": return proxyID.hashCode();
+                    case "equals":   return ReferentUuids.compare(proxy, args[0]);
+                    case "toString": return "DynamicAdminProxy[" + proxyID + " " + server + "]";
+                    default:         return method.invoke(this, args);
+                }
+            }
+            // ReferentUuid
+            if (decl == ReferentUuid.class) {
+                return proxyID;
+            }
+            // ProxyAccessor
+            if (decl == ProxyAccessor.class) {
+                return server;
+            }
+            // RemoteMethodControl.setConstraints returns a NEW admin proxy carrying
+            // a re-constrained facet; getConstraints and other RMC methods delegate.
+            if (decl == RemoteMethodControl.class && "setConstraints".equals(name)) {
+                Remote reconstrained =
+                        (Remote) ((RemoteMethodControl) server).setConstraints(
+                                (MethodConstraints) args[0]);
+                return create(reconstrained, proxyID, adminIfaces);
+            }
+            // All admin (and remaining RemoteMethodControl) methods delegate to the
+            // facet, which implements them over the shared export.
+            return method.invoke(server, args);
+        }
+
+        @Override
+        public Uuid getReferentUuid() {
+            return proxyID;
+        }
+
+        @Override
+        public Object getProxy() {
+            return server;
+        }
+
+        /**
+         * Returns a proxy trust iterator that yields this handler's server.
          * Found reflectively by {@code BasicJeriTrustVerifier}.
          */
         private ProxyTrustIterator getProxyTrustIterator() {
