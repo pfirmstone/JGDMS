@@ -25,6 +25,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,13 +49,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link ConcurrentHashMap#putIfAbsent} provides the compare-and-store atomicity
  * needed for idempotent registration without external locking.
  *
- * <h2>isCompatible field comparison</h2>
+ * <h2>isCompatible: chain-wise (STD-006 v0.13 S12.2)</h2>
  * <p>
- * {@link #isCompatible(byte[], byte[])} decodes both {@code AtomicSerialSchemaRecord}
- * bytes and compares their ordered field lists: B is compatible with A iff
- * {@code fields(A)} is a prefix of {@code fields(B)} (same order, same
- * {@code wireName} and {@code wireType} for every pair). B may have additional
- * trailing fields.
+ * {@link #isCompatible(byte[], byte[])} judges lossless forward compatibility over
+ * the FULL hierarchy chain, not just the leaf record: for every record in A's
+ * chain, B's chain must contain a record with the same {@code className} whose
+ * ordered field list starts with A's record's field list (same {@code wireName}
+ * and {@code wireType}, same order). Classes present only in B receive
+ * {@code GetArg} defaults and are permitted; classes present only in A mean data
+ * loss and fail the test. An unknown digest or an incompletely retrievable chain
+ * returns {@code false} (fail-secure: an unjudgeable chain is not reported
+ * compatible). The pre-v0.13 leaf-only prefix rule gave wrong answers across the
+ * S11.4/S11.6 hierarchy evolutions.
  */
 public final class InMemorySchemaRegistry implements SchemaRegistry {
 
@@ -143,11 +149,14 @@ public final class InMemorySchemaRegistry implements SchemaRegistry {
     /**
      * {@inheritDoc}
      *
-     * <p>Decodes both schemas from the registry, then checks whether
-     * {@code fields(A)} is a prefix of {@code fields(B)} (same count and order,
-     * matching {@code wireName} and {@code wireType} for every pair).
+     * <p>Chain-wise (v0.13): retrieves the complete chain for both leaf digests,
+     * indexes B's chain by {@code className}, and requires every record in A's
+     * chain to have a same-named counterpart in B whose ordered field list starts
+     * with A's (same {@code wireName} and {@code wireType} for every pair).
      *
-     * <p>Returns {@code false} if either digest is unknown.
+     * <p>Returns {@code false} if either digest is unknown, either chain cannot be
+     * completely retrieved (a {@code parentSchemaHash} points outside the
+     * registry), or any record fails to decode — fail-secure.
      *
      * @throws NullPointerException if either argument is null
      */
@@ -156,19 +165,37 @@ public final class InMemorySchemaRegistry implements SchemaRegistry {
         Objects.requireNonNull(schemaDigestA, "schemaDigestA");
         Objects.requireNonNull(schemaDigestB, "schemaDigestB");
 
-        byte[] bytesA = getSchema(schemaDigestA);
-        byte[] bytesB = getSchema(schemaDigestB);
-        if (bytesA == null || bytesB == null) {
+        List<AtomicSerialSchemaRecord> chainA = retrieveCompleteChain(schemaDigestA);
+        List<AtomicSerialSchemaRecord> chainB = retrieveCompleteChain(schemaDigestB);
+        if (chainA == null || chainB == null) {
             return false;
         }
 
-        List<AtomicSerialFieldDef> fieldsA = decodeFields(bytesA);
-        List<AtomicSerialFieldDef> fieldsB = decodeFields(bytesB);
-        if (fieldsA == null || fieldsB == null) {
-            return false;
+        Map<String, AtomicSerialSchemaRecord> byNameB = new HashMap<>();
+        for (AtomicSerialSchemaRecord recB : chainB) {
+            byNameB.put(recB.className(), recB);
         }
 
-        // B is forward-compatible with A iff fields(A) is a prefix of fields(B)
+        for (AtomicSerialSchemaRecord recA : chainA) {
+            AtomicSerialSchemaRecord recB = byNameB.get(recA.className());
+            if (recB == null) {
+                // Class present in A but absent in B: A-data for this namespace
+                // would be stored-but-unconsumed under B -- not lossless.
+                return false;
+            }
+            if (!isFieldPrefix(recA.fields(), recB.fields())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * True iff {@code fieldsA} is a prefix of {@code fieldsB} (same order, every
+     * {@code (wireName, wireType)} pair equal).
+     */
+    private static boolean isFieldPrefix(List<AtomicSerialFieldDef> fieldsA,
+                                         List<AtomicSerialFieldDef> fieldsB) {
         if (fieldsA.size() > fieldsB.size()) {
             return false;
         }
@@ -178,6 +205,34 @@ public final class InMemorySchemaRegistry implements SchemaRegistry {
             }
         }
         return true;
+    }
+
+    /**
+     * Walks the chain from {@code leafDigest} to the root, decoding each record.
+     * Returns {@code null} if the leaf is unknown, any parent digest is missing
+     * from the registry (incomplete chain), or any record fails to decode.
+     */
+    private List<AtomicSerialSchemaRecord> retrieveCompleteChain(byte[] leafDigest) {
+        byte[] currentDigest = leafDigest;
+        List<AtomicSerialSchemaRecord> chain = new ArrayList<>();
+        while (true) {
+            byte[] schemaBytes = getSchema(currentDigest);
+            if (schemaBytes == null) {
+                return null;
+            }
+            AtomicSerialSchemaRecord rec;
+            try {
+                rec = AtomicSerialSchemaRecord.decode(schemaBytes);
+            } catch (DerException e) {
+                return null;
+            }
+            chain.add(rec);
+            byte[] parentHash = rec.parentSchemaHashOrNull();
+            if (parentHash == null) {
+                return chain;
+            }
+            currentDigest = parentHash;
+        }
     }
 
     // =========================================================================
@@ -219,19 +274,6 @@ public final class InMemorySchemaRegistry implements SchemaRegistry {
         try {
             AtomicSerialSchemaRecord rec = AtomicSerialSchemaRecord.decode(schemaBytes);
             return rec.parentSchemaHashOrNull();
-        } catch (DerException e) {
-            return null;
-        }
-    }
-
-    /**
-     * Decodes the ordered field list from a raw DER-encoded
-     * {@code AtomicSerialSchemaRecord}. Returns {@code null} if decoding fails.
-     */
-    private static List<AtomicSerialFieldDef> decodeFields(byte[] schemaBytes) {
-        try {
-            AtomicSerialSchemaRecord rec = AtomicSerialSchemaRecord.decode(schemaBytes);
-            return rec.fields();
         } catch (DerException e) {
             return null;
         }

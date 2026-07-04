@@ -32,7 +32,6 @@ import java.io.ObjectInputValidation;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * DER implementation of {@link MarshalInstanceInput} and
@@ -197,7 +196,6 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
                     payloadBytes,
                     schemaBytes,
                     leafDigest,
-                    Optional.empty(),
                     MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
             // Decode at Object.class, NOT `type`: a @AtomicSerial SERIALIZER whose own class is not

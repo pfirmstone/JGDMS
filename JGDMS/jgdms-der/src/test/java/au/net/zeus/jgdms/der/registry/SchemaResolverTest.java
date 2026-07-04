@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.registry;
 
+import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.marshal.MarshalledInstanceRecord;
 import au.net.zeus.jgdms.der.marshal.fixtures.VersionedRecord;
@@ -29,86 +30,44 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Phase 7.3 -- SchemaResolver S12.4 decision-tree acceptance tests.
+ * Phase 7.3 -- SchemaResolver S12.4 decision-tree acceptance tests
+ * (rewritten for STD-006 v0.13: fail-secure resolution).
  *
- * <p>One test per S12.4 branch, in priority order:
+ * <p>The v0.13 tree has two branches and two rejections; the pre-v0.13
+ * {@code REGISTRY} and {@code DEFAULT_LOCAL} fallback branches are withdrawn --
+ * a registry is never consulted at decode time and a record without a usable
+ * embedded schema is rejected, never decoded against a guessed schema:
  *
  * <ul>
- *   <li>7.3.1 -- <b>LOCAL_MATCH</b>: local digest matches record digest -> registry is
- *               NOT invoked. Verified via a spy {@link SchemaRegistry} that records
- *               all calls; zero calls asserted after resolution.</li>
- *   <li>7.3.2 -- <b>EMBEDDED</b>: digest mismatch + embedded schema present -> embedded
- *               schema used. Asserted via the resolved chain's field list and a
- *               discriminating decode (different field order in embedded vs local schema).</li>
- *   <li>7.3.3 -- <b>REGISTRY</b>: embedded absent (schemaBytes = empty) + registry hit ->
- *               registry.getSchema(digest) is consulted; the returned chain matches the
- *               registered schema.</li>
- *   <li>7.3.4 -- <b>DEFAULT_LOCAL</b>: embedded absent + registry miss -> falls back to
- *               local schema; no exception thrown.</li>
+ *   <li>7.3.1 -- <b>LOCAL_MATCH</b>: verified embedded digest matches the local
+ *               {@code serialForm()} digest.</li>
+ *   <li>7.3.2 -- <b>EMBEDDED</b>: digest mismatch -> embedded schema drives the
+ *               decode (discriminating swapped-field-order proof).</li>
+ *   <li>7.3.3 -- <b>REJECT (absent schema)</b>: empty {@code schemaBytes} ->
+ *               {@link DerException}; no registry or local fallback.</li>
+ *   <li>7.3.4 -- <b>REJECT (lying digest)</b>: {@code schemaDigest} that does not
+ *               match the embedded leaf record -> {@link DerException}; the
+ *               pre-v0.13 fast path can no longer be hijacked by a digest that
+ *               impersonates the receiver's local schema.</li>
  * </ul>
  */
 class SchemaResolverTest {
 
     // =========================================================================
-    // Spy SchemaRegistry -- counts getSchema() calls
+    // 7.3.1 -- LOCAL_MATCH: verified digest matches local serialForm()
     // =========================================================================
 
     /**
-     * A spy wrapper around {@link InMemorySchemaRegistry} that counts
-     * {@link #getSchema} invocations. Used to assert that the registry is NOT
-     * consulted on a local-digest match (S12.4 step 1).
-     */
-    private static final class SpyRegistry implements SchemaRegistry {
-        private final InMemorySchemaRegistry delegate = new InMemorySchemaRegistry();
-        private final AtomicInteger getSchemaCalls = new AtomicInteger(0);
-
-        @Override
-        public byte[] register(byte[] schemaRecordBytes) {
-            return delegate.register(schemaRecordBytes);
-        }
-
-        @Override
-        public byte[] getSchema(byte[] schemaDigest) {
-            getSchemaCalls.incrementAndGet();
-            return delegate.getSchema(schemaDigest);
-        }
-
-        @Override
-        public byte[][] getSchemaChain(byte[] leafSchemaDigest) {
-            return delegate.getSchemaChain(leafSchemaDigest);
-        }
-
-        @Override
-        public boolean isCompatible(byte[] schemaDigestA, byte[] schemaDigestB) {
-            return delegate.isCompatible(schemaDigestA, schemaDigestB);
-        }
-
-        int getSchemaCallCount() {
-            return getSchemaCalls.get();
-        }
-    }
-
-    // =========================================================================
-    // 7.3.1 -- LOCAL_MATCH: local digest matches -> registry NOT invoked
-    // =========================================================================
-
-    /**
-     * 7.3.1 -- When the record's schema digest matches the receiver's local
-     * {@code serialForm()} digest, the resolver takes the LOCAL_MATCH branch
-     * without invoking the registry.
-     *
-     * <p><b>Key assertion:</b> the spy's {@code getSchema()} call count is zero.
-     * This proves the registry is NEVER consulted when the local digest matches
-     * (S12.4 step 1 -- fast path).
+     * 7.3.1 -- When the (verified) embedded schema digest matches the receiver's
+     * local {@code serialForm()} digest, the resolver takes the LOCAL_MATCH branch:
+     * the local and embedded schemas are byte-identical (S3.9 case (a)).
      */
     @Test
-    void test_7_3_1_LocalMatch_RegistryNotInvoked() throws Exception {
+    void test_7_3_1_LocalMatch() throws Exception {
         // Build a conforming MarshalledInstanceRecord for VersionedRecord
         VersionedRecord orig = new VersionedRecord(42, "hello", "world");
         SchemaChain.Result chain = SchemaGenerator.generateChain(VersionedRecord.class);
@@ -120,36 +79,27 @@ class SchemaResolverTest {
         assertArrayEquals(chain.leafDigest(), rec.schemaDigest(),
                 "Pre-condition: record digest must equal local chain digest");
 
-        SpyRegistry spy = new SpyRegistry();
+        SchemaResolver.Result result = SchemaResolver.resolve(rec, VersionedRecord.class);
 
-        SchemaResolver.Result result = SchemaResolver.resolve(rec, VersionedRecord.class, spy);
-
-        // Branch must be LOCAL_MATCH
         assertEquals(SchemaResolver.Branch.LOCAL_MATCH, result.branch(),
-                "Must take LOCAL_MATCH branch when local digest equals record digest");
-
-        // Critical: the registry must NOT have been consulted at all
-        assertEquals(0, spy.getSchemaCallCount(),
-                "Registry getSchema() must NOT be called on a local digest match (S12.4 step 1)");
+                "Must take LOCAL_MATCH branch when local digest equals verified embedded digest");
+        assertArrayEquals(chain.leafDigest(), result.chain().leafDigest(),
+                "Resolved chain digest must be the shared digest");
     }
 
     // =========================================================================
-    // 7.3.2 -- EMBEDDED: digest mismatch + embedded schema present -> embedded used
+    // 7.3.2 -- EMBEDDED: digest mismatch -> embedded schema used
     // =========================================================================
 
     /**
-     * 7.3.2 -- When the record's digest does NOT match the local schema, but the
-     * record has valid embedded {@code schemaBytes}, the resolver takes the EMBEDDED
-     * branch and uses the embedded schema chain.
+     * 7.3.2 -- When the record's (verified) digest does NOT match the local schema,
+     * the resolver takes the EMBEDDED branch and uses the embedded schema chain.
      *
      * <p>The embedded schema has the first two of VersionedRecord's fields SWAPPED
      * (label first, id second) -- matching the discriminating test in Phase 5.2.5.
      * We assert that the resolved chain's field order follows the embedded schema
-     * (label first), not the local serialForm() (id first).
-     *
-     * <p>Additionally, we perform a decode using the resolved chain and verify
-     * that the values are assigned by embedded-schema position -- proving the
-     * embedded schema drove the positional decode.
+     * (label first), not the local serialForm() (id first), and prove it with a
+     * positional decode that would throw if the local order had been used.
      */
     @Test
     void test_7_3_2_Embedded_UsedWhenDigestMismatch() throws Exception {
@@ -180,7 +130,6 @@ class SchemaResolverTest {
                 hierarchyPayload,
                 embeddedRecord.encode(),
                 embeddedChain.leafDigest(),
-                Optional.empty(),
                 MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         // Pre-condition: embedded digest != local serialForm() digest
@@ -188,12 +137,10 @@ class SchemaResolverTest {
         assertFalse(java.util.Arrays.equals(localChain.leafDigest(), rec.schemaDigest()),
                 "Pre-condition: embedded digest must differ from local digest");
 
-        SpyRegistry spy = new SpyRegistry();
-
-        SchemaResolver.Result result = SchemaResolver.resolve(rec, VersionedRecord.class, spy);
+        SchemaResolver.Result result = SchemaResolver.resolve(rec, VersionedRecord.class);
 
         assertEquals(SchemaResolver.Branch.EMBEDDED, result.branch(),
-                "Must take EMBEDDED branch when digest mismatches but schemaBytes present");
+                "Must take EMBEDDED branch when digest mismatches");
 
         // The resolved chain's leaf record must have the EMBEDDED field order
         List<AtomicSerialFieldDef> resolvedFields = result.chain().chain().get(0).fields();
@@ -214,134 +161,80 @@ class SchemaResolverTest {
     }
 
     // =========================================================================
-    // 7.3.3 -- REGISTRY: embedded absent -> registry.getSchema(digest) is queried
+    // 7.3.3 -- REJECT: embedded schema absent -> DerException, no fallback
     // =========================================================================
 
     /**
-     * 7.3.3 -- When the embedded {@code schemaBytes} are absent (empty array) and the
-     * registry has a schema for the record's digest, the resolver takes the REGISTRY
-     * branch.
-     *
-     * <p>We build a {@link MarshalledInstanceRecord} with {@code schemaBytes = new byte[0]}
-     * to simulate the "embedded absent" synthetic edge case from S12.4 step 4b. The
-     * schema for the record's digest is pre-loaded into the registry. We assert that:
-     * <ol>
-     *   <li>The resolver takes the REGISTRY branch.</li>
-     *   <li>The spy's {@code getSchema()} is called at least once (registry is queried).</li>
-     *   <li>The resolved chain's class name matches the registered schema.</li>
-     * </ol>
+     * 7.3.3 -- S7.8 requires the embedded schema unconditionally; a record with
+     * empty {@code schemaBytes} is non-conforming and MUST be rejected (v0.13
+     * S12.4). The pre-v0.13 resolver fell back to a registry and then to the local
+     * schema with defaults -- both fallbacks are withdrawn as permissive
+     * (design principle 6).
      */
     @Test
-    void test_7_3_3_Registry_QueriedWhenEmbeddedAbsent() throws Exception {
-        String className = VersionedRecord.class.getName();
+    void test_7_3_3_EmbeddedAbsent_Rejected() {
+        // A digest for some schema -- irrelevant, the empty schemaBytes must reject first
+        byte[] someDigest = new byte[32];
+        java.util.Arrays.fill(someDigest, (byte) 0x42);
 
-        // Build a schema with a different field set (to distinguish from local)
-        AtomicSerialSchemaRecord altSchema = new AtomicSerialSchemaRecord(
-                className, (byte[]) null,
-                List.of(
-                    new AtomicSerialFieldDef("id",   "int"),
-                    new AtomicSerialFieldDef("label","java.lang.String")
-                    // 'extra' deliberately absent
-                ));
-        SchemaChain.Result altChain = SchemaChain.linkAndGetLeafDigest(List.of(altSchema));
-        byte[] altDigest = altChain.leafDigest();
-
-        // Payload for the 2-field schema (id=9, label="reg-test")
         byte[] innerSeq = DerWriter.writeSequence(List.of(
                 DerWriter.writeInteger(BigInteger.valueOf(9)),
-                DerWriter.writeUtf8String("reg-test")
+                DerWriter.writeUtf8String("no-schema")
         ));
         byte[] hierarchyPayload = DerWriter.writeSequence(List.of(innerSeq));
 
-        // Build the record with schemaBytes = empty (synthetic "embedded absent")
         MarshalledInstanceRecord rec = new MarshalledInstanceRecord(
                 hierarchyPayload,
-                new byte[0],   // <-- empty schemaBytes simulates absent embedded schema
-                altDigest,
-                Optional.empty(),
+                new byte[0],   // absent embedded schema -- non-conforming
+                someDigest,
                 MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
-        // Pre-load the schema into the spy registry
-        SpyRegistry spy = new SpyRegistry();
-        spy.register(altSchema.encode());
-
-        SchemaResolver.Result result = SchemaResolver.resolve(rec, VersionedRecord.class, spy);
-
-        assertEquals(SchemaResolver.Branch.REGISTRY, result.branch(),
-                "Must take REGISTRY branch when embedded absent and registry has the schema");
-
-        // Registry must have been queried
-        assertTrue(spy.getSchemaCallCount() > 0,
-                "Registry getSchema() must be called when embedded schema is absent");
-
-        // The resolved chain must represent the registered schema
-        assertEquals(className, result.chain().chain().get(0).className(),
-                "Resolved chain class name must match the registered schema");
-        assertEquals(2, result.chain().chain().get(0).fields().size(),
-                "Resolved chain must have 2 fields (from the registered schema)");
+        assertThrows(DerException.class,
+                () -> SchemaResolver.resolve(rec, VersionedRecord.class),
+                "A record without an embedded schema must be rejected -- no registry or"
+                + " local-schema fallback exists at decode time (v0.13 S12.4)");
     }
 
     // =========================================================================
-    // 7.3.4 -- DEFAULT_LOCAL: embedded absent + registry miss -> local + defaults
+    // 7.3.4 -- REJECT: schemaDigest does not match the embedded leaf record
     // =========================================================================
 
     /**
-     * 7.3.4 -- When embedded schema is absent AND the registry does not have the
-     * schema either, the resolver falls back to the local {@code serialForm()} schema.
-     * No exception is thrown; absent fields will receive {@code GetArg} defaults.
-     *
-     * <p>The registry is a spy with no entries (all {@code getSchema()} calls return
-     * null). We assert:
-     * <ol>
-     *   <li>The resolver takes the DEFAULT_LOCAL branch.</li>
-     *   <li>No exception is thrown.</li>
-     *   <li>The resolved chain is the local schema (class name matches, field count
-     *       matches the local serialForm()).</li>
-     * </ol>
+     * 7.3.4 -- The digest field is a routing hint that MUST be verified against the
+     * embedded leaf record before use (v0.13 S7.8). A lying digest -- here, one that
+     * impersonates the receiver's CURRENT local schema while the embedded schema
+     * differs -- would have hijacked the pre-v0.13 fast path into decoding the
+     * payload against the wrong schema. It must be rejected.
      */
     @Test
-    void test_7_3_4_DefaultLocal_NoExceptionOnRegistryMiss() throws Exception {
+    void test_7_3_4_LyingDigest_Rejected() throws Exception {
         String className = VersionedRecord.class.getName();
 
-        // A digest for some "unknown" schema -- not in the registry
-        byte[] unknownDigest = new byte[32];
-        java.util.Arrays.fill(unknownDigest, (byte) 0x42);
+        // Embedded schema: two fields only
+        AtomicSerialSchemaRecord embeddedRecord = new AtomicSerialSchemaRecord(
+                className, (byte[]) null,
+                List.of(
+                    new AtomicSerialFieldDef("id",    "int"),
+                    new AtomicSerialFieldDef("label", "java.lang.String")
+                ));
 
-        // Payload (values irrelevant; we don't decode in this test)
+        // Lying digest: the receiver's CURRENT (three-field) digest
+        byte[] lyingDigest = SchemaGenerator.generateChain(VersionedRecord.class).leafDigest();
+
         byte[] innerSeq = DerWriter.writeSequence(List.of(
-                DerWriter.writeInteger(BigInteger.valueOf(0)),
-                DerWriter.writeUtf8String("fallback"),
-                DerWriter.writeUtf8String("default")
+                DerWriter.writeInteger(BigInteger.valueOf(1)),
+                DerWriter.writeUtf8String("lying")
         ));
         byte[] hierarchyPayload = DerWriter.writeSequence(List.of(innerSeq));
 
         MarshalledInstanceRecord rec = new MarshalledInstanceRecord(
                 hierarchyPayload,
-                new byte[0],        // embedded absent
-                unknownDigest,
-                Optional.empty(),
+                embeddedRecord.encode(),
+                lyingDigest,
                 MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
-        // Empty spy registry -- all getSchema() calls return null
-        SpyRegistry spy = new SpyRegistry();
-        // (nothing registered)
-
-        // Must not throw -- this is the "fall back to local schema + defaults" branch
-        SchemaResolver.Result result = assertDoesNotThrow(
-                () -> SchemaResolver.resolve(rec, VersionedRecord.class, spy),
-                "SchemaResolver.resolve() must not throw on a registry miss");
-
-        assertEquals(SchemaResolver.Branch.DEFAULT_LOCAL, result.branch(),
-                "Must take DEFAULT_LOCAL branch when embedded absent and registry misses");
-
-        // The resolved chain must be the LOCAL schema
-        assertEquals(className, result.chain().chain().get(0).className(),
-                "DEFAULT_LOCAL chain class name must be the receiver class");
-
-        // Local serialForm() has 3 fields
-        SchemaChain.Result localChain = SchemaGenerator.generateChain(VersionedRecord.class);
-        assertEquals(localChain.chain().get(0).fields().size(),
-                result.chain().chain().get(0).fields().size(),
-                "DEFAULT_LOCAL chain field count must match local serialForm()");
+        assertThrows(DerException.class,
+                () -> SchemaResolver.resolve(rec, VersionedRecord.class),
+                "A schemaDigest that does not match the embedded leaf record must be rejected");
     }
 }

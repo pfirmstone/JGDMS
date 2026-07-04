@@ -82,27 +82,33 @@ public interface SchemaRegistry {
     byte[][] getSchemaChain(byte[] leafSchemaDigest);
 
     /**
-     * Tests forward compatibility: is schema B a superset of schema A?
+     * Tests lossless forward compatibility over the FULL hierarchy chain
+     * (STD-006 v0.13 S12.2): can data encoded under leaf schema A be decoded
+     * under leaf schema B without dropping any field A declared and without any
+     * A-declared field falling back to a {@code GetArg} default?
      *
-     * <p>Returns {@code true} if B's fields START WITH exactly A's fields in the same
-     * order and types -- i.e., data encoded with schema A can be decoded with schema B
-     * (B may add trailing fields which, if requested by the receiver, receive
-     * {@code GetArg} defaults).
+     * <p>Note that mere decodability is not the question -- the {@code GetArg}
+     * layer makes ANY two schemas "decodable" via defaults (STD-006 S11.8). This
+     * method answers the stronger, useful question: is the migration lossless?
      *
-     * <p>Formally: let {@code fields(X)} denote the ordered field list of the
-     * {@code AtomicSerialSchemaRecord} identified by digest {@code X}. Then:
-     * <pre>
-     *   isCompatible(A, B) == true
-     *     iff fields(A) is a prefix of fields(B)
-     *     (same size and order, every (wireName, wireType) pair matches)
-     * </pre>
+     * <p>Chain-wise rule: for EVERY record in A's chain (leaf to root, followed
+     * via {@code parentSchemaHash}), B's chain must contain a record with the same
+     * {@code className} whose ordered field list starts with A's record's field
+     * list (same {@code (wireName, wireType)} pairs, same order). Classes present
+     * in B but not in A are permitted (their fields receive defaults). Classes
+     * present in A but not in B mean A-data would be stored-but-unconsumed: not
+     * lossless, returns {@code false}.
      *
-     * <p>If either digest is unknown to the registry the method returns {@code false}.
+     * <p>Returns {@code false} if either digest is unknown or either chain cannot
+     * be completely retrieved from this registry -- fail-secure: an unjudgeable
+     * chain is never reported compatible.
      *
-     * @param schemaDigestA 32-byte digest of the earlier/narrower schema
-     * @param schemaDigestB 32-byte digest of the later/wider schema
-     * @return {@code true} if B is forward-compatible with A (B's fields are a superset
-     *         starting with A's fields in the same order)
+     * <p>The pre-v0.13 contract compared only the two leaf records; that rule gave
+     * wrong answers when the hierarchy itself evolved (STD-006 S11.4/S11.6).
+     *
+     * @param schemaDigestA 32-byte digest of the earlier/narrower leaf schema
+     * @param schemaDigestB 32-byte digest of the later/wider leaf schema
+     * @return {@code true} if B is losslessly forward-compatible with A
      */
     boolean isCompatible(byte[] schemaDigestA, byte[] schemaDigestB);
 }

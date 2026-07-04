@@ -20,46 +20,39 @@ package au.net.zeus.jgdms.der.marshal;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
-import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * Immutable container for a serialised {@code @AtomicSerial} object, per
- * JGDMS-STD-006 S7.8.
+ * JGDMS-STD-006 S7.8 (v0.13).
  *
  * <pre>
  * MarshalledInstanceRecord ::= SEQUENCE {
  *     payloadBytes       OCTET STRING,            -- DER object payload
  *     schemaBytes        OCTET STRING,            -- full schema chain, leaf-first, concatenated
  *     schemaDigest       OCTET STRING (SIZE(32)), -- SHA-256(DER(leaf AtomicSerialSchemaRecord))
- *     codebaseAnnotation UTF8String OPTIONAL,     -- backup URL; may be absent
  *     payloadFormat      UTF8String               -- "JGDMS-STD-006/DER"
  * }
  * </pre>
  *
- * <h2>codebaseAnnotation OPTIONAL -- positional disambiguation</h2>
+ * <h2>No codebaseAnnotation (v0.13)</h2>
  * <p>
- * Both {@code codebaseAnnotation} and {@code payloadFormat} are UTF8String, so they
- * cannot be told apart by tag alone. The decoder uses a <b>field-count rule</b>:
- * after reading {@code schemaDigest}, count the remaining UTF8String TLVs:
- * <ul>
- *   <li>Two UTF8Strings remain -> the first is {@code codebaseAnnotation},
- *       the second is {@code payloadFormat}.</li>
- *   <li>One UTF8String remains -> {@code codebaseAnnotation} is absent; that
- *       single value is {@code payloadFormat}.</li>
- * </ul>
- * This rule is safe because S7.8 requires {@code payloadFormat} to always be present
- * and {@code codebaseAnnotation} to always precede it when present. No other
- * UTF8Strings appear in the outer SEQUENCE.
+ * The former {@code codebaseAnnotation UTF8String OPTIONAL} field is REMOVED
+ * (STD-006 v0.13). It contradicted S8.3 (the DER format carries no codebase
+ * annotation at any level), reintroduced the S8.1 stale-URL hazards, and made the
+ * module invalid ASN.1 (S4.5 distinct-tag rule: two adjacent UTF8Strings, one
+ * OPTIONAL, forcing a positional count rule no schema-driven decoder can express).
+ * The authenticated {@code CodebaseAccessor} channel (S8.2) is the ONLY codebase
+ * mechanism. {@link #decode(DerReader)} rejects any record carrying trailing
+ * content after {@code payloadFormat} -- which includes every legacy record that
+ * carried the annotation.
  *
  * <h2>schemaBytes</h2>
  * <p>
@@ -68,6 +61,13 @@ import java.util.Optional;
  * {@link #decodeSchemaChain()} which reads them back by scanning for complete SEQUENCE
  * TLVs until the bytes are exhausted, and then cross-checks each record's
  * {@code parentSchemaHash} against the next record's {@code schemaDigest()}.
+ *
+ * <h2>schemaDigest is a routing hint, verified before use</h2>
+ * <p>
+ * {@code schemaDigest} is sender-supplied and authenticates nothing by itself.
+ * {@link #decodeSchemaChainAsResult()} verifies it against the leaf record actually
+ * present in {@code schemaBytes} and throws {@link DerException} on mismatch
+ * (STD-006 v0.13 S7.8 "schemaDigest verification", S12.4 fail-secure resolution).
  */
 public final class MarshalledInstanceRecord {
 
@@ -77,11 +77,10 @@ public final class MarshalledInstanceRecord {
     /** Required byte length of schemaDigest (SIZE(32)). */
     private static final int DIGEST_LENGTH = 32;
 
-    private final byte[]          payloadBytes;
-    private final byte[]          schemaBytes;
-    private final byte[]          schemaDigest;      // exactly 32 bytes
-    private final Optional<String> codebaseAnnotation;
-    private final String           payloadFormat;
+    private final byte[] payloadBytes;
+    private final byte[] schemaBytes;
+    private final byte[] schemaDigest;      // exactly 32 bytes
+    private final String payloadFormat;
 
     // =========================================================================
     // Constructors
@@ -90,35 +89,31 @@ public final class MarshalledInstanceRecord {
     /**
      * Canonical constructor. All arrays are defensively copied.
      *
-     * @param payloadBytes        the DER-encoded object payload (from {@code encodeHierarchy})
-     * @param schemaBytes         the concatenated chain of {@code AtomicSerialSchemaRecord} DER
-     *                            SEQUENCEs, in leaf-first order
-     * @param schemaDigest        exactly 32 bytes: SHA-256(DER(leaf AtomicSerialSchemaRecord))
-     * @param codebaseAnnotation  optional codebase URL annotation; empty = absent
-     * @param payloadFormat       wire format identifier; should be {@value #PAYLOAD_FORMAT}
-     * @throws NullPointerException     if any non-Optional argument is null
+     * @param payloadBytes  the DER-encoded object payload (from {@code encodeHierarchy})
+     * @param schemaBytes   the concatenated chain of {@code AtomicSerialSchemaRecord} DER
+     *                      SEQUENCEs, in leaf-first order
+     * @param schemaDigest  exactly 32 bytes: SHA-256(DER(leaf AtomicSerialSchemaRecord))
+     * @param payloadFormat wire format identifier; should be {@value #PAYLOAD_FORMAT}
+     * @throws NullPointerException     if any argument is null
      * @throws IllegalArgumentException if {@code schemaDigest.length != 32}
      */
     public MarshalledInstanceRecord(byte[] payloadBytes,
                                     byte[] schemaBytes,
                                     byte[] schemaDigest,
-                                    Optional<String> codebaseAnnotation,
                                     String payloadFormat) {
-        Objects.requireNonNull(payloadBytes,        "payloadBytes");
-        Objects.requireNonNull(schemaBytes,         "schemaBytes");
-        Objects.requireNonNull(schemaDigest,        "schemaDigest");
-        Objects.requireNonNull(codebaseAnnotation,  "codebaseAnnotation");
-        Objects.requireNonNull(payloadFormat,       "payloadFormat");
+        Objects.requireNonNull(payloadBytes,  "payloadBytes");
+        Objects.requireNonNull(schemaBytes,   "schemaBytes");
+        Objects.requireNonNull(schemaDigest,  "schemaDigest");
+        Objects.requireNonNull(payloadFormat, "payloadFormat");
         if (schemaDigest.length != DIGEST_LENGTH) {
             throw new IllegalArgumentException(
                     "schemaDigest must be exactly " + DIGEST_LENGTH
                     + " bytes, got " + schemaDigest.length);
         }
-        this.payloadBytes       = Arrays.copyOf(payloadBytes,  payloadBytes.length);
-        this.schemaBytes        = Arrays.copyOf(schemaBytes,   schemaBytes.length);
-        this.schemaDigest       = Arrays.copyOf(schemaDigest,  schemaDigest.length);
-        this.codebaseAnnotation = codebaseAnnotation;   // Optional<String> is already immutable
-        this.payloadFormat      = payloadFormat;
+        this.payloadBytes  = Arrays.copyOf(payloadBytes,  payloadBytes.length);
+        this.schemaBytes   = Arrays.copyOf(schemaBytes,   schemaBytes.length);
+        this.schemaDigest  = Arrays.copyOf(schemaDigest,  schemaDigest.length);
+        this.payloadFormat = payloadFormat;
     }
 
     // =========================================================================
@@ -134,34 +129,17 @@ public final class MarshalledInstanceRecord {
      * {@code encode()} in leaf-first order (matching S7.8 "Schema chain encoding").
      * {@code schemaDigest} is taken directly from {@link SchemaChain.Result#leafDigest()}.
      * {@code payloadFormat} is set to {@value #PAYLOAD_FORMAT}.
-     * {@code codebaseAnnotation} is absent.
      *
      * @param chain        the linked schema chain (leaf-first), as returned by
      *                     {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChain}
      * @param payloadBytes the DER-encoded payload produced by
      *                     {@link au.net.zeus.jgdms.der.object.ObjectCodec#encodeHierarchy}
-     * @return a new {@code MarshalledInstanceRecord} without a codebase annotation
-     */
-    public static MarshalledInstanceRecord fromChain(SchemaChain.Result chain,
-                                                     byte[] payloadBytes) {
-        return fromChain(chain, payloadBytes, Optional.empty());
-    }
-
-    /**
-     * Builds a {@code MarshalledInstanceRecord} from a {@link SchemaChain.Result},
-     * the pre-encoded payload bytes, and an optional codebase annotation.
-     *
-     * @param chain               the linked schema chain (leaf-first)
-     * @param payloadBytes        the DER-encoded payload
-     * @param codebaseAnnotation  optional codebase URL; empty = absent
      * @return a new {@code MarshalledInstanceRecord}
      */
     public static MarshalledInstanceRecord fromChain(SchemaChain.Result chain,
-                                                     byte[] payloadBytes,
-                                                     Optional<String> codebaseAnnotation) {
-        Objects.requireNonNull(chain,       "chain");
-        Objects.requireNonNull(payloadBytes,"payloadBytes");
-        Objects.requireNonNull(codebaseAnnotation, "codebaseAnnotation");
+                                                     byte[] payloadBytes) {
+        Objects.requireNonNull(chain,        "chain");
+        Objects.requireNonNull(payloadBytes, "payloadBytes");
 
         // Build schemaBytes: concatenate each record's DER SEQUENCE in leaf-first order
         byte[] schemaBytes = encodeChainBytes(chain.chain());
@@ -170,7 +148,6 @@ public final class MarshalledInstanceRecord {
                 payloadBytes,
                 schemaBytes,
                 chain.leafDigest(),
-                codebaseAnnotation,
                 PAYLOAD_FORMAT);
     }
 
@@ -206,18 +183,12 @@ public final class MarshalledInstanceRecord {
 
     /**
      * Returns a defensive copy of the 32-byte SHA-256 digest of the leaf
-     * {@code AtomicSerialSchemaRecord}.
+     * {@code AtomicSerialSchemaRecord}. Sender-supplied; see
+     * {@link #decodeSchemaChainAsResult()} for the mandatory verification against
+     * {@link #schemaBytes()}.
      */
     public byte[] schemaDigest() {
         return Arrays.copyOf(schemaDigest, schemaDigest.length);
-    }
-
-    /**
-     * Returns the optional codebase annotation URL, or {@link Optional#empty()} if
-     * absent.
-     */
-    public Optional<String> codebaseAnnotation() {
-        return codebaseAnnotation;
     }
 
     /** Returns the payload format identifier (normally {@value #PAYLOAD_FORMAT}). */
@@ -237,18 +208,16 @@ public final class MarshalledInstanceRecord {
      *   <li>{@code payloadBytes} (OCTET STRING)</li>
      *   <li>{@code schemaBytes} (OCTET STRING)</li>
      *   <li>{@code schemaDigest} (OCTET STRING)</li>
-     *   <li>{@code codebaseAnnotation} (UTF8String, only if present)</li>
      *   <li>{@code payloadFormat} (UTF8String)</li>
      * </ol>
      *
      * @return the complete DER TLV bytes of the outer SEQUENCE
      */
     public byte[] encode() {
-        List<byte[]> children = new ArrayList<>(5);
+        List<byte[]> children = new ArrayList<>(4);
         children.add(DerWriter.writeOctetString(payloadBytes));
         children.add(DerWriter.writeOctetString(schemaBytes));
         children.add(DerWriter.writeOctetString(schemaDigest));
-        codebaseAnnotation.ifPresent(ca -> children.add(DerWriter.writeUtf8String(ca)));
         children.add(DerWriter.writeUtf8String(payloadFormat));
         return DerWriter.writeSequence(children);
     }
@@ -260,23 +229,12 @@ public final class MarshalledInstanceRecord {
     /**
      * Decodes a {@code MarshalledInstanceRecord} from a raw DER byte array.
      *
-     * <h2>codebaseAnnotation OPTIONAL -- positional rule</h2>
-     * <p>
-     * After reading {@code schemaDigest}, the decoder counts the number of
-     * UTF8String TLVs remaining in the outer SEQUENCE:
-     * <ul>
-     *   <li><b>Two UTF8Strings</b> -> first is {@code codebaseAnnotation},
-     *       second is {@code payloadFormat}.</li>
-     *   <li><b>One UTF8String</b> -> {@code codebaseAnnotation} is absent, the
-     *       single value is {@code payloadFormat}.</li>
-     * </ul>
-     * This is unambiguous because S7.8 requires exactly these two optional/required
-     * UTF8String fields at the end of the SEQUENCE, and both are UTF8String -- so
-     * tag-based disambiguation is impossible and positional counting is used instead.
-     *
      * @param der the DER encoding (a complete SEQUENCE TLV)
      * @return the decoded record
-     * @throws DerException if the encoding is malformed or any constraint is violated
+     * @throws DerException if the encoding is malformed, any constraint is violated,
+     *                      or the record carries trailing content after
+     *                      {@code payloadFormat} (which includes the pre-v0.13
+     *                      {@code codebaseAnnotation} field)
      */
     public static MarshalledInstanceRecord decode(byte[] der) throws DerException {
         Objects.requireNonNull(der, "der");
@@ -291,6 +249,12 @@ public final class MarshalledInstanceRecord {
     /**
      * Decodes a {@code MarshalledInstanceRecord} from a {@link DerReader} positioned
      * at the outer SEQUENCE TLV.
+     *
+     * <p>The record is exactly four fields; anything after {@code payloadFormat} is
+     * rejected (fail-secure). A pre-v0.13 record that carried the withdrawn
+     * {@code codebaseAnnotation} therefore fails to decode: its annotation is read
+     * as {@code payloadFormat} and the real {@code payloadFormat} becomes trailing
+     * content.
      *
      * @param reader the reader positioned at the SEQUENCE TLV
      * @return the decoded record
@@ -313,51 +277,21 @@ public final class MarshalledInstanceRecord {
                     + DIGEST_LENGTH + " bytes, got " + schemaDigest.length);
         }
 
-        // 4/5. codebaseAnnotation (OPTIONAL UTF8String) and payloadFormat (UTF8String).
-        //
-        // Positional disambiguation rule (S7.8 implementation note):
-        // Both fields are UTF8String -- their tags are identical. We cannot use tag-peeking
-        // alone. Instead, we check how many UTF8Strings remain in the bounded sub-reader:
-        //   - Two remaining -> first is codebaseAnnotation, second is payloadFormat.
-        //   - One remaining -> codebaseAnnotation is absent, that one is payloadFormat.
-        //
-        // We peek at the end position of each TLV (without consuming) to count them.
-        Optional<String> codebaseAnnotation;
-        String payloadFormat;
-
-        // We need to count remaining UTF8Strings. We do this by reading the first one,
-        // then peeking to see if another remains.
+        // 4. payloadFormat -- UTF8String, final field
         if (!seq.hasMore()) {
             throw new DerException(
                     "MarshalledInstanceRecord: missing payloadFormat UTF8String");
         }
-
-        String firstUtf8 = seq.readUtf8String();
+        String payloadFormat = seq.readUtf8String();
 
         if (seq.hasMore()) {
-            // Two UTF8Strings were present: firstUtf8 = codebaseAnnotation
-            Tag nextTag = seq.peekTag();
-            if (!Tag.UTF8STRING.equals(nextTag)) {
-                throw new DerException(
-                        "MarshalledInstanceRecord: expected UTF8String for payloadFormat, got "
-                        + nextTag);
-            }
-            codebaseAnnotation = Optional.of(firstUtf8);
-            payloadFormat      = seq.readUtf8String();
-
-            if (seq.hasMore()) {
-                throw new DerException(
-                        "MarshalledInstanceRecord: unexpected trailing content after payloadFormat");
-            }
-        } else {
-            // One UTF8String was present: it is payloadFormat; codebaseAnnotation absent
-            codebaseAnnotation = Optional.empty();
-            payloadFormat      = firstUtf8;
+            throw new DerException(
+                    "MarshalledInstanceRecord: unexpected trailing content after payloadFormat"
+                    + " (the pre-v0.13 codebaseAnnotation field was withdrawn; STD-006 S7.8/S8.3)");
         }
 
         return new MarshalledInstanceRecord(
-                payloadBytes, schemaBytes, schemaDigest,
-                codebaseAnnotation, payloadFormat);
+                payloadBytes, schemaBytes, schemaDigest, payloadFormat);
     }
 
     // =========================================================================
@@ -422,21 +356,37 @@ public final class MarshalledInstanceRecord {
      * suitable for passing directly to
      * {@link au.net.zeus.jgdms.der.object.ObjectCodec#decodeHierarchy}.
      *
+     * <p><b>schemaDigest verification (STD-006 v0.13 S7.8, NORMATIVE).</b> The
+     * record's {@code schemaDigest} field is sender-supplied and is only a routing
+     * hint until verified. This method computes the leaf record's digest from the
+     * bytes actually embedded in {@code schemaBytes} and throws if the field does
+     * not match -- a mismatched record is rejected outright (S12.4 fail-secure
+     * resolution; there is no local-schema or registry fallback).
+     *
      * <p>The returned result has:
      * <ul>
      *   <li>{@link SchemaChain.Result#chain()} -- the leaf-first list from
      *       {@link #decodeSchemaChain()}</li>
      *   <li>{@link SchemaChain.Result#leafDigest()} -- the first record's
-     *       {@code schemaDigest()}, which must equal this record's
+     *       {@code schemaDigest()}, verified equal to this record's
      *       {@link #schemaDigest()} field</li>
      * </ul>
      *
      * @return a {@link SchemaChain.Result} wrapping the embedded chain
-     * @throws DerException if the schema chain bytes are malformed
+     * @throws DerException if the schema chain bytes are malformed, or the
+     *                      {@code schemaDigest} field does not match the digest of
+     *                      the embedded leaf record
      */
     public SchemaChain.Result decodeSchemaChainAsResult() throws DerException {
         List<AtomicSerialSchemaRecord> chain = decodeSchemaChain();
         byte[] leafDigest = chain.get(0).schemaDigest();
+        if (!Arrays.equals(leafDigest, schemaDigest)) {
+            throw new DerException(
+                    "MarshalledInstanceRecord: schemaDigest field does not match the digest"
+                    + " of the embedded leaf schema record for class '"
+                    + chain.get(0).className()
+                    + "' -- rejected (STD-006 S7.8 schemaDigest verification)");
+        }
         return new SchemaChain.Result(chain, leafDigest);
     }
 
@@ -451,7 +401,6 @@ public final class MarshalledInstanceRecord {
         return Arrays.equals(payloadBytes, that.payloadBytes)
                 && Arrays.equals(schemaBytes, that.schemaBytes)
                 && Arrays.equals(schemaDigest, that.schemaDigest)
-                && codebaseAnnotation.equals(that.codebaseAnnotation)
                 && payloadFormat.equals(that.payloadFormat);
     }
 
@@ -460,7 +409,6 @@ public final class MarshalledInstanceRecord {
         int result = Arrays.hashCode(payloadBytes);
         result = 31 * result + Arrays.hashCode(schemaBytes);
         result = 31 * result + Arrays.hashCode(schemaDigest);
-        result = 31 * result + codebaseAnnotation.hashCode();
         result = 31 * result + payloadFormat.hashCode();
         return result;
     }
@@ -471,7 +419,6 @@ public final class MarshalledInstanceRecord {
                 + "payloadBytes.length=" + payloadBytes.length
                 + ", schemaBytes.length=" + schemaBytes.length
                 + ", schemaDigest=[32 bytes]"
-                + ", codebaseAnnotation=" + codebaseAnnotation
                 + ", payloadFormat='" + payloadFormat + "'"
                 + '}';
     }

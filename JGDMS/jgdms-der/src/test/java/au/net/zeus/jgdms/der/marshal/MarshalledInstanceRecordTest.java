@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.marshal;
 
+import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.marshal.fixtures.VersionedRecord;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
@@ -29,24 +30,27 @@ import org.junit.jupiter.api.Test;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Phase 5.1 and 5.2 acceptance tests.
+ * Phase 5.1 and 5.2 acceptance tests (updated for STD-006 v0.13: the
+ * {@code codebaseAnnotation} field is withdrawn and the {@code schemaDigest}
+ * field is verified against {@code schemaBytes}).
  *
  * <h2>Phase 5.1 -- MarshalledInstanceRecord</h2>
  * <ul>
- *   <li>5.1.1 -- Round-trip WITHOUT codebaseAnnotation: encode -> decode -> equal.</li>
- *   <li>5.1.2 -- Round-trip WITH codebaseAnnotation: encode -> decode -> equal;
- *               positional disambiguation correctly identifies the two UTF8Strings.</li>
+ *   <li>5.1.1 -- Round-trip: encode -> decode -> equal (four-field record).</li>
+ *   <li>5.1.2 -- A legacy (pre-v0.13) record carrying the withdrawn
+ *               {@code codebaseAnnotation} field is REJECTED on decode.</li>
  *   <li>5.1.3 -- {@code schemaDigest} in the record equals SHA-256 of the leaf record
  *               in {@code schemaBytes}.</li>
  *   <li>5.1.4 -- The embedded schema chain decodes back to records in leaf-first order
  *               with the correct class names.</li>
  *   <li>5.1.5 -- {@code fromChain} helper builds the record; round-trips correctly.</li>
  *   <li>5.1.6 -- Illegal schemaDigest length throws {@link IllegalArgumentException}.</li>
+ *   <li>5.1.7 -- A record whose {@code schemaDigest} does not match the embedded leaf
+ *               schema is REJECTED (v0.13 S7.8 schemaDigest verification).</li>
  * </ul>
  *
  * <h2>Phase 5.2 -- decode using the embedded schema</h2>
@@ -65,11 +69,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class MarshalledInstanceRecordTest {
 
     // =========================================================================
-    // 5.1.1 -- round-trip without codebaseAnnotation
+    // 5.1.1 -- round-trip (four-field v0.13 record)
     // =========================================================================
 
     @Test
-    void test_5_1_1_RoundTrip_NoCodebase() throws Exception {
+    void test_5_1_1_RoundTrip() throws Exception {
         VersionedRecord orig = new VersionedRecord(42, "hello", "world");
         SchemaChain.Result chain = SchemaGenerator.generateChain(VersionedRecord.class);
         byte[] payload = ObjectCodec.encodeHierarchy(orig, chain);
@@ -82,34 +86,40 @@ class MarshalledInstanceRecordTest {
         assertArrayEquals(rec.payloadBytes(),  decoded.payloadBytes(),  "payloadBytes mismatch");
         assertArrayEquals(rec.schemaBytes(),   decoded.schemaBytes(),   "schemaBytes mismatch");
         assertArrayEquals(rec.schemaDigest(),  decoded.schemaDigest(),  "schemaDigest mismatch");
-        assertEquals(Optional.empty(),         decoded.codebaseAnnotation(), "codebaseAnnotation should be absent");
         assertEquals(MarshalledInstanceRecord.PAYLOAD_FORMAT, decoded.payloadFormat(), "payloadFormat mismatch");
         assertEquals(rec, decoded, "Decoded record must equal original");
     }
 
     // =========================================================================
-    // 5.1.2 -- round-trip WITH codebaseAnnotation (positional disambiguation)
+    // 5.1.2 -- legacy record with the withdrawn codebaseAnnotation is REJECTED
     // =========================================================================
 
+    /**
+     * 5.1.2 -- STD-006 v0.13 withdrew the {@code codebaseAnnotation} field (S7.8/S8.3);
+     * the decoder must reject a pre-v0.13 record that carries it. We hand-build the
+     * legacy five-field encoding (payload, schema, digest, annotation, format) and
+     * assert the decode fails rather than silently misreading the annotation as the
+     * payload format.
+     */
     @Test
-    void test_5_1_2_RoundTrip_WithCodebase() throws Exception {
+    void test_5_1_2_LegacyCodebaseAnnotation_Rejected() throws Exception {
         VersionedRecord orig = new VersionedRecord(7, "test", "with-codebase");
         SchemaChain.Result chain = SchemaGenerator.generateChain(VersionedRecord.class);
         byte[] payload = ObjectCodec.encodeHierarchy(orig, chain);
+        MarshalledInstanceRecord rec = MarshalledInstanceRecord.fromChain(chain, payload);
 
-        Optional<String> ann = Optional.of("https://example.com/jars/mylib-1.0.jar");
-        MarshalledInstanceRecord rec = MarshalledInstanceRecord.fromChain(chain, payload, ann);
-        byte[] encoded = rec.encode();
-        MarshalledInstanceRecord decoded = MarshalledInstanceRecord.decode(encoded);
+        // Hand-build the pre-v0.13 five-field SEQUENCE with the annotation present
+        byte[] legacy = DerWriter.writeSequence(List.of(
+                DerWriter.writeOctetString(rec.payloadBytes()),
+                DerWriter.writeOctetString(rec.schemaBytes()),
+                DerWriter.writeOctetString(rec.schemaDigest()),
+                DerWriter.writeUtf8String("https://example.com/jars/mylib-1.0.jar"),
+                DerWriter.writeUtf8String(MarshalledInstanceRecord.PAYLOAD_FORMAT)
+        ));
 
-        // codebaseAnnotation must be present with the correct URL
-        assertTrue(decoded.codebaseAnnotation().isPresent(), "codebaseAnnotation must be present");
-        assertEquals("https://example.com/jars/mylib-1.0.jar",
-                decoded.codebaseAnnotation().get(),
-                "codebaseAnnotation value mismatch");
-        assertEquals(MarshalledInstanceRecord.PAYLOAD_FORMAT, decoded.payloadFormat(),
-                "payloadFormat must be last UTF8String");
-        assertEquals(rec, decoded, "Decoded record with codebase must equal original");
+        assertThrows(DerException.class,
+                () -> MarshalledInstanceRecord.decode(legacy),
+                "A legacy record carrying codebaseAnnotation must be rejected");
     }
 
     // =========================================================================
@@ -185,9 +195,6 @@ class MarshalledInstanceRecordTest {
         // payloadFormat is JGDMS-STD-006/DER
         assertEquals(MarshalledInstanceRecord.PAYLOAD_FORMAT, rec.payloadFormat());
 
-        // codebaseAnnotation absent
-        assertTrue(rec.codebaseAnnotation().isEmpty());
-
         // Round-trip the whole record
         MarshalledInstanceRecord decoded = MarshalledInstanceRecord.decode(rec.encode());
         assertEquals(rec, decoded);
@@ -203,7 +210,53 @@ class MarshalledInstanceRecordTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new MarshalledInstanceRecord(
                         new byte[0], new byte[0], bad,
-                        Optional.empty(), MarshalledInstanceRecord.PAYLOAD_FORMAT));
+                        MarshalledInstanceRecord.PAYLOAD_FORMAT));
+    }
+
+    // =========================================================================
+    // 5.1.7 -- schemaDigest mismatch with the embedded leaf schema is REJECTED
+    // =========================================================================
+
+    /**
+     * 5.1.7 -- STD-006 v0.13 S7.8 "schemaDigest verification": the digest field is a
+     * routing hint that MUST be verified against the embedded leaf record before use.
+     * We build a record whose schemaBytes hold a two-field schema but whose digest
+     * field is the receiver's current three-field digest (a lying digest that would
+     * have hijacked the pre-v0.13 fast path); resolution must reject it.
+     */
+    @Test
+    void test_5_1_7_SchemaDigestMismatch_Rejected() throws Exception {
+        String className = VersionedRecord.class.getName();
+
+        AtomicSerialSchemaRecord oldSchema = new AtomicSerialSchemaRecord(
+                className,
+                (byte[]) null,
+                List.of(
+                    new AtomicSerialFieldDef("id",    "int"),
+                    new AtomicSerialFieldDef("label", "java.lang.String")
+                ));
+
+        // Lying digest: the receiver's CURRENT (three-field) digest, not the digest
+        // of the embedded two-field schema.
+        byte[] lyingDigest = SchemaGenerator.generateChain(VersionedRecord.class).leafDigest();
+
+        byte[] innerSeq = DerWriter.writeSequence(List.of(
+                DerWriter.writeInteger(BigInteger.valueOf(7)),
+                DerWriter.writeUtf8String("lying-digest")
+        ));
+        byte[] hierarchyPayload = DerWriter.writeSequence(List.of(innerSeq));
+
+        MarshalledInstanceRecord rec = new MarshalledInstanceRecord(
+                hierarchyPayload, oldSchema.encode(), lyingDigest,
+                MarshalledInstanceRecord.PAYLOAD_FORMAT);
+
+        assertThrows(DerException.class,
+                rec::decodeSchemaChainAsResult,
+                "decodeSchemaChainAsResult must reject a digest that does not match schemaBytes");
+
+        assertThrows(DerException.class,
+                () -> MarshalledInstanceCodec.decodeMarshalledInstance(rec, VersionedRecord.class),
+                "decodeMarshalledInstance must reject a digest-mismatched record");
     }
 
     // =========================================================================
@@ -298,7 +351,7 @@ class MarshalledInstanceRecordTest {
 
         MarshalledInstanceRecord rec = new MarshalledInstanceRecord(
                 hierarchyPayload, schemaBytes, schemaDigest,
-                Optional.empty(), MarshalledInstanceRecord.PAYLOAD_FORMAT);
+                MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         // Decode against the CURRENT (three-field) VersionedRecord class
         MarshalledInstanceCodec.Result<VersionedRecord> result =
@@ -394,7 +447,7 @@ class MarshalledInstanceRecordTest {
 
         MarshalledInstanceRecord rec = new MarshalledInstanceRecord(
                 hierarchyPayload, schemaBytes, schemaDigest,
-                Optional.empty(), MarshalledInstanceRecord.PAYLOAD_FORMAT);
+                MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         MarshalledInstanceCodec.Result<VersionedRecord> result =
                 MarshalledInstanceCodec.decodeMarshalledInstance(rec, VersionedRecord.class);
@@ -468,7 +521,6 @@ class MarshalledInstanceRecordTest {
                 hierarchyPayload,
                 oldSchema.encode(),
                 embeddedChain.leafDigest(),
-                Optional.empty(),
                 MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         // The record's schemaDigest matches the old (two-field) schema
@@ -547,7 +599,6 @@ class MarshalledInstanceRecordTest {
                 hierarchyPayload,
                 swappedSchema.encode(),
                 embeddedChain.leafDigest(),
-                Optional.empty(),
                 MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         // Pre-condition: the swapped embedded schema differs from the receiver's serialForm()

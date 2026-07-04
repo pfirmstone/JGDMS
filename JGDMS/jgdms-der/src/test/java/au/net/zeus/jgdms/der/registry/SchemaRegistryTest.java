@@ -319,6 +319,76 @@ class SchemaRegistryTest {
                 "isCompatible(A, B) must be false when the same field position has different types");
     }
 
+    /**
+     * 7.2.4.f (v0.13) -- isCompatible is CHAIN-WISE: with a two-class hierarchy,
+     * the ROOT class gaining a trailing field is still lossless (true), while
+     * dropping the root class from B's chain entirely is not (false).
+     */
+    @Test
+    void test_7_2_4f_IsCompatible_ChainWise() throws Exception {
+        // A: Leaf extends Root, both one field
+        AtomicSerialSchemaRecord rootA = new AtomicSerialSchemaRecord(
+                "com.example.RootCw", (byte[]) null,
+                List.of(new AtomicSerialFieldDef("id", "int")));
+        AtomicSerialSchemaRecord leafA = new AtomicSerialSchemaRecord(
+                "com.example.LeafCw", (byte[]) null,
+                List.of(new AtomicSerialFieldDef("name", "java.lang.String")));
+        SchemaChain.Result chainA = SchemaChain.linkAndGetLeafDigest(List.of(leafA, rootA));
+        byte[] digestA = registry.register(chainA.chain().get(0).encode());
+        registry.register(chainA.chain().get(1).encode());
+
+        // B: same classes; Root gains a trailing field -> still lossless
+        AtomicSerialSchemaRecord rootB = new AtomicSerialSchemaRecord(
+                "com.example.RootCw", (byte[]) null,
+                List.of(
+                    new AtomicSerialFieldDef("id",    "int"),
+                    new AtomicSerialFieldDef("added", "java.lang.String")));
+        AtomicSerialSchemaRecord leafB = new AtomicSerialSchemaRecord(
+                "com.example.LeafCw", (byte[]) null,
+                List.of(new AtomicSerialFieldDef("name", "java.lang.String")));
+        SchemaChain.Result chainB = SchemaChain.linkAndGetLeafDigest(List.of(leafB, rootB));
+        byte[] digestB = registry.register(chainB.chain().get(0).encode());
+        registry.register(chainB.chain().get(1).encode());
+
+        assertTrue(registry.isCompatible(digestA, digestB),
+                "Root gaining a trailing field must remain chain-wise compatible");
+
+        // C: the Root class is gone from the hierarchy -> A's root namespace would
+        // be stored-but-unconsumed: not lossless
+        AtomicSerialSchemaRecord leafC = new AtomicSerialSchemaRecord(
+                "com.example.LeafCw", (byte[]) null,
+                List.of(new AtomicSerialFieldDef("name", "java.lang.String")));
+        SchemaChain.Result chainC = SchemaChain.linkAndGetLeafDigest(List.of(leafC));
+        byte[] digestC = registry.register(chainC.chain().get(0).encode());
+
+        assertFalse(registry.isCompatible(digestA, digestC),
+                "Dropping a class from the hierarchy must be chain-wise incompatible"
+                + " (A's data for that namespace would be lost)");
+        // The reverse direction IS lossless: C's single class is present in A's chain
+        assertTrue(registry.isCompatible(digestC, digestA),
+                "A hierarchy that adds a class above C's classes remains compatible with C");
+    }
+
+    /**
+     * 7.2.4.g (v0.13) -- different class names are incompatible even with identical
+     * field lists: namespaces are per-class (S3.9), so B cannot consume A's SEQUENCE.
+     */
+    @Test
+    void test_7_2_4g_IsCompatible_FalseForDifferentClassNames() throws Exception {
+        AtomicSerialSchemaRecord sA = new AtomicSerialSchemaRecord(
+                "com.example.NameOne", (byte[]) null,
+                List.of(new AtomicSerialFieldDef("v", "int")));
+        AtomicSerialSchemaRecord sB = new AtomicSerialSchemaRecord(
+                "com.example.NameTwo", (byte[]) null,
+                List.of(new AtomicSerialFieldDef("v", "int")));
+
+        byte[] digestA = registry.register(sA.encode());
+        byte[] digestB = registry.register(sB.encode());
+
+        assertFalse(registry.isCompatible(digestA, digestB),
+                "Identical field lists under different class names are distinct namespaces");
+    }
+
     // =========================================================================
     // 7.2.5 -- getSchema returns null for unknown digest
     // =========================================================================

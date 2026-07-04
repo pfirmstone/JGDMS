@@ -26,33 +26,37 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Implements the S12.4 schema resolution decision tree.
+ * Implements the S12.4 schema resolution decision tree (STD-006 v0.13 --
+ * fail-secure).
  *
- * <p>When a receiver needs to decode a {@link MarshalledInstanceRecord} payload,
- * the resolution steps (in priority order) are:
+ * <p>When a receiver needs to decode a {@link MarshalledInstanceRecord} payload:
  *
  * <ol>
- *   <li><b>Local digest match (fast path).</b>
- *       Extract {@code schemaDigest} from the record and compare it to
- *       {@code SHA-256(DER(localSerialForm()))} for the receiver's class. If they
- *       match, use the local schema directly. The registry is NOT invoked.</li>
- *   <li><b>Embedded schema present (primary fallback).</b>
- *       If the digests differ, decode the embedded {@code schemaBytes} from the
- *       record and use that chain.</li>
- *   <li><b>Registry lookup (synthetic edge case).</b>
- *       If the embedded schema is absent or corrupt (should not occur for conforming
- *       data per S7.8), query {@code registry.getSchema(digest)}. If a schema is
- *       found, use it (as a single-record chain).</li>
- *   <li><b>Default fallback.</b>
- *       If the registry also misses, use the local schema chain. Absent fields will
- *       receive {@code GetArg} defaults. No exception is thrown.</li>
+ *   <li><b>Decode and verify the embedded schema (mandatory).</b>
+ *       {@code schemaBytes} is decoded, the {@code parentSchemaHash} chain is
+ *       cross-checked, and the record's {@code schemaDigest} field is verified
+ *       against the embedded leaf record
+ *       ({@link MarshalledInstanceRecord#decodeSchemaChainAsResult()}). Absent,
+ *       empty, undecodable, chain-inconsistent, or digest-mismatched schema bytes
+ *       are a hard <b>reject</b> ({@link DerException}) -- there is no local-schema
+ *       or registry fallback (design principle 6: no permissive fallback).</li>
+ *   <li><b>Local comparison.</b> The verified digest is compared with
+ *       {@code SHA-256(DER(localSerialForm()))}. A match means the local and
+ *       embedded schemas are byte-identical ({@link Branch#LOCAL_MATCH}, the
+ *       allocation-free fast path); a mismatch means the embedded schema is used
+ *       and the {@code GetArg} layer absorbs divergence
+ *       ({@link Branch#EMBEDDED}).</li>
  * </ol>
  *
- * <h2>Registry call invariant</h2>
+ * <h2>No registry at decode time (v0.13)</h2>
  * <p>
- * The registry is NEVER called in step 1 (local digest match). It is only called in
- * step 3 when the embedded schema is absent or corrupt. Tests verify the registry spy
- * records zero calls on a local-digest match (Task 7.3 acceptance criterion).
+ * The pre-v0.13 resolver consulted a {@link SchemaRegistry} when the embedded
+ * schema was absent or corrupt, then fell back to the local schema with
+ * {@code GetArg} defaults. Both fallbacks are withdrawn: the embedded schema is
+ * unconditionally required by S7.8, so data without a usable embedded schema is
+ * non-conforming and rejected. The registry's purposes are caching, sharing,
+ * archival, and offline compatibility queries -- never a decode-time recovery
+ * path for malformed instances.
  */
 public final class SchemaResolver {
 
@@ -70,85 +74,67 @@ public final class SchemaResolver {
     public record Result(SchemaChain.Result chain, Branch branch) {}
 
     /**
-     * The four S12.4 resolution branches, in priority order.
+     * The two S12.4 resolution branches (v0.13; the pre-v0.13 {@code REGISTRY} and
+     * {@code DEFAULT_LOCAL} fallback branches are withdrawn -- their conditions are
+     * now rejections).
      */
     public enum Branch {
-        /** Step 1: local serialForm() digest matches the record's digest. */
+        /**
+         * The verified embedded digest matches the local {@code serialForm()}
+         * digest: local and embedded schema are byte-identical (S3.9 case (a)).
+         */
         LOCAL_MATCH,
-        /** Step 2: embedded schema bytes used (primary fallback, S12.4 step 4a). */
-        EMBEDDED,
-        /** Step 3: registry lookup returned a schema (S12.4 step 4b, first sub-case). */
-        REGISTRY,
-        /** Step 4: registry miss; fell back to local schema + GetArg defaults. */
-        DEFAULT_LOCAL
+        /**
+         * Digests differ (S3.9 case (b)/(c)): the embedded schema is used and
+         * {@code GetArg} absorbs the divergence.
+         */
+        EMBEDDED
     }
 
     /**
      * Resolves the schema chain for decoding the given {@link MarshalledInstanceRecord}.
      *
-     * <p>Follows the S12.4 decision tree (see class-level Javadoc). The registry is
-     * only consulted if both the local digest and the embedded schema are unavailable
-     * (step 3); on a local digest match (step 1) the registry is NOT invoked.
+     * <p>Follows the v0.13 S12.4 decision tree (see class-level Javadoc). Both
+     * branches return the same <em>logical</em> schema; {@link Branch#LOCAL_MATCH}
+     * additionally tells the caller that its local {@code serialForm()} is
+     * byte-identical to the wire schema (S3.9 case (a) fast path).
      *
      * @param rec            the {@link MarshalledInstanceRecord} to decode
-     * @param receiverClass  the receiver's {@code @AtomicSerial} class; provides both
-     *                       the local schema (via {@code serialForm()}) and the local
-     *                       digest for step-1 comparison
-     * @param registry       the {@link SchemaRegistry} to consult at step 3 (may be a
-     *                       spy or no-op in tests; must not be null)
+     * @param receiverClass  the receiver's {@code @AtomicSerial} class; provides the
+     *                       local digest for the fast-path comparison (a class
+     *                       without a valid {@code serialForm()} simply never takes
+     *                       the fast path)
      * @return a {@link Result} holding the resolved chain and the branch taken
+     * @throws DerException         if the embedded schema is absent, undecodable,
+     *                              chain-inconsistent, or does not match the
+     *                              record's {@code schemaDigest} (fail-secure
+     *                              reject; S7.8 / S12.4)
      * @throws NullPointerException if any argument is null
      */
     public static Result resolve(MarshalledInstanceRecord rec,
-                                  Class<?> receiverClass,
-                                  SchemaRegistry registry) {
+                                  Class<?> receiverClass)
+            throws DerException {
         Objects.requireNonNull(rec,           "rec");
         Objects.requireNonNull(receiverClass, "receiverClass");
-        Objects.requireNonNull(registry,      "registry");
-
-        byte[] recordDigest = rec.schemaDigest();
 
         // ----------------------------------------------------------------
-        // Step 1: local digest match -- fast path, no registry call
+        // Step 1: decode + verify the embedded schema. Any failure here is a
+        // rejection -- decodeSchemaChainAsResult() throws on empty/undecodable
+        // bytes, a broken parentSchemaHash chain, or a schemaDigest mismatch.
+        // ----------------------------------------------------------------
+        SchemaChain.Result embeddedChain = rec.decodeSchemaChainAsResult();
+
+        // ----------------------------------------------------------------
+        // Step 2: compare the verified digest with the local serialForm() digest.
         // ----------------------------------------------------------------
         SchemaChain.Result localChain = tryGenerateLocalChain(receiverClass);
-        if (localChain != null) {
-            if (Arrays.equals(localChain.leafDigest(), recordDigest)) {
-                return new Result(localChain, Branch.LOCAL_MATCH);
-            }
+        if (localChain != null
+                && Arrays.equals(localChain.leafDigest(), embeddedChain.leafDigest())) {
+            // Byte-identical schemas; using the locally generated chain avoids
+            // holding the embedded copy.
+            return new Result(localChain, Branch.LOCAL_MATCH);
         }
-
-        // ----------------------------------------------------------------
-        // Step 2: embedded schema present -- primary fallback
-        // ----------------------------------------------------------------
-        SchemaChain.Result embeddedChain = tryDecodeEmbeddedChain(rec);
-        if (embeddedChain != null) {
-            return new Result(embeddedChain, Branch.EMBEDDED);
-        }
-
-        // ----------------------------------------------------------------
-        // Step 3: embedded absent/corrupt -- query registry (synthetic path)
-        // ----------------------------------------------------------------
-        byte[] registryBytes = registry.getSchema(recordDigest);
-        if (registryBytes != null) {
-            SchemaChain.Result registryChain = tryBuildSingleRecordChain(registryBytes);
-            if (registryChain != null) {
-                return new Result(registryChain, Branch.REGISTRY);
-            }
-        }
-
-        // ----------------------------------------------------------------
-        // Step 4: registry miss -- fall back to local schema + GetArg defaults
-        // (no exception; absent fields receive defaults via DerGetArg)
-        // ----------------------------------------------------------------
-        if (localChain != null) {
-            return new Result(localChain, Branch.DEFAULT_LOCAL);
-        }
-        // Absolute last resort: cannot even build a local chain (class has no
-        // serialForm). Return an empty single-record chain so callers at least
-        // get all-defaults rather than a null-chain crash.
-        AtomicSerialEmptyChain emptyFallback = buildEmptyFallbackChain(receiverClass);
-        return new Result(emptyFallback.chain(), Branch.DEFAULT_LOCAL);
+        return new Result(embeddedChain, Branch.EMBEDDED);
     }
 
     // =========================================================================
@@ -157,7 +143,8 @@ public final class SchemaResolver {
 
     /**
      * Attempts to generate the receiver's local schema chain.
-     * Returns {@code null} if the class lacks a valid {@code serialForm()}.
+     * Returns {@code null} if the class lacks a valid {@code serialForm()} --
+     * which only forgoes the fast path; the embedded schema still decodes the data.
      */
     private static SchemaChain.Result tryGenerateLocalChain(Class<?> receiverClass) {
         try {
@@ -165,58 +152,5 @@ public final class SchemaResolver {
         } catch (DerException e) {
             return null;
         }
-    }
-
-    /**
-     * Attempts to decode the embedded schema chain from the record's
-     * {@code schemaBytes}. Returns {@code null} if absent or malformed.
-     */
-    private static SchemaChain.Result tryDecodeEmbeddedChain(MarshalledInstanceRecord rec) {
-        // A zero-length schemaBytes is treated as absent.
-        byte[] sb = rec.schemaBytes();
-        if (sb == null || sb.length == 0) {
-            return null;
-        }
-        try {
-            return rec.decodeSchemaChainAsResult();
-        } catch (DerException e) {
-            return null;
-        }
-    }
-
-    /**
-     * Builds a single-record {@link SchemaChain.Result} from a DER-encoded
-     * {@link au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord}. Returns
-     * {@code null} if the bytes are malformed.
-     */
-    private static SchemaChain.Result tryBuildSingleRecordChain(byte[] schemaBytes) {
-        try {
-            au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord rec =
-                    au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord.decode(schemaBytes);
-            return au.net.zeus.jgdms.der.schema.SchemaChain.linkAndGetLeafDigest(
-                    java.util.List.of(rec));
-        } catch (DerException e) {
-            return null;
-        }
-    }
-
-    /**
-     * Builds a trivial single-record chain with no fields as an absolute fallback
-     * (when the class has no recognisable {@code serialForm()}). All {@code arg.get()}
-     * calls will return defaults.
-     */
-    private static AtomicSerialEmptyChain buildEmptyFallbackChain(Class<?> cls) {
-        au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord emptyRec =
-                new au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord(
-                        cls.getName(), (byte[]) null, java.util.List.of());
-        SchemaChain.Result chain = au.net.zeus.jgdms.der.schema.SchemaChain.linkAndGetLeafDigest(
-                java.util.List.of(emptyRec));
-        return () -> chain;
-    }
-
-    /** Functional alias used only in {@link #buildEmptyFallbackChain}. */
-    @FunctionalInterface
-    private interface AtomicSerialEmptyChain {
-        SchemaChain.Result chain();
     }
 }

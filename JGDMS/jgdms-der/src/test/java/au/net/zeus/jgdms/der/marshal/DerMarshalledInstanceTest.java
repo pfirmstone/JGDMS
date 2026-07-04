@@ -206,7 +206,6 @@ class DerMarshalledInstanceTest {
                 writtenBytes,
                 out.getSchemaBytes(),
                 out.getSchemaDigest(),
-                java.util.Optional.empty(),
                 out.getPayloadFormat());
 
         // The written bytes equal rec.payloadBytes() -- payload is what is in objOut.

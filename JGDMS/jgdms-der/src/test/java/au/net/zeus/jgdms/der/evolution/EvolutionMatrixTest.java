@@ -42,7 +42,6 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -223,7 +222,7 @@ class EvolutionMatrixTest {
 
         MarshalledInstanceRecord oldRec = new MarshalledInstanceRecord(
                 oldPayload, oldSchema.encode(), oldChain.leafDigest(),
-                Optional.empty(), MarshalledInstanceRecord.PAYLOAD_FORMAT);
+                MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         MarshalledInstanceCodec.Result<Ev3_EvolvedSub> oldResult =
                 MarshalledInstanceCodec.decodeMarshalledInstance(oldRec, Ev3_EvolvedSub.class);
@@ -334,7 +333,7 @@ class EvolutionMatrixTest {
 
         MarshalledInstanceRecord oldRec = new MarshalledInstanceRecord(
                 oldPayload, oldChildSchema.encode(), oldChain.leafDigest(),
-                Optional.empty(), MarshalledInstanceRecord.PAYLOAD_FORMAT);
+                MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         MarshalledInstanceCodec.Result<Ev4_Child> oldResult =
                 MarshalledInstanceCodec.decodeMarshalledInstance(oldRec, Ev4_Child.class);
@@ -382,7 +381,7 @@ class EvolutionMatrixTest {
 
         MarshalledInstanceRecord rec = new MarshalledInstanceRecord(
                 payload, leafOnlySchema.encode(), leafOnlyChain.leafDigest(),
-                Optional.empty(), MarshalledInstanceRecord.PAYLOAD_FORMAT);
+                MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         // StackWalker fallback: Root reads from Leaf's store; "rootVal" absent -> default 0.
         // Behavior matches S11.4 requirement (absent class fields return defaults).
@@ -548,7 +547,7 @@ class EvolutionMatrixTest {
         byte[] schemaBytes = buildSchemaBytes(oldChain.chain());
         MarshalledInstanceRecord rec = new MarshalledInstanceRecord(
                 oldPayload, schemaBytes, oldChain.leafDigest(),
-                Optional.empty(), MarshalledInstanceRecord.PAYLOAD_FORMAT);
+                MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         // Now try to decode old data against Ev6_Beta.class (which extends Mid)
         // MIC uses embedded chain (only Alpha + old Beta), so Mid has no store.
@@ -633,7 +632,7 @@ class EvolutionMatrixTest {
         byte[] schemaBytes = buildSchemaBytes(oldChain.chain());
         MarshalledInstanceRecord rec = new MarshalledInstanceRecord(
                 oldPayload, schemaBytes, oldChain.leafDigest(),
-                Optional.empty(), MarshalledInstanceRecord.PAYLOAD_FORMAT);
+                MarshalledInstanceRecord.PAYLOAD_FORMAT);
 
         // Decode using MIC (embedded chain drives decode, NOT receiver's current serialForm)
         // Receiver class is Ev7_Beta (extends Alpha directly -- Mid removed)
