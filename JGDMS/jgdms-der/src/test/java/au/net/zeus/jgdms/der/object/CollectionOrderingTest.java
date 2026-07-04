@@ -488,19 +488,20 @@ class CollectionOrderingTest {
 
     @Test
     void duplicateElementEncoding_inSetField_isRejected() throws Exception {
-        // Hand-craft a set:int field payload with two identical element encodings (INTEGER 7).
+        // Hand-craft a set:int field (SET tag 0x31) with two identical element encodings (INTEGER
+        // 7). A duplicate is compareOctets == 0, which fails the strictly-ascending §11.6 check.
         String tok = setTok(HashSet.class, "int");
         byte[] intSeven = au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(7));
-        byte[] collSeq = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(intSeven, intSeven.clone()));
-        byte[] classSeq = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(collSeq));
+        byte[] collSet = au.net.zeus.jgdms.der.DerWriter.writeSet(List.of(intSeven, intSeven.clone()));
+        byte[] classSeq = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(collSet));
         // The DerException from decodeCollection is surfaced through the GetArg accessor as an
         // InvalidObjectException with the DerException as its cause -- either way the object is
-        // NOT constructed (fail-secure). Assert on the whole cause chain for the "duplicate" reason.
+        // NOT constructed (fail-secure). Assert the reason mentions the (dup ==> not-ascending) fault.
         Exception ex = assertThrows(Exception.class,
                 () -> ObjectCodec.decode(CollectionRecord.class, schema(tok), classSeq),
                 "a set-typed field with duplicate element encodings must be rejected fail-secure");
-        assertTrue(messageChainContains(ex, "duplicate"),
-                "rejection reason should mention the duplicate; got: " + describe(ex));
+        assertTrue(messageChainContains(ex, "ascending") || messageChainContains(ex, "duplicate"),
+                "rejection reason should mention the ordering/duplicate fault; got: " + describe(ex));
     }
 
     /** True if {@code t} or any cause in its chain has a message containing {@code needle}. */
@@ -695,6 +696,228 @@ class CollectionOrderingTest {
         m2.put(1, "xxxxxxxxxxxxxxxxxxxx");
         assertArrayEquals(encode(m, tok), encode(m2, tok),
                 "the same map built in a different insertion order must encode byte-identically");
+    }
+
+    // =========================================================================
+    // Option A tag: canonicalise = SET OF (0x31); preserve = SEQUENCE OF (0x30).
+    // =========================================================================
+
+    /** Returns the outer tag byte of the "coll" field TLV within an encoded CollectionRecord. */
+    private static int outerCollTagByte(byte[] classSeq) throws Exception {
+        // classSeq = SEQUENCE { <coll field TLV> }. Read into the class SEQUENCE, then peek the
+        // first child's tag byte (the collection field's outer tag).
+        au.net.zeus.jgdms.der.DerReader r = new au.net.zeus.jgdms.der.DerReader(classSeq);
+        au.net.zeus.jgdms.der.DerReader body = r.readSequence();
+        return body.peekTag().encode()[0] & 0xFF;
+    }
+
+    @Test
+    void canonicaliseSet_encodesWithSetTag0x31_andRoundTrips() throws Exception {
+        String tok = setTok(HashSet.class, "int");
+        byte[] enc = encode(new HashSet<>(List.of(3, 1, 2)), tok);
+        assertEquals(0x31, outerCollTagByte(enc),
+                "a canonicalise set: field must encode with the ASN.1 SET OF tag 0x31 (Option A)");
+        @SuppressWarnings("unchecked")
+        Collection<Integer> back = (Collection<Integer>) decode(enc, tok);
+        assertEquals(new HashSet<>(List.of(1, 2, 3)), new HashSet<>(back));
+    }
+
+    @Test
+    void canonicaliseMap_encodesWithSetTag0x31_innerEntrySequence() throws Exception {
+        String tok = mapTok(HashMap.class, "int", "int");
+        Map<Integer, Integer> m = new HashMap<>();
+        m.put(1, 10); m.put(2, 20);
+        byte[] enc = encode(m, tok);
+        assertEquals(0x31, outerCollTagByte(enc),
+                "a canonicalise map: field must encode with the outer SET OF tag 0x31 (Option A)");
+    }
+
+    @Test
+    void preserveTokens_encodeWithSequenceTag0x30() throws Exception {
+        // orderedset:, list:, orderedmap: all stay SEQUENCE OF (0x30).
+        assertEquals(0x30, outerCollTagByte(encode(new LinkedHashSet<>(List.of(1, 2)),
+                setTok(LinkedHashSet.class, "int"))));
+        assertEquals(0x30, outerCollTagByte(encode(new ArrayList<>(List.of(1, 2)),
+                setTok(ArrayList.class, "int"))));
+        Map<Integer, Integer> tm = new TreeMap<>();
+        tm.put(1, 1); tm.put(2, 2);
+        assertEquals(0x30, outerCollTagByte(encode(tm, mapTok(TreeMap.class, "int", "int"))));
+    }
+
+    @Test
+    void canonicaliseField_presentedWithSequenceTag_isRejected() throws Exception {
+        // Hand-craft a set:int field body as a SEQUENCE (0x30) rather than the required SET (0x31).
+        String tok = setTok(HashSet.class, "int");
+        byte[] one = au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(1));
+        byte[] two = au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(2));
+        byte[] wrongTagBody = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(one, two)); // 0x30
+        byte[] classSeq = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(wrongTagBody));
+        Exception ex = assertThrows(Exception.class,
+                () -> ObjectCodec.decode(CollectionRecord.class, schema(tok), classSeq),
+                "a canonicalise field arriving as SEQUENCE (0x30) must be rejected (expected SET 0x31)");
+        assertTrue(messageChainContains(ex, "SET") || messageChainContains(ex, "0x31"),
+                "rejection should cite the expected SET tag; got: " + describe(ex));
+    }
+
+    @Test
+    void preserveField_presentedWithSetTag_isRejected() throws Exception {
+        // Hand-craft an orderedset:int field body as a SET (0x31) rather than the required SEQUENCE.
+        String tok = setTok(LinkedHashSet.class, "int");
+        assertTrue(tok.startsWith("orderedset:"));
+        byte[] one = au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(1));
+        byte[] wrongTagBody = au.net.zeus.jgdms.der.DerWriter.writeSet(List.of(one)); // 0x31
+        byte[] classSeq = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(wrongTagBody));
+        Exception ex = assertThrows(Exception.class,
+                () -> ObjectCodec.decode(CollectionRecord.class, schema(tok), classSeq),
+                "a preserve field arriving as SET (0x31) must be rejected (expected SEQUENCE 0x30)");
+        assertTrue(messageChainContains(ex, "SEQUENCE") || messageChainContains(ex, "0x30"),
+                "rejection should cite the expected SEQUENCE tag; got: " + describe(ex));
+    }
+
+    // =========================================================================
+    // Decode order-check (mandatory DER §11.6): unsorted canonicalise input rejected.
+    // =========================================================================
+
+    @Test
+    void canonicaliseSet_unsortedInput_isRejected() throws Exception {
+        // set:int SET body with elements in DESCENDING order (3,2,1) -> not strictly ascending.
+        String tok = setTok(HashSet.class, "int");
+        byte[] three = au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(3));
+        byte[] two   = au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(2));
+        byte[] one   = au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(1));
+        byte[] body  = au.net.zeus.jgdms.der.DerWriter.writeSet(List.of(three, two, one));
+        byte[] classSeq = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(body));
+        Exception ex = assertThrows(Exception.class,
+                () -> ObjectCodec.decode(CollectionRecord.class, schema(tok), classSeq),
+                "an unsorted canonicalise set must be rejected (mandatory §11.6 order)");
+        assertTrue(messageChainContains(ex, "ascending") || messageChainContains(ex, "order"),
+                "rejection should cite the ordering fault; got: " + describe(ex));
+    }
+
+    @Test
+    void canonicaliseMap_descendingKeys_isRejected() throws Exception {
+        // map:{int}{int} SET body with entries in DESCENDING key order -> keys not strictly ascending.
+        String tok = mapTok(HashMap.class, "int", "int");
+        byte[] entryHi = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(
+                au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(9)),
+                au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(0))));
+        byte[] entryLo = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(
+                au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(1)),
+                au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(0))));
+        byte[] body = au.net.zeus.jgdms.der.DerWriter.writeSet(List.of(entryHi, entryLo)); // key 9 then 1
+        byte[] classSeq = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(body));
+        Exception ex = assertThrows(Exception.class,
+                () -> ObjectCodec.decode(CollectionRecord.class, schema(tok), classSeq),
+                "a canonicalise map with descending keys must be rejected");
+        assertTrue(messageChainContains(ex, "ascending") || messageChainContains(ex, "order"),
+                "rejection should cite the key-ordering fault; got: " + describe(ex));
+    }
+
+    @Test
+    void bag_nonDecreasingWithDuplicates_accepted_butDescendingRejected() throws Exception {
+        String tok = setTok(PriorityQueue.class, "int");
+        assertTrue(tok.startsWith("bag:"));
+        // Non-decreasing with an equal-adjacent duplicate (1,1,2) -> accepted, duplicate retained.
+        byte[] one = au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(1));
+        byte[] two = au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(2));
+        byte[] okBody = au.net.zeus.jgdms.der.DerWriter.writeSet(List.of(one, one.clone(), two));
+        byte[] okClass = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(okBody));
+        Object decoded = decodeRawColl(okClass, tok);
+        @SuppressWarnings("unchecked")
+        Collection<Integer> back = (Collection<Integer>) decoded;
+        List<Integer> sorted = new ArrayList<>(back);
+        sorted.sort(Integer::compare);
+        assertEquals(List.of(1, 1, 2), sorted,
+                "bag: must accept a non-decreasing multiset and RETAIN the duplicate");
+
+        // Descending (2,1) -> rejected even for a multiset.
+        byte[] badBody = au.net.zeus.jgdms.der.DerWriter.writeSet(List.of(two, one));
+        byte[] badClass = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(badBody));
+        Exception ex = assertThrows(Exception.class,
+                () -> ObjectCodec.decode(CollectionRecord.class, schema(tok), badClass),
+                "a bag: in descending order must be rejected (non-decreasing §11.6 required)");
+        assertTrue(messageChainContains(ex, "non-decreasing") || messageChainContains(ex, "order"),
+                "rejection should cite the ordering fault; got: " + describe(ex));
+    }
+
+    /** Decodes a hand-built class SEQUENCE holding one collection field. */
+    private static Object decodeRawColl(byte[] classSeq, String tok) throws Exception {
+        return ObjectCodec.decode(CollectionRecord.class, schema(tok), classSeq).getColl();
+    }
+
+    // =========================================================================
+    // Round-trip stability: re-encode(decode(canonical bytes)) == original bytes.
+    // =========================================================================
+
+    @Test
+    void canonicalise_roundTripByteStable() throws Exception {
+        String setToken = setTok(HashSet.class, "int");
+        byte[] enc1 = encode(new HashSet<>(List.of(5, 1, 3, 2, 4)), setToken);
+        @SuppressWarnings("unchecked")
+        Collection<Integer> back = (Collection<Integer>) decode(enc1, setToken);
+        byte[] enc2 = encode(new HashSet<>(back), setToken);
+        assertArrayEquals(enc1, enc2,
+                "re-encoding the decoded value of canonical bytes must reproduce them exactly");
+
+        String mapToken = mapTok(HashMap.class, "int", "java.lang.String");
+        Map<Integer, String> m = new HashMap<>();
+        m.put(3, "c"); m.put(1, "a"); m.put(2, "b");
+        byte[] menc1 = encode(m, mapToken);
+        @SuppressWarnings("unchecked")
+        Map<Integer, String> mback = (Map<Integer, String>) decode(menc1, mapToken);
+        byte[] menc2 = encode(new HashMap<>(mback), mapToken);
+        assertArrayEquals(menc1, menc2, "canonical map bytes must be round-trip stable");
+    }
+
+    // =========================================================================
+    // maxCollection (§4.5) cap: >65536 elements rejected on decode, canonicalise AND preserve.
+    // =========================================================================
+
+    @Test
+    void oversizedCanonicaliseSet_isRejected() throws Exception {
+        String tok = setTok(HashSet.class, "int");
+        // 65537 STRICTLY ASCENDING integer elements (so only the count cap can trip, not order).
+        byte[] body = au.net.zeus.jgdms.der.DerWriter.writeSet(ascendingIntTlvs(ObjectCodec.MAX_COLLECTION + 1));
+        byte[] classSeq = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(body));
+        Exception ex = assertThrows(Exception.class,
+                () -> ObjectCodec.decode(CollectionRecord.class, schema(tok), classSeq),
+                "a canonicalise set with > maxCollection elements must be rejected (§4.5)");
+        assertTrue(messageChainContains(ex, "maxCollection") || messageChainContains(ex, "65536"),
+                "rejection should cite the maxCollection cap; got: " + describe(ex));
+    }
+
+    @Test
+    void oversizedPreserveList_isRejected() throws Exception {
+        String tok = setTok(ArrayList.class, "int");
+        assertTrue(tok.startsWith("list:"));
+        // A preserve list has NO order requirement, so any 65537 elements trip only the cap.
+        byte[] body = au.net.zeus.jgdms.der.DerWriter.writeSequence(ascendingIntTlvs(ObjectCodec.MAX_COLLECTION + 1));
+        byte[] classSeq = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(body));
+        Exception ex = assertThrows(Exception.class,
+                () -> ObjectCodec.decode(CollectionRecord.class, schema(tok), classSeq),
+                "a preserve list with > maxCollection elements must be rejected (§4.5)");
+        assertTrue(messageChainContains(ex, "maxCollection") || messageChainContains(ex, "65536"),
+                "rejection should cite the maxCollection cap; got: " + describe(ex));
+    }
+
+    /** N strictly-ascending INTEGER element TLVs (values 0..N-1). */
+    private static List<byte[]> ascendingIntTlvs(int n) {
+        List<byte[]> out = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            out.add(au.net.zeus.jgdms.der.DerWriter.writeInteger(java.math.BigInteger.valueOf(i)));
+        }
+        return out;
+    }
+
+    @Test
+    void atCap_65536_isAccepted() throws Exception {
+        // Exactly maxCollection elements must be ACCEPTED (the cap rejects the 65537th only).
+        String tok = setTok(HashSet.class, "int");
+        byte[] body = au.net.zeus.jgdms.der.DerWriter.writeSet(ascendingIntTlvs(ObjectCodec.MAX_COLLECTION));
+        byte[] classSeq = au.net.zeus.jgdms.der.DerWriter.writeSequence(List.of(body));
+        Object decoded = decodeRawColl(classSeq, tok);
+        assertEquals(ObjectCodec.MAX_COLLECTION, ((Collection<?>) decoded).size(),
+                "exactly maxCollection (65536) elements must be accepted");
     }
 
     /** Enum for the EnumSet test. */

@@ -179,6 +179,36 @@ public final class DerWriter {
         return writeTlv(Tag.SEQUENCE, content);
     }
 
+    /**
+     * Wraps a list of pre-encoded child TLVs in a UNIVERSAL CONSTRUCTED
+     * SET / SET OF (tag {@code 0x31}).
+     * <p>
+     * Structurally identical to {@link #writeSequence(List)} but with the SET tag.
+     * STD-006 §3.8 uses this for a CANONICALISE-discipline collection field (an
+     * ASN.1 {@code SET OF}); the caller MUST have already octet-sorted the children
+     * per X.690 §11.6 (this method does not sort — it only frames).
+     *
+     * @param children list of pre-encoded, already-octet-sorted child TLVs (must not
+     *                 be {@code null}; elements must not be {@code null})
+     * @return the DER TLV encoding of the SET
+     * @throws NullPointerException if {@code children} or any element is {@code null}
+     */
+    public static byte[] writeSet(List<byte[]> children) {
+        if (children == null) throw new NullPointerException("children");
+        int total = 0;
+        for (byte[] child : children) {
+            if (child == null) throw new NullPointerException("child element");
+            total += child.length;
+        }
+        byte[] content = new byte[total];
+        int pos = 0;
+        for (byte[] child : children) {
+            System.arraycopy(child, 0, content, pos, child.length);
+            pos += child.length;
+        }
+        return writeTlv(Tag.SET, content);
+    }
+
     /* ================================================================== */
     /* Generic TLV builder                                                  */
     /* ================================================================== */

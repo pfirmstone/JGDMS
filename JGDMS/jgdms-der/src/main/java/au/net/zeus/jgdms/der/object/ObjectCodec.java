@@ -142,6 +142,18 @@ public final class ObjectCodec {
     public static final int MAX_NESTING = 16;
 
     /**
+     * Maximum element count for any collection-valued field (STD-006 §4.5
+     * {@code maxCollection}: {@code CollectionField}/{@code MapField} are
+     * {@code SEQUENCE SIZE(0..maxCollection) OF ...}). Enforced during decode on
+     * every collection token (set/bag/orderedset/list/map/orderedmap) as a
+     * structural resource ceiling against a CPU/memory DoS, BEFORE the collection is
+     * built and before any constructor runs. The {@code (65536 + 1)}-th element
+     * throws {@link DerException}. This is a wire/structural bound, not a semantic
+     * size invariant (which belongs in {@code check(GetArg)}).
+     */
+    public static final int MAX_COLLECTION = 65536;
+
+    /**
      * The {@link DeSerializationPermission} required for a protection domain to
      * participate in {@code @AtomicSerial} de-serialization via the DER path.
      */
@@ -1279,7 +1291,10 @@ public final class ObjectCodec {
                 for (int idx : order) sorted.add(entryTlvs.get(idx));
                 entryTlvs = sorted;
             }
-            return DerWriter.writeSequence(entryTlvs);
+            // Option A tag: a CANONICALISE map is an ASN.1 SET OF SEQUENCE{key,value} -> outer
+            // SET (0x31); a PRESERVE (orderedmap) is a SEQUENCE OF -> outer SEQUENCE (0x30). The
+            // inner per-entry {key,value} stays a SEQUENCE (0x30) either way (§3.8, Option A).
+            return canonicalise ? DerWriter.writeSet(entryTlvs) : DerWriter.writeSequence(entryTlvs);
         }
 
         // set: / orderedset: / list:
@@ -1297,7 +1312,9 @@ public final class ObjectCodec {
         if (canonicalise) {
             CollectionWireTypes.octetSort(elementTlvs);
         }
-        return DerWriter.writeSequence(elementTlvs);
+        // Option A tag: a CANONICALISE set/multiset is an ASN.1 SET OF -> SET (0x31); a PRESERVE
+        // (orderedset/list) is a SEQUENCE OF -> SEQUENCE (0x30) (§3.8, Option A).
+        return canonicalise ? DerWriter.writeSet(elementTlvs) : DerWriter.writeSequence(elementTlvs);
     }
 
     /**
@@ -1908,23 +1925,29 @@ public final class ObjectCodec {
      * collection. The depth is threaded so the cumulative {@code MAX_NESTING} guard applies
      * per element (nested {@code @AtomicSerial} and nested-collection elements).
      *
-     * <p>The receiver imposes uniqueness at construction: a Set token
-     * ({@code set:}/{@code orderedset:}) rejects duplicate element encodings (a Set cannot
-     * hold post-canonical duplicates; §2), a Map token rejects duplicate key encodings; a
-     * {@code list:} token (multiset/positional) keeps duplicates. Order handling matches the
-     * token discipline: a canonicalise field ({@code set:}/{@code map:}) arrives already
-     * octet-sorted and that order is retained; a preserve field keeps the transmitted order.
-     * The reconstructed collection kind is order-retaining
-     * ({@code LinkedHashSet}/{@code LinkedHashMap}/{@code ArrayList}) so the decoded logical
-     * value equals the original.
+     * <p><b>Tag (Option A, §3.8):</b> a CANONICALISE field ({@code set:}/{@code bag:}/{@code map:})
+     * is read as an ASN.1 {@code SET OF} (outer tag {@code 0x31}); a PRESERVE field
+     * ({@code orderedset:}/{@code list:}/{@code orderedmap:}) as a {@code SEQUENCE OF}
+     * ({@code 0x30}). The wrong outer tag for the field's discipline is a {@link DerException}.
      *
-     * @param rawBytes   the raw TLV bytes (DER NULL or SEQUENCE)
+     * <p><b>Wire-order enforcement (mandatory DER, §11.6):</b> canonicalise fields are order-checked
+     * in O(n) against the immediate predecessor only -- {@code set:}/{@code map:}-keys must be
+     * strictly ascending (this subsumes the duplicate check), {@code bag:} must be non-decreasing
+     * (duplicates retained). Preserve fields get no order check (transmitted order is the value).
+     * Element/entry count is capped at {@link #MAX_COLLECTION} (§4.5) before building. The
+     * reconstructed kind is order-retaining ({@code LinkedHashSet}/{@code LinkedHashMap}/
+     * {@code ArrayList}) so the decoded logical value equals the original; re-encoding decoded
+     * canonical bytes reproduces them exactly.
+     *
+     * @param rawBytes   the raw TLV bytes (DER NULL, or SET/SEQUENCE per discipline)
      * @param wireType   the full collection wire-type token
      * @param depth      current nesting depth
      * @param decodeUnit the per-decode-unit completion sink, or {@code null}
      * @param resolution the endpoint resolution context
      * @return the decoded {@code Collection} / {@code Map}, or {@code null} for DER NULL
-     * @throws DerException if the encoding is malformed, a Set/Map duplicate is seen, or depth exceeded
+     * @throws DerException if the encoding is malformed, the outer tag is wrong for the discipline,
+     *                      a canonicalise field is out of §11.6 order, the count exceeds
+     *                      {@link #MAX_COLLECTION}, or depth is exceeded
      * @throws IOException  if a nested element's construction fails
      */
     public static Object decodeCollection(byte[] rawBytes, String wireType, int depth,
@@ -1945,56 +1968,94 @@ public final class ObjectCodec {
             return null;
         }
 
+        // Option A tag selection: a CANONICALISE field (set:/bag:/map:) is an ASN.1 SET OF ->
+        // outer SET (0x31); a PRESERVE field (orderedset:/list:/orderedmap:) is a SEQUENCE OF ->
+        // outer SEQUENCE (0x30). readSet()/readSequence() REJECT the wrong tag, so a canonicalise
+        // field arriving as 0x30 (or a preserve field as 0x31) is a DerException.
+        boolean canonicalise = CollectionWireTypes.isCanonicalise(wireType);
         DerReader outer = new DerReader(rawBytes);
-        DerReader seq = outer.readSequence();
+        DerReader body = canonicalise ? outer.readSet() : outer.readSequence();
         if (outer.hasMore()) {
             throw new DerException(
-                    "ObjectCodec.decodeCollection: trailing bytes after collection SEQUENCE");
+                    "ObjectCodec.decodeCollection: trailing bytes after collection TLV");
         }
 
         if (CollectionWireTypes.isMap(wireType)) {
-            return decodeMap(seq, wireType, depth, decodeUnit, resolution);
+            return decodeMap(body, wireType, canonicalise, depth, decodeUnit, resolution);
         }
-        return decodeSetOrList(seq, wireType, depth, decodeUnit, resolution);
+        return decodeSetOrList(body, wireType, canonicalise, depth, decodeUnit, resolution);
     }
 
-    /** Decodes a {@code set:}/{@code orderedset:}/{@code list:} SEQUENCE body. */
-    private static Object decodeSetOrList(DerReader seq, String wireType, int depth,
-                                          DeserializationCompletion decodeUnit,
+    /**
+     * Decodes a {@code set:}/{@code bag:}/{@code orderedset:}/{@code list:} collection body.
+     *
+     * <p>Wire-order enforcement per discipline (§3.8 / §11.6, mandatory DER):
+     * <ul>
+     *   <li>{@code set:} (canonicalise set) -- consecutive element encodings MUST be
+     *       <b>strictly ascending</b> ({@code compareOctets(prev,cur) < 0}); this subsumes the
+     *       duplicate check (a dup is {@code == 0}, rejected) in O(n) with only the immediate
+     *       predecessor.</li>
+     *   <li>{@code bag:} (canonicalise multiset) -- MUST be <b>non-decreasing</b>
+     *       ({@code <= 0}); duplicates are legitimate and retained.</li>
+     *   <li>{@code orderedset:}/{@code list:} (preserve) -- <b>no</b> order check; the
+     *       transmitted order is the value.</li>
+     * </ul>
+     * Element count is capped at {@link #MAX_COLLECTION} (§4.5) before building.
+     */
+    private static Object decodeSetOrList(DerReader body, String wireType, boolean canonicalise,
+                                          int depth, DeserializationCompletion decodeUnit,
                                           ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
         String elemWT = CollectionWireTypes.elementWireType(wireType);
-        boolean setKind = CollectionWireTypes.isSetKind(wireType);
+        boolean setKind = CollectionWireTypes.isSetKind(wireType);   // set: / orderedset: -> Set
+        boolean multiset = CollectionWireTypes.isMultiset(wireType); // bag: (non-decreasing)
         // Order-retaining containers so the decoded value round-trips the transmitted order.
         Collection<Object> out = setKind ? new LinkedHashSet<>() : new ArrayList<>();
-        // For a Set field, reject duplicate ELEMENT ENCODINGS (§2) using the exact octets, not
-        // Object.equals -- the wire duplicate check is on the canonical DER, independent of the
-        // element type's equals.
-        List<byte[]> seenEncodings = setKind ? new ArrayList<>() : null;
 
-        while (seq.hasMore()) {
-            int start = seq.position();
-            Object element = decodeElementValue(seq, elemWT, depth, decodeUnit, resolution);
-            int end = seq.position();
-            if (setKind) {
-                byte[] enc = seq.slice(start, end);
-                for (byte[] prev : seenEncodings) {
-                    if (CollectionWireTypes.compareOctets(prev, enc) == 0) {
-                        throw new DerException("ObjectCodec.decodeCollection: duplicate element "
-                                + "encoding in set-typed field (wireType " + wireType + ") -- "
-                                + "a Set cannot hold post-canonical duplicates (§2, fail-secure)");
+        int count = 0;
+        byte[] prevEnc = null; // immediate predecessor encoding (O(1) memory, O(n) total)
+        while (body.hasMore()) {
+            if (++count > MAX_COLLECTION) {
+                throw new DerException("ObjectCodec.decodeCollection: element count exceeds "
+                        + "maxCollection (" + MAX_COLLECTION + ", §4.5) for field '" + wireType + "'");
+            }
+            int start = body.position();
+            Object element = decodeElementValue(body, elemWT, depth, decodeUnit, resolution);
+            int end = body.position();
+            if (canonicalise) {
+                byte[] enc = body.slice(start, end);
+                if (prevEnc != null) {
+                    int cmp = CollectionWireTypes.compareOctets(prevEnc, enc);
+                    if (multiset) {
+                        if (cmp > 0) {
+                            throw new DerException("ObjectCodec.decodeCollection: canonicalise "
+                                    + "multiset field (wireType " + wireType + ") is not in "
+                                    + "non-decreasing X.690 §11.6 octet order (fail-secure)");
+                        }
+                    } else if (cmp >= 0) {
+                        throw new DerException("ObjectCodec.decodeCollection: canonicalise set "
+                                + "field (wireType " + wireType + ") is not in strictly ascending "
+                                + "X.690 §11.6 octet order -- unsorted or duplicate element "
+                                + "encoding (fail-secure, §2/§11.6)");
                     }
                 }
-                seenEncodings.add(enc);
+                prevEnc = enc;
             }
             out.add(element);
         }
         return out;
     }
 
-    /** Decodes a {@code map:}/{@code orderedmap:} SEQUENCE body (SEQUENCE OF SEQUENCE{key,value}). */
-    private static Object decodeMap(DerReader seq, String wireType, int depth,
-                                    DeserializationCompletion decodeUnit,
+    /**
+     * Decodes a {@code map:}/{@code orderedmap:} collection body
+     * ({@code (SET|SEQUENCE) OF SEQUENCE{key,value}}). A CANONICALISE map ({@code map:})
+     * requires the KEY encodings to be <b>strictly ascending</b> ({@code compareOctets(prevKey,
+     * curKey) < 0}) -- symmetry with the key-only encode sort, subsuming the duplicate-key check
+     * in O(n). A PRESERVE map ({@code orderedmap:}) applies no order check. Entry count is capped
+     * at {@link #MAX_COLLECTION} (§4.5).
+     */
+    private static Object decodeMap(DerReader body, String wireType, boolean canonicalise,
+                                    int depth, DeserializationCompletion decodeUnit,
                                     ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
         String[] kv = CollectionWireTypes.mapKeyValueWireTypes(wireType);
@@ -2002,10 +2063,16 @@ public final class ObjectCodec {
         String valWT = kv[1];
         // Order-retaining so the decoded value round-trips the transmitted entry order.
         Map<Object, Object> out = new LinkedHashMap<>();
-        List<byte[]> seenKeyEncodings = new ArrayList<>();
 
-        while (seq.hasMore()) {
-            DerReader entry = seq.readSequence();
+        int count = 0;
+        byte[] prevKeyEnc = null;
+        while (body.hasMore()) {
+            if (++count > MAX_COLLECTION) {
+                throw new DerException("ObjectCodec.decodeCollection: entry count exceeds "
+                        + "maxCollection (" + MAX_COLLECTION + ", §4.5) for field '" + wireType + "'");
+            }
+            // Each entry is a SEQUENCE{key,value} (0x30) regardless of the outer SET/SEQUENCE tag.
+            DerReader entry = body.readSequence();
             int keyStart = entry.position();
             Object key = decodeElementValue(entry, keyWT, depth, decodeUnit, resolution);
             int keyEnd = entry.position();
@@ -2014,15 +2081,17 @@ public final class ObjectCodec {
                 throw new DerException("ObjectCodec.decodeCollection: map entry SEQUENCE has "
                         + "more than {key,value} (wireType " + wireType + ")");
             }
-            // Reject duplicate KEY encodings (a Map cannot hold two entries with the same key).
-            byte[] keyEnc = entry.slice(keyStart, keyEnd);
-            for (byte[] prev : seenKeyEncodings) {
-                if (CollectionWireTypes.compareOctets(prev, keyEnc) == 0) {
-                    throw new DerException("ObjectCodec.decodeCollection: duplicate key encoding "
-                            + "in map-typed field (wireType " + wireType + ") -- fail-secure (§2)");
+            if (canonicalise) {
+                byte[] keyEnc = entry.slice(keyStart, keyEnd);
+                if (prevKeyEnc != null
+                        && CollectionWireTypes.compareOctets(prevKeyEnc, keyEnc) >= 0) {
+                    throw new DerException("ObjectCodec.decodeCollection: canonicalise map field "
+                            + "(wireType " + wireType + ") keys are not in strictly ascending "
+                            + "X.690 §11.6 octet order -- unsorted or duplicate key encoding "
+                            + "(fail-secure, §2/§11.6)");
                 }
+                prevKeyEnc = keyEnc;
             }
-            seenKeyEncodings.add(keyEnc);
             out.put(key, val);
         }
         return out;

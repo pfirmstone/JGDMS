@@ -339,13 +339,42 @@ public final class DerReader {
      *                      SEQUENCE
      */
     public DerReader readSequence() throws DerException {
+        return readConstructed(Tag.SEQUENCE, "SEQUENCE (tag 0x30)");
+    }
+
+    /**
+     * Reads a SET / SET OF TLV header (tag {@code 0x31}) and returns a child
+     * {@code DerReader} bounded to exactly the SET content, advancing the outer
+     * cursor past the whole SET. Rejects any tag other than SET.
+     *
+     * <p>STD-006 §3.8 uses SET OF (0x31) for a CANONICALISE-discipline collection
+     * field; a PRESERVE-discipline collection uses {@link #readSequence()} (0x30).
+     * Reading the wrong tag for the field's discipline is a {@link DerException}.
+     *
+     * @return a sub-reader bounded to the SET content
+     * @throws DerException if the encoding is malformed or the tag is not SET
+     */
+    public DerReader readSet() throws DerException {
+        return readConstructed(Tag.SET, "SET OF (tag 0x31)");
+    }
+
+    /**
+     * Reads a constructed TLV of the given expected tag and returns a child reader
+     * bounded to its content, advancing the outer cursor past the whole TLV.
+     *
+     * @param expected the required constructed tag ({@link Tag#SEQUENCE} or {@link Tag#SET})
+     * @param name     a human-readable name for the error message
+     * @return a sub-reader bounded to the content
+     * @throws DerException if the tag does not match {@code expected} or the encoding is malformed
+     */
+    private DerReader readConstructed(Tag expected, String name) throws DerException {
         TlvHeader hdr = readTlvHeader();
-        if (!Tag.SEQUENCE.equals(hdr.tag())) {
-            throw new DerException("Expected SEQUENCE (tag 0x30), got " + hdr.tag());
+        if (!expected.equals(hdr.tag())) {
+            throw new DerException("Expected " + name + ", got " + hdr.tag());
         }
         int contentStart = pos;
         int contentEnd   = pos + hdr.contentLength();
-        pos = contentEnd; // advance outer cursor past the whole SEQUENCE
+        pos = contentEnd; // advance outer cursor past the whole constructed TLV
         return new DerReader(buf, contentStart, contentEnd);
     }
 

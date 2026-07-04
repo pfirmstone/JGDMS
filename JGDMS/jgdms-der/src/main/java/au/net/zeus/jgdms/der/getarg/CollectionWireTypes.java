@@ -63,17 +63,21 @@ import java.util.concurrent.ConcurrentMap;
  * digest-covered and the decoder agrees without re-deriving it. The grammar
  * mirrors the existing {@code enum:} / {@code array:} style:
  * <pre>
- *   set:&lt;elemWT&gt;              -- CANONICALISE set (octet-sorted; duplicate encodings rejected on decode)
- *   bag:&lt;elemWT&gt;              -- CANONICALISE multiset (octet-sorted; a priority/concurrent queue -- dups retained)
- *   orderedset:&lt;elemWT&gt;       -- PRESERVE set (iteration order kept, dups rejected on decode)
- *   list:&lt;elemWT&gt;             -- PRESERVE list/deque (iteration order kept, dups allowed)
- *   map:{&lt;keyWT&gt;}{&lt;valWT&gt;}     -- CANONICALISE map (entries octet-sorted by encoded key)
- *   orderedmap:{&lt;keyWT&gt;}{&lt;valWT&gt;} -- PRESERVE map (entry iteration order kept)
+ *   set:&lt;elemWT&gt;              -- CANONICALISE set  -- ASN.1 SET OF, outer tag 0x31; strictly-ascending §11.6 on decode
+ *   bag:&lt;elemWT&gt;              -- CANONICALISE multiset (priority/concurrent queue) -- SET OF 0x31; non-decreasing §11.6, dups kept
+ *   orderedset:&lt;elemWT&gt;       -- PRESERVE set   -- SEQUENCE OF, outer tag 0x30; iteration order kept, no order-check
+ *   list:&lt;elemWT&gt;             -- PRESERVE list/deque -- SEQUENCE OF 0x30; order kept, dups allowed
+ *   map:{&lt;keyWT&gt;}{&lt;valWT&gt;}     -- CANONICALISE map -- SET OF SEQUENCE{key,value}, outer 0x31 / inner entry 0x30; strictly-ascending by KEY
+ *   orderedmap:{&lt;keyWT&gt;}{&lt;valWT&gt;} -- PRESERVE map -- SEQUENCE OF SEQUENCE{key,value}, outer 0x30 / inner 0x30; entry order kept
  * </pre>
- * The map key/value sub-tokens are brace-delimited so a sub-token that itself
- * contains {@code ':'} (e.g. {@code enum:...}, a nested {@code set:...} or
- * {@code map:...}, or a bare {@code @AtomicSerial}) parses unambiguously and
- * recursion nests correctly.
+ * <b>Option A tag rule (STD-006 §3.8):</b> the CANONICALISE disciplines carry the
+ * real ASN.1 {@code SET OF} tag {@code 0x31}; the PRESERVE disciplines carry
+ * {@code SEQUENCE OF} {@code 0x30}. A map's inner per-entry {@code {key,value}}
+ * SEQUENCE is always {@code 0x30}. The decoder rejects the wrong outer tag for the
+ * field's discipline. The map key/value sub-tokens are brace-delimited so a
+ * sub-token that itself contains {@code ':'} (e.g. {@code enum:...}, a nested
+ * {@code set:...} or {@code map:...}, or a bare {@code @AtomicSerial}) parses
+ * unambiguously and recursion nests correctly.
  *
  * <p>This class is stateless and thread-safe.
  */
@@ -120,6 +124,13 @@ public final class CollectionWireTypes {
             return true;
         }
         throw new IllegalArgumentException("not a collection wire type: " + wireType);
+    }
+
+    /** Whether the token is the {@code bag:} canonicalise-multiset token. A {@code bag:} field
+     *  is octet-sorted but may hold duplicates, so its decode order-check is NON-DECREASING
+     *  ({@code <=}) rather than the strictly-ascending ({@code <}) check a {@code set:} uses. */
+    public static boolean isMultiset(String wireType) {
+        return wireType.startsWith(BAG);
     }
 
     /** Whether a decoded {@code set:}/{@code orderedset:} field must reject duplicate

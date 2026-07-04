@@ -78,6 +78,14 @@ public final class Tag {
      * constructed, number 16).
      */
     public static final Tag SEQUENCE    = new Tag(CLASS_UNIVERSAL, true, 16);
+    /**
+     * UNIVERSAL SET / SET OF -- constructed, tag 17 ({@code 0x31}).
+     * Note: the encoding of the first octet is 0x31 = 0b00_1_10001 (universal,
+     * constructed, number 17). Used by STD-006 §3.8 for a CANONICALISE-discipline
+     * collection field (an ASN.1 {@code SET OF}, whose elements are octet-sorted per
+     * X.690 §11.6); PRESERVE-discipline collections use {@link #SEQUENCE} (0x30).
+     */
+    public static final Tag SET         = new Tag(CLASS_UNIVERSAL, true, 17);
 
     /* ------------------------------------------------------------------ */
     /* Instance state                                                       */
