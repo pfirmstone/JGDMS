@@ -56,20 +56,16 @@ import net.jini.io.UnsupportedConstraintException;
  * <li>No combination of individual supported constraints can conflict.
  * </ul>
  *
- * <h2>Security semantics (resolved 2026-07-03)</h2>
+ * <h2>Security semantics (increment 1: byte-identical to TCP)</h2>
  *
- * The one place where UDS legitimately differs from TCP is <em>which
- * constraints it claims to fulfil</em> &mdash; and integrity and
- * confidentiality split differently:
+ * For increment 1 this table is <em>byte-identical to
+ * {@code net.jini.jeri.tcp.Constraints}</em>: the transport claims neither
+ * {@link Integrity#YES} nor {@link Confidentiality#YES}.  Both are deferred, for
+ * the same reason the {@code …Authentication.YES} variants are: the transport
+ * cannot, from its own static self-description, verify the far end really is a
+ * local, owner-only peer.
  *
  * <ul>
- * <li>{@link Confidentiality#YES} &mdash; <b>FULL_SUPPORT; the genuine
- *     transport upgrade over TCP.</b>  No object-layer mechanism provides
- *     confidentiality (the object layer can verify integrity but cannot hide
- *     bytes), so it must come from the transport.  A local, kernel-mediated,
- *     owner-only (mode {@code 0600}) socket is not visible to an off-host
- *     eavesdropper or to an unprivileged local process, so the transport fully
- *     provides it (contrast TCP, which claims only {@code Confidentiality.NO}).
  * <li>{@link Integrity#YES} &mdash; <b>owned by the object layer, NOT claimed
  *     here.</b>  In JERI {@code Integrity.YES} (including its stream/codebase
  *     aspect) is satisfied by {@code BasicInvocationHandler}/{@code
@@ -82,26 +78,41 @@ import net.jini.io.UnsupportedConstraintException;
  *     already handled and could <em>bypass</em> the DER/JOSS gate.  UDS locality
  *     is defence-in-depth for the transmission aspect, not a constraint claim;
  *     the integrity entries here are byte-identical to {@code net.jini.jeri.tcp}.
+ * <li>{@link Confidentiality#YES} &mdash; <b>NOT claimed for increment 1.</b>
+ *     Confidentiality-by-locality is real only for a socket that genuinely is a
+ *     local, owner-only, kernel-mediated pipe, but this claim would be made
+ *     <em>statically</em> &mdash; by the <em>client</em> endpoint, from a
+ *     deserialized path, with no verification that the far end is local and
+ *     owner-only, and it would stand even when the server's owner-only gate
+ *     (see {@code UdsServerEndpoint.restrictPermissions}) could not be applied
+ *     (e.g. a platform without an enforceable owner-only mode).  That is the
+ *     same over-claim class as the {@code Integrity.YES} claim removed above:
+ *     the transport asserting a security property it has not verified.  So for
+ *     increment 1 UDS claims only {@link Confidentiality#NO}, byte-identical to
+ *     plaintext TCP.  Confidentiality-by-locality is <b>deferred to
+ *     increment&nbsp;2</b>, where {@code SO_PEERCRED} / SPIFFE-SVID
+ *     cross-validation actually verifies the peer is local and owner-authorized
+ *     (mirroring how {@link ClientAuthentication#YES} is deferred to the same
+ *     increment); only then can the transport honestly claim it.
  * </ul>
  *
  * <p>It does <strong>not</strong> claim
  * {@link ServerAuthentication#YES}/{@link ClientAuthentication#YES}: with
  * {@code SO_PEERCRED} deferred (SOW &sect;2) this transport surfaces no peer
  * <em>principal</em>.  Local peer trust is provided out-of-band by the socket
- * file's filesystem permissions (owner / mode {@code 0600}), not by an
+ * file's filesystem permissions (owner / mode {@code 0700}), not by an
  * authenticated identity inside the JERI constraint model.  Accordingly, as
  * with TCP, only {@code ClientAuthentication.NO} / {@code ServerAuthentication.NO}
  * / {@code Delegation.NO} are supported here.
  *
  * <p>The earlier worry &mdash; that a caller relying on a transport
- * {@code Integrity.YES} claim would be implicitly trusting that the endpoint
- * really is a local UDS rather than a spoofed serialized form pointing at an
- * off-host tunnel &mdash; is precisely why integrity is left to the object
- * layer: the {@code IntegrityEnforcement}/DER check does not depend on trusting
- * the transport's self-description.  {@code Confidentiality.YES} does rest on
- * the endpoint genuinely being a local, owner-only socket; a complementary
- * per-endpoint local-peer check (e.g. {@code SO_PEERCRED} or a SPIFFE-SVID
- * handshake) is a separate, future increment (see the SOW).
+ * {@code Integrity.YES}/{@code Confidentiality.YES} claim would be implicitly
+ * trusting that the endpoint really is a local UDS rather than a spoofed
+ * serialized form pointing at an off-host tunnel &mdash; is precisely why both
+ * are left off the increment-1 table.  A complementary per-endpoint local-peer
+ * check (e.g. {@code SO_PEERCRED} or a SPIFFE-SVID handshake) is the separate,
+ * future increment (see the SOW) that lets the transport honestly claim
+ * confidentiality-by-locality.
  **/
 class Constraints {
 
@@ -148,15 +159,18 @@ class Constraints {
 	 */
 	supportedValues.put(Integrity.NO,		Boolean.TRUE);
 	/*
-	 * CONFIDENTIALITY: the one genuine transport upgrade over TCP.  No
-	 * object-layer mechanism provides confidentiality (the object layer can
-	 * verify integrity but cannot hide bytes), so it must come from the
-	 * transport.  A local, kernel-mediated, owner-only (mode 0600) socket is
-	 * invisible to an off-host eavesdropper and to unprivileged local
-	 * processes, so the transport fully provides it -- hence Confidentiality.YES
-	 * is FULL_SUPPORT (contrast TCP, which claims only Confidentiality.NO).
+	 * CONFIDENTIALITY: byte-identical to net.jini.jeri.tcp.Constraints for
+	 * increment 1 -- only Confidentiality.NO is claimed.  A previous UDS-only
+	 * entry claimed Confidentiality.YES as FULL_SUPPORT ("confidentiality by
+	 * locality"), but that claim is made STATICALLY by the client endpoint from
+	 * a deserialized path, with NO verification that the far end is a local,
+	 * owner-only socket, and it stands even when the server-side owner-only gate
+	 * (UdsServerEndpoint.restrictPermissions) could not be applied.  That is the
+	 * same over-claim class as the removed Integrity.YES claim, so it is dropped:
+	 * confidentiality-by-locality is deferred to increment 2, where SO_PEERCRED /
+	 * SPIFFE-SVID cross-validation actually verifies the peer is local and
+	 * owner-authorized (mirroring how ClientAuthentication.YES is deferred).
 	 */
-	supportedValues.put(Confidentiality.YES,	Boolean.FALSE);
 	supportedValues.put(Confidentiality.NO,		Boolean.FALSE);
 	/*
 	 * SO_PEERCRED deferred: no authenticated peer principal, so only the

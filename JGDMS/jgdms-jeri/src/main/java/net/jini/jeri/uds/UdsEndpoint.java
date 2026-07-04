@@ -194,15 +194,17 @@ public final class UdsEndpoint
 	}
     }
 
-    /** Invariant checks. */
+    /**
+     * Invariant checks, shared by {@link #getInstance} and the {@code GetArg}/
+     * {@code readObject} deserialization paths.  Delegates to the single shared
+     * validator {@link UdsPaths#validate} (LOW-1: one source of truth so the
+     * client and server checks cannot drift).  These are SECURITY checks, not
+     * mere convenience validation: in increment 1 the socket file's filesystem
+     * permissions are the entire peer-access gate, so a path that escapes that
+     * gate must be rejected before an endpoint is ever constructed.
+     **/
     private static String check(String path){
-	if (path == null) {
-	    throw new NullPointerException("null socket path");
-	}
-	if (path.isEmpty()) {
-	    throw new IllegalArgumentException("empty socket path");
-	}
-	return path;
+	return UdsPaths.validate(path);
     }
 
     UdsEndpoint(GetArg arg) throws IOException, ClassNotFoundException {

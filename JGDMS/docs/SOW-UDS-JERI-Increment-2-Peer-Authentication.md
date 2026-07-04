@@ -333,7 +333,37 @@ Restating the settled decision precisely against the mechanism:
 4. **Unlink/bind race (carried from increment 1 §8).** The listen path `deleteIfExists` → `bind` →
    `restrictPermissions` (`UdsServerEndpoint.java:239-241`) has a window in which the socket file exists
    before its mode is tightened; the caller must place it in a private, non-world-writable directory.
-   Peer-auth does not remove this requirement.
+   Peer-auth does not remove this requirement. *(Increment-1 hardening note: the review closed this in
+   the transport itself — bind-first with no pre-delete, owner-matched stale reclaim, fail-closed
+   owner-only mode/ACL, and world-writable-non-sticky parent rejection — so the window is now covered by
+   the private-parent requirement in code, not only by caller discipline.)*
+
+5. **SVID freshness / revocation is a REQUIREMENT, not an open question (Open-Question 3).** The
+   `SO_PEERCRED`×SVID cross-validation in `processRequestData` assumes a same-host SPIRE agent as the
+   source of truth for "uid/pid ⊢ SVID". Whichever lookup form is chosen — an authoritative per-connection
+   SPIRE Workload/Admin-API query, or a local registration/SVID cache validated against the signature
+   chain — **the verification MUST carry an explicit freshness/revocation bound.** A stale cache silently
+   authenticates a *revoked* workload: an SVID that SPIRE has since revoked (or a registration that has
+   been removed) would still pass a cache-only check and mint a verified `Subject` for a peer that is no
+   longer entitled to it. Therefore: (a) a cached uid/pid⊢SVID decision MUST be treated as valid only
+   within a bounded freshness TTL and revalidated against the SPIRE agent (or a revocation feed) before
+   expiry; (b) SVID expiry (`notAfter`) MUST be enforced at verify time; (c) on any inability to confirm
+   freshness within the bound, `processRequestData` MUST fail closed (reject the connection), not fall
+   back to a stale positive. The per-connection-vs-cached-SVID choice (Open-Question 3) is thus
+   constrained: the cache is permissible only with this freshness/revocation contract; without it, the
+   authoritative per-connection query is mandatory.
+
+6. **Peer cred is read BEFORE any request data, and the connection dies with the peer.** The accepted
+   fd's `SO_PEERCRED` and the presented SVID MUST be read and cross-validated in `processRequestData`
+   **before any application request bytes are processed and before any `Subject` is populated into an
+   invocation context** — the verified `Subject` gates the very first request, never trailing a request
+   already dispatched. Correspondingly, the authenticated `Subject` is bound to the *connection*, not
+   cached beyond it: if the peer process exits (the `AF_UNIX` stream is torn down, or a subsequent
+   liveness check on the fd fails), the connection MUST be closed and its `Subject` discarded. A dead
+   peer's authenticated `Subject` MUST NOT be reused for a later connection — combined with the §5.2
+   PID-reuse mitigation (authorize on `{uid,gid}`, not `pid`; pair `pid` with process start-time when it
+   must be used) this prevents a later, different process from inheriting the exited peer's authenticated
+   identity.
 
 **Net position.** On Linux+DirtyChai with `SO_PEERCRED`, increment 2 delivers genuine per-workload
 authentication anchored in the kernel with no crypto handshake — strong and cheap. On every other
