@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.der.schema;
 
 import au.net.zeus.jgdms.der.DerException;
+import au.net.zeus.jgdms.der.getarg.CollectionWireTypes;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.MarshalDelegate;
 import org.apache.river.api.io.MarshalDelegates;
@@ -384,5 +385,52 @@ public final class SchemaGenerator {
                 + " in class " + declaring.getName()
                 + ". Supported types: boolean, byte, short, int, long, "
                 + "java.lang.String, byte[], @AtomicSerial, enum types, single-dim arrays");
+    }
+
+    // =========================================================================
+    // Collection / Map field wire-type builders (STD-006 §3.8)
+    // =========================================================================
+    //
+    // Java generics are erased, so a declared field type of Set<X> gives Set.class with
+    // no element type at runtime -- toWireType alone cannot derive the element wire-type.
+    // The ORDERING DISCIPLINE, however, IS a pure function of the declared collection
+    // class (HashSet vs LinkedHashSet vs TreeSet ...), which these builders read via
+    // CollectionWireTypes.disciplineFor. The developer supplies the element/key/value
+    // wire-type(s); the discipline is derived, not chosen, so it is digest-stable and the
+    // decoder agrees. This mirrors how array:<componentWT> conveys its (reified) component.
+
+    /**
+     * Builds a {@code Collection}/{@code Set} field wire-type token for the given declared
+     * collection class and element wire-type, deriving the ordering discipline (preserve vs
+     * canonicalise) from the declared class per STD-006 §3.8.
+     *
+     * @param declaredCollectionClass the declared collection class (e.g. {@code HashSet.class},
+     *                                {@code LinkedHashSet.class}, {@code TreeSet.class})
+     * @param elementWireType         the element wire-type (e.g. {@code "int"},
+     *                                {@code "java.lang.String"}, {@code "@AtomicSerial"},
+     *                                or a nested collection token)
+     * @return {@code "set:"}/{@code "orderedset:"}/{@code "list:"} + elementWireType
+     * @throws IllegalArgumentException if the class is not a {@code Collection} type
+     */
+    public static String collectionWireType(Class<?> declaredCollectionClass,
+                                            String elementWireType) {
+        return CollectionWireTypes.setToken(declaredCollectionClass, elementWireType);
+    }
+
+    /**
+     * Builds a {@code Map} field wire-type token for the given declared map class and
+     * key/value wire-types, deriving the ordering discipline from the declared class per
+     * STD-006 §3.8.
+     *
+     * @param declaredMapClass the declared map class (e.g. {@code HashMap.class},
+     *                         {@code LinkedHashMap.class}, {@code TreeMap.class})
+     * @param keyWireType      the key wire-type
+     * @param valueWireType    the value wire-type
+     * @return {@code "map:{key}{val}"} (canonicalise) or {@code "orderedmap:{key}{val}"} (preserve)
+     * @throws IllegalArgumentException if the class is not a {@code Map} type
+     */
+    public static String mapWireType(Class<?> declaredMapClass,
+                                     String keyWireType, String valueWireType) {
+        return CollectionWireTypes.mapToken(declaredMapClass, keyWireType, valueWireType);
     }
 }

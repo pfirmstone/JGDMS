@@ -125,6 +125,30 @@ public final class DerReader {
         return end;
     }
 
+    /**
+     * Returns a fresh copy of the underlying buffer bytes in the absolute index
+     * range {@code [start, end)}. Used to capture the exact octets of an
+     * already-read element TLV (e.g. for the X.690 §11.6 duplicate-encoding check
+     * on a decoded set/map field), without re-encoding. The range must lie within
+     * this reader's visible bounds.
+     *
+     * @param start absolute start index (inclusive), typically a prior
+     *              {@link #position()} value
+     * @param end   absolute end index (exclusive), typically a later
+     *              {@link #position()} value
+     * @return a copy of {@code buf[start..end)}
+     * @throws DerException if the range is invalid or outside this reader's bounds
+     */
+    public byte[] slice(int start, int end) throws DerException {
+        if (start < 0 || end < start || end > this.end || start < 0) {
+            throw new DerException("slice range [" + start + ", " + end
+                    + ") is invalid or outside reader bounds [0, " + this.end + ")");
+        }
+        byte[] out = new byte[end - start];
+        System.arraycopy(buf, start, out, 0, end - start);
+        return out;
+    }
+
     /* ================================================================== */
     /* Tag peeking                                                          */
     /* ================================================================== */

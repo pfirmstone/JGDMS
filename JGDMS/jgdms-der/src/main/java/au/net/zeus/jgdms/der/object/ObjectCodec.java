@@ -21,6 +21,7 @@ import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
+import au.net.zeus.jgdms.der.getarg.CollectionWireTypes;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
@@ -939,6 +940,13 @@ public final class ObjectCodec {
         if (wireType.startsWith("array:")) {
             return encodeArray(value, wireType, fieldName, depth);
         }
+        // Collection fields (STD-006 sec.3.8): set:/orderedset:/list:/map:/orderedmap:
+        // The declared type's discipline (preserve vs canonicalise) is baked into the
+        // token; the encoder honours it here so signed / Entry-matched fields are
+        // byte-deterministic.
+        if (CollectionWireTypes.isCollection(wireType)) {
+            return encodeCollection(value, wireType, fieldName, depth);
+        }
 
         // A nullable scalar reference field (boxed primitive, String, byte[], or a nested
         // @AtomicSerial value) whose value is null travels as DER NULL. A primitive field is
@@ -1191,6 +1199,89 @@ public final class ObjectCodec {
             elementTlvs.add(elemTlv);
         }
 
+        return DerWriter.writeSequence(elementTlvs);
+    }
+
+    // =========================================================================
+    // Collection field encode (STD-006 sec.3.8 -- set:/orderedset:/list:/map:/orderedmap:)
+    // =========================================================================
+
+    /**
+     * Encodes a {@code Collection} or {@code Map} field value to its DER TLV per the
+     * STD-006 §3.8 encounter-order rule. The discipline (preserve vs canonicalise) is
+     * fixed by the token, which {@code SchemaGenerator} derived from the DECLARED type
+     * at schema-generation time -- it is NOT re-derived from the runtime instance here.
+     *
+     * <p>Wire form (both disciplines share the SEQUENCE OF tag; they differ only in the
+     * encoder's ordering obligation, §7.6 / memo §6.3):
+     * <ul>
+     *   <li>DER NULL ({@code 05 00}) for a null field.</li>
+     *   <li>{@code set:}/{@code orderedset:}/{@code list:} -- {@code SEQUENCE OF Element}.</li>
+     *   <li>{@code map:}/{@code orderedmap:} -- {@code SEQUENCE OF SEQUENCE { key, value }}.</li>
+     * </ul>
+     *
+     * <p>For the CANONICALISE disciplines ({@code set:}/{@code map:}) the element (or
+     * {@code {key,value}} entry) encodings are octet-sorted per X.690 §11.6
+     * ({@link CollectionWireTypes#OCTET_SORT}) -- applied bottom-up, since each element
+     * is fully encoded (recursively canonical) before the outer sort. For the PRESERVE
+     * disciplines the iterator's order is emitted unchanged.
+     *
+     * @param value     the {@code Collection} or {@code Map} value (may be null)
+     * @param wireType  the collection token
+     * @param fieldName diagnostics
+     * @param depth     current nesting depth (threaded into per-element nested encode)
+     */
+    private static byte[] encodeCollection(Object value, String wireType,
+                                           String fieldName, int depth) throws DerException {
+        if (value == null) {
+            return new byte[]{0x05, 0x00}; // DER NULL
+        }
+        boolean canonicalise = CollectionWireTypes.isCanonicalise(wireType);
+
+        if (CollectionWireTypes.isMap(wireType)) {
+            if (!(value instanceof Map<?, ?> map)) {
+                throw new DerException("ObjectCodec: expected Map for field '" + fieldName
+                        + "' (wireType " + wireType + ") but got " + value.getClass().getName());
+            }
+            String[] kv = CollectionWireTypes.mapKeyValueWireTypes(wireType);
+            String keyWT = kv[0];
+            String valWT = kv[1];
+            List<byte[]> entryTlvs = new ArrayList<>(map.size());
+            int i = 0;
+            for (Map.Entry<?, ?> e : map.entrySet()) {
+                byte[] keyTlv = encodeValue(e.getKey(),   keyWT, fieldName + ".key[" + i + "]",   depth);
+                byte[] valTlv = encodeValue(e.getValue(), valWT, fieldName + ".value[" + i + "]", depth);
+                // entry := SEQUENCE { key, value }
+                List<byte[]> pair = new ArrayList<>(2);
+                pair.add(keyTlv);
+                pair.add(valTlv);
+                entryTlvs.add(DerWriter.writeSequence(pair));
+                i++;
+            }
+            // Canonicalise: octet-sort the ENTRY encodings. Because the key is the leading
+            // component of each entry SEQUENCE and Map keys are unique (distinct values ->
+            // distinct canonical DER), the entry sort is total and key-determined (§2).
+            if (canonicalise) {
+                CollectionWireTypes.octetSort(entryTlvs);
+            }
+            return DerWriter.writeSequence(entryTlvs);
+        }
+
+        // set: / orderedset: / list:
+        if (!(value instanceof Collection<?> coll)) {
+            throw new DerException("ObjectCodec: expected Collection for field '" + fieldName
+                    + "' (wireType " + wireType + ") but got " + value.getClass().getName());
+        }
+        String elemWT = CollectionWireTypes.elementWireType(wireType);
+        List<byte[]> elementTlvs = new ArrayList<>(coll.size());
+        int i = 0;
+        for (Object elem : coll) {
+            elementTlvs.add(encodeValue(elem, elemWT, fieldName + "[" + i + "]", depth));
+            i++;
+        }
+        if (canonicalise) {
+            CollectionWireTypes.octetSort(elementTlvs);
+        }
         return DerWriter.writeSequence(elementTlvs);
     }
 
@@ -1780,6 +1871,192 @@ public final class ObjectCodec {
         }
 
         return result;
+    }
+
+    // =========================================================================
+    // Collection / Map field decode (STD-006 sec.3.8)
+    // =========================================================================
+
+    /** As {@link #decodeCollection(byte[], String, int, DeserializationCompletion, ResolutionContext)}
+     *  with no decode-unit and {@link ResolutionContext#NONE}. */
+    public static Object decodeCollection(byte[] rawBytes, String wireType, int depth)
+            throws DerException, IOException, ClassNotFoundException {
+        return decodeCollection(rawBytes, wireType, depth, null, ResolutionContext.NONE);
+    }
+
+    /**
+     * Decodes a {@code Collection}/{@code Map} field record produced by
+     * {@link #encodeCollection} for a {@code set:}/{@code orderedset:}/{@code list:}/
+     * {@code map:}/{@code orderedmap:} token (STD-006 §3.8).
+     *
+     * <p>Called from {@link DerGetArg#lookup} when the field store reports the field as a
+     * collection. The depth is threaded so the cumulative {@code MAX_NESTING} guard applies
+     * per element (nested {@code @AtomicSerial} and nested-collection elements).
+     *
+     * <p>The receiver imposes uniqueness at construction: a Set token
+     * ({@code set:}/{@code orderedset:}) rejects duplicate element encodings (a Set cannot
+     * hold post-canonical duplicates; §2), a Map token rejects duplicate key encodings; a
+     * {@code list:} token (multiset/positional) keeps duplicates. Order handling matches the
+     * token discipline: a canonicalise field ({@code set:}/{@code map:}) arrives already
+     * octet-sorted and that order is retained; a preserve field keeps the transmitted order.
+     * The reconstructed collection kind is order-retaining
+     * ({@code LinkedHashSet}/{@code LinkedHashMap}/{@code ArrayList}) so the decoded logical
+     * value equals the original.
+     *
+     * @param rawBytes   the raw TLV bytes (DER NULL or SEQUENCE)
+     * @param wireType   the full collection wire-type token
+     * @param depth      current nesting depth
+     * @param decodeUnit the per-decode-unit completion sink, or {@code null}
+     * @param resolution the endpoint resolution context
+     * @return the decoded {@code Collection} / {@code Map}, or {@code null} for DER NULL
+     * @throws DerException if the encoding is malformed, a Set/Map duplicate is seen, or depth exceeded
+     * @throws IOException  if a nested element's construction fails
+     */
+    public static Object decodeCollection(byte[] rawBytes, String wireType, int depth,
+                                          DeserializationCompletion decodeUnit,
+                                          ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
+        Objects.requireNonNull(rawBytes, "rawBytes");
+        Objects.requireNonNull(wireType, "wireType");
+        if (rawBytes.length == 0) {
+            throw new DerException("ObjectCodec.decodeCollection: empty bytes");
+        }
+        // DER NULL (0x05 0x00) -> null field
+        if (rawBytes[0] == 0x05) {
+            if (rawBytes.length != 2 || rawBytes[1] != 0x00) {
+                throw new DerException(
+                        "ObjectCodec.decodeCollection: malformed NULL TLV (expected 05 00)");
+            }
+            return null;
+        }
+
+        DerReader outer = new DerReader(rawBytes);
+        DerReader seq = outer.readSequence();
+        if (outer.hasMore()) {
+            throw new DerException(
+                    "ObjectCodec.decodeCollection: trailing bytes after collection SEQUENCE");
+        }
+
+        if (CollectionWireTypes.isMap(wireType)) {
+            return decodeMap(seq, wireType, depth, decodeUnit, resolution);
+        }
+        return decodeSetOrList(seq, wireType, depth, decodeUnit, resolution);
+    }
+
+    /** Decodes a {@code set:}/{@code orderedset:}/{@code list:} SEQUENCE body. */
+    private static Object decodeSetOrList(DerReader seq, String wireType, int depth,
+                                          DeserializationCompletion decodeUnit,
+                                          ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
+        String elemWT = CollectionWireTypes.elementWireType(wireType);
+        boolean setKind = CollectionWireTypes.isSetKind(wireType);
+        // Order-retaining containers so the decoded value round-trips the transmitted order.
+        Collection<Object> out = setKind ? new LinkedHashSet<>() : new ArrayList<>();
+        // For a Set field, reject duplicate ELEMENT ENCODINGS (§2) using the exact octets, not
+        // Object.equals -- the wire duplicate check is on the canonical DER, independent of the
+        // element type's equals.
+        List<byte[]> seenEncodings = setKind ? new ArrayList<>() : null;
+
+        while (seq.hasMore()) {
+            int start = seq.position();
+            Object element = decodeElementValue(seq, elemWT, depth, decodeUnit, resolution);
+            int end = seq.position();
+            if (setKind) {
+                byte[] enc = seq.slice(start, end);
+                for (byte[] prev : seenEncodings) {
+                    if (CollectionWireTypes.compareOctets(prev, enc) == 0) {
+                        throw new DerException("ObjectCodec.decodeCollection: duplicate element "
+                                + "encoding in set-typed field (wireType " + wireType + ") -- "
+                                + "a Set cannot hold post-canonical duplicates (§2, fail-secure)");
+                    }
+                }
+                seenEncodings.add(enc);
+            }
+            out.add(element);
+        }
+        return out;
+    }
+
+    /** Decodes a {@code map:}/{@code orderedmap:} SEQUENCE body (SEQUENCE OF SEQUENCE{key,value}). */
+    private static Object decodeMap(DerReader seq, String wireType, int depth,
+                                    DeserializationCompletion decodeUnit,
+                                    ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
+        String[] kv = CollectionWireTypes.mapKeyValueWireTypes(wireType);
+        String keyWT = kv[0];
+        String valWT = kv[1];
+        // Order-retaining so the decoded value round-trips the transmitted entry order.
+        Map<Object, Object> out = new LinkedHashMap<>();
+        List<byte[]> seenKeyEncodings = new ArrayList<>();
+
+        while (seq.hasMore()) {
+            DerReader entry = seq.readSequence();
+            int keyStart = entry.position();
+            Object key = decodeElementValue(entry, keyWT, depth, decodeUnit, resolution);
+            int keyEnd = entry.position();
+            Object val = decodeElementValue(entry, valWT, depth, decodeUnit, resolution);
+            if (entry.hasMore()) {
+                throw new DerException("ObjectCodec.decodeCollection: map entry SEQUENCE has "
+                        + "more than {key,value} (wireType " + wireType + ")");
+            }
+            // Reject duplicate KEY encodings (a Map cannot hold two entries with the same key).
+            byte[] keyEnc = entry.slice(keyStart, keyEnd);
+            for (byte[] prev : seenKeyEncodings) {
+                if (CollectionWireTypes.compareOctets(prev, keyEnc) == 0) {
+                    throw new DerException("ObjectCodec.decodeCollection: duplicate key encoding "
+                            + "in map-typed field (wireType " + wireType + ") -- fail-secure (§2)");
+                }
+            }
+            seenKeyEncodings.add(keyEnc);
+            out.put(key, val);
+        }
+        return out;
+    }
+
+    /**
+     * Decodes a single collection element / map key / map value from {@code reader},
+     * dispatching on its wire-type. Scalar / {@code String} / {@code enum} / {@code array:}
+     * types are decoded by the package-private {@link DerFieldStore#decodeScalarElement}
+     * bridge; {@code @AtomicSerial} and nested-collection types are decoded here so the
+     * nesting depth is threaded. The reader advances past the element TLV.
+     */
+    private static Object decodeElementValue(DerReader reader, String elemWT, int depth,
+                                             DeserializationCompletion decodeUnit,
+                                             ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
+        if ("@AtomicSerial".equals(elemWT)) {
+            // Read the element's complete TLV (nested record SEQUENCE or DER NULL), then decode
+            // it with the threaded depth so the cumulative MAX_NESTING guard applies.
+            byte[] elemTlv = readOneTlv(reader);
+            return decodeNested(elemTlv, depth, decodeUnit, resolution);
+        }
+        if (CollectionWireTypes.isCollection(elemWT)) {
+            // A nested collection element (a set: of set:, a map: value that is a set:, ...):
+            // read its complete TLV and recurse -- bottom-up canonicalisation is a natural
+            // consequence, since the inner encoding is already canonical before the outer sort.
+            byte[] elemTlv = readOneTlv(reader);
+            return decodeCollection(elemTlv, elemWT, depth, decodeUnit, resolution);
+        }
+        // Scalar / String / byte[] / enum: / array: element -> WireTypes via the getarg bridge.
+        return DerFieldStore.decodeScalarElement(reader, elemWT, resolution);
+    }
+
+    /**
+     * Reads one complete TLV (tag + length + content) from {@code reader} and returns its
+     * full bytes, advancing the cursor. Used to capture a nested element for depth-threaded
+     * decode.
+     */
+    private static byte[] readOneTlv(DerReader reader) throws DerException {
+        DerReader.TlvHeader hdr = reader.readTlvHeader();
+        byte[] content = reader.readRawContent(hdr.contentLength());
+        byte[] tagBytes    = hdr.tag().encode();
+        byte[] lengthBytes = DerWriter.encodeLength(hdr.contentLength());
+        byte[] tlv = new byte[tagBytes.length + lengthBytes.length + content.length];
+        int pos = 0;
+        System.arraycopy(tagBytes,    0, tlv, pos, tagBytes.length);    pos += tagBytes.length;
+        System.arraycopy(lengthBytes, 0, tlv, pos, lengthBytes.length); pos += lengthBytes.length;
+        System.arraycopy(content,     0, tlv, pos, content.length);
+        return tlv;
     }
 
     /**

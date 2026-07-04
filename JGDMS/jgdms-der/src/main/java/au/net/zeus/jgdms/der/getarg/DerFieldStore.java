@@ -145,6 +145,27 @@ public final class DerFieldStore {
     }
 
     /**
+     * Wrapper stored for a {@code Collection}/{@code Map} field (wireType one of
+     * {@code set:}/{@code orderedset:}/{@code list:}/{@code map:}/{@code orderedmap:};
+     * STD-006 §3.8). Holds the raw TLV bytes of the outer DER NULL or SEQUENCE and the
+     * full collection wire-type token (so the decoder knows the element/key/value
+     * wire-types and the target collection kind).
+     *
+     * <p>Like {@link NestedArrayRaw}, decoding is deferred to
+     * {@code DerGetArg.get(name, default)} (in {@code der.object}) which calls
+     * {@code ObjectCodec.decodeCollection}, threading the cumulative depth guard and
+     * keeping {@code der.getarg} free of any {@code der.object} dependency (no cycle).
+     *
+     * @param rawBytes raw TLV bytes of the collection SEQUENCE or DER NULL
+     * @param wireType the full collection wire-type token
+     */
+    record CollectionRaw(byte[] rawBytes, String wireType) {
+        CollectionRaw {
+            rawBytes = rawBytes.clone(); // defensive copy
+        }
+    }
+
+    /**
      * The schema record this store was built with. This is always the schema
      * passed in at construction time (the at-marshal-time schema), never any
      * ambient or global schema.
@@ -311,6 +332,13 @@ public final class DerFieldStore {
                 // threaded through and der.getarg stays cycle-free.
                 String componentClassName = def.wireType().substring("array:@AtomicSerial:".length());
                 value = readNestedArrayRawTlv(seq, componentClassName);
+            } else if (CollectionWireTypes.isCollection(def.wireType())) {
+                // Collection/Map field (STD-006 §3.8): read the raw TLV bytes (SEQUENCE of
+                // elements/entries, or DER NULL) without decoding. Decoding is deferred to
+                // DerGetArg.get() in der.object (via ObjectCodec.decodeCollection) so nested
+                // @AtomicSerial / nested-collection elements thread the cumulative depth guard
+                // and der.getarg stays cycle-free.
+                value = readCollectionRawTlv(seq, def.wireType());
             } else {
                 value = WireTypes.decode(seq, def.wireType(), res);
             }
@@ -650,6 +678,89 @@ public final class DerFieldStore {
         return new NestedArrayRaw(raw, componentClassName);
     }
 
+    /**
+     * Reads the complete TLV bytes (tag + length + content) of the next item in
+     * {@code seq} for a {@code Collection}/{@code Map} field (STD-006 §3.8), without
+     * interpreting the TLV. The raw bytes and the full wire-type token are wrapped in a
+     * {@link CollectionRaw} so that {@code DerGetArg} (in {@code der.object}) can decode
+     * them depth-boundedly via {@code ObjectCodec.decodeCollection}.
+     *
+     * @param seq      sub-reader positioned at the collection TLV (SEQUENCE or NULL)
+     * @param wireType the full collection wire-type token
+     * @return the raw bytes wrapped in a {@link CollectionRaw}
+     */
+    private static CollectionRaw readCollectionRawTlv(DerReader seq, String wireType)
+            throws DerException {
+        DerReader.TlvHeader hdr = seq.readTlvHeader();
+        byte[] content = seq.readRawContent(hdr.contentLength());
+
+        byte[] tagBytes    = hdr.tag().encode();
+        byte[] lengthBytes = DerWriter.encodeLength(hdr.contentLength());
+        byte[] raw = new byte[tagBytes.length + lengthBytes.length + content.length];
+        int pos = 0;
+        System.arraycopy(tagBytes,    0, raw, pos, tagBytes.length);    pos += tagBytes.length;
+        System.arraycopy(lengthBytes, 0, raw, pos, lengthBytes.length); pos += lengthBytes.length;
+        System.arraycopy(content,     0, raw, pos, content.length);
+        return new CollectionRaw(raw, wireType);
+    }
+
+    // =========================================================================
+    // Collection / Map field access (STD-006 §3.8)
+    // =========================================================================
+
+    /**
+     * Returns {@code true} if the named field holds a {@code Collection}/{@code Map}
+     * raw record (wireType {@code set:}/{@code orderedset:}/{@code list:}/{@code map:}/
+     * {@code orderedmap:}), regardless of whether the value is null (DER NULL) or a
+     * real collection.
+     *
+     * <p>A field that is absent (case (b)) returns {@code false}; the caller checks
+     * {@link #defaulted(String)} and returns the default.
+     *
+     * @param name the field name
+     * @return {@code true} if the stored value is a {@link CollectionRaw} wrapper
+     */
+    public boolean isCollection(String name) {
+        return fields.get(name) instanceof CollectionRaw;
+    }
+
+    /**
+     * Returns the raw TLV bytes for a {@code Collection}/{@code Map} field (a SEQUENCE
+     * or DER NULL). The caller (in {@code der.object}) decodes them via
+     * {@code ObjectCodec.decodeCollection}.
+     *
+     * @param name the field name
+     * @return a defensive copy of the raw TLV bytes
+     * @throws IllegalStateException if the field is not a collection raw field
+     *                               (check {@link #isCollection(String)} first)
+     */
+    public byte[] rawCollection(String name) {
+        Object v = fields.get(name);
+        if (!(v instanceof CollectionRaw cr)) {
+            throw new IllegalStateException(
+                    "DerFieldStore: field '" + name + "' is not a collection raw field");
+        }
+        return cr.rawBytes(); // CollectionRaw.rawBytes() already returns a defensive copy
+    }
+
+    /**
+     * Returns the full collection wire-type token for a {@code Collection}/{@code Map}
+     * field.
+     *
+     * @param name the field name
+     * @return the collection wire-type token
+     * @throws IllegalStateException if the field is not a collection raw field
+     *                               (check {@link #isCollection(String)} first)
+     */
+    public String collectionWireType(String name) {
+        Object v = fields.get(name);
+        if (!(v instanceof CollectionRaw cr)) {
+            throw new IllegalStateException(
+                    "DerFieldStore: field '" + name + "' is not a collection raw field");
+        }
+        return cr.wireType();
+    }
+
     // =========================================================================
     // Nested @AtomicSerial[] array access (STD-008 sec.17.2)
     // =========================================================================
@@ -739,5 +850,29 @@ public final class DerFieldStore {
     public static Object decodePrimitiveArray(byte[] sequenceTlv, String arrayWireType,
                                               ResolutionContext res) throws DerException {
         return WireTypes.decode(new DerReader(sequenceTlv), arrayWireType, res);
+    }
+
+    /**
+     * Decodes a single scalar / {@code String} / {@code enum} element from a {@link DerReader}
+     * positioned at the element TLV -- the collection-codec's bridge to the package-private
+     * {@link WireTypes} decoder (which cannot be reached directly from {@code der.object}). The
+     * reader cursor advances past the element TLV.
+     *
+     * <p>Used by {@code ObjectCodec.decodeCollection} for a collection whose element (or map
+     * key/value) wire-type is a scalar, {@code String}, {@code byte[]}, {@code enum:}, or
+     * {@code array:} (value array) type. {@code @AtomicSerial} and nested-collection element
+     * wire-types are NOT routed here -- {@code ObjectCodec} decodes those itself so the nesting
+     * depth guard is threaded.
+     *
+     * @param reader   a reader positioned at the element TLV
+     * @param wireType the element / key / value wire-type (never a {@code @AtomicSerial} or
+     *                 collection token)
+     * @param res      the endpoint resolution context (for enum component classes)
+     * @return the decoded, boxed value (may be {@code null} for a nullable type encoded as NULL)
+     * @throws DerException if the wireType is unsupported here or the encoding is malformed
+     */
+    public static Object decodeScalarElement(DerReader reader, String wireType,
+                                             ResolutionContext res) throws DerException {
+        return WireTypes.decode(reader, wireType, res);
     }
 }

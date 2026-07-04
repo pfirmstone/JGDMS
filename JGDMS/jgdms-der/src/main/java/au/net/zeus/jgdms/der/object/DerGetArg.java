@@ -234,6 +234,20 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     @Override
     protected Object lookup(Class<?> callerClass, String name) throws IOException {
         DerFieldStore store = store(callerClass);
+        // Collection/Map field (STD-006 §3.8): decode lazily, threading depth so nested
+        // @AtomicSerial / nested-collection elements share the cumulative MAX_NESTING guard.
+        if (store.isCollection(name)) {
+            try {
+                return ObjectCodec.decodeCollection(
+                        store.rawCollection(name),
+                        store.collectionWireType(name),
+                        depth, decodeUnit, resolution);
+            } catch (DerException e) {
+                throw nested("failed to decode collection field", name, e);
+            } catch (ClassNotFoundException e) {
+                throw nested("class not found decoding collection field", name, e);
+            }
+        }
         // Nested @AtomicSerial[] array field: decode lazily (STD-008 sec.17.2).
         // Check BEFORE isNested (different wrapper type); depth is threaded so the
         // cumulative MAX_NESTING guard applies per element.
