@@ -86,15 +86,39 @@ final class ServiceModel {
             "net.jini.lookup.ServiceIDAccessor",
             "net.jini.lookup.ServiceAttributesAccessor",
             "net.jini.export.CodebaseAccessor",
-            "net.jini.core.constraint.RemoteMethodControl"));
+            "net.jini.core.constraint.RemoteMethodControl",
+            // The bare Remote marker is never itself a service API (mirrors the
+            // runtime AbstractJiniService.INFRA_INTERFACES).
+            "java.rmi.Remote"));
 
     /** The annotated service <em>implementation</em> class (carries @JiniService). */
     final TypeElement impl;
 
-    /** The resolved public API (remote) interface the proxy is generated for. */
+    /**
+     * The resolved <em>primary</em> public API (remote) interface: the first
+     * {@code api()} element, or (when {@code api()} is empty) the first inferred
+     * non-infrastructure interface.  Used for naming (the {@code <Api>Backend} /
+     * {@code Constrainable<Api>Proxy} conventions) and for diagnostics.  The full
+     * set the proxy implements and forwards is {@link #apiInterfaces}.
+     */
     final TypeElement api;
 
-    /** The public (abstract) methods declared by the API interface hierarchy. */
+    /**
+     * The full, ordered set of public API (remote) interfaces the generated proxy
+     * implements and forwards — every {@code api()} element, or (when {@code api()}
+     * is empty) every inferred non-infrastructure interface.  {@link #api} is the
+     * first (primary) of these.  JGDMS-STD-009 §3.1/§4: the generated shell and
+     * backend must cover the method set across <em>all</em> api interfaces,
+     * symmetric with the runtime
+     * {@code AbstractJiniService.resolveServiceInterfaces}.
+     */
+    final List<TypeElement> apiInterfaces = new ArrayList<>();
+
+    /**
+     * The public (abstract) methods declared across <em>all</em>
+     * {@link #apiInterfaces}, deduplicated by erased signature (an override common
+     * to two api interfaces yields a single forwarding method).
+     */
     final List<ExecutableElement> apiMethods = new ArrayList<>();
 
     /** Resolved internal wire interface ({@code protocol}); defaults to {@link #api}. */
@@ -215,36 +239,49 @@ final class ServiceModel {
             }
         }
 
-        // Resolve the primary API interface: the first api() element, or -- when
-        // api() is empty -- inferred from the impl's implemented interfaces minus
-        // the JGDMS infrastructure set (symmetric with the runtime rule in
-        // AbstractJiniService.resolveServiceInterfaces).
-        TypeElement api = resolveApi(impl, apiTypes, types, messager);
-        if (api == null) {
+        // Resolve the FULL set of API interfaces: every api() element, or -- when
+        // api() is empty -- every interface inferred from the impl's implemented
+        // interfaces minus the JGDMS infrastructure set (symmetric with the runtime
+        // rule in AbstractJiniService.resolveServiceInterfaces, which likewise
+        // returns ALL of them and does not treat multiple as ambiguous).
+        List<TypeElement> apiList = resolveApiInterfaces(impl, apiTypes, types, messager);
+        if (apiList.isEmpty()) {
             return null; // diagnostic already emitted
         }
+        TypeElement api = apiList.get(0);
 
         ServiceModel m = new ServiceModel(impl, api);
+        m.apiInterfaces.addAll(apiList);
         String simple = api.getSimpleName().toString();
         m.backendSimpleName = simple + "Backend";
 
-        // Collect the public abstract API methods (skip static/default methods
-        // and Object methods; the API is an interface).
-        for (Element e : elements.getAllMembers(api)) {
-            if (e.getKind() != ElementKind.METHOD) {
-                continue;
+        // Collect the public abstract API methods across ALL api interfaces
+        // (JGDMS-STD-009 §3.1/§4: the generated shell must cover every api
+        // interface's method set, not just the primary's).  Skip static/default
+        // and java.lang.Object methods; deduplicate by erased signature so a method
+        // common to two api interfaces yields a single forwarding method (emitting
+        // it twice would fail to compile).
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        for (TypeElement iface : apiList) {
+            for (Element e : elements.getAllMembers(iface)) {
+                if (e.getKind() != ElementKind.METHOD) {
+                    continue;
+                }
+                ExecutableElement me = (ExecutableElement) e;
+                if (me.getModifiers().contains(Modifier.STATIC)
+                        || me.getModifiers().contains(Modifier.DEFAULT)) {
+                    continue;
+                }
+                Element enclosing = me.getEnclosingElement();
+                if (enclosing instanceof TypeElement
+                        && "java.lang.Object".contentEquals(
+                            ((TypeElement) enclosing).getQualifiedName())) {
+                    continue;
+                }
+                if (seen.add(methodKey(me, types))) {
+                    m.apiMethods.add(me);
+                }
             }
-            ExecutableElement me = (ExecutableElement) e;
-            if (me.getModifiers().contains(Modifier.STATIC)
-                    || me.getModifiers().contains(Modifier.DEFAULT)) {
-                continue;
-            }
-            if (me.getEnclosingElement() != null
-                    && "java.lang.Object".contentEquals(
-                        ((TypeElement) me.getEnclosingElement()).getQualifiedName())) {
-                continue;
-            }
-            m.apiMethods.add(me);
         }
         // protocol default (Void.class) means "same as the annotated API".  A
         // distinct protocol is the translating-smart-proxy signal that gates
@@ -321,30 +358,46 @@ final class ServiceModel {
     }
 
     /**
-     * Resolves the primary API interface for the annotated impl: the first
-     * {@code api()} element when present, else the sole interface inferred from the
-     * impl's implemented interfaces minus {@link #INFRA_INTERFACES} (symmetric with
-     * {@code AbstractJiniService.resolveServiceInterfaces}).  Emits a fail-closed
-     * diagnostic (and returns {@code null}) if the primary is not a resolvable
-     * interface, or if inference is empty or ambiguous.
+     * Resolves the FULL, ordered set of API interfaces for the annotated impl:
+     * every {@code api()} element when {@code api()} is non-empty, else every
+     * interface inferred from the impl's implemented interfaces (walking the
+     * superclass chain down to, but not including, {@code AbstractJiniService})
+     * minus {@link #INFRA_INTERFACES} — symmetric with the runtime
+     * {@code AbstractJiniService.resolveServiceInterfaces}, which returns all of
+     * them (multiple interfaces are the multi-interface service case, not an
+     * ambiguity).  Returns an empty list (after emitting a fail-closed diagnostic)
+     * if a declared element is not an interface, or if inference yields nothing.
      */
-    private static TypeElement resolveApi(TypeElement impl, List<TypeMirror> apiTypes,
-                                          Types types, Messager messager) {
+    private static List<TypeElement> resolveApiInterfaces(TypeElement impl,
+            List<TypeMirror> apiTypes, Types types, Messager messager) {
+        List<TypeElement> result = new ArrayList<>();
         if (!apiTypes.isEmpty()) {
-            TypeElement api = asInterfaceElement(apiTypes.get(0), types);
-            if (api == null) {
-                messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
-                    "@JiniService api() must name a remote interface.", impl);
-                return null;
+            for (TypeMirror t : apiTypes) {
+                TypeElement api = asInterfaceElement(t, types);
+                if (api == null) {
+                    messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
+                        "@JiniService api() must name remote interface(s).", impl);
+                    return java.util.Collections.emptyList();
+                }
+                result.add(api);
             }
-            return api;
+            return result;
         }
-        // Infer from the impl's implemented interfaces, minus infrastructure.
-        List<TypeElement> inferred = new ArrayList<>();
-        for (TypeMirror iface : impl.getInterfaces()) {
-            TypeElement te = asInterfaceElement(iface, types);
-            if (te != null && !INFRA_INTERFACES.contains(te.getQualifiedName().toString())) {
-                inferred.add(te);
+        // Infer from the impl's implemented interfaces (walking supers down to
+        // AbstractJiniService), minus infrastructure — symmetric with the runtime.
+        java.util.Set<TypeElement> inferred = new java.util.LinkedHashSet<>();
+        for (TypeElement c = impl; c != null; c = superTypeElement(c)) {
+            String cn = c.getQualifiedName().toString();
+            if ("au.net.zeus.jgdms.service.support.AbstractJiniService".equals(cn)
+                    || "java.lang.Object".equals(cn)) {
+                break;
+            }
+            for (TypeMirror iface : c.getInterfaces()) {
+                TypeElement te = asInterfaceElement(iface, types);
+                if (te != null
+                        && !INFRA_INTERFACES.contains(te.getQualifiedName().toString())) {
+                    inferred.add(te);
+                }
             }
         }
         if (inferred.isEmpty()) {
@@ -352,23 +405,35 @@ final class ServiceModel {
                 "@JiniService on " + impl.getQualifiedName() + " has an empty api()"
                 + " and no service interface could be inferred (the class implements"
                 + " only infrastructure interfaces); declare api() explicitly.", impl);
+            return java.util.Collections.emptyList();
+        }
+        result.addAll(inferred);
+        return result;
+    }
+
+    /** The superclass of {@code t} as a {@link TypeElement}, or {@code null} at
+     *  the top of the chain (or when the superclass is not a declared type). */
+    private static TypeElement superTypeElement(TypeElement t) {
+        TypeMirror sup = t.getSuperclass();
+        if (sup == null || sup.getKind() != TypeKind.DECLARED) {
             return null;
         }
-        if (inferred.size() > 1) {
-            StringBuilder names = new StringBuilder();
-            for (TypeElement te : inferred) {
-                if (names.length() > 0) {
-                    names.append(", ");
-                }
-                names.append(te.getQualifiedName());
+        Element el = ((DeclaredType) sup).asElement();
+        return (el instanceof TypeElement) ? (TypeElement) el : null;
+    }
+
+    /** A dedup key for a method: simple name + erased parameter type names. */
+    private static String methodKey(ExecutableElement m, Types types) {
+        StringBuilder sb = new StringBuilder(m.getSimpleName().toString()).append('(');
+        boolean first = true;
+        for (VariableElement p : m.getParameters()) {
+            if (!first) {
+                sb.append(',');
             }
-            messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
-                "@JiniService on " + impl.getQualifiedName() + " has an empty api()"
-                + " and the service interface is ambiguous (" + names + "); declare"
-                + " api() explicitly.", impl);
-            return null;
+            first = false;
+            sb.append(types.erasure(p.asType()).toString());
         }
-        return inferred.get(0);
+        return sb.append(')').toString();
     }
 
     /** The {@link TypeElement} of a declared interface type, or {@code null}. */

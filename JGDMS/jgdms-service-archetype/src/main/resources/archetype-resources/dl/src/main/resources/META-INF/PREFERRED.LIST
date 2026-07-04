@@ -1,0 +1,6 @@
+PreferredResources-Version: 1.0
+
+Preferred: true
+
+Name: ${packageInPathFormat}/proxy/${serviceName}ServiceBackend.class
+Preferred: false
