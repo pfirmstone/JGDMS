@@ -332,15 +332,18 @@ that is not our case. §11.6 (SET OF) sorts a *homogeneous* collection's compone
 the universal SET-OF tag 0x31 or keep the SEQUENCE tag 0x30 with the octet-sort *discipline*
 is a wire-tagging choice — see §6/decision; the sort algorithm is §11.6's either way.)
 
-**Map.** A `Map` is `SEQUENCE OF SEQUENCE { key, value }`. Canonicalize by sorting the
-`{key,value}` entries by the **encoded key** octets (§11.6 applied to the entry encodings —
-which, because the key is the first component, orders primarily by key). Keys in a Map are
-distinct *values*; distinct values have distinct canonical DER encodings (DER is injective
-on values by construction), so **no two entries can have colliding key encodings** — the
-sort is total and unambiguous. (If two keys encoded identically they would *be* the same
-value and the Map could not contain both.) Sorting the whole entry encoding vs the key-only
-encoding gives the same order here because the key is the leading component and keys are
-unique; sort by the entry encoding for simplicity and it is still key-determined.
+**Map.** A canonicalize `Map` is `SET OF SEQUENCE { key, value }` (Option A resolved: outer
+`SET OF` tag `0x31`, per-entry `SEQUENCE` `0x30`). Canonicalize by sorting the `{key,value}`
+entries strictly by the **encoded key** octets (§11.6 applied to the *key* encoding — **not**
+the whole entry). Keys in a Map are distinct *values*; distinct values have distinct canonical
+DER encodings (DER is injective on values by construction), so **no two entries can have
+colliding key encodings** — sorting by key is total and unambiguous. (If two keys encoded
+identically they would *be* the same value and the Map could not contain both.) **Sort by the
+key encoding, not the whole entry:** whole-entry octet-sorting is *not* equivalent, because the
+entry `SEQUENCE`'s length octet encodes key-length + value-length, so the value bytes leak into
+the entry-level comparison and can reorder entries relative to key order — two conformant peers
+would then disagree byte-for-byte on the same Map value. The shipped codec (`9f0d1e581`) and
+normative §3.8 sort by the key encoding.
 
 **Duplicates after canonicalization.**
 - A **Set** cannot contain post-canonical duplicates: two elements with identical canonical
