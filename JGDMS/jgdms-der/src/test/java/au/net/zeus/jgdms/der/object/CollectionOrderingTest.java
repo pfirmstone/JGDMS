@@ -21,8 +21,10 @@ import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.getarg.CollectionWireTypes;
 import au.net.zeus.jgdms.der.object.fixtures.CollectionRecord;
 import au.net.zeus.jgdms.der.object.fixtures.IntBox;
+import au.net.zeus.jgdms.der.object.fixtures.PlainCollectionFieldRecord;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
+import au.net.zeus.jgdms.der.schema.SchemaChain;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import org.junit.jupiter.api.Test;
 
@@ -615,6 +617,84 @@ class CollectionOrderingTest {
             dir = dir.getParent();
         }
         return null;
+    }
+
+    // =========================================================================
+    // Fail-closed lock (review-board Q4): the AUTOMATIC schema generator must NOT
+    // silently downgrade a plain collection field to a non-canonical encoding. A
+    // concrete-collection field throws at schema-gen; an interface-collection field
+    // throws at encode (no DER collection serializer is registered). These lock the
+    // "opt-in" boundary so a future refactor cannot introduce a non-canonical fallback.
+    // =========================================================================
+
+    @Test
+    void plainConcreteCollectionField_schemaGen_throwsFailClosed() {
+        // SchemaGenerator.toWireType(HashSet.class) has no mapping -> DerException. If a future
+        // change made it emit a token it must emit a COLLECTION token (canonical), never fall
+        // through to a non-canonical @AtomicSerial/array path; asserting the throw locks that.
+        assertThrows(DerException.class,
+                () -> SchemaGenerator.toWireType(HashSet.class, PlainCollectionFieldRecord.class),
+                "a concrete HashSet field type must NOT auto-map to a non-collection wire type "
+                + "(fail-closed: no silent non-canonical fallback)");
+    }
+
+    @Test
+    void plainInterfaceCollectionField_encode_throwsFailClosed() throws Exception {
+        // A Set-typed field auto-maps to "@AtomicSerial"; encoding a HashSet value then fails
+        // fast (HashSet is neither @AtomicSerial nor a registered DER serializer). This proves a
+        // plain interface-collection field cannot be silently encoded NON-canonically.
+        PlainCollectionFieldRecord rec =
+                new PlainCollectionFieldRecord(new HashSet<>(List.of(1, 2, 3)));
+        SchemaChain.Result chain = SchemaGenerator.generateChain(PlainCollectionFieldRecord.class);
+        Exception ex = assertThrows(Exception.class,
+                () -> ObjectCodec.encodeHierarchy(rec, chain),
+                "a plain Set field holding a HashSet must fail-closed at encode (no DER Set "
+                + "serializer registered) rather than emit a non-canonical encoding");
+        assertTrue(messageChainContains(ex, "no @AtomicSerial")
+                        || messageChainContains(ex, "@AtomicSerial"),
+                "encode must reject the non-@AtomicSerial collection value; got: " + describe(ex));
+    }
+
+    @Test
+    void schemaGenerator_toWireType_neverEmitsCollectionTokenAutomatically() throws Exception {
+        // Belt-and-braces: confirm the auto path emits NO collection token for the interface
+        // Set/Map/Collection field types (it returns "@AtomicSerial"), so the ONLY way to reach a
+        // collection token is the explicit collectionWireType/mapWireType builders. This documents
+        // the opt-in boundary the board asked about.
+        assertEquals("@AtomicSerial", SchemaGenerator.toWireType(Set.class, CollectionRecord.class));
+        assertEquals("@AtomicSerial", SchemaGenerator.toWireType(Map.class, CollectionRecord.class));
+        assertEquals("@AtomicSerial",
+                SchemaGenerator.toWireType(Collection.class, CollectionRecord.class));
+    }
+
+    // =========================================================================
+    // Map canonicalise sorts by the KEY encoding, not the whole entry (review-board Q6).
+    // Two maps that are .equals but whose entries were built in different orders AND whose
+    // values differ in size must still encode byte-identically, ordered by key -- proving the
+    // value bytes never participate in the ordering.
+    // =========================================================================
+
+    @Test
+    void map_canonicalise_ordersByKeyEncoding_notWholeEntry() throws Exception {
+        String tok = mapTok(HashMap.class, "int", "java.lang.String");
+        // key 1 -> a LARGE value; key 2 -> a SMALL value. Whole-entry octet-sort would put the
+        // smaller entry (key 2) first; key-only octet-sort puts key 1 first. The decoded order
+        // must be key-ascending (1 then 2), independent of value size.
+        Map<Integer, String> m = new HashMap<>();
+        m.put(1, "xxxxxxxxxxxxxxxxxxxx"); // 20-char value
+        m.put(2, "y");                    // 1-char value
+        @SuppressWarnings("unchecked")
+        Map<Integer, String> back = (Map<Integer, String>) roundTrip(m, tok);
+        assertEquals(List.of(1, 2), new ArrayList<>(back.keySet()),
+                "canonicalise map must order entries by KEY encoding (key 1 before key 2), "
+                + "independent of value size -- proves value bytes do not participate (§2/§11.6)");
+
+        // And it is deterministic across insertion order (value-equality proxy still holds).
+        Map<Integer, String> m2 = new HashMap<>();
+        m2.put(2, "y");
+        m2.put(1, "xxxxxxxxxxxxxxxxxxxx");
+        assertArrayEquals(encode(m, tok), encode(m2, tok),
+                "the same map built in a different insertion order must encode byte-identically");
     }
 
     /** Enum for the EnumSet test. */

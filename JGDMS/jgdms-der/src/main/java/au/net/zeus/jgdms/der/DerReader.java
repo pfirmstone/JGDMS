@@ -140,7 +140,7 @@ public final class DerReader {
      * @throws DerException if the range is invalid or outside this reader's bounds
      */
     public byte[] slice(int start, int end) throws DerException {
-        if (start < 0 || end < start || end > this.end || start < 0) {
+        if (start < 0 || end < start || end > this.end) {
             throw new DerException("slice range [" + start + ", " + end
                     + ") is invalid or outside reader bounds [0, " + this.end + ")");
         }

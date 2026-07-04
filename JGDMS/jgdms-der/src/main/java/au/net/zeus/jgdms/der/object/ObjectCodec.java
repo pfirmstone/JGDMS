@@ -1246,6 +1246,14 @@ public final class ObjectCodec {
             String[] kv = CollectionWireTypes.mapKeyValueWireTypes(wireType);
             String keyWT = kv[0];
             String valWT = kv[1];
+            // Collect (keyEncoding, entryEncoding) pairs so a canonicalise map can octet-sort by
+            // the KEY encoding, not the whole entry. Sorting the whole entry is NOT equivalent to
+            // sorting by key: the entry SEQUENCE's length octet encodes key-size + value-size, so a
+            // larger value can flip two entries whose keys would sort the other way key-only. §2 /
+            // §11.6 fix the canonical order on the KEY (keys unique -> total order), so a non-JVM
+            // peer implementing "sort by encoded key" agrees byte-for-byte. Determinism held either
+            // way, but cross-implementation canonical-form agreement requires key-only ordering.
+            List<byte[]> keyTlvs   = new ArrayList<>(map.size());
             List<byte[]> entryTlvs = new ArrayList<>(map.size());
             int i = 0;
             for (Map.Entry<?, ?> e : map.entrySet()) {
@@ -1255,14 +1263,21 @@ public final class ObjectCodec {
                 List<byte[]> pair = new ArrayList<>(2);
                 pair.add(keyTlv);
                 pair.add(valTlv);
+                keyTlvs.add(keyTlv);
                 entryTlvs.add(DerWriter.writeSequence(pair));
                 i++;
             }
-            // Canonicalise: octet-sort the ENTRY encodings. Because the key is the leading
-            // component of each entry SEQUENCE and Map keys are unique (distinct values ->
-            // distinct canonical DER), the entry sort is total and key-determined (§2).
             if (canonicalise) {
-                CollectionWireTypes.octetSort(entryTlvs);
+                // Stable sort the entry list by the parallel key-encoding list (X.690 §11.6 over
+                // the key encodings). Keys are unique -> the key comparison is total, so no two
+                // entries compare equal and stability is immaterial; value bytes never participate.
+                Integer[] order = new Integer[entryTlvs.size()];
+                for (int j = 0; j < order.length; j++) order[j] = j;
+                java.util.Arrays.sort(order,
+                        (p, q) -> CollectionWireTypes.compareOctets(keyTlvs.get(p), keyTlvs.get(q)));
+                List<byte[]> sorted = new ArrayList<>(entryTlvs.size());
+                for (int idx : order) sorted.add(entryTlvs.get(idx));
+                entryTlvs = sorted;
             }
             return DerWriter.writeSequence(entryTlvs);
         }
