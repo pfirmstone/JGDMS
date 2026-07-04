@@ -73,26 +73,46 @@ import javax.lang.model.util.Types;
  */
 final class ServiceModel {
 
+    /** {@code java.rmi.Remote}, the marker that partitions client vs. admin interfaces. */
+    static final String REMOTE_NAME = "java.rmi.Remote";
+
     /**
-     * The JGDMS infrastructure interfaces excluded when {@code api()} is empty and
-     * the service API is inferred from the impl's implemented interfaces (mirrors
-     * the runtime rule in {@code AbstractJiniService.resolveServiceInterfaces}).
+     * The four {@link java.rmi.Remote} bootstrap-accessor interfaces subtracted from
+     * the inferred service API — the ONLY {@code Remote}-extending interfaces that are
+     * NOT service API.  This is the allowlist that lets the processor's
+     * {@link #resolveApi} converge <em>exactly</em> with the runtime
+     * {@code AbstractJiniService.classify}: api = {implemented interfaces extending
+     * {@code Remote}} − {these four accessors} − {@code Remote} itself.  Because a
+     * service API must extend {@code Remote} to be exported, the non-{@code Remote}
+     * admin/{@code RemoteMethodControl} entries drop out automatically under the
+     * {@code Remote} test, so both sides key off the same rule (JGDMS-STD-009 §6).
      */
-    static final Set<String> INFRA_INTERFACES = new java.util.LinkedHashSet<>(java.util.Arrays.asList(
-            "net.jini.admin.Administrable",
-            "net.jini.admin.JoinAdmin",
-            "org.apache.river.admin.DestroyAdmin",
+    static final Set<String> BOOTSTRAP_ACCESSORS = new java.util.LinkedHashSet<>(java.util.Arrays.asList(
             "net.jini.lookup.ServiceProxyAccessor",
             "net.jini.lookup.ServiceIDAccessor",
             "net.jini.lookup.ServiceAttributesAccessor",
-            "net.jini.export.CodebaseAccessor",
-            "net.jini.core.constraint.RemoteMethodControl"));
+            "net.jini.export.CodebaseAccessor"));
 
     /** The annotated service <em>implementation</em> class (carries @JiniService). */
     final TypeElement impl;
 
-    /** The resolved public API (remote) interface the proxy is generated for. */
+    /**
+     * The resolved <em>primary</em> public API (remote) interface — the first of
+     * {@link #apiInterfaces} — the one the (SMART) proxy class and backend interface
+     * are generated for.
+     */
     final TypeElement api;
+
+    /**
+     * ALL resolved service API (remote) interfaces (design decision D2 —
+     * multi-interface registration): every explicitly-declared {@code api()} element,
+     * or — when {@code api()} is empty — every implemented {@code Remote} interface
+     * that is not a bootstrap accessor (see {@link #resolveApi}).  Mirrors the runtime
+     * {@code AbstractJiniService.getServiceInterfaces()} full set; {@link #api} is the
+     * first element.  An empty {@code api()} that yields several interfaces is NOT an
+     * error (it was, before multi-interface convergence).
+     */
+    final List<TypeElement> apiInterfaces = new ArrayList<>();
 
     /** The public (abstract) methods declared by the API interface hierarchy. */
     final List<ExecutableElement> apiMethods = new ArrayList<>();
@@ -170,9 +190,11 @@ final class ServiceModel {
 
     /**
      * Builds the model from the annotated <em>implementation</em> class.  Reads
-     * {@code @JiniService} off {@code impl}, resolves the primary API interface
-     * from {@code api()} (or infers it from the impl's implemented interfaces minus
-     * {@link #INFRA_INTERFACES}), and collects that interface's methods.
+     * {@code @JiniService} off {@code impl}, resolves ALL API interfaces from
+     * {@code api()} (or infers them via the shared allowlist — interfaces extending
+     * {@link #REMOTE_NAME Remote} minus the {@link #BOOTSTRAP_ACCESSORS accessors}, see
+     * {@link #resolveApi}), keeps the first as the primary {@link #api}, and collects
+     * that interface's methods.
      *
      * @return the model, or {@code null} if the API interface cannot be resolved
      *         (a diagnostic has then already been emitted against {@code impl})
@@ -215,16 +237,19 @@ final class ServiceModel {
             }
         }
 
-        // Resolve the primary API interface: the first api() element, or -- when
-        // api() is empty -- inferred from the impl's implemented interfaces minus
-        // the JGDMS infrastructure set (symmetric with the runtime rule in
-        // AbstractJiniService.resolveServiceInterfaces).
-        TypeElement api = resolveApi(impl, apiTypes, types, messager);
-        if (api == null) {
+        // Resolve ALL API interfaces: every api() element, or -- when api() is empty
+        // -- inferred from the impl's implemented interfaces via the shared allowlist
+        // (symmetric with the runtime rule in AbstractJiniService.classify).  The
+        // first is the primary the proxy/backend is generated for; the rest are
+        // registered on the model (multi-interface registration, D2).
+        List<TypeElement> apis = resolveApi(impl, apiTypes, types, messager);
+        if (apis.isEmpty()) {
             return null; // diagnostic already emitted
         }
+        TypeElement api = apis.get(0);
 
         ServiceModel m = new ServiceModel(impl, api);
+        m.apiInterfaces.addAll(apis);
         String simple = api.getSimpleName().toString();
         m.backendSimpleName = simple + "Backend";
 
@@ -321,29 +346,49 @@ final class ServiceModel {
     }
 
     /**
-     * Resolves the primary API interface for the annotated impl: the first
-     * {@code api()} element when present, else the sole interface inferred from the
-     * impl's implemented interfaces minus {@link #INFRA_INTERFACES} (symmetric with
-     * {@code AbstractJiniService.resolveServiceInterfaces}).  Emits a fail-closed
-     * diagnostic (and returns {@code null}) if the primary is not a resolvable
-     * interface, or if inference is empty or ambiguous.
+     * Resolves ALL API interfaces for the annotated impl (design decision D2 —
+     * multi-interface registration): every {@code api()} element when present, else
+     * <em>every</em> interface inferred from the impl's interface closure via the
+     * shared allowlist — api = {interfaces extending {@link #REMOTE_NAME Remote}} −
+     * {the four {@link #BOOTSTRAP_ACCESSORS accessors}} − {@code Remote} itself
+     * (symmetric with {@code AbstractJiniService.classify}).  The first element is the
+     * primary the proxy/backend is generated for.
+     *
+     * <p>Multi-interface convergence: an empty {@code api()} that resolves to several
+     * interfaces is NO LONGER an error (previously "ambiguous"); all are registered,
+     * exactly as the runtime {@code getServiceInterfaces()} infers and registers them.
+     * Returns an empty list (after emitting a fail-closed diagnostic) only if an
+     * explicit {@code api()} element is not an interface, or inference yields nothing.
      */
-    private static TypeElement resolveApi(TypeElement impl, List<TypeMirror> apiTypes,
-                                          Types types, Messager messager) {
+    private static List<TypeElement> resolveApi(TypeElement impl, List<TypeMirror> apiTypes,
+                                                Types types, Messager messager) {
         if (!apiTypes.isEmpty()) {
-            TypeElement api = asInterfaceElement(apiTypes.get(0), types);
-            if (api == null) {
-                messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
-                    "@JiniService api() must name a remote interface.", impl);
-                return null;
+            // Explicit api(): register EVERY declared interface (multi-interface).
+            List<TypeElement> explicit = new ArrayList<>();
+            for (TypeMirror tm : apiTypes) {
+                TypeElement te = asInterfaceElement(tm, types);
+                if (te == null) {
+                    messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
+                        "@JiniService api() must name remote interface(s).", impl);
+                    return java.util.Collections.emptyList();
+                }
+                explicit.add(te);
             }
-            return api;
+            return explicit;
         }
-        // Infer from the impl's implemented interfaces, minus infrastructure.
+        // Infer from the impl's FULL interface closure via the shared allowlist:
+        // every interface extending Remote, minus the four bootstrap accessors and
+        // Remote itself.  Non-Remote admin/RMC interfaces drop out under the Remote
+        // test (they are the administrative contract, not the client API).
+        Set<TypeElement> closure = new java.util.LinkedHashSet<>();
+        collectAllInterfaces(impl.asType(), types, closure);
         List<TypeElement> inferred = new ArrayList<>();
-        for (TypeMirror iface : impl.getInterfaces()) {
-            TypeElement te = asInterfaceElement(iface, types);
-            if (te != null && !INFRA_INTERFACES.contains(te.getQualifiedName().toString())) {
+        for (TypeElement te : closure) {
+            String name = te.getQualifiedName().toString();
+            if (REMOTE_NAME.equals(name) || BOOTSTRAP_ACCESSORS.contains(name)) {
+                continue;
+            }
+            if (extendsRemote(te, types)) {
                 inferred.add(te);
             }
         }
@@ -352,23 +397,65 @@ final class ServiceModel {
                 "@JiniService on " + impl.getQualifiedName() + " has an empty api()"
                 + " and no service interface could be inferred (the class implements"
                 + " only infrastructure interfaces); declare api() explicitly.", impl);
-            return null;
+            return java.util.Collections.emptyList();
         }
-        if (inferred.size() > 1) {
-            StringBuilder names = new StringBuilder();
-            for (TypeElement te : inferred) {
-                if (names.length() > 0) {
-                    names.append(", ");
-                }
-                names.append(te.getQualifiedName());
+        return inferred;
+    }
+
+    /**
+     * Collects every interface {@link TypeElement} in {@code t}'s supertype closure
+     * (its own super-interfaces and those reached through superclasses) into
+     * {@code out}, each once.  Mirrors {@code AbstractJiniService.collectAllInterfaces}
+     * <em>including its order</em>: the directly-declared interfaces (and their
+     * closures) are visited BEFORE the superclass subtree, so the inferred primary
+     * ({@code apiInterfaces.get(0)}) matches the runtime {@code getServiceInterfaces()[0]}
+     * even when a service's {@code Remote} interfaces are declared at different levels
+     * of the class hierarchy.  {@link javax.lang.model.util.Types#directSupertypes}
+     * returns the superclass first, so it is deferred here rather than walked in place.
+     */
+    private static void collectAllInterfaces(TypeMirror t, Types types, Set<TypeElement> out) {
+        TypeMirror classSuper = null;
+        for (TypeMirror sup : types.directSupertypes(t)) {
+            if (sup.getKind() != TypeKind.DECLARED) {
+                continue;
             }
-            messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
-                "@JiniService on " + impl.getQualifiedName() + " has an empty api()"
-                + " and the service interface is ambiguous (" + names + "); declare"
-                + " api() explicitly.", impl);
-            return null;
+            Element el = ((DeclaredType) sup).asElement();
+            if (el instanceof TypeElement && el.getKind() == ElementKind.INTERFACE) {
+                // Interface: recurse only the first time it is seen (avoids
+                // re-walking a diamond).
+                if (out.add((TypeElement) el)) {
+                    collectAllInterfaces(sup, types, out);
+                }
+            } else {
+                // Superclass (or Object): defer so this level's own interfaces are
+                // collected first, matching the runtime traversal order.
+                classSuper = sup;
+            }
         }
-        return inferred.get(0);
+        if (classSuper != null) {
+            collectAllInterfaces(classSuper, types, out);
+        }
+    }
+
+    /** True iff interface {@code te} is, or transitively extends, {@code java.rmi.Remote}. */
+    private static boolean extendsRemote(TypeElement te, Types types) {
+        return isOrExtends(te.asType(), REMOTE_NAME, types);
+    }
+
+    private static boolean isOrExtends(TypeMirror t, String fqn, Types types) {
+        if (t.getKind() == TypeKind.DECLARED) {
+            Element el = ((DeclaredType) t).asElement();
+            if (el instanceof TypeElement
+                    && ((TypeElement) el).getQualifiedName().contentEquals(fqn)) {
+                return true;
+            }
+        }
+        for (TypeMirror sup : types.directSupertypes(t)) {
+            if (isOrExtends(sup, fqn, types)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The {@link TypeElement} of a declared interface type, or {@code null}. */

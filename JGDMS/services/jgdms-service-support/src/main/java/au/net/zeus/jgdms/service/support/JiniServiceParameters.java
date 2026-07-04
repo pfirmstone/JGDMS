@@ -24,6 +24,7 @@ import net.jini.admin.Administrable;
 import net.jini.admin.JoinAdmin;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.export.Exporter;
@@ -50,10 +51,19 @@ import org.apache.river.config.Config;
  *       service; defaults to a {@link BasicJeriExporter} over TCP whose
  *       invocation-layer factory is a {@link net.jini.jeri.DynamicILFactory}
  *       carrying the Jini admin interfaces ({@link Administrable},
- *       {@link JoinAdmin}, {@link DestroyAdmin}), so the exported stub gets full
- *       admin-over-wire dispatch with no per-service code generation or config
- *       (or an {@link ActivationExporter} wrapping one when {@code activationID}
- *       is non-null)</li>
+ *       {@link JoinAdmin}, {@link DestroyAdmin}) in its server dispatcher, so the
+ *       service's admin methods dispatch over the export with no per-service code
+ *       generation or config.  {@link JoinAdmin}/{@link DestroyAdmin} are declared
+ *       dispatch-only, so the exported client stub is {@link Administrable} but not
+ *       {@code JoinAdmin}/{@code DestroyAdmin} — those reach the client through the
+ *       separate admin facet from {@link AbstractJiniService#getAdmin()} (or an
+ *       {@link ActivationExporter} wrapping one when {@code activationID} is
+ *       non-null)</li>
+ *   <li>{@code adminConstraints} ({@link MethodConstraints}, default {@code null})
+ *       — when present, applied to the admin facet returned by
+ *       {@link AbstractJiniService#getAdmin()} so administration can require
+ *       stronger authentication than ordinary service calls, without a second
+ *       endpoint</li>
  *   <li>{@code loginContext} ({@link LoginContext}, default {@code null})
  *       — when present, {@link AbstractJiniService#start()} performs a JAAS
  *       login and runs as the resulting {@link javax.security.auth.Subject};
@@ -88,20 +98,41 @@ import org.apache.river.config.Config;
 public abstract class JiniServiceParameters {
 
     /**
-     * The general Jini admin interfaces the default exporter forces onto every
-     * exported service stub.  These are non-{@link java.rmi.Remote Remote}
-     * (their methods declare {@code throws RemoteException} but the interfaces do
-     * not extend {@code Remote}), so a JERI dynamic proxy would not carry them
-     * unless they are appended explicitly.  Supplying them to
-     * {@link net.jini.jeri.DynamicILFactory} feeds BOTH the stub's cast set and the
-     * server invocation-dispatcher set, giving a DYNAMIC (or SMART) service full
-     * admin-over-wire dispatch with no per-service code generation or configuration
-     * -- the exact interface set the old aggregate service backend carried.
+     * The <em>cast-and-dispatch</em> interface the default exporter forces onto
+     * every exported service stub: {@link Administrable} only.  It is non-{@link
+     * java.rmi.Remote Remote} (its {@code getAdmin} method declares {@code throws
+     * RemoteException} but the interface does not extend {@code Remote}), so a JERI
+     * dynamic proxy would not carry it unless it is appended explicitly.  Supplied
+     * to {@link net.jini.jeri.DynamicILFactory} as the {@code castAndDispatch} set,
+     * it joins BOTH the client service stub's cast set AND the server dispatcher —
+     * the canonical shape: the service proxy is {@code Administrable} and
+     * {@code Administrable.getAdmin()} returns a separate admin facet.
      *
      * @see net.jini.jeri.DynamicILFactory
      */
-    private static final Class[] JINI_ADMIN = {
-        Administrable.class, JoinAdmin.class, DestroyAdmin.class
+    private static final Class[] JINI_ADMIN_CAST_AND_DISPATCH = {
+        Administrable.class
+    };
+
+    /**
+     * The fallback <em>dispatch-only</em> admin set used when the concrete service
+     * implementation class is not available to the shared classifier (the direct
+     * {@link JiniServiceParameters} subclass path): {@link JoinAdmin} and
+     * {@link DestroyAdmin}, the admin interfaces {@code AbstractJiniService} itself
+     * always implements.  These are registered on the server invocation dispatcher
+     * (so the {@code getAdmin()} facet can invoke them over the single export) but
+     * stripped from the exported client service stub's cast set, giving a thin stub
+     * that is {@link Administrable} but NOT {@code JoinAdmin}/{@code DestroyAdmin}.
+     *
+     * <p>When the impl class IS supplied (design decision D5 — see the
+     * {@code serviceImpl}-carrying constructor) the per-service derived admin set
+     * from {@link AbstractJiniService#classify(Class)} is used instead, so a custom
+     * non-{@code Remote} admin interface (a {@code FooAdmin}) also dispatches.
+     *
+     * @see net.jini.jeri.DynamicILFactory#DynamicILFactory(net.jini.core.constraint.MethodConstraints, Class, ClassLoader, Class[], Class[])
+     */
+    private static final Class[] JINI_ADMIN_DISPATCH_ONLY_DEFAULT = {
+        JoinAdmin.class, DestroyAdmin.class
     };
 
     /** Exporter used to export the service over the wire. */
@@ -144,8 +175,30 @@ public abstract class JiniServiceParameters {
     final String persistDir;
 
     /**
+     * Optional method constraints applied to the admin facet returned by
+     * {@link AbstractJiniService#getAdmin()}, or {@code null} to inherit the
+     * server reference's constraints unchanged.
+     *
+     * <p>The admin facet shares the service's single JERI export; by default it
+     * carries whatever constraints the exported server reference carries.  When
+     * this entry is present it is applied to the admin facet via
+     * {@link net.jini.core.constraint.RemoteMethodControl#setConstraints} — letting
+     * administration require <em>stronger</em> authentication than ordinary service
+     * calls without a second endpoint.  Read from config entry {@code adminConstraints}.
+     */
+    final MethodConstraints adminConstraints;
+
+    /**
      * Reads all common Jini service configuration entries, throwing
      * {@link ConfigurationException} immediately on any error.
+     *
+     * <p>Backward-compatible entry point for {@link JiniServiceParameters}
+     * subclasses that name only the service API interface: the default exporter's
+     * {@code dispatchOnly} admin set falls back to
+     * {@link #JINI_ADMIN_DISPATCH_ONLY_DEFAULT} ({@link JoinAdmin} +
+     * {@link DestroyAdmin}).  A service that also declares a custom non-{@code Remote}
+     * admin interface must use the {@code serviceImpl}-carrying constructor (design
+     * decision D5) so that interface flows into the dispatcher.
      *
      * @param config           the configuration to read from; must be non-null
      * @param component        the configuration component name; must be non-null
@@ -163,6 +216,46 @@ public abstract class JiniServiceParameters {
                                     ActivationID activationID,
                                     Class<?> serviceInterface)
             throws ConfigurationException {
+        this(config, component, activationID, serviceInterface, null);
+    }
+
+    /**
+     * Reads all common Jini service configuration entries, deriving the default
+     * exporter's per-service {@code dispatchOnly} admin set from {@code serviceImpl}
+     * (design decision D5).
+     *
+     * <p>When {@code serviceImpl} is non-{@code null} the exporter's
+     * {@code dispatchOnly} set is {@link AbstractJiniService#classify(Class)
+     * classify(serviceImpl).admin} — {@link JoinAdmin}, {@link DestroyAdmin}, and
+     * ANY custom non-{@code Remote} admin interface the impl declares (a
+     * {@code FooAdmin}) — so admin methods for the entire derived set dispatch over
+     * the single shared export.  When {@code serviceImpl} is {@code null} the set
+     * falls back to {@link #JINI_ADMIN_DISPATCH_ONLY_DEFAULT}.
+     *
+     * @param config           the configuration to read from; must be non-null
+     * @param component        the configuration component name; must be non-null
+     * @param activationID     the Phoenix activation ID, or {@code null} for
+     *                         non-activatable deployments
+     * @param serviceInterface the primary remote interface of the service, used to
+     *                         build a default exporter when {@code serverExporter}
+     *                         is absent from config; must be non-null
+     * @param serviceImpl      the concrete service implementation class whose
+     *                         derived admin set becomes the exporter's dispatch-only
+     *                         set, or {@code null} to fall back to
+     *                         {@code {JoinAdmin, DestroyAdmin}}
+     * @throws ConfigurationException if any mandatory entry is missing,
+     *                                of the wrong type, or otherwise invalid
+     */
+    protected JiniServiceParameters(Configuration config,
+                                    String component,
+                                    ActivationID activationID,
+                                    Class<?> serviceInterface,
+                                    Class<?> serviceImpl)
+            throws ConfigurationException {
+
+        final Class[] dispatchOnly = (serviceImpl != null)
+                ? AbstractJiniService.classify(serviceImpl).admin
+                : JINI_ADMIN_DISPATCH_ONLY_DEFAULT;
 
         final Exporter defaultExporter;
         if (activationID != null) {
@@ -173,7 +266,7 @@ public abstract class JiniServiceParameters {
                             new DynamicILFactory(
                                     null, null,
                                     serviceInterface.getClassLoader(),
-                                    JINI_ADMIN),
+                                    JINI_ADMIN_CAST_AND_DISPATCH, dispatchOnly),
                             false, true));
         } else {
             defaultExporter = new BasicJeriExporter(
@@ -181,7 +274,7 @@ public abstract class JiniServiceParameters {
                     new DynamicILFactory(
                             null, null,
                             serviceInterface.getClassLoader(),
-                            JINI_ADMIN),
+                            JINI_ADMIN_CAST_AND_DISPATCH, dispatchOnly),
                     false, true);
         }
 
@@ -221,6 +314,9 @@ public abstract class JiniServiceParameters {
 
         this.persistDir = (String) config.getEntry(
                 component, "persistenceDirectory", String.class, null);
+
+        this.adminConstraints = (MethodConstraints) config.getEntry(
+                component, "adminConstraints", MethodConstraints.class, null);
     }
 
 }

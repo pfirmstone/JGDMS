@@ -67,7 +67,8 @@ public class ${serviceName}ServiceImpl
     public ${serviceName}ServiceImpl(ActivationID activationID,
                                      String[] data)
             throws Exception {
-        super(activationID, data, COMPONENT, ${serviceName}Service.class);
+        super(activationID, data, COMPONENT, ${serviceName}Service.class,
+                ${serviceName}ServiceImpl.class);
         this.impl = new ${serviceName}Impl();
     }
 
@@ -82,7 +83,8 @@ public class ${serviceName}ServiceImpl
     public ${serviceName}ServiceImpl(String[] configArgs,
                                      LifeCycle lifeCycle)
             throws Exception {
-        super(configArgs, lifeCycle, COMPONENT, ${serviceName}Service.class);
+        super(configArgs, lifeCycle, COMPONENT, ${serviceName}Service.class,
+                ${serviceName}ServiceImpl.class);
         this.impl = new ${serviceName}Impl();
     }
 
