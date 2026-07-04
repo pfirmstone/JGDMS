@@ -83,6 +83,34 @@
 >   tagging mode `EXPLICIT TAGS` with `ReducingDomainRecord` arms marked
 >   `IMPLICIT`; §7.7.7 `MulticastTbs` concretised into
 >   `MulticastAnnouncementTbs`/`MulticastRequestTbs`; two Markdown fence fixes.
+> - *(collection-ordering addendum, 2026-07-04)* — **§3.8 (new subsection) "Encounter
+>   order and serialized equality."** Element order of a collection field is now
+>   governed by whether the declared type **guarantees a deterministic iteration
+>   order**. **PRESERVE** (deterministic): the JDK 21 sequenced backbone (`List`,
+>   `Deque`, `LinkedHashSet`, `LinkedHashMap`, `SortedSet`/`TreeSet`,
+>   `SortedMap`/`TreeMap`), plus `EnumSet`/`EnumMap` (ordinal order), the concurrent
+>   *sorted* `ConcurrentSkipListSet`/`ConcurrentSkipListMap`, `CopyOnWriteArrayList`
+>   (a `List`), and all arrays (incl. `byte[]`). **CANONICALISE** (non-deterministic /
+>   unspecified): `HashSet`, `HashMap`, `ConcurrentHashMap` (hash-bucket order);
+>   `CopyOnWriteArraySet` and the concurrent insertion/FIFO queues/deques
+>   (`ConcurrentLinkedQueue`/`Deque`, the blocking queues/deques, `LinkedTransferQueue`,
+>   `DelayQueue`, `SynchronousQueue`) — insertion/FIFO order is race-dependent, hence not
+>   deterministic; contrast the non-concurrent `LinkedHashSet`/`ArrayDeque`, which preserve;
+>   and `PriorityQueue`/`PriorityBlockingQueue` (iterator disclaims order — priority order
+>   rebuilt at the receiver) — octet-sorted per X.690 §11.6 (design-now/build-later — the
+>   codec has no `set:`/`map:` token yet). The subsection
+>   documents the deliberate consequence that serialized byte-equality is
+>   **order-sensitive** for preserved types and **stricter than object `equals`** for
+>   the insertion-ordered `LinkedHashSet`/`LinkedHashMap` (they inherit the
+>   order-independent `Set`/`Map` `equals`); the element-derived-order types
+>   (`SortedSet`/`SortedMap`, `EnumSet`/`EnumMap`, `ConcurrentSkipList*`) and the
+>   positional types (`List`, arrays) have **no** such tension. Cross-referenced from
+>   **§7.6** (collection-field note), scoped **§9 item 5**, and added as **§9 conformance
+>   item 14**. The two unordered attribute-bag sequences —
+>   `ServiceItemRecord.attributes` and `ServiceTemplateRecord.attributeTemplates` — are
+>   annotated **"behavioural; unordered (§3.8)"** (comments only; no field-structure
+>   change), consistent with the `Properties` row. Full rationale:
+>   `docs/der-collection-ordering-research.md`.
 >
 > **Changes in v0.12 (from v0.11):**
 > - §6.3/6.4, §7.2, §7.6, §8.2, §9, §10 — **§7.2 reconciled with the as-built
@@ -331,19 +359,24 @@ table is abandoned in favour of repeating the records (§8).
 ### 3.8 Values and Bounds, Never Behaviour
 
 The wire format carries **values and bounds**. It does **not** carry behavioural
-contracts. Ordering (except where intrinsic — see below), uniqueness, mutability,
-sortedness, and null-handling are imposed by the constructed object *after*
-validation, never asserted by the encoding. Anything that appears to require a
-behavioural contract on the wire is a signal that the contract actually belongs in
-`check(GetArg)` or the constructor.
+contracts. Uniqueness, mutability, and null-handling are imposed by the constructed
+object *after* validation, never asserted by the encoding. **Ordering and sortedness
+are the exception** — where the declared type guarantees a deterministic iteration
+order, that order *is* asserted by the encoding (preserved on the wire); where the
+type does not, ordering is canonicalised on the wire, never left to the receiver. This
+is governed by the "Encounter order and serialized equality" subsection below.
+Anything else that appears to require a behavioural contract on the wire is a signal
+that the contract actually belongs in `check(GetArg)` or the constructor.
 
 This is what allows the substituted collection carriers
 (`MapSerializer`/`SetSerializer`/`ListSerializer`) to collapse into a native DER
 `SEQUENCE OF` with a `SIZE` bound (§7.6): the carrier's two jobs — bounding (DOS
 defence) and immutability — are subsumed by the schema `SIZE` constraint and DER's
 inherently read-only decoded structure. A `SortedSet` field and a `HashSet` field
-both encode as `SEQUENCE OF Element`; the receiving object imposes ordering and
-uniqueness during construction. The wire never needs to distinguish them.
+both encode as `SEQUENCE OF Element`; the receiving object imposes uniqueness during
+construction, but their **element order** on the wire is fixed by the encoder, not the
+receiver — preserved for the deterministic-order type, canonicalised for the other, per
+the "Encounter order and serialized equality" subsection below.
 
 **Intrinsic-order carve-out.** Where order is *intrinsic to a value* — arrays, linked
 lists, principal chains, certificate paths, any sequence whose indices are
@@ -357,10 +390,86 @@ An implementer who treats such a sequence as an unordered set and reorders it (f
 example, by sorting for canonicalisation) corrupts the value and breaks chain
 validation.
 
-The rule, stated for conformance: *order is preserved and significant where it is
-intrinsic to the value; it is neither asserted nor relied upon on the wire where it
-is an imposed behavioural contract; all other behaviour belongs in the constructor.*
-Order-significant fields are annotated as such in their ASN.1 module (§7).
+**Encounter order and serialized equality.** Whether an encoder preserves or
+canonicalises a collection's element order is determined by whether the **declared
+type guarantees a deterministic iteration order**. An encoder preserves the iterator's
+order only where the type guarantees it is deterministic; where the type's iteration
+order is unspecified, hash-derived, or (for insertion-history collections)
+concurrency-dependent, the encoder canonicalises instead. (A developer deciding how a
+given collection field's order will be treated should consult the developer guidance in
+the collection-ordering memo, `docs/der-collection-ordering-research.md` §1c: the
+underlying discriminator is whether element order is part of the collection's value —
+`List`/array order is the value and is always preserved; `Set`/`Map` order is not, so
+it is preserved only for the deterministic-order types and otherwise canonicalised.)
+
+- **PRESERVE (deterministic iteration order).** The backbone is the JDK 21
+  sequenced-collection interfaces (`java.util.SequencedCollection`/`SequencedSet`/
+  `SequencedMap`): `List` (`ArrayList`, `LinkedList`, `Vector`, `CopyOnWriteArrayList`),
+  `Deque` (`ArrayDeque`), `LinkedHashSet`, `LinkedHashMap`, and — because `SortedSet`
+  extends `SequencedSet` and `SortedMap` extends `SequencedMap` — `SortedSet`/`TreeSet`
+  and `SortedMap`/`TreeMap`. It also covers `EnumSet`/`EnumMap` (deterministic natural
+  ordinal order), the concurrent **sorted** collections `ConcurrentSkipListSet`/
+  `ConcurrentSkipListMap` (comparator-derived, so deterministic despite concurrency),
+  and `CopyOnWriteArrayList` (a `List` — order **is** its value). Arrays — including
+  `byte[]`, whose order **is** the value — are always preserved, as are the intrinsic
+  sequences named in the carve-out above.
+- **CANONICALISE (iteration order non-deterministic or unspecified).** `HashSet`,
+  `HashMap`, and `ConcurrentHashMap` (hash-bucket order — the iterator disclaims any
+  order); the concurrent insertion/FIFO-history collections — `CopyOnWriteArraySet` (an
+  insertion-history **set** whose insertion order is race-dependent under concurrency,
+  hence not deterministic — this differs from `LinkedHashSet`, which is non-concurrent and
+  whose insertion order therefore *is* deterministic), `ConcurrentLinkedQueue`,
+  `ConcurrentLinkedDeque`, `ArrayBlockingQueue`, `LinkedBlockingQueue`,
+  `LinkedBlockingDeque`, `LinkedTransferQueue`, `DelayQueue` (whose iterator does not
+  return delay order), and `SynchronousQueue` (which holds no elements — trivially an empty
+  collection); and `PriorityQueue`/`PriorityBlockingQueue` (the iterator explicitly
+  disclaims order — heap-array layout, not priority order — and the natural priority order
+  is a function of elements plus comparator, rebuilt at the receiver). The `Deque` family
+  splits exactly on the concurrency line: the non-concurrent `ArrayDeque` preserves, the
+  concurrent `ConcurrentLinkedDeque` canonicalises.
+
+The canonical (octet-sort) rule for the canonicalise side is the X.690 §11.6 SET OF
+order (each element encoded to canonical DER, the element encodings sorted as octet
+strings); it is stated as design-now/build-later here — the built codec has no
+`set:`/`map:` wire-type token yet — and its full mechanics are recorded in the
+collection-ordering memo (`docs/der-collection-ordering-research.md`). An encoder MUST
+NOT derive collection order from any `hashCode`/`identityHashCode` or hash-bucket
+iteration order (that order is per-run, machine-dependent, and reproducible nowhere).
+
+A consequence is deliberate and must be understood, and it is scoped precisely: for a
+preserved type, element order is part of the serialized identity, so serialized
+byte-equality is order-sensitive. This produces a byte-vs-`equals` **tension only for
+`LinkedHashSet` and `LinkedHashMap`.** These inherit the order-independent `Set`/`Map`
+`equals` (which ignores iteration order) yet carry an insertion order that is
+non-rederivable history, so their serialized byte-equality is **stricter** than their
+in-memory `equals` — two instances that are `equals` but were built in different
+insertion orders serialise to different octets and will not compare byte-equal (and
+will not match under §7.7.2 Entry byte-matching). This is the correct behaviour for a
+type whose insertion order is significant; a field that instead wants order-independent
+equality on the wire must be declared as a plain (non-sequenced, canonicalised)
+`Set`/`Map`, whose canonical form makes serialized byte-equality coincide with
+`equals`. Choose the collection type accordingly.
+
+The other preserved types have **no such tension** — equal instances always serialise
+identically:
+
+- **Element-derived order** — `SortedSet`/`TreeSet`, `SortedMap`/`TreeMap`,
+  `ConcurrentSkipListSet`/`ConcurrentSkipListMap`, `EnumSet`/`EnumMap`: the encounter
+  order is a function of the elements (plus comparator / ordinal), so two `equals`
+  instances have the same order and serialise to the same octets.
+- **Positional / order-is-the-value** — `List` (whose own `equals` is already
+  order-sensitive) and arrays: two `equals` instances are, by definition, in the same
+  order and serialise identically.
+
+The rule, stated for conformance: *order is preserved and significant where the
+declared type guarantees a deterministic iteration order (the sequenced backbone plus
+`EnumSet`/`EnumMap` and the concurrent sorted collections, arrays, and the intrinsic
+sequences above); a type whose iteration order is non-deterministic or unspecified — a
+plain `HashSet`/`HashMap`/`ConcurrentHashMap`, the concurrent `CopyOnWriteArraySet`, or
+a `PriorityQueue`/`PriorityBlockingQueue` — is octet-sorted into a canonical order; all
+other behaviour — uniqueness, mutability, null-policy — belongs
+in the constructor.* Order-significant fields are annotated as such in their ASN.1
+module (§7).
 
 **Opaque-octet carve-out.** Where a field value is an externally-produced DER
 structure — an X.509 `Certificate`, an X.501 `Name` (`X500Principal`), the output of
@@ -1133,14 +1242,29 @@ DER's read-only decoded structure. There is therefore **no `MapSerializer`,
 `SetSerializer`, or `ListSerializer` wire type.** A collection-valued field is:
 
 ```asn1
--- behavioural collection (Set/Map/List): order NOT relied upon by receiver
+-- collection field (Set/Map/List): order discipline set by the declared type (§3.8)
 CollectionField ::= SEQUENCE SIZE(0..maxCollection) OF Element   -- §4.5
 MapField        ::= SEQUENCE SIZE(0..maxCollection) OF SEQUENCE { key Element, value Element }   -- §4.5
--- the receiving object imposes ordering/uniqueness/null-policy at construction (§3.8)
+-- the receiving object imposes uniqueness/null-policy at construction (§3.8)
 ```
 
-(An *array* or *linked list* field is also a `SEQUENCE OF`, but ORDER-SIGNIFICANT per
-§3.8 — the receiver relies on wire order.)
+Element order follows the §3.8 **deterministic-iteration-order** rule: a field whose
+declared type guarantees a deterministic iteration order — the sequenced backbone
+(`List`, `Deque`, `LinkedHashSet`, `LinkedHashMap`, `SortedSet`/`TreeSet`,
+`SortedMap`/`TreeMap`), plus `EnumSet`/`EnumMap`, the concurrent sorted collections
+`ConcurrentSkipListSet`/`ConcurrentSkipListMap`, `CopyOnWriteArrayList`, and arrays —
+is emitted order-**preserved**; a type whose iteration order is non-deterministic or
+unspecified (`HashSet`, `HashMap`, `ConcurrentHashMap`; the concurrent insertion/FIFO
+collections `CopyOnWriteArraySet`, `ConcurrentLinkedQueue`/`ConcurrentLinkedDeque`, the
+blocking queues/deques `ArrayBlockingQueue`/`LinkedBlockingQueue`/`LinkedBlockingDeque`,
+`LinkedTransferQueue`, `DelayQueue`, `SynchronousQueue`; and
+`PriorityQueue`/`PriorityBlockingQueue`) is octet-sorted into the §3.8 canonical order
+(design-now/build-later; the codec has no `set:`/`map:` token yet). The `Properties` row
+below is a **canonicalise** case (it is `Hashtable`-based, so its iteration order is
+non-deterministic). The normative home for this rule is §3.8;
+this section only records that collection-valued fields obey it. For preserved types,
+note that serialized byte-equality is order-sensitive and (for the insertion-ordered
+`LinkedHashSet`/`LinkedHashMap`) stricter than object `equals` — see §3.8.
 
 The irreducible substituted types requiring their own DER form:
 
@@ -1368,6 +1492,10 @@ and `LoadClassPermission` apply unchanged.
 ```asn1
 ServiceItemRecord ::= SEQUENCE {
     serviceId   ServiceID,
+    -- behavioural; unordered (§3.8): a Jini attribute set is order-independent, so
+    -- this SEQUENCE OF is a canonicalise (non-deterministic-order) collection whose
+    -- future ordering home is the §3.8 octet-sort rule (design-now/build-later).
+    -- No element position here is order-significant.
     attributes  SEQUENCE (SIZE(0..64)) OF EntryRecord,  -- 64 = Jini spec attribute limit
     proxy       ProxyDescriptor
 }
@@ -1389,6 +1517,9 @@ ServiceTemplateRecord ::= SEQUENCE {
     -- Interface hashes: schemaHash of each required service interface.
     -- [OPEN] Confirm whether interface type identity uses the same hash scheme.
     requiredInterfaces  [1] IMPLICIT SEQUENCE (SIZE(0..maxInterfaces)) OF OCTET STRING (SIZE(32)) OPTIONAL,   -- §4.5
+    -- behavioural; unordered (§3.8): an attribute-template set is order-independent
+    -- (mirrors ServiceItemRecord.attributes) -- a canonicalise (non-deterministic-order)
+    -- collection, future ordering per the §3.8 octet-sort rule (design-now/build-later).
     attributeTemplates  [2] IMPLICIT SEQUENCE (SIZE(0..64)) OF EntryTemplate OPTIONAL    -- same 64 ceiling as ServiceItemRecord.attributes
 }
 ```
@@ -1884,9 +2015,15 @@ A conforming implementation:
    reference-like construct and is admissible only under the §8 ordering constraint.
 5. **Preserves the order of order-significant sequences (§3.8)** — principal chains,
    certificate paths, arrays, linked lists, stack traces — and must not reorder,
-   deduplicate, or canonicalise them. For behavioural collections, the wire order is
-   neither asserted nor relied upon; the constructed object imposes ordering,
-   uniqueness, and null-policy after validation.
+   deduplicate, or canonicalise them. For a collection whose declared type does not
+   guarantee a deterministic iteration order (`HashSet`, `HashMap`, `ConcurrentHashMap`;
+   the concurrent insertion/FIFO and priority collections — see item 14), wire order is
+   instead **canonicalised** by the encoder (§3.8 octet-sort), not left to the receiver;
+   the constructed object still imposes uniqueness and null-policy after validation.
+   Collection element order is thus always fixed on the wire — preserved for
+   deterministic-order types, canonicalised for the rest (see item 14) — never
+   receiver-imposed from arbitrary
+   bytes.
 6. Preserves `SEQUENCE OF` ordering where ordering is semantically required (§7.1
    Subject order and principal-chain order, ACC domain order, §7.6 stack-trace order).
 7. **Carries externally-produced DER structures — X.509 `Certificate`, X.501 `Name`
@@ -1919,6 +2056,26 @@ A conforming implementation:
    any `MarshalledInstanceRecord` whose embedded schema is absent, undecodable,
    chain-inconsistent, or digest-mismatched (§7.8, §12.4). No local-schema or
    registry fallback exists at decode time.
+14. **Applies the §3.8 encounter-order discipline to collection-valued fields.**
+   Preserves the encounter order of collections whose declared type guarantees a
+   deterministic iteration order — the sequenced backbone (`List`, `Deque`,
+   `LinkedHashSet`, `LinkedHashMap`, `SortedSet`/`TreeSet`, `SortedMap`/`TreeMap`),
+   `EnumSet`/`EnumMap` (natural ordinal order), the concurrent sorted collections
+   `ConcurrentSkipListSet`/`ConcurrentSkipListMap`, and `CopyOnWriteArrayList` — plus
+   arrays (including `byte[]`) and the intrinsic sequences of §3.8, never reordering or
+   deduplicating them; and octet-sorts the non-deterministically-ordered types
+   (`HashSet`, `HashMap`, `ConcurrentHashMap`; the concurrent insertion/FIFO collections
+   `CopyOnWriteArraySet`, `ConcurrentLinkedQueue`/`ConcurrentLinkedDeque`, the blocking
+   queues/deques `ArrayBlockingQueue`/`LinkedBlockingQueue`/`LinkedBlockingDeque`,
+   `LinkedTransferQueue`, `DelayQueue`, `SynchronousQueue` — whose insertion/FIFO order is
+   concurrency-dependent; and `PriorityQueue`/`PriorityBlockingQueue`, whose iterator
+   disclaims order) into the §3.8 canonical order, never deriving order from any
+   `hashCode`/`identityHashCode` or hash-bucket iteration. It **MUST** treat
+   serialized byte-equality as **order-sensitive** for preserved types, and stricter
+   than object `equals` for the insertion-ordered `LinkedHashSet`/`LinkedHashMap` — i.e.
+   it must not assume that object `equals` implies byte-equality for those two types
+   (§3.8, §7.7.2). *(Design-now/build-later: the codec has no `set:`/`map:` wire-type
+   token yet, so this obligation binds when the token is introduced.)*
 
 ---
 
