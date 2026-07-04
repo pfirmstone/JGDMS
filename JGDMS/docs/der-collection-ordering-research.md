@@ -103,6 +103,34 @@ is whether the declared type **guarantees a DETERMINISTIC iteration order**:
 via the determinism test — and documenting the equality consequence of preserving order
 are the subjects of this memo.
 
+### 0.1 Why this matters — DER restores the value/serial-equality correspondence that JOSS breaks
+
+The rule in this memo is not merely about determinism — it makes **DER byte-equality mirror
+the type's own `equals` contract**, a property Java Object Serialization (JOSS) structurally
+cannot provide.
+
+JOSS serialises the *implementation*: the concrete class descriptor plus the object's
+internal field and structural state. So two collections that are `.equals` in object form
+serialise to **different** bytes — a `HashSet` and a `TreeSet` of the same elements
+(`Set.equals` is cross-implementation and order-independent), or even two `HashSet`s of the
+same elements built with different insertion orders or capacities. JOSS serial-equality is
+therefore strictly *finer* than object-equality; JOSS bytes answer "same implementation and
+layout?", never "same value?".
+
+DER under this rule serialises the *value*. For the canonicalised (order-not-part-of-value)
+types it octet-sorts the elements independent of implementation and internal layout, so two
+`.equals` sets produce **identical** bytes — serial-equality **coincides** with
+object-equality, exactly as in object form. That restoration is what makes DER bytes usable
+as a *value-equality proxy*: the foundation under §7.7.2 Entry byte-matching, the §7.8 /
+§7.7.1 content-address digests, and signature stability — none of which JOSS can support on
+a `Set`/`Map` field.
+
+The preserve (order-significant) types are the same principle, not an exception: where the
+type's `equals` is order-sensitive (`List`) or its usage makes order meaningful
+(`LinkedHashSet`), DER keeps the order and byte-equality becomes the *finer* relation (§3a's
+documented tension). Either way the bytes reflect the **value semantics**, never the
+implementation — which is the thing JOSS cannot do.
+
 ---
 
 ## 1. Q1 — Taxonomy of JDK collection types

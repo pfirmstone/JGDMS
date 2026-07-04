@@ -234,6 +234,18 @@ language-neutral grammar with mature tooling in every serious language, a
 self-describing tag-length-value structure that can be bounded before allocation, and
 no in-stream annotation channel.
 
+A further, subtler consequence follows for collection-valued fields. Because Java
+serialization encodes an object's concrete implementation and internal layout, two
+collections that are `.equals` in object form — a `HashSet` and a `TreeSet` of the same
+elements, or two `HashSet`s built differently — serialize to *different* bytes; its
+serial-equality reflects implementation identity, not value equality. The DER encoding
+fixes a collection field's element order from the declared type's own `equals` contract
+(a canonical order where `equals` is order-independent, the preserved order where it is
+not — §3.8 "Encounter order and serialized equality"), so serialized byte-equality tracks
+*value* equality. That is what lets DER bytes serve as a value-equality proxy for Jini
+Entry byte-matching (§7.7.2), the content-address digests (§7.8), and signature stability
+— none of which Java serialization can support on a `Set`/`Map` field.
+
 ### 2.2 Relationship to the Cross-Runtime Goal
 
 STD-003 establishes that JGDMS's security properties (multi-principal authorization,
