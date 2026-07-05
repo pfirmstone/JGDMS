@@ -115,6 +115,8 @@ against a fixed, reviewed target rather than an emergent one.
 | TLS | `SSLSocket` record layer | `SSLEngine` over channel / layer-2 | QUIC-integrated **TLS 1.3** (RFC 9001) |
 | Auth / identity | `SSLContext` + `AuthManager` (JSSE) | SPIFFE/mTLS or layer-2 | **handshake-time mTLS/SPIFFE** (§9) — the `net.jini.jeri.ssl` lineage |
 | Multiplexing | hand-rolled `mux` over one connection | mux as today | **1 JERI request ⇄ 1 QUIC bidirectional stream; mux retired** (§4) |
+| Callback / event push | dial-back: fresh client call to listener's exported `host:port` | dial-back | **server-initiated stream (`0x01`) over the client's open connection** (§4.6); dial-back kept as compat |
+| Caller authorization | caller = client (connection peer) | caller = client | **direction-aware: caller = stream initiator** (§4.7); server-initiated ⇒ caller = authenticated server peer |
 | Request completion | mux framing | mux framing | **stream FIN** per direction (§4.3) |
 | Request abort | mux abort | mux abort | **`RESET_STREAM` with an application error code** (§4.4) |
 | DGC ack signal | mux `AcknowledgmentSource` | mux | **application-level ack after dispatch** (§5) |
@@ -128,10 +130,11 @@ against a fixed, reviewed target rather than an emergent one.
 above the transport — `AtomicILFactory`, the invocation dispatchers, the STD-006 §7.2
 reducing-context ACC block, the DER object encoding, and the DGC lifecycle.
 
-**Genuinely new (this standard's subject):** the stream↔request mapping (§4), the DGC
-acknowledgment carriage (§5), half-close (§4.5), 0-RTT prohibition (§6), the
-connection-migration identity invariant (§6-migration), anti-amplification (§7), and the
-QUIC-specific flow-control reliance (§9.5).
+**Genuinely new (this standard's subject):** the bidirectional stream↔request mapping (§4),
+including **server-initiated event push** (§4.6) and **direction-aware caller-subject
+resolution** with the ACC mirror (§4.7); the DGC acknowledgment carriage (§5), half-close
+(§4.5), 0-RTT prohibition (§6), the connection-migration identity invariant (§6-migration),
+anti-amplification (§7), and the QUIC-specific flow-control reliance (§9.5).
 
 ---
 
@@ -167,12 +170,49 @@ STD-006 principles (fail-secure decode, values-not-behaviour, bounded-before-all
 
 ## 4. Stream ↔ Request Mapping (PINNED POINT 1)
 
-### 4.1 The one-to-one mapping (NORMATIVE)
+### 4.0 Two request directions on one connection (NORMATIVE overview)
 
-A JGDMS QUIC transport **MUST** map exactly **one JERI request to exactly one
-client-initiated QUIC bidirectional stream**. One `OutboundRequest` (client) /
-`InboundRequest` (server) corresponds to one and only one bidirectional stream opened by
-the requesting endpoint:
+A JERI request is a directed exchange (a caller invokes a dispatcher). QUIC gives four
+stream types (RFC 9000 §2.1) discriminated by the two least-significant bits of the stream
+ID: **client-initiated bidirectional `0x00`**, **server-initiated bidirectional `0x01`**,
+client-initiated unidirectional `0x02`, server-initiated unidirectional `0x03`. This
+standard uses the two **bidirectional** types and maps **request direction onto stream
+initiator**:
+
+- **Client-initiated bidirectional stream (`0x00`)** carries a request whose **caller is the
+  client** — the ordinary case: application invocations, DGC dirty/clean calls, and the
+  *dial-back* form of callbacks (§4.6, secondary path). This is §4.1.
+- **Server-initiated bidirectional stream (`0x01`)** carries a request whose **caller is the
+  server** — event/callback **push** to an ephemeral client, over the connection the client
+  already opened. This is §4.6, the primary callback model.
+
+The caller of a request is therefore **the party that opened the stream**, and authorization
+follows the stream initiator, not the connection initiator (§4.7 — the direction-aware
+caller-subject resolution, the must-solve). Both directions reuse the same per-request
+machinery of §§4.3–4.5 (FIN completion, `RESET_STREAM` abort, half-close): a
+server-initiated stream is a full JERI request with request body, response body, FIN, and
+reset semantics, merely opened by the server.
+
+**Resolution of the former §4.1 [OPEN].** An earlier draft left "does JERI have a
+server-initiated request path?" open, pending the mux audit. **The investigation resolved it
+definitively:** JERI *does* have a server→client request path, but today it is implemented
+as **dial-back** — the listener/callback proxy bakes in a reachable `host:port`
+(`net.jini.jeri.tcp.TcpEndpoint`), and the notifying service invokes the listener as a
+**fresh client call** (`BasicObjectEndpoint.newCall` → `newRequest` — a new
+client-initiated connection *back to the client's exported endpoint*). That works only when
+the client is reachable at a fixed address. QUIC's ephemeral-client topology — a NAT'd,
+mobile, or migrating client behind no reachable port, talking to a fixed-address server —
+**voids dial-back**: the client's baked-in address is unreachable. This standard therefore
+maps the event/listener pattern onto **server-initiated streams** (§4.6) as the primary
+model, keeps dial-back as a secondary/compat path (valid only for reachable, fixed-IP
+clients), and the mux (§4.2) retires only once **this** server-initiated path is specified —
+which it now is.
+
+### 4.1 Client-initiated requests — the one-to-one mapping (NORMATIVE)
+
+A JGDMS QUIC transport **MUST** map exactly **one client-caller JERI request to exactly one
+client-initiated QUIC bidirectional stream (`0x00`)**. One `OutboundRequest` (client) /
+`InboundRequest` (server) corresponds to one and only one such stream opened by the client:
 
 - The request `OutputStream` (`OutboundRequest.getRequestOutputStream`) writes the
   **send side** of that stream.
@@ -183,16 +223,9 @@ the requesting endpoint:
 
 An endpoint **MUST NOT** multiplex more than one JERI request onto a single QUIC stream,
 and **MUST NOT** split one JERI request across multiple streams. Stream identifiers follow
-RFC 9000 §2.1 (client-initiated bidirectional streams have the two least-significant bits
-`0x0`). This is the "retire the mux" mapping: QUIC's independent, head-of-line-blocking-free
-streams replace `org.apache.river.jeri.internal.mux` wholesale.
-
-**[BOARD] Server-initiated requests.** JERI requests are client-initiated in every current
-transport, so this standard specifies only client-initiated bidirectional streams. If any
-JGDMS subsystem requires a server-initiated request over an established connection, that is
-a separate mapping (server-initiated bidirectional streams, `0x1`) and is **[OPEN]** — flag
-for the board. The mux audit (below) MUST confirm no such reverse-request path exists before
-the mux is deleted.
+RFC 9000 §2.1. This is the "retire the mux" mapping: QUIC's independent,
+head-of-line-blocking-free streams replace `org.apache.river.jeri.internal.mux` wholesale —
+for both stream directions (§4.6 covers the server-initiated one).
 
 ### 4.2 Mux-retirement audit (NORMATIVE precondition)
 
@@ -202,7 +235,10 @@ specifically its request framing, its abort semantics, its `AcknowledgmentSource
 signal (reproduced in §5), and the `ServerConnection` request-dispatch model — and **MUST**
 reproduce every such contract from QUIC primitives or document its deliberate removal. A
 QUIC endpoint MUST NOT ship with the mux "half-retired" (some invocations over QUIC streams,
-some still framed by mux logic).
+some still framed by mux logic). The mux may be retired **only** once **both** request
+directions are specified — client-caller (§4.1) and server-caller event push (§4.6) — with
+direction-aware caller-subject resolution (§4.7); this standard now specifies both, closing
+the precondition that formerly held the mux audit open.
 
 ### 4.3 Normal completion — stream FIN (NORMATIVE)
 
@@ -266,6 +302,130 @@ same retry-unsafe class, since JERI cannot distinguish them and both are unsafe 
 If the board wants a finer-grained "fully processed, response lost" signal (distinct from
 "partially processed"), that is the DGC ack's domain (§5), not the reset code — flagged in
 §11.
+
+### 4.6 Event / callback delivery — server-initiated streams (NORMATIVE)
+
+The JERI event/callback pattern — `net.jini.core.event.RemoteEventListener.notify`,
+lease-renewal / expiration-warning notifications, lookup-service `ServiceEvent` delivery,
+and any service→listener push — is a **server-caller request**: the notifying service is
+the caller, the client-held listener is the dispatcher. This standard maps it onto QUIC as
+follows.
+
+#### 4.6.1 Primary model — server-initiated bidirectional stream (NORMATIVE)
+
+For an **ephemeral client** (NAT'd, mobile, migrating, or otherwise not reachable at a fixed
+address), event delivery **MUST** use a **server-initiated bidirectional QUIC stream
+(`0x01`)** opened on the connection **the client already established** to the service. The
+notifying service opens the `0x01` stream; the JERI request rides it exactly as a
+client-initiated request rides a `0x00` stream (§4.1, §4.3–4.5): request body = the event
+invocation (the marshalled `RemoteEvent` / notify arguments), response body = the listener's
+return/exception, FIN per direction, `RESET_STREAM` per §4.4.
+
+**The client accepts inbound STREAMS, never inbound CONNECTIONS.** A conformant client
+endpoint **MUST** accept server-initiated streams on connections it opened, and **MUST NOT**
+require (and SHOULD NOT run) any inbound-connection accept loop, reachable listen port, or
+inbound firewall opening to receive events. This is both a **security win** (no inbound
+attack surface on the client; no dial-back address leaked or reachable) and a **simplicity
+win** (no client-side `ServerEndpoint` export for callbacks). It is the reason
+server-initiated streams are the primary model rather than an optimisation: for the
+ephemeral topology, dial-back (§4.6.2) is *impossible*, not merely slower.
+
+Stream-concurrency for server-initiated streams is governed by QUIC `MAX_STREAMS`
+(server-initiated bidirectional) advertised by the client (RFC 9000 §4.6); the client
+**MUST** advertise sufficient credit to receive events it has subscribed to, and this credit
+is the natural back-pressure on event push (§9.5 — no application-level rationing).
+
+**Precedent.** Server-initiated bidirectional streams for server→client push over a
+client-opened connection are established practice: **WebTransport** (server-initiated
+streams over an HTTP/3 QUIC connection) and **gRPC server-streaming / bidirectional
+streaming** (the server pushes messages over the client-opened HTTP/2/HTTP/3 connection)
+are the direct analogues. JGDMS uses raw QUIC streams (§10.2) rather than HTTP/3, but the
+topology — client opens the connection, server pushes over it — is identical.
+
+#### 4.6.2 Secondary / compat model — dial-back (NORMATIVE, restricted)
+
+The classic JERI **dial-back** callback — the notifying service makes a **fresh
+client-initiated connection** to the listener's exported endpoint (`BasicObjectEndpoint.
+newCall` → `newRequest` against the listener proxy's baked-in `host:port`) — remains valid
+**only where the listener-holding client is itself reachable at its exported address**
+(fixed-IP peers, server-to-server callbacks). Over QUIC this is an ordinary
+client-initiated request (§4.1) from the notifier to the listener's endpoint. A conformant
+implementation **MUST NOT** rely on dial-back for an ephemeral client, and **MUST** prefer
+the §4.6.1 server-initiated-stream model whenever the callback target is reached over a
+connection the target opened. Dial-back is compat, not the default.
+
+**[BOARD] Selection rule.** How a listener export advertises "I am reachable, dial me back"
+vs "push to me over my open connection" (a listener-proxy capability flag, or inferred from
+whether the client exported a reachable `ServerEndpoint`) is an `Endpoint`/export-form
+question, **[OPEN]** and flagged in §11 (item 11); it interacts with the tri-export
+selection of §11 item 10.
+
+### 4.7 Direction-aware caller-subject resolution (NORMATIVE — the must-solve)
+
+JERI's dispatcher today authorizes a request against the **connection's authenticated peer**
+— `ServerConnection.getClientSubject()` → the `BasicInvocationDispatcher` client-permission
+check (`checkClientPermission` / the `ClientAuthentication`/principal constraint gate) —
+under the standing assumption **caller = client = connection initiator**. On a
+server-initiated stream (§4.6.1) that assumption **inverts**: the caller is the *server*, yet
+the connection was opened by the *client*. Resolving the caller subject by stream initiator
+is therefore mandatory, and getting it wrong is a confused-deputy vulnerability.
+
+**Normative rules:**
+
+1. **Caller = stream initiator, not connection initiator.** For authorization and
+   caller-subject resolution, the caller of a request is the party that **opened the stream**:
+   - On a **client-initiated stream (`0x00`)**, the caller is the **authenticated client
+     peer** — the connection's mTLS-verified client identity, exactly as today.
+   - On a **server-initiated stream (`0x01`)**, the caller is the **authenticated server
+     peer** — the connection's mTLS-verified **server** identity (the SPIFFE/X.500 workload
+     identity the client already holds and validated at handshake, §9). The dispatcher of a
+     pushed event **MUST** resolve the caller subject to the server's authenticated workload
+     identity.
+2. **Both identities come from the one handshake.** QUIC mutual TLS authenticates **both**
+   ends at the single connection handshake (§9). The server's identity is available to the
+   client from `getSession().getPeerCertificates()` on the client side of the QUIC-mode
+   engine; it is handshake-pinned (§6.3) and unaffected by migration. No second handshake,
+   no per-stream authentication, and no wire-carried identity is used to establish the
+   caller of a server-initiated stream — it is the connection's already-verified server peer.
+3. **Confused-deputy guard (explicit).** A pushed event **MUST** be authorized against the
+   **server's** workload SPIFFE/X.500 identity. It **MUST NOT** be dispatched as **anonymous**
+   (that would drop the caller identity entirely), and it **MUST NOT** be authorized with the
+   **client's own** privileges (that would let a remote service act with the client's
+   authority merely by pushing an event over the client's connection — the confused-deputy
+   attack this rule exists to prevent). The listener dispatch runs with the caller subject =
+   the authenticated server identity, and the client's local policy decides what that server
+   identity is permitted to invoke on the listener.
+4. **`getClientSubject` generalises to `getCallerSubject(streamInitiator)`.** The transport
+   **MUST** supply the dispatcher with the correct authenticated peer per rule 1. Where the
+   existing SPI name (`getClientSubject`) is retained, it **MUST** return the stream-initiator
+   peer for server-initiated streams (the server), not the connection's client peer. The
+   permission check (`checkClientPermission` and the principal/`ClientAuthentication`
+   constraint evaluation) then runs against that direction-correct subject.
+
+#### 4.7.1 The ACC reducing-context mirror (NORMATIVE)
+
+The STD-006 **§7.2** ACC reducing-domain block (the caller's *reducing* codebase-domain set,
+**codebases only, no principals on the wire**) normally flows **client → server**, and the
+server stamps the additive workload principal from the authenticated **client** peer (§9.3,
+STD-006 §7.2). On a **server-pushed event that carries an on-behalf-of user ACC** (a service
+delivering an event under a user's reduced authority), that block flows in the **mirror
+direction — server → client**, and the gate mirrors:
+
+1. The client (now the receiver of the pushed request) **MUST** validate the received STD-006
+   §7.2 ACC reducing-domain block against the **server's authenticated workload identity**
+   (the §4.7 rule-1 server-initiated caller subject), exactly as a server today validates the
+   client's ACC against the client's authenticated identity. The additive principal stamped
+   onto the reconstructed reducing domains at the client **MUST** be the server's
+   authenticated workload identity — never taken from the wire, never anonymous, never the
+   client's own (the §4.7 rule-3 guard applied to the ACC path).
+2. The `jrt:/java.base` exclusion and every other STD-006 §7.2 invariant (codebases only,
+   order-preserving, size-bounded) apply identically in the mirror direction: encoder (server)
+   drops `jrt:/java.base`, decoder (client) refuses it.
+3. This is a symmetric application of the one gate, not a new mechanism: STD-006 §7.2 already
+   says the additive principal is stamped at the receiver from the authenticated peer, never
+   from the wire; §4.7 only makes "the authenticated peer" direction-aware. (Note: the design
+   SOWs miscite this block as STD-006 "§7.3"; the correct citation is **§7.2** — see the
+   editorial note and §9.4.)
 
 ---
 
@@ -538,7 +698,10 @@ authenticated peer identity (§9.1–9.3) that the receiver uses to stamp the ad
 workload principals onto the reconstructed reducing domains, per STD-006 §7.2 and the
 two-gate SPIFFE model (STD-003 §3.8 / §7.6). The QUIC transport changes **where the TLS
 runs** (integrated into the QUIC handshake) but **not what STD-006 §7.2 transmits** or how
-the receiver stamps.
+the receiver stamps. On a **server-initiated stream** (§4.6), the same §7.2 block flows in
+the mirror direction (server → client) and the client validates it against the server's
+authenticated workload identity — see §4.7.1. In both directions the additive principal is
+the direction-correct authenticated peer, never taken from the wire.
 
 > **Correction (normative):** the QUIC design SOWs cite this block as STD-006 "§7.3". The
 > correct citation is **STD-006 §7.2**; §7.3 is `DigestCodeSourceRecord` (code identity),
@@ -571,9 +734,11 @@ STD-006 §4.5's job.)
 
 A conforming JGDMS QUIC-TLS transport endpoint:
 
-1. Maps exactly one JERI request to one client-initiated QUIC bidirectional stream, never
-   multiplexing or splitting a request across streams; retires the mux only after the §4.2
-   audit (§4.1, §4.2).
+1. Maps exactly one JERI request to one QUIC bidirectional stream, never multiplexing or
+   splitting a request across streams, for **both** directions — client-caller requests on
+   client-initiated streams (`0x00`, §4.1) and server-caller event push on server-initiated
+   streams (`0x01`, §4.6) — and retires the mux only after the §4.2 audit and only once both
+   directions are specified (which this standard does) (§4.0, §4.1, §4.2, §4.6).
 2. Signals normal per-direction completion with the QUIC stream **FIN** and never conflates
    FIN with request processing (§4.3).
 3. Aborts with **`RESET_STREAM`** carrying the §4.4 application-error-code convention, and
@@ -606,6 +771,18 @@ A conforming JGDMS QUIC-TLS transport endpoint:
     no application-level flow-control rationing (§9.5).
 12. Conforms to RFC 9000, RFC 9001, and RFC 9002 for all transport behaviour not otherwise
     constrained here, and to RFC 8446 for the TLS 1.3 handshake.
+13. Delivers events/callbacks to an ephemeral client over a **server-initiated bidirectional
+    stream (`0x01`)** on the connection the client already opened; **accepts inbound streams,
+    never inbound connections** (no client accept loop, listen port, or inbound firewall
+    hole); and uses classic dial-back only as a restricted compat path for reachable,
+    fixed-IP clients (§4.6).
+14. Resolves the caller subject **direction-aware — by stream initiator, not connection
+    initiator**: client-initiated ⇒ caller = authenticated client peer; server-initiated ⇒
+    caller = authenticated **server** peer (the connection's mTLS-verified workload identity).
+    Authorizes a pushed event against the server's SPIFFE/X.500 workload identity — **never
+    anonymous, never the client's own privileges** (the confused-deputy guard) — and mirrors
+    the STD-006 §7.2 ACC gate in the server→client direction, the client validating the
+    on-behalf-of ACC against the server's authenticated identity (§4.7, §4.7.1).
 
 ### 10.2 Interoperability matrix (NORMATIVE — required for release)
 
@@ -613,9 +790,11 @@ Interoperability is **unverifiable without this normative spec**, and this stand
 so that a non-JVM peer can be built and audited from the document alone. A JGDMS QUIC
 endpoint (both as client and as server) **MUST** be interop-tested against the following
 polyglot QUIC implementations, exercising the RFC 9000/9001/9002 baseline **and** the
-JGDMS-specific behaviours of §§4–9 (stream↔request mapping, FIN/RESET completion, the DGC
-ack marker, half-close, 0-RTT refusal, migration path-validation, anti-amplification), each
-paired with a DER payload smoke test (§8):
+JGDMS-specific behaviours of §§4–9 (client- **and** server-initiated stream↔request mapping,
+server-pushed event delivery over a server-initiated `0x01` stream with direction-aware
+caller-subject resolution, FIN/RESET completion, the DGC ack marker, half-close, 0-RTT
+refusal, migration path-validation, anti-amplification), each paired with a DER payload smoke
+test (§8):
 
 | Implementation | Language | Role in matrix |
 |---|---|---|
@@ -648,6 +827,12 @@ footing STD-006 places its ASN.1/conformance suite. It **MUST**:
    wired-but-untested (a client-auth QUIC handshake asserting both ends'
    `getSession().getPeerCertificates()` populate) — the single highest-priority test before
    the build relies on the engine.
+5. Exercise **server-initiated event push and its authorization inversion (§4.6, §4.7)**:
+   assert an event delivered over a `0x01` stream is authorized against the **server's**
+   authenticated workload identity, and assert the confused-deputy negatives — that the
+   pushed event is **not** dispatched anonymously and **not** with the client's own
+   privileges — plus the ACC-mirror gate (client validates a server→client on-behalf-of ACC
+   against the server identity, §4.7.1).
 
 ---
 
@@ -656,9 +841,15 @@ footing STD-006 places its ASN.1/conformance suite. It **MUST**:
 Consolidated list of every **[OPEN]** / **[BOARD]** above, for the next working session and
 the board's adjudication:
 
-1. **§4.1 — server-initiated requests.** This standard maps only client-initiated
-   bidirectional streams. Confirm no JGDMS subsystem needs a server-initiated request over
-   an established connection (the mux audit, §4.2, must verify this before deleting the mux).
+1. **§4.6 / §4.7 — server-initiated event push (RESOLVED into normative text; residual
+   items follow).** The former "does JERI have a server-initiated request path?" open item is
+   **closed**: it does (dial-back today), and this standard now maps event/callback delivery
+   onto server-initiated `0x01` streams with direction-aware caller-subject resolution and the
+   ACC mirror. Residual sub-items: (a) the dial-back-vs-push **selection rule** at the
+   listener export (§4.6.2 [BOARD]) — how a listener advertises reachability — is [OPEN], and
+   interacts with item 10 (tri-export); (b) confirm no JGDMS subsystem needs a *server-caller*
+   request that is **not** an event/callback (i.e. anything beyond the listener pattern) over a
+   `0x01` stream, which the §4.2 mux audit must still verify before the mux is deleted.
 2. **§4.4 — application error-code allocation.** The symbolic codes are pinned; the actual
    QUIC application-error-code varint values (and the JGDMS-reserved range) are unallocated.
    Assign concrete numbers.
@@ -710,11 +901,21 @@ the board's adjudication:
   transport — the correct citation, correcting the SOWs' "§7.3").
 - `JGDMS-STD-003-MultiSubjectIdentityArchitecture` — the multi-subject / SPIFFE two-gate
   identity model (§3.8 / §7.6 cross-referenced by STD-006 §7.2 and by §9 here).
-- Source (to be built): the proposed `net.jini.jeri.quic.{QuicEndpoint,QuicServerEndpoint}`
-  pair on the JERI `Endpoint`/`ServerEndpoint`/`connection.Connection` SPI; the retired
+- Source (to be built / cited as evidence): the proposed
+  `net.jini.jeri.quic.{QuicEndpoint,QuicServerEndpoint}` pair on the JERI
+  `Endpoint`/`ServerEndpoint`/`connection.Connection` SPI; the retired
   `org.apache.river.jeri.internal.mux.*`; the reused `net.jini.jeri.ssl.{AuthManager,
   ClientAuthManager,ServerAuthManager,SubjectCredentials,Utilities}` auth logic;
-  `net.jini.jeri.BasicObjectEndpoint` (the DGC client, §5).
+  `net.jini.jeri.BasicObjectEndpoint` (the DGC client, §5; `newCall`→`newRequest` — the
+  dial-back callback path, §4.6.2); `net.jini.jeri.BasicInvocationDispatcher`
+  (`getClientSubject`→`checkClientPermission` — the caller-subject/authorization path
+  generalised in §4.7); `net.jini.jeri.connection.ServerConnection.getClientSubject`;
+  `net.jini.core.event.RemoteEventListener.notify` and the lookup `ServiceEvent` /
+  lease-notification listeners (the event pattern mapped in §4.6);
+  `net.jini.jeri.tcp.TcpEndpoint` (the host:port baked into the dial-back listener proxy).
+- Precedent for server-initiated push over a client-opened connection: **WebTransport**
+  (server-initiated streams over an HTTP/3 QUIC connection) and **gRPC** server-streaming /
+  bidirectional streaming (server pushes over the client-opened connection) — §4.6.1.
 - RFCs: **9000** (QUIC transport), **9001** (using TLS to secure QUIC), **9002** (loss
   detection / congestion control), **8446** (TLS 1.3), **2119**/**8174** (requirements
   language), **6125** (endpoint identification — deliberately *not* used, §9.2). JEP **517**
@@ -726,6 +927,29 @@ the board's adjudication:
 
 ## Changelog
 
+- **v0.1-DRAFT rev.2 (2026-07-05)** — added the **server-initiated stream** mapping and the
+  **authorization role-reversal**, resolving the former §4.1 [OPEN]. The investigation
+  established (with code evidence) that JERI's server→client path is today **dial-back** (the
+  listener proxy bakes in a reachable `TcpEndpoint` host:port; the notifier invokes it as a
+  fresh client call via `BasicObjectEndpoint.newCall`→`newRequest`), which QUIC's
+  ephemeral-client topology voids. New/changed normative content: **§4.0** (two request
+  directions on one connection; QUIC stream-type discrimination `0x00`/`0x01`; resolution of
+  the former open item); **§4.6** — Event/callback delivery: server-initiated bidirectional
+  `0x01` stream as the **primary** model for ephemeral clients (client accepts inbound
+  *streams*, never inbound *connections* — a security + simplicity win), dial-back demoted to
+  a restricted compat path (§4.6.2), WebTransport / gRPC server-streaming cited as precedent;
+  **§4.7** — direction-aware caller-subject resolution (the must-solve): caller = **stream
+  initiator** not connection initiator, so a server-initiated stream's caller is the
+  authenticated **server** peer, with an explicit **confused-deputy guard** (never anonymous,
+  never the client's own privileges); **§4.7.1** — the STD-006 §7.2 ACC **mirror** (a
+  server-pushed on-behalf-of ACC flows server→client and is validated by the client against
+  the server's authenticated workload identity). §2.2 table gains callback + caller-authz
+  rows; §4.1 retitled to client-initiated; §4.2 mux-audit precondition updated (mux retires
+  only once both directions are specified — now done); §9.4 cross-refs the mirror; conformance
+  gains items 13–14; the interop matrix and harness (§10.2/§10.3) add server-push +
+  authorization-inversion tests; §11 item 1 rewritten (resolved, with residual sub-items:
+  dial-back-vs-push selection rule, and the remaining mux-audit check for any non-callback
+  server-caller path).
 - **v0.1-DRAFT (2026-07-05)** — initial draft. Establishes the normative wire contract for
   the QUIC-TLS JERI transport to gate the P3 build. Pins the review board's nine
   load-bearing points: (1) one request ⇄ one client-initiated bidi stream with FIN
