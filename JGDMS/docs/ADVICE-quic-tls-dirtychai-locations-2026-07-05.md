@@ -5,18 +5,18 @@
 - **Purpose:** A concrete, re-verified **location map** for the human DirtyChai maintainers to
   implement Path A (expose SunJSSE's QUIC-TLS engine for a custom-auth JGDMS QUIC transport).
   This document supersedes the *change-set sketch* in `ADVICE-quic-tls-exposure-2026-06-30.md`
-  §2 with (a) **re-verified `file:line` citations against current DirtyChai source**, and (b) a
-  refined trust-dispatch recommendation the review board converged on (prefer the
-  `SSLEngine`-adapter / 3-arg extended path over the raw 2-arg branch).
+  §2 with (a) **re-verified `file:line` citations against current DirtyChai source**, and (b) the
+  **ratified trust-dispatch decision** (Peter, 2026-07-05): the QUIC trust dispatch uses the
+  `SSLEngine`-adapter / 3-arg extended path; the raw 2-arg branch is **not** used.
 - **Status:** **Analysis and advice only.** Produced under the OpenJDK Interim Policy on
   Generative AI adopted by DirtyChai (`DirtyChai/CLAUDE.md`: *"Analyze and advise only. Humans
   write the fix. Do NOT generate code."*). **No DirtyChai source, JavaDoc, tests, or build files
   were created or modified.** Every item below is a recommendation for a human contributor to
   implement. This document lives on the writable JGDMS side.
-- **Ratified board decisions this map assumes (2026-07-05):** Path A + the re-sequencing;
-  **algorithm constraints are RE-IMPOSED in JGDMS**; this de-risk is a location map (not a code
-  change). The board (security + module-boundary) converged on **preferring the SSLEngine-adapter
-  / 3-arg extended trust path** over the raw 2-arg branch.
+- **Ratified board decisions this map assumes (2026-07-05, Peter):** Path A + the re-sequencing;
+  **algorithm constraints are RE-IMPOSED in JGDMS**; the QUIC trust dispatch **uses the
+  3-arg `SSLEngine`-adapter path (the raw 2-arg branch is NOT used)**; this de-risk is a location
+  map (not a code change).
 - **Source verification baseline:** DirtyChai HEAD **`a5f70fec85f`** (read-only). Citations
   below were opened and confirmed at the stated lines on this baseline; where the 06-30 ADVICE's
   inherited numbers still hold they are marked **[verified unchanged]**.
@@ -49,15 +49,17 @@ Evidence — `jgdms-jeri/src/main/java/net/jini/jeri/ssl/FilterX509TrustManager.
      `Utilities.permittedViaSpiffeSan(principals, chain[0])` (`:187`); throws
      `CertificateException("Remote principal is not trusted")` (`:188`) if neither matches.
 
-**Consequence for the trust-dispatch recommendation (§2 below):** because the 2-arg body is a
-complete peer-auth, routing a JGDMS custom manager through the QUIC 2-arg path is *functionally
-safe for peer trust* — but it drops the **connection-tied endpoint-identification and
+**Consequence for the trust-dispatch decision (§2 below):** because the 2-arg body is a
+complete peer-auth, routing a JGDMS custom manager through the QUIC 2-arg path *would have been*
+functionally safe for peer trust — but it drops the **connection-tied endpoint-identification and
 algorithm-constraint enforcement** that the 3-arg extended path performs (SPIFFE auth is by
 identity not hostname, so endpoint-ID is a no-loss for JGDMS; **algorithm constraints are NOT
-enforced by the 2-arg body** — see §0.1). That, plus Peter's ratified decision that JGDMS
-re-imposes algorithm constraints, is why the board prefers the **3-arg SSLEngine-adapter** variant:
-it carries algorithm constraints and endpoint-ID through the standard SPI **and** the 2-arg body's
-SPIFFE/X.500 check still runs (the adapter's 3-arg override delegates to the same JGDMS logic).
+enforced by the 2-arg body** — see §0.1). That single gap, plus Peter's ratified decision that
+JGDMS re-imposes algorithm constraints, is why the **DECISION (2026-07-05, Peter) is the 3-arg
+`SSLEngine`-adapter path — the 2-arg branch is NOT used**: the adapter carries algorithm
+constraints and endpoint-ID through the standard SPI **and** the 2-arg body's SPIFFE/X.500 check
+still runs (the adapter's 3-arg override delegates to the same JGDMS logic). The 2-arg finding is
+retained below only to record that it *was* safe (no bypass) — it was sound but not chosen.
 
 ### 0.1 What the 2-arg body does NOT do (the gap the 3-arg path closes)
 
@@ -80,14 +82,14 @@ why the adapter (which re-presents the QUIC engine as an `SSLEngine`) is the cle
 |---|---|---|---|---|
 | A | `module-info.java` | **197-198** [verified] | `exports jdk.internal.net.quic to java.net.http;` | **Spike:** add JGDMS module to targets. **Production:** do NOT export; add facade (item C). |
 | B1 | `sun/security/ssl/SSLContextImpl.java` | **485-486** [verified] | `isUsableWithQuic()` → `trustManager instanceof X509TrustManagerImpl` | Widen to accept any `X509ExtendedTrustManager` (JGDMS's wrapped manager). |
-| B2 | `sun/security/ssl/CertificateMessage.java` | **1228-1234** (server-validates-client), **1289-1295** (client-validates-server) [verified] | QUIC branch: SunJSSE-internal 3-arg overload, else `throw CertificateException("QUIC only supports SunJSSE trust managers")` | Add a custom-`X509ExtendedTrustManager` branch — **preferred:** wrap the QUIC engine in an `SSLEngine` adapter and dispatch through the standard 3-arg path; **fallback-of-last-resort:** 2-arg call. Fence to non-`X509TrustManagerImpl`. |
-| B3 | `sun/security/ssl/CertificateMessage.java` | **1216-1241** (server block, no final `else`) | server block silently falls through for an unknown transport (no `AssertionError`, unlike client block `:1296-1298`) | Add a fail-secure final `else throw` in the server block too (pre-existing asymmetry; harden while here). |
+| B2 | `sun/security/ssl/CertificateMessage.java` | **1228-1234** (server-validates-client), **1289-1295** (client-validates-server) [verified] | QUIC branch: SunJSSE-internal 3-arg overload, else `throw CertificateException("QUIC only supports SunJSSE trust managers")` | **DECISION (Peter, 2026-07-05):** implement the **3-arg `SSLEngine`-adapter** branch (wrap the QUIC engine as `SSLEngine`; SPIFFE + algorithm constraints + endpoint-ID all carry). **Do NOT** implement a 2-arg branch. Fence to non-`X509TrustManagerImpl`. |
+| B3 | `sun/security/ssl/CertificateMessage.java` | **1216-1241** (server block, no final `else`) | server block silently falls through for an unknown transport → **fail-open: client cert admitted UNVALIDATED** (no `else`, unlike client block `:1296-1298`) | **REQUIRED:** add a fail-secure final `else throw` to the server block, matching the client block. Fail-open peer-cert validation is unacceptable on this untrusted-network mTLS path. |
 | C | *(new)* `au/zeus/jdk/net/ssl/…` (java.base) + `module-info.java` exports | new | none | Supported facade: `SSLContext → QUIC engine` factory only; export the package. |
 | D | `test/jdk/java/net/httpclient/quic/tls/…` (+ lib `…/test/lib/quic/`) | new test | server-mode driven but **no client-auth test** | Human-written server-mode mTLS handshake test: POSITIVE + NEGATIVE (SPIFFE-SAN reject). |
 | E1 | `sun/security/ssl/SSLExtension.java` | **316-318** [verified] | `CH_/EE_/NST_EARLY_DATA` enum entries declared **id+name only** (no producer/consumer) → `early_data` null-wired | Keep null-wired; do not wire producers. If ever wired, add explicit max-early-data=0 / disable. |
 | E2 | `sun/security/ssl/QuicTLSEngineImpl.java` | **279** (`keysAvailable(ZERO_RTT)→false`), **483-485** (`consumeHandshakeBytes` throws on `ZERO_RTT`) [verified] | 0-RTT refused by absence | Keep the refusal; make it an explicit invariant (see §6, and the JGDMS-side positive guard). |
 | E3 | `sun/security/ssl/QuicKeyManager.java` | imports **61-63** `INITIAL/HANDSHAKE/ONE_RTT` only (no `ZERO_RTT`) [verified] | no ZeroRtt key manager | Keep; adding a ZeroRtt key manager is a security-review trigger. |
-| F | `sun/security/ssl/X509TrustManagerImpl.java` | **241-258** (QUIC 3-arg `checkTrusted`), **131-141** (public `SSLEngine` 3-arg) [verified] | algorithm constraints + endpoint-ID enforced on the 3-arg QUIC path via `SSLAlgorithmConstraints.forQUIC` | Reference for §6: the adapter route reuses the `SSLEngine` 3-arg overload so constraints carry; if the 2-arg path is used, JGDMS must re-impose them. |
+| F | `sun/security/ssl/X509TrustManagerImpl.java` | **241-258** (QUIC 3-arg `checkTrusted`), **131-141** (public `SSLEngine` 3-arg) [verified] | algorithm constraints + endpoint-ID enforced on the 3-arg QUIC path via `SSLAlgorithmConstraints.forQUIC` | Reference for §6: the chosen adapter route (B2) reuses the `SSLEngine` 3-arg overload so constraints **carry** at the JSSE layer, defense-in-depth with JGDMS's ratified algorithm-constraint re-imposition. |
 
 ---
 
@@ -132,43 +134,79 @@ an `SSLEngine` transport and `(…, socket)` for an `SSLSocket`. The QUIC branch
 (JEP 517's *"would require adding methods to the provider SPI"* caveat, manifesting inside the cert
 path). That is why B1 alone relocates the failure from construction to the handshake.
 
-**RECOMMENDED variant — SSLEngine adapter (3-arg extended path):**
-For a non-`X509TrustManagerImpl` `X509ExtendedTrustManager`, wrap `qtlse` in a **thin
-`javax.net.ssl.SSLEngine` adapter** that exposes at least `getHandshakeSession()` (→
-`qtlse.getHandshakeSession()`, `QuicTLSEngineImpl.java:192`) and `getSSLParameters()` (→
-`qtlse.getSSLParameters()`, `:214`), then dispatch through the **standard** 3-arg call
-`((X509ExtendedTrustManager) tm).check{Client,Server}Trusted(certs.clone(), authType, adapter)`.
+**DECISION (2026-07-05, Peter — RATIFIED): use the 3-arg `SSLEngine`-adapter path. The raw
+2-arg branch is NOT used.** The QUIC trust-dispatch branch routes a custom
+`X509ExtendedTrustManager` through the **standard 3-arg `X509ExtendedTrustManager` dispatch** by
+wrapping the QUIC engine as an `SSLEngine`, so SPIFFE/X.500 validation **and** algorithm-constraint
+enforcement **and** endpoint-identification all run. This is now the design, not a recommendation
+among alternatives.
 
-*Why this is the board's preferred variant:*
-- The custom manager's **public 3-arg override** runs (JGDMS's `AuthManager` inherits the 2-arg
-  logic; the wrapper's 3-arg → 2-arg delegation means the **SPIFFE/X.500 check of §0 still
-  executes**), and additionally the standard path derives **algorithm constraints + endpoint-ID
-  from the adapter's session/params** (mirroring `X509TrustManagerImpl.checkTrusted(...SSLEngine…)`
-  `:131-141`). So algorithm constraints are *carried* rather than dropped — aligning with Peter's
-  ratified "JGDMS re-imposes algorithm constraints" decision at the JSSE layer, defense-in-depth
-  with the JGDMS-side re-imposition.
-- It keeps the fail-secure posture: an unrecognised manager still throws.
+**Concrete human-developer instruction — implement the `SSLEngine` adapter (do NOT implement a
+2-arg branch):**
+1. Add a **thin `javax.net.ssl.SSLEngine` adapter** over `QuicTLSEngineImpl` that surfaces at least
+   `getHandshakeSession()` (→ `qtlse.getHandshakeSession()`, `QuicTLSEngineImpl.java:192`),
+   `getSSLParameters()` (→ `qtlse.getSSLParameters()`, `:214`), and
+   `getSSLParameters().getAlgorithmConstraints()` / `.getEndpointIdentificationAlgorithm()`
+   (`:209`, `:214`) so `SSLAlgorithmConstraints` and the identity check see the intended values.
+2. In the QUIC dispatch branch at `CertificateMessage.java:1227-1235` (server-validates-client) and
+   `:1289-1295` (client-validates-server), for a `tm` that is an `X509ExtendedTrustManager` but
+   **not** an `X509TrustManagerImpl`, call the **public 3-arg** overload
+   `((X509ExtendedTrustManager) tm).check{Client,Server}Trusted(certs.clone(), authType, adapter)` —
+   i.e. dispatch exactly as the standard `SSLEngine` branch immediately above (`:1217-1226` server,
+   `:1279-1288` client) does, passing the adapter as the `SSLEngine`.
+3. Keep the existing `X509TrustManagerImpl` branch (the SunJSSE-internal
+   `check…Trusted(chain, authType, QuicTLSEngineImpl)` overload) exactly as-is for SunJSSE's own
+   managers.
+4. **Do NOT** add a `((X509ExtendedTrustManager) tm).check…Trusted(certs, authType)` 2-arg branch.
 
-**FALLBACK-OF-LAST-RESORT — raw 2-arg branch (ONLY because §0 proved the 2-arg body does SPIFFE):**
-If the adapter proves impractical, a `((X509ExtendedTrustManager) tm).check{Server,Client}Trusted(
-certs.clone(), authType)` (2-arg) branch is *peer-auth-safe* (the §0 body validates chain + auth
-type + SPIFFE/X.500). **But** it drops endpoint-ID (no-loss for JGDMS) **and algorithm-constraint
-enforcement (a real loss)** — permissible **only** on the explicit condition that JGDMS re-imposes
-algorithm constraints in its own trust evaluation (§6). Prefer the adapter; use 2-arg only if
-forced, and document the constraint dependency in the DirtyChai commit.
+*Why 3-arg wins (and why 2-arg, though safe, was not chosen):*
+- The custom manager's **public 3-arg override** runs, so JGDMS's `AuthManager` (whose 3-arg
+  wrapper delegates to its 2-arg logic) still executes the **full SPIFFE/X.500 peer-auth of §0** —
+  the same validation the 2-arg branch would have run.
+- **Additionally**, the standard 3-arg path derives **algorithm constraints + endpoint-ID from the
+  adapter's session/params** (mirroring `X509TrustManagerImpl.checkTrusted(...SSLEngine…)`
+  `:131-141` and the QUIC constraint derivation `:241-258`), so algorithm constraints are
+  **carried at the JSSE layer**, defense-in-depth with Peter's separate ratified decision that
+  **JGDMS re-imposes algorithm constraints** in its own trust evaluation.
+- The raw 2-arg branch was **verified peer-auth-safe** (the §0 body validates chain + auth-type +
+  SPIFFE/X.500, no bypass) — so it was a *sound* option, **but it drops algorithm-constraint
+  enforcement** (endpoint-ID is a no-loss for SPIFFE identity-based auth; algorithm constraints are
+  a real loss). That single gap is why the 3-arg adapter is chosen: it keeps the constraints that
+  the 2-arg path would have dropped, and it aligns the JSSE layer with the JGDMS re-imposition
+  decision rather than relying on JGDMS alone.
 
-**Fence (both variants):** gate the new branch to `!(tm instanceof X509TrustManagerImpl)` so
-SunJSSE's own managers keep their exact current path untouched (P2: widen narrowly, remove nothing).
+**Fence:** gate the new adapter branch to `!(tm instanceof X509TrustManagerImpl)` so SunJSSE's own
+managers keep their exact current path untouched (P2: widen narrowly, remove nothing). Fail-secure
+is retained: an unrecognised manager (neither `X509TrustManagerImpl` nor a custom
+`X509ExtendedTrustManager`) still throws.
 
-### 2.3 B3 — harden the server block's missing final `else` (`CertificateMessage.java:1216-1241`)
+### 2.3 B3 — REQUIRED fail-secure fix: server block's missing final `else` (`CertificateMessage.java:1216-1241`)
 
-**Observed asymmetry [verified]:** the **client** validation block ends with
-`else throw new AssertionError("Unexpected transport type")` (`:1296-1298`), but the **server**
-validation block (`:1216-1241`) has **no** final `else` — an unrecognised transport falls through
-with **no cert validation**. This is a pre-existing SunJSSE shape, not introduced by QUIC, but the
-new custom-manager branch touches exactly this block. **Recommend:** while editing, add a fail-secure
-final `else throw` to the server block too, so no future transport type silently skips
-client-cert validation. (Advisory hardening; flag to maintainers as a P2/P6 fail-secure item.)
+**MANDATORY human-developer fix — not advisory.** The server-side certificate-validation block
+(`CertificateMessage.java:1216-1241`, which validates the **client** certificate) has **NO final
+`else`**: if `shc.conContext.transport` is none of `SSLEngine` / `SSLSocket` / `QuicTLSEngineImpl`,
+control falls straight through to `setPeerCertificates` (`:1245`) with **no certificate validation
+performed at all**. This is a **fail-open gap on peer-cert validation** — an unrecognised or
+unexpected transport is admitted *unvalidated*. The **client**-side block does not have this gap: it
+ends with `else throw new AssertionError("Unexpected transport type")` (`:1296-1298`).
+
+**The human developer MUST add a fail-secure final `else throw` to the server block**, matching the
+client block's pattern, so an unrecognised transport is **rejected** rather than passed unvalidated:
+
+- **Location:** the `if (tm instanceof X509ExtendedTrustManager) { … }` transport dispatch in the
+  server `checkClientCerts` path, `CertificateMessage.java:1216-1235` — add a terminating
+  `else { throw new CertificateException("Unexpected transport type"); }` (or the client block's
+  `AssertionError` form) after the `QuicTLSEngineImpl` branch at `:1235`, before the outer
+  `else` that already handles the non-extended-manager case (`:1236-1241`).
+- **Rationale (why this is required, not optional):** silently skipping client-certificate
+  validation is a **peer-authentication bypass**, and this transport is an **untrusted-network**
+  path where mandatory mTLS is the trust gate — a fail-open on peer-cert validation is
+  **unacceptable** here (DirtyChai `CLAUDE.md` P2 "never weaken/remove a security validation layer"
+  and P6 "fail-secure defaults / deny on error"). The pre-existing SunJSSE shape is a latent gap;
+  the new custom-manager adapter branch (B2) touches exactly this block, so the fix lands with the
+  same edit and MUST be included.
+- **Independent of B2:** even for the SunJSSE-only path this `else` should exist; it is a hardening
+  of the validation dispatch, mandatory regardless of which trust managers are in play.
 
 ---
 
@@ -230,9 +268,9 @@ this is the single highest-priority pre-Path-A item.
   (`CertificateException` / fatal `CERTIFICATE_UNKNOWN`), **not** silently accepted. This is what
   proves the B2 branch actually enforces the §0 principal check in QUIC server mode (and, with B3,
   that no transport falls through unvalidated).
-- *(If the SSLEngine-adapter variant is chosen)* add a case asserting an **algorithm-constrained**
-  reject (e.g. a signature scheme excluded by `SSLParameters`), to prove constraints carry through
-  the adapter (§6).
+- **(SSLEngine-adapter path — the chosen B2 design)** add a case asserting an
+  **algorithm-constrained** reject (e.g. a signature scheme excluded by `SSLParameters`), to prove
+  algorithm constraints carry through the adapter into the 3-arg dispatch (§6).
 
 ---
 
@@ -275,21 +313,22 @@ getEndpointIdentificationAlgorithm()` (`:253-254`), applied in `findTrustedCerti
 (`:269-291` — chain validation with `constraints`, then `checkIdentity`). The public `SSLEngine`
 3-arg overloads (`:131-141`) do the same from an `SSLEngine`'s session/params.
 
-- **If the SSLEngine-adapter variant (recommended) is used:** algorithm constraints **are carried**
-  — the standard 3-arg dispatch derives them from the adapter's `getSSLParameters()` /
-  `getHandshakeSession()`, exactly as for a real `SSLEngine`. **Confirm** the adapter faithfully
-  surfaces `getSSLParameters().getAlgorithmConstraints()` and the endpoint-ID algorithm from the
-  QUIC engine (`QuicTLSEngineImpl.java:209`, `:214` expose these), so `SSLAlgorithmConstraints`
-  sees the intended set. This gives constraint enforcement at the JSSE layer **in addition** to the
-  ratified JGDMS-side re-imposition (defense-in-depth).
-- **If the 2-arg fallback path is unavoidable:** algorithm constraints are **NOT** enforced by the
-  §0 2-arg body (it validates chain + auth-type allow-list + SPIFFE/X.500 only). JGDMS **must** then
-  add explicit algorithm-constraint enforcement in its own trust evaluation — i.e. `AuthManager` /
-  `FilterX509TrustManager.check(...)` must reject a cert chain whose signature scheme / key size /
-  named curve falls outside JGDMS's permitted set (the `AlgorithmConstraints` JGDMS defines for its
-  TLS profile), because the transport will not do it for the custom-manager 2-arg path. This is the
-  JGDMS-side work item Peter's decision creates; it is **mandatory** if 2-arg is used and
-  **belt-and-braces** if the adapter is used.
+- **With the chosen SSLEngine-adapter path (B2 decision):** algorithm constraints **are carried at
+  the JSSE layer** — the standard 3-arg dispatch derives them from the adapter's
+  `getSSLParameters()` / `getHandshakeSession()`, exactly as for a real `SSLEngine`. **Confirm** the
+  adapter faithfully surfaces `getSSLParameters().getAlgorithmConstraints()` and the endpoint-ID
+  algorithm from the QUIC engine (`QuicTLSEngineImpl.java:209`, `:214` expose these), so
+  `SSLAlgorithmConstraints` sees the intended set.
+- **This is defense-in-depth with Peter's separate ratified decision that JGDMS re-imposes
+  algorithm constraints.** JGDMS still enforces its own algorithm profile in its trust evaluation —
+  i.e. `AuthManager` / `FilterX509TrustManager.check(...)` should reject a cert chain whose
+  signature scheme / key size / named curve falls outside JGDMS's permitted set (the
+  `AlgorithmConstraints` JGDMS defines for its TLS profile). With the adapter, the JSSE layer and
+  the JGDMS layer both enforce constraints (belt-and-braces); the JGDMS re-imposition is **not**
+  contingent on the adapter and remains a required JGDMS-side work item regardless.
+- **The 2-arg branch is not used** (B2 decision), so the transport does **not** rely on JGDMS being
+  the *sole* enforcer of algorithm constraints — the failure mode where the JSSE layer silently
+  drops them (which the 2-arg path would have introduced) does not arise.
 
 ---
 
