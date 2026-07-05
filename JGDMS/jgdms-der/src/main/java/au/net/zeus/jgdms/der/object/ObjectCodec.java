@@ -1245,6 +1245,14 @@ public final class ObjectCodec {
      */
     private static byte[] encodeCollection(Object value, String wireType,
                                            String fieldName, int depth) throws DerException {
+        // Depth-bound DoS guard, symmetric with the decode side (decodeCollection) and with
+        // encodeNested: a nested-collection element recurses at depth + 1, so an over-deep
+        // nested-collection value is rejected fail-secure before StackOverflowError.
+        if (depth > MAX_NESTING) {
+            throw new DerException(
+                    "ObjectCodec.encodeCollection: nesting depth " + depth
+                    + " exceeds MAX_NESTING (" + MAX_NESTING + ")");
+        }
         if (value == null) {
             return new byte[]{0x05, 0x00}; // DER NULL
         }
@@ -1269,8 +1277,8 @@ public final class ObjectCodec {
             List<byte[]> entryTlvs = new ArrayList<>(map.size());
             int i = 0;
             for (Map.Entry<?, ?> e : map.entrySet()) {
-                byte[] keyTlv = encodeValue(e.getKey(),   keyWT, fieldName + ".key[" + i + "]",   depth);
-                byte[] valTlv = encodeValue(e.getValue(), valWT, fieldName + ".value[" + i + "]", depth);
+                byte[] keyTlv = encodeElementValue(e.getKey(),   keyWT, fieldName + ".key[" + i + "]",   depth);
+                byte[] valTlv = encodeElementValue(e.getValue(), valWT, fieldName + ".value[" + i + "]", depth);
                 // entry := SEQUENCE { key, value }
                 List<byte[]> pair = new ArrayList<>(2);
                 pair.add(keyTlv);
@@ -1306,7 +1314,7 @@ public final class ObjectCodec {
         List<byte[]> elementTlvs = new ArrayList<>(coll.size());
         int i = 0;
         for (Object elem : coll) {
-            elementTlvs.add(encodeValue(elem, elemWT, fieldName + "[" + i + "]", depth));
+            elementTlvs.add(encodeElementValue(elem, elemWT, fieldName + "[" + i + "]", depth));
             i++;
         }
         if (canonicalise) {
@@ -1315,6 +1323,22 @@ public final class ObjectCodec {
         // Option A tag: a CANONICALISE set/multiset is an ASN.1 SET OF -> SET (0x31); a PRESERVE
         // (orderedset/list) is a SEQUENCE OF -> SEQUENCE (0x30) (§3.8, Option A).
         return canonicalise ? DerWriter.writeSet(elementTlvs) : DerWriter.writeSequence(elementTlvs);
+    }
+
+    /**
+     * Encodes a single collection element / map key / map value, mirroring the depth
+     * accounting of {@link #decodeElementValue}: a nested-collection element recurses into
+     * {@link #encodeCollection} at {@code depth + 1} (each nesting level consumes one unit of
+     * the {@code MAX_NESTING} budget); every other element type is delegated to
+     * {@link #encodeValue} at the unchanged {@code depth} (an {@code @AtomicSerial} element's
+     * own {@code depth + 1} step happens inside {@link #encodeNested}, symmetric with decode).
+     */
+    private static byte[] encodeElementValue(Object elem, String elemWT,
+                                             String fieldName, int depth) throws DerException {
+        if (CollectionWireTypes.isCollection(elemWT)) {
+            return encodeCollection(elem, elemWT, fieldName, depth + 1);
+        }
+        return encodeValue(elem, elemWT, fieldName, depth);
     }
 
     /**
@@ -1956,6 +1980,18 @@ public final class ObjectCodec {
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(rawBytes, "rawBytes");
         Objects.requireNonNull(wireType, "wireType");
+        // Depth-bound DoS guard (STD-008 sec.16.2), symmetric with decodeNested/decodeHierarchy:
+        // a nested-collection element (list:list:.../set:set:.../map: whose value is a collection)
+        // recurses through decodeElementValue at depth+1, so an attacker-controlled collection
+        // token declaring N-deep collection nesting is rejected HERE -- before StackOverflowError.
+        // The wire token is attacker-controlled (schemaDigest is self-consistent-only, not bound
+        // to a locally-regenerated schema), so this check must run on every recursion, not only
+        // the @AtomicSerial (decodeNested) path.
+        if (depth > MAX_NESTING) {
+            throw new DerException(
+                    "ObjectCodec.decodeCollection: nesting depth " + depth
+                    + " exceeds MAX_NESTING (" + MAX_NESTING + ")");
+        }
         if (rawBytes.length == 0) {
             throw new DerException("ObjectCodec.decodeCollection: empty bytes");
         }
@@ -2118,8 +2154,11 @@ public final class ObjectCodec {
             // A nested collection element (a set: of set:, a map: value that is a set:, ...):
             // read its complete TLV and recurse -- bottom-up canonicalisation is a natural
             // consequence, since the inner encoding is already canonical before the outer sort.
+            // Recurse at depth + 1 so each nested-collection level consumes one unit of the
+            // MAX_NESTING budget (symmetric with the @AtomicSerial decodeNested->decodeHierarchy
+            // depth+1 step); decodeCollection's entry check rejects the over-deep level fail-secure.
             byte[] elemTlv = readOneTlv(reader);
-            return decodeCollection(elemTlv, elemWT, depth, decodeUnit, resolution);
+            return decodeCollection(elemTlv, elemWT, depth + 1, decodeUnit, resolution);
         }
         // Scalar / String / byte[] / enum: / array: element -> WireTypes via the getarg bridge.
         return DerFieldStore.decodeScalarElement(reader, elemWT, resolution);
