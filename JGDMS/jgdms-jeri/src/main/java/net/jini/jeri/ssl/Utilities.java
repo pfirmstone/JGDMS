@@ -72,8 +72,13 @@ import net.jini.security.Security;
  *
  * 
  */
-abstract class Utilities 
-//    extends X509ExtendedKeyManager // Do we want or need to support?
+abstract class Utilities
+// The AuthManager hierarchy (FilterX509TrustManager) extends
+// X509ExtendedKeyManager, so the SSLEngine keystone path dispatches
+// chooseEngine{Client,Server}Alias to it directly.  It implements the plain
+// X509TrustManager (it cannot also extend the X509ExtendedTrustManager class);
+// JSSE's AbstractTrustManagerWrapper forwards engine trust checks to the 2-arg
+// methods, which run the same SPIFFE/X.500 evaluation (see FilterX509TrustManager).
 {
     
     /* -- Fields -- */

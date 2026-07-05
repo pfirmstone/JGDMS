@@ -47,7 +47,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLProtocolException;
 import javax.net.ssl.SSLSession;
@@ -113,8 +115,23 @@ class SslConnection extends Utilities implements Connection {
     /** The authentication manager. */
     private final ClientAuthManager authManager;
 
-    /** The socket */
+    /**
+     * The socket -- used only by the HTTPS subclass ({@code HttpsConnection}),
+     * which drives TLS over an HTTP-proxy tunnel with an {@code SSLSocket}.  The
+     * direct SSL transport uses {@link #engineChannel} instead ({@code null}
+     * socket).
+     */
     volatile SSLSocket sslSocket;
+
+    /**
+     * The {@code SSLEngine}-over-{@code SocketChannel} driver for the direct SSL
+     * transport, or {@code null} when the HTTPS subclass is driving TLS over an
+     * {@code SSLSocket} tunnel instead.  This is the P1 keystone: the TLS record
+     * layer is driven by an {@code SSLEngine} obtained from the same
+     * {@code SSLContext} + {@code AuthManager} + {@code SubjectCredentials} the
+     * socket path used, so the SPIFFE/mTLS identity machinery is unchanged.
+     */
+    volatile SslEngineChannel engineChannel;
 
     /** The currently active cipher suite */
     volatile private String activeCipherSuite;
@@ -228,31 +245,194 @@ class SslConnection extends Utilities implements Connection {
 	}
     }
 
-    /** Closes the socket for this connection. */
+    /** Closes the socket/engine for this connection. */
     private void closeSocket() {
+	SslEngineChannel ec = engineChannel;
+	if (ec != null) {
+	    try {
+		ec.close();
+	    } catch (IOException e) {
+	    }
+	    engineChannel = null;
+	}
 	if (sslSocket != null) {
 	    try {
 		sslSocket.close();
 	    } catch (IOException e) {
 	    }
 	    sslSocket = null;
+	}
+	if (ec != null || sslSocket != null) {
 	    session = null;
 	    activeCipherSuite = null;
 	}
     }
 
     /**
-     * Attempts to create a new socket for the call context and cipher suites.
+     * Attempts to create a new connection for the call context and cipher
+     * suites, driving the TLS 1.3 handshake with an {@code SSLEngine} over a
+     * blocking {@code SocketChannel} (the P1 keystone).  The HTTPS subclass
+     * overrides this to drive TLS over an {@code SSLSocket} HTTP-proxy tunnel.
      *
      * @throws SSLException if the suites cannot be supported
      * @throws IOException if an I/O failure occurs
      */
     void establishNewSocket() throws IOException {
-	Socket socket = createPlainSocket(serverHost, port);
-	sslSocket = (SSLSocket) sslSocketFactory.createSocket(
-	    socket, serverHost, port, /* autoClose */ true);
-	establishSuites();
+	if (socketFactory != null || callContext.endpointImpl.disableSocketConnect) {
+	    /*
+	     * A user-supplied SocketFactory (whose Socket generally has no
+	     * associated SocketChannel), or a discovery-provider endpoint that
+	     * disables Socket.connect: drive TLS over the SSLSocket path so those
+	     * callers keep working.  The engine keystone path is used for the
+	     * default (channel-backed) transport.
+	     */
+	    Socket socket = createPlainSocket(serverHost, port);
+	    sslSocket = (SSLSocket) sslSocketFactory.createSocket(
+		socket, serverHost, port, /* autoClose */ true);
+	    establishSuites();
+	    return;
+	}
+	SocketChannel ch = connectChannel(serverHost, port, callContext.connectionTime);
+	establishEngine(ch);
     }
+
+    /**
+     * Opens and connects a blocking {@code SocketChannel} to the given host and
+     * port, honouring the absolute connection deadline and trying each resolved
+     * address in turn -- the channel analogue of {@link #connectToHost}.
+     */
+    private SocketChannel connectChannel(String host, int port, long connectionTime)
+	throws IOException
+    {
+	InetAddress[] addresses;
+	try {
+	    addresses = InetAddress.getAllByName(host);
+	} catch (UnknownHostException uhe) {
+	    return connectChannelAddress(
+		new InetSocketAddress(host, port), connectionTime);
+	}
+	IOException lastIOException = null;
+	SecurityException lastSecurityException = null;
+	for (int i = 0; i < addresses.length; i++) {
+	    SocketAddress socketAddress = new InetSocketAddress(addresses[i], port);
+	    try {
+		return connectChannelAddress(socketAddress, connectionTime);
+	    } catch (IOException e) {
+		if (logger.isLoggable(Levels.HANDLED)) {
+		    LogUtil.logThrow(logger, Levels.HANDLED,
+				     SslConnection.class, "connectChannel",
+				     "exception connecting to {0}",
+				     new Object[] { socketAddress }, e);
+		}
+		lastIOException = e;
+		if (e instanceof SocketTimeoutException) {
+		    break;
+		}
+	    } catch (SecurityException e) {
+		lastSecurityException = e;
+	    }
+	}
+	if (lastIOException != null) {
+	    throw lastIOException;
+	}
+	assert lastSecurityException != null;
+	throw lastSecurityException;
+    }
+
+    /** Connects a fresh blocking SocketChannel to one address with a deadline. */
+    private SocketChannel connectChannelAddress(SocketAddress socketAddress,
+						long connectionTime)
+	throws IOException
+    {
+	int timeout = computeTimeout(connectionTime);
+	SocketChannel ch = SocketChannel.open();
+	boolean ok = false;
+	try {
+	    Socket s = ch.socket();
+	    try {
+		s.setTcpNoDelay(true);
+	    } catch (SocketException e) {
+	    }
+	    try {
+		s.setKeepAlive(true);
+	    } catch (SocketException e) {
+	    }
+	    /*
+	     * SocketChannel.connect() ignores the socket read timeout, so use
+	     * the socket's connect(addr, timeout) for the connect deadline, then
+	     * keep the channel in blocking mode for the handshake and I/O.
+	     */
+	    if (timeout > 0) {
+		s.connect(socketAddress, timeout);
+	    } else {
+		ch.connect(socketAddress);
+	    }
+	    ch.configureBlocking(true);
+	    ok = true;
+	    return ch;
+	} finally {
+	    if (!ok) {
+		try {
+		    ch.close();
+		} catch (IOException e) {
+		}
+	    }
+	}
+    }
+
+    /**
+     * Drives the client-side TLS 1.3 handshake over the given (connected,
+     * blocking) channel using an {@code SSLEngine} from this connection's
+     * {@code SSLContext}.  Client-auth credential selection, peer trust
+     * validation, cert&harr;Subject mapping and SPIFFE matching all run through
+     * the same {@code AuthManager} JSSE callbacks the socket path used.
+     */
+    final void establishEngine(SocketChannel ch) throws IOException {
+	boolean ok = false;
+	try {
+	    ch.configureBlocking(true);
+	    SSLEngine engine = sslContext.createSSLEngine(serverHost, port);
+	    engine.setUseClientMode(true);
+	    /*
+	     * Restrict the enabled suites to those requested by the call
+	     * context and supported by JSSE, mirroring establishSuites() on the
+	     * socket path.  Endpoint identification is deliberately NOT set:
+	     * JGDMS authenticates the peer by SPIFFE/X.500 identity via the
+	     * AuthManager, not by hostname (consistent with the SSLSocket path
+	     * and the UDS transport).
+	     */
+	    String[] ciphers = removeUnsupportedCiphers(
+		engine.getSupportedCipherSuites(), callContext.cipherSuites);
+	    SSLParameters params = engine.getSSLParameters();
+	    params.setCipherSuites(ciphers);
+	    engine.setSSLParameters(params);
+
+	    final SslEngineChannel ec = new SslEngineChannel(
+		engine, ch, serverHost + ":" + port);
+	    /*
+	     * Drive the handshake inline on the calling thread (a virtual thread
+	     * in the JGDMS model), preserving the caller's exact security context
+	     * for the AuthenticationPermission checks in chooseClientAlias.  The
+	     * SSLEngine's NEED_TASK delegated tasks run inline too (see
+	     * SslEngineChannel.runDelegatedTasks) -- the explicit, tested
+	     * virtual-thread-first policy the QUIC engine loop also assumes.
+	     */
+	    ec.handshake();
+	    engineChannel = ec;
+	    session = engine.getSession();
+	    activeCipherSuite = session.getCipherSuite();
+	    releaseClientSSLContextInfo(callContext, sslContext, authManager);
+	    ok = true;
+	} finally {
+	    if (!ok) {
+		try {
+		    ch.close();
+		} catch (IOException e) {
+		}
+	    }
+	}
+    }
+
 	
     /**
      * Attempts to establish the call context and suites on the current socket.
@@ -459,11 +639,16 @@ class SslConnection extends Utilities implements Connection {
     /** Returns a string representation of this object. */
     public String toString() {
 	String sessionString = (session == null) ? "" : session + ", ";
+	String local;
+	if (engineChannel != null) {
+	    local = "engine";
+	} else if (sslSocket != null) {
+	    local = Integer.toString(sslSocket.getLocalPort());
+	} else {
+	    local = "???";
+	}
 	return getClassName(this) + "[" +
-	    sessionString +
-	    (sslSocket == null
-	     ? "???"
-	     : Integer.toString(sslSocket.getLocalPort())) +
+	    sessionString + local +
 	    "=>" + serverHost + ":" + port + "]";
     }
 
@@ -471,24 +656,37 @@ class SslConnection extends Utilities implements Connection {
 
     /* inherit javadoc */
     public InputStream getInputStream() throws IOException {
-	if (sslSocket != null) {
+	SslEngineChannel ec = engineChannel;
+	if (ec != null) {
+	    return ec.getInputStream();
+	} else if (sslSocket != null) {
 	    return sslSocket.getInputStream();
 	} else {
-	    throw new IOException("No socket established");
+	    throw new IOException("No connection established");
 	}
     }
 
     /* inherit javadoc */
     public OutputStream getOutputStream() throws IOException {
-	if (sslSocket != null) {
+	SslEngineChannel ec = engineChannel;
+	if (ec != null) {
+	    return ec.getOutputStream();
+	} else if (sslSocket != null) {
 	    return sslSocket.getOutputStream();
 	} else {
-	    throw new IOException("No socket established");
+	    throw new IOException("No connection established");
 	}
     }
 
     /* inherit javadoc */
     public SocketChannel getChannel() {
+	/*
+	 * Always null: the underlying SocketChannel (when the engine path is
+	 * used) carries CIPHERTEXT, and the JERI mux's channel path would read
+	 * it directly, bypassing TLS.  Plaintext flows through the wrap/unwrap
+	 * streams instead -- exactly as the SSLSocket transport routed plaintext
+	 * through the socket streams and returned null here.
+	 */
 	return null;
     }
 
@@ -750,23 +948,32 @@ class SslConnection extends Utilities implements Connection {
      * the caller does not have permission to use it.
      */
     boolean checkConnectPermission() {
-	Socket socket = sslSocket;
-	if (socket == null) {
-	    return false;
+	InetSocketAddress address;
+	SslEngineChannel ec = engineChannel;
+	if (ec != null) {
+	    try {
+		address = (InetSocketAddress) ec.getRemoteAddress();
+	    } catch (IOException e) {
+		return false;
+	    }
+	    if (address == null) {
+		return false;
+	    }
+	} else {
+	    Socket socket = sslSocket;
+	    if (socket == null) {
+		return false;
+	    }
+	    address = (InetSocketAddress) socket.getRemoteSocketAddress();
 	}
 
 	SecurityManager sm = System.getSecurityManager();
 	if (sm != null) {
-	    // This depends on the SslSocket returning information about
-	    // its underlying plain socket.
-	    InetSocketAddress address =
-		(InetSocketAddress) socket.getRemoteSocketAddress();
-
 	    if (address.isUnresolved()) {
-		sm.checkConnect(address.getHostName(), socket.getPort());
+		sm.checkConnect(address.getHostName(), address.getPort());
 	    } else {
 		sm.checkConnect(address.getAddress().getHostAddress(),
-				socket.getPort());
+				address.getPort());
 	    }
 	}
 	return true;
