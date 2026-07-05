@@ -309,7 +309,9 @@ The JERI event/callback pattern — `net.jini.core.event.RemoteEventListener.not
 lease-renewal / expiration-warning notifications, lookup-service `ServiceEvent` delivery,
 and any service→listener push — is a **server-caller request**: the notifying service is
 the caller, the client-held listener is the dispatcher. This standard maps it onto QUIC as
-follows.
+follows. The connection these pushes ride is kept alive as a **leased resource** — see **§6.4
+Connection liveness**, which pins how the client-opened connection resists QUIC's idle timeout
+via Jini leasing rather than a separate keepalive.
 
 #### 4.6.1 Primary model — server-initiated bidirectional stream (NORMATIVE)
 
@@ -582,7 +584,7 @@ dispatcher send side of request-stream S:
 
 ---
 
-## 6. Handshake, Early Data, and Migration (PINNED POINTS 3, 4, 5)
+## 6. Handshake, Early Data, Migration, and Connection Liveness (PINNED POINTS 3, 4, 5)
 
 ### 6.1 Half-close — independent per-direction FIN (PINNED POINT 3, NORMATIVE)
 
@@ -665,6 +667,131 @@ non-probing traffic on a new path during migration under the anti-amplification 
 this standard takes the stricter reading — **no stream (request/response) traffic** until
 validation completes — and permits only QUIC's own path-validation frames beforehand. If the
 board wants the RFC-permitted (looser) reading, flag in §11.
+
+### 6.4 Connection liveness — the connection is a leased resource (NORMATIVE)
+
+§4.6 establishes that server-pushed events ride the **connection the client already opened**,
+but a QUIC connection has an **idle timeout** (RFC 9000 §10.1): with no traffic for the
+negotiated idle period, either endpoint may silently discard connection state, which would
+tear down the very path the event channel depends on. This section pins how that connection
+is kept alive. The mechanism (Peter's design) is that **the connection is a LEASED resource**:
+its liveness is driven by Jini's existing leasing, **not** by a separate QUIC PING keepalive.
+Jini leases are the natural liveness primitive — a lease is already a periodically-renewed,
+mTLS-authenticated, server-granted, revocable claim on a resource, which is exactly the shape
+of "keep this connection open".
+
+#### 6.4.1 Liveness invariant (NORMATIVE)
+
+1. **Leased-liveness invariant.** A QUIC connection carrying JGDMS traffic **stays alive if
+   and only if the UNION of live leases riding it is non-empty.** The union includes **DGC
+   reference leases** (the `BasicObjectEndpoint` distributed-GC leases on live remote
+   references reached over the connection), **event-registration leases** (the "I want events"
+   subscriptions of §4.6.3), and **any other Jini lease** whose renewal traffic rides the
+   connection. While at least one such lease is live, the connection **MUST** be held open (the
+   endpoint keeps it out of idle-close). When the **last** live lease over the connection is
+   cleaned or expires, the connection **MUST** be allowed to idle-close (§6.4.4).
+
+2. **Union, not any single lease.** No single lease type is privileged: a connection with only
+   DGC leases and no subscriptions stays alive (for the references); a connection with only an
+   event-registration lease and no DGC references stays alive (for the events). Liveness is the
+   disjunction over all live leases.
+
+#### 6.4.2 DGC dirty-renewal as the keepalive; liveness ≠ authorization (NORMATIVE)
+
+3. **DGC dirty-renewal naturally serves as the keepalive.** The DGC **dirty**-renewal call —
+   the authenticated, periodic client→server call that `BasicObjectEndpoint` already makes to
+   keep a remote reference live (STD-006 §7, the DGC lifecycle; §5 here for the ack) — is a
+   `0x00` client-initiated request on the connection, so it is **connection traffic** and
+   **defeats the QUIC idle timeout for free**. No separate PING is needed while any DGC lease
+   is being renewed. The **event-registration lease** is the semantically-exact "I want events"
+   driver: its renewal is what a client with *only* a subscription (no DGC references) uses to
+   hold the pipe open.
+
+4. **Liveness and event-push authorization are SEPARATE (NORMATIVE — do not conflate).**
+   *Liveness* (any live lease keeps the pipe open, §6.4.1) and *event-push authorization* (the
+   **specific subscription** lease, per the §4.6.3 subscription-correlation fence) are distinct
+   gates and **MUST** be kept separate:
+   - A **DGC reference lease on an unrelated proxy** keeps the connection alive but **does NOT
+     authorize event pushes.** Once the *subscription* lease expires, the server **MUST NOT**
+     push events for that subscription (§4.6.3), **even if** the connection is still alive
+     because some other (DGC or unrelated) lease is holding it open.
+   - Conversely, a live subscription authorizes pushes (§4.6.3) *and* contributes to liveness
+     (§6.4.1), but its authorization scope is the subscription, never "any listener on a live
+     connection".
+   This separation is the confused-deputy / over-authorization guard at the lease layer: a
+   connection being open is necessary but **not sufficient** for a push; the matching live
+   subscription is the sufficient condition (§4.6.3, §4.7).
+
+#### 6.4.3 Timing (NORMATIVE)
+
+5. **Renewal cadence < idle timeout.** The lease **renewal interval MUST be strictly less than
+   the QUIC connection idle timeout**, with margin for renewal latency, jitter, and one missed
+   renewal. Equivalently, a JGDMS QUIC endpoint **MUST** set (advertise/negotiate) its
+   `max_idle_timeout` (RFC 9000 §10.1, transport parameter) **above the lease-renewal cadence**
+   (renewal interval + margin), so that a connection kept alive by an actively-renewed lease is
+   never idle-closed between renewals. The **`LeaseRenewalManager` owns renewal timing** (it is
+   the JGDMS component that schedules renewals); the endpoint's idle-timeout configuration is
+   derived from, and MUST accommodate, that cadence — not the other way round. An endpoint
+   **MUST NOT** rely on QUIC PING keepalive frames as the primary liveness mechanism for a
+   JGDMS connection; lease renewal is the primary keepalive, and any PING use is at most a
+   redundant transport-level backstop.
+
+#### 6.4.4 Teardown (NORMATIVE)
+
+6. **Lease end ⇒ graceful idle-close.** A **DGC clean** call, an explicit **lease cancel**, or
+   **lease expiry** removes that lease from the connection's live-lease union (§6.4.1). When the
+   removal empties the union (no live lease remains over the connection), the endpoint **MUST**
+   let the connection **idle-close gracefully** (allow the QUIC idle timeout to elapse, or send
+   a QUIC `CONNECTION_CLOSE` — RFC 9000 §10.2 — for a prompt close), and **event pushes stop**.
+   A teardown of the subscription lease specifically stops pushes for that subscription
+   immediately (§4.6.3/§6.4.2 rule 4), independently of whether the connection itself closes
+   (it stays up if another lease still holds it).
+
+#### 6.4.5 Security — bounded, authenticated keepalive; the connection-holding-DoS bound (NORMATIVE)
+
+7. **The keepalive is mTLS-authenticated and BOUNDED — a client cannot hold a connection
+   indefinitely.** Every renewal is an authenticated call over the connection's mutual-TLS
+   identity (§9), so the peer holding a connection open is always a known, authenticated
+   workload — there is no anonymous keepalive. Crucially, **the server grants lease durations
+   and controls renewal**, which bounds how long any client can hold a connection:
+   - The **server sets each lease's granted duration** and **MAY refuse renewal** (deny or
+     shorten) at any renewal call. A client cannot self-extend; it can only *request* renewal,
+     which the server grants or refuses. So a connection's lifetime is the server-granted
+     lease duration, repeatedly, at the server's discretion — **lease-grant-bounded**, never
+     client-dictated.
+   - The server **caps subscriptions and connections per authenticated identity** — the same
+     admission control as the §4.6.1 `MAX_STREAMS` limit and the §4.6.3 subscription fence,
+     applied to the *connection/lease* resource. An identity that reaches its cap is refused
+     new leases/connections.
+
+   **Connection-holding-DoS bound (NORMATIVE statement).** A malicious (even
+   fully-authenticated) client **CANNOT** hold a JGDMS QUIC connection open indefinitely or
+   exhaust server connection resources: the maximum a given authenticated identity can hold is
+   **(per-identity connection cap) × (server-granted lease duration)**, renewable only with
+   continued server consent, and revocable by the server at the next renewal (refuse) or
+   immediately (cancel the grant / close the connection). Because the server owns the grant, the
+   refuse, and the cap, the client's connection-holding power is server-bounded on every axis —
+   count (cap), duration (grant), and continuation (renewal consent). This is the same
+   least-privilege, server-owns-the-grant posture as the leased-permission-grant model
+   elsewhere in JGDMS.
+
+#### 6.4.6 Migration (NORMATIVE)
+
+8. **A lease-kept-alive connection migrates with the roaming client.** Because liveness is a
+   property of the *connection* (identified by Connection ID, not the 4-tuple) and migration is
+   path-only (§6.3), a connection held open by a live lease **survives a client address change**:
+   the roaming ephemeral / mesh node keeps its event channel across network moves. Lease renewal
+   continues over the migrated path (after §6.3 path validation), so the leased-liveness
+   invariant (§6.4.1) holds across migration unchanged — the union of live leases is unaffected
+   by which path currently carries their renewal traffic. This is what lets a mobile HaLOW-mesh
+   node (§6.3, the roaming case) retain server-pushed events while roaming: the event channel is
+   the leased connection, and the lease — not the address — is what keeps it alive.
+
+**Cross-references.** This section is the liveness backing for **§4.6** (events ride the
+client-opened connection — this is what keeps that connection alive) and **§4.6.3** (the
+subscription lease both authorizes pushes *and* contributes to liveness, but liveness ≠
+authorization — §6.4.2 rule 4). The keepalive traffic is the **§5** DGC dirty-renewal (its ack
+contract) and ordinary `0x00` requests. Migration interoperates with **§6.3**.
 
 ---
 
@@ -920,6 +1047,23 @@ A conforming JGDMS QUIC-TLS transport endpoint:
 17. Uses a Retry token that is a **keyed MAC/AEAD over `(client-address, timestamp)` under a
     server secret**, unforgeable without it, with a bounded freshness window; rejects a token
     that fails MAC/AEAD verification, address match, or freshness (§7).
+18. Treats the connection as a **leased resource**: holds it open **iff the union of live
+    leases riding it (DGC reference + event-registration + any Jini lease) is non-empty**, and
+    lets it **idle-close gracefully** when the last lease is cleaned/cancelled/expires;
+    uses **DGC dirty-renewal / lease renewal as the keepalive** (no separate PING as the
+    primary mechanism); and sets `max_idle_timeout` **above** the `LeaseRenewalManager` renewal
+    cadence (renewal interval strictly less than the idle timeout, with margin) (§6.4.1–6.4.4).
+19. Keeps **liveness and event-push authorization separate**: an unrelated (e.g. DGC) lease
+    keeps the connection alive but does **not** authorize pushes once the subscription lease
+    expires — the server MUST stop pushes for an expired subscription even on a still-live
+    connection (§6.4.2 rule 4, §4.6.3).
+20. Bounds connection-holding: the keepalive is **mTLS-authenticated**, the **server grants
+    lease durations, may refuse renewal, and caps subscriptions/connections per identity**, so
+    a malicious client **cannot hold a connection indefinitely** — the holding bound is
+    **(per-identity connection cap) × (server-granted lease duration)**, renewable only with
+    continued server consent (§6.4.5). A lease-kept-alive connection **migrates with the
+    roaming client** (Connection-ID-keyed, path-only migration), preserving the event channel
+    across address changes (§6.4.6, §6.3).
 
 ### 10.2 Interoperability matrix (NORMATIVE — required for release)
 
@@ -987,6 +1131,15 @@ footing STD-006 places its ASN.1/conformance suite. It **MUST**:
    `maxDomains`, `maxCerts`, `maxCertLen`, codebase-URI well-formedness, and the
    **`jrt:/java.base` exclusion** (client decoder refuses it) — with the fail-closed
    expectation: oversized/malformed/`jrt:`-bearing input constructs no object.
+9. **Assert connection liveness / leased-teardown (§6.4).** Assert that (a) a connection with
+   at least one live lease is not idle-closed across the renewal cadence; (b) cleaning/cancelling
+   the **last** lease lets the connection idle-close and stops pushes (§6.4.4); (c) an expired
+   **subscription** lease stops pushes for that subscription **even while** an unrelated (DGC)
+   lease keeps the connection alive (§6.4.2 rule 4); and (d) the **connection-holding-DoS
+   bound** — a client denied renewal cannot hold the connection past the server-granted lease
+   duration, and per-identity connection/subscription caps are enforced (§6.4.5). Include a
+   migration case: a lease-kept-alive connection survives a simulated client address change and
+   keeps delivering pushes (§6.4.6, §6.3).
 
 ---
 
@@ -1078,7 +1231,10 @@ JGDMS-to-JGDMS build does not need but a polyglot peer does. The rest are design
   generalised in §4.7); `net.jini.jeri.connection.ServerConnection.getClientSubject`;
   `net.jini.core.event.RemoteEventListener.notify` and the lookup `ServiceEvent` /
   lease-notification listeners (the event pattern mapped in §4.6);
-  `net.jini.jeri.tcp.TcpEndpoint` (the host:port baked into the dial-back listener proxy).
+  `net.jini.jeri.tcp.TcpEndpoint` (the host:port baked into the dial-back listener proxy);
+  `net.jini.core.lease.Lease` / `net.jini.lease.LeaseRenewalManager` (the leasing primitive
+  and its renewal-timing owner — §6.4 connection liveness); `net.jini.jeri.BasicObjectEndpoint`
+  DGC reference leases + dirty-renewal (the natural keepalive, §6.4.2).
 - Precedent for server-initiated push over a client-opened connection: **WebTransport**
   (server-initiated streams over an HTTP/3 QUIC connection) and **gRPC** server-streaming /
   bidirectional streaming (server pushes over the client-opened connection) — §4.6.1.
@@ -1093,6 +1249,26 @@ JGDMS-to-JGDMS build does not need but a polyglot peer does. The rest are design
 
 ## Changelog
 
+- **v0.1-DRAFT rev.4 (2026-07-05)** — added a normative **Connection liveness** section
+  (**§6.4**, cross-referenced from §4.6), closing the gap that §4.6 required events to ride the
+  **client-opened connection** but never said what keeps that connection alive against QUIC's
+  idle timeout (RFC 9000 §10.1). Design (Peter, approved): the connection is a **leased
+  resource** — kept alive by **Jini leasing**, not a separate QUIC PING. Pinned: **§6.4.1**
+  leased-liveness invariant (connection alive **iff** the union of live leases — DGC reference
+  + event-registration + any Jini lease — is non-empty; empties ⇒ idle-close); **§6.4.2** DGC
+  **dirty-renewal as the natural keepalive** (defeats the idle timeout for free), and the
+  **liveness ≠ authorization** separation (an unrelated DGC lease keeps the pipe open but does
+  **not** authorize pushes once the subscription lease expires — §4.6.3); **§6.4.3** timing
+  (renewal interval **<** idle timeout with margin; `max_idle_timeout` set above the
+  `LeaseRenewalManager` cadence; no PING as primary); **§6.4.4** teardown (DGC clean / cancel /
+  expiry ⇒ graceful idle-close, pushes stop); **§6.4.5** security — mTLS-authenticated,
+  **server-granted-and-refusable, per-identity-capped** keepalive, with an explicit
+  **connection-holding-DoS bound** ((per-identity connection cap) × (server-granted lease
+  duration), renewable only with server consent — a client cannot hold a connection
+  indefinitely); **§6.4.6** migration (a lease-kept-alive connection migrates with the roaming
+  client per §6.3). §6 retitled to include "Connection Liveness". Conformance items **18–20**
+  and harness item **9** added; References gain `Lease`/`LeaseRenewalManager` and the DGC-lease
+  keepalive. No change to any earlier normative text.
 - **v0.1-DRAFT rev.3 (2026-07-05)** — Peter adopted **all** board recommendations; this
   revision folds them in as normative text. **Two HIGH server-push authorization fences:**
   **(1) execution-subject swap (§4.7 rule 5)** — a pushed-event dispatch **MUST execute under
