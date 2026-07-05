@@ -1,15 +1,17 @@
-# QUIC-TLS JERI Endpoint — Investigation Briefing (for the review board)
+# QUIC-TLS JERI Endpoint — Investigation Briefing + Decision Record
 
-**Status:** investigation / synthesis, 2026-07-05. JGDMS-side, committable. Prepared for a
-review board that will critique the design surface before any build begins. This document
-**consolidates and cross-checks** prior investigation work; it takes no new decisions and
-writes no code. DirtyChai is **advise-only** (OpenJDK no-AI-contribution policy) — every
-DirtyChai item here is a recommendation for the human maintainers, verified read-only.
+**Status:** investigation briefing **plus a ratified decision record**, 2026-07-05. JGDMS-side,
+committable. §§0–5 are the investigation the review board critiqued; **§6 is the DECISION
+RECORD** — the board's verdict and Peter's ratified decisions, and the authoritative "what was
+decided and why" for this workstream. DirtyChai is **advise-only** (OpenJDK no-AI-contribution
+policy) — every DirtyChai item here is a recommendation for the human maintainers, verified
+read-only.
 
-**Scope note:** Tasks 1–5 of the commissioning brief. Sections map: §1 prior investigation
-(with source paths) · §2 current SSL-endpoint characterisation · §3 QUIC-TLS design surface +
-JERI mapping + security · §4 DirtyChai recommended-export list · §5 open questions for the
-board.
+**Scope note:** Tasks 1–5 of the commissioning brief, plus the board's decision. Sections map:
+§1 prior investigation (with source paths) · §2 current SSL-endpoint characterisation · §3
+QUIC-TLS design surface + JERI mapping + security (incl. §3.2a pre-deletion mux audit) · §4
+DirtyChai recommended-export list · §5 open questions the board adjudicated · **§6 DECISION
+RECORD (ratified)** · §7 references.
 
 ---
 
@@ -267,7 +269,7 @@ which UDS lineage QUIC follows.
 
 **Carries over:** the entire JERI `Endpoint`/`ServerEndpoint`/`Connection` SPI (already
 channel-agnostic §2.1); the whole auth/identity/constraint layer (§2.3, Path A); everything
-above the transport (`AtomicILFactory`, dispatchers, the §7.3 reducing-context ACC block, DER,
+above the transport (`AtomicILFactory`, dispatchers, the STD-006 §7.2 reducing-context ACC block, DER,
 DGC) is untouched — each phase is additive on the `Endpoint` SPI.
 
 **Genuinely new:** the RFC 9000/9002 transport itself (packets, frames, streams, flow control,
@@ -297,6 +299,52 @@ Design consequences the board must weigh (SOW-QUIC §6.4):
 - Flow-control and stream limits (QUIC `MAX_STREAMS`) bound in-flight request concurrency —
   maps onto JERI connection reuse / back-pressure.
 
+### 3.2a Pre-deletion mux audit — retiring the mux is NOT a pure deletion
+
+The transport reviewer audited what the hand-rolled `org.apache.river.jeri.internal.mux`
+actually carries beyond stream multiplexing. Several load-bearing behaviours are **not** free
+side-effects of QUIC's native streams; they are transport-SPI obligations that must be
+re-implemented on QUIC **before** any mux code is deleted. Deleting first = silent regressions.
+
+- **[CRITICAL] AUDIT-1 — DGC acknowledgment contract.** The mux's `ackRequired` /
+  `AcknowledgmentSource` fires an **application-level** acknowledgment when the receiver has
+  *processed* a request — **not** when the stream merely reaches FIN. `BasicObjectEndpoint` (the
+  DGC client) depends on this ack for **lease correctness**. QUIC stream FIN is a byte-level
+  signal, not a "request processed" signal, so the ack must be **re-implemented on QUIC as an
+  explicit app-level acknowledgment before any mux code is deleted**. Dropping it is a **silent
+  DGC lease bug** (leases mis-renewed / prematurely expired). That the HTTP transport
+  *independently* reimplements the same acknowledgment confirms this is a **transport-SPI
+  obligation, not a mux quirk** — QUIC must carry it too.
+
+- **[HIGH] AUDIT-2 — `getDeliveryStatus()` / partial-delivery / `ABORT_PARTIAL`.** The mux
+  supplies the **at-most-once idempotency signal**: whether a request may have *started
+  processing* before it aborted (`getDeliveryStatus()` / `partialDeliveryStatus` /
+  `ABORT_PARTIAL`), which the invocation layer needs to decide whether a failed call is safe to
+  retry. QUIC `RESET_STREAM` carries no "did the peer begin processing" bit. The transport must
+  **define an application-error-code convention** (a QUIC application error code carrying the
+  did-not-start vs. may-have-started distinction) to reconstruct this signal.
+
+- **[HIGH] AUDIT-3 — half-close asymmetry.** The mux implements a Close-vs-Abort state machine
+  handling asymmetric shutdown: **server done while the client is still writing**, and
+  **early-response** (server responds before the request body is fully sent). This must be
+  **ported onto independent per-direction QUIC stream FINs** — a QUIC bidirectional stream's two
+  directions FIN independently, which maps the asymmetry directly, but the state machine
+  (which side may still write, when Abort vs. orderly Close applies) must be reproduced, not
+  assumed.
+
+- **[MED] AUDIT-4 — flow-control rations.** **Delete the mux's flow-control rations entirely**
+  and rely on QUIC `MAX_STREAM_DATA` / `MAX_DATA`. Do **not** stack a second application-level
+  flow-control window on top of QUIC's — double-accounting deadlocks.
+
+- **[MED] AUDIT-5 — `MAX_STREAMS` back-pressure vs. connection reuse.** QUIC `MAX_STREAMS`
+  back-pressure interacts with **JERI connection reuse and the DGC idle-timeout**: exhausting the
+  stream credit stalls new requests on a reused connection, and the interplay with when JERI
+  considers a connection idle (and eligible for DGC-driven teardown) needs an **explicit
+  policy** — not left to defaults.
+
+**Gate:** AUDIT-1 and AUDIT-2 re-designs (the DGC app-level ack and the delivery-status
+convention) MUST be designed and landed on QUIC **before any mux code is deleted.**
+
 ### 3.3 Virtual-thread fit
 
 The `QuicTLSEngine` is engine-shaped (`consumeHandshakeBytes`/`getHandshakeBytes` per
@@ -317,7 +365,7 @@ gate any new path before it carries traffic.
 
 ### 3.5 0-RTT / early-data replay (flag → disable)
 
-**0-RTT is replayable and not forward-secret.** JGDMS must **never** carry the §7.3
+**0-RTT is replayable and not forward-secret.** JGDMS must **never** carry the STD-006 §7.2
 reducing-context ACC block, or any auth-bearing / non-idempotent payload, in 0-RTT. Today this is
 **moot by absence** — the DirtyChai engine does not implement 0-RTT (ADVICE Q5). **Recommendation
 for the board: disable 0-RTT explicitly (fail-closed) even once available**, or gate it to
@@ -434,7 +482,95 @@ JGDMS relies on Path A.
 
 ---
 
-## 6. References
+## 6. DECISION RECORD — 2026-07-05 (ratified by Peter)
+
+The review board convened on the §§0–5 briefing; the decisions below are **ratified by Peter**
+and are authoritative for this workstream. They supersede the "open question" framing of §5 —
+each item resolves one or more of those questions.
+
+### 6.1 Path A ratified; Path B rejected
+
+**Path A is RATIFIED.** JGDMS owns the RFC 9000/9002 QUIC *transport* built on a
+**DirtyChai-exposed SunJSSE QUIC-TLS engine**; **TLS stays in JSSE**, so the existing
+SPIFFE/mTLS auth logic (`AuthManager` + `SubjectCredentials` + SPIFFE matching) is **reused
+unchanged**.
+
+**Path B (Kwik + a non-JSSE TLS bridge) is REJECTED.** Bridging JGDMS auth onto Kwik's
+`agent15` TLS would **re-host the auth layer as a second, unaudited implementation of
+security-critical trust logic on a TLS stack JGDMS does not control** — an unacceptable
+duplication of the trust core. (Resolves §5 Q1.)
+
+### 6.2 Re-sequenced plan ratified
+
+- **P1 = the TRUE keystone: migrate `net.jini.jeri.ssl` from `SSLSocket` to
+  `SSLEngine`-over-channel (over TCP), with the full SPIFFE regression suite.** This is the real
+  keystone asset that classic TLS, UDS, and QUIC all share. **The shipped `net.jini.jeri.uds`
+  inc-1 did NOT bank it** — it skipped `SSLEngine` for plaintext + layer-2 identity — so P1 is
+  still owed and is done first.
+- **P1.5 = the DirtyChai mTLS-over-QUIC-*server* handshake test** — the **cheapest Path-A
+  disproof**. Must include a **POSITIVE** case (correct mutual handshake, both ends' peer certs
+  populate) **and a NEGATIVE** case (a wrong-SPIFFE-identity peer is **rejected**).
+- **P3 = QUIC**, built **only after P1 is green and P1.5 passes.**
+
+(Resolves §5 Q2.)
+
+### 6.3 Lineage settled
+
+QUIC-TLS is the **`net.jini.jeri.ssl` sibling** — handshake-time mTLS/SPIFFE identity — **NOT**
+the shipped-UDS layer-2-identity sibling. This is **forced by RFC 9001** (TLS 1.3 is integrated
+into the QUIC handshake). A second, layer-2 identity stacked on the handshake identity would be
+a **confused-deputy risk**. (Resolves §5 Q2's "which UDS lineage" and §2.5's reconciliation
+note.)
+
+### 6.4 Algorithm constraints re-imposed in JGDMS
+
+The algorithm constraints that the 2-arg trust path (§4.2 / §3.6) would drop are **NOT
+forgone.** Peter's decision: **JGDMS's own trust evaluation MUST enforce those algorithm
+constraints.** (Resolves §5 Q6's algorithm-constraint half.)
+
+### 6.5 DirtyChai export (advise-only for the human maintainers)
+
+A **facade is REQUIRED for production** (not merely preferred): a **`au.zeus.jdk.net.ssl`**
+package, **java.base-only, split-package-free**, exposing **only the `SSLContext` → QUIC-engine
+factory + the JSSE session** — and **NOT** the engine type itself. A **raw
+`jdk.internal.net.quic` export is SPIKE-ONLY** and must not ship. (Firms up §4.1 item 4 and its
+namespace guidance from "Preferred/Recommended" into a production requirement.)
+
+### 6.6 Normative STD-* QUIC-transport spec chartered
+
+A **normative STD-\* QUIC-transport specification is CHARTERED** and **GATES the P3 build** —
+QUIC is not built until the spec exists. (Resolves the §1.4 / §5 "no dedicated STD-* spec"
+thread — the absence is now a scheduled deliverable, not a gap.)
+
+### 6.7 Board conditions / gates
+
+The build proceeds under these gates:
+
+1. **Gate #1 = the mTLS-over-QUIC-*server* handshake test** (P1.5) — the first thing that must
+   pass.
+2. **Trust dispatch MUST prefer the `SSLEngine`-adapter / 3-arg path** (endpoint-ID + algorithm
+   constraints still run) over the bare 2-arg path; the **fence** keeping SunJSSE's own managers
+   on the strict path is **mechanized by a negative test.**
+3. **0-RTT fail-closed by construction** — **no application data in 0-RTT, never negotiate
+   `early_data`.** (Ratifies §3.5 / §5 Q5.)
+4. **The migration identity invariant is normative** — a migrated QUIC path cannot splice a
+   different peer onto an authenticated connection; identity is pinned at handshake, path
+   validation gates any new path. (Ratifies §3.4 / §3.6 / §5 Q4.)
+5. **Anti-amplification** (RFC 9000 §8) **plus a conformance / fuzz harness** are a **first-class
+   deliverable**, not an afterthought.
+6. **The §3.2a mux-audit re-designs (DGC app-level ack AUDIT-1, delivery-status AUDIT-2) are
+   done BEFORE any mux code is deleted.** (Ratifies §3.2a's gate and resolves §5 Q3.)
+
+### 6.8 Follow-on workstreams now in flight
+
+- **DirtyChai location map** — branch `quic-tls-dirtychai-locations` (the read-only map of the
+  DirtyChai edit sites).
+- **STD-\* QUIC spec draft** — branch `std-quic-jeri-transport` (the chartered §6.6 spec).
+- **P1 (the `SSLEngine` keystone)** — pending Peter's go.
+
+---
+
+## 7. References
 
 - `docs/SOW-QUIC-JERI-Transport.md` — primary design SOW (thesis, §3a/§3b two architectures, §4
   phased plan, §5 de-risk spike).
