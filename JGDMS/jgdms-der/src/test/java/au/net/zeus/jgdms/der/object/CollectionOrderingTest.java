@@ -640,28 +640,29 @@ class CollectionOrderingTest {
     }
 
     @Test
-    void plainInterfaceCollectionField_encode_throwsFailClosed() throws Exception {
-        // A Set-typed field auto-maps to "@AtomicSerial"; encoding a HashSet value then fails
-        // fast (HashSet is neither @AtomicSerial nor a registered DER serializer). This proves a
-        // plain interface-collection field cannot be silently encoded NON-canonically.
+    void plainParameterizedCollectionField_nowAutoWires() throws Exception {
+        // UPDATED for the element-derivation rule (memo §8): PlainCollectionFieldRecord declares a
+        // parameterized `Set<Integer> ifaceSet` field. It now AUTO-WIRES to set:int via the rule
+        // (Field.getGenericType()), so encoding a HashSet<Integer> SUCCEEDS canonically -- it no
+        // longer fails closed. (The old fail-closed behaviour existed only because the schema
+        // generator had no element type; the rule supplies it.)
+        SchemaChain.Result chain = SchemaGenerator.generateChain(PlainCollectionFieldRecord.class);
+        String wt = chain.chain().get(0).fields().get(0).wireType();
+        assertEquals("set:int", wt,
+                "a Set<Integer> field now auto-wires to set:int via the rule (memo §8)");
+
         PlainCollectionFieldRecord rec =
                 new PlainCollectionFieldRecord(new HashSet<>(List.of(1, 2, 3)));
-        SchemaChain.Result chain = SchemaGenerator.generateChain(PlainCollectionFieldRecord.class);
-        Exception ex = assertThrows(Exception.class,
-                () -> ObjectCodec.encodeHierarchy(rec, chain),
-                "a plain Set field holding a HashSet must fail-closed at encode (no DER Set "
-                + "serializer registered) rather than emit a non-canonical encoding");
-        assertTrue(messageChainContains(ex, "no @AtomicSerial")
-                        || messageChainContains(ex, "@AtomicSerial"),
-                "encode must reject the non-@AtomicSerial collection value; got: " + describe(ex));
+        assertDoesNotThrow(() -> ObjectCodec.encodeHierarchy(rec, chain),
+                "an auto-wired set:int encodes canonically -- no fail-closed");
     }
 
     @Test
-    void schemaGenerator_toWireType_neverEmitsCollectionTokenAutomatically() throws Exception {
-        // Belt-and-braces: confirm the auto path emits NO collection token for the interface
-        // Set/Map/Collection field types (it returns "@AtomicSerial"), so the ONLY way to reach a
-        // collection token is the explicit collectionWireType/mapWireType builders. This documents
-        // the opt-in boundary the board asked about.
+    void schemaGenerator_rawClassOverload_stillReturnsAtomicSerialForInterfaceSlot() throws Exception {
+        // The RAW-Class overload toWireType(Class,..) is UNCHANGED by the rule: a bare interface
+        // Set/Map/Collection Class is still a polymorphic @AtomicSerial slot. Only the Type-aware
+        // overload and the field-level deriveFieldWireType path apply the collection rule; a caller
+        // handing in a raw interface Class (with no generic signature) gets the slot behaviour.
         assertEquals("@AtomicSerial", SchemaGenerator.toWireType(Set.class, CollectionRecord.class));
         assertEquals("@AtomicSerial", SchemaGenerator.toWireType(Map.class, CollectionRecord.class));
         assertEquals("@AtomicSerial",

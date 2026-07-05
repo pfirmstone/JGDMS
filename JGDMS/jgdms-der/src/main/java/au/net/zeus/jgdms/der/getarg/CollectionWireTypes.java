@@ -178,6 +178,31 @@ public final class CollectionWireTypes {
         return prefix + "{" + keyWireType + "}{" + valWireType + "}";
     }
 
+    // -------------------------------------------------------------------------
+    // Discipline-keyed token constructors (used by the Any form, which knows a
+    // collection's discipline from its wire tag, not from a declared Class).
+    // -------------------------------------------------------------------------
+
+    /** Builds a {@code set:}{@code <elemWT>} token (canonicalise set, strictly-ascending decode). */
+    public static String setToken(String elemWireType) {
+        return SET + elemWireType;
+    }
+
+    /** Builds a {@code list:}{@code <elemWT>} token (preserve list, no order check, dups allowed). */
+    public static String listToken(String elemWireType) {
+        return LIST + elemWireType;
+    }
+
+    /** Builds a {@code map:}{@code {keyWT}{valWT}} token (canonicalise map, key-ascending decode). */
+    public static String mapToken(String keyWireType, String valWireType) {
+        return MAP + "{" + keyWireType + "}{" + valWireType + "}";
+    }
+
+    /** Builds an {@code orderedmap:}{@code {keyWT}{valWT}} token (preserve map, no order check). */
+    public static String orderedMapToken(String keyWireType, String valWireType) {
+        return ORDERED_MAP + "{" + keyWireType + "}{" + valWireType + "}";
+    }
+
     /** The element wire-type of a {@code set:}/{@code bag:}/{@code orderedset:}/{@code list:} token. */
     public static String elementWireType(String wireType) {
         if (wireType.startsWith(SET))         return wireType.substring(SET.length());

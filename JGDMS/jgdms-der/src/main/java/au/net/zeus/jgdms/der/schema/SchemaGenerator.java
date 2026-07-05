@@ -23,9 +23,17 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.MarshalDelegate;
 import org.apache.river.api.io.MarshalDelegates;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Collections;
 
@@ -119,7 +127,11 @@ public final class SchemaGenerator {
         List<AtomicSerialFieldDef> fields = new ArrayList<>(serialForm.length);
         for (AtomicSerial.SerialForm sf : serialForm) {
             String wireName = sf.getName();   // ObjectStreamField.getName()
-            String wireType = toWireType(sf.getType(), atomicSerialClass);
+            // Collection/Map fields are auto-wired by the element-derivation RULE (memo §3, §8.3):
+            // SchemaGenerator reflects the declaring class's Field named sf.getName() and reads
+            // Field.getGenericType() to derive the element/key/value wire-type(s). Non-collection
+            // fields use the raw-Class mapping unchanged. (Option A -- zero SerialForm API change.)
+            String wireType = deriveFieldWireType(sf, atomicSerialClass);
             fields.add(new AtomicSerialFieldDef(wireName, wireType));
         }
 
@@ -388,16 +400,201 @@ public final class SchemaGenerator {
     }
 
     // =========================================================================
+    // Element-derivation RULE (memo §3, §8.3 -- Option A, zero SerialForm API change)
+    // =========================================================================
+
+    /**
+     * The {@code Any} element wire-type token (memo §4): the rule's total, well-defined outcome for
+     * a genuinely unresolvable declared element type (a raw collection, {@code Set<?>},
+     * {@code Set<Object>}, {@code Set<? super X>}, or a type-variable {@code Set<T>}; E10--E14).
+     * Kept as a constant here so {@code toWireType(Type,...)} and the {@code ObjectCodec}/{@code AnyCodec}
+     * decode path agree on the exact token string.
+     */
+    public static final String ANY = "any";
+
+    /**
+     * Derives one serial field's wire-type. For a {@code Collection}/{@code Map} field this applies
+     * the element-derivation RULE (memo §3) over the field's declared generic {@link Type}
+     * (reflected by name via {@link Field#getGenericType()}); for every other field it uses the
+     * raw-{@link Class} mapping {@link #toWireType(Class, Class)} unchanged.
+     *
+     * <p><b>Option A (memo §8.3):</b> the {@code SerialForm} carries only the raw {@code Class}; the
+     * generic element type is recovered by reflecting the declaring class's {@code Field} named
+     * {@code sf.getName()}. Where no matching backing {@code Field} exists (a synthesised serial
+     * field), a collection field falls to {@link #ANY} by the rule -- safe, never an error.
+     *
+     * @param sf        the serial field descriptor (name + raw type)
+     * @param declaring the declaring {@code @AtomicSerial} class (for Field lookup + diagnostics)
+     * @return the field's wire-type token
+     * @throws DerException if the raw type is unsupported (non-collection path only)
+     */
+    static String deriveFieldWireType(AtomicSerial.SerialForm sf, Class<?> declaring)
+            throws DerException {
+        Class<?> raw = sf.getType();
+        // Only Collection/Map fields need the generic-signature rule. Everything else (scalars,
+        // arrays, enums, nested @AtomicSerial, interface/abstract polymorphic slots) is unchanged.
+        if (!Collection.class.isAssignableFrom(raw) && !Map.class.isAssignableFrom(raw)) {
+            return toWireType(raw, declaring);
+        }
+        // Recover the declared generic Type of the backing field by name (memo §7 Option A).
+        Type genericType = backingFieldGenericType(declaring, sf.getName());
+        if (genericType == null) {
+            // No backing field (synthesised serial field): the rule has nothing to read -> Any.
+            return collectionTokenFor(raw, ANY, ANY);
+        }
+        return toWireType(genericType, declaring);
+    }
+
+    /**
+     * Looks up the {@link Type} of the declared field named {@code fieldName} in {@code declaring}
+     * (searching the declared class only -- serial-form field names are declared by the class that
+     * declares them). Returns {@code null} if no such field exists (memo §7 Option A: the rule then
+     * falls to {@code Any}).
+     */
+    private static Type backingFieldGenericType(Class<?> declaring, String fieldName) {
+        try {
+            Field f = declaring.getDeclaredField(fieldName);
+            return f.getGenericType();
+        } catch (NoSuchFieldException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Maps a declared generic {@link Type} to its wire-type by the element-derivation RULE (memo §3),
+     * applied recursively. This is the {@code Type}-aware sibling of {@link #toWireType(Class, Class)}:
+     * <ul>
+     *   <li>a {@link ParameterizedType} for a {@code Collection}/{@code Map} -> the collection token
+     *       with element/key/value derived by {@code rule} on the type arguments (map K,V independent);</li>
+     *   <li>a {@link ParameterizedType} for a non-collection generic type (e.g. a generic
+     *       {@code @AtomicSerial}) -> {@code rule} on its raw {@link Class};</li>
+     *   <li>a plain {@link Class} -> {@link #toWireType(Class, Class)} (scalar / {@code @AtomicSerial}
+     *       / enum / array / interface-abstract slot);</li>
+     *   <li>a {@link GenericArrayType} -> {@code array:<comp>} with the component derived by rule;</li>
+     *   <li>a {@link WildcardType} {@code ? extends B} with concrete upper bound {@code B} -> {@code rule(B)};</li>
+     *   <li>anything unresolvable (raw collection, {@code ?}/{@code ? extends Object}, {@code Object},
+     *       {@code ? super X}, {@link TypeVariable}) -> {@link #ANY}.</li>
+     * </ul>
+     *
+     * @param t         the declared generic type
+     * @param declaring the declaring class (diagnostics / array-component recursion)
+     * @return the wire-type token
+     * @throws DerException if a resolvable non-collection component type is unsupported
+     */
+    public static String toWireType(Type t, Class<?> declaring) throws DerException {
+        if (t instanceof Class<?> c) {
+            // A raw Collection/Map Class (e.g. field `Set tags;`) has no element type -> Any.
+            if (Collection.class.isAssignableFrom(c) || Map.class.isAssignableFrom(c)) {
+                return collectionTokenFor(c, ANY, ANY);
+            }
+            return toWireType(c, declaring);
+        }
+        if (t instanceof ParameterizedType pt) {
+            Type rawType = pt.getRawType();
+            if (rawType instanceof Class<?> rawClass
+                    && (Collection.class.isAssignableFrom(rawClass)
+                        || Map.class.isAssignableFrom(rawClass))) {
+                Type[] args = pt.getActualTypeArguments();
+                if (Map.class.isAssignableFrom(rawClass)) {
+                    // Map<K,V>: K and V resolved INDEPENDENTLY by rule (memo §3).
+                    String keyWT = ruleForElement(args.length > 0 ? args[0] : null, declaring);
+                    String valWT = ruleForElement(args.length > 1 ? args[1] : null, declaring);
+                    return CollectionWireTypes.mapToken(rawClass, keyWT, valWT);
+                }
+                // Set/List/Collection<E>: single element E resolved by rule.
+                String elemWT = ruleForElement(args.length > 0 ? args[0] : null, declaring);
+                return CollectionWireTypes.setToken(rawClass, elemWT);
+            }
+            // A non-collection parameterised type (e.g. a generic @AtomicSerial): map its raw class.
+            if (rawType instanceof Class<?> rawClass) {
+                return toWireType(rawClass, declaring);
+            }
+            return ANY;
+        }
+        if (t instanceof GenericArrayType gat) {
+            // A generic array component (e.g. Set<Foo>[]) reflects here; recurse into the component.
+            String comp = ruleForElement(gat.getGenericComponentType(), declaring);
+            if (ANY.equals(comp)) {
+                return ANY; // an array of unresolvable elements is itself unresolvable -> Any
+            }
+            return "array:" + comp;
+        }
+        if (t instanceof WildcardType wt) {
+            Type upper = resolvableUpperBound(wt);
+            if (upper == null) {
+                return ANY; // ? / ? extends Object / ? super X -> no usable structural type
+            }
+            return toWireType(upper, declaring);
+        }
+        // TypeVariable (Set<T> in a generic @AtomicSerial class) -> honest boundary, Any (memo §8.1).
+        return ANY;
+    }
+
+    /**
+     * Resolves ONE element / key / value / component {@link Type} to its wire-type by the rule
+     * (memo §3), returning {@link #ANY} for anything unresolvable. A {@code null} argument (a
+     * defensively-missing type argument) resolves to {@code Any}.
+     */
+    private static String ruleForElement(Type element, Class<?> declaring) throws DerException {
+        if (element == null) {
+            return ANY;
+        }
+        // An Object element (Set<Object>, List<Object>, Map<Object,..>) has no closed-subset
+        // structural type -- it is excluded (memo §2.1) and resolves to Any (E12), NOT to a hard
+        // error. (Object is a concrete non-@AtomicSerial class, which toWireType(Class) rejects, so
+        // it must be intercepted here.)
+        if (element == Object.class) {
+            return ANY;
+        }
+        return toWireType(element, declaring);
+    }
+
+    /**
+     * Returns the single concrete upper bound of {@code ? extends B} when {@code B != Object}
+     * (memo §3.2 -- the structural element type is the upper bound); otherwise {@code null} for
+     * {@code ?}, {@code ? extends Object}, or {@code ? super X} (a lower-bounded wildcard's static
+     * upper bound is {@code Object}, so it yields no usable type -- memo §3.4 E13).
+     */
+    private static Type resolvableUpperBound(WildcardType wt) {
+        if (wt.getLowerBounds().length > 0) {
+            return null; // ? super X -- upper bound is Object, no element type (E13)
+        }
+        Type[] upper = wt.getUpperBounds();
+        if (upper.length != 1) {
+            return null;
+        }
+        Type b = upper[0];
+        if (b instanceof Class<?> c && c == Object.class) {
+            return null; // ? / ? extends Object (E11)
+        }
+        // A nested wildcard/parameterized/typevar upper bound is handled by the recursive rule.
+        return b;
+    }
+
+    /**
+     * Builds a collection/map token from a raw collection {@link Class} and already-derived
+     * element (or key/value) wire-types, choosing the ordering discipline by the declared class
+     * (memo §3.8, {@link CollectionWireTypes#disciplineFor}). Used for the raw-collection {@code Any}
+     * fallback (E10) and by the parameterised path.
+     */
+    private static String collectionTokenFor(Class<?> rawClass, String keyOrElem, String val) {
+        if (Map.class.isAssignableFrom(rawClass)) {
+            return CollectionWireTypes.mapToken(rawClass, keyOrElem, val);
+        }
+        return CollectionWireTypes.setToken(rawClass, keyOrElem);
+    }
+
+    // =========================================================================
     // Collection / Map field wire-type builders (STD-006 §3.8)
     // =========================================================================
     //
-    // Java generics are erased, so a declared field type of Set<X> gives Set.class with
-    // no element type at runtime -- toWireType alone cannot derive the element wire-type.
-    // The ORDERING DISCIPLINE, however, IS a pure function of the declared collection
-    // class (HashSet vs LinkedHashSet vs TreeSet ...), which these builders read via
-    // CollectionWireTypes.disciplineFor. The developer supplies the element/key/value
-    // wire-type(s); the discipline is derived, not chosen, so it is digest-stable and the
-    // decoder agrees. This mirrors how array:<componentWT> conveys its (reified) component.
+    // The element type is derived BY RULE from the declared generic signature
+    // (Field.getGenericType(), memo §3), reaching Any (memo §4) only when the declaration is
+    // genuinely unresolvable (E10-E14). The ORDERING DISCIPLINE is a pure function of the declared
+    // collection class (HashSet vs LinkedHashSet vs TreeSet ...) via CollectionWireTypes.disciplineFor.
+    // These explicit builders remain for callers that supply the element/key/value wire-type(s)
+    // directly (e.g. tests and hand-built schemas); the discipline is derived, not chosen, so it is
+    // digest-stable and the decoder agrees.
 
     /**
      * Builds a {@code Collection}/{@code Set} field wire-type token for the given declared

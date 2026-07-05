@@ -959,6 +959,12 @@ public final class ObjectCodec {
         if (CollectionWireTypes.isCollection(wireType)) {
             return encodeCollection(value, wireType, fieldName, depth);
         }
+        // The self-describing Any element (STD-006 memo §4): the rule selected "any" as the
+        // element/key/value wire-type because the declared type was unresolvable. The runtime
+        // value's category (scalar / @AtomicSerial object / collection) selects the context tag.
+        if (AnyCodec.ANY.equals(wireType)) {
+            return AnyCodec.encode(value, fieldName, depth);
+        }
 
         // A nullable scalar reference field (boxed primitive, String, byte[], or a nested
         // @AtomicSerial value) whose value is null travels as DER NULL. A primitive field is
@@ -1056,7 +1062,7 @@ public final class ObjectCodec {
     static final int  NEGATIVE_ZERO_FLOAT_BITS  = 0x80000000;
     static final long NEGATIVE_ZERO_DOUBLE_BITS = 0x8000000000000000L;
 
-    private static byte[] encodeFloat(Object value, String fieldName) throws DerException {
+    static byte[] encodeFloat(Object value, String fieldName) throws DerException {
         if (!(value instanceof Float f)) {
             throw new DerException("Expected Float for field '" + fieldName
                     + "' (wireType float) but got "
@@ -1077,7 +1083,7 @@ public final class ObjectCodec {
         return DerWriter.writeOctetString(content);
     }
 
-    private static byte[] encodeDouble(Object value, String fieldName) throws DerException {
+    static byte[] encodeDouble(Object value, String fieldName) throws DerException {
         if (!(value instanceof Double d)) {
             throw new DerException("Expected Double for field '" + fieldName
                     + "' (wireType double) but got "
@@ -1099,7 +1105,7 @@ public final class ObjectCodec {
         return DerWriter.writeOctetString(content);
     }
 
-    private static byte[] encodeChar(Object value, String fieldName) throws DerException {
+    static byte[] encodeChar(Object value, String fieldName) throws DerException {
         if (!(value instanceof Character c)) {
             throw new DerException("Expected Character for field '" + fieldName
                     + "' (wireType char) but got "
@@ -1243,7 +1249,7 @@ public final class ObjectCodec {
      * @param fieldName diagnostics
      * @param depth     current nesting depth (threaded into per-element nested encode)
      */
-    private static byte[] encodeCollection(Object value, String wireType,
+    static byte[] encodeCollection(Object value, String wireType,
                                            String fieldName, int depth) throws DerException {
         // Depth-bound DoS guard, symmetric with the decode side (decodeCollection) and with
         // encodeNested: a nested-collection element recurses at depth + 1, so an over-deep
@@ -1439,7 +1445,7 @@ public final class ObjectCodec {
      * @param depth     current nesting depth; incremented before the recursive call
      * @return the TLV bytes for this nested field
      */
-    private static byte[] encodeNested(Object value, String fieldName, int depth)
+    static byte[] encodeNested(Object value, String fieldName, int depth)
             throws DerException {
         // null -> DER NULL
         if (value == null) {
@@ -2159,6 +2165,12 @@ public final class ObjectCodec {
             // depth+1 step); decodeCollection's entry check rejects the over-deep level fail-secure.
             byte[] elemTlv = readOneTlv(reader);
             return decodeCollection(elemTlv, elemWT, depth + 1, decodeUnit, resolution);
+        }
+        if (AnyCodec.ANY.equals(elemWT)) {
+            // The self-describing Any element (memo §4): dispatch on the element's own context tag.
+            // AnyCodec.decode reads exactly one AnyElement TLV, advancing the reader, and enforces
+            // the four decoder fences (depth-thread, ATOMIC-gate reuse, hard-reject, canonical tag).
+            return AnyCodec.decode(reader, depth, decodeUnit, resolution);
         }
         // Scalar / String / byte[] / enum: / array: element -> WireTypes via the getarg bridge.
         return DerFieldStore.decodeScalarElement(reader, elemWT, resolution);
