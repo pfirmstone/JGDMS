@@ -19,7 +19,6 @@ package au.net.zeus.jgdms.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -32,7 +31,6 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
-import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -66,8 +64,10 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
  * the common {@code {JoinAdmin, DestroyAdmin}} set it returns the fixed
  * {@link ConstrainableAdminProxy} (stable {@code @AtomicSerial} wire form); for a
  * larger set it returns a constrainable dynamic {@link java.lang.reflect.Proxy}
- * admin stub (see {@link DynamicAdminProxy}).  Both fail closed when the facet is
- * not a {@link RemoteMethodControl}.
+ * admin stub backed by the {@code @AtomicSerial} {@link DynamicAdminProxy} handler,
+ * which has a sound atomic wire form (the {@code Proxy} marshals by writing its
+ * {@code @AtomicSerial} handler).  Both fail closed when the facet is not a
+ * {@link RemoteMethodControl}.
  *
  * <h2>Typed transient fields</h2>
  * After validation, the {@code server} reference is also stored in two
@@ -86,7 +86,7 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
  */
 @AtomicSerial
 public class AdminProxy
-        implements JoinAdmin, DestroyAdmin, Serializable, ReferentUuid, ProxyAccessor {
+        implements JoinAdmin, DestroyAdmin, ReferentUuid {
 
     private static final long serialVersionUID = 1L;
 
@@ -187,12 +187,14 @@ public class AdminProxy
      *       returned — its {@code @AtomicSerial} wire form is unchanged, so this is
      *       the stable common case.</li>
      *   <li>A larger set (a service declaring a custom non-{@code Remote} admin
-     *       interface) is <strong>PARKED / fail-closed</strong>: see
-     *       {@link DynamicAdminProxy} for why the dynamic multi-admin-interface wire
-     *       form is not shipped, and this method throws
-     *       {@link UnsupportedOperationException} rather than returning a proxy that
-     *       cannot round-trip under the {@code @AtomicSerial}/Constrainable-only wire
-     *       regime.</li>
+     *       interface) returns a constrainable dynamic {@link java.lang.reflect.Proxy}
+     *       admin stub backed by the {@code @AtomicSerial} {@link DynamicAdminProxy}
+     *       handler.  Because the client-facing object is a
+     *       {@code java.lang.reflect.Proxy} whose invocation handler is
+     *       {@code @AtomicSerial} (and is <em>not</em> a {@code ProxyAccessor}), it has
+     *       a sound atomic wire form under {@code AtomicMarshalInputStream}: the
+     *       {@code Proxy} marshals by writing its handler, which round-trips via the
+     *       {@code serialize(PutArg)}/{@code (GetArg)} engine.</li>
      * </ul>
      *
      * <p>Fail-closed: {@code server} MUST implement {@link RemoteMethodControl}
@@ -206,12 +208,12 @@ public class AdminProxy
      * @param proxyID     the service UUID; must be non-null
      * @param adminIfaces the derived admin interface set; must be non-null and
      *                    contain at least {@link JoinAdmin} and {@link DestroyAdmin}
-     * @return a constrainable admin proxy
+     * @return a constrainable admin proxy — the fixed {@link ConstrainableAdminProxy}
+     *         for the common set, or a dynamic {@link java.lang.reflect.Proxy} admin
+     *         stub for a larger set
      * @throws IllegalArgumentException if {@code server} is not a
      *         {@link RemoteMethodControl}, or does not implement every interface in
      *         {@code adminIfaces}
-     * @throws UnsupportedOperationException if {@code adminIfaces} is larger than
-     *         exactly {@code {JoinAdmin, DestroyAdmin}} (the parked dynamic wire form)
      */
     public static Object create(Remote server, Uuid proxyID, Class<?>[] adminIfaces) {
         if (server == null) throw new IllegalArgumentException("server cannot be null");
@@ -239,17 +241,14 @@ public class AdminProxy
             MethodConstraints mc = ((RemoteMethodControl) server).getConstraints();
             return new ConstrainableAdminProxy(server, proxyID, mc);
         }
-        // PARKED (fail-closed): a larger admin set would need the dynamic
-        // java.lang.reflect.Proxy admin form (DynamicAdminProxy), whose Serializable
-        // (non-@AtomicSerial) handler has no sound wire form under
-        // AtomicMarshalInputStream (the @AtomicSerial/Constrainable-only regime).
-        // Rather than ship a proxy that cannot round-trip, refuse fail-closed until
-        // the multi-admin-interface wire form is reviewed.  See DynamicAdminProxy.
-        throw new UnsupportedOperationException(
-                "admin interface sets larger than {JoinAdmin, DestroyAdmin} are not "
-                + "yet supported: the dynamic admin proxy wire form is parked for "
-                + "review (see AdminProxy.DynamicAdminProxy). Declared admin set: "
-                + java.util.Arrays.toString(adminIfaces));
+        // Larger admin set: a service that also declares a custom admin interface.
+        // Return a constrainable dynamic java.lang.reflect.Proxy admin stub backed by
+        // the @AtomicSerial DynamicAdminProxy handler.  The Proxy is NOT a
+        // ProxyAccessor, so it is not diverted through the smart-proxy codebase-download
+        // substitution: it marshals soundly by writing its @AtomicSerial handler, which
+        // round-trips under AtomicMarshalInputStream (the @AtomicSerial/Constrainable-only
+        // wire regime).  See DynamicAdminProxy.
+        return DynamicAdminProxy.create(server, proxyID, adminIfaces);
     }
 
     /**
@@ -394,17 +393,12 @@ public class AdminProxy
     }
 
     // -------------------------------------------------------------------------
-    // ReferentUuid / ProxyAccessor / equals / hashCode
+    // ReferentUuid / equals / hashCode
     // -------------------------------------------------------------------------
 
     @Override
     public Uuid getReferentUuid() {
         return proxyID;
-    }
-
-    @Override
-    public Object getProxy() {
-        return server;
     }
 
     @Override
@@ -469,29 +463,27 @@ public class AdminProxy
             this.methodConstraints = methodConstraints;
         }
 
-        /** AtomicSerial deserialization constructor. */
-        ConstrainableAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
-            this(arg, checkConstrainable(arg));
-        }
-
-        private ConstrainableAdminProxy(GetArg arg, MethodConstraints mc)
-                throws IOException, ClassNotFoundException {
-            super(arg);
-            this.methodConstraints = mc;
-        }
-
         /**
-         * Validates the deserialized server stub and extracts/verifies the
-         * method constraints.  Called before any field assignment.
+         * {@code @AtomicSerial} deserialization constructor.
+         *
+         * <p>The {@code server}/{@code proxyID} state is declared by the
+         * {@link AdminProxy} superclass, so it lives in the {@code AdminProxy}
+         * {@code @AtomicSerial} namespace — a subclass frame cannot read it (each
+         * class in an {@code @AtomicSerial} hierarchy has its own {@link GetArg}
+         * namespace).  We therefore let {@link AdminProxy#AdminProxy(GetArg)} read
+         * and validate {@code server} (non-null, {@link JoinAdmin}/{@link DestroyAdmin})
+         * from its own frame, then refine the check here — the inherited, already
+         * validated {@code server} field must additionally be a
+         * {@link RemoteMethodControl}.  If it is not, deserialization fails before
+         * this object is published.
          */
-        private static MethodConstraints checkConstrainable(GetArg arg)
-                throws IOException, ClassNotFoundException {
-            Remote server = (Remote) arg.get("server", null);
+        ConstrainableAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
+            super(arg);
             if (!(server instanceof RemoteMethodControl)) {
                 throw new InvalidObjectException(
                         "server must implement RemoteMethodControl");
             }
-            return ((RemoteMethodControl) server).getConstraints();
+            this.methodConstraints = ((RemoteMethodControl) server).getConstraints();
         }
 
         /** Pre-construction validation for direct (non-deserialization) path. */
@@ -546,64 +538,126 @@ public class AdminProxy
     // -------------------------------------------------------------------------
 
     /**
-     * <strong>PARKED — NOT SHIPPED (unreached; retained for review).</strong>
-     *
-     * <p>This is the intended dynamic admin form for admin interface sets larger than
-     * {@code {JoinAdmin, DestroyAdmin}} (a service that also declares a custom
-     * non-{@code Remote} {@code FooAdmin}).  It is <em>not</em> reachable:
-     * {@link AdminProxy#create(Remote, Uuid, Class[])} throws
-     * {@link UnsupportedOperationException} for such sets rather than returning one of
-     * these.  The reason is the wire form: the client-facing object is a
-     * {@link java.lang.reflect.Proxy} whose {@link InvocationHandler} is this
-     * <em>plain {@link Serializable}</em> (NOT {@code @AtomicSerial}) class.  Under
-     * {@code AtomicMarshalInputStream} — the DER/atomic engine that is the only
-     * sanctioned wire path in the {@code @AtomicSerial}/Constrainable-only regime —
-     * such a handler has no sound reconstruction: it can only travel via the engine's
-     * deprecated "best-effort" reflective {@code Serializable} path (which the regime
-     * is removing), and on the write side, because this handler is a
-     * {@link ProxyAccessor}, it is intercepted by the {@code ProxySerializer}
-     * codebase-substitution mechanism intended for downloaded smart proxies, not for a
-     * shared {@code @AtomicSerial} admin proxy.  Shipping it would weaken the
-     * wire-format invariant, so it is fail-closed pending Peter's design review of a
-     * constrainable, {@code @AtomicSerial} multi-admin-interface wire form.
-     *
-     * <p>A constrainable, {@link Serializable} delegating {@link InvocationHandler}
+     * A constrainable {@code @AtomicSerial} delegating {@link InvocationHandler}
      * backing a {@link java.lang.reflect.Proxy} admin stub over a caller-supplied
      * admin interface set (used when the derived admin set is larger than
      * {@code {JoinAdmin, DestroyAdmin}} — e.g. a service that also implements a
      * custom {@code FooAdmin}).
      *
      * <p>The client-facing object is a {@code java.lang.reflect.Proxy} that
-     * implements {@code adminIfaces} plus {@link RemoteMethodControl},
-     * {@link ReferentUuid} and {@link ProxyAccessor}; every call delegates to
-     * {@code server} — the admin facet, which already implements those interfaces
-     * over the shared JERI export.  Identity is UUID-based (via {@code proxyID}),
-     * matching {@link AdminProxy}.
+     * implements {@code adminIfaces} plus {@link RemoteMethodControl} and
+     * {@link ReferentUuid}; every call delegates to {@code server} — the admin
+     * facet, which already implements those interfaces over the shared JERI export.
+     * Identity is UUID-based (via {@code proxyID}), matching {@link AdminProxy}.
      *
-     * <p>The handler is {@link Serializable}: the client-side {@code Proxy}
-     * serialises by writing this handler (which writes {@code server} and
-     * {@code proxyID}) plus its interface list, and is reconstituted as an
-     * equivalent {@code Proxy} on the receiver — no per-service admin proxy class
-     * is required.  {@code adminIfaces} carries the interface set so the receiver
-     * rebuilds the same shape.
+     * <h2>Wire form</h2>
+     * The handler is {@code @AtomicSerial} (NOT {@link java.io.Serializable}, per the
+     * severed-JOSS rule) and is deliberately <strong>not</strong> a
+     * {@code net.jini.export.ProxyAccessor}.  The client-side {@code Proxy} marshals
+     * by writing its invocation handler — this class — plus its interface list; under
+     * {@code AtomicMarshalInputStream} the handler round-trips via the
+     * {@code serialize(PutArg)}/{@code (GetArg)} engine and the receiver rebuilds an
+     * equivalent {@code Proxy} (no per-service admin proxy class is required).  Because
+     * the {@code Proxy} is not a {@code ProxyAccessor}, it is not diverted through the
+     * {@code ProxySerializer} codebase-download substitution intended for downloaded
+     * smart proxies — an admin proxy needs no codebase download, matching the reggie /
+     * norm / mercury admin-proxy pattern.  {@code adminIfaces} carries the interface
+     * set so the receiver rebuilds the same shape.
+     *
+     * <h2>Serialisation safety</h2>
+     * The {@link GetArg}-based constructor validates that {@code server} is a
+     * {@link RemoteMethodControl} implementing every declared admin interface and that
+     * {@code proxyID}/{@code adminIfaces} are non-null before any field is assigned,
+     * satisfying the {@code @AtomicSerial} contract.
      */
+    @AtomicSerial
     static final class DynamicAdminProxy
-            implements InvocationHandler, ReferentUuid, ProxyAccessor, Serializable {
+            implements InvocationHandler, ReferentUuid {
 
         private static final long serialVersionUID = 1L;
 
         /** The admin facet stub; implements every interface in {@link #adminIfaces}
-         *  plus {@link RemoteMethodControl}. */
+         *  plus {@link RemoteMethodControl}.
+         *
+         * @serial */
         private final Remote server;
-        /** The service UUID (identity). */
+        /** The service UUID (identity).
+         *
+         * @serial */
         private final Uuid proxyID;
-        /** The admin interface set the client proxy exposes. */
+        /** The admin interface set the client proxy exposes.
+         *
+         * @serial */
         private final Class<?>[] adminIfaces;
+
+        /**
+         * Serial form for the atomic/DER codecs — mirrors the fields read by the
+         * {@code (GetArg)} constructor.
+         */
+        public static SerialForm[] serialForm() {
+            return new SerialForm[] {
+                new SerialForm("server", Remote.class),
+                new SerialForm("proxyID", Uuid.class),
+                new SerialForm("adminIfaces", Class[].class)
+            };
+        }
+
+        /** {@code @AtomicSerial} write contract (required by the atomic write engine). */
+        public static void serialize(PutArg arg, DynamicAdminProxy o) throws IOException {
+            arg.put("server", o.server);
+            arg.put("proxyID", o.proxyID);
+            arg.put("adminIfaces", o.adminIfaces);
+            arg.writeArgs();
+        }
 
         private DynamicAdminProxy(Remote server, Uuid proxyID, Class<?>[] adminIfaces) {
             this.server = server;
             this.proxyID = proxyID;
             this.adminIfaces = adminIfaces.clone();
+        }
+
+        /** {@code @AtomicSerial} deserialization constructor. */
+        DynamicAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
+            this(checkFacet(arg),
+                 (Uuid) arg.get("proxyID", null),
+                 checkIfaces(arg));
+        }
+
+        /**
+         * Validates the deserialized admin facet: it must be a non-null
+         * {@link RemoteMethodControl} implementing every declared admin interface.
+         * Called before any field assignment.
+         */
+        private static Remote checkFacet(GetArg arg)
+                throws IOException, ClassNotFoundException {
+            Remote server = (Remote) arg.get("server", null);
+            if (server == null) {
+                throw new InvalidObjectException("server cannot be null");
+            }
+            if (!(server instanceof RemoteMethodControl)) {
+                throw new InvalidObjectException(
+                        "server must implement RemoteMethodControl");
+            }
+            Class<?>[] ifaces = (Class<?>[]) arg.get("adminIfaces", null);
+            if (ifaces == null) {
+                throw new InvalidObjectException("adminIfaces cannot be null");
+            }
+            for (Class<?> a : ifaces) {
+                if (a == null || !a.isInstance(server)) {
+                    throw new InvalidObjectException(
+                            "admin facet must implement " + a);
+                }
+            }
+            if (arg.get("proxyID", null) == null) {
+                throw new InvalidObjectException("proxyID cannot be null");
+            }
+            return server;
+        }
+
+        /** Reads {@code adminIfaces} after {@link #checkFacet} has validated it. */
+        private static Class<?>[] checkIfaces(GetArg arg)
+                throws IOException, ClassNotFoundException {
+            return (Class<?>[]) arg.get("adminIfaces", null);
         }
 
         /**
@@ -614,7 +668,7 @@ public class AdminProxy
          * @param proxyID     the service UUID
          * @param adminIfaces the admin interface set to expose
          * @return a {@code Proxy} over {@code adminIfaces} + {@code RemoteMethodControl}
-         *         + {@code ReferentUuid} + {@code ProxyAccessor}
+         *         + {@code ReferentUuid}
          */
         static Object create(Remote server, Uuid proxyID, Class<?>[] adminIfaces) {
             DynamicAdminProxy handler =
@@ -627,8 +681,9 @@ public class AdminProxy
 
         /**
          * The interfaces the client-facing {@code Proxy} implements: the admin set
-         * plus the framework interfaces {@code RemoteMethodControl},
-         * {@code ReferentUuid} and {@code ProxyAccessor}.
+         * plus the framework interfaces {@code RemoteMethodControl} and
+         * {@code ReferentUuid}.  Deliberately NOT {@code ProxyAccessor} — see the
+         * class-level "Wire form" note.
          */
         private Class<?>[] proxyInterfaces() {
             Set<Class<?>> set = new LinkedHashSet<>();
@@ -637,7 +692,6 @@ public class AdminProxy
             }
             set.add(RemoteMethodControl.class);
             set.add(ReferentUuid.class);
-            set.add(ProxyAccessor.class);
             return set.toArray(new Class<?>[0]);
         }
 
@@ -664,10 +718,6 @@ public class AdminProxy
             if (decl == ReferentUuid.class) {
                 return proxyID;
             }
-            // ProxyAccessor
-            if (decl == ProxyAccessor.class) {
-                return server;
-            }
             // RemoteMethodControl.setConstraints returns a NEW admin proxy carrying
             // a re-constrained facet; getConstraints and other RMC methods delegate.
             if (decl == RemoteMethodControl.class && "setConstraints".equals(name)) {
@@ -684,11 +734,6 @@ public class AdminProxy
         @Override
         public Uuid getReferentUuid() {
             return proxyID;
-        }
-
-        @Override
-        public Object getProxy() {
-            return server;
         }
 
         /**
