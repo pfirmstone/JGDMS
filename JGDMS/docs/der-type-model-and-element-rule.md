@@ -85,28 +85,43 @@ concrete type to name at the declaration site). It resolves, by rule, to "any" (
 
 ---
 
-## 2. The closed-subset type MODEL (normative design principle)
+## 2. The closed-subset type MODEL (PINNED NORMATIVE — the STD-006 "Wire Type Model")
 
-STD-006's wire type system is a **CLOSED SUBSET**, closed under recursive composition. State it as a
-grammar over three base categories plus the two composition forms:
+> **Board disposition (adopted).** This section is the **normative type algebra** the STD-006 spec
+> is to carry as a new **"Wire Type Model"** section (pinning target #1). It is written as the
+> authoritative intent, not a research sketch. Two artefacts are to be added *at implementation*
+> (flagged, not authored here): **(P1)** the STD-006 spec §-section stating this model, the exclusion
+> boundary, the distinct-tag/§4.5 + `SIZE`/depth-bound discipline, and the `Any` tag registry; and
+> **(P2)** the `.asn1` module's `AnyElement` **CHOICE** production (§4.1) plus the `Any` tag-registry
+> comment block. The `Any` context tags **are** the registry — see §4.5.
+
+STD-006's wire type system is a **CLOSED SUBSET**, closed under recursive composition — a type algebra
+over three base categories plus the composition forms and the `Any` self-describing form:
 
 ```
 WireType  ::=  Scalar
             |  AtomicSerialObject          -- a schema-digest-identified @AtomicSerial record
             |  Collection(WireType…)       -- set/bag/orderedset/list/map/orderedmap over WireType(s)
-            |  Any                          -- the self-describing tagged union over the three above (§4)
+            |  Any                          -- the self-describing CHOICE over the three above (§4)
 
 Scalar             ::= boolean | byte | short | int | long | float | double | char
                      | java.lang.String | byte[]                      -- the built scalar set (WireTypes/ObjectCodec)
 AtomicSerialObject ::= "@AtomicSerial"                                -- concrete class travels in the embedded schema chain
 Collection(E)      ::= "set:"E | "bag:"E | "orderedset:"E | "list:"E  -- element E is itself a WireType
 Collection(K,V)    ::= "map:{"K"}{"V"}" | "orderedmap:{"K"}{"V"}"     -- K, V each a WireType, resolved independently
-Any                ::= a compact tagged union whose payload is Scalar | AtomicSerialObject | Collection  (§4)
+Any                ::= [n] IMPLICIT/EXPLICIT CHOICE over Scalar | AtomicSerialObject | Collection  (§4)
 ```
 
 **Closure.** The set is closed under `Collection`: `Set<Map<String,List<Foo>>>` is a legal
 `WireType` because each nesting level is again one of the categories. Recursion **bottoms out** at a
 scalar, an `@AtomicSerial` object, or `Any`. This is the "closed under composition" property.
+
+**Normative discipline (pinned).** Every collection carries a `SIZE(0..maxCollection)` bound (§4.5,
+`maxCollection`=65536) *and* every recursion — including every `Any`→collection and
+`Any`→`atomicSerialObject` step — is bounded by a decoder `MAX_NESTING` depth (fences, §4.3). Every
+distinct category is a distinct context tag (STD-006 §4.5 distinct-tag discipline; the `Any` registry,
+§4.5 of this memo), so the type of an `Any` element is decided by its tag, never inferred. These are
+decoder obligations, not encoder conveniences.
 
 ### 2.1 The exclusion boundary (why the subset is closed — the "less is more" discipline)
 
@@ -142,7 +157,7 @@ label; the digest is the identity). Collections are the six §3.8 ASN.1 producti
 (`CanonicalSet`/`CanonicalMultiset`/`CanonicalMap`/`OrderedSetField`/`ListField`/`OrderedMapField`).
 `docs/der-rust-collection-mapping.md` (branch `der-rust-collection-mapping`) already demonstrates the
 collection layer mapping onto Rust's `BTreeSet`/`HashSet`/`Vec`/`BTreeMap`… under the same
-determinism discipline — evidence the model survives translation. The `Any` tag set (§4.4) is
+determinism discipline — evidence the model survives translation. The `Any` tag set (§4.5) is
 specified as a small language-neutral enumeration for the same reason.
 
 ---
@@ -239,76 +254,176 @@ When the reflected element `Type` carries no concrete structural type, the rule 
 
 `Any` is **always rule-selected** on unresolvability and is **never the default and never
 developer-chosen**. A homogeneous `Set<Foo>` with a concrete `Foo` must resolve to `set:@AtomicSerial`
-and MUST NOT land in `Any` (§4.3 states why that would be a regression, and §6 makes it a conformance
+and MUST NOT land in `Any` (§4.4 states why that would be a regression, and §6 makes it a conformance
 assertion).
 
 ---
 
-## 4. The self-describing "ANY" element form
+## 4. The self-describing "ANY" element form (an `[n] IMPLICIT`-tagged CHOICE)
 
-`Any` is a compact **tagged union** over the closed subset. It is the element form used when — and
-only when — §3.4 makes the declared element type unresolvable. Each `Any` element carries a small
-language-neutral **type tag** followed by that element's ordinary canonical DER encoding.
+`Any` is a **context-tagged CHOICE** over the closed-subset categories — one context tag per category.
+It is the element form used when — and only when — §3.4 makes the declared element type unresolvable.
+There is **no** `tag`+`body` `SEQUENCE` wrapper and **no** `ENUMERATED` discriminator: the CHOICE's
+context tag **is** the category discriminator, carried in-place on the element's own encoding.
 
-### 4.1 Structure (design-level ASN.1)
+> **Board disposition (adopted): re-encode `Any` as a CHOICE, not a `SEQUENCE{tag,body}`.** The earlier
+> draft modelled `Any` as `SEQUENCE { tag ENUMERATED, body Element }`. That is superseded. The reasons
+> the CHOICE form is required, not merely nicer (§4.1 realises them):
+> - **One discriminator, not two.** A `SEQUENCE{tag,body}` has *two* things that could claim the
+>   element's category — the `ENUMERATED tag` and the `body`'s own type/tag — which can disagree: a
+>   `tag=collection` over a `body` that is actually a scalar is a **lying encoding**. The CHOICE has a
+>   *single* discriminator (the context tag), so that hazard is eliminated **by construction** —
+>   there is no second field to lie.
+> - **No spurious `OCTET STRING` wrapper / value-equality-of-payload preserved.** The old `body Element`
+>   modelled the payload as the `Element` **`OCTET STRING` stub**, which would wrap the real value in an
+>   extra OCTET STRING layer — breaking the claim that a value's `body` bytes are identical whether it
+>   appears in a declared-element collection or in `Any`. In the CHOICE, the value is carried **verbatim
+>   under the context tag** (an `[n] IMPLICIT` tag merely *replaces the leading tag octet* of the value's
+>   own DER — it adds no wrapper), so the payload bytes past the tag are unchanged. Value-equality of the
+>   payload is preserved (§4.2).
+> - **Distinct-tag-clean (§4.5).** Every category is a distinct context tag; the categories are
+>   syntactically disjoint on the wire.
+> - **Smaller.** No `SEQUENCE` header, no separate `ENUMERATED` TLV — one tag octet replaces both.
+> - **Tooling-checkable.** A CHOICE with fixed context tags is a first-class ASN.1 construct any
+>   compiler/validator checks; a hand-rolled `SEQUENCE{tag,body}` open type is not.
+> - **Octet-sort category-grouping becomes PROVABLE.** Because the context tag is the *leading* octet
+>   of every `AnyElement` and tags are distinct and ordered, X.690 §11.6 octet-sort groups elements by
+>   category *as a theorem about the tag*, not as an accident of where a `tag` field happened to sit in
+>   a `SEQUENCE` framing (§4.2).
+
+### 4.1 Structure (design-level ASN.1 — pinning target P2)
 
 ```asn1
-AnyElement ::= SEQUENCE {
-    tag    AnyTag,          -- which closed-subset category this element is (§4.4)
-    body   Element          -- the element's ordinary canonical DER, exactly as if its type were declared
-}
+-- Any element: a CHOICE keyed on the closed-subset category. The context tag IS the
+-- discriminator (no ENUMERATED tag field, no SEQUENCE{tag,body} wrapper). The scalar and
+-- atomicSerialObject arms are [n] IMPLICIT (the value's own tag is replaced in-place). The
+-- collection arms MUST be EXPLICIT so the inner SET OF / SEQUENCE OF outer tag (0x31 / 0x30 --
+-- the Option-A discipline discriminator, STD-006 §3.8) SURVIVES: you cannot IMPLICIT-tag a
+-- collection whose own outer tag carries meaning (X.680 §31.2.7).
 
-AnyTag ::= ENUMERATED {
-    scalarBoolean(0), scalarByte(1), scalarShort(2), scalarInt(3), scalarLong(4),
-    scalarFloat(5), scalarDouble(6), scalarChar(7), scalarString(8), scalarBytes(9),
-    atomicSerialObject(20),   -- body is an @AtomicSerial record; its concrete class + schema digest travel in body's embedded chain
-    collection(30)            -- body is itself a collection element (set:/bag:/…); the collection's own token/discipline is in body
+AnyElement ::= CHOICE {
+    scalarBoolean        [0]  IMPLICIT BOOLEAN,
+    scalarByte           [1]  IMPLICIT INTEGER,
+    scalarShort          [2]  IMPLICIT INTEGER,
+    scalarInt            [3]  IMPLICIT INTEGER,
+    scalarLong           [4]  IMPLICIT INTEGER,
+    scalarFloat          [5]  IMPLICIT OCTET STRING,   -- IEEE-754 32-bit, strict-canonical (STD-008 §17.3.1)
+    scalarDouble         [6]  IMPLICIT OCTET STRING,   -- IEEE-754 64-bit, strict-canonical
+    scalarChar           [7]  IMPLICIT INTEGER,         -- Unicode codepoint (BMP non-surrogate)
+    scalarString         [8]  IMPLICIT UTF8String,
+    scalarBytes          [9]  IMPLICIT OCTET STRING,    -- a byte[] element
+    -- gap [10..19] RESERVED for future scalar categories (§4.5 registry)
+    atomicSerialObject   [20] IMPLICIT AtomicSerialRecord,  -- concrete class + schema digest travel in the embedded chain
+    -- gap [21..29] RESERVED (§4.5 registry)
+    canonicalCollection  [30] EXPLICIT CanonicalCollection, -- SET OF 0x31: set:/bag:/map: -- outer 0x31 preserved under EXPLICIT
+    orderedCollection    [31] EXPLICIT OrderedCollection    -- SEQUENCE OF 0x30: orderedset:/list:/orderedmap: -- outer 0x30 preserved
 }
+-- CanonicalCollection / OrderedCollection are the §7.6 productions
+-- (CanonicalSet/CanonicalMultiset/CanonicalMap resp. OrderedSetField/ListField/OrderedMapField),
+-- unchanged; their own token/discipline is intrinsic to the encoding under the EXPLICIT tag.
 ```
 
-- **Scalars** carry a specific tag (`scalarInt`, `scalarString`, …) so a cross-language reader knows
-  the primitive category without a Java class.
-- **`@AtomicSerial` objects** carry `atomicSerialObject(20)`; the concrete class identity is the
-  **schema digest** already embedded in the record — the tag says only "this is a closed record",
-  the digest says which. This is why `Any` keeps *most* of the schema-digest machinery: an
-  `@AtomicSerial`-valued `Any` element is fully digest-covered inside its `body`.
-- **Nested collections** carry `collection(30)`; the collection's discipline/token
-  (`set:`/`list:`/`map:`…) is intrinsic to `body`'s own encoding, so `Any` nests recursively over the
-  closed subset without a second dispatch table.
+- **Scalars** are `[0]`–`[9]` `IMPLICIT` so a cross-language reader knows the primitive category from
+  the context tag alone, without a Java class; the value bytes past the tag are the scalar's ordinary
+  canonical DER.
+- **`@AtomicSerial` objects** are `[20] IMPLICIT`; the concrete class identity is the **schema digest**
+  already embedded in the record — the tag says only "this is a closed record", the digest says which.
+  `Any` therefore keeps *most* of the schema-digest machinery: an `@AtomicSerial`-valued `Any` element
+  is fully digest-covered inside its record. (Reconstruction of that record is gated identically to a
+  typed element — fence (b), §4.3.)
+- **Collections** split into two `EXPLICIT` arms — `canonicalCollection [30]` (`SET OF`, `0x31`) and
+  `orderedCollection [31]` (`SEQUENCE OF`, `0x30`) — **because the inner outer tag `0x31`/`0x30` is the
+  Option-A preserve-vs-canonicalise discriminator (§3.8) and MUST survive.** An `IMPLICIT` tag would
+  *overwrite* that outer tag and destroy the discriminator (X.680 §31.2.7 forbids IMPLICIT-tagging a
+  type whose outer tag is load-bearing); `EXPLICIT` wraps it, keeping the inner `SET OF`/`SEQUENCE OF`
+  tag intact. This gives **one discipline discriminator** (the inner tag), not two, and the nested
+  collection's discipline/token (`set:`/`list:`/`map:`…) remains intrinsic to `body`'s own encoding.
 
 ### 4.2 Compatibility with canonical / value-equality machinery (NORMATIVE)
 
 `Any` must not break the properties the closed model exists to guarantee:
 
-- **X.690 §11.6 octet-sort still applies.** The sort orders **complete encoded element forms**
-  (`CollectionWireTypes.OCTET_SORT` / `compareOctets` sorts `byte[]` of whole TLVs). An `AnyElement`
-  is a complete TLV (a `SEQUENCE` of `{tag, body}`), so a canonicalise collection **of `Any`
-  elements** octet-sorts its `AnyElement` encodings exactly as it would sort homogeneous elements —
-  deterministic bytes still result. The `tag` sits at a fixed position at the front of each
-  `AnyElement`, so elements first group by category then order within category; this is a *total,
-  deterministic* order over distinct values (distinct values → distinct canonical `AnyElement`
-  encodings, since `tag` + canonical `body` is injective on value).
+- **X.690 §11.6 octet-sort still applies, and category-grouping is now a THEOREM.** The sort orders
+  **complete encoded element forms** — `CollectionWireTypes.OCTET_SORT` / `compareOctets` sorts `byte[]`
+  of whole TLVs, comparing byte-by-byte as unsigned with the shorter operand conceptually padded with
+  trailing `0x00` (see the built `compareOctets`,
+  `CollectionWireTypes.java:385`, whose prefix/trailing-zero tie-break is the exact comparator used
+  here). An `AnyElement` is a complete TLV whose **leading octet is its context tag**, so a canonicalise
+  collection **of `Any` elements** octet-sorts by tag first, then by value within a category — a *total,
+  deterministic* order, and the category-grouping is a **provable property of the leading tag** (not, as
+  in the old `SEQUENCE{tag,body}` framing, an accident of the `tag` field's position). Distinct values →
+  distinct canonical `AnyElement` encodings (context tag + canonical value is injective on value).
 - **Reject-non-canonical decode still applies.** A decoder rejects an out-of-order `SET OF` of
   `AnyElement`s, a duplicate `AnyElement` encoding in a `set:`/`orderedset:` of `Any`, a wrong
-  container tag, and a `body` that is not itself canonical for its `tag` — the same fail-secure
-  obligations §3.8 already imposes, applied to `body`.
-- **The `tag`/`body` split does not leak.** `body` is encoded identically to how it would be if the
-  element's type were declared, so a value that appears both in a declared-element collection and in
-  an `Any` collection has the *same* `body` bytes (its `AnyElement` wrapper differs, but `body` does
-  not) — value-equality of the payload is preserved at the `body` level.
+  container tag, and a value that is not itself canonical for its context tag — the same fail-secure
+  obligations §3.8 already imposes, applied under the tag.
+- **Value-equality of the payload is preserved (no wrapper leak).** Under an `[n] IMPLICIT` tag the
+  value's bytes past the leading tag octet are **unchanged** from how they would encode with a declared
+  type; under the collection `EXPLICIT` arms the inner collection encoding is byte-identical to the
+  declared-element form. So a value that appears both in a declared-element collection and in an `Any`
+  collection has the **same** post-tag bytes — the CHOICE adds no `OCTET STRING` or `SEQUENCE` wrapper
+  to leak. (This is the concrete gain over the superseded `SEQUENCE{tag,body Element}` form, whose
+  `Element`-`OCTET STRING` stub *would* have wrapped and broken this.)
 
-### 4.3 The honest trade-off (why `Any` is the fallback, not the default)
+### 4.3 The four SECURITY FENCES (NORMATIVE decoder obligations, each conformance-tested)
+
+`Any` moves decode dispatch from the fixed, digest-covered **schema token** to **attacker-controlled
+per-element bytes**: with a declared element type the schema commits what each element is, but an `Any`
+collection lets the *wire* choose each element's category (and, via the collection arms, its nesting).
+That shift is safe **only** behind four decoder fences. Each is a MUST for every conformant decoder
+(JVM and non-JVM) and each ships with a conformance test.
+
+- **(a) `MAX_NESTING` threaded through every `Any` recursion.** The decoder MUST carry a depth counter
+  and decrement/bound it on **every** `Any`→`canonicalCollection`/`orderedCollection` step **and** every
+  `Any`→`atomicSerialObject` step (whose record may itself contain `Any`-typed fields), rejecting before
+  the bound is exceeded. *Rationale:* with a declared type the schema token bounded structural depth;
+  under `Any`, nesting depth (`Any`-of-collection-of-`Any`-of-…) is **attacker-controlled**, so an
+  unbounded recursion is a StackOverflow DoS. *Conformance test:* a deeply-nested `Any` (collection of
+  `Any` of collection of … past `MAX_NESTING`) is **rejected before** the bound, not on stack exhaustion.
+- **(b) Same `@AtomicSerial` reconstruction gate — `Any` is not a second door.** An `Any`
+  `atomicSerialObject [20]` body MUST be reconstructed through the **identical** path as a typed
+  `@AtomicSerial` element: the `DeSerializationPermission("ATOMIC")` gate, the endpoint
+  `ResolutionContext`, and the class's `check(GetArg)`/deserialising constructor. `Any` MUST NOT provide
+  an ungated or differently-gated route to object reconstruction. *Rationale:* otherwise `Any` is a
+  bypass of the ATOMIC gate that the typed path enforces. *Conformance test:* a class **denied** by the
+  ATOMIC gate, presented inside an `Any` element, is **rejected** exactly as it would be as a typed
+  element.
+- **(c) Unknown / unregistered tag → HARD REJECT (fail-secure).** A context tag not in the pinned
+  registry (§4.5) — including a reserved-gap tag (`[10..19]`, `[21..29]`) and any tag `> [31]` — MUST be
+  a decode error. The decoder MUST NOT skip the element, MUST NOT default it to any category, MUST NOT
+  continue. *In the CHOICE form this is largely automatic* (an unlisted alternative is a CHOICE decode
+  error), but it is stated **normatively** so no implementation "tolerantly" skips. *Conformance test:*
+  an element with an unknown or reserved context tag (and a tag that mismatches its payload) is rejected.
+- **(d) Canonical minimal tag encoding + deterministic value→category mapping.** The context tag MUST
+  be in **minimal (definite short/long-form) DER tag encoding**, and every value MUST map to **exactly
+  one** category tag (a `String` value is *always* `[8]`, never `[9]`; an `int` is always `[3]`; a
+  canonicalise collection is always `[30]`, an ordered one always `[31]`). *Rationale:* in the CHOICE
+  form the context tag **is** the discriminator that octet-sort and value-equality depend on; a
+  non-minimal tag encoding or a value encodable under two tags would give two byte forms for one value,
+  breaking both. *Conformance test:* a non-canonical (non-minimal) tag encoding, and a value under the
+  wrong category tag, are both rejected.
+
+**Developer-guidance corollary (§4.3 → §8.2).** Because an `Any` field's schema no longer commits
+element *types* (only the container is coerced; the elements are not), **per-element type validation
+shifts entirely onto the developer's `check(GetArg)`** for any field that resolves to `Any` (E10–E14).
+The fences above make `Any` *safe to decode*; they do not make its elements *the types the developer
+expects* — that is Layer 2's job, and for an `Any` field it is the developer's sole responsibility. See
+§8.2.
+
+### 4.4 The honest trade-off (why `Any` is the fallback, not the default)
 
 `Any` costs, relative to a declared element type:
 
 - **Some schema-digest coverage at the collection level.** A `set:@AtomicSerial` field commits, in
   the *schema*, that every element is a closed record of a known structural shape; the collection's
   own schema digest covers that. A `set:` of `Any` commits only "elements are closed-subset values";
-  the per-element `@AtomicSerial` digests are still present *inside each* `AnyElement.body`, but the
+  the per-element `@AtomicSerial` digests are still present *inside each* `Any` record, but the
   collection-level schema is looser. (It is a *reduction* of coverage, not a loss — the record
-  digests survive in `body`.)
-- **Compactness.** Every element pays a small `tag` (and a `SEQUENCE` wrapper) it would not pay with
-  a declared homogeneous element type.
+  digests survive in the element.)
+- **Compactness.** Every element pays one context-tag octet it would not pay with a declared
+  homogeneous element type (the collection arms also pay the `EXPLICIT` wrapper's few header octets).
+  This is *smaller* than the superseded `SEQUENCE{tag,body}` form (which paid a `SEQUENCE` header plus
+  a separate `ENUMERATED` TLV) — one tag octet replaces both.
 
 Therefore `Any` is **precisely the rule-selected fallback for an unresolvable declared type**, never
 the default. A homogeneous `Set<Foo>` with concrete `Foo` MUST resolve to `set:@AtomicSerial` and get
@@ -316,16 +431,40 @@ full coverage + compactness; landing it in `Any` would be a correctness/efficien
 a conformance failure (§6). The design principle: **`Any` buys expressiveness for the genuinely
 unresolvable at a stated cost, and the rule guarantees you pay that cost only when you must.**
 
-### 4.4 Cross-language tag mapping
+### 4.5 The `Any` TAG REGISTRY (PINNED NORMATIVE — the CHOICE context tags ARE the registry)
 
-`AnyTag` is a fixed, language-neutral `ENUMERATED` (values pinned above), not a Java class label. A
-non-JVM reader dispatches on the small integer: `0–9` → its native scalar of that category; `20` →
-its `@AtomicSerial`-record decoder (which then reads the embedded schema digest); `30` → its
-collection decoder (which reads `body`'s own discipline token). The tag set is closed and versioned
-with the format; new base categories would require a spec revision (there are only three, and the
-closed model forbids a fourth). This mirrors how the rest of STD-006 is language-neutral — a
-non-JVM party needs the *tag enumeration and the six collection productions*, never the JDK type
-taxonomy.
+There is no separate `ENUMERATED` to maintain: **the CHOICE's context tags (§4.1) *are* the `Any` tag
+registry.** A tag is "registered" iff it is a listed alternative; the registry is pinned in two places
+at implementation — **(P1)** the STD-006 §-section and **(P2)** the `.asn1` `AnyElement CHOICE`
+production. The pinned assignment:
+
+| Context tag | Category | Payload | Tagging |
+|---|---|---|---|
+| `[0]`–`[9]` | scalars (bool, byte, short, int, long, float, double, char, String, byte[]) | the scalar's canonical DER | `IMPLICIT` |
+| `[10]`–`[19]` | **RESERVED** (future scalar categories) | — | — |
+| `[20]` | `@AtomicSerial` object | `AtomicSerialRecord` (schema-digest-identified) | `IMPLICIT` |
+| `[21]`–`[29]` | **RESERVED** | — | — |
+| `[30]` | canonicalise collection (`set:`/`bag:`/`map:`) | `SET OF` (`0x31`) | `EXPLICIT` (outer tag load-bearing) |
+| `[31]` | ordered collection (`orderedset:`/`list:`/`orderedmap:`) | `SEQUENCE OF` (`0x30`) | `EXPLICIT` |
+| `> [31]`, or any reserved-gap tag | **UNREGISTERED** | — | **HARD REJECT (fence (c), §4.3)** |
+
+**Registry rules (normative):**
+- **Closed + versioned.** The tag set is closed and versioned with the format. There are exactly three
+  base categories (scalar, `@AtomicSerial` object, collection) and the closed model (§2) forbids a
+  fourth, so the *shape* of the registry is fixed; only *within-category* refinements (a new scalar,
+  a future collection discipline) could ever consume a reserved gap, and only by a spec revision.
+- **Extension gaps reserved.** `[10]`–`[19]` and `[21]`–`[29]` are reserved so a future scalar or
+  object-family refinement lands in a gap without renumbering the collection arms. A reserved tag is
+  **not** decodable until a spec revision lists it — until then it is UNREGISTERED and hard-rejected.
+- **Unknown tag = hard reject.** Any context tag not in the pinned table (a reserved gap, or `> [31]`)
+  is a fail-secure decode error — fence (c), §4.3. The decoder never skips, never defaults.
+
+**Cross-language.** A non-JVM reader dispatches on the small context-tag integer: `[0]`–`[9]` → its
+native scalar of that category; `[20]` → its `@AtomicSerial`-record decoder (which then reads the
+embedded schema digest); `[30]`/`[31]` → its canonicalise / ordered collection decoder (the inner
+`SET OF`/`SEQUENCE OF` outer tag, preserved by the `EXPLICIT` wrapping, carries the discipline). It
+needs only *the pinned tag table and the six collection productions*, never the JDK type taxonomy —
+the same language-neutrality the rest of STD-006 has.
 
 ---
 
@@ -437,6 +576,8 @@ delivers everything §3 needs. Verbatim results:
 tags   : Set<String>                 → ParameterizedType; arg = Class String            (E2 ✓ resolvable)
 nested : Map<String,List<Set<Foo>>>  → ParameterizedType; args String, List<Set<Foo>>   (E5 ✓ deep nesting recovered)
 bounded: Set<? extends Number>       → WildcardType; upper=[Number] lower=[]             (E7 ✓ upper bound)
+arrElem: Set<Foo[]>                   → ParameterizedType; arg = Class Foo[]  (reified)  (E8 ✓ reified-array element)
+setArr : Set<Foo>[]                   → GenericArrayType; comp = ParameterizedType Set<Foo> (E9 ✓ array-of-collection)
 wild   : Set<?>                       → WildcardType; upper=[Object] lower=[]             (E11 ✓ → Any)
 raw    : Set                          → plain Class (NOT ParameterizedType)              (E10 ✓ → Any)
 objs   : List<Object>                 → arg = Class Object                               (E12 ✓ → Any)
@@ -444,10 +585,14 @@ lower  : Set<? super Integer>         → WildcardType; lower=[Integer] upper=[O
 Box<T>.vals : Set<T>                  → arg = TypeVariable                                (E14 ✓ → Any, honest boundary)
 ```
 
-Every resolvable case yields a concrete `Class`/`ParameterizedType`/upper-bounded `WildcardType`;
-every unresolvable case yields exactly the raw/`Object`/unbounded-wildcard/lower-bounded/`TypeVariable`
-shape that the rule sends to `Any`. **The insight is confirmed: erasure erases instances, not
-declarations.** This is the same mechanism Jackson/Gson/Spring rely on.
+Every resolvable case yields a concrete `Class`/`ParameterizedType`/upper-bounded `WildcardType`, and
+the two array cases confirm the reflection-door split of §3.3: **E8** `Set<Foo[]>` reflects with a
+reified `Class Foo[]` argument (`rule` → `set:array:@AtomicSerial:Foo`), while **E9** `Set<Foo>[]`
+reflects as a `GenericArrayType` whose component is the `ParameterizedType Set<Foo>` (`rule` recurses
+→ `array:set:@AtomicSerial`) — both MUST be in the conformance probe/tests. Every unresolvable case
+yields exactly the raw/`Object`/unbounded-wildcard/lower-bounded/`TypeVariable` shape that the rule
+sends to `Any`. **The insight is confirmed: erasure erases instances, not declarations.** This is the
+same mechanism Jackson/Gson/Spring rely on.
 
 ---
 
@@ -483,23 +628,63 @@ Every other case (E1–E13, E15) resolves to a fully typed, digest-covered wire-
 input beyond the ordinary generic declaration. **There is essentially no case requiring developer
 input; the sole boundary resolves to `Any`.**
 
+### 8.2 Developer-guidance note — an `Any`-resolved field shifts per-element type validation onto `check()`
+
+A field that resolves to `Any` (E10–E14) is decoded safely (the four fences, §4.3) and the **container**
+is coerced to the declared collection type (Layer 2), **but the schema no longer commits the element
+*types*** — a `set:` of `Any` says only "closed-subset values", not "each element is a `Foo`". So for an
+`Any`-resolved field, **per-element type validation shifts entirely onto the developer's `check(GetArg)`
+/ deserialising constructor.** Where a `Set<Foo>` field gets its element type asserted by the schema
+(Layer 1, digest-covered), a raw `Set` / `Set<?>` / `Set<Object>` / `Set<T>` field gets no such
+assertion; the constructor MUST itself verify each element is the type it expects before trusting it.
+This is the practical cost of `Any` beyond §4.4's coverage/compactness note, and the reason a developer
+who wants schema-enforced element typing should declare a concrete `Set<Foo>` (E1) rather than a raw or
+`Object`-element collection. The rule never *chooses* `Any` for a resolvable field, so a developer only
+inherits this obligation when the declaration genuinely gave the schema nothing to commit.
+
+### 8.3 Mechanism confirmed: Option A
+
+The board confirms **Option A** (§7) as the mechanism: `SchemaGenerator` reflects the declaring class's
+`Field` by `sf.getName()` and reads `Field.getGenericType()`, feeding it to a `rule(Type)` overload of
+`toWireType`. **Zero public API change** (`SerialForm` is untouched); the no-backing-field gap falls to
+`Any` by §3.4. Option B (`SerialForm.getGenericType()`) remains recorded as an alternative but is not
+the adopted path.
+
+**Status (accurate): design-only.** Nothing in this memo is built. The `.asn1` `AnyElement CHOICE`
+production, the STD-006 §-section, the codec `Any` encode/decode + the four fences, the auto-wiring hook
+(Option A), and the conformance tests (including E8/E9) are the implementation work that follows a
+build-time board pass — no code is proposed for merge here.
+
 ---
 
 ## 9. Summary for the board
 
-- **Model:** closed subset `Scalar ∪ @AtomicSerial-object ∪ Collection`, closed under composition,
-  plus an `Any` tagged union over those three; exclusion of raw `Object` graphs / arbitrary
-  `Serializable` / cycles is the normative design principle that makes cross-language + value-equality
-  + canonicity simultaneously achievable.
+- **Model (PINNED NORMATIVE, §2):** closed subset `Scalar ∪ @AtomicSerial-object ∪ Collection`, closed
+  under composition, plus the `Any` CHOICE over those three; exclusion of raw `Object` graphs (except
+  within `Any`) / arbitrary `Serializable` / cycles is the normative design principle that makes
+  cross-language + value-equality + canonicity simultaneously achievable. Pinning targets: STD-006
+  §-section (P1) + `.asn1` `AnyElement CHOICE` production (P2).
 - **Rule:** element wire-type = `rule(E)` from `Field.getGenericType()`, recursive, Map K/V
   independent; bounded `? extends B` → `rule(B)`; everything unresolvable → `Any`. No annotation.
-- **`Any`:** compact `SEQUENCE { AnyTag, Element }` tagged union; octet-sort and reject-non-canonical
-  still apply (it sorts complete `AnyElement` TLVs); rule-selected fallback only, at a stated
-  coverage/compactness cost; language-neutral `ENUMERATED` tag set.
+- **`Any` (§4):** an **`[n] IMPLICIT`-tagged CHOICE** keyed on category — scalars `[0]`–`[9]`,
+  `atomicSerialObject [20]`, collections `[30]`/`[31]` **EXPLICIT** so the inner `SET OF`/`SEQUENCE OF`
+  `0x31`/`0x30` discipline discriminator survives (X.680 §31.2.7). The context tag **is** the single
+  discriminator (no lying-encoding hazard) and the tag registry; octet-sort category-grouping is a
+  *provable* property of the leading tag; no `OCTET STRING` wrapper (value-equality-of-payload
+  preserved); the built `compareOctets` prefix/trailing-zero comparator applies unchanged. Rule-selected
+  fallback only, at a stated coverage/compactness cost.
+- **Four fences (NORMATIVE, §4.3, each conformance-tested):** (a) `MAX_NESTING` threaded through every
+  `Any`→collection / `Any`→object recursion; (b) `Any` object body reconstructed through the SAME
+  `DeSerializationPermission("ATOMIC")` gate + endpoint `ResolutionContext` + `check(GetArg)` — `Any` is
+  not a second door; (c) unknown/mismatched/reserved tag = HARD REJECT, fail-secure; (d) canonical
+  minimal tag encoding + deterministic value→category-tag mapping.
+- **Tag registry (§4.5):** the CHOICE context tags ARE the registry; gaps `[10]`–`[19]` / `[21]`–`[29]`
+  reserved; unknown tag hard-rejected; closed + versioned.
 - **Two-layer check:** schema carries the declared *structural* type (digest-covered); `check(GetArg)`
-  enforces *semantics* + typed coercion; neither reads instance generics, so erasure never enters.
-- **Mechanism:** let `SchemaGenerator` see `Field.getGenericType()` — Option A (reflect the field,
-  zero API change, recommended) or Option B (`SerialForm.getGenericType()` descriptor field).
-  Feasibility empirically verified (§7.1).
+  enforces *semantics* + typed coercion; neither reads instance generics, so erasure never enters. For
+  an `Any`-resolved field, per-element type validation shifts entirely onto `check()` (§8.2).
+- **Mechanism (confirmed, §8.3):** **Option A** — `SchemaGenerator` reflects `Field.getGenericType()`,
+  **zero API change**. Feasibility empirically verified (§7.1, incl. E8/E9 arrays).
+- **Status:** design-only, nothing built (§8.3).
 - **Deferred auto-wiring:** resolved for plain `Set`/`Map` fields with NO annotation; the single
   irreducible boundary (type variable in a generic `@AtomicSerial` class) degrades safely to `Any`.
