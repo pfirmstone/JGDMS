@@ -496,15 +496,25 @@ final class AnyCodec {
 
     /**
      * Structurally distinguishes a map body (each element an inner {@code SEQUENCE{key,value}}) from
-     * a set/list body (each element a bare value TLV). An empty collection is treated as a non-map
-     * (a set/list of zero {@code Any} elements) -- an empty map and an empty set decode to distinct
-     * but equivalently-empty containers, and the field's declared collection type coerces in Layer 2.
+     * a set/list body (each element a bare value TLV).
+     *
+     * <p><b>Empty-collection boundary (documented + conformance-locked, F2).</b> An EMPTY collection
+     * has no element to inspect, so it is <em>not</em> a map here and is resolved by the outer wire
+     * tag alone: an empty canonicalise collection ({@code [30]}, an empty {@code SET OF}) decodes to
+     * an empty {@code Set}; an empty ordered collection ({@code [31]}, an empty {@code SEQUENCE OF})
+     * decodes to an empty {@code List}. An empty {@code Any} map, an empty {@code Any} set, and an
+     * empty {@code Any} list are byte-identical on the wire for a given discipline (there is no
+     * entry, key, or value to differ), so this resolution is a deterministic function of the tag,
+     * not a decode quirk. The distinction is immaterial: an empty map / set / list are equivalently
+     * empty, and the field's declared collection type coerces the container in Layer 2 (memo §8.2).
+     * A NON-empty {@code Any} map is detected structurally (its entries are universal
+     * {@code SEQUENCE}s) and round-trips as a {@code Map}.
      */
     private static boolean isMapShape(byte[] innerTlv, boolean canonicalise) throws DerException {
         DerReader outer = new DerReader(innerTlv);
         DerReader body = canonicalise ? outer.readSet() : outer.readSequence();
         if (!body.hasMore()) {
-            return false; // empty -> treat as a (possibly-empty) set/list of Any
+            return false; // empty -> canonicalise:[30]->Set, ordered:[31]->List (F2, deterministic)
         }
         Tag first = body.peekTag();
         // A map entry is an inner SEQUENCE{key,value} (0x30). A set/list element is an AnyElement,

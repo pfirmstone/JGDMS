@@ -163,6 +163,59 @@ class AnyElementCodecTest {
         assertEquals(99, om.get("y"));
     }
 
+    @Test
+    void anyElement_emptyMap_decodesToEmptySet_documentedAndLocked() throws Exception {
+        // F2 -- PINS the documented empty-Any-map behaviour (AnyCodec.isMapShape Javadoc): a map
+        // nested AS AN Any element is distinguished from a set/list STRUCTURALLY (a map entry is an
+        // inner universal SEQUENCE{key,value}; a set/list element is a context-tagged AnyElement).
+        // An EMPTY collection has no element to inspect, so it is resolved by the outer wire tag ONLY:
+        //   * an empty CANONICALISE map (HashMap -> [30], an empty SET OF, identical on the wire to
+        //     an empty canonicalise set) decodes to an empty Set;
+        //   * an empty ORDERED map (LinkedHashMap -> [31], an empty SEQUENCE OF, identical on the wire
+        //     to an empty list/orderedset) decodes to an empty List.
+        // Both are deterministic and intentional; the container type is coerced by the developer's
+        // check(GetArg)/constructor (Layer 2, memo §8.2), and an empty map/set/list are equivalently
+        // empty. This test LOCKS the behaviour so it cannot regress silently; a NON-empty Any map
+        // still round-trips as a Map (test above).
+
+        // (1) empty canonicalise map ([30]) -> empty Set.
+        List<Object> in = new ArrayList<>();
+        in.add(new java.util.HashMap<>());
+        List<?> ol = (List<?>) roundTrip(in, LIST_ANY);
+        assertEquals(1, ol.size());
+        assertTrue(ol.get(0) instanceof Set,
+                "an empty canonicalise Any map decodes to an empty Set (documented boundary), got "
+                + describe(ol.get(0)));
+        assertTrue(((Set<?>) ol.get(0)).isEmpty(), "and it is empty");
+
+        // Determinism across canonicalise-map implementations (all -> [30] -> empty Set).
+        List<Object> in2 = new ArrayList<>();
+        in2.add(new java.util.concurrent.ConcurrentHashMap<>());
+        assertEquals(Set.of(), ((List<?>) roundTrip(in2, LIST_ANY)).get(0),
+                "empty-canonicalise-map -> empty-Set is deterministic across map implementations");
+
+        // (2) empty ordered map ([31]) -> empty List (preserve discipline; no map entry to detect).
+        List<Object> inOrdered = new ArrayList<>();
+        inOrdered.add(new java.util.LinkedHashMap<>());
+        Object orderedElem = ((List<?>) roundTrip(inOrdered, LIST_ANY)).get(0);
+        assertTrue(orderedElem instanceof List,
+                "an empty ORDERED Any map decodes to an empty List (documented boundary), got "
+                + describe(orderedElem));
+        assertTrue(((List<?>) orderedElem).isEmpty(), "and it is empty");
+
+        // Wire proof: an empty canonicalise Any map and an empty canonicalise Any set encode to
+        // identical bytes ([30] over an empty SET OF) -- confirming the boundary is a genuine wire
+        // ambiguity resolved deterministically by the tag, not a decode quirk.
+        List<Object> emptySetElem = new ArrayList<>();
+        emptySetElem.add(new HashSet<>());
+        assertArrayEquals(encode(in, LIST_ANY), encode(emptySetElem, LIST_ANY),
+                "an empty canonicalise Any map and an empty Any set encode to identical wire bytes");
+    }
+
+    private static String describe(Object o) {
+        return o == null ? "null" : o.getClass().getName();
+    }
+
     // =========================================================================
     // Determinism + value-equality (memo §4.2).
     // =========================================================================
