@@ -603,6 +603,39 @@ public class ServiceProxyProcessorTest {
     }
 
     @Test
+    public void dynamicWithCodebaseGeneratesNothingShape2() {
+        // Shape 2 (JGDMS-STD-009 §6 shape 2 + §6.5 / Unit-3 scope item 1): a
+        // DYNAMIC service with codebase = true still generates NOTHING -- no proxy
+        // class and no backend interface.  The downloadable artifact is the
+        // service's own interfaces-only *-api.jar served as the codebase (fetched
+        // by the receiver via net.jini.export.DynamicProxyCodebaseAccessor when it
+        // lacks an interface it must resolve), NOT a generated proxy.  The codebase
+        // flag gates PACKAGING (whether the api.jar is served for download), never
+        // codegen; only shape 3 (SMART) emits a proxy class.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.HelloService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.DYNAMIC,"
+                + "     codebase = true)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String name) throws RemoteException { return name; } }")
+            .run();
+        assertFalse("DYNAMIC + codebase=true (shape 2) must not error:\n" + r.allMessages(),
+            r.hasAnyError());
+        assertFalse("DYNAMIC + codebase=true (shape 2) must not warn:\n" + r.allMessages(),
+            r.hasWarning("codebase"));
+        assertTrue("shape 2 downloads the interfaces-only api.jar, NOT a generated"
+                + " proxy -- the processor generates NOTHING: " + r.generated.keySet(),
+            r.generated.isEmpty());
+    }
+
+    @Test
     public void smartWithCodebaseFalseIsFullySupported() {
         // JGDMS-STD-009 §6 / Unit-3 scope item 3: SMART + codebase=false is a
         // legitimate shape (proxy served from a SHARED codebase; proxy identity is
