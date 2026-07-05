@@ -54,13 +54,7 @@ package com.example.region;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import au.net.zeus.jgdms.service.annotation.JiniService;
-import au.net.zeus.jgdms.service.annotation.ProxyType;
 
-@JiniService(
-        proxy     = ProxyType.SMART,          // download behaviour, run it on the client
-        codebase  = true,                     // ship the proxy's code as a downloadable jar
-        component = "com.example.region")     // config component for the service wrapper
 public interface RegionTemperatureService extends Remote {
 
     /** Smoothed reading for a station — a moving average the proxy maintains locally. */
@@ -68,11 +62,13 @@ public interface RegionTemperatureService extends Remote {
 }
 ----
 
-The public API interface stays clean — one method, no security types on it, exactly as before.
-`proxy = ProxyType.SMART` is the whole difference: the enum's own javadoc calls SMART "a smart
-proxy whose behaviour is downloaded" and "the only shape for which the processor generates a
-constrainable, `@AtomicSerial` proxy class." `codebase = true` says the proxy's *code* ships as a
-downloadable jar for clients that don't already hold it.
+The public API interface stays clean — one method, no security types on it — and, as with the
+temperature post, `@JiniService` does not go here: `proxy`, `codebase` and `component` are
+implementation/deployment choices, so the annotation lives on `RegionServiceImpl` below, not on
+this interface. `proxy = ProxyType.SMART` is the whole difference: the enum's own javadoc calls
+SMART "a smart proxy whose behaviour is downloaded" and "the only shape for which the processor
+generates a constrainable, `@AtomicSerial` proxy class." `codebase = true` says the proxy's *code*
+ships as a downloadable jar for clients that don't already hold it.
 
 [NOTE]
 ====
@@ -201,7 +197,7 @@ PROC --> ERR : fail-open / api mismatch
 ....
 
 The service impl wires it in by returning the generated proxy from `createProxy` — via that same
-fail-closed `create(...)`:
+fail-closed `create(...)`. This is also where `@JiniService` actually goes:
 
 [source,java]
 ----
@@ -209,9 +205,15 @@ package com.example.region;
 
 import net.jini.id.Uuid;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 // ... activation / lifecycle constructors elided ...
 
+@JiniService(
+        proxy     = ProxyType.SMART,           // download behaviour, run it on the client
+        codebase  = true,                      // ship the proxy's code as a downloadable jar
+        component = "com.example.region")      // config component for the service wrapper
 public class RegionServiceImpl
         extends AbstractJiniService
         implements RegionTemperatureService {

@@ -178,8 +178,13 @@ a per-service decision.
 
 == After: one annotation
 
-Here is the same service under `@JiniService`. The annotation goes on the *public API
-interface* — the clean, client-facing contract — never on the implementation:
+Here is the same service under `@JiniService`. The annotation goes on the *service
+implementation* — never on the public API interface, which stays exactly the plain
+`Remote` contract shown above. That placement is deliberate: `proxy`, `codebase` and
+`component` are implementation/deployment concerns, not part of the client-facing
+contract, so putting the annotation on the interface would wrongly force every
+implementor of `TemperatureReadingService` to inherit one service's choice of proxy
+shape and codebase policy. The interface stays untouched:
 
 [source,java]
 ----
@@ -187,20 +192,15 @@ package com.example.sensor;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import au.net.zeus.jgdms.service.annotation.JiniService;
-import au.net.zeus.jgdms.service.annotation.ProxyType;
 
-@JiniService(
-        proxy     = ProxyType.DYNAMIC,        // DYNAMIC (default) | SMART
-        codebase  = false,                    // no downloadable -dl jar to ship
-        component = "com.example.sensor")     // config component for the wrapper
 public interface TemperatureReadingService extends Remote {
 
+    /** @return the current reading in degrees Celsius. */
     double currentCelsius() throws RemoteException;
 }
 ----
 
-The three attributes that matter here:
+The three attributes that matter here — now declared on the implementation, below:
 
 * `proxy = ProxyType.DYNAMIC` — the default. The service is exported as a
   `java.lang.reflect.Proxy` the client already holds the interface for; it is *constrainable by
@@ -212,7 +212,7 @@ The three attributes that matter here:
   reads its entries from. This is the same component key the deployment `.config` uses below.
 
 Because `proxy = DYNAMIC` and the protocol equals the API (no `protocol` attribute, so it
-defaults to the annotated interface), the annotation processor emits *nothing at all*: no
+defaults to the service's own API interface), the annotation processor emits *nothing at all*: no
 backend interface, no proxy class, no invocation-layer factory. The `TemperatureProxy` sketch
 above simply ceases to exist — and with it, the chance to pick the wrong factory. A generated
 backend interface appears only when `protocol() != api()` — a smart proxy translating public
@@ -220,16 +220,23 @@ calls into a different internal protocol. The thin, one-to-one sensor is the com
 costs one annotation.
 
 The implementation wrapper supplies the business logic and returns the exported stub. Under
-DYNAMIC the exported stub *is* the client proxy, so `createProxy` returns it unchanged:
+DYNAMIC the exported stub *is* the client proxy, so `createProxy` returns it unchanged. This is
+also where `@JiniService` actually goes:
 
 [source,java]
 ----
 package com.example.sensor;
 
 import net.jini.id.Uuid;
+import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 // ... activation / lifecycle constructors elided ...
 
+@JiniService(
+        proxy     = ProxyType.DYNAMIC,        // DYNAMIC (default) | SMART
+        codebase  = false,                    // no downloadable -dl jar to ship
+        component = "com.example.sensor")     // config component for the wrapper
 public class TemperatureServiceImpl
         extends AbstractJiniService
         implements TemperatureReadingService {
@@ -285,7 +292,7 @@ The generation-and-export path, from annotation to fat proxy:
 skinparam monochrome true
 skinparam shadowing false
 
-rectangle "@JiniService(proxy=DYNAMIC)\non TemperatureReadingService" as ANN
+rectangle "@JiniService(proxy=DYNAMIC)\non TemperatureServiceImpl" as ANN
 rectangle "ServiceProxyProcessor\n(annotation processor)" as PROC
 rectangle "DYNAMIC + protocol==api\n=> emits NOTHING\n(no proxy class, no backend,\nno per-service ILFactory)" as GEN
 rectangle "Framework default exporter\nBasicJeriExporter +\nDynamicILFactory extends AtomicILFactory\n(atomic/DER codec) +\n{Administrable, JoinAdmin, DestroyAdmin}" as EXP
