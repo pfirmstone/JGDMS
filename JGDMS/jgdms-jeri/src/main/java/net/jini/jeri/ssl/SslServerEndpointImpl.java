@@ -56,6 +56,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
@@ -619,6 +620,13 @@ class SslServerEndpointImpl extends Utilities {
 		private volatile SSLSocketFactory sslSocketFactory;
 
 		/**
+		 * The SSLContext for this endpoint -- set by sslInit, rebuilt on SPIFFE
+		 * rotation.  Used to create the server-side {@code SSLEngine} on the
+		 * keystone path.
+		 */
+		private volatile javax.net.ssl.SSLContext sslContext;
+
+		/**
 		 * The authentication manager for the SSLContext for this endpoint -- set
 		 * by sslInit.
 		 */
@@ -835,6 +843,7 @@ class SslServerEndpointImpl extends Utilities {
 									SSLContextInfo info = getServerSSLContextInfo(
 											serverSubject, serverPrincipals);
 									// Volatile writes — immediately visible to all threads.
+									sslContext = info.sslContext;
 									sslSocketFactory = info.sslContext.getSocketFactory();
 									authManager = (ServerAuthManager) info.authManager;
 								} finally {
@@ -870,8 +879,19 @@ class SslServerEndpointImpl extends Utilities {
 			resolveSubjectIfNeeded();
 			SSLContextInfo info = getServerSSLContextInfo(
 				serverSubject, serverPrincipals);
+			sslContext = info.sslContext;
 			sslSocketFactory = info.sslContext.getSocketFactory();
 			authManager = (ServerAuthManager) info.authManager;
+		}
+
+		/** Returns the SSLContext, calling sslInit if needed. */
+		final javax.net.ssl.SSLContext getSSLContext() {
+			if (sslContext == null) {
+				synchronized (this) {
+					if (sslContext == null) sslInit();
+				}
+			}
+			return sslContext;
 		}
 
 		/** Returns the SSLSocketFactory, calling sslInit if needed. */
@@ -911,10 +931,36 @@ class SslServerEndpointImpl extends Utilities {
 			// would find no TLS-capable subject, leaving serverSubject null and
 			// producing an anonymous SSL context.
 			initIfNeeded();
-			ServerSocket serverSocket = serverSocketFactory != null
-			? serverSocketFactory.createServerSocket(port)
-			: new ServerSocket(port);
+			ServerSocket serverSocket = createServerSocket();
 			return createListenHandle(requestDispatcher, serverSocket);
+		}
+
+		/**
+		 * Creates the {@code ServerSocket} to accept on.  The default binds a
+		 * {@code ServerSocketChannel}-backed socket so that accepted
+		 * {@code Socket}s carry a {@code SocketChannel}, enabling the
+		 * SSLEngine-over-channel keystone path in {@code SslServerConnection}.
+		 * A custom {@code serverSocketFactory} instead yields channel-less
+		 * sockets (SSLSocket fallback).  The HTTPS transport overrides this to
+		 * use a plain {@code ServerSocket} (it drives TLS over an SSLSocket).
+		 */
+		ServerSocket createServerSocket() throws IOException {
+			if (serverSocketFactory != null) {
+				return serverSocketFactory.createServerSocket(port);
+			}
+			java.nio.channels.ServerSocketChannel ssc =
+				java.nio.channels.ServerSocketChannel.open();
+			boolean ok = false;
+			try {
+				ssc.socket().bind(new java.net.InetSocketAddress(port));
+				ServerSocket serverSocket = ssc.socket();
+				ok = true;
+				return serverSocket;
+			} finally {
+				if (!ok) {
+					try { ssc.close(); } catch (IOException e) { }
+				}
+			}
 		}
 
 		/**
@@ -1453,9 +1499,27 @@ class SslServerEndpointImpl extends Utilities {
 		/** The listen handle that accepted this connection */
 		private final SslListenHandle listenHandle;
 
-		/** The JSSE socket used for communication */
+		/**
+		 * The JSSE socket used for communication, or {@code null} when the
+		 * SSLEngine keystone path is driving TLS (the default for
+		 * channel-backed accepted sockets).  Non-null only for the
+		 * HTTPS/custom-serverSocketFactory fallback path.
+		 */
 		final SSLSocket sslSocket;
-        
+
+		/**
+		 * The {@code SSLEngine}-over-{@code SocketChannel} driver for the
+		 * direct SSL transport, or {@code null} when driving via
+		 * {@code sslSocket}.  Uses the same {@code SSLContext} +
+		 * {@code ServerAuthManager} + {@code SubjectCredentials} the socket
+		 * path used, so mTLS/SPIFFE client authentication is unchanged.
+		 */
+		final SslEngineChannel engineChannel;
+
+		/** The accepted peer address, for permission checks / context. */
+		private final java.net.InetAddress peerAddress;
+		private final int peerPort;
+
 		/** The inbound request handle for this connection. */
 		private final InboundRequestHandle requestHandle =
 			new InboundRequestHandle() { };
@@ -1496,22 +1560,59 @@ class SslServerEndpointImpl extends Utilities {
 			throws IOException
 		{
 			this.listenHandle = listenHandle;
-			sslSocket = (SSLSocket) listenHandle.listenEndpoint.getSSLSocketFactory().createSocket(
-				socket, socket.getInetAddress().getHostName(), socket.getPort(), true /* autoClose */);
-			sslSocket.setEnabledCipherSuites(getSupportedCipherSuites());
-
-			/* Need to put in server mode before requesting client auth. */
-			sslSocket.setUseClientMode(false);
-			sslSocket.setNeedClientAuth(true);
-		    //sslSocket.setWantClientAuth(true);
+			this.peerAddress = socket.getInetAddress();
+			this.peerPort = socket.getPort();
+			java.nio.channels.SocketChannel ch = socket.getChannel();
 			try {
-				session = sslSocket.getSession();
-				sslSocket.setEnableSessionCreation(false);
+				final SSLSession sess;
+				if (ch != null) {
+					/*
+					 * SSLEngine keystone path: drive the server-side TLS 1.3
+					 * handshake (server mode, mandatory client auth) over the
+					 * accepted channel.  Credential selection and client-cert
+					 * trust/SPIFFE validation run through the same
+					 * ServerAuthManager JSSE callbacks the socket path used.
+					 */
+					sslSocket = null;
+					javax.net.ssl.SSLContext sslContext =
+						listenHandle.listenEndpoint.getSSLContext();
+					SSLEngine engine = sslContext.createSSLEngine();
+					engine.setUseClientMode(false);
+					engine.setNeedClientAuth(true);
+					engine.setEnabledCipherSuites(getSupportedCipherSuites());
+					engineChannel = new SslEngineChannel(
+						engine, ch,
+						socket.getInetAddress() + ":" + socket.getPort());
+					/*
+					 * Drive the handshake inline on this (virtual) accept-loop
+					 * thread; delegated tasks run inline too (see
+					 * SslEngineChannel).  The accept loop is subject-neutral, so
+					 * client-auth credential selection reads the ServerAuthManager
+					 * captured subject, not an ambient thread subject.
+					 */
+					engineChannel.handshake();
+					sess = engine.getSession();
+				} else {
+					/*
+					 * Fallback (custom serverSocketFactory / HTTPS): channel-less
+					 * accepted socket, drive TLS via SSLSocket as before.
+					 */
+					engineChannel = null;
+					sslSocket = (SSLSocket) listenHandle.listenEndpoint.getSSLSocketFactory().createSocket(
+						socket, socket.getInetAddress().getHostName(), socket.getPort(), true /* autoClose */);
+					sslSocket.setEnabledCipherSuites(getSupportedCipherSuites());
+					/* Need to put in server mode before requesting client auth. */
+					sslSocket.setUseClientMode(false);
+					sslSocket.setNeedClientAuth(true);
+					sess = sslSocket.getSession();
+					sslSocket.setEnableSessionCreation(false);
+				}
+				session = sess;
 				cipherSuite = session.getCipherSuite();
 				if ("NULL".equals(getKeyExchangeAlgorithm(cipherSuite))) {
 					throw new SecurityException("Handshake failed: " + cipherSuite);
 				}
-				clientSubject = getClientSubject(sslSocket);
+				clientSubject = getClientSubject(session);
 				clientPrincipal = clientSubject != null
 					? ((X500Principal)
 					   clientSubject.getPrincipals().iterator().next())
@@ -1545,9 +1646,17 @@ class SslServerEndpointImpl extends Utilities {
 			StringBuilder sb = new StringBuilder();
 			sb.append(getClassName(this)).append("[");
 			if (session != null) sb.append(session).append(", ");
-			sb.append(listenHandle.listenEndpoint.serverHost).append(":").append(sslSocket.getLocalPort())
-				.append("<=").append(sslSocket.getInetAddress().getHostName())
-				.append(":").append(sslSocket.getPort()).append("]");
+			sb.append(listenHandle.listenEndpoint.serverHost).append(":");
+			if (sslSocket != null) {
+				sb.append(sslSocket.getLocalPort())
+					.append("<=").append(sslSocket.getInetAddress().getHostName())
+					.append(":").append(sslSocket.getPort());
+			} else {
+				sb.append("engine<=")
+					.append(peerAddress == null ? "?" : peerAddress.getHostName())
+					.append(":").append(peerPort);
+			}
+			sb.append("]");
 			return sb.toString();
 		}
 
@@ -1556,18 +1665,28 @@ class SslServerEndpointImpl extends Utilities {
 		/* inherit javadoc */
 		@Override
 		public InputStream getInputStream() throws IOException {
-			return sslSocket.getInputStream();
+			return engineChannel != null
+				? engineChannel.getInputStream()
+				: sslSocket.getInputStream();
 		}
 
 		/* inherit javadoc */
 		@Override
 		public OutputStream getOutputStream() throws IOException {
-			return sslSocket.getOutputStream();
+			return engineChannel != null
+				? engineChannel.getOutputStream()
+				: sslSocket.getOutputStream();
 		}
 
 		/* inherit javadoc */
 		@Override
 		public SocketChannel getChannel() {
+			/*
+			 * Always null: the raw SocketChannel carries ciphertext; the JERI
+			 * mux must read plaintext via the wrap/unwrap streams instead of
+			 * the raw channel (which would bypass TLS).  Matches the SSLSocket
+			 * transport, which likewise returned null here.
+			 */
 			return null;
 		}
 
@@ -1627,6 +1746,17 @@ class SslServerEndpointImpl extends Utilities {
 		 * fields if needed.
 		 */
 		private void decacheSession() {
+			if (engineChannel != null) {
+				/*
+				 * TLS 1.3 has no renegotiation, and the SSLEngine's session is
+				 * fixed after the handshake, so there is no "new handshake on
+				 * the socket" hazard to guard against here -- only validity.
+				 */
+				if (!session.isValid()) {
+					throw new SecurityException("Session invalid");
+				}
+				return;
+			}
 			SSLSession socketSession = sslSocket.getSession();
 			if (session == socketSession) {
 				return;
@@ -1649,8 +1779,7 @@ class SslServerEndpointImpl extends Utilities {
 		 * specified <code>SSLSocket</code>.  Returns null if the client is
 		 * anonymous.
 		 */
-		private Subject getClientSubject(SSLSocket socket) {
-			SSLSession session = socket.getSession();
+		private Subject getClientSubject(SSLSession session) {
 			try {
 				Certificate[] certificateChain = session.getPeerCertificates();
 				if (certificateChain != null
@@ -1697,7 +1826,10 @@ class SslServerEndpointImpl extends Utilities {
 			SecurityManager sm = System.getSecurityManager();
 			if (sm != null) {
 				try {
-					sm.checkAccept(sslSocket.getInetAddress().getHostAddress(), sslSocket.getPort());
+					java.net.InetAddress addr = (sslSocket != null)
+						? sslSocket.getInetAddress() : peerAddress;
+					int p = (sslSocket != null) ? sslSocket.getPort() : peerPort;
+					if (addr != null) sm.checkAccept(addr.getHostAddress(), p);
 					if (authPermission != null) sm.checkPermission(authPermission);
 				} catch (SecurityException e) {
 					if (logger.isLoggable(Levels.FAILED)) {
@@ -1766,7 +1898,9 @@ class SslServerEndpointImpl extends Utilities {
 						Collection context)
 		{
 			check(requestHandle);
-			Util.populateContext(context, sslSocket.getInetAddress());
+			java.net.InetAddress addr = (sslSocket != null)
+				? sslSocket.getInetAddress() : peerAddress;
+			if (addr != null) Util.populateContext(context, addr);
 			Util.populateContext(context, clientSubject);
 		}
 
@@ -1787,7 +1921,11 @@ class SslServerEndpointImpl extends Utilities {
 				logger.log(Level.FINE, "closing {0}", this);
 				closed = true;
 			}
-			sslSocket.close();
+			if (engineChannel != null) {
+				engineChannel.close();
+			} else {
+				sslSocket.close();
+			}
 			if (removeFromListener) listenHandle.noteConnectionClosed(this);
 		}
 	}

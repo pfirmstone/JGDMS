@@ -45,9 +45,24 @@ import net.jini.security.Security;
  * Implements an X509TrustManager that only trusts certificate chains whose
  * first certificate identifies one of a set of principals.
  *
- * 
+ * <p><b>Trust dispatch under the SSLEngine keystone path.</b> This class
+ * implements the plain {@link X509TrustManager} interface (its 2-arg
+ * {@code check{Client,Server}Trusted}).  It cannot also be an
+ * {@code X509ExtendedTrustManager}, because that is an abstract <em>class</em>
+ * and this type already extends {@link X509ExtendedKeyManager} (single
+ * inheritance).  Consequently, when TLS is driven by an {@code SSLEngine}, JSSE
+ * wraps this manager in its internal {@code AbstractTrustManagerWrapper}, whose
+ * engine overload calls back into these 2-arg methods.  The wrapper's hostname
+ * endpoint-identification is a no-op here because JGDMS never sets an
+ * endpoint-identification algorithm on the engine (it authenticates the peer by
+ * SPIFFE/X.500 identity via {@link #check}, not by hostname -- consistent with
+ * the {@code SSLSocket} and UDS transports).  The JGDMS SPIFFE/X.500 trust
+ * evaluation is therefore identical whether TLS is driven by a socket or an
+ * engine.
+ *
  */
-abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements X509TrustManager {
+abstract class FilterX509TrustManager extends X509ExtendedKeyManager
+    implements X509TrustManager {
 
     /* -- Fields -- */
 

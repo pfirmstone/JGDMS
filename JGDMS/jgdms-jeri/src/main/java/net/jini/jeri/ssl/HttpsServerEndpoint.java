@@ -872,8 +872,23 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
                                 SocketFactory socketFactory,
                                 ServerSocketFactory serverSocketFactory)
             {
-                super(serverSubject, serverPrincipals, serverHost, 
+                super(serverSubject, serverPrincipals, serverHost,
                         port, socketFactory, serverSocketFactory);
+            }
+
+            /**
+             * The HTTPS transport drives TLS over an {@code SSLSocket} layered
+             * on an HTTP-proxy tunnel, so it must NOT use the
+             * {@code ServerSocketChannel}-backed socket (which would route
+             * accepted connections down the SSLEngine keystone path).  Bind a
+             * plain {@code ServerSocket} (channel-less accepted sockets keep the
+             * SSLSocket path in {@code SslServerConnection}).
+             */
+            @Override
+            java.net.ServerSocket createServerSocket() throws IOException {
+                return serverSocketFactory != null
+                    ? serverSocketFactory.createServerSocket(port)
+                    : new java.net.ServerSocket(port);
             }
 
 	    @Override
