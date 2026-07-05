@@ -119,6 +119,24 @@ final class SslEngineChannel {
     /** True once the inbound side has seen close_notify / EOF. */
     private volatile boolean inboundClosed = false;
 
+    /**
+     * Default handshake read timeout (ms): a GENEROUS bound so a stalled /
+     * slowloris peer cannot pin the single accept-loop thread forever, while
+     * never breaking a legitimately slow-but-progressing handshake.  A peer that
+     * sends <em>nothing</em> for this long during the handshake is treated as
+     * dead.  Overridable via the system property.
+     */
+    static final long DEFAULT_HANDSHAKE_TIMEOUT_MILLIS =
+        Long.getLong("org.apache.river.jeri.ssl.handshakeTimeout", 60_000L);
+
+    /**
+     * Absolute deadline (System.currentTimeMillis()) by which each handshake
+     * read must make progress, or 0 for no deadline.  Set only while the
+     * handshake runs; application-data reads are never deadline-bounded (they
+     * block normally on the JERI request lifecycle).
+     */
+    private long handshakeReadDeadline = 0L;
+
     private final InputStream in = new EngineInputStream();
     private final OutputStream out = new EngineOutputStream();
 
@@ -183,6 +201,26 @@ final class SslEngineChannel {
      * @throws IOException on channel failure or premature EOF
      */
     void handshake() throws IOException {
+        handshake(DEFAULT_HANDSHAKE_TIMEOUT_MILLIS);
+    }
+
+    /**
+     * Runs the handshake with a read-progress deadline (F2): each blocking read
+     * of peer handshake ciphertext must make progress within {@code
+     * timeoutMillis}, or the handshake fails with an {@link SSLException}.  This
+     * bounds a stalled / slowloris peer that would otherwise pin the (single)
+     * accept-loop thread indefinitely -- the accept thread runs the handshake
+     * synchronously and the unwrap/fillNetIn loop would otherwise block forever
+     * on a peer that connects but never sends.  The bound is on <em>inactivity
+     * per read</em>, not total handshake time, so a legitimately slow-but-
+     * progressing handshake is never broken.
+     *
+     * @param timeoutMillis per-read progress timeout; {@code <= 0} disables it
+     */
+    void handshake(long timeoutMillis) throws IOException {
+        this.handshakeReadDeadline = (timeoutMillis > 0)
+            ? addClamped(System.currentTimeMillis(), timeoutMillis)
+            : 0L;
         /*
          * Drive the handshake under doPrivileged: JSSE's internal cert-path
          * validation and record I/O need incidental permissions (e.g.
@@ -206,7 +244,16 @@ final class SslEngineChannel {
                 throw (IOException) cause;
             }
             throw new IOException("TLS handshake failed", cause);
+        } finally {
+            // Application-data reads are never deadline-bounded.
+            this.handshakeReadDeadline = 0L;
         }
+    }
+
+    /** Adds two non-negative longs, clamping overflow to Long.MAX_VALUE. */
+    private static long addClamped(long a, long b) {
+        long sum = a + b;
+        return (sum < a) ? Long.MAX_VALUE : sum;
     }
 
     private void handshake0() throws IOException {
@@ -520,8 +567,67 @@ final class SslEngineChannel {
         if (!netIn.hasRemaining()) {
             growNetIn();
         }
+        if (handshakeReadDeadline > 0L) {
+            return fillNetInByDeadline();
+        }
         int n = channel.read(netIn);
         return n >= 0;
+    }
+
+    /**
+     * F2: reads ciphertext into {@code netIn} with a per-read progress deadline
+     * (handshake only).  Temporarily puts the channel in non-blocking mode and
+     * waits on a {@link java.nio.channels.Selector} for readability up to the
+     * remaining time; a read that makes no progress by the deadline fails the
+     * handshake with an {@link SSLException} (a stalled/slowloris peer).  The
+     * channel is always restored to blocking mode before returning, so
+     * application-data I/O is unaffected.
+     */
+    private boolean fillNetInByDeadline() throws IOException {
+        java.nio.channels.Selector selector = null;
+        boolean wasBlocking = channel.isBlocking();
+        try {
+            channel.configureBlocking(false);
+            selector = java.nio.channels.Selector.open();
+            channel.register(selector, java.nio.channels.SelectionKey.OP_READ);
+            for (;;) {
+                long remaining = handshakeReadDeadline - System.currentTimeMillis();
+                if (remaining <= 0L) {
+                    throw new SSLException(
+                        "TLS handshake read timed out on " + label
+                        + " (no peer progress within the handshake timeout) -- "
+                        + "fail-secure against a stalled/slowloris peer");
+                }
+                int ready = selector.select(remaining);
+                if (ready == 0) {
+                    // select() woke with nothing ready: either the deadline
+                    // elapsed (loop re-checks) or a spurious wakeup (retry).
+                    continue;
+                }
+                selector.selectedKeys().clear();
+                int n = channel.read(netIn);
+                if (n < 0) {
+                    return false; // clean EOF
+                }
+                if (n > 0) {
+                    return true;  // progress made
+                }
+                // n == 0: readable but no bytes yet; loop until deadline.
+            }
+        } finally {
+            if (selector != null) {
+                try { selector.close(); } catch (IOException e) { }
+            }
+            // Restore blocking mode for application-data I/O (best effort; if the
+            // channel was already closed this throws harmlessly).
+            try {
+                if (wasBlocking && channel.isOpen()) {
+                    channel.configureBlocking(true);
+                }
+            } catch (IOException e) {
+                // channel closing concurrently; the caller handles the failure.
+            }
+        }
     }
 
     private void growNetOut() {

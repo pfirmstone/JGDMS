@@ -1579,7 +1579,17 @@ class SslServerEndpointImpl extends Utilities {
 					SSLEngine engine = sslContext.createSSLEngine();
 					engine.setUseClientMode(false);
 					engine.setNeedClientAuth(true);
-					engine.setEnabledCipherSuites(getSupportedCipherSuites());
+					/*
+					 * Pin the protocol to TLS 1.3 and the cipher suites, via
+					 * SSLParameters.  Pinning TLS 1.3 ENFORCES the "no
+					 * renegotiation" premise the engine path relies on to drop
+					 * the SSLSocket identity-swap guard (see decacheSession),
+					 * rather than assuming it from the SSLContext default.
+					 */
+					javax.net.ssl.SSLParameters params = engine.getSSLParameters();
+					params.setCipherSuites(getSupportedCipherSuites());
+					params.setProtocols(new String[]{ "TLSv1.3" });
+					engine.setSSLParameters(params);
 					engineChannel = new SslEngineChannel(
 						engine, ch,
 						socket.getInetAddress() + ":" + socket.getPort());
@@ -1592,6 +1602,19 @@ class SslServerEndpointImpl extends Utilities {
 					 */
 					engineChannel.handshake();
 					sess = engine.getSession();
+					/*
+					 * Fail-closed: the negotiated protocol MUST be TLS 1.3
+					 * (belt-and-suspenders with setProtocols above), and no new
+					 * session may be created on this engine afterward -- the
+					 * SSLSocket path's setEnableSessionCreation(false), restored.
+					 */
+					if (!"TLSv1.3".equals(sess.getProtocol())) {
+						throw new SecurityException(
+							"Refusing non-TLS-1.3 connection: negotiated "
+							+ sess.getProtocol()
+							+ " (the SSLEngine transport requires TLS 1.3)");
+					}
+					engine.setEnableSessionCreation(false);
 				} else {
 					/*
 					 * Fallback (custom serverSocketFactory / HTTPS): channel-less
@@ -1748,12 +1771,23 @@ class SslServerEndpointImpl extends Utilities {
 		private void decacheSession() {
 			if (engineChannel != null) {
 				/*
-				 * TLS 1.3 has no renegotiation, and the SSLEngine's session is
-				 * fixed after the handshake, so there is no "new handshake on
-				 * the socket" hazard to guard against here -- only validity.
+				 * The engine path drops the SSLSocket path's "new handshake
+				 * occurred" identity-swap guard because TLS 1.3 has no
+				 * renegotiation.  That premise is ENFORCED, not assumed: the
+				 * handshake pinned the protocol to TLS 1.3 and called
+				 * setEnableSessionCreation(false).  Re-assert it fail-closed on
+				 * every request so a session whose protocol is somehow not TLS
+				 * 1.3 (which would be renegotiable, reopening the swap hazard)
+				 * is rejected rather than trusted.
 				 */
 				if (!session.isValid()) {
 					throw new SecurityException("Session invalid");
+				}
+				if (!"TLSv1.3".equals(session.getProtocol())) {
+					throw new SecurityException(
+						"Refusing request on a non-TLS-1.3 session ("
+						+ session.getProtocol() + "): the SSLEngine transport's "
+						+ "no-renegotiation guarantee holds only for TLS 1.3");
 				}
 				return;
 			}

@@ -405,6 +405,16 @@ class SslConnection extends Utilities implements Connection {
 		engine.getSupportedCipherSuites(), callContext.cipherSuites);
 	    SSLParameters params = engine.getSSLParameters();
 	    params.setCipherSuites(ciphers);
+	    /*
+	     * Pin the protocol to TLS 1.3.  The engine path relies on "TLS 1.3
+	     * has no renegotiation" to drop the SSLSocket path's mid-stream
+	     * identity-swap guard; that premise must be ENFORCED, not assumed, so
+	     * a TLS 1.2 (renegotiable) handshake is structurally excluded here
+	     * rather than merely by the default SSLContext protocol.  The engine
+	     * still fail-closes at decacheSession if the negotiated protocol is
+	     * not TLSv1.3 (SslEngineChannel.getSession()/decacheSession).
+	     */
+	    params.setProtocols(new String[]{ "TLSv1.3" });
 	    engine.setSSLParameters(params);
 
 	    final SslEngineChannel ec = new SslEngineChannel(
@@ -417,9 +427,34 @@ class SslConnection extends Utilities implements Connection {
 	     * SslEngineChannel.runDelegatedTasks) -- the explicit, tested
 	     * virtual-thread-first policy the QUIC engine loop also assumes.
 	     */
-	    ec.handshake();
-	    engineChannel = ec;
+	    /*
+	     * Bound each handshake read by the call context's connection deadline
+	     * when one is set (mirroring connectChannelAddress), else the generous
+	     * default inactivity timeout -- a stalled peer cannot hang the caller.
+	     */
+	    ec.handshake(clientHandshakeTimeout(callContext.connectionTime));
 	    session = engine.getSession();
+	    /*
+	     * Fail-closed: the negotiated protocol MUST be TLS 1.3.  Belt-and-
+	     * suspenders with setProtocols above -- if anything (a future SSLContext
+	     * default, a provider quirk) let a non-1.3 protocol through, reject the
+	     * connection rather than run without the renegotiation guarantee.
+	     */
+	    if (!"TLSv1.3".equals(session.getProtocol())) {
+		throw new SSLException(
+		    "Refusing non-TLS-1.3 client connection: negotiated "
+		    + session.getProtocol()
+		    + " (the SSLEngine transport requires TLS 1.3)");
+	    }
+	    /*
+	     * Restore the SSLSocket path's post-handshake setEnableSessionCreation
+	     * (false): once the session is established, no new session may be
+	     * created on this engine.  Under TLS 1.3 this blocks any post-handshake
+	     * session establishment, closing the "new handshake on the connection"
+	     * hazard by construction.
+	     */
+	    engine.setEnableSessionCreation(false);
+	    engineChannel = ec;
 	    activeCipherSuite = session.getCipherSuite();
 	    releaseClientSSLContextInfo(callContext, sslContext, authManager);
 	    ok = true;
@@ -433,7 +468,26 @@ class SslConnection extends Utilities implements Connection {
 	}
     }
 
-	
+    /**
+     * The per-read handshake progress timeout (F2) for a client engine
+     * handshake: the remaining time until the call context's absolute
+     * connection deadline when one is set (never negative), else the generous
+     * default.  {@code connectionTime == -1} means "no deadline" -> the default.
+     */
+    private static long clientHandshakeTimeout(long connectionTime) {
+	if (connectionTime == -1) {
+	    return SslEngineChannel.DEFAULT_HANDSHAKE_TIMEOUT_MILLIS;
+	}
+	long remaining = connectionTime - System.currentTimeMillis();
+	if (remaining <= 0) {
+	    /* Deadline already passed; use a minimal positive bound so the
+	     * handshake fails fast rather than blocking. */
+	    return 1L;
+	}
+	return Math.min(remaining, SslEngineChannel.DEFAULT_HANDSHAKE_TIMEOUT_MILLIS);
+    }
+
+
     /**
      * Attempts to establish the call context and suites on the current socket.
      *

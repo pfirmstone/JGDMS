@@ -357,6 +357,102 @@ public class SslEngineChannelTest {
         return f;
     }
 
+    /**
+     * F2: a peer that opens the TCP connection but sends NOTHING during the
+     * handshake must not pin the handshaking thread forever -- the read-progress
+     * deadline fails the handshake with a bounded {@link javax.net.ssl.SSLException},
+     * not an indefinite block.  Uses a short timeout so the test is fast.
+     */
+    @Test
+    public void testHandshakeReadDeadlineRejectsSilentPeer() throws Exception {
+        Path dir = Files.createTempDirectory("ssl-engine-slowloris");
+        try {
+            SSLContext ctx = newContext(dir);
+            try (ServerSocketChannel ssc = ServerSocketChannel.open()) {
+                ssc.socket().bind(new InetSocketAddress("localhost", 0));
+                int port = ssc.socket().getLocalPort();
+
+                // A "silent" peer: accept the connection but never send a byte.
+                final AtomicReference<SocketChannel> accepted = new AtomicReference<>();
+                Thread silent = Thread.ofVirtual().start(() -> {
+                    try {
+                        accepted.set(ssc.accept()); // hold it open, send nothing
+                    } catch (Throwable ignore) { }
+                });
+
+                SocketChannel ch = SocketChannel.open(
+                    new InetSocketAddress("localhost", port));
+                SSLEngine engine = ctx.createSSLEngine("localhost", port);
+                engine.setUseClientMode(true);
+                SslEngineChannel client = new SslEngineChannel(engine, ch, "client");
+
+                long t0 = System.currentTimeMillis();
+                try {
+                    client.handshake(400L); // 400ms progress deadline
+                    Assert.fail("handshake against a silent peer must time out, not hang");
+                } catch (javax.net.ssl.SSLException expected) {
+                    long elapsed = System.currentTimeMillis() - t0;
+                    Assert.assertTrue("must fail promptly at the deadline (was " + elapsed + "ms)",
+                        elapsed < 5000);
+                } finally {
+                    try { client.close(); } catch (Exception ignore) { }
+                    silent.join(2000);
+                    SocketChannel a = accepted.get();
+                    if (a != null) try { a.close(); } catch (Exception ignore) { }
+                }
+            }
+        } finally {
+            deleteDir(dir);
+        }
+    }
+
+    /**
+     * F1: the engine negotiates TLS 1.3 (the transport pins it and the
+     * decacheSession/establish assertions require it).  Confirms the handshake's
+     * session protocol is exactly {@code TLSv1.3}.
+     */
+    @Test
+    public void testNegotiatedProtocolIsTls13() throws Exception {
+        Path dir = Files.createTempDirectory("ssl-engine-proto");
+        try {
+            SSLContext ctx = newContext(dir);
+            try (ServerSocketChannel ssc = ServerSocketChannel.open()) {
+                ssc.socket().bind(new InetSocketAddress("localhost", 0));
+                int port = ssc.socket().getLocalPort();
+                final AtomicReference<Throwable> serverError = new AtomicReference<>();
+                final AtomicReference<String> serverProto = new AtomicReference<>();
+                Thread server = Thread.ofVirtual().start(() -> {
+                    try (SocketChannel sc = ssc.accept()) {
+                        SSLEngine e = ctx.createSSLEngine();
+                        e.setUseClientMode(false);
+                        SslEngineChannel s = new SslEngineChannel(e, sc, "server");
+                        s.handshake();
+                        serverProto.set(s.getSession().getProtocol());
+                    } catch (Throwable t) { serverError.set(t); }
+                });
+                SocketChannel ch = SocketChannel.open(
+                    new InetSocketAddress("localhost", port));
+                SSLEngine engine = ctx.createSSLEngine("localhost", port);
+                engine.setUseClientMode(true);
+                javax.net.ssl.SSLParameters p = engine.getSSLParameters();
+                p.setProtocols(new String[]{ "TLSv1.3" });
+                engine.setSSLParameters(p);
+                SslEngineChannel client = new SslEngineChannel(engine, ch, "client");
+                client.handshake();
+                Assert.assertEquals("client session protocol", "TLSv1.3",
+                    client.getSession().getProtocol());
+                server.join(10_000);
+                if (serverError.get() != null) {
+                    throw new AssertionError("server failed", serverError.get());
+                }
+                Assert.assertEquals("server session protocol", "TLSv1.3", serverProto.get());
+                client.close();
+            }
+        } finally {
+            deleteDir(dir);
+        }
+    }
+
     // ------------------------------------------------------------ helpers
 
     private static String keytool() {
