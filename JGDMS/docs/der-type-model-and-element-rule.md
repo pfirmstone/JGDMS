@@ -380,6 +380,26 @@ AnyElement ::= CHOICE {
   concrete gain over the superseded `SEQUENCE{tag,body Element}` form, whose `Element`-`OCTET STRING`
   stub *would* have wrapped and broken this.)
 
+**F3 caveat — the value-equality claim above holds PER DISCIPLINE CLASS, not across disciplines.**
+The preceding bullet's "same post-tag bytes" claim is precise for a fixed collection **discipline**
+(§2, §3.8): byte-equality through `Any` holds between equal values *of the same collection-discipline
+class* — two `HashSet`-typed elements, or two `LinkedHashSet`-typed elements, that are `.equals` and
+carry the same discipline encode to identical bytes under `Any`, exactly as they would as declared
+elements. It does **not** hold, and is not claimed to hold, **across** differently-disciplined
+collections that happen to be `.equals`. `HashSet` and `LinkedHashSet` holding the same elements are
+`.equals()` (`Set.equals` is order-independent), but `disciplineFor(Class)` (§0) derives the wire
+discipline from the **runtime class**, not from `.equals`-identity: a `HashSet` is `canonicalCollection`
+(`set:`, octet-sorted, tag `[30]`), a `LinkedHashSet` is `orderedCollection` (`orderedset:`,
+insertion-order-preserved, tag `[31]`). The two therefore encode under **different** `Any` context tags
+and, in general, **different byte sequences** — a `.equals` pair that is *not* byte-equal through `Any`.
+This is not a defect in the CHOICE design; it is the same discipline-follows-runtime-class rule §3.8
+already states for declared-element collections (a `HashSet` field and a `LinkedHashSet` field are
+never claimed to be byte-interchangeable either), restated here so "value-equality through `Any`" is
+not misread as "value-equality regardless of collection discipline." The precise, conformance-testable
+statement: for `Any` elements `a`, `b` of the **same** discipline class, `a.equals(b) ⟹` (with
+canonical/octet-sorted encoding) `encode(a) == encode(b)`; no such implication is made or holds **across**
+discipline classes, even when the JDK-level `.equals` happens to return `true`.
+
 ### 4.3 The four SECURITY FENCES (NORMATIVE decoder obligations, each conformance-tested)
 
 `Any` moves decode dispatch from the fixed, digest-covered **schema token** to **attacker-controlled
@@ -688,7 +708,10 @@ build-time board pass — no code is proposed for merge here.
   octet-sort category-grouping is a
   *provable* property of the leading tag; no `OCTET STRING` wrapper (value-equality-of-payload
   preserved); the built `compareOctets` prefix/trailing-zero comparator applies unchanged. Rule-selected
-  fallback only, at a stated coverage/compactness cost.
+  fallback only, at a stated coverage/compactness cost. **F3 caveat (§4.2):** the value-equality claim
+  is scoped **per collection-discipline class** — two `.equals` collections of *different* discipline
+  (e.g. `HashSet` vs `LinkedHashSet`) do **not** encode byte-identically through `Any`, because the
+  discipline is derived from the runtime class, not from `.equals`.
 - **Four fences (NORMATIVE, §4.3, each conformance-tested):** (a) `MAX_NESTING` threaded through every
   `Any`→collection / `Any`→object recursion; (b) `Any` object body reconstructed through the SAME
   `DeSerializationPermission("ATOMIC")` gate + endpoint `ResolutionContext` + `check(GetArg)` — `Any` is

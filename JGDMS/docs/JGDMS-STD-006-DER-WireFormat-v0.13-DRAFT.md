@@ -74,6 +74,26 @@
 > - **§7.8 — schema-identity comment corrected**: `className` is part of
 >   `AtomicSerialSchemaRecord`, so identical field lists under different class names
 >   hash differently (the previous wording claimed otherwise).
+> - *(type-model-pinning addendum, 2026-07-05)* — **§3.12 (new subsection) "Wire
+>   Type Model."** Pins, as normative STD-006 text, the closed-subset type algebra
+>   from `docs/der-type-model-and-element-rule.md` (board-reviewed design memo):
+>   `Scalar | AtomicSerialObject | Collection(WireType…) | Any`, the
+>   declaration-based element-derivation rule (no annotation — the developer's
+>   existing generic declaration is the sole signal, mirroring §3.8's
+>   declared-class ordering discriminator), the exclusion boundary (no raw
+>   `Object` graphs outside `Any`, no arbitrary `Serializable`, no cycles), the
+>   `Any` `CHOICE` form and its context-tag registry (scalars `[0]`-`[9]`
+>   `IMPLICIT`; `atomicSerialObject [20]`, `canonicalCollection [30]`,
+>   `orderedCollection [31]` `EXPLICIT` so each arm's own load-bearing outer tag
+>   survives, X.680 §31.2.7), and the four decoder fences as normative
+>   obligations (`MAX_NESTING` through every `Any` recursion; the `Any` object
+>   body gated through the identical `DeSerializationPermission("ATOMIC")` +
+>   `ResolutionContext` + `check(GetArg)` path, hierarchy-wide; unknown/mismatched
+>   tag hard reject; canonical minimal tag encoding). Cross-references §3.8
+>   (ordering discriminator, octet-sort) and §7.6 (the six collection
+>   productions). Corresponding `.asn1` `AnyElement CHOICE` production added
+>   (`docs/asn1/JGDMS-STD-006-v0.13.asn1`), compiled and validated with
+>   asn1tools.
 > - *(review addendum, 2026-07-04)* — ASN.1 grammar validation (open item 20,
 >   `docs/asn1/`): value references renamed to conformant case (`maxFields` …,
 >   `leaseForever`/`leaseAny`); §7.2/§7.3 ceilings promoted from comments to value
@@ -683,6 +703,204 @@ independence is never compromised by the evolution or retirement of code.
 
 ---
 
+### 3.12 Wire Type Model (NORMATIVE)
+
+STD-006's wire type system is a **closed subset**, closed under recursive
+composition — a type algebra over three base categories plus a self-describing
+`Any` form. This section is the normative statement of that algebra; §7.6 (the six
+collection productions) and §4.5 (the `Any` tag registry, tag-encoding discipline)
+are its concrete ASN.1 realisation.
+
+```
+WireType  ::=  Scalar
+            |  AtomicSerialObject          -- a schema-digest-identified @AtomicSerial record
+            |  Collection(WireType…)       -- set/bag/orderedset/list/map/orderedmap over WireType(s)
+            |  Any                          -- the self-describing CHOICE over the three above
+
+Scalar             ::= boolean | byte | short | int | long | float | double | char
+                     | java.lang.String | byte[]              -- the built scalar set
+AtomicSerialObject ::= "@AtomicSerial"                        -- concrete class travels via the embedded schema chain (§3.9-§3.11)
+Collection(E)      ::= "set:"E | "bag:"E | "orderedset:"E | "list:"E
+Collection(K,V)    ::= "map:{"K"}{"V"}" | "orderedmap:{"K"}{"V"}"
+Any                ::= [n] IMPLICIT/EXPLICIT CHOICE over Scalar | AtomicSerialObject | Collection
+```
+
+**Closure.** The set is closed under `Collection`: `Set<Map<String,List<Foo>>>` is a
+legal `WireType` because each nesting level is again one of the categories.
+Recursion bottoms out at a scalar, an `@AtomicSerial` object, or `Any`.
+
+**Element-derivation rule (declaration-based, no annotation).** For a collection
+field, the element wire-type is derived from the field's **declared generic type**
+(the `ParameterizedType` the JDK retains in the class file's generic `Signature`
+attribute, JVMS §4.7.9 — recovered via `Field.getGenericType()`), applied
+recursively; for a map, the key and value types are recovered and resolved
+independently. This is the same discriminator discipline as §3.8's ordering
+rule (which keys on the declared collection *class*): the developer's existing
+declaration is the sole signal, and **no annotation is read or required.** A
+declared element type that is unresolvable at the declaration site — a raw
+collection, an unbounded or lower-bounded wildcard, an `Object` element, or a type
+variable in a generic `@AtomicSerial` class — resolves to `Any` (below); a bounded
+wildcard `? extends B` resolves to `rule(B)`, the upper bound, and remains fully
+typed (not `Any`). The rule is total: every field resolves either to a concrete
+closed-subset wire-type or to `Any`; `Any` is a rule-selected fallback, never a
+developer choice and never the default for a resolvable type.
+
+**The exclusion boundary.** The model deliberately excludes, and a conformant
+schema/encoder MUST NOT admit:
+
+1. **Raw arbitrary `Object` graphs.** A field typed `Object` (or a collection whose
+   element type is `Object`) has no closed-subset structural type and is not
+   silently promoted to "carry anything." It is admissible *only* through the `Any`
+   form, and even then only as one of {scalar, `@AtomicSerial` object, collection}
+   — never an arbitrary graph. (An interface/abstract-typed field is not a raw
+   `Object`: it is a polymorphic `@AtomicSerial` slot whose concrete class
+   self-identifies via the schema digest, already covered by the
+   `AtomicSerialObject` category.)
+2. **Arbitrary `Serializable`.** "Any object with a class descriptor" is exactly
+   what this standard refuses: it serialises the implementation, defeats
+   cross-language consumption and value-equality, and is a gadget surface. Only
+   the `@AtomicSerial` closed record form is admitted.
+3. **Cycles.** The model is a finite tree (DAG-free by construction): no
+   back-references, no object identity on the wire (§3.7). The type model is the
+   structural counterpart of that acyclicity requirement.
+
+These three exclusions are what make cross-language production/consumption,
+byte-level value-equality, and DER canonicity simultaneously achievable;
+admitting any one back would forfeit at least one of the other two.
+
+**The `Any` CHOICE.** `Any` is a context-tagged `CHOICE` over the closed-subset
+categories — one context tag per category, no `ENUMERATED` discriminator and no
+`tag`+`body` `SEQUENCE` wrapper. The `CHOICE`'s context tag **is** the category
+discriminator, carried in place on the element's own encoding:
+
+```asn1
+AnyElement ::= CHOICE {
+    scalarBoolean        [0]  IMPLICIT BOOLEAN,
+    scalarByte           [1]  IMPLICIT INTEGER,
+    scalarShort          [2]  IMPLICIT INTEGER,
+    scalarInt            [3]  IMPLICIT INTEGER,
+    scalarLong           [4]  IMPLICIT INTEGER,
+    scalarFloat          [5]  IMPLICIT OCTET STRING,   -- IEEE-754 32-bit, strict-canonical (§7.6, STD-008 §17.3.1)
+    scalarDouble         [6]  IMPLICIT OCTET STRING,   -- IEEE-754 64-bit, strict-canonical
+    scalarChar           [7]  IMPLICIT INTEGER,         -- Unicode codepoint (BMP non-surrogate)
+    scalarString         [8]  IMPLICIT UTF8String,
+    scalarBytes          [9]  IMPLICIT OCTET STRING,    -- a byte[] element
+    -- gap [10..19] RESERVED for future scalar categories
+    atomicSerialObject   [20] EXPLICIT AtomicSerialRecord,  -- schema digest travels in the embedded chain; EXPLICIT preserves the record's own tag
+    -- gap [21..29] RESERVED
+    canonicalCollection  [30] EXPLICIT CanonicalCollection, -- SET OF 0x31 (set:/bag:/map:); outer tag preserved under EXPLICIT
+    orderedCollection    [31] EXPLICIT OrderedCollection    -- SEQUENCE OF 0x30 (orderedset:/list:/orderedmap:); outer tag preserved
+}
+```
+
+- **Scalars `[0]`-`[9]` are `IMPLICIT`**: a cross-language reader determines the
+  primitive category from the context tag alone, and the value bytes past the tag
+  are the scalar's ordinary canonical DER — no wrapper.
+- **`atomicSerialObject [20]` is `EXPLICIT`, not `IMPLICIT`.** The inner
+  `AtomicSerialRecord`'s own tag (a `SEQUENCE` for most records, a proxy-record
+  tag for a substituted `@AtomicSerial` class, or DER `NULL` for a stateless
+  record) is itself load-bearing: a decoder recognises the record's shape from
+  that tag before it ever reads the schema digest. `IMPLICIT` would overwrite that
+  tag in place; X.680 §31.2.7 forbids `IMPLICIT`-tagging a `CHOICE`/`ANY`
+  alternative whose own outer tag carries meaning (§4.6 states the same rule for
+  this standard's tagging mode generally). `EXPLICIT` wraps the tag instead, so
+  the inner record's tag survives underneath it.
+- **`canonicalCollection [30]`/`orderedCollection [31]` are `EXPLICIT`** for the
+  identical reason: the inner `SET OF` (`0x31`)/`SEQUENCE OF` (`0x30`) outer tag
+  is the §3.8/§7.6 preserve-vs-canonicalise discriminator and MUST survive.
+  `IMPLICIT` would destroy that discriminator the same way it would the
+  `atomicSerialObject` record's tag.
+
+**Value-equality is preserved (no wrapper leak).** Under an `[n] IMPLICIT` scalar
+tag, the value's bytes past the leading tag octet are unchanged from how the value
+would encode with a declared type; under the `atomicSerialObject`/collection
+`EXPLICIT` arms, the inner record/collection encoding is byte-identical to the
+declared-element form, wrapped rather than overwritten. A value that appears both
+in a declared-element collection and in an `Any` collection therefore has the same
+post-tag bytes. See §4.2 of `docs/der-type-model-and-element-rule.md` for the
+exact scope of this claim (it holds between equal values of the *same*
+collection-discipline class; it does not claim byte-equality between differently
+disciplined collections that happen to be `.equals`).
+
+**Octet-sort category-grouping is a theorem, not an accident.** Because the
+context tag is the leading octet of every `AnyElement` encoding and tags are
+distinct and ordered, X.690 §11.6 octet-sort (§3.8, §7.6) groups a canonicalise
+collection of `Any` elements by category first, then by value within a category —
+a provable property of the leading tag.
+
+**The four decoder fences (NORMATIVE decoder obligations, each conformance-tested
+per §9).** `Any` moves decode dispatch from the fixed, digest-covered schema
+token to attacker-controlled per-element bytes. That shift is safe only behind
+four fences, each a MUST for every conformant decoder (JVM and non-JVM):
+
+1. **`MAX_NESTING` threaded through every `Any` recursion.** The decoder MUST
+   carry a depth counter and decrement/bound it on every
+   `Any`→`canonicalCollection`/`orderedCollection` step *and* every
+   `Any`→`atomicSerialObject` step (whose record may itself contain `Any`-typed
+   fields), rejecting before the bound is exceeded. Under a declared type the
+   schema token bounds structural depth; under `Any`, nesting depth is
+   attacker-controlled, so unbounded recursion is a StackOverflow DoS.
+2. **The same `@AtomicSerial` reconstruction gate — `Any` is not a second door.**
+   An `Any` `atomicSerialObject [20]` body MUST be reconstructed through the
+   identical path as a typed `@AtomicSerial` element: the
+   `DeSerializationPermission("ATOMIC")` gate, the endpoint `ResolutionContext`,
+   and the class's `check(GetArg)`/deserialising constructor, applied
+   hierarchy-wide. `Any` MUST NOT provide an ungated or differently-gated route
+   to object reconstruction.
+3. **Unknown or mismatched tag → hard reject (fail-secure).** A context tag not
+   in the pinned registry (§4.5) — including a reserved-gap tag (`[10]`-`[19]`,
+   `[21]`-`[29]`) and any tag `> [31]` — MUST be a decode error. The decoder MUST
+   NOT skip the element, MUST NOT default it to any category, MUST NOT continue.
+   In the `CHOICE` form this is largely automatic (an unlisted alternative is a
+   `CHOICE` decode error), but it is stated normatively so no implementation
+   "tolerantly" skips a reserved or out-of-range tag.
+4. **Canonical minimal tag encoding + deterministic value-to-category mapping.**
+   The context tag MUST be in minimal (definite short/long-form) DER tag
+   encoding, and every value MUST map to exactly one category tag (a `String`
+   value is always `[8]`, never `[9]`; an `int` is always `[3]`; a canonicalise
+   collection is always `[30]`, an ordered one always `[31]`). A non-minimal tag
+   encoding or a value encodable under two tags would give two byte forms for one
+   value, breaking both octet-sort and value-equality.
+
+Because an `Any` field's schema no longer commits element *types* (only the
+container is coerced; the elements are not), per-element type validation shifts
+entirely onto the developer's `check(GetArg)` for any field that resolves to
+`Any`. The fences above make `Any` safe to decode; they do not make its elements
+the types the developer expects — that is the receiving class's responsibility.
+
+**The `Any` tag registry (PINNED NORMATIVE).** There is no separate `ENUMERATED`
+to maintain: the `CHOICE`'s context tags above **are** the registry. The full
+pinned assignment, registry rules, and reserved-gap disposition are stated in
+§4.5, alongside this standard's other distinct-tag and tag-encoding obligations;
+the assignment is repeated here for convenience:
+
+| Context tag | Category | Tagging |
+|---|---|---|
+| `[0]`-`[9]` | scalars (bool, byte, short, int, long, float, double, char, String, byte[]) | `IMPLICIT` |
+| `[10]`-`[19]` | **RESERVED** (future scalar categories) | — |
+| `[20]` | `@AtomicSerial` object | `EXPLICIT` |
+| `[21]`-`[29]` | **RESERVED** | — |
+| `[30]` | canonicalise collection (`set:`/`bag:`/`map:`) | `EXPLICIT` |
+| `[31]` | ordered collection (`orderedset:`/`list:`/`orderedmap:`) | `EXPLICIT` |
+| `> [31]`, or any reserved-gap tag | **UNREGISTERED** — hard reject | — |
+
+The tag set is closed and versioned with the format: exactly three base
+categories exist (scalar, `@AtomicSerial` object, collection), so the shape of
+the registry is fixed; only within-category refinements (a new scalar, a future
+collection discipline) could ever consume a reserved gap, and only by a spec
+revision. A reserved tag is not decodable until a spec revision lists it — until
+then it is UNREGISTERED and hard-rejected, per fence 3 above.
+
+**Provenance.** This section pins, as normative STD-006 text, the type model and
+`Any` form developed in `docs/der-type-model-and-element-rule.md` (design memo,
+board-reviewed). That memo's §7 (the `SchemaGenerator` enabling mechanism) and its
+edge-case table (§6) remain implementation guidance, not spec text; nothing in
+this section requires a code change to be true of the wire format as designed —
+it requires a code change only to be *produced* by the current `SchemaGenerator`
+(the memo's deferred auto-wiring item).
+
+---
+
 ## 4. Encoding Conventions
 
 ### 4.1 Base Encoding
@@ -735,7 +953,11 @@ Where a collision would otherwise arise, the `OPTIONAL` component carries an
 counting how many same-tagged TLVs remain in the enclosing `SEQUENCE` — is
 **forbidden**: it is undecodable by schema-driven tooling and defeats the
 language-neutrality goal. (v0.13 fixed violations in §7.3, §7.6 `Permission`,
-§7.7.5, §7.7.7, and — by field deletion — §7.8.)
+§7.7.5, §7.7.7, and — by field deletion — §7.8.) The `Any` `CHOICE` (§3.12) is the
+same discipline applied to a `CHOICE` rather than a `SEQUENCE`: its context tags
+`[0]`-`[9]`, `[20]`, `[30]`, `[31]` are the pinned, closed **`Any` tag registry**
+(§3.12), with `[10]`-`[19]`/`[21]`-`[29]` reserved and any unregistered or
+out-of-range tag a hard decode reject.
 
 **No `DEFAULT` (NORMATIVE).** No module in this standard uses `DEFAULT`. DER
 (X.690 §11.5) requires a component equal to its `DEFAULT` value to be *omitted*
@@ -1281,6 +1503,8 @@ under §3.8 these collapse into a native, bounded `SEQUENCE OF` — the carrier'
 jobs (DOS bounding, immutability) are subsumed by the schema `SIZE` constraint and
 DER's read-only decoded structure. There is therefore **no `MapSerializer`,
 `SetSerializer`, or `ListSerializer` wire type.** A collection-valued field is:
+(These six productions are also the `canonicalCollection`/`orderedCollection`
+payload types wrapped by the `Any` `CHOICE`'s `EXPLICIT` collection arms — §3.12.)
 
 ```asn1
 -- Collection field types, one per ordering discipline (§3.8). The discipline is

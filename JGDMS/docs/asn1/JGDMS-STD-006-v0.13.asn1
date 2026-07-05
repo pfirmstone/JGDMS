@@ -2,7 +2,7 @@
 --
 -- Consolidated, COMPILING ASN.1 module for JGDMS-STD-006 (DER Wire Format) v0.13-DRAFT,
 -- assembled from the asn1-fenced snippets in:
---   JGDMS/docs/JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md  (sections 4.3, 4.5, 7.1-7.8)
+--   JGDMS/docs/JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md  (sections 3.12, 4.3, 4.5, 7.1-7.8)
 --
 -- This file is a VALIDATION ARTIFACT for open item 20 ("validate every ASN.1 module
 -- against a real ASN.1 compiler"). It is not itself normative; see the accompanying
@@ -11,6 +11,29 @@
 -- (NOT applied here; the spec source is untouched).
 --
 -- Compiled and round-trip-tested with Python asn1tools 0.167.0, the 'der' codec.
+--
+-- VALIDATION FINDING (type-model-pinning pass, 2026-07-05): the section 3.12
+-- AnyElement CHOICE's collection arms (canonicalCollection/orderedCollection)
+-- wrap CanonicalCollection/OrderedCollection, which are themselves CHOICEs over
+-- the three canonicalise (or three ordered) productions. CanonicalSet and
+-- CanonicalMultiset are structurally IDENTICAL ASN.1 productions (both
+-- SET SIZE(0..maxCollection) OF Element), so a naive untagged CHOICE between
+-- them is not tag-distinguishable per X.680 section 30.6. Confirmed
+-- empirically: an untagged CanonicalCollection encoded the 'set' and 'bag' arms
+-- to byte-identical octets, and asn1tools 0.167.0 hung (did not error) decoding
+-- it. Fixed by giving CanonicalCollection/OrderedCollection their own inner
+-- [0]/[1]/[2] IMPLICIT context tags (legal: SET OF/SEQUENCE OF are not
+-- themselves CHOICE/ANY types, so X.680 section 31.2.7 does not block IMPLICIT
+-- here), matching the ReducingDomainRecord pattern already in this module. This
+-- is exactly the failure mode section 3.12/4.3 fence (d) (canonical minimal tag
+-- encoding + deterministic value-to-category mapping) exists to prevent, and it
+-- was caught by the round-trip test this pass required, not by the compiler
+-- alone (the module still parsed without the inner tags; only decode hung).
+-- Verified after the fix: set/bag encode to different octets
+-- (be08a006040101040102 vs be08a106040101040102) and both round-trip correctly;
+-- a reserved-gap tag ([10]-[19]/[21]-[29]) and an out-of-range tag (>[31])
+-- both correctly hard-reject as CHOICE decode errors (fence (c)), confirming
+-- the "automatic in the CHOICE form" claim in the design memo.
 --
 -- ============================================================================
 -- TAGGING MODE DECISION
@@ -235,6 +258,86 @@ CanonicalMap      ::= SET      (SIZE(0..maxCollection)) OF SEQUENCE { key Elemen
 OrderedSetField   ::= SEQUENCE (SIZE(0..maxCollection)) OF Element
 ListField         ::= SEQUENCE (SIZE(0..maxCollection)) OF Element
 OrderedMapField   ::= SEQUENCE (SIZE(0..maxCollection)) OF SEQUENCE { key Element, value Element }
+
+-- ============================================================================
+-- Section 3.12 Wire Type Model: the Any self-describing element CHOICE
+--
+-- AnyElement is the rule-selected fallback wire form for a collection element
+-- whose declared generic type is unresolvable at the declaration site (a raw
+-- collection, an unbounded/lower-bounded wildcard, an Object element, or a
+-- type variable in a generic AtomicSerial class; section 3.12). It is a
+-- context-tagged CHOICE, not a SEQUENCE with a tag field and a body field:
+-- the CHOICE's own context tag IS the category discriminator, so there is no
+-- second field that can disagree with the payload's real category.
+--
+-- ILLUSTRATIVE: AtomicSerialRecord is stubbed as OCTET STRING (opaque
+-- per-record DER), matching the Element stub above; the real AtomicSerial
+-- record shape (a SEQUENCE for most records, a proxy-record form, or NULL for
+-- a stateless record; section 3.9/3.10) is class-specific and
+-- schema-digest-identified, not a single ASN.1 production. CanonicalCollection
+-- and OrderedCollection are CHOICEs over the three canonicalise / three
+-- preserve productions already defined above (section 7.6); the Any form's
+-- collection arms accept any of the six collection tokens, discriminated at
+-- that inner level by each production's own outer tag (0x31 for the three
+-- SET OF, 0x30 for the three SEQUENCE OF), which the EXPLICIT wrapping below
+-- preserves.
+AtomicSerialRecord ::= OCTET STRING
+
+-- CanonicalCollection / OrderedCollection arms carry their own inner context
+-- tags ([0]-[2] IMPLICIT). This is required, not stylistic: CanonicalSet and
+-- CanonicalMultiset are structurally identical ASN.1 productions (both
+-- SET SIZE(0..maxCollection) OF Element), so an untagged CHOICE between them
+-- is not tag-distinguishable (X.680 section 30.6 CHOICE distinct-tag rule) and
+-- the two arms would encode to byte-identical octets, breaking fence (d)'s
+-- deterministic value-to-category mapping (section 3.12/4.3). IMPLICIT is
+-- legal here (unlike on the AnyElement arms below): SET OF / SEQUENCE OF are
+-- not themselves CHOICE or ANY types, so X.680 section 31.2.7's restriction on
+-- IMPLICIT-tagging a CHOICE/ANY alternative does not apply, the same
+-- reasoning as ReducingDomainRecord's IMPLICIT arms above (section 4.6).
+-- The Any registry's own [30]/[31] EXPLICIT tags (below) still preserve the
+-- 0x31/0x30 SET OF/SEQUENCE OF outer tag one level up, as section 3.12 states;
+-- this inner tag is the additional, ASN.1-mandatory disambiguation between the
+-- three canonicalise (or three ordered) collection tokens sharing that outer tag.
+CanonicalCollection ::= CHOICE {
+    set  [0] IMPLICIT CanonicalSet,
+    bag  [1] IMPLICIT CanonicalMultiset,
+    map  [2] IMPLICIT CanonicalMap
+}
+
+OrderedCollection ::= CHOICE {
+    orderedset  [0] IMPLICIT OrderedSetField,
+    list        [1] IMPLICIT ListField,
+    orderedmap  [2] IMPLICIT OrderedMapField
+}
+
+-- Scalar arms [0]-[9] are IMPLICIT: a cross-language reader determines the
+-- primitive category from the context tag alone, and the value bytes past the
+-- tag are the scalar's ordinary canonical DER (no wrapper). The
+-- atomicSerialObject/canonicalCollection/orderedCollection arms are EXPLICIT
+-- because each payload's own outer tag is load-bearing (the record's own tag,
+-- section 3.9/3.10; the SET OF 0x31 / SEQUENCE OF 0x30 preserve-vs-canonicalise
+-- discriminator, section 3.8/7.6), and IMPLICIT would overwrite it in place:
+-- X.680 section 31.2.7 forbids IMPLICIT-tagging a CHOICE/ANY alternative whose
+-- own outer tag carries meaning. Gaps [10]-[19]/[21]-[29] are RESERVED (section
+-- 3.12/4.5 Any tag registry); a tag outside this CHOICE's listed alternatives
+-- is an unregistered tag, and a conformant decoder hard-rejects it (fence (c),
+-- section 3.12/4.3; in the CHOICE form this is automatic, since an unlisted
+-- alternative is itself a CHOICE decode error).
+AnyElement ::= CHOICE {
+    scalarBoolean        [0]  IMPLICIT BOOLEAN,
+    scalarByte           [1]  IMPLICIT INTEGER,
+    scalarShort          [2]  IMPLICIT INTEGER,
+    scalarInt            [3]  IMPLICIT INTEGER,
+    scalarLong           [4]  IMPLICIT INTEGER,
+    scalarFloat          [5]  IMPLICIT OCTET STRING,
+    scalarDouble         [6]  IMPLICIT OCTET STRING,
+    scalarChar           [7]  IMPLICIT INTEGER,
+    scalarString         [8]  IMPLICIT UTF8String,
+    scalarBytes          [9]  IMPLICIT OCTET STRING,
+    atomicSerialObject   [20] EXPLICIT AtomicSerialRecord,
+    canonicalCollection  [30] EXPLICIT CanonicalCollection,
+    orderedCollection    [31] EXPLICIT OrderedCollection
+}
 
 StackTraceElement ::= SEQUENCE {
     declaringClass  UTF8String,
