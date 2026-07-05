@@ -205,6 +205,62 @@ a rule that's genuinely semantic reproduces its awkward cases everywhere (the `L
 `LinkedHashMap` byte-equality-vs-`.equals` tension reappearing in the analogous Rust types was the
 strongest evidence the ordering rule is semantic, not a JVM artifact).
 
+### G10–G13. Field lessons from a promoted-veteran review — the A/B experiment
+
+*Added 2026-07-05, from an A/B review experiment run alongside the four capstones above: a fresh,
+guidance-briefed reviewer and a promoted field-veteran (the engineer who had just built the P1
+SSLEngine keystone) independently reviewed the same design. The fresh review returned "SAFE TO
+MERGE"; the veteran caught a HIGH live-remote-DoS the fresh review missed — unbounded
+declared-collection recursion driving a real `StackOverflowError`. The four heuristics below are
+what the veteran's review did differently; they're promoted into Part I (and reinforced in §2.2)
+so every future reviewer inherits them rather than rediscovering them the same way. This is the
+"keep integrating lessons from the field" loop working as designed — keep running it.*
+
+**G10. A boundary fence is not an interior fence — check what the guarded call recurses INTO.**
+When a guarded call recurses, verify that what it recurses *into* is also guarded: a depth/size
+counter incremented at the entry to a dispatch is not automatically threaded through every call the
+dispatch makes on its way back down. *Tell:* the `Any` codec incremented `depth` at the
+`Any`→collection boundary (the outer dispatch), then handed off to `decodeCollection`, whose own
+*interior* collection→collection recursion (a `list:` of `list:` of `list:`…) had no counter of its
+own — the guard existed exactly once, at the frame that looked like "the recursive part," and the
+actual unbounded recursion was one level further in. This is G2's outcome-vs-mechanism gap
+specialised to recursion: don't stop at "is there a depth bound somewhere near this recursive
+path" — trace the call graph one more frame and confirm the bound is still read and decremented at
+the frame that actually recurses.
+
+**G11. Probe empty and degenerate inputs, not just populated ones.** State machines and
+shape-inference lie at the empty/boundary case — an empty collection, a zero-length string, a
+container with one element, a depth-zero recursion base case. A rule or guard that is correct for
+every populated input can still be silently absent or misapplied for the degenerate one, because
+the degenerate case is the path nobody hand-traces during design and the input nobody thinks to
+write a test for. Add "what does this do on empty/one-element/zero-depth input" to every review as
+a first-class probe, not an afterthought.
+
+**G12. "Verified" must mean bound-to-known-good, not merely self-consistent.** A self-consistent
+digest or hash authenticates nothing about *structure* — it only proves the bytes you have now
+match some other bytes you also have now, not that either is the shape you expected. The JGDMS
+`schemaDigest` is exactly this: self-consistent-only (it commits `schemaBytes` to `schemaDigest`,
+and a decoder checks the two agree), which is *why* a collection token's nesting depth remains
+attacker-controlled — the digest never asserted a depth ceiling, so agreeing with itself says
+nothing about whether the depth is safe. The transport analogue is the same fallacy in a different
+costume (see G2, §2.2 hazard 6): a handshake that *completes* is not a handshake that
+*authenticated the right peer* — completion proves the two sides agree on a shared secret and a
+certificate chain validates, not that the certificate names the peer you meant to talk to. Whenever
+a review leans on "verified," ask *verified against what external, independently trustworthy
+reference* — if the honest answer is "against itself," it isn't verified, it's internally coherent.
+
+**G13. Run the adversarial input — don't reason about the bound.** A bound you reasoned about from
+the code shape and a bound you *proved* by feeding the code the adversarial input are different
+confidence levels, and only the second supports a HIGH-severity finding. The distinguishing move in
+the A/B experiment: the veteran didn't stop at "this recursion looks unbounded" — they built a
+~5000-deep nested-collection token and ran it through the actual decoder, producing a real
+`StackOverflowError`. That is the difference between theoretical (a suspicion about a code shape)
+and live (an observed crash on the real path) — this is a direct instance of G3's "run the
+adversarial input against the built classes." When a recursion, loop bound, or size cap is the
+subject of a finding, budget the time to build the adversarial input and run it — a finding backed
+by an observed crash is categorically stronger than one backed by inspection alone, and it is
+usually cheap once the shape is identified.
+
 ---
 
 # Part II — Domain Sections
@@ -434,7 +490,13 @@ not an assumption or a stated intention.
    (O(n²) work on n attacker-supplied elements within a legitimately-sized payload, WS §5.1). The
    invariant: bytes-in-flight bounds are not decoded-structure bounds — a transport window caps
    bytes, and a small number of bytes can decode into a huge or deeply nested structure. This
-   discipline is undiminished by any transport flow control (see §2.1 hazard 6).
+   discipline is undiminished by any transport flow control (see §2.1 hazard 6). **A depth counter
+   at the recursive dispatch's boundary is not the same as a depth counter in what it recurses
+   into** — a fence checked once at entry and never threaded through the interior recursion is the
+   exact live HIGH a promoted-veteran review caught that a fresh review missed (G10, WS §5.7); when
+   you find "there's a depth bound," trace one more frame in and confirm it's still being read
+   there, then build the adversarial nested input and run it rather than reasoning about the bound
+   (G13).
 
 4. **Ungated reconstruction doors ("second door to the same machinery").** A new wire form or tag
    that reaches an object-reconstruction mechanism bypassing the gate the primary path goes
@@ -583,11 +645,32 @@ run adversarial input against built classes; empty search ≠ absence, compile �
   marker must be position-defined (recognized only at the exact post-response-object position),
   never content-scanned. Lesson: prefer the design whose correlation is structural and
   unforgeable over one carrying an explicit correlator a peer can lie about.
+- **§5.7 The A/B promoted-veteran catch: boundary-vs-interior recursion depth (HIGH, live).**
+  *Situation:* a fresh, guidance-briefed reviewer and a promoted field-veteran (the engineer who
+  had just built the P1 SSLEngine keystone) independently reviewed the same design; the fresh
+  review returned "SAFE TO MERGE." *Tell:* the veteran didn't stop at "is there a depth counter
+  near the recursive decode path" (there was — incremented at the `Any`→collection boundary) but
+  asked what the guarded call recurses *into*: `decodeCollection`'s own interior
+  collection→collection recursion had no counter of its own, so a `list:` of `list:` of `list:`…
+  nested past the stack limit before the boundary counter was ever consulted again. *Catch:* built
+  a ~5000-deep nested-collection token and ran it through the actual decoder — a real
+  `StackOverflowError`, not a theoretical bound. *Lesson (see G10–G13):* a fence enforced at a
+  boundary is not enforced in the interior it calls into; probe the empty/degenerate case as hard
+  as the populated one; a self-consistent `schemaDigest` authenticates structure, not depth, so
+  "the digest checks out" was never evidence the recursion was bounded; and the gap between
+  "theoretically unbounded" and "HIGH, confirmed" was exactly the adversarial input the fresh
+  review never ran. Filed as a same-shape sibling of §5.2 (nested-`Any` StackOverflow) — same
+  depth-through-data root cause, caught this time in live code by a live crash rather than in a
+  design memo by inspection.
 
 #### One-page checklist (adversarial security)
 
 - [ ] **Decode DoS:** every recursive path threads a depth bound bounded by a fixed digest-covered
-      token (not attacker bytes)? counts capped before allocation? any O(n²) on attacker n?
+      token (not attacker bytes)? counts capped before allocation? any O(n²) on attacker n? Is the
+      depth bound checked at the boundary AND still threaded through every interior recursion the
+      guarded call makes (G10), not just at the entry frame? Has the empty/degenerate case been
+      probed (G11), and has the adversarial nested/oversized input actually been built and run
+      against the built decoder rather than reasoned about (G13)?
 - [ ] **Canonical form:** decoder rejects non-canonical, not just emits canonical? comparator
       brute-forced?
 - [ ] **Reconstruction doors:** every path routed through the ATOMIC gate + ResolutionContext +
@@ -597,7 +680,10 @@ run adversarial input against built classes; empty search ≠ absence, compile �
       not just the check subject? can the newly-trusted side make the other act under the wrong
       identity?
 - [ ] **Authenticated ≠ trusted:** every trust bound to a specific resource (subscription,
-      capability), not merely "is authenticated"? rejected fail-closed?
+      capability), not merely "is authenticated"? rejected fail-closed? Is every "verified" claim
+      bound to an external, independently trustworthy reference rather than merely
+      self-consistent (G12) — a handshake that completes, or a digest that agrees with itself,
+      proves neither the right peer nor a safe structure?
 - [ ] **Platform-reliance claims:** true and load-bearing, or false comfort? "not implemented yet"
       = fail-open-by-absence?
 - [ ] **Outcome→mechanism:** every MUST/guard → named enforcing construct → tested with a

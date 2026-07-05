@@ -295,11 +295,15 @@ context tag **is** the category discriminator, carried in-place on the element's
 
 ```asn1
 -- Any element: a CHOICE keyed on the closed-subset category. The context tag IS the
--- discriminator (no ENUMERATED tag field, no SEQUENCE{tag,body} wrapper). The scalar and
--- atomicSerialObject arms are [n] IMPLICIT (the value's own tag is replaced in-place). The
--- collection arms MUST be EXPLICIT so the inner SET OF / SEQUENCE OF outer tag (0x31 / 0x30 --
--- the Option-A discipline discriminator, STD-006 §3.8) SURVIVES: you cannot IMPLICIT-tag a
--- collection whose own outer tag carries meaning (X.680 §31.2.7).
+-- discriminator (no ENUMERATED tag field, no SEQUENCE{tag,body} wrapper). The scalar arms
+-- are [n] IMPLICIT (the value's own tag is replaced in-place; a scalar's universal tag
+-- carries no further meaning once the category is known from the context tag). The
+-- atomicSerialObject AND collection arms MUST be EXPLICIT so the inner tag SURVIVES: for
+-- atomicSerialObject the inner AtomicSerialRecord's own tag (a SEQUENCE, a [8] proxy record,
+-- or DER NULL, depending on the concrete @AtomicSerial class) is itself load-bearing —
+-- IMPLICIT would overwrite it in place, exactly as it would the collection's SET OF/SEQUENCE
+-- OF outer tag (0x31 / 0x30, the Option-A discipline discriminator, STD-006 §3.8). You cannot
+-- IMPLICIT-tag an alternative whose own outer tag carries meaning (X.680 §31.2.7).
 
 AnyElement ::= CHOICE {
     scalarBoolean        [0]  IMPLICIT BOOLEAN,
@@ -313,7 +317,7 @@ AnyElement ::= CHOICE {
     scalarString         [8]  IMPLICIT UTF8String,
     scalarBytes          [9]  IMPLICIT OCTET STRING,    -- a byte[] element
     -- gap [10..19] RESERVED for future scalar categories (§4.5 registry)
-    atomicSerialObject   [20] IMPLICIT AtomicSerialRecord,  -- concrete class + schema digest travel in the embedded chain
+    atomicSerialObject   [20] EXPLICIT AtomicSerialRecord,  -- concrete class + schema digest travel in the embedded chain; EXPLICIT preserves the record's own tag
     -- gap [21..29] RESERVED (§4.5 registry)
     canonicalCollection  [30] EXPLICIT CanonicalCollection, -- SET OF 0x31: set:/bag:/map: -- outer 0x31 preserved under EXPLICIT
     orderedCollection    [31] EXPLICIT OrderedCollection    -- SEQUENCE OF 0x30: orderedset:/list:/orderedmap: -- outer 0x30 preserved
@@ -326,11 +330,19 @@ AnyElement ::= CHOICE {
 - **Scalars** are `[0]`–`[9]` `IMPLICIT` so a cross-language reader knows the primitive category from
   the context tag alone, without a Java class; the value bytes past the tag are the scalar's ordinary
   canonical DER.
-- **`@AtomicSerial` objects** are `[20] IMPLICIT`; the concrete class identity is the **schema digest**
+- **`@AtomicSerial` objects** are `[20] EXPLICIT`; the concrete class identity is the **schema digest**
   already embedded in the record — the tag says only "this is a closed record", the digest says which.
-  `Any` therefore keeps *most* of the schema-digest machinery: an `@AtomicSerial`-valued `Any` element
-  is fully digest-covered inside its record. (Reconstruction of that record is gated identically to a
-  typed element — fence (b), §4.3.)
+  **EXPLICIT is required, not merely conservative:** the inner `AtomicSerialRecord`'s own tag (a
+  `SEQUENCE` for most records, a `[8]` proxy record for a substituted/proxy-form
+  `@AtomicSerial` class, or DER `NULL` for a stateless no-field record) is itself load-bearing — it is
+  part of how a decoder (JVM or non-JVM) recognises the record's shape before it ever reads the schema
+  digest. An `IMPLICIT` tag *replaces* the leading tag octet in place, exactly as it would a
+  collection's outer tag; on `atomicSerialObject` that overwrite would destroy the inner record's own
+  tag the same way it would destroy the collection discriminator below (X.680 §31.2.7 forbids
+  IMPLICIT-tagging an alternative whose own outer tag carries meaning). `EXPLICIT` wraps the tag
+  instead, so the inner record's tag survives underneath it. `Any` therefore keeps *most* of the
+  schema-digest machinery: an `@AtomicSerial`-valued `Any` element is fully digest-covered inside its
+  record. (Reconstruction of that record is gated identically to a typed element — fence (b), §4.3.)
 - **Collections** split into two `EXPLICIT` arms — `canonicalCollection [30]` (`SET OF`, `0x31`) and
   `orderedCollection [31]` (`SEQUENCE OF`, `0x30`) — **because the inner outer tag `0x31`/`0x30` is the
   Option-A preserve-vs-canonicalise discriminator (§3.8) and MUST survive.** An `IMPLICIT` tag would
@@ -338,6 +350,8 @@ AnyElement ::= CHOICE {
   type whose outer tag is load-bearing); `EXPLICIT` wraps it, keeping the inner `SET OF`/`SEQUENCE OF`
   tag intact. This gives **one discipline discriminator** (the inner tag), not two, and the nested
   collection's discipline/token (`set:`/`list:`/`map:`…) remains intrinsic to `body`'s own encoding.
+  The `atomicSerialObject [20]` arm above is the identical fence applied to the record's own tag instead
+  of a collection's outer tag — same X.680 §31.2.7 rule, same reason.
 
 ### 4.2 Compatibility with canonical / value-equality machinery (NORMATIVE)
 
@@ -357,13 +371,14 @@ AnyElement ::= CHOICE {
   `AnyElement`s, a duplicate `AnyElement` encoding in a `set:`/`orderedset:` of `Any`, a wrong
   container tag, and a value that is not itself canonical for its context tag — the same fail-secure
   obligations §3.8 already imposes, applied under the tag.
-- **Value-equality of the payload is preserved (no wrapper leak).** Under an `[n] IMPLICIT` tag the
-  value's bytes past the leading tag octet are **unchanged** from how they would encode with a declared
-  type; under the collection `EXPLICIT` arms the inner collection encoding is byte-identical to the
-  declared-element form. So a value that appears both in a declared-element collection and in an `Any`
-  collection has the **same** post-tag bytes — the CHOICE adds no `OCTET STRING` or `SEQUENCE` wrapper
-  to leak. (This is the concrete gain over the superseded `SEQUENCE{tag,body Element}` form, whose
-  `Element`-`OCTET STRING` stub *would* have wrapped and broken this.)
+- **Value-equality of the payload is preserved (no wrapper leak).** Under an `[n] IMPLICIT` scalar tag
+  the value's bytes past the leading tag octet are **unchanged** from how they would encode with a
+  declared type; under the `atomicSerialObject`/collection `EXPLICIT` arms the inner record/collection
+  encoding is byte-identical to the declared-element form, wrapped rather than overwritten. So a value
+  that appears both in a declared-element collection and in an `Any` collection has the **same**
+  post-tag bytes — the CHOICE adds no `OCTET STRING` or `SEQUENCE` wrapper to leak. (This is the
+  concrete gain over the superseded `SEQUENCE{tag,body Element}` form, whose `Element`-`OCTET STRING`
+  stub *would* have wrapped and broken this.)
 
 ### 4.3 The four SECURITY FENCES (NORMATIVE decoder obligations, each conformance-tested)
 
@@ -442,7 +457,7 @@ production. The pinned assignment:
 |---|---|---|---|
 | `[0]`–`[9]` | scalars (bool, byte, short, int, long, float, double, char, String, byte[]) | the scalar's canonical DER | `IMPLICIT` |
 | `[10]`–`[19]` | **RESERVED** (future scalar categories) | — | — |
-| `[20]` | `@AtomicSerial` object | `AtomicSerialRecord` (schema-digest-identified) | `IMPLICIT` |
+| `[20]` | `@AtomicSerial` object | `AtomicSerialRecord` (schema-digest-identified) | `EXPLICIT` (record's own tag load-bearing) |
 | `[21]`–`[29]` | **RESERVED** | — | — |
 | `[30]` | canonicalise collection (`set:`/`bag:`/`map:`) | `SET OF` (`0x31`) | `EXPLICIT` (outer tag load-bearing) |
 | `[31]` | ordered collection (`orderedset:`/`list:`/`orderedmap:`) | `SEQUENCE OF` (`0x30`) | `EXPLICIT` |
@@ -666,10 +681,11 @@ build-time board pass — no code is proposed for merge here.
   §-section (P1) + `.asn1` `AnyElement CHOICE` production (P2).
 - **Rule:** element wire-type = `rule(E)` from `Field.getGenericType()`, recursive, Map K/V
   independent; bounded `? extends B` → `rule(B)`; everything unresolvable → `Any`. No annotation.
-- **`Any` (§4):** an **`[n] IMPLICIT`-tagged CHOICE** keyed on category — scalars `[0]`–`[9]`,
-  `atomicSerialObject [20]`, collections `[30]`/`[31]` **EXPLICIT** so the inner `SET OF`/`SEQUENCE OF`
-  `0x31`/`0x30` discipline discriminator survives (X.680 §31.2.7). The context tag **is** the single
-  discriminator (no lying-encoding hazard) and the tag registry; octet-sort category-grouping is a
+- **`Any` (§4):** an **`[n] IMPLICIT`/`EXPLICIT`-tagged CHOICE** keyed on category — scalars `[0]`–`[9]`
+  `IMPLICIT`; `atomicSerialObject [20]`, collections `[30]`/`[31]` **EXPLICIT** so the inner record's own
+  tag / `SET OF`/`SEQUENCE OF` `0x31`/`0x30` discipline discriminator survives (X.680 §31.2.7). The
+  context tag **is** the single discriminator (no lying-encoding hazard) and the tag registry;
+  octet-sort category-grouping is a
   *provable* property of the leading tag; no `OCTET STRING` wrapper (value-equality-of-payload
   preserved); the built `compareOctets` prefix/trailing-zero comparator applies unchanged. Rule-selected
   fallback only, at a stated coverage/compactness cost.
