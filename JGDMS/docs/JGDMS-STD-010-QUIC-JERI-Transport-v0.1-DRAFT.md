@@ -3,7 +3,7 @@
 **Status:** Draft (working scaffold for review-board critique)
 **Version:** 0.1-DRAFT
 **Applies to:** JGDMS, DirtyChai (JDK fork), and non-JVM JGDMS participants that speak QUIC
-**Depends on:** JGDMS-STD-003 (Multi-Subject Identity), JGDMS-STD-006 (Language-Neutral DER Wire Format)
+**Depends on:** JGDMS-STD-003 (Multi-Subject Identity), JGDMS-STD-006 (Language-Neutral DER Wire Format) **≥ v0.12** — the version in which §7.2 became the codebase-only reducing-domain / `RemoteContextCodec` model. This standard's §4.7.1 ACC mirror and §9 depend on that model; the stale in-tree v0.10 (and earlier) copies of STD-006 do **not** satisfy this dependency.
 **Normative external references:** RFC 9000 (QUIC transport), RFC 9001 (TLS for QUIC), RFC 9002 (loss detection / congestion control), RFC 8446 (TLS 1.3), JEP 517 (HTTP/3 for the HTTP Client API — the SunJSSE QUIC-TLS engine)
 **Supersedes:** nothing (additive `Endpoint`/`ServerEndpoint` SPI transport alongside `tcp`, `ssl`, and `uds`)
 
@@ -313,13 +313,23 @@ follows.
 
 #### 4.6.1 Primary model — server-initiated bidirectional stream (NORMATIVE)
 
+**Push-primary default (F4, NORMATIVE).** Server-initiated-stream push (§4.6.1) is the
+**default** callback model for **every** client, not only ephemeral ones. Dial-back (§4.6.2)
+is used **only** when the listener-holder has **explicitly advertised a reachable
+`ServerEndpoint`** for the listener (§4.6.2). An implementation **MUST NOT** default to
+dial-back: absent an explicit reachability advertisement, the callback rides a
+server-initiated `0x01` stream. This prevents implementers from silently selecting the
+classic path, which is broken for the ephemeral (NAT'd, mobile, migrating) topology.
+
 For an **ephemeral client** (NAT'd, mobile, migrating, or otherwise not reachable at a fixed
 address), event delivery **MUST** use a **server-initiated bidirectional QUIC stream
 (`0x01`)** opened on the connection **the client already established** to the service. The
 notifying service opens the `0x01` stream; the JERI request rides it exactly as a
 client-initiated request rides a `0x00` stream (§4.1, §4.3–4.5): request body = the event
 invocation (the marshalled `RemoteEvent` / notify arguments), response body = the listener's
-return/exception, FIN per direction, `RESET_STREAM` per §4.4.
+return/exception, FIN per direction, `RESET_STREAM` per §4.4. The client's decode of that
+pushed request body is a **DER decode surface subject to the STD-006 §4.5 ceilings in full**
+(§8.2) — peer authentication does **not** exempt the pushed payload from size-bounding.
 
 **The client accepts inbound STREAMS, never inbound CONNECTIONS.** A conformant client
 endpoint **MUST** accept server-initiated streams on connections it opened, and **MUST NOT**
@@ -330,10 +340,15 @@ win** (no client-side `ServerEndpoint` export for callbacks). It is the reason
 server-initiated streams are the primary model rather than an optimisation: for the
 ephemeral topology, dial-back (§4.6.2) is *impossible*, not merely slower.
 
-Stream-concurrency for server-initiated streams is governed by QUIC `MAX_STREAMS`
-(server-initiated bidirectional) advertised by the client (RFC 9000 §4.6); the client
-**MUST** advertise sufficient credit to receive events it has subscribed to, and this credit
-is the natural back-pressure on event push (§9.5 — no application-level rationing).
+**Stream credit as back-pressure (F3, NORMATIVE).** Server-initiated-stream concurrency is
+governed by the QUIC `MAX_STREAMS` (server-initiated bidirectional) limit **advertised by
+the client** (RFC 9000 §4.6, §19.11). The client **MUST** advertise credit **greater than
+or equal to its outstanding subscriptions** (§4.6.3), so a subscribed event always has a
+stream to arrive on. When that credit is **momentarily exhausted**, the server **MUST BLOCK**
+the pushed event (await a `MAX_STREAMS` increase) and **MUST NOT drop** it: the client's
+`MAX_STREAMS` extension is the back-pressure signal, consistent with §9.5 (rely on QUIC flow
+control; no application-level rationing). Blocking-not-dropping preserves at-most-once event
+delivery under transient credit exhaustion.
 
 **Precedent.** Server-initiated bidirectional streams for server→client push over a
 client-opened connection are established practice: **WebTransport** (server-initiated
@@ -346,19 +361,54 @@ topology — client opens the connection, server pushes over it — is identical
 
 The classic JERI **dial-back** callback — the notifying service makes a **fresh
 client-initiated connection** to the listener's exported endpoint (`BasicObjectEndpoint.
-newCall` → `newRequest` against the listener proxy's baked-in `host:port`) — remains valid
-**only where the listener-holding client is itself reachable at its exported address**
-(fixed-IP peers, server-to-server callbacks). Over QUIC this is an ordinary
-client-initiated request (§4.1) from the notifier to the listener's endpoint. A conformant
-implementation **MUST NOT** rely on dial-back for an ephemeral client, and **MUST** prefer
-the §4.6.1 server-initiated-stream model whenever the callback target is reached over a
+newCall` → `newRequest` against the listener proxy's baked-in `host:port`) — is permitted
+**only when the listener-holder has explicitly advertised a reachable `ServerEndpoint`** for
+that listener (F4, §4.6.1 push-primary default), i.e. only for fixed-IP peers /
+server-to-server callbacks that are actually reachable at their exported address. Over QUIC
+this is an ordinary client-initiated request (§4.1) from the notifier to the listener's
+endpoint. A conformant implementation **MUST NOT** rely on dial-back for an ephemeral client,
+**MUST NOT** default to dial-back absent an explicit reachability advertisement, and **MUST**
+use the §4.6.1 server-initiated-stream model whenever the callback target is reached over a
 connection the target opened. Dial-back is compat, not the default.
 
-**[BOARD] Selection rule.** How a listener export advertises "I am reachable, dial me back"
-vs "push to me over my open connection" (a listener-proxy capability flag, or inferred from
-whether the client exported a reachable `ServerEndpoint`) is an `Endpoint`/export-form
-question, **[OPEN]** and flagged in §11 (item 11); it interacts with the tri-export
-selection of §11 item 10.
+**Selection rule.** The dial-back-vs-push selection is keyed to an **explicit reachability
+advertisement** on the listener export (a listener-proxy capability flag / a reachable
+`ServerEndpoint` in the exported form): advertised-reachable ⇒ dial-back permitted;
+otherwise ⇒ server-initiated-stream push. The exact **advertisement encoding** in the
+exported listener form is **[OPEN]** and flagged in §11 (item 1(a)); it interacts with the
+tri-export selection of §11 item 9. The **default** (F4) is settled: push, not dial-back.
+
+#### 4.6.3 Subscription-correlation fence (HIGH, NORMATIVE)
+
+A pushed event delivered over a server-initiated `0x01` stream (§4.6.1) **MUST** be
+dispatched **only** to a listener for which the client holds an **outstanding subscription**
+established over **that same connection / authenticated peer**. Authentication of the server
+peer (§4.7) is **necessary but not sufficient**: an authenticated-but-hostile server **MUST
+NOT** be able to invoke arbitrary client listeners merely by virtue of a valid handshake.
+The client's policy admission gate is keyed to the **subscription**, not merely to
+"authenticated peer".
+
+**Normative rules:**
+
+1. **Subscription binding.** When a client registers a listener with a service (e.g. an
+   event-registration / `EventMailbox` / lookup-`notify` call), the client **MUST** record a
+   binding `⟨authenticated server peer, connection, listener⟩` for the resulting outstanding
+   subscription. A server-initiated push is dispatched **only** if it targets a listener
+   whose binding matches the pushing connection's authenticated server peer.
+2. **Unsubscribed push rejected (fail-closed).** A pushed event that does **not** correspond
+   to an outstanding subscription on that connection/peer **MUST** be rejected — the stream
+   reset (`JGDMS_REQUEST_NOT_PROCESSED`, §4.4) and the listener **not** invoked. The client
+   **MUST NOT** dispatch a push to a listener the pushing peer was never authorized (by an
+   outstanding subscription) to invoke.
+3. **Scope of the binding.** The binding is to the *specific* listener(s) named in the
+   subscription, not to "any listener the client holds". A server authorized to push events
+   for subscription A **MUST NOT** thereby be able to invoke the listener of subscription B
+   (even A and B on the same connection). This is the admission control that enforces the
+   §4.7 authorization model at the granularity of the subscription.
+4. **Interaction with §9.5.** This subscription-layer admission control is explicitly
+   **permitted** and is **not** the "application-level flow-control rationing" §9.5 forbids
+   (§9.5 clarified accordingly). It is a *security* gate keyed to subscription identity, not
+   a *rate/credit* scheme layered on QUIC flow control.
 
 ### 4.7 Direction-aware caller-subject resolution (NORMATIVE — the must-solve)
 
@@ -401,6 +451,26 @@ is therefore mandatory, and getting it wrong is a confused-deputy vulnerability.
    peer for server-initiated streams (the server), not the connection's client peer. The
    permission check (`checkClientPermission` and the principal/`ClientAuthentication`
    constraint evaluation) then runs against that direction-correct subject.
+5. **Execution-subject swap (HIGH — NORMATIVE).** It is **not** sufficient that the inbound
+   permission *check* uses the server identity (rule 3); the pushed-event listener dispatch
+   **MUST EXECUTE under the authenticated server's subject** — a `Subject.doAs`/`callAs`
+   boundary established with the **server's** principals and a **correspondingly reduced
+   `AccessControlContext`** (the §4.7.1 mirror reducing-domain set stamped with the server's
+   workload identity). Both the **authorization decision AND any downstream authority** the
+   listener exercises therefore derive from the **server**, not the client. Specifically:
+   - The client's **ambient `Subject` / `AccessControlContext`** (the client process's own
+     identity and privileges) **MUST NOT** leak into the pushed-event dispatch. The dispatch
+     does not run "as the client with a check against the server"; it runs **as the server**.
+   - Any privileged action the listener takes while handling the push is attributed to, and
+     bounded by, the server's subject + reduced ACC — so a downstream call the listener makes
+     cannot silently borrow the client's authority (the execution-time form of the
+     confused-deputy guard in rule 3).
+   - This mirrors how a server today dispatches a client-initiated request under the client's
+     subject (`Subject.doAs`/`callAs` with the client's principals): §4.7 makes the *dispatch
+     execution* direction-aware, not merely the *check*. On a `0x00` stream the dispatch
+     executes as the client; on a `0x01` stream it executes as the server.
+   A conformance test (§10.1 item 15) and a harness assertion (§10.3 item 6) verify the
+   **execution** subject — not just the check subject — is the server's.
 
 #### 4.7.1 The ACC reducing-context mirror (NORMATIVE)
 
@@ -446,56 +516,69 @@ distinct from any QUIC-level signal.
 ### 5.2 The contract (NORMATIVE)
 
 When a request is marked ack-required (the JERI `OutboundRequest`/dispatch path that today
-sets the mux `ackRequired` bit — DGC dirty/clean calls in particular), the server endpoint
-**MUST** emit an application-level acknowledgment **only after** its `RequestDispatcher`
-has **processed** the request (returned from dispatch for that `InboundRequest`), and the
-client endpoint **MUST** deliver that acknowledgment to the DGC layer through the same
-`AcknowledgmentSource` callback contract that `BasicObjectEndpoint` consumes today. FIN
-alone **MUST NOT** be reported as an acknowledgment. Emitting the ack before dispatch
-completes is a conformance violation.
+sets the mux `ackRequired` bit — DGC dirty/clean calls in particular), the **dispatcher
+endpoint** — the endpoint whose `RequestDispatcher` handles the request — **MUST** emit an
+application-level acknowledgment **only after** its `RequestDispatcher` has **processed** the
+request (returned from dispatch for that `InboundRequest`), and the **caller endpoint** —
+the endpoint that opened the stream — **MUST** deliver that acknowledgment to the DGC layer
+through the same `AcknowledgmentSource` callback contract that `BasicObjectEndpoint` consumes
+today. FIN alone **MUST NOT** be reported as an acknowledgment. Emitting the ack before
+dispatch completes is a conformance violation.
+
+**Direction-aware (F1, NORMATIVE — mirrors the §4.7 symmetry).** "Dispatcher" and "caller"
+are resolved by stream initiator (§4.7 rule 1), not by connection role:
+- On a **client-initiated `0x00` stream**, the dispatcher is the **server** (its send side
+  carries the ack) and the caller is the client — the ordinary DGC case.
+- On a **server-initiated `0x01` stream** (a server-pushed event, §4.6), the dispatcher is
+  the **client** (its `RequestDispatcher` runs the listener), so the ack rides the
+  **client's send side** of that `0x01` stream, emitted after the client's listener dispatch
+  returns; the server, as caller, consumes it. The ack always rides the **dispatcher's send
+  side of the request's own stream**, whichever endpoint that is.
 
 ### 5.3 How the ack rides the stream (NORMATIVE)
 
-The acknowledgment **MUST** ride the **same bidirectional stream** as the request it
-acknowledges — it is an application byte written on the server's send side of that stream
-**after** the response body and **before** the server's stream FIN — so that it is ordered
-after the response and needs no second stream, no separate connection-level frame, and no
-QUIC extension:
+The acknowledgment **MUST** ride **in-band on the same bidirectional stream** as the request
+it acknowledges — an application marker written on the **dispatcher's send side** of that
+stream **after** the response body and **before** the dispatcher's stream FIN. A conformant
+implementation **MUST NOT** use a separate ack stream (unidirectional or otherwise) or a
+separate connection-level frame; the in-band trailer is the adopted design, not a preference
+(the separate-stream alternative is **rejected** — it reintroduces cross-stream ordering and
+a mux-like control channel). It needs no second stream and no QUIC extension:
 
 ```
-server send side of request-stream S:
-    [ response-body bytes ] [ DGC-ACK marker ] FIN
+dispatcher send side of request-stream S:
+    [ DER response object ] [ DGC-ACK marker ] FIN
                             ^^^^^^^^^^^^^^^^^^
                             present iff the request was ack-required,
-                            written only after RequestDispatcher returns
+                            written only after RequestDispatcher returns,
+                            recognized ONLY at this exact position
 ```
+
+(On a `0x00` stream the dispatcher is the server; on a `0x01` push stream it is the client —
+§5.2 direction-aware.)
 
 **Normative rules:**
 
-1. The ack marker is a single, self-delimiting application token in the response
-   byte-stream framing (its exact octet encoding is **[OPEN — PROPOSED]**: a reserved
-   trailer tag in the JERI response framing, DER-encoded per STD-006 conventions so a
-   non-JVM peer can parse it; see §11). It carries no data beyond "processed"; it is
-   **not** the response payload.
-2. Because it is written after the response body but before FIN, the client reads the full
-   response, then the ack marker, then observes FIN — an unambiguous, in-order sequence on
-   one stream. QUIC's ordered, reliable per-stream delivery (RFC 9000 §2.2) guarantees the
-   client sees response-then-ack-then-FIN.
-3. If the request was **not** ack-required, no marker is written; FIN immediately follows
-   the response body. A client MUST NOT infer an acknowledgment from FIN alone (§5.1).
-4. If the server's `RequestDispatcher` fails or the connection/stream is reset before the
-   ack marker is written, the client MUST treat the request as **un-acknowledged** for DGC
-   purposes (fail-closed: no lease state advance), consistent with the §4.4 reset-code
-   classification.
-
-**[BOARD] Interpretation note.** The pin says "reproduce the mux's `AcknowledgmentSource`/
-`ackRequired` signal" and "specify how it rides the stream". The mux delivered the ack as a
-distinct framed message on the shared connection; QUIC's per-request stream lets us ride it
-in-band on the request's own stream (option chosen above) rather than on a separate
-control stream. An alternative — a dedicated unidirectional ack stream per connection — is
-possible but reintroduces cross-stream ordering concerns and a mux-like control channel, so
-the in-band trailer is preferred. If the board prefers the separate-stream design (e.g. to
-decouple ack from response backpressure), that is a design fork flagged in §11.
+1. **Position-defined marker (NORMATIVE).** The ack marker is recognized **only at the exact
+   position immediately after the DER response object and before FIN** — the caller
+   determines response-object completeness from the **DER structure itself** (STD-006:
+   the response object is self-delimiting), then, and only then, looks for the marker at that
+   position. The marker **MUST NOT** be recognized by scanning the response byte-content for
+   a sentinel; a byte sequence identical to the marker occurring *inside* the DER response
+   object is response data, never an ack. This position-defined rule holds **even though the
+   exact octet allocation of the marker stays [OPEN]** (§11 item 4): the *recognition rule*
+   (position after the complete DER object) is normative now; only the octet value is
+   deferred to before interop.
+2. The marker carries no data beyond "processed"; it is **not** the response payload.
+3. Because it is written after the complete DER response object but before FIN, the caller
+   reads the full response object (bounded per §8.2), then checks the post-object position for
+   the marker, then observes FIN — an unambiguous, in-order sequence on one stream. QUIC's
+   ordered, reliable per-stream delivery (RFC 9000 §2.2) guarantees response-then-ack-then-FIN.
+4. If the request was **not** ack-required, no marker is written; FIN immediately follows
+   the DER response object. A caller MUST NOT infer an acknowledgment from FIN alone (§5.1).
+5. If the dispatcher's `RequestDispatcher` fails or the stream is reset before the marker is
+   written, the caller MUST treat the request as **un-acknowledged** for DGC purposes
+   (fail-closed: no lease state advance), consistent with the §4.4 reset-code classification.
 
 ---
 
@@ -599,9 +682,13 @@ used as a reflection/amplification vector. A JGDMS QUIC server **MUST** implemen
    support the QUIC stateless **Retry** mechanism (RFC 9000 §8.1, §17.2.5) — issuing a Retry
    packet with a token that the client echoes in a subsequent Initial — as a means of
    validating the client's address before committing handshake resources, and **SHOULD**
-   employ it when under load or facing suspected address-spoofing. Retry tokens **MUST** be
-   integrity-protected and **MUST** be bound to the client address and a freshness window so
-   a token cannot be replayed from a different address or after expiry.
+   employ it when under load or facing suspected address-spoofing. The Retry token **MUST**
+   be a **keyed MAC or AEAD over at least `(client-address, timestamp)` under a server-held
+   secret** — **unforgeable without that secret** — with a **bounded freshness window**. A
+   token **MUST** be rejected if its MAC/AEAD does not verify, if the presenting client
+   address does not match the address bound in the token, or if the timestamp is outside the
+   freshness window. This makes the token stateless (no per-client server state) yet
+   unspoofable and non-replayable from a different address or after expiry.
 3. Address validation via a validated Retry token or a completed handshake lifts the 3×
    limit for that path (RFC 9000 §8.1).
 
@@ -633,6 +720,24 @@ ceiling — `maxCollection`, `maxFields`, `maxStackFrames`, `maxCauseDepth`, `ma
 over any other transport. An implementation **MUST NOT** treat QUIC flow control, stream
 data limits, or `MAX_DATA` as a substitute for the STD-006 decode bounds. QUIC caps the
 bytes; STD-006 caps the decoded structure; both are required.
+
+**Both directions — every DER decode surface (F1, NORMATIVE).** The §4.5 ceilings apply to
+**every** DER decode surface in **both** directions, without exception:
+- a **server** decoding a client-initiated request body (`0x00`);
+- a **client** decoding a server response body (`0x00`);
+- a **client** decoding a **server-pushed request body** (`0x01`, §4.6) — a new decode
+  surface introduced by server-initiated streams;
+- a **server** decoding the push response / listener return (`0x01`);
+- and, specifically, the **client-side decode of the §7.2 reducing-domain ACC block** on a
+  server→client mirror push (§4.7.1) — see §10.3.
+
+**Authentication of the peer does NOT exempt any payload from the ceilings.** A pushed
+request body arriving from an authenticated (even fully trusted) server is still an
+untrusted-*structure* decode surface: the peer's identity bounds *who* may send, not *how
+large* the decoded structure may be. The client MUST size-bound a server-pushed payload
+exactly as a server size-bounds a client request. A hostile-but-authenticated server
+(§4.6.3, §4.7) that attempts resource exhaustion via an oversized pushed structure MUST hit
+the §4.5 ceilings and be rejected before allocation.
 
 **Rationale (auditor-facing):** the DER decoder's resource-exhaustion defence lives in
 STD-006 §4.5, not in the transport. A reviewer auditing a JGDMS QUIC endpoint MUST confirm
@@ -726,6 +831,16 @@ already provides. Note the distinction from §8: QUIC flow control governs *byte
 sufficient for back-pressure; it is **not** sufficient for decode bounds, which remain
 STD-006 §4.5's job.)
 
+**Clarification (NORMATIVE) — subscription admission control is permitted.** "No
+application-level rationing" forbids a parallel *rate/credit/window* scheme layered on QUIC
+flow control. It does **not** forbid the client refusing a pushed event that has **no
+matching outstanding subscription** (§4.6.3): subscription-correlation is a **security
+admission gate** keyed to subscription identity, not a flow-control rationing scheme, and it
+is **required** as the enforcement mechanism for the §4.6.3 fence. Likewise, the client's
+`MAX_STREAMS` credit for server-initiated streams (§4.6.1, F3) *is* QUIC's own flow control
+being used as designed — advertising it, and the server blocking when it is momentarily
+exhausted, is not application-level rationing.
+
 ---
 
 ## 10. Conformance and Interoperability
@@ -745,10 +860,13 @@ A conforming JGDMS QUIC-TLS transport endpoint:
    maps it to `OutboundRequest.getDeliveryStatus()` so at-most-once retry is safe: retries
    only on the retry-safe (`false`, not-yet-processed) classification, never on the
    retry-unsafe one; resolves ambiguity to retry-unsafe (§4.4).
-4. Emits the DGC application-level acknowledgment **only after** the `RequestDispatcher`
-   processes an ack-required request, delivers it through the `AcknowledgmentSource`
-   contract, rides it in-band after the response body and before FIN, and never reports FIN
-   alone as an acknowledgment (§5).
+4. Emits the DGC application-level acknowledgment **only after** the **dispatcher endpoint's**
+   `RequestDispatcher` processes an ack-required request, delivers it through the
+   `AcknowledgmentSource` contract, rides it **in-band on the dispatcher's send side**
+   (server's on a `0x00` stream, **client's on a `0x01` push stream** — direction-aware)
+   **at the position immediately after the complete DER response object and before FIN**
+   (position-defined, never content-scanned), never uses a separate ack stream, and never
+   reports FIN alone as an acknowledgment (§5).
 5. Preserves independent per-direction half-close, keeping the server response readable
    while the client is still writing its request (§6.1).
 6. Refuses 0-RTT early data **by construction, fail-closed** — asserts `max_early_data 0`,
@@ -762,8 +880,10 @@ A conforming JGDMS QUIC-TLS transport endpoint:
    **supports stateless Retry tokens** (address-bound, freshness-bound, integrity-protected)
    (§7).
 9. Carries the STD-006 DER payload byte-for-byte unchanged **and** retains every STD-006
-   §4.5 size-bound-before-allocation ceiling, never substituting QUIC flow control for the
-   decode bounds (§8).
+   §4.5 size-bound-before-allocation ceiling **on every DER decode surface in both
+   directions** — including a **client decoding a server-pushed request body** and the
+   **client-side §7.2 reducing-domain ACC decode** — never substituting QUIC flow control for
+   the decode bounds and never exempting a payload because the peer is authenticated (§8, §8.2).
 10. Establishes peer identity by handshake-time mTLS/SPIFFE (certificate identity, not
     hostname), re-imposes algorithm constraints equivalent to the `ssl` transport, and does
     not treat this as a layer-2 identity (§9.1, §9.2).
@@ -771,11 +891,14 @@ A conforming JGDMS QUIC-TLS transport endpoint:
     no application-level flow-control rationing (§9.5).
 12. Conforms to RFC 9000, RFC 9001, and RFC 9002 for all transport behaviour not otherwise
     constrained here, and to RFC 8446 for the TLS 1.3 handshake.
-13. Delivers events/callbacks to an ephemeral client over a **server-initiated bidirectional
-    stream (`0x01`)** on the connection the client already opened; **accepts inbound streams,
-    never inbound connections** (no client accept loop, listen port, or inbound firewall
-    hole); and uses classic dial-back only as a restricted compat path for reachable,
-    fixed-IP clients (§4.6).
+13. Delivers events/callbacks over a **server-initiated bidirectional stream (`0x01`)** on the
+    connection the client already opened **by default (push-primary, F4)**; **accepts inbound
+    streams, never inbound connections** (no client accept loop, listen port, or inbound
+    firewall hole); uses classic dial-back **only** when the listener-holder has explicitly
+    advertised a reachable `ServerEndpoint`, and never defaults to dial-back (§4.6). Advertises
+    server-initiated-bidi `MAX_STREAMS` credit **≥ its outstanding subscriptions**, and (as
+    server) **blocks — never drops** — a pushed event when that credit is momentarily
+    exhausted, using the client's `MAX_STREAMS` extension as back-pressure (§4.6.1 F3).
 14. Resolves the caller subject **direction-aware — by stream initiator, not connection
     initiator**: client-initiated ⇒ caller = authenticated client peer; server-initiated ⇒
     caller = authenticated **server** peer (the connection's mTLS-verified workload identity).
@@ -783,6 +906,20 @@ A conforming JGDMS QUIC-TLS transport endpoint:
     anonymous, never the client's own privileges** (the confused-deputy guard) — and mirrors
     the STD-006 §7.2 ACC gate in the server→client direction, the client validating the
     on-behalf-of ACC against the server's authenticated identity (§4.7, §4.7.1).
+15. **Executes** a pushed-event dispatch **under the authenticated server's subject** — a
+    `Subject.doAs`/`callAs` boundary with the server's principals and a correspondingly
+    reduced ACC — so that **both the authorization decision and any downstream authority
+    derive from the server, not the client**; the client's ambient `Subject`/`AccessControl-
+    Context` **MUST NOT** leak into the dispatch. Conformance verifies the **execution**
+    subject (not merely the check subject) is the server's (§4.7 rule 5).
+16. Dispatches a pushed event **only** to a listener for which the client holds an
+    **outstanding subscription** bound to the pushing connection's authenticated server peer;
+    **rejects an unsubscribed push** (stream reset, listener not invoked); and does not let a
+    server authorized for subscription A invoke the listener of subscription B. An
+    authenticated-but-hostile server cannot invoke arbitrary client listeners (§4.6.3).
+17. Uses a Retry token that is a **keyed MAC/AEAD over `(client-address, timestamp)` under a
+    server secret**, unforgeable without it, with a bounded freshness window; rejects a token
+    that fails MAC/AEAD verification, address match, or freshness (§7).
 
 ### 10.2 Interoperability matrix (NORMATIVE — required for release)
 
@@ -807,8 +944,9 @@ test (§8):
 **[BOARD] Scope note.** Several of these implementations expose QUIC primarily beneath an
 HTTP/3 API; the interop tests MUST exercise the **raw QUIC stream** layer (custom
 ALPN, not `h3`), since JGDMS uses QUIC streams directly, not HTTP/3. The ALPN token for the
-JGDMS QUIC-JERI protocol is **[OPEN]** (proposed: a registered `jgdms-jeri`-class token) and
-flagged in §11; interop peers must be drivable at the QUIC-stream layer with that ALPN.
+JGDMS QUIC-JERI protocol is an **[INTEROP-GATE] [OPEN]** item (proposed: a registered
+`jgdms-jeri`-class token) — it must be fixed **before interop (§11 item 8), not before build
+start**; interop peers must be drivable at the QUIC-stream layer with that ALPN.
 
 ### 10.3 Conformance + fuzz harness (NORMATIVE — required deliverable)
 
@@ -833,6 +971,22 @@ footing STD-006 places its ASN.1/conformance suite. It **MUST**:
    pushed event is **not** dispatched anonymously and **not** with the client's own
    privileges — plus the ACC-mirror gate (client validates a server→client on-behalf-of ACC
    against the server identity, §4.7.1).
+6. **Assert the EXECUTION subject, not merely the check subject (§4.7 rule 5).** Have the
+   pushed listener perform a privileged downstream action and assert it is attributed to, and
+   bounded by, the **server's** subject + reduced ACC — and, as a negative, assert the
+   client's ambient `Subject`/`AccessControlContext` does **not** leak in (a listener that
+   probes for the client's own privileges during a push must fail to obtain them).
+7. **Assert the subscription-correlation fence (§4.6.3) — negatives.** With an
+   authenticated server, push to a listener the client **has** subscribed → dispatched; push
+   to a listener the client has **not** subscribed (or subscription-B's listener under
+   subscription-A's authority) → **rejected** (stream reset, listener not invoked). An
+   authenticated-but-hostile server cannot invoke an unsubscribed listener.
+8. **Fuzz the client-side §7.2 reducing-domain decoder under a hostile server (§4.7.1, §8.2).**
+   The ACC mirror makes the **client** a §7.2 decode surface for server-supplied
+   reducing-domain blocks; fuzz it under the same STD-006 §4.5 bounds as the server side —
+   `maxDomains`, `maxCerts`, `maxCertLen`, codebase-URI well-formedness, and the
+   **`jrt:/java.base` exclusion** (client decoder refuses it) — with the fail-closed
+   expectation: oversized/malformed/`jrt:`-bearing input constructs no object.
 
 ---
 
@@ -841,43 +995,51 @@ footing STD-006 places its ASN.1/conformance suite. It **MUST**:
 Consolidated list of every **[OPEN]** / **[BOARD]** above, for the next working session and
 the board's adjudication:
 
+Three items (2, 4, 8) are **interop-gates** — they must be closed **before interoperability
+testing (§10.2), not before build start** — since they concern exact wire-octet allocations a
+JGDMS-to-JGDMS build does not need but a polyglot peer does. The rest are design/audit items.
+
 1. **§4.6 / §4.7 — server-initiated event push (RESOLVED into normative text; residual
    items follow).** The former "does JERI have a server-initiated request path?" open item is
    **closed**: it does (dial-back today), and this standard now maps event/callback delivery
-   onto server-initiated `0x01` streams with direction-aware caller-subject resolution and the
-   ACC mirror. Residual sub-items: (a) the dial-back-vs-push **selection rule** at the
-   listener export (§4.6.2 [BOARD]) — how a listener advertises reachability — is [OPEN], and
-   interacts with item 10 (tri-export); (b) confirm no JGDMS subsystem needs a *server-caller*
-   request that is **not** an event/callback (i.e. anything beyond the listener pattern) over a
-   `0x01` stream, which the §4.2 mux audit must still verify before the mux is deleted.
-2. **§4.4 — application error-code allocation.** The symbolic codes are pinned; the actual
-   QUIC application-error-code varint values (and the JGDMS-reserved range) are unallocated.
-   Assign concrete numbers.
+   onto server-initiated `0x01` streams with direction-aware caller-subject resolution
+   (execution-subject swap, §4.7 rule 5), the subscription-correlation fence (§4.6.3), and the
+   ACC mirror (§4.7.1). Residual sub-items: (a) the dial-back-vs-push selection is settled
+   (push-primary default, F4/§4.6.1), but the **advertisement encoding** in the exported
+   listener form (§4.6.2) is [OPEN] and interacts with item 9 (tri-export); (b) **F2 — the
+   server-init investigation found NO non-callback server-caller path** (nothing beyond the
+   listener/event pattern needs a `0x01` stream); this is downgraded from [OPEN] to a
+   **verification obligation**: the implementer **MUST re-verify against the exact mux build**
+   (the §4.2 audit) that no such path exists **before deleting the mux**.
+2. **[INTEROP-GATE] §4.4 — application error-code allocation.** The symbolic codes are pinned;
+   the actual QUIC application-error-code varint values (and the JGDMS-reserved range) are
+   unallocated. Assign concrete numbers **before interop**, not before build.
 3. **§4.4 — reset-code granularity.** JERI `getDeliveryStatus()` is binary; this standard
    collapses "partially processed" and "processed-but-response-lost" into one retry-unsafe
    class. Confirm the board does not need a finer signal (if so, it belongs to the §5 ack,
    not the reset code).
-4. **§5.3 — DGC ack marker octet encoding.** The in-band trailer marker's exact wire form
-   (a reserved DER-encoded response-framing trailer per STD-006) is proposed but not fixed.
-   Define it so a non-JVM peer can produce/consume it.
-5. **§5 — ack carriage design fork.** In-band trailer on the request's own stream (chosen)
-   vs a dedicated per-connection ack stream. Ratify the in-band choice or flag the
-   alternative.
-6. **§6.3 — migration path-validation strictness.** This standard forbids *all* stream
+4. **[INTEROP-GATE] §5.3 — DGC ack marker octet encoding.** The **recognition rule** is now
+   normative — in-band, position-defined (recognized only at the position immediately after
+   the complete DER response object, never content-scanned; §5.3 rule 1). Only the **exact
+   octet allocation** of the marker remains [OPEN]; fix it **before interop** so a non-JVM
+   peer can produce/consume it. (The separate-stream alternative is **rejected**, closing the
+   former item-5 design fork.)
+5. **§6.3 — migration path-validation strictness.** This standard forbids *all* stream
    traffic on an unvalidated path (stricter than RFC 9000, which permits limited
    anti-amplification-bounded traffic). Confirm the stricter reading.
-7. **§9.2 — algorithm-constraint enforcement mechanism.** The "Path A" trust relaxation
+6. **§9.2 — algorithm-constraint enforcement mechanism.** The "Path A" trust relaxation
    drops SunJSSE algorithm-constraint enforcement; this standard requires JGDMS re-impose
    equivalents but leaves the mechanism engine-dependent. Pin the mechanism.
-8. **§10.2 — ALPN token.** The JGDMS QUIC-JERI ALPN token (for raw-stream, non-HTTP/3
-   interop) is unallocated. Register a `jgdms-jeri`-class token.
-9. **§1 [BOARD] — Path A vs Path B.** The wire contract is path-independent, but the build
+7. **§1 [BOARD] — Path A vs Path B.** The wire contract is path-independent, but the build
    still needs the path decision (own the QUIC transport on the DirtyChai-exposed engine vs
    Kwik + auth bridge). Out of scope for this standard; tracked here for the board.
-10. **Cross-transport endpoint selection.** Tri-export across TCP/UDS/QUIC with graceful
-    degradation (UDP-blocked networks fall back to TCP) generalises the UDS SOW §7 concern;
-    it is an `Endpoint`-selection question, not a QUIC-wire question, but affects how a QUIC
-    endpoint advertises and degrades. Flag for a companion note.
+8. **[INTEROP-GATE] §10.2 — ALPN token.** The JGDMS QUIC-JERI ALPN token (for raw-stream,
+   non-HTTP/3 interop) is unallocated. Register a `jgdms-jeri`-class token **before interop**.
+9. **Cross-transport endpoint selection.** Tri-export across TCP/UDS/QUIC with graceful
+   degradation (UDP-blocked networks fall back to TCP) generalises the UDS SOW §7 concern;
+   it is an `Endpoint`-selection question, not a QUIC-wire question, but affects how a QUIC
+   endpoint advertises and degrades (and the §4.6.2(a) reachability advertisement). Flag for a
+   companion note.
 
 ---
 
@@ -895,10 +1057,14 @@ the board's adjudication:
   source landmines).
 - `docs/SOW-Unix-Domain-Socket-JERI-Transport.md` — the stepping-stone transport and the
   shared `SSLSocket`→`SSLEngine` keystone; the certificate-identity-not-hostname property.
-- `JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md` — the DER object wire this transport carries
-  unchanged (§8); **§4.5** size-bound-before-allocation; **§7.1** `UserSubjectBlock`;
-  **§7.2** `AccessControlContextRecord` / `ReducingDomainRecord` (the ACC reducing-domain
-  transport — the correct citation, correcting the SOWs' "§7.3").
+- `JGDMS-STD-006-DER-WireFormat` **≥ v0.12** (current: `…-v0.13-DRAFT.md`) — the DER object
+  wire this transport carries unchanged (§8); **§4.5** size-bound-before-allocation; **§7.1**
+  `UserSubjectBlock`; **§7.2** `AccessControlContextRecord` / `ReducingDomainRecord` (the ACC
+  reducing-domain / `RemoteContextCodec` model — the correct citation, correcting the SOWs'
+  "§7.3"). **The v0.12 floor is load-bearing (F5):** §7.2 became the codebase-only
+  reducing-domain model at v0.12; the §4.7.1 ACC mirror and §9 depend on it. Do **not** read
+  this standard against the stale in-tree **v0.10** (or earlier) STD-006 copy — those predate
+  the §7.2 reducing-domain model and will mislead an implementer of the mirror gate.
 - `JGDMS-STD-003-MultiSubjectIdentityArchitecture` — the multi-subject / SPIFFE two-gate
   identity model (§3.8 / §7.6 cross-referenced by STD-006 §7.2 and by §9 here).
 - Source (to be built / cited as evidence): the proposed
@@ -927,6 +1093,39 @@ the board's adjudication:
 
 ## Changelog
 
+- **v0.1-DRAFT rev.3 (2026-07-05)** — Peter adopted **all** board recommendations; this
+  revision folds them in as normative text. **Two HIGH server-push authorization fences:**
+  **(1) execution-subject swap (§4.7 rule 5)** — a pushed-event dispatch **MUST execute under
+  the authenticated server's subject** (`Subject.doAs`/`callAs` + reduced ACC), not merely
+  have its inbound check use the server identity; the client's ambient `Subject`/ACC MUST NOT
+  leak in, and both the authorization decision and any downstream authority derive from the
+  server. **(2) subscription-correlation (§4.6.3)** — a push is dispatched only to a listener
+  the client holds an **outstanding subscription** for on that connection/peer; an
+  authenticated-but-hostile server cannot invoke arbitrary listeners; unsubscribed push
+  rejected. **F1 both-directions:** §5 DGC-ack made **direction-aware** (the *dispatcher*
+  emits the ack on its send side — the **client** on a `0x01` push stream); §8.2 restated to
+  apply to **every DER decode surface in both directions** (a client decoding a server-pushed
+  body is a decode surface; authentication exempts nothing from the §4.5 ceilings). **In-band
+  ack adopted, separate stream rejected;** the marker is **position-defined** (recognized only
+  at the exact post-DER-response-object position, never content-scanned), even though the
+  octet allocation stays [OPEN]. **Mediums:** §10.3 adds fuzzing of the **client-side §7.2
+  reducing-domain decoder under a hostile server** (same §4.5 bounds + `jrt:` exclusion); §7
+  Retry token pinned to a **keyed MAC/AEAD over (client-address, timestamp)** under a server
+  secret, bounded freshness; §9.5 clarified that **subscription admission control is
+  permitted** (it is the §4.6.3 enforcement, not flow-control rationing); **F3** (§4.6.1) the
+  client advertises server-init `MAX_STREAMS` **≥ outstanding subscriptions** and the server
+  **blocks (not drops)** on momentary exhaustion; **F4** (§4.6.1/§4.6.2) **push-primary
+  default** — dial-back only when a reachable `ServerEndpoint` is explicitly advertised;
+  **F2** (§11 item 1(b)) the non-callback-server-caller residual **downgraded from [OPEN]** —
+  investigation found **no** such path; implementer **MUST re-verify against the exact mux
+  build before deleting the mux**; **F5** STD-006 dependency pinned **≥ v0.12** (header +
+  references), warning off the stale in-tree v0.10 copy. Conformance gains items **15
+  (execution-subject), 16 (subscription fence), 17 (Retry-token MAC/AEAD)** and updates items
+  4 (direction-aware/position-defined ack), 9 (both-directions bounds), 13 (push-primary +
+  F3). Harness gains items 6 (execution-subject assertion), 7 (subscription negatives), 8
+  (client-side §7.2 fuzz). §11 restructured: the three **interop-gates** (ack octets §4,
+  RESET codes §2, ALPN §8) explicitly marked *deferred to before interop, not before build*;
+  the ack design-fork item removed (in-band settled). §11 renumbered (10→9 items).
 - **v0.1-DRAFT rev.2 (2026-07-05)** — added the **server-initiated stream** mapping and the
   **authorization role-reversal**, resolving the former §4.1 [OPEN]. The investigation
   established (with code evidence) that JERI's server→client path is today **dial-back** (the
