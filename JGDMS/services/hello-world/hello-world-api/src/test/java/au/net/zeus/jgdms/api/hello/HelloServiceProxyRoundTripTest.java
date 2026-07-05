@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.api.hello;
 
 import au.net.zeus.jgdms.proxy.AdminProxy;
+import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -31,8 +32,11 @@ import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
 import net.jini.export.CodebaseAccessor;
 import net.jini.export.Exporter;
+import net.jini.export.ProxyAccessor;
+import net.jini.id.ReferentUuid;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.DynamicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -208,28 +212,93 @@ public class HelloServiceProxyRoundTripTest {
     }
 
     /**
-     * PARKED wire form: an admin set larger than exactly {@code {JoinAdmin,
-     * DestroyAdmin}} (a custom non-{@code Remote} admin interface) is fail-closed —
-     * the dynamic multi-admin-interface wire form is not shipped.
+     * Wire-form gate (a): the COMMON {@code {JoinAdmin, DestroyAdmin}} admin facet —
+     * the fixed {@code @AtomicSerial} {@code ConstrainableAdminProxy} — round-trips
+     * through {@link AtomicMarshalInputStream} after dropping {@code Serializable}, is
+     * reconstructed as the same constrainable admin proxy (same UUID identity), and is
+     * NOT a {@link Serializable} nor a {@link ProxyAccessor}.
      */
     @Test
-    public void testLargerAdminSetIsParkedFailClosed() {
-        Remote facet = (Remote) Proxy.newProxyInstance(
-                getClass().getClassLoader(),
-                new Class<?>[]{ Remote.class, RemoteMethodControl.class,
-                                JoinAdmin.class, DestroyAdmin.class, FooAdmin.class },
-                THROWING);
+    public void testCommonAdminProxyRoundTrips() throws Exception {
+        Exporter exporter = newExporter();
         try {
-            AdminProxy.create(facet, UuidFactory.generate(),
+            Object stub = exporter.export(new HelloServiceFixture());
+            Uuid id = UuidFactory.generate();
+            Object admin = adminFacet(stub, id,
+                    new Class<?>[]{ JoinAdmin.class, DestroyAdmin.class });
+
+            assertFalse("admin proxy must NOT implement java.io.Serializable "
+                    + "(severed-JOSS rule)", admin instanceof Serializable);
+            assertFalse("common admin proxy must NOT be a ProxyAccessor",
+                    admin instanceof ProxyAccessor);
+
+            Object rt = roundTrip(admin);
+
+            assertTrue("round-tripped admin proxy must be JoinAdmin", rt instanceof JoinAdmin);
+            assertTrue("round-tripped admin proxy must be DestroyAdmin", rt instanceof DestroyAdmin);
+            assertTrue("round-tripped admin proxy must be constrainable",
+                    rt instanceof RemoteMethodControl);
+            assertFalse("round-tripped admin proxy must NOT be Serializable",
+                    rt instanceof Serializable);
+            assertTrue("UUID identity must survive the round-trip", admin.equals(rt));
+        } finally {
+            exporter.unexport(true);
+        }
+    }
+
+    /**
+     * Wire-form gate (b): a LARGER admin set {@code {JoinAdmin, DestroyAdmin, FooAdmin}}
+     * — the dynamic {@link java.lang.reflect.Proxy} admin stub backed by the
+     * {@code @AtomicSerial} {@code DynamicAdminProxy} handler — round-trips through
+     * {@link AtomicMarshalInputStream}: it is reconstructed as an equivalent
+     * {@code java.lang.reflect.Proxy} carrying the admin interface set +
+     * {@link RemoteMethodControl} + {@link ReferentUuid} (same UUID identity), and is
+     * deliberately NOT a {@link ProxyAccessor} (so it is not diverted through the
+     * smart-proxy codebase-download substitution).
+     */
+    @Test
+    public void testLargerAdminSetRoundTrips() throws Exception {
+        Exporter exporter = newExporter();
+        try {
+            Object stub = exporter.export(new HelloServiceFixture());
+            Uuid id = UuidFactory.generate();
+            // A constrainable facet over the shared export that ALSO carries FooAdmin.
+            Object admin = adminFacet(stub, id,
                     new Class<?>[]{ JoinAdmin.class, DestroyAdmin.class, FooAdmin.class });
-            fail("larger admin sets must be parked / fail closed");
-        } catch (UnsupportedOperationException expected) {
-            assertTrue(expected.getMessage(),
-                    expected.getMessage().contains("parked"));
+
+            assertTrue("larger admin set must yield a java.lang.reflect.Proxy admin stub",
+                    Proxy.isProxyClass(admin.getClass()));
+            assertFalse("dynamic admin proxy must NOT be a ProxyAccessor",
+                    admin instanceof ProxyAccessor);
+            assertTrue("dynamic admin proxy must be FooAdmin", admin instanceof FooAdmin);
+            assertTrue("dynamic admin proxy must be constrainable",
+                    admin instanceof RemoteMethodControl);
+
+            Object rt = roundTrip(admin);
+
+            assertTrue("round-tripped dynamic admin proxy must still be a "
+                    + "java.lang.reflect.Proxy", Proxy.isProxyClass(rt.getClass()));
+            assertTrue("round-tripped stub must be JoinAdmin", rt instanceof JoinAdmin);
+            assertTrue("round-tripped stub must be DestroyAdmin", rt instanceof DestroyAdmin);
+            assertTrue("round-tripped stub must be FooAdmin", rt instanceof FooAdmin);
+            assertTrue("round-tripped stub must be constrainable",
+                    rt instanceof RemoteMethodControl);
+            assertTrue("round-tripped stub must be ReferentUuid", rt instanceof ReferentUuid);
+            assertFalse("round-tripped stub must NOT be a ProxyAccessor",
+                    rt instanceof ProxyAccessor);
+            assertEquals("UUID identity must survive the round-trip",
+                    id, ((ReferentUuid) rt).getReferentUuid());
+        } finally {
+            exporter.unexport(true);
         }
     }
 
     // --------------------------------------------------------------- helpers
+
+    /** Round-trips {@code o} through the atomic wire engine (AtomicMarshalInputStream). */
+    private static Object roundTrip(Object o) throws Exception {
+        return new AtomicMarshalledInstance(o).get(false);
+    }
 
     /**
      * Builds the admin facet the way {@code AbstractJiniService.createAdminProxy}
@@ -273,7 +342,8 @@ public class HelloServiceProxyRoundTripTest {
         }
     };
 
-    /** A custom non-{@code Remote} admin interface used to drive the parked-path test. */
+    /** A custom non-{@code Remote} admin interface used to drive the larger-admin-set
+     *  (dynamic {@code @AtomicSerial} admin proxy) round-trip test. */
     public interface FooAdmin {
         void foo() throws RemoteException;
     }
