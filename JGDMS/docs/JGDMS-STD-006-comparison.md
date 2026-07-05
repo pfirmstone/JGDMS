@@ -8,9 +8,9 @@
 > axis, the table says so plainly; STD-006's own costs are stated in the
 > *Tradeoffs / caveats* section. STD-006 is an **unreleased draft** (v0.13-DRAFT,
 > "working scaffold"), with a JVM/DirtyChai-only reference codec today; its distinctive
-> value-equality property is now built and tested but **unmerged/unreleased** (and not
-> yet auto-wired for plain `Set`/`Map` fields) — read that section before quoting the
-> table.
+> value-equality property is built, tested, and **merged to trunk** but **unreleased**
+> (and not yet auto-wired for plain `Set`/`Map` fields) — read that section before
+> quoting the table.
 
 ## What STD-006 is
 
@@ -70,12 +70,10 @@ cell — read them; the single glyphs are lossy.
   objects that are `.equals` (a `HashSet` vs a `TreeSet` of the same elements; two
   `HashSet`s built in different insertion orders) produce identical bytes. This is the
   distinctive STD-006 axis; it is strictly stronger than "Canon".
-  > **Peter's call (do not decide without you):** STD-006's VEq cell is kept at `✓`
-  > because the property is now implemented and directly tested (footnote 4), per the
-  > board recommendation. Because that implementation is **built-but-unmerged/
-  > unreleased**, whether the cell should stay `✓` or move to `~` (with footnote 4) is
-  > **your decision** — this doc does not settle it. The reviewer's recommendation was
-  > `✓` + caveat; the honest alternative is `~` + caveat.
+  > **Decision (Peter, 2026-07-05): the VEq cell is `✓`.** The value-equality property
+  > is implemented, tested, and **merged to trunk** (commit `c0e20eb30`; footnote 4).
+  > The cell stays `✓` — it is unreleased (merged but not in a tagged release) but that
+  > is captured in footnote 4 and the Tradeoffs section, not in the mark.
 - **ColOrd** — Collection-order semantics tied to the type's value contract: order
   preserved where it is part of the value, canonicalised where it is not.
 - **SecDec** — Deserialization security model: `✓` = decode does not, by design,
@@ -129,9 +127,9 @@ cell — read them; the single glyphs are lossy.
    *type→ordering-discipline* rule on top of DER: canonicalise (octet-sort per X.690
    §11.6) the order for types whose iteration order is not part of the value,
    preserve it for those where it is, so `.equals` ⇒ byte-equal. **This octet-sort
-   canonicalisation is now built and tested** — branch `der-collection-codec` (codec
-   `9f0d1e581`; ASN.1 module + normative spec synced at `d955f0fe0`; full `jgdms-der`
-   suite 468/468 green) adds the `set:`/`bag:`/`orderedset:`/`list:`/`map:`/
+   canonicalisation is built, tested, and merged to trunk** — commit `c0e20eb30`
+   (codec `9f0d1e581`; ASN.1 module + normative spec synced at `d955f0fe0`; full
+   `jgdms-der` suite 468/468 green) adds the `set:`/`bag:`/`orderedset:`/`list:`/`map:`/
    `orderedmap:` wire tokens, the X.690 §11.6 octet-sort comparator (Option A: `SET OF`
    tag `0x31` for the canonicalise disciplines, `SEQUENCE OF` `0x30` for preserve, so a
    stock DER decoder enforces §11.6 order), reject-non-canonical (strictly-ascending,
@@ -139,17 +137,19 @@ cell — read them; the single glyphs are lossy.
    loops, and a discriminator covering the full JDK collection taxonomy. The two-
    `.equals`-`HashSet`s→byte-identical-DER value-equality property is asserted
    directly; the `LinkedHashSet` stricter-than-`equals` §3a tension is tested too.
-   **Residual, stated honestly:** the branch is **unmerged and unreleased**, and one
-   completeness gap remains — the *automatic* schema generator does not yet emit these
-   tokens for a plain `Set`/`Map`/`Collection` field (a schema author opts in via
-   `SchemaGenerator.collectionWireType`/`mapWireType`). That gap **fails closed** (an
-   un-tokenised concrete-collection field is rejected at schema generation; an
-   interface-typed one fails at encode), so **nothing is silently non-canonical**; it
-   is deferred pending element-type conveyance under erasure and will be folded into
-   the §7.6 `MapSerializer`/`SetSerializer`/`ListSerializer` replacement. So the design
-   provides VEq for unordered collections — which no surveyed competitor does — and a
-   tested reference implementation now exists, pending merge/release and transparent
-   auto-wiring. Preserve-side value-equality (`List`, `SortedSet`, arrays) holds today.
+   **Residuals, stated honestly:** it is **merged to trunk but unreleased** (not yet in
+   a tagged release), and one completeness gap remains — the *automatic* schema
+   generator does not yet emit these tokens for a plain `Set`/`Map`/`Collection` field
+   (a schema author opts in via `SchemaGenerator.collectionWireType`/`mapWireType`).
+   That gap **fails closed** (an un-tokenised concrete-collection field is rejected at
+   schema generation; an interface-typed one fails at encode), so **nothing is silently
+   non-canonical**; it is deferred pending element-type conveyance under erasure and
+   folds into the §7.6 `MapSerializer`/`SetSerializer`/`ListSerializer` replacement. The
+   design resolving it — a rules-based type model requiring no annotations — now exists
+   on branch `der-type-model`. So the design provides VEq for unordered collections —
+   which no surveyed competitor does — and a tested reference implementation is now on
+   trunk, pending a tagged release and transparent auto-wiring. Preserve-side
+   value-equality (`List`, `SortedSet`, arrays) holds today.
 42. **Evolve — imperative, code-driven `@AtomicSerial` reconciliation (STD-001).** A
    record decodes into a `GetArg` of **named, typed** fields; the deserializing
    constructor reads them with **explicit defaults for absent fields** — the typed
@@ -351,12 +351,13 @@ Evidence-based; each claim maps to the matrix and spec sections.
   §0.1, §2.1) and underpins Jini Entry byte-matching, content-address digests, and
   signature stability on `Set`/`Map` fields. Generic ASN.1 DER canonicalises *within*
   a value but does not tie collection ordering to a type's value contract, so it does
-  not deliver this (footnote 4). *Status:* the octet-sort canonicalisation is now
-  **implemented and tested** (branch `der-collection-codec`, codec `9f0d1e581` +
+  not deliver this (footnote 4). *Status:* the octet-sort canonicalisation is
+  **implemented, tested, and merged to trunk** (commit `c0e20eb30`; codec `9f0d1e581` +
   module/spec `d955f0fe0`, 468/468 `jgdms-der` tests; the two-`.equals`-`HashSet`s→
-  identical-DER property asserted directly), but is **unmerged/unreleased** and not yet
-  auto-emitted for plain `Set`/`Map` fields (opt-in via the schema-generator builders;
-  the un-opted path fails closed, never silently non-canonical — footnote 4).
+  identical-DER property asserted directly), though **unreleased** (merged, not yet in a
+  tagged release) and not yet auto-emitted for plain `Set`/`Map` fields (opt-in via the
+  schema-generator builders; the un-opted path fails closed, never silently
+  non-canonical — footnote 4).
 - **The receiver chooses the implementation — the decode-side face of value-equality.**
   Because DER serialises the *value*, not the implementation, the `@AtomicSerial`
   deserializing constructor materialises the logical value into whatever concrete
@@ -412,27 +413,30 @@ better.
   and several cells (`Permission`, `Date`, `File`, `MarshalledObject` nesting, type
   discriminator) are `[OPEN]`/`[PROPOSED]`. Every framework it is compared against
   here is shipped and battle-tested. This is the single biggest honest caveat.
-- **The distinctive value-equality property is now built and tested, but unmerged and
-  not yet auto-wired for plain `Set`/`Map` fields.** The unordered-collection octet-sort
-  canonicalisation — the standout column — has been **implemented and tested** on branch
-  `der-collection-codec` (codec `9f0d1e581`; ASN.1 module + normative spec synced at
-  `d955f0fe0`; full `jgdms-der` suite 468/468 green). Concretely built + tested: the
+- **The distinctive value-equality property is built, tested, and merged to trunk — but
+  unreleased and not yet auto-wired for plain `Set`/`Map` fields.** The
+  unordered-collection octet-sort canonicalisation — the standout column — is
+  **implemented, tested, and merged to trunk** at commit `c0e20eb30` (codec `9f0d1e581`;
+  ASN.1 module + normative spec synced at `d955f0fe0`; full `jgdms-der` suite 468/468
+  green). Concretely built + tested: the
   `set:`/`bag:`/`orderedset:`/`list:`/`map:`/`orderedmap:` tokens; the X.690 §11.6
   octet-sort (Option A `SET OF` `0x31` for canonicalise / `SEQUENCE OF` `0x30` for
   preserve, so a stock DER decoder enforces the order); reject-non-canonical
   (strictly-ascending, mandatory-DER) decode enforcement; the `maxCollection`=65536
   decode cap on all six loops; the two-`.equals`-`HashSet`s→byte-identical-DER property
   asserted directly; and the `LinkedHashSet` stricter-than-`equals` §3a tension. Two
-  honest residuals remain: (1) the branch is **unmerged and unreleased**, so this is not
-  yet a shipped-release capability; and (2) the *automatic* schema generator does not yet
-  emit collection tokens for a plain `Set`/`Map`/`Collection` field — a schema author
-  opts in via `SchemaGenerator.collectionWireType`/`mapWireType`. That gap **fails
-  closed** (an un-tokenised concrete-collection field is rejected at schema generation, an
+  honest residuals remain: (1) it is **merged to trunk but unreleased** (`c0e20eb30`,
+  not yet in a tagged release), so it is not yet a shipped-*release* capability; and
+  (2) the *automatic* schema generator does not yet emit collection tokens for a plain
+  `Set`/`Map`/`Collection` field — a schema author opts in via
+  `SchemaGenerator.collectionWireType`/`mapWireType`. That gap **fails closed** (an
+  un-tokenised concrete-collection field is rejected at schema generation, an
   interface-typed one fails at encode), so no field silently receives non-canonical
   treatment; it is deferred pending element-type conveyance under erasure and folds into
-  the §7.6 `MapSerializer`/`SetSerializer`/`ListSerializer` replacement. Preserve-side
-  value-equality (`List`, arrays, `SortedSet`/`TreeSet`, `EnumSet`) is likewise built and
-  tested.
+  the §7.6 `MapSerializer`/`SetSerializer`/`ListSerializer` replacement — the resolving
+  design (a rules-based type model needing no annotations) now exists on branch
+  `der-type-model`. Preserve-side value-equality (`List`, arrays, `SortedSet`/`TreeSet`,
+  `EnumSet`) is likewise built and tested.
 - **JVM/DirtyChai-only reference runtime today.** Language-neutrality is real *in the
   design* (ASN.1/X.690 + embedded schema), but the only working codec is JVM/DirtyChai.
   Protobuf, Avro, Thrift, Cap'n Proto, FlatBuffers, MessagePack, CBOR, and Fory all
@@ -480,11 +484,12 @@ better.
 
 Cells a domain reviewer should double-check before this doc is quoted externally:
 
-- **STD-006 VEq (footnote 4)** — the built-but-unmerged split, and the `✓`-vs-`~` cell
-  decision (Peter's call, noted at the VEq legend entry). The octet-sort codec is built
-  and tested on branch `der-collection-codec` (`9f0d1e581` / `d955f0fe0`, 468/468); a
-  reviewer should confirm merge/release status at their HEAD and whether the automatic
-  schema generator still requires opt-in for plain `Set`/`Map` fields.
+- **STD-006 VEq (footnote 4)** — the octet-sort codec is built, tested, and **merged to
+  trunk** (`c0e20eb30`; codec `9f0d1e581` / module `d955f0fe0`, 468/468). The `✓` cell
+  is Peter's confirmed decision (2026-07-05). A reviewer should confirm release status
+  (unreleased at time of writing) and whether the automatic schema generator still
+  requires opt-in for plain `Set`/`Map` fields (auto-wiring deferred; the resolving type
+  model is on branch `der-type-model`).
 - **STD-006 SecDec (footnote 2)** — confirm the DER-engine `DeSerializationPermission`
   gap and the SecurityManager-dependence are still accurate against STD-008 and the
   live `ObjectCodec`.
