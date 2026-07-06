@@ -351,10 +351,13 @@ public class ServiceProxyProcessorTest {
     public void generatesBackendInterface() {
         // The backend (wire) interface is generated only for a TRANSLATING smart
         // proxy -- protocol() != api().  Here HelloService's internal protocol is a
-        // distinct HelloProtocol interface, so a backend that aggregates the API +
-        // infra under Remote IS emitted (§6 shape-3 translating case).  (A
-        // do-nothing proxy with protocol == api gets no backend -- see
-        // dynamicProtocolIsApiGeneratesNothing.)
+        // distinct HelloProtocol interface.  The generated backend aggregates the
+        // internal wire PROTOCOL + infra under Remote, NOT the public api: the
+        // exported server stub (and hence this backend it carries) implements only
+        // the wire interface; the disjoint public api is advertised via the
+        // downloaded smart proxy (JGDMS-STD-009 §4, "Reggie Registrar vs
+        // ServiceRegistrar").  (A do-nothing proxy with protocol == api gets no
+        // backend -- see dynamicProtocolIsApiGeneratesNothing.)
         ProcessorHarness.Result r = new ProcessorHarness()
             .add("hello.HelloProtocol",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
@@ -375,17 +378,24 @@ public class ServiceProxyProcessorTest {
         String backend = r.generated.get("hello.HelloServiceBackend");
         assertTrue("backend must be generated; got " + r.generated.keySet(),
             backend != null);
-        // Aggregates Remote, the API, and every infra interface.
         assertTrue(backend, backend.contains("interface HelloServiceBackend"));
-        assertTrue(backend, backend.contains("java.rmi.Remote"));
-        assertTrue(backend, backend.contains("hello.HelloService"));
-        assertTrue(backend, backend.contains("net.jini.lookup.ServiceProxyAccessor"));
-        assertTrue(backend, backend.contains("net.jini.lookup.ServiceAttributesAccessor"));
-        assertTrue(backend, backend.contains("net.jini.lookup.ServiceIDAccessor"));
-        assertTrue(backend, backend.contains("net.jini.export.CodebaseAccessor"));
-        assertTrue(backend, backend.contains("net.jini.admin.Administrable"));
-        assertTrue(backend, backend.contains("net.jini.admin.JoinAdmin"));
-        assertTrue(backend, backend.contains("org.apache.river.admin.DestroyAdmin"));
+        // The extends clause aggregates Remote, the wire PROTOCOL, and every infra
+        // interface -- and NOT the public api.  Isolate the extends clause so the
+        // backend's own type name ("HelloServiceBackend") does not confound the
+        // api-absence check.
+        String ext = backend.substring(backend.indexOf("extends"), backend.indexOf(" {"));
+        assertTrue(ext, ext.contains("java.rmi.Remote"));
+        assertTrue("backend must aggregate the wire protocol: " + ext,
+            ext.contains("hello.HelloProtocol"));
+        assertFalse("backend must aggregate the wire protocol, NOT the public api: " + ext,
+            ext.contains("hello.HelloService"));
+        assertTrue(ext, ext.contains("net.jini.lookup.ServiceProxyAccessor"));
+        assertTrue(ext, ext.contains("net.jini.lookup.ServiceAttributesAccessor"));
+        assertTrue(ext, ext.contains("net.jini.lookup.ServiceIDAccessor"));
+        assertTrue(ext, ext.contains("net.jini.export.CodebaseAccessor"));
+        assertTrue(ext, ext.contains("net.jini.admin.Administrable"));
+        assertTrue(ext, ext.contains("net.jini.admin.JoinAdmin"));
+        assertTrue(ext, ext.contains("org.apache.river.admin.DestroyAdmin"));
     }
 
     @Test
@@ -549,7 +559,16 @@ public class ServiceProxyProcessorTest {
         // Shape 3 translating case: a SMART service whose protocol() differs from
         // its api() (the proxy translates the API into a distinct internal wire
         // protocol) generates BOTH the backend wire interface AND the proxy class.
-        ProcessorHarness.Result r = new ProcessorHarness()
+        //
+        // Here the wire protocol carries the SAME method signatures as the api (a
+        // renamed/parallel wire interface -- the direct-forwarding shape the current
+        // generator supports), so the generated proxy must also COMPILE.  This is the
+        // anti-CCE/anti-compile-error regression: create()/ctor and setConstraints
+        // must both be keyed off the protocol.  Before the fix, create()/ctor took
+        // the api while setConstraints cast `(protocol) server` -- for a disjoint api
+        // != protocol that does not compile (and at runtime would ClassCastException,
+        // since the exported stub is a protocol instance, never an api instance).
+        ProcessorHarness h = new ProcessorHarness()
             .add("hello.HelloProtocol",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " public interface HelloProtocol extends Remote {"
@@ -565,13 +584,99 @@ public class ServiceProxyProcessorTest {
                 + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART,"
                 + "     codebase = true, protocol = HelloProtocol.class)"
                 + " public class HelloServiceImpl implements HelloService {"
-                + "   public String greet(String name) throws RemoteException { return name; } }")
-            .run();
+                + "   public String greet(String name) throws RemoteException { return name; } }");
+        ProcessorHarness.Result r = h.run();
         assertFalse(r.allMessages(), r.hasAnyError());
         assertTrue("SMART + protocol!=api generates the backend: " + r.generated.keySet(),
             r.generated.containsKey("hello.HelloServiceBackend"));
+        String proxy = r.generated.get("hello.ConstrainableHelloServiceProxy");
         assertTrue("SMART generates the constrainable proxy class: " + r.generated.keySet(),
-            r.generated.containsKey("hello.ConstrainableHelloServiceProxy"));
+            proxy != null);
+        // create() and the (server, uuid, constraints) ctor are keyed off the wire
+        // PROTOCOL (matching the exported stub and the @SmartProxy delegate ctor),
+        // not the api.
+        assertTrue("create() must take the wire protocol:\n" + proxy,
+            proxy.contains("create(hello.HelloProtocol server, net.jini.id.Uuid proxyID)"));
+        assertTrue("ctor must take the wire protocol:\n" + proxy,
+            proxy.contains("public ConstrainableHelloServiceProxy(hello.HelloProtocol server,"));
+        // The proxy still IMPLEMENTS the public api and forwards through the protocol.
+        assertTrue("proxy implements the public api:\n" + proxy,
+            proxy.contains("implements hello.HelloService"));
+        assertTrue("forwards through the wire protocol:\n" + proxy,
+            proxy.contains("((hello.HelloProtocol) server).greet(name)"));
+        // And the whole translating chain must now COMPILE (the fix's payoff).
+        ProcessorHarness.Result compiled = h.compileGenerated(r);
+        assertTrue("translating proxy (protocol-keyed create/ctor/setConstraints) must"
+                + " compile:\n" + compiled.allMessages() + "\n--- proxy ---\n" + proxy,
+            compiled.success);
+    }
+
+    @Test
+    public void smartDisjointTranslationKeysProxyAndBackendOffProtocol() {
+        // Shape 3 translating case, DISJOINT api != protocol (the canonical Reggie
+        // "Registrar vs ServiceRegistrar" model, JGDMS-STD-009 §4): the public api
+        // (HelloService.greet) and the wire protocol (HelloProtocol.greetInternal)
+        // share NO method, and the impl implements ONLY the wire interface.  The
+        // generator must key the generated artifacts off the protocol:
+        //   - the backend aggregates the wire PROTOCOL + infra (never the api), and
+        //   - the proxy's create()/ctor take the PROTOCOL (matching the exported stub
+        //     and the @SmartProxy delegate ctor), while still IMPLEMENTING the api.
+        //
+        // This is a STRUCTURE (golden-source) test, not a compile test: with a truly
+        // disjoint method set the generated direct-forwarding body
+        // `((HelloProtocol) server).greet(name)` cannot compile -- HelloProtocol has
+        // no greet(String).  Bridging a disjoint method translation is the job of the
+        // developer @SmartProxy delegate whose shell generation is the deferred P3
+        // work (no delegate exists in the tree yet); a compile-and-load round trip is
+        // therefore a P3 follow-up.  See smartWithDistinctProtocolGeneratesBackendAndProxy
+        // for the name-compatible translating shape that DOES compile today.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.HelloProtocol",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloProtocol extends Remote {"
+                + "   String greetInternal(String name) throws RemoteException; }")
+            .add("hello.HelloService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART,"
+                + "     protocol = HelloProtocol.class)"
+                // The impl implements only the WIRE interface (Registrar-style); the
+                // disjoint public api is advertised via the downloaded smart proxy.
+                + " public class HelloServiceImpl implements HelloProtocol {"
+                + "   public String greetInternal(String name) throws RemoteException { return name; } }")
+            .run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+
+        // Backend aggregates the wire protocol + infra, NOT the public api.
+        String backend = r.generated.get("hello.HelloServiceBackend");
+        assertTrue("backend must be generated; got " + r.generated.keySet(), backend != null);
+        String ext = backend.substring(backend.indexOf("extends"), backend.indexOf(" {"));
+        assertTrue("backend aggregates the wire protocol: " + ext,
+            ext.contains("hello.HelloProtocol"));
+        assertFalse("backend must NOT aggregate the disjoint public api: " + ext,
+            ext.contains("hello.HelloService"));
+
+        // Proxy: create()/ctor keyed off the protocol; implements the public api.
+        String proxy = r.generated.get("hello.ConstrainableHelloServiceProxy");
+        assertTrue("proxy must be generated; got " + r.generated.keySet(), proxy != null);
+        assertTrue("create() takes the wire protocol:\n" + proxy,
+            proxy.contains("create(hello.HelloProtocol server, net.jini.id.Uuid proxyID)"));
+        assertTrue("ctor takes the wire protocol:\n" + proxy,
+            proxy.contains("public ConstrainableHelloServiceProxy(hello.HelloProtocol server,"));
+        assertTrue("proxy implements the (disjoint) public api:\n" + proxy,
+            proxy.contains("implements hello.HelloService"));
+        assertTrue("setConstraints re-wraps via the protocol cast:\n" + proxy,
+            proxy.contains("(hello.HelloProtocol) server"));
+        // The forwarding body casts the server to the wire protocol (the translating
+        // chain is consistent on protocol); bridging the disjoint method name is the
+        // P3 delegate's job, so this source is asserted, not compiled.
+        assertTrue("forwards through the wire protocol:\n" + proxy,
+            proxy.contains("((hello.HelloProtocol) server).greet(name)"));
     }
 
     @Test
