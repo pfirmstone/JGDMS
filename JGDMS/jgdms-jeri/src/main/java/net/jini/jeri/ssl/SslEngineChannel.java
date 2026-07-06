@@ -221,6 +221,7 @@ final class SslEngineChannel {
         this.handshakeReadDeadline = (timeoutMillis > 0)
             ? addClamped(System.currentTimeMillis(), timeoutMillis)
             : 0L;
+
         /*
          * Drive the handshake under doPrivileged: JSSE's internal cert-path
          * validation and record I/O need incidental permissions (e.g.

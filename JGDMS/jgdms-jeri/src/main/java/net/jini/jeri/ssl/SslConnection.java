@@ -415,6 +415,7 @@ class SslConnection extends Utilities implements Connection {
 	     * not TLSv1.3 (SslEngineChannel.getSession()/decacheSession).
 	     */
 	    params.setProtocols(new String[]{ "TLSv1.3" });
+
 	    engine.setSSLParameters(params);
 
 	    final SslEngineChannel ec = new SslEngineChannel(
