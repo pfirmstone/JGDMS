@@ -90,6 +90,20 @@
                         <include>**/*.java</include>
                     </includes>
                 </fileSet>
+                <!--
+                  META-INF/PREFERRED.LIST for the downloadable -dl codebase jar
+                  (JGDMS-STD-009 §6.2 RULE-C3).  Static, all-preferred by default
+                  (the downloaded proxy CLASS + any behaviour classes are isolated
+                  per codebase), with the backend (wire) INTERFACE excepted:
+                  interface classes are assignability-critical and MUST be shared,
+                  never preferred (preferring one risks ClassCastException).
+                -->
+                <fileSet filtered="true" packaged="false" encoding="UTF-8">
+                    <directory>src/main/resources</directory>
+                    <includes>
+                        <include>META-INF/PREFERRED.LIST</include>
+                    </includes>
+                </fileSet>
             </fileSets>
         </module>
 

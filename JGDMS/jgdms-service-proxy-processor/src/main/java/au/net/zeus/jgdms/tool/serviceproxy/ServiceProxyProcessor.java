@@ -278,18 +278,24 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
      * implementation and its resolved API interface; never modifies either.
      */
     private void validateJiniService(ServiceModel m) {
-        // The resolved service API type must be a Remote interface (a Remote
-        // interface whose methods cannot signal transport failure is malformed).
-        if (!isRemote(m.api.asType())) {
-            messager.printMessage(Kind.ERROR,
-                "@JiniService api() interface " + m.api.getQualifiedName()
-                + " must extend java.rmi.Remote.", m.impl);
-            m.hadError = true;
+        // Every resolved service API type must be a Remote interface (a service
+        // API whose methods cannot signal transport failure is malformed).
+        for (TypeElement iface : m.apiInterfaces) {
+            if (!isRemote(iface.asType())) {
+                messager.printMessage(Kind.ERROR,
+                    "@JiniService api() interface " + iface.getQualifiedName()
+                    + " must extend java.rmi.Remote.", m.impl);
+                m.hadError = true;
+            }
         }
         for (ExecutableElement method : m.apiMethods) {
             if (!throwsRemoteException(method)) {
+                Element decl = method.getEnclosingElement();
+                String declName = (decl instanceof TypeElement)
+                        ? ((TypeElement) decl).getSimpleName().toString()
+                        : m.api.getSimpleName().toString();
                 messager.printMessage(Kind.ERROR,
-                    "@JiniService API method " + m.api.getSimpleName() + "."
+                    "@JiniService API method " + declName + "."
                     + method.getSimpleName()
                     + " must declare 'throws java.rmi.RemoteException'.", method);
                 m.hadError = true;
@@ -327,11 +333,13 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
                     + "; omitting it silently breaks admin-over-wire.", backend);
             }
         }
-        if (!implementsType(backend.asType(), m.api.getQualifiedName().toString())) {
-            messager.printMessage(Kind.ERROR,
-                "Backend interface " + backend.getQualifiedName()
-                + " must aggregate the public API interface " + m.api.getQualifiedName()
-                + ".", backend);
+        for (TypeElement iface : m.apiInterfaces) {
+            if (!implementsType(backend.asType(), iface.getQualifiedName().toString())) {
+                messager.printMessage(Kind.ERROR,
+                    "Backend interface " + backend.getQualifiedName()
+                    + " must aggregate the public API interface " + iface.getQualifiedName()
+                    + ".", backend);
+            }
         }
     }
 
@@ -409,8 +417,12 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
          .append(" * @see ").append(m.api.getQualifiedName()).append('\n')
          .append(" */\n");
         b.append("public interface ").append(simple).append("\n")
-         .append("        extends ").append(REMOTE).append(",\n")
-         .append("                ").append(m.api.getQualifiedName());
+         .append("        extends ").append(REMOTE);
+        // Aggregate EVERY api interface (JGDMS-STD-009 §3.1/§4), so a JERI stub for
+        // this backend transitively carries the whole service API plus the infra.
+        for (TypeElement iface : m.apiInterfaces) {
+            b.append(",\n                ").append(iface.getQualifiedName());
+        }
         for (String infra : BACKEND_INFRA) {
             b.append(",\n                ").append(infra);
         }
@@ -459,7 +471,16 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         b.append("@org.apache.river.api.io.AtomicSerial.Stateless\n");
         b.append("public final class ").append(simple).append("\n")
          .append("        extends ").append(ABSTRACT_SMART_PROXY).append(".ConstrainableSmartProxy\n")
-         .append("        implements ").append(api).append(" {\n\n");
+         .append("        implements ");
+        // Implement EVERY api interface (JGDMS-STD-009 §3.1/§4), not just the
+        // primary -- the proxy is a stand-in for the whole service API.
+        for (int i = 0; i < m.apiInterfaces.size(); i++) {
+            if (i > 0) {
+                b.append(", ");
+            }
+            b.append(m.apiInterfaces.get(i).getQualifiedName());
+        }
+        b.append(" {\n\n");
         b.append("    private static final long serialVersionUID = 1L;\n\n");
 
         // Fail-closed factory (SOW 2.1).
@@ -528,12 +549,19 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         b.append("                (").append(protocol).append(") server, getReferentUuid(), constraints);\n");
         b.append("    }\n");
 
-        // Forwarding methods -- every public API method delegated to (protocol) server.
+        // Forwarding methods -- every public API method across all api interfaces,
+        // delegated to server.  For the one-to-one case (protocol == api) each
+        // method is dispatched through the interface that DECLARES it, so a
+        // multi-interface service forwards each interface's methods correctly
+        // (casting all to a single api would not compile when a method belongs to
+        // a sibling interface).  For a translating smart proxy (protocol != api)
+        // every method is forwarded through the distinct internal wire protocol.
         for (ExecutableElement method : m.apiMethods) {
+            String castType = m.protocolIsApi() ? declaringTypeName(method) : protocol;
             b.append('\n');
             b.append("    @Override\n");
             b.append("    ").append(renderMethodSignature(method)).append(" {\n");
-            b.append("        ").append(renderForwardingBody(method, protocol)).append('\n');
+            b.append("        ").append(renderForwardingBody(method, castType)).append('\n');
             b.append("    }\n");
         }
 
@@ -613,14 +641,28 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         return sb.toString();
     }
 
-    /** The forwarding body: {@code return ((Protocol) server).name(args);} (or no return for void). */
-    private String renderForwardingBody(ExecutableElement method, String protocol) {
+    /**
+     * The fully-qualified declaring interface of {@code method} (its enclosing
+     * type) — the cast target used to forward one API method through the interface
+     * that declares it, so a multi-interface service dispatches each method
+     * correctly.  API methods always have a {@code TypeElement} enclosing type.
+     */
+    private String declaringTypeName(ExecutableElement method) {
+        Element enclosing = method.getEnclosingElement();
+        if (enclosing instanceof TypeElement) {
+            return ((TypeElement) enclosing).getQualifiedName().toString();
+        }
+        return enclosing == null ? "java.lang.Object" : enclosing.toString();
+    }
+
+    /** The forwarding body: {@code return ((CastType) server).name(args);} (or no return for void). */
+    private String renderForwardingBody(ExecutableElement method, String castType) {
         StringBuilder sb = new StringBuilder();
         boolean isVoid = method.getReturnType().getKind() == TypeKind.VOID;
         if (!isVoid) {
             sb.append("return ");
         }
-        sb.append("((").append(protocol).append(") server).")
+        sb.append("((").append(castType).append(") server).")
           .append(method.getSimpleName()).append('(');
         var params = method.getParameters();
         for (int i = 0; i < params.size(); i++) {
