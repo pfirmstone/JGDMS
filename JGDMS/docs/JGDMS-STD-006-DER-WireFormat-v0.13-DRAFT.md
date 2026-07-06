@@ -21,7 +21,11 @@
 > string form and **re-parsed** through the trusted policy parser (governing
 > authority-vs-signature principle now stated in §7.5); §7.6 `Date` is **epoch-millis
 > `INTEGER`**; §7.6 `MarshalledObject` nesting is **bound to `MAX_NESTING` + §4.5 size
-> caps** (a `maxNesting` number still to set). **Resolved from source:** §7.3
+> caps** (a `maxNesting` number still to set); **§7.3.1 (new) verification policy** —
+> the `DigestCodeSource.unverified` flag does not travel, decode forces the UNVERIFIED
+> state and reconstructs by direct field-set (no re-compute/re-download), and the
+> receiver verifies only against code present or being loaded anyway (never
+> download-to-verify). **Resolved from source:** §7.3
 > `DigestCodeSourceRecord` (`DigestCodeSource.java`), §7.4 SCAP field lists
 > (`au.net.zeus.jgdms.api.codebase.*` — no `SignedVerdict` class; signatures inline),
 > §7.6 `URL`/`URI`/`File`/`UID`/`Properties`/`StackTraceElement` (their serializers) +
@@ -1476,15 +1480,16 @@ certs := int n(0..100); { object der(byte[] <=65536) } * n
 
 > **Authority classification (governing principle, §7.5).** `DigestCodeSourceRecord`
 > **MAY remain structured DER.** Its trust does **not** derive from its raw decoded
-> fields: the record is only a *codebase identity*, and the digest it carries is
-> **re-verified later against the actual code** (at policy / class-load time, via
-> `DigestGrant`, whose `implies` compares this digest to the loaded domain's
-> `DigestCodeSource.getDigest()` — NOT in the codec, §7.2). Forging the fields does
-> not forge trust: a wrong `(uri, certs, algorithm, digest)` simply fails to match any
-> real domain, or is caught when the actual bytes are hashed. This is the
-> "trust-from-a-digest-compared-against-known-good" case the §7.5 principle admits as
-> safe for structured DER, in contrast to `PermissionGrant` (whose decoded state *is*
-> the authority).
+> fields: the record is only a *codebase identity*, and the digest it carries is a
+> claim the receiver treats as **unverified** until it is checked locally against code
+> that is present (or being loaded) anyway — see the **verification policy** below.
+> Forging the fields does not forge trust: a decoded `DigestCodeSourceRecord` is only
+> an assertion; it grants nothing until a `DigestGrant` matches it against a real,
+> locally-known `DigestCodeSource.getDigest()` (at policy / class-load time — NOT in
+> the codec, §7.2). This is the "trust-from-a-digest-compared-against-known-good" case
+> the §7.5 principle admits as safe for structured DER, in contrast to
+> `PermissionGrant` (whose decoded state *is* the authority) — **provided** the digest
+> check never itself triggers a download (the trap the verification policy forecloses).
 
 ```asn1
 DigestCodeSourceRecord ::= SEQUENCE {
@@ -1536,6 +1541,68 @@ Remaining field-encoding confirmations (unchanged, now source-backed):
   the fragment, or normalised into the explicit `digest` field. **Recommendation:**
   normalise into the explicit field; the `httpmd:` fragment was an in-band trick
   precisely because Java serialization had no explicit slot — DER does.
+
+#### 7.3.1 Verification policy (NORMATIVE — RATIFIED Peter, 2026-07-06)
+
+A `DigestCodeSourceRecord` transmits a digest *claim*. When and how that claim is
+verified is security-critical: a naive "always re-verify the digest against the real
+code" is a **trap**, because obtaining the code to hash it may itself trigger a
+network download. The following rules are normative for every conforming
+implementation.
+
+**The `unverified` state and its wire treatment.** `java.security.DigestCodeSource`
+carries a field **`private transient boolean unverified`** (accessor
+**`public boolean unverified()`** — "returns true if the digest hasn't been
+verified"; note the *inverted* sense: `unverified == true` means NOT yet verified).
+The flag is **`transient`: it does NOT travel on the wire** (it is absent from
+`writeExternal`/`readExternal`), and there is no corresponding field in
+`DigestCodeSourceRecord` above. This is deliberate and REQUIRED:
+
+- **The verified/unverified state is the receiver's LOCAL determination and MUST NOT
+  be trusted from the wire.** A peer could forge "verified"; a wire-asserted verified
+  flag MUST NOT be believed. The flag therefore **does not travel**. (Were any future
+  revision to carry it, a conforming decoder MUST ignore it and reset it — but the
+  ratified form is *not-carried*.)
+- **Secure default: a decoded `DigestCodeSource` is UNVERIFIED.** On every
+  reconstruction path the receiver MUST set `unverified = true` (digest hasn't been
+  verified) regardless of any value that might arrive. This matches the source
+  exactly: both the transmitted-digest constructor
+  (`DigestCodeSource(uri, certs, algorithm, digest)`) and the `readExternal` path set
+  `unverified = true`; only the constructors that *compute* the digest from real bytes
+  leave it `false`. A "verified" claim is authority-adjacent and, per the §7.5
+  governing principle, must not be reconstituted from wire fields.
+
+**Reconstruct by direct field-set, never by re-computation or re-download.** The
+decoder MUST reconstruct the `DigestCodeSource` by **directly setting the transmitted
+digest field** (the `readExternal` / `(uri, certs, algorithm, digest)` path). It MUST
+NOT route reconstruction through any URL-taking constructor or code path that calls
+`computeDigest` (i.e. that fetches `locationUri` and hashes it). Decode-time
+re-computation is a re-download / TOCTOU landmine: it fetches attacker-influenced
+bytes at decode time and the fetched bytes may differ from those the digest was
+computed over. Decode transmits and stores the digest; it never recomputes it.
+
+**Lazy verification — never download solely to verify (REQUIRED).**
+
+- A receiver **MUST NOT download code SOLELY to verify** a `DigestCodeSourceRecord`'s
+  digest. Verify-by-download is a **new security threat** introduced by the record
+  itself: a peer that can send records could otherwise trigger arbitrary code
+  downloads, traffic amplification, or TOCTOU races just by sending crafted records,
+  with no other authority.
+- The receiver **MUST verify the digest ONLY when the code is EITHER (a) already
+  present on the local machine, OR (b) about to be downloaded ANYWAY because it is
+  being loaded** for execution. Verification **piggybacks** on a load that is
+  happening regardless of the record; it is **never** a download-initiated-to-verify.
+- Until such a load occurs, the decoded `DigestCodeSource` simply remains
+  `unverified() == true`. It confers no authority in that state: a `DigestGrant`
+  (§7.2/§7.5) matches only against a domain whose `DigestCodeSource` is present and
+  whose digest has been established locally, so an unverified record grants nothing.
+  There is no correctness pressure to verify eagerly, and eager verification would
+  reintroduce the download-to-verify threat.
+
+This policy is consistent with §8 (the authenticated `CodebaseAccessor` is the *only*
+code-download channel and is driven by a *load*, never by a bare identity record) and
+with the acyclic/fail-secure decode discipline (§3.7, principle 6): decoding a
+`DigestCodeSourceRecord` performs **no** network I/O.
 
 ### 7.4 SCAP Data Objects  **[RESOLVED — field lists confirmed against the `@AtomicSerial` classes]**
 
@@ -2760,10 +2827,15 @@ Consolidated list of every **[OPEN]** above, for the next working session:
 5. §7.3 — **RESOLVED** against `java.security.DigestCodeSource` (DirtyChai): identity
    `(uri, certificates, digestAlgorithm, digest)`, bounds match §4.5
    (`maxCerts`=100/`maxCertLen`=64 KiB/`maxDigestLen`=512), algorithm from the source
-   `ALLOWED` set. Authority-classified **safe as structured DER** (digest re-verified
-   against real code at policy time, §7.5 principle). **[PROPOSED sub-item:** drop the
-   per-cert `getType()` string (source constrains it to `"X.509"`, redundant).] The
-   `httpmd:` fragment normalisation into an explicit `digest` field still applies.
+   `ALLOWED` set. **§7.3.1 verification policy RATIFIED (Peter, 2026-07-06):** the
+   `transient boolean unverified` flag (accessor `unverified()`) does **NOT** travel;
+   decode reconstructs by direct field-set of the transmitted digest (never
+   re-compute/re-download — TOCTOU), forces the **UNVERIFIED** state, and the receiver
+   verifies **only** against code already present or being loaded anyway — **never
+   download-to-verify**. Authority-classified **safe as structured DER** given that
+   policy (§7.5 principle). **[PROPOSED sub-item:** drop the per-cert `getType()` string
+   (source constrains it to `"X.509"`, redundant).] The `httpmd:` fragment
+   normalisation into an explicit `digest` field still applies.
 6. §7.4 — **RESOLVED**: field lists confirmed against the `@AtomicSerial` classes in
    `au.net.zeus.jgdms.api.codebase` (`AnalysisRequest`, `JarAnalysisReport`,
    `RegistryVerdict`, `CrashReport`; **no `SignedVerdict` class** — signatures are

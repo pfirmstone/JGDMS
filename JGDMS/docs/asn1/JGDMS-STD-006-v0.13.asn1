@@ -202,6 +202,13 @@ DigestValue ::= SEQUENCE {
 -- Section 7.3 Code Identity: DigestCodeSourceRecord
 -- ============================================================================
 
+-- The DigestCodeSource `unverified` boolean (source accessor unverified())
+-- deliberately does NOT travel: it is transient in the class and absent here.
+-- The verified/unverified state is the receiver's LOCAL determination and MUST
+-- NOT be trusted from the wire; a decoded DigestCodeSource is UNVERIFIED
+-- (unverified == true) until the receiver verifies it locally, and only when the
+-- code is present or being loaded anyway (never download-to-verify). See spec
+-- section 7.3.1 (Verification policy, RATIFIED 2026-07-06).
 DigestCodeSourceRecord ::= SEQUENCE {
     locationUri     UTF8String,
     -- [0] IMPLICIT context tag (section 4.5 distinct-tag rule): untagged, this
@@ -210,6 +217,8 @@ DigestCodeSourceRecord ::= SEQUENCE {
     -- UrlCodeSourceRecord certificate path; same logical bound (section 4.5).
     certificates    [0] IMPLICIT SEQUENCE (SIZE(0..maxCerts)) OF OCTET STRING (SIZE(1..maxCertLen)) OPTIONAL,
     digest          DigestValue
+    -- NB: no `verified`/`unverified` field (see comment above). The record is a
+    -- digest CLAIM only.
 }
 
 -- ============================================================================
