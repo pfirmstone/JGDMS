@@ -135,6 +135,22 @@ AlgorithmIdentifier ::= SEQUENCE {
 }
 
 -- ============================================================================
+-- Section 4.4 Top-level type discriminator (RATIFIED 2026-07-06: OID-rooted)
+--
+-- Each top-level wire object is wrapped so a decoder selects its schema from a
+-- single explicit OBJECT IDENTIFIER (board H3: one discriminator, not two). The
+-- body is opaque OCTET STRING content the envelope never re-encodes (same
+-- discipline as SignedObject.tbs, section 7.4.1). The typeId arc is rooted under
+-- the JGDMS enterprise node; the PEN 999999 in the module header is a PLACEHOLDER
+-- and the root arc allocation NEEDS PETER'S CONFIRMATION (spec section 4.4).
+-- ============================================================================
+
+TypedWireObject ::= SEQUENCE {
+    typeId  OBJECT IDENTIFIER,
+    body    OCTET STRING
+}
+
+-- ============================================================================
 -- Section 7.1 Identity: UserSubjectBlock and Principal
 -- ============================================================================
 
@@ -200,15 +216,49 @@ DigestCodeSourceRecord ::= SEQUENCE {
 -- Section 7.4 SCAP Data Objects; illustrative skeletons ([OPEN] in spec)
 -- ============================================================================
 
+-- Field lists RESOLVED (2026-07-06) against the @AtomicSerial classes in
+-- au.net.zeus.jgdms.api.codebase (jgdms-platform). Authority-classified safe as
+-- structured DER: signature-verified (JarAnalysisReport/RegistryVerdict/CrashReport)
+-- or content-hash self-verified (AnalysisRequest); see spec section 7.4.
+
 AnalysisRequest ::= SEQUENCE {
     packedJarBytes  OCTET STRING,
     contentHash     DigestValue,
     originalUri     UTF8String,
     maxBfsDepth     INTEGER (0..MAX)
-    -- bare MAX as sole upper bound is legal ASN.1 (X.680 section 51.6);
-    -- compiled as written, unmodified from the spec text.
+    -- bare MAX as sole upper bound is legal ASN.1 (X.680 section 51.6).
 }
 
+-- ClassAnalysisResult: STUB (field list not yet extracted from the @AtomicSerial
+-- class; spec section 7.4 [PROPOSED]). Opaque per-record DER for now.
+ClassAnalysisResult ::= OCTET STRING
+
+JarAnalysisReport ::= SEQUENCE {
+    contentHash          DigestValue,
+    classNames           SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
+    classResults         SEQUENCE (SIZE(0..maxCollection)) OF ClassAnalysisResult,
+    engineSignature      OCTET STRING,
+    declaredPermissions  SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
+    codebaseUrls         SEQUENCE (SIZE(0..maxCollection)) OF UTF8String
+}
+
+RegistryVerdict ::= SEQUENCE {
+    codebaseUrls  SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
+    verdict       INTEGER,
+    timestamp     INTEGER,
+    signature     OCTET STRING
+}
+
+CrashReport ::= SEQUENCE {
+    codebaseUrls   SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
+    exitCode       INTEGER,
+    incarnation    INTEGER,
+    stderrSummary  UTF8String,
+    signature      OCTET STRING
+}
+
+-- Generic signed-object form (available; the as-built SCAP classes carry their
+-- signature inline instead, see spec section 7.4).
 SignedObject ::= SEQUENCE {
     tbs         OCTET STRING,
     signature   SEQUENCE {
@@ -355,14 +405,31 @@ ThrowableRecord ::= SEQUENCE {
     -- acyclic; nesting <= maxCauseDepth
 }
 
--- Section 7.6 table row: proposed Permission DER form (context tags per
--- section 4.5: a name-only encoding must be distinguishable from an
--- actions-only one).
-Permission ::= SEQUENCE {
-    className   UTF8String,
-    name        [0] IMPLICIT UTF8String OPTIONAL,
-    actions     [1] IMPLICIT UTF8String OPTIONAL
-}
+-- Section 7.6 Permission: NOT a structured DER wire type.
+-- RATIFIED (Peter, 2026-07-06): a java.security.Permission likely need not
+-- travel the wire at all; IF it does, it is carried as its TEXTUAL string form
+-- and RE-PARSED on decode through the trusted policy parser, NEVER
+-- reconstituted from serialized object state (authority-forgery / gadget
+-- vector; consistent with the 2026-06 PermissionSerializer deletion). The
+-- earlier structured Permission SEQUENCE (className, name, actions) form is
+-- WITHDRAWN. When a textual Permission is carried it is simply a
+-- PermissionTextForm UTF8String (see below); there is no per-field DER record.
+PermissionTextForm ::= UTF8String
+    -- the exact policy grammar the trusted parser accepts (a permission grant
+    -- line: class name plus optional target and actions). The receiver
+    -- reconstructs authority ONLY by parsing this through the vetted parser
+    -- (section 7.6); it is never built from decoded per-field state.
+
+-- Section 7.5 PermissionGrant / DigestGrant: likewise NOT structured DER.
+-- RATIFIED (Peter, 2026-07-06): grants are authority-bearing objects that
+-- (in-tree) deliberately do NOT implement Serializable and use the
+-- Serialization Builder Pattern (PermissionGrant.java). On the wire they
+-- travel as their TEXTUAL policy-grant form (STD-004 policy syntax) and are
+-- RE-PARSED through the trusted policy parser, never directly deserialized
+-- from wire-controlled fields. See section 7.5.
+PermissionGrantTextForm ::= UTF8String
+    -- the STD-004 textual policy-grant form; reconstructed ONLY via the vetted
+    -- policy parser (section 7.5).
 
 -- ============================================================================
 -- Section 7.7.1 Entry Schema Identity

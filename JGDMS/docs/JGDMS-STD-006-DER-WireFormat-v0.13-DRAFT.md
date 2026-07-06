@@ -13,6 +13,29 @@
 > validated against an ASN.1 compiler (§4.5 makes compiler validation the next
 > gating action).
 >
+> **Open-item resolution pass (2026-07-06)** — resolved the remaining `[OPEN]`
+> markers. **RATIFIED by Peter (2026-07-06):** §4.4 top-level discriminator is
+> **OID-rooted** (`TypedWireObject`, single discriminator per board H3; the PEN root
+> arc still needs Peter's allocation); §7.6 `Permission` and §7.5
+> `PermissionGrant`/`DigestGrant` are **NOT structured DER** — carried as textual
+> string form and **re-parsed** through the trusted policy parser (governing
+> authority-vs-signature principle now stated in §7.5); §7.6 `Date` is **epoch-millis
+> `INTEGER`**; §7.6 `MarshalledObject` nesting is **bound to `MAX_NESTING` + §4.5 size
+> caps** (a `maxNesting` number still to set). **Resolved from source:** §7.3
+> `DigestCodeSourceRecord` (`DigestCodeSource.java`), §7.4 SCAP field lists
+> (`au.net.zeus.jgdms.api.codebase.*` — no `SignedVerdict` class; signatures inline),
+> §7.6 `URL`/`URI`/`File`/`UID`/`Properties`/`StackTraceElement` (their serializers) +
+> full substituted-type set (adds `Uuid`/`Marker`), §7.7.1 RULE-7 hash (as-built =
+> 64-bit-truncated SHA-256 over `writeUTF`; DER = 32-byte `SHA-256(DER(...))`), §7.7.7
+> `getTrustBundle()` (confirmed) and `SvidRotationListener` (confirmed — deliberately
+> **not** a `@FunctionalInterface`; `addListener`), §7.7.8 `UnicastResponse`/
+> `SslEndpoint.getInstance` stub path. The ASN.1 module was updated (structured
+> `Permission` removed; `PermissionTextForm`/`PermissionGrantTextForm` added) and
+> re-validated with asn1tools (compiles, 50 types). Items still needing Peter:
+> OID-root PEN, `maxNesting` value, the §4.5 ceiling numbers, the §7.7.1 migration
+> option, `Throwable` field-set scope, and the §7.7.5 `attributes`/`attributeTemplates`
+> SET-OF flip.
+>
 > **Changes in v0.13 (from v0.12)** — external review fixes; all module changes are
 > to unreleased formats, so no compatibility window applies:
 > - **§4.5 (new) — distinct-tag rule + profile size ceilings.** Several §7 modules
@@ -69,8 +92,9 @@
 >   transitional documentation of the current transport, superseded at the Tier-0
 >   envelope migration (§5.4).
 > - **§7.6 — `Permission` row corrected**: `PermissionSerializer` was deleted from
->   the JOSS engine (2026-06, reflective-gadget removal); whether `Permission`
->   travels at all is now **[OPEN]**.
+>   the JOSS engine (2026-06, reflective-gadget removal); whether `Permission` travels
+>   at all was left `[OPEN]` here and is **RESOLVED in the 2026-07-06 pass**
+>   (RATIFIED: string-form + reparse, not a structured type).
 > - **§7.8 — schema-identity comment corrected**: `className` is part of
 >   `AtomicSerialSchemaRecord`, so identical field lists under different class names
 >   hash differently (the previous wording claimed otherwise).
@@ -937,11 +961,66 @@ are carried verbatim and never inspected or re-encoded.
 
 ### 4.4 Object Identity / Type Discrimination
 
-Each top-level wire object is wrapped in a structure carrying an explicit type
-identifier (OID or closed `ENUMERATED`) so a decoder selects the correct schema
-without inferring it from context. **[OPEN: decide OID-rooted vs enumerated. An OID
-arc under a JGDMS-controlled root is more extensible and self-describing; an
-ENUMERATED is more compact. Recommendation leans OID for forward-compatibility.]**
+**RATIFIED (Peter, 2026-07-06): the top-level type discriminator is OID-rooted**
+(chosen over `ENUMERATED` for forward-compatibility and self-description — a new
+wire type is a new arc under the JGDMS root, allocatable without a coordinated
+enumerant-registry edit, and a decoder that does not recognise an OID can still name
+it). Each top-level wire object is wrapped in a `TypedWireObject` structure carrying
+one explicit `OBJECT IDENTIFIER` type tag, so a decoder selects the correct schema
+without inferring it from context:
+
+```asn1
+TypedWireObject ::= SEQUENCE {
+    typeId  OBJECT IDENTIFIER,   -- the wire type's arc under the STD-006 type root
+    body    OCTET STRING         -- canonical DER of the identified wire type (opaque
+                                 -- to this envelope; decoded against the schema the
+                                 -- typeId selects). Carried as an OCTET STRING so the
+                                 -- envelope never re-encodes the body (same discipline
+                                 -- as SignedObject.tbs, §7.4.1).
+}
+```
+
+**Single discriminator (board H3 — "one discriminator, not two").** The `typeId`
+OID is the *sole* type discriminator. The envelope MUST NOT additionally restate the
+category the OID already fixes (no redundant `ENUMERATED tag` beside the OID, no
+second "kind" field): a second statement of the type is a lying-encoding hazard (two
+places that can disagree, forcing a decoder to reject the mismatch). The `body`'s own
+inner universal tag is not a *second* discriminator here — it is opaque `OCTET STRING`
+content the envelope does not interpret; the `typeId` alone routes it.
+
+**OID root — arc PROPOSED, root allocation NEEDS PETER'S CONFIRMATION.** The
+accompanying ASN.1 validation module (`docs/asn1/JGDMS-STD-006-v0.13.asn1`) already
+declares its module identifier under the arc
+
+```
+{ iso(1) identified-organization(3) dod(6) internet(1) private(4)
+  enterprise(1) jgdms(999999) std006(6) v13(13) }
+   = 1.3.6.1.4.1.999999.6.13
+```
+
+where **`999999` is a PLACEHOLDER IANA Private Enterprise Number (PEN)**, not a
+registered allocation. This standard PROPOSES rooting the top-level type OIDs at a
+sibling `wireTypes` arc under the same enterprise node — e.g.
+
+```
+std006-wireType OBJECT IDENTIFIER ::=
+  { iso(1) identified-organization(3) dod(6) internet(1) private(4)
+    enterprise(1) jgdms(999999) std006(6) wireTypes(1) }
+   = 1.3.6.1.4.1.999999.6.1
+
+-- individual wire types are then children, e.g.
+--   marshalledInstance  std006-wireType 1   (…999999.6.1.1)
+--   unicastResponse     std006-wireType 2   (…999999.6.1.2)
+--   accessControlContext std006-wireType 3  (…999999.6.1.3)
+```
+
+**FLAGGED for Peter: the `jgdms(999999)` PEN is a placeholder and the root arc
+allocation is Peter's to own.** An OID root registration (obtaining a real IANA PEN,
+or choosing a different registration authority / arc) is an organisational decision,
+not one this document can make. The concrete arc above is a proposal to make the
+scheme complete and testable; on ratification of a real PEN, `999999` is replaced
+everywhere (module header + this section) in one edit and the `wireTypes` sub-arc and
+per-type numbers below it are then normative.
 
 ### 4.5 Module Validity: Distinct-Tag Rule, No DEFAULT, Profile Size Ceilings
 
@@ -1206,13 +1285,13 @@ well the current field layout is captured in available documentation.
 | 6.2 | `Principal` record | Identity | className + name pairs | drafted §7.1 |
 | 6.3 | `AccessControlContextRecord` | Authorization transport (caller's *reducing* domain set, codebases only — no principals) | `RemoteContextCodec.java` (jgdms-jeri) | reconciled §7.2 |
 | 6.4 | `ReducingDomainRecord` (codebase identity only; `kind` = null-CS / DigestCodeSource / URL) | Authorization transport | `RemoteContextCodec.java` (jgdms-jeri) | reconciled §7.2 |
-| 6.5 | `DigestCodeSourceRecord` | Code identity | `DigestCodeSource.java` | **[OPEN]** §7.3 |
-| 6.6 | `AnalysisRequest` | SCAP | STD-002 | **[OPEN]** §7.4 |
-| 6.7 | `JarAnalysisReport` | SCAP | STD-002 | **[OPEN]** §7.4 |
-| 6.8 | `SignedVerdict` | SCAP | STD-002 | **[OPEN]** §7.4 |
-| 6.9 | `RegistryVerdict` | SCAP | STD-002 | **[OPEN]** §7.4 |
-| 6.10 | `CrashReport` | SCAP | STD-002 | **[OPEN]** §7.4 |
-| 6.11 | `PermissionGrant` / `DigestGrant` | Policy | STD-004 (policy syntax) | **[OPEN]** §7.5 |
+| 6.5 | `DigestCodeSourceRecord` | Code identity | `DigestCodeSource.java` | **RESOLVED** §7.3 |
+| 6.6 | `AnalysisRequest` | SCAP | `au.net.zeus.jgdms.api.codebase.AnalysisRequest` | **RESOLVED** §7.4 |
+| 6.7 | `JarAnalysisReport` | SCAP | `…api.codebase.JarAnalysisReport` | **RESOLVED** §7.4 |
+| 6.8 | ~~`SignedVerdict`~~ (no such class — signatures inline) | SCAP | — | **RESOLVED** §7.4 |
+| 6.9 | `RegistryVerdict` | SCAP | `…api.codebase.RegistryVerdict` | **RESOLVED** §7.4 |
+| 6.10 | `CrashReport` | SCAP | `…api.codebase.CrashReport` | **RESOLVED** §7.4 |
+| 6.11 | `PermissionGrant` / `DigestGrant` | Policy | STD-004 (policy syntax) | **RATIFIED — string-form, not a wire record** §7.5 |
 | 6.12 | Substituted standard types (boxed primitives, `URI`/`URL`, `Date`, `UID`, `MarshalledObject`, `StackTraceElement`, `X500Principal`, `Permission`, `Throwable`, `Properties`) | Cross-cutting | `AtomicMarshalOutputStream.replaceObject()` | drafted §7.6 |
 | — | Collections (`Map`/`Set`/`List`) | Cross-cutting | `AtomicMarshal*` carriers | **collapsed to native `SEQUENCE OF` — no wire type (§3.8, §7.6)** |
 | 6.13 | `EntrySchemaRecord` | Jini Entry identity | STD-005 `entryForm()` / `EntryClass.computeSerialEntryHash()` | drafted §7.7.1 |
@@ -1393,7 +1472,19 @@ certs := int n(0..100); { object der(byte[] <=65536) } * n
   obligation (see the security note above). Only the `anonCount`/anonymous-placeholder
   *machinery* that the draft wrapped around it is withdrawn.
 
-### 7.3 Code Identity: DigestCodeSourceRecord  **[OPEN]**
+### 7.3 Code Identity: DigestCodeSourceRecord  **[RESOLVED — confirmed against `DigestCodeSource.java`]**
+
+> **Authority classification (governing principle, §7.5).** `DigestCodeSourceRecord`
+> **MAY remain structured DER.** Its trust does **not** derive from its raw decoded
+> fields: the record is only a *codebase identity*, and the digest it carries is
+> **re-verified later against the actual code** (at policy / class-load time, via
+> `DigestGrant`, whose `implies` compares this digest to the loaded domain's
+> `DigestCodeSource.getDigest()` — NOT in the codec, §7.2). Forging the fields does
+> not forge trust: a wrong `(uri, certs, algorithm, digest)` simply fails to match any
+> real domain, or is caught when the actual bytes are hashed. This is the
+> "trust-from-a-digest-compared-against-known-good" case the §7.5 principle admits as
+> safe for structured DER, in contrast to `PermissionGrant` (whose decoded state *is*
+> the authority).
 
 ```asn1
 DigestCodeSourceRecord ::= SEQUENCE {
@@ -1408,7 +1499,28 @@ DigestCodeSourceRecord ::= SEQUENCE {
 }
 ```
 
-**[OPEN]** Confirm against `DigestCodeSource.java`:
+**[RESOLVED]** Confirmed against `java.security.DigestCodeSource` (DirtyChai
+`src/java.base/.../java/security/DigestCodeSource.java`). Its `writeExternal` field set
+and identity are exactly what this record models:
+- **Identity is `(uri, certificates, digestAlgorithm, digest)`** (`equals`, source): the
+  record's four fields correspond one-for-one. A plain `CodeSource` (no digest) is a
+  distinct identity and is not representable here.
+- **`digestAlgorithm`** is one of the source's `ALLOWED` set — `SHA-256`, `SHA-384`,
+  `SHA-512`, `SHA-512/256`, `SHA3-256`, `SHA3-384`, `SHA3-512` — matching the §4.3
+  `AlgorithmIdentifier` allow-list (`DigestValue.algorithm`).
+- **Bounds match §4.5 exactly** (source constants): `MAX_CERT_COUNT`=100 (`maxCerts`),
+  `MAX_CERT_BYTES`=64 KiB (`maxCertLen`), `MAX_DIGEST_BYTES`=512 (`maxDigestLen`). The
+  source stream also enforces `count ≥ 0` and per-cert `length ≥ 0`; the schema `SIZE`
+  bounds subsume these.
+- **Cert-type tag (source detail not yet in the record).** `writeExternal` writes, per
+  certificate, `getEncoded()` **and** `cert.getType()`, and `readExternal` **rejects any
+  type but `"X.509"`**. Since the record already fixes the certificate as an X.509
+  `OCTET STRING` (opaque octets, below), the per-cert type string is redundant on the
+  DER wire and is intentionally dropped; a decoder treats every `certificates` element
+  as X.509 DER. **[PROPOSED — confirm dropping the per-cert type string is acceptable;**
+  it carries no identity information the digest/URI don't already fix.]
+
+Remaining field-encoding confirmations (unchanged, now source-backed):
 - Certificate encoding (**NORMATIVE**): each certificate is an opaque `OCTET STRING`
   holding the exact bytes of `X509Certificate.getEncoded()`, preserved verbatim and
   never parsed-and-re-encoded (§3.8 opaque-octet carve-out). The earlier
@@ -1425,22 +1537,89 @@ DigestCodeSourceRecord ::= SEQUENCE {
   normalise into the explicit field; the `httpmd:` fragment was an in-band trick
   precisely because Java serialization had no explicit slot — DER does.
 
-### 7.4 SCAP Data Objects  **[OPEN — needs STD-002 field-level detail]**
+### 7.4 SCAP Data Objects  **[RESOLVED — field lists confirmed against the `@AtomicSerial` classes]**
 
-`AnalysisRequest`, `JarAnalysisReport`, `SignedVerdict`, `RegistryVerdict`,
-`CrashReport`. These are signature-bearing (except `AnalysisRequest`), which is
-exactly why DER (canonical) rather than BER is mandatory — the signed octets must be
-reproducible across implementations.
+Field lists confirmed against the live `@AtomicSerial` classes in
+`au.net.zeus.jgdms.api.codebase` (jgdms-platform): `AnalysisRequest`,
+`JarAnalysisReport`, `RegistryVerdict`, `CrashReport`. **There is no `SignedVerdict`
+class** — "SignedVerdict" in prior drafts was the generic *signed-object* concept; the
+concrete signed types (`JarAnalysisReport`, `RegistryVerdict`, `CrashReport`) each carry
+their signature **inline** as a `byte[]` field rather than wrapping a separate
+`SignedObject`. These are signature-bearing (except `AnalysisRequest`), which is exactly
+why DER (canonical) rather than BER is mandatory — the signed octets must be reproducible
+across implementations.
+
+> **Authority classification (governing principle, §7.5).** All four SCAP types **MAY
+> remain structured DER.** Their trust derives from a **verified signature or a
+> re-computed content hash**, not from raw decoded fields:
+> - `JarAnalysisReport` (`engineSignature`), `RegistryVerdict` (`signature`), and
+>   `CrashReport` (`signature`) each carry a `byte[]` signature over their own content;
+>   the verifier checks it against the engine / registry / Phoenix public key. Forging
+>   any field — including `JarAnalysisReport.declaredPermissions` (a `String[]` of
+>   *permission strings*, which look authority-bearing) — breaks the signature, so the
+>   forgery is caught. The permission strings are **not** an authority the receiver
+>   grants by deserializing them; they are a signed *claim* the verifier checks, then
+>   feeds through the normal policy path. This is the signature-backed safe case.
+> - `AnalysisRequest` is **unsigned**, but its `check(GetArg)` **re-hashes the
+>   unpacked jar and rejects a `contentHash` that does not match** (source:
+>   `AnalysisRequest.check` / `sha256Hex`), so its integrity is self-verifying — a
+>   forged `contentHash` or tampered `packedJarBytes` is rejected at construction.
+>
+> None of these has the `PermissionGrant` property (decoded state == authority
+> conferred without a further check), so none requires the §7.5 string-reparse
+> treatment. `declaredPermissions` is the one to keep an eye on: it stays structured
+> **only because it is under the engine signature**; were it ever carried unsigned it
+> would fall under the §7.5 principle. **[PROPOSED — confirm this classification.]**
+
+**Confirmed serial forms (source):**
 
 ```asn1
--- Illustrative skeleton only; field lists from STD-002 must be filled in.
+-- AnalysisRequest.serialForm(): packedJarBytes byte[], contentHash String,
+-- originalUri String, maxBfsDepth int. Unsigned; contentHash self-verified.
 AnalysisRequest ::= SEQUENCE {
-    packedJarBytes  OCTET STRING,        -- Pack200-compressed; [OPEN] size bound
-    contentHash     DigestValue,         -- SHA-256 of RAW bytes
+    packedJarBytes  OCTET STRING,        -- Pack200-compressed; SIZE bound: see note
+    contentHash     DigestValue,         -- SHA-256 of RAW (unpacked) bytes; re-verified in check()
     originalUri     UTF8String,          -- traceability only
     maxBfsDepth     INTEGER (0..MAX)
 }
 
+-- JarAnalysisReport.serialForm(): contentHash String, classNames String[],
+-- classResults ClassAnalysisResult[], engineSignature byte[],
+-- declaredPermissions String[], codebaseUrls String[]. Engine-signed.
+JarAnalysisReport ::= SEQUENCE {
+    contentHash          DigestValue,
+    -- ORDER-SIGNIFICANT (§3.8): classNames[i] pairs with classResults[i].
+    classNames           SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
+    classResults         SEQUENCE (SIZE(0..maxCollection)) OF ClassAnalysisResult,
+    engineSignature      OCTET STRING,   -- DER signature over the signed TBS (§7.4.1)
+    -- declaredPermissions: textual policy-permission strings, SIGNED (safe structured);
+    -- fed to the policy parser downstream, not granted by decoding (see classification).
+    declaredPermissions  SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
+    codebaseUrls         SEQUENCE (SIZE(0..maxCollection)) OF UTF8String
+}
+-- ClassAnalysisResult: [PROPOSED — field list not yet extracted; confirm against
+-- au.net.zeus.jgdms.api.codebase.ClassAnalysisResult @AtomicSerial serialForm().]
+
+-- RegistryVerdict.serialForm(): codebaseUrls String[], verdict VerdictType,
+-- timestamp long, signature byte[]. Registry-signed.
+RegistryVerdict ::= SEQUENCE {
+    codebaseUrls  SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
+    verdict       INTEGER,               -- VerdictType enumerant (closed set; [PROPOSED] confirm values)
+    timestamp     INTEGER,               -- epoch-millis (long), consistent with §7.6 Date
+    signature     OCTET STRING           -- DER signature over the signed TBS (§7.4.1)
+}
+
+-- CrashReport.serialForm(): codebaseUrls String[], exitCode int, incarnation long,
+-- stderrSummary String, signature byte[]. Phoenix-signed.
+CrashReport ::= SEQUENCE {
+    codebaseUrls   SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
+    exitCode       INTEGER,
+    incarnation    INTEGER,              -- long
+    stderrSummary  UTF8String,
+    signature      OCTET STRING          -- DER signature over the signed TBS (§7.4.1)
+}
+
+-- Generic signed-object form (available; the as-built classes do NOT use it — see note).
 SignedObject ::= SEQUENCE {
     tbs         OCTET STRING,            -- the DER-encoded to-be-signed content
     signature   SEQUENCE {
@@ -1448,10 +1627,21 @@ SignedObject ::= SEQUENCE {
         value       OCTET STRING
     }
 }
--- RegistryVerdict, JarAnalysisReport, SignedVerdict, CrashReport each wrap their
--- payload as the `tbs` of a SignedObject. The signer (engine key / Host-3 key /
--- Phoenix key) and the verification rules are unchanged from STD-002.
 ```
+
+**As-built vs generic wrapper (source note).** The prior draft claimed each verdict
+"wraps its payload as the `tbs` of a `SignedObject`." The as-built `@AtomicSerial`
+classes do **not** do this: each carries its signature **inline** as a `byte[]` field
+(`engineSignature` / `signature`) *alongside* the signed fields, not as a separate
+`SignedObject` envelope. Two consequences for §7.4.1: (1) the signed **TBS** is
+`DER(SEQUENCE { …the record's non-signature fields… })` — the record with its
+signature field excluded — computed once by the signer and reconstructed by the
+verifier (the record-level-signature rule of §7.4.1, same as §7.7.7 multicast, **not**
+the explicit-`tbs`-`OCTET STRING` rule); (2) the `SignedObject` type above is retained
+as an **optional generic form** a future signer MAY use, but is not the shape the
+current SCAP classes emit. **[PROPOSED — confirm the exact signed-field ordering for
+each record's TBS (which fields, in what order, with the signature excluded), since
+that ordering is the canonical signature input and must be pinned before interop.]**
 
 The *signature input* must be the canonical DER of the `tbs`, computed identically on
 signer and verifier — specified normatively in §7.4.1 below. Under Java serialization
@@ -1480,11 +1670,45 @@ otherwise-valid signature. The same rule governs record-level signatures that ca
 computed once by the signer and verified against the SEQUENCE reconstructed from the
 received fields.
 
-### 7.5 Policy: PermissionGrant / DigestGrant  **[OPEN]**
+### 7.5 Policy: PermissionGrant / DigestGrant  **[RATIFIED (Peter, 2026-07-06)]**
 
-Needed only if grants travel the wire (they do, via `RemotePolicyProvider`
-`replace()` / push updates, and `DynamicPolicyProvider` `Security.grant()`).
-Field layout from STD-004. **[OPEN.]**
+Grants do travel the wire (via `RemotePolicyProvider` `replace()` / push updates, and
+`DynamicPolicyProvider` `Security.grant()`). **They are NOT marshalled as a structured
+DER record.** They are carried as their **textual policy-grant form** (STD-004 policy
+syntax) and **re-parsed on deserialization through the trusted policy parser** — the
+receiver reconstructs the grant's authority by parsing text, never by reconstituting a
+grant object from wire-controlled serialized fields.
+
+```asn1
+-- A grant is carried as its STD-004 textual policy-grant form, re-parsed by the
+-- vetted policy parser on the receiver. There is NO per-field DER grant record.
+PermissionGrantTextForm ::= UTF8String
+```
+
+**Security rationale (NORMATIVE).** A `PermissionGrant`/`DigestGrant` is an
+**authority-bearing** object: its deserialized state *is* the authority it confers.
+Directly deserializing such an object from wire-controlled fields is a security
+vulnerability — a peer could hand over a grant with forged fields (authority forgery /
+gadget vector). The receiver **MUST** reconstruct the grant's authority by parsing a
+textual representation through the vetted policy parser, and **MUST NOT** reconstitute
+it from serialized object state.
+
+This mirrors the implementation exactly: `PermissionGrant` (jgdms-platform,
+`org.apache.river.api.security.PermissionGrant`) **deliberately does not implement
+`Serializable` "for security reasons"** and forces subclasses through the
+Serialization *Builder* Pattern; `DigestGrant.readObject` throws
+`InvalidObjectException` and `writeReplace()` emits a builder template. The wire form
+here is the language-neutral analogue of that builder: a text the trusted parser
+vets, not an object graph the decoder trusts.
+
+**Governing principle (NORMATIVE — applies across §7):** *a type whose deserialized
+state is itself the authority (permissions, policy grants) MUST travel as a re-parsed
+textual form, never as a directly-deserialized authority object.* A type whose trust
+instead derives from a **verified signature or a digest compared against a known-good
+value** — not from its raw decoded fields — MAY remain structured DER, because forging
+the fields does not forge the trust (the signature/digest check catches it). Each §7
+type is classified on this basis; see the §7.6 `Permission` row and the §7.3/§7.4
+authority-classification notes.
 
 ### 7.6 Substituted Standard Types
 
@@ -1554,17 +1778,17 @@ The irreducible substituted types requiring their own DER form:
 | `Float`/`Double` | boxed-primitive serializers | `OCTET STRING` of IEEE-754 bits (4/8 bytes, big-endian), strict-canonical | **[RESOLVED — STD-008 §17.3.1]** |
 | `Character` | `CharSerializer` | `INTEGER` (Unicode codepoint; BMP non-surrogate) | **[RESOLVED — STD-008 §17.3.2]** |
 | `Boolean` | `BooleanSerializer` | `BOOLEAN` | [PROPOSED] |
-| `Properties` | `PropertiesSerializer` | `SEQUENCE OF SEQUENCE { key UTF8String, value UTF8String }` (behavioural; unordered) | **[OPEN: confirm Properties values are always String]** |
-| `URL` | `URLSerializer` | `UTF8String` (RFC 3986; locator, no DNS) | **[OPEN: URL vs URI normalisation]** |
-| `URI` | `URISerializer` | `UTF8String` (RFC 3986) | [PROPOSED] |
-| `UID` (`java.rmi.server.UID`) | `UIDSerializer` | `SEQUENCE { unique INTEGER, time INTEGER, count INTEGER }` | **[OPEN: confirm field set]** |
-| `File` | `FileSerializer` | `UTF8String` path **[OPEN: platform path semantics — is File even sent across runtimes? May be JVM-internal only]** | **[OPEN]** |
-| `MarshalledObject` | `MarshalledObjectSerializer` | nested frame around a `MarshalledInstanceRecord` (§7.8) — no codebase annotation (§8.3) | **[OPEN: this is itself a serialized-object container — define carefully; it nests the wire format inside itself and needs explicit depth/size bounds]** |
-| `StackTraceElement` | `StackTraceElementSerializer` | `SEQUENCE { declaringClass UTF8String, methodName UTF8String, fileName UTF8String OPTIONAL, lineNumber INTEGER }` | [PROPOSED] |
+| `Properties` | `PropertiesSerializer` | `SEQUENCE OF SEQUENCE { key UTF8String, value UTF8String }` (behavioural; unordered — canonicalise, §3.8) | **[RESOLVED — values are always `String`; see note]** |
+| `URL` | `URLSerializer` | `UTF8String` = `URL.toString()` external form (locator, no DNS) | **[RESOLVED — external-form string, no URL/URI cross-normalisation; see note]** |
+| `URI` | `URISerializer` | `UTF8String` = `URI.toString()` external form | **[RESOLVED — external-form string; see note]** |
+| `UID` (`java.rmi.server.UID`) | `UIDSerializer` | `SEQUENCE { unique INTEGER, time INTEGER, count INTEGER }` — `unique`=int32, `time`=int64, `count`=int16 (the `UID.write` field set) | **[RESOLVED — see note]** |
+| `File` | `FileSerializer` | `UTF8String` = `File.toURI().toString()` (a `file:` URI, RFC 3986 — **not** a raw platform path) | **[RESOLVED — File DOES travel, as a URI; see note]** |
+| `MarshalledObject` | `MarshalledObjectSerializer` | nested `MarshalledInstanceRecord` (§7.8) — no codebase annotation (§8.3); nesting bound to `MAX_NESTING` + the §4.5 size caps (see note) | **[RATIFIED (Peter, 2026-07-06) — explicit depth + size bounds; see note]** |
+| `StackTraceElement` | `StackTraceElementSerializer` | `SEQUENCE { declaringClass UTF8String, methodName UTF8String, fileName UTF8String OPTIONAL, lineNumber INTEGER }` | **[RESOLVED — matches `StackTraceElementSerializer.serialForm()`]** |
 | `X500Principal` | `X500PrincipalSerializer` | `OCTET STRING` = `X500Principal.getEncoded()` — opaque & verbatim (§3.8), never re-encoded | **[RESOLVED — opaque octets; see note below]** |
-| `Date` | `DateSerializer` | `INTEGER` epoch-millis | **[OPEN: epoch-millis INTEGER vs GeneralizedTime — recommend epoch-millis for exact round-trip and no timezone ambiguity]** |
-| `Permission` | *(none — `PermissionSerializer` DELETED 2026-06: reflective-gadget removal, JOSS engine audit)* | `SEQUENCE { className UTF8String, name [0] IMPLICIT UTF8String OPTIONAL, actions [1] IMPLICIT UTF8String OPTIONAL }` (context tags per §4.5: a name-only encoding must be distinguishable from an actions-only one) | **[OPEN: PermissionSerializer no longer exists — confirm whether `Permission` travels the DER wire at all before defining this form]** |
-| `Throwable` | `ThrowableSerializer` | see below | **[OPEN]** |
+| `Date` | `DateSerializer` | `INTEGER` epoch-millis (`Date.getTime()`) | **[RATIFIED (Peter, 2026-07-06) — epoch-millis `INTEGER`, not `GeneralizedTime`]** |
+| `Permission` | *(none — `PermissionSerializer` DELETED 2026-06: reflective-gadget removal, JOSS engine audit)* | **NOT a structured DER type.** Either does not travel at all, or travels as its **textual string form** (`PermissionTextForm ::= UTF8String`) **re-parsed** through the trusted parser on decode | **[RATIFIED (Peter, 2026-07-06) — string-form + reparse; structured form withdrawn; see note]** |
+| `Throwable` | `ThrowableSerializer` | see below | **[PROPOSED — safe-subset `ThrowableRecord`; real serializer carries more, see note]** |
 | `AccessControlContext` | `RemoteContextCodec` (jgdms-jeri) | §7.2 `AccessControlContextRecord` (reducing domains, codebases only) | reconciled §7.2 |
 
 **`Float` / `Double` / `Character` (strict-canonical, per STD-008 §17.3).** The boxed
@@ -1587,11 +1811,80 @@ verdict (§7.4) — any such change breaks the signature. `getEncoded()` round-t
 own bytes by construction; §9 requires a conformance test proving a `Name` with a
 `TeletexString` AVA survives encode→decode byte-for-byte.
 
-**`Throwable` (security-sensitive).** `Throwable` is a classic gadget vector under
-ordinary Java serialization; routing it through `ThrowableSerializer` rather than
-default serialization is a deliberate containment. Its DER form should carry only the
-safe, bounded shape, and the cause chain is acyclic (§3.7) — a `Throwable` whose cause
-chain contained a cycle would be rejected:
+**`Permission` (RATIFIED 2026-07-06 — string-form, not a structured record).** The
+`PermissionSerializer` was deleted (2026-06) as a reflective gadget. A
+`java.security.Permission` likely need not travel the wire at all; **if** it does, it
+travels as its **textual string form** — `PermissionTextForm ::= UTF8String` — and is
+**re-parsed on decode** through the trusted policy parser, never reconstructed from
+decoded per-field state. The earlier structured
+`SEQUENCE { className, name, actions }` form is **withdrawn**. Rationale is the §7.5
+governing principle: a `Permission`'s decoded state *is* an authority claim, so it
+must be reconstructed only by the vetted parser (which decides what the calling
+context is entitled to grant), not synthesised from wire-controlled fields. (This is
+the §7.6-scalar analogue of the §7.5 `PermissionGrant` decision.)
+
+**`Date` (RATIFIED 2026-07-06 — epoch-millis `INTEGER`).** `DateSerializer` writes
+`out.writeLong(d.getTime())` and reconstructs `new Date(in.readLong())`. The DER form
+is a DER `INTEGER` holding the signed epoch-millisecond value — exact round-trip, no
+timezone ambiguity, no sub-millisecond loss. `GeneralizedTime` is **not** used (it
+cannot represent the full `long` range unambiguously and admits multiple textual forms
+of one instant, breaking canonicity). Alternative dropped.
+
+**`MarshalledObject` (RATIFIED 2026-07-06 — nested frame with explicit depth + size
+bounds).** `MarshalledObjectSerializer` carries a single `MarshalledInstance` field
+(`instance`) and reconstructs via `instance.convertToMarshalledObject()`. On the wire
+a `MarshalledObject` is therefore exactly a nested **`MarshalledInstanceRecord`**
+(§7.8) — no separate structure, no codebase annotation (§8.3). Because this nests the
+STD-006 wire format inside itself (a `MarshalledInstanceRecord`'s `payloadBytes` may
+contain a field that is itself a `MarshalledObject`, and so on), the nesting **MUST**
+be bounded by the existing decoder fences (§3.12, "the four decoder fences"): the
+`MAX_NESTING` depth counter is decremented and bounded on entry to every nested
+`MarshalledInstanceRecord` frame exactly as for an `Any`→`atomicSerialObject` step,
+and the frame's own variable-length fields (`payloadBytes`, `schemaBytes`) and any
+collection fields inside the nested payload remain subject to their §4.5 `SIZE`
+ceilings (`maxCollection`, `maxFields`, `maxStackFrames`/`maxCauseDepth` for a nested
+`Throwable`, etc.). A nested frame that would exceed `MAX_NESTING`, or whose inner
+fields exceed their §4.5 caps, is **rejected before allocation** (fail-secure,
+principle 6). **NOTE — `MAX_NESTING` has no numeric value in §4.5 yet:** the fence is
+named normatively in §3.12 but §4.5's ceiling table does not assign it a number.
+Recommend adding `maxNesting` to the §4.5 table (a small value, e.g. 16–64, sufficient
+for any legitimate `MarshalledObject`/`Any` nesting) and binding this rule to it;
+**flagged for Peter to set the number** (consistent with the other [PROPOSED] §4.5
+ceilings, open item 21).
+
+**`URL` / `URI` / `File` / `UID` / `Properties` / `StackTraceElement` (RESOLVED from
+source).**
+- **`URL`** — `URLSerializer` carries `urlExternalForm = url.toString()` and rebuilds
+  `new URL(null, urlExternalForm)`. **`URI`** — `URISerializer` carries
+  `uriExternalForm = uri.toString()` and rebuilds `new URI(...)`. Each carries its own
+  **external string form**; there is **no URL↔URI cross-normalisation** (the two are
+  distinct serializers). Resolves the "URL vs URI normalisation" open item: neither is
+  normalised into the other; both are `UTF8String` external forms.
+- **`File`** — `FileSerializer` carries `path = file.toURI()` (serialForm type `URI`)
+  and rebuilds `new File(uri)`. So `File` **does** travel cross-runtime, and it travels
+  as a **`file:` URI** (`File.toURI().toString()`, RFC 3986), **not** as a raw platform
+  path string. This sidesteps the platform-path-semantics concern: the URI form is
+  platform-neutral on the wire (a non-JVM party sees a `file:` URI; whether it can
+  resolve it is its own concern). Resolves the open item.
+- **`UID`** (`java.rmi.server.UID`) — `UIDSerializer` delegates to `UID.write`/
+  `UID.read`, whose field set is `unique` (int32), `time` (int64), `count` (int16). The
+  DER `SEQUENCE { unique INTEGER, time INTEGER, count INTEGER }` matches; the value
+  ranges above are the confirmation the open item asked for.
+- **`Properties`** — `PropertiesSerializer` casts every key and value to `String`
+  (`(String) e.getKey()` / `(String) e.getValue()`), so values **are always `String`**
+  (a non-`String` value throws `ClassCastException` before it reaches the wire).
+  Resolves the open item; the `SEQUENCE OF SEQUENCE { key UTF8String, value UTF8String }`
+  form is confirmed. It is a **canonicalise** collection (`Hashtable`-based, §3.8).
+- **`StackTraceElement`** — `StackTraceElementSerializer.serialForm()` is exactly
+  `declaringClass:String, methodName:String, fileName:String (nullable), lineNumber:int`;
+  the spec's `SEQUENCE` matches. Resolved.
+
+**`Throwable` (security-sensitive — [PROPOSED], real serializer carries more).**
+`Throwable` is a classic gadget vector under ordinary Java serialization; routing it
+through `ThrowableSerializer` rather than default serialization is a deliberate
+containment. The `ThrowableRecord` below is a proposed **safe, bounded subset**, and
+the cause chain is acyclic (§3.7) — a `Throwable` whose cause chain contained a cycle
+would be rejected:
 
 ```asn1
 ThrowableRecord ::= SEQUENCE {
@@ -1603,18 +1896,50 @@ ThrowableRecord ::= SEQUENCE {
 }
 ```
 
-**[OPEN] for §7.6 as a whole:**
-- Confirm the *complete* substituted-type set against the live `serializers` map and
-  the `instanceof` fallbacks in `defaultReplaceObject` (the table above is taken from
-  `AtomicMarshalOutputStream` as supplied; verify nothing has been added since).
-- `Float`/`Double`: settle REAL vs IEEE-754-bits (recommend bits).
-- `Date`: settle epoch-millis vs `GeneralizedTime` (recommend epoch-millis).
-- `MarshalledObject`: define the nested-frame structure; it embeds the wire format
-  recursively and needs explicit depth/size bounds.
-- `Throwable`: bounds RESOLVED in §4.5 (`maxStackFrames` = 2048,
-  `maxCauseDepth` = 64) — confirm the numbers.
-- `File`: determine whether `File` is ever transmitted cross-runtime or is
-  JVM-internal only; if cross-runtime, define platform-neutral path semantics.
+**[PROPOSED — needs ratification] `Throwable` reconstruction is broader than the safe
+subset.** The `ThrowableRecord` above is a *proposed* minimal shape. The as-built
+`ThrowableSerializer` (jgdms-platform, `org.apache.river.api.io.ThrowableSerializer`)
+in fact carries a wider `serialForm()`: `clazz` (a `Class`), `message`, `cause`,
+`stack` (`StackTraceElement[]`), `suppressed` (`Throwable[]`), plus `classname` /
+`length` / `eof` (to support `InvalidClassException` / `OptionalDataException` /
+`URISyntaxException`) and a `perm` (`Permission`) for `AccessControlException`. On
+decode it **reconstructs the throwable by reflectively selecting and invoking a
+constructor** (`init(...)`, `getDeclaredConstructor(...).setAccessible(true)`), keyed
+on the decoded `clazz`. This is a reflective construction surface — narrower than
+default Java serialization, but not field-only. **Peter's decisions needed:** (a) does
+the DER form keep the full field set (`suppressed`, `classname`/`length`/`eof`, `perm`)
+or restrict to the safe `ThrowableRecord` subset and drop the reflective-constructor
+reconstruction? (b) if `perm` (a `Permission`) is retained, it must follow the §7.6
+`Permission` string-form + reparse rule, not a structured field; (c) `suppressed[]` is
+itself a `SEQUENCE OF ThrowableRecord` and its depth participates in the `maxCauseDepth`
+/ `MAX_NESTING` bound. The `stackTrace`/`cause` bounds themselves (`maxStackFrames`=2048,
+`maxCauseDepth`=64, §4.5) still need their numbers confirmed (open item 21).
+
+**[OPEN → mostly RESOLVED] for §7.6 as a whole:**
+- **Complete substituted-type set (RESOLVED from source, with two additions).** Against
+  the live `@Serializer(replaceObType=…)` set in `org.apache.river.api.io`, the
+  substituted types are: the boxed primitives (`Boolean`/`Byte`/`Character`/`Short`/
+  `Integer`/`Long`/`Float`/`Double`), `Date`, `File`, `MarshalledObject`, `Properties`,
+  `StackTraceElement`, `Throwable`, `UID`, `URI`, `URL` — **plus two the table above
+  omitted**: `net.jini.id.Uuid` (`UuidSerializer`) and an internal `Marker`
+  (`MarkerSerializer`, a stream-internal control marker, not application data).
+  Collections (`Map`/`Set`/`List`/`Collection`) are also substituted but collapse to
+  native `SEQUENCE OF`/`SET OF` per §3.8 (no wire type). **[PROPOSED — add `Uuid`** as a
+  `SEQUENCE { mostSig INTEGER, leastSig INTEGER }` or a 16-byte `OCTET STRING` (it is
+  two `long`s); note `net.jini.core.lookup.ServiceID` (§7.7.3) is already a 16-byte
+  `OCTET STRING` UUID, so `Uuid` should reuse that form. `Marker` is stream-internal
+  and does **not** need a §7.6 wire type — confirm it never escapes as a field value.]
+- `Float`/`Double`/`Character`: **RESOLVED** — IEEE-754 bits / codepoint `INTEGER`
+  (STD-008 §17.3).
+- `Date`: **RATIFIED 2026-07-06** — epoch-millis `INTEGER`.
+- `Permission`: **RATIFIED 2026-07-06** — string-form + reparse; not structured.
+- `MarshalledObject`: **RATIFIED 2026-07-06** — nested `MarshalledInstanceRecord` bound
+  to `MAX_NESTING` + §4.5 size caps (needs a `maxNesting` number — see the
+  `MarshalledObject` note above and open item 21).
+- `URL`/`URI`/`File`/`UID`/`Properties`/`StackTraceElement`: **RESOLVED from source**
+  (see the note block above).
+- `Throwable`: safe-subset shape **[PROPOSED]**; bounds `maxStackFrames`/`maxCauseDepth`
+  (§4.5) numbers to confirm (open item 21).
 
 ### 7.7 Jini Discovery/Registration Wire Types
 
@@ -1659,11 +1984,30 @@ computed recursively up the inheritance chain until `Object`. For the common cas
 of single-level inheritance (direct superclass is `Object`), `superclassHash` is
 absent and the computation is simply `SHA-256(DER(EntrySchemaRecord))`.
 
-**[OPEN] Hash algorithm migration.** STD-005 RULE-7 currently uses a different
-algorithm: `SHA-256` over `superclassHash_64bit || className_utf8 || field bytes`,
-where `superclassHash_64bit` is a legacy 64-bit Jini hash. The DER-format
-`SHA-256(DER(EntrySchemaRecord))` is a breaking change to type identity for existing
-Registrars. Three migration options:
+**[PROPOSED — migration strategy is Peter's call; the algorithm difference is now
+source-confirmed] Hash algorithm migration.** Confirmed against
+`org.apache.river.reggie.proxy.EntryClass.computeSerialEntryHash` (reggie-dl) and the
+parallel `EntryRep.computeSerialEntryHash` (outrigger-dl). The as-built STD-005 RULE-7
+hash is:
+
+- `MessageDigest.getInstance("SHA-256")` over, via `DataOutputStream`:
+  `writeLong(superclass.hash)` (the parent's **64-bit** hash) `+ writeUTF(className) +`
+  for each field `writeUTF(fieldName) + writeUTF(typeName)`;
+- then **truncated to the first 8 bytes → a 64-bit `long`** (`hash += (digest[i] & 0xFF)
+  << (i*8)` for `i` in `0..7`).
+
+So the framing is Java `writeUTF`/`writeLong`, and the *output* is a 64-bit truncated
+value whose `superclassHash` is itself the parent's 64-bit hash written via
+`writeLong`. (A legacy `"SHA"`/SHA-1 path, `computeHash`, still exists for the
+pre-`@SerialEntry` `EntryField` form; SHA-256 was adopted "because SHA-1 may be removed
+from future JDK releases.")
+
+The DER-format `EntrySchemaRecord` hash is `SHA-256(DER(EntrySchemaRecord))` — a full
+**32-byte** hash over **canonical DER** framing (not `writeUTF`), with `superclassHash`
+a full 32-byte recursive hash. This is a genuine, breaking change to type identity on
+**three** axes at once — digest width (8 vs 32 bytes), framing (`writeUTF` vs DER), and
+the recursive `superclassHash` width — so a DER node and a legacy Registrar compute
+different identities for the same `@SerialEntry` class. Three migration options:
 
 | Option | Mechanism | Impact |
 |---|---|---|
@@ -1773,10 +2117,12 @@ and `LoadClassPermission` apply unchanged.
 ServiceItemRecord ::= SEQUENCE {
     serviceId   ServiceID,
     -- behavioural; unordered (§3.8): a Jini attribute set is order-independent, so
-    -- no element position here is order-significant. [OPEN — align to §3.8/§7.6: a
-    -- canonicalise (non-deterministic-order) collection is a SET OF (tag 0x31) in
-    -- octet-sorted order under the pinned Option-A rule; whether this fixed §7.7
-    -- record field adopts SET OF or stays SEQUENCE OF is a §7.7 record decision.]
+    -- no element position here is order-significant. [PROPOSED — align to §3.8/§7.6:
+    -- an unordered collection is a canonicalise case, so this SHOULD be a SET OF (tag
+    -- 0x31), octet-sorted under Option A, so two encoders of the same attribute set
+    -- produce byte-identical ServiceItemRecords (matters for content-addressing and
+    -- Entry byte-matching). Kept SEQUENCE OF here pending Peter's ratification of the
+    -- tag flip, since it is a byte-on-the-wire change to a fixed §7.7 record.]
     attributes  SEQUENCE (SIZE(0..64)) OF EntryRecord,  -- 64 = Jini spec attribute limit
     proxy       ProxyDescriptor
 }
@@ -1796,12 +2142,20 @@ EntryTemplate ::= SEQUENCE {
 ServiceTemplateRecord ::= SEQUENCE {
     serviceId           [0] IMPLICIT ServiceID OPTIONAL,
     -- Interface hashes: schemaHash of each required service interface.
-    -- [OPEN] Confirm whether interface type identity uses the same hash scheme.
+    -- [PROPOSED] Interface type identity is a DIFFERENT notion from @SerialEntry
+    -- schema identity: reggie's ServiceType/EntryClass hash the CLASS (name +
+    -- superclass hash), not an entryForm() field list, and a service INTERFACE has
+    -- no serialForm()/entryForm() at all. The 32-byte width here presumes a
+    -- SHA-256(class-name)-style identity; whichever scheme is chosen (a) MUST be the
+    -- same one the Registrar indexes interfaces under, and (b) inherits the §7.7.1
+    -- hash-migration decision (legacy 64-bit truncated vs DER 32-byte). Confirm the
+    -- interface-identity scheme and its width against the Registrar's interface index
+    -- before pinning 32 bytes here.
     requiredInterfaces  [1] IMPLICIT SEQUENCE (SIZE(0..maxInterfaces)) OF OCTET STRING (SIZE(32)) OPTIONAL,   -- §4.5
     -- behavioural; unordered (§3.8): an attribute-template set is order-independent
-    -- (mirrors ServiceItemRecord.attributes). [OPEN — align to §3.8/§7.6 as for
-    -- ServiceItemRecord.attributes: canonicalise = SET OF (0x31) octet-sorted under
-    -- Option A; SET-OF-vs-SEQUENCE-OF here is a §7.7 record decision.]
+    -- (mirrors ServiceItemRecord.attributes). [PROPOSED — same as
+    -- ServiceItemRecord.attributes: SHOULD become a SET OF (0x31) octet-sorted under
+    -- Option A; kept SEQUENCE OF pending Peter's ratification of the byte-level flip.]
     attributeTemplates  [2] IMPLICIT SEQUENCE (SIZE(0..64)) OF EntryTemplate OPTIONAL    -- same 64 ceiling as ServiceItemRecord.attributes
 }
 ```
@@ -1879,7 +2233,10 @@ detect and log a clear error (not a cryptic exception) if the Subject DN is empt
 For `net.jini.discovery.spiffe.*` formats, the verifier does NOT require the
 signer's leaf certificate in a static trust store. The leaf certificate travels
 in the packet and is validated via PKIX chain validation against the SPIRE trust
-bundle (`X509Certificate[]` from `SpiffeCredentialManager.getTrustBundle()`). This
+bundle (`X509Certificate[]` from `SpiffeCredentialManager.getTrustBundle()` —
+**CONFIRMED**: `public X509Certificate[] getTrustBundle()` at
+`au.zeus.jdk.authorization.spire.SpiffeCredentialManager` line 293, DirtyChai
+`java.base`; the method name in this spec is correct). This
 makes hourly SVID rotation transparent: the CA certificate is stable, and any SVID
 issued by the same SPIRE CA is accepted throughout its lifetime without any
 trust-store update. See §8.2 for the relationship to `SpiffeCredentialManager`.
@@ -2045,15 +2402,32 @@ UnicastResponseRecord ::= SEQUENCE {
 }
 ```
 
-**[OPEN]** `UnicastResponse` constructor for DER client side: confirm whether
-`UnicastResponse` can be constructed from an already-built `ServiceRegistrar`
-proxy stub (for the `JeriEndpointRecord` path where the client constructs a JERI
-stub directly), or whether a new subtype is required.
+**[RESOLVED]** `UnicastResponse` constructor for the DER client side. Confirmed
+against `org.apache.river.discovery.UnicastResponse`: its public constructor is
+`UnicastResponse(String host, int port, String[] groups, ServiceRegistrar registrar)`
+and it takes an **already-built** `ServiceRegistrar` proxy. **No new subtype is
+required**: for the `JeriEndpointRecord` path the client constructs the
+`ServiceRegistrar` JERI stub first (below) and then builds a `UnicastResponse` from
+`(host, port, groups, registrar)` directly. (The DER path overrides
+`EndpointBasedClient.readUnicastResponse()` to build the stub from the
+`UnicastResponseRecord` instead of reading a Java-serialized proxy, then calls this
+same constructor.)
 
-**[OPEN]** `JeriEndpointRecord` → JERI stub construction on the client: confirm
-the correct factory path in JGDMS for constructing an `SslEndpoint` +
-`AtomicILFactory` stub from `(host, port, spiffeId)` without a prior unicast
-handshake.
+**[RESOLVED]** `JeriEndpointRecord` → JERI stub construction on the client. Confirmed
+against `net.jini.jeri.ssl.SslEndpoint` and the discovery providers
+(`org.apache.river.discovery.ssl.sha256.Client`): the factory path is
+`SslEndpoint.getInstance(host, port, socketFactory)` (the 3-arg factory;
+`socketFactory` may be `null` for default sockets), which is then wrapped by an
+`AtomicILFactory`-produced invocation handler into the `ServiceRegistrar` proxy at the
+JERI `BasicObjectEndpoint`/`BasicInvocationHandler` layer — exactly the pattern the
+discovery `Client` uses (`SslEndpoint.getInstance("ignored", 1, factory)` there, with
+real `host:port` substituted for the DER path). No prior unicast handshake is needed to
+build the endpoint; the SPIFFE `spiffeId` from the record is used to constrain/verify
+the TLS peer identity on first connect (the constraints carried by the
+`AtomicILFactory`/`SslEndpoint`), not to construct the stub. **[PROPOSED — confirm the
+exact `AtomicILFactory` construction arguments (server constraints, permission class,
+loader) for the Registrar stub on the DER client path; `SslEndpoint.getInstance` itself
+is confirmed.]**
 
 ### 7.8 MarshalledInstance
 
@@ -2370,7 +2744,11 @@ A conforming implementation:
 
 Consolidated list of every **[OPEN]** above, for the next working session:
 
-1. §4.4 — OID-rooted vs `ENUMERATED` type discrimination (recommendation: OID).
+1. §4.4 — **RATIFIED (Peter, 2026-07-06): OID-rooted** type discrimination
+   (`TypedWireObject { typeId OID, body OCTET STRING }`, single discriminator per board
+   H3). **OPEN sub-item: the `jgdms(999999)` PEN is a placeholder — the OID root arc
+   allocation NEEDS PETER'S CONFIRMATION** (proposed `wireTypes(1)` sub-arc under the
+   enterprise node; a real IANA PEN is Peter's to own).
 2. §5.2 — Protocol version marker value (e.g. `0x03`); collision check.
 3. §7.1 — Confirm `PRINCIPAL_CTORS` allow-list stays in validation layer, not schema.
 4. §7.2 — **RESOLVED (v0.12)** against `RemoteContextCodec`: ACC records are
@@ -2379,31 +2757,49 @@ Consolidated list of every **[OPEN]** above, for the next working session:
    — every reducing domain is transmitted inline, discriminated by `kind` — **except** the
    `jrt:/java.base` platform domain, whose exclusion is **required** (encoder drops,
    decoder refuses) and was a privilege-escalation bug until fixed in v0.12.
-5. §7.3 — `DigestCodeSource` field confirmation (certificate encoding, DOS bounds as
-   schema constraints). Note: `DigestCodeSourceRecord` represents ACC *domain
-   identity* only — not a stream annotation and carries no URL-locator role.
-   The `httpmd:` fragment normalisation into an explicit `digest` field still applies.
-6. §7.4 — Full SCAP object field lists from STD-002. (Signature-input form RESOLVED in
-   §7.4.1: canonical DER of `tbs`. No cutover or signature-format versioning needed —
-   SCAP is unreleased, so the DER signature input is the format from first release.)
-7. §7.5 — Whether/how `PermissionGrant`/`DigestGrant` travel the wire; STD-004
-   field layout.
-8. §7.6 — Confirm the complete substituted-type set against the live `serializers`
-   map and `defaultReplaceObject` fallbacks; settle `Date` (epoch-millis vs
-   GeneralizedTime), `MarshalledObject` nested-frame structure and bounds, `File`
-   cross-runtime applicability; confirm whether `Permission` travels at all
-   (`PermissionSerializer` deleted 2026-06).
-   (`Float`/`Double`/`Character` RESOLVED — STD-008 §17.3. `Throwable` bounds
-   RESOLVED v0.13 — §4.5 `maxStackFrames`/`maxCauseDepth`, numbers to confirm.)
-9. §7.7.1 — **Hash algorithm migration** (most consequential): settle Option A/B/C
-   for coexistence of RULE-7 legacy hash with DER `SHA-256(DER(...))`. Recommendation:
-   Option B (version tag in `EntryRecord`). Confirm before implementation.
+5. §7.3 — **RESOLVED** against `java.security.DigestCodeSource` (DirtyChai): identity
+   `(uri, certificates, digestAlgorithm, digest)`, bounds match §4.5
+   (`maxCerts`=100/`maxCertLen`=64 KiB/`maxDigestLen`=512), algorithm from the source
+   `ALLOWED` set. Authority-classified **safe as structured DER** (digest re-verified
+   against real code at policy time, §7.5 principle). **[PROPOSED sub-item:** drop the
+   per-cert `getType()` string (source constrains it to `"X.509"`, redundant).] The
+   `httpmd:` fragment normalisation into an explicit `digest` field still applies.
+6. §7.4 — **RESOLVED**: field lists confirmed against the `@AtomicSerial` classes in
+   `au.net.zeus.jgdms.api.codebase` (`AnalysisRequest`, `JarAnalysisReport`,
+   `RegistryVerdict`, `CrashReport`; **no `SignedVerdict` class** — signatures are
+   inline `byte[]` fields, not a `SignedObject` wrapper). Authority-classified **safe as
+   structured DER** (signature-verified / content-hash-self-verified, §7.5 principle).
+   **[PROPOSED sub-items:** pin each record's signed-TBS field ordering; extract
+   `ClassAnalysisResult` serialForm; confirm `VerdictType` enumerant values.]
+7. §7.5 — **RATIFIED (Peter, 2026-07-06): `PermissionGrant`/`DigestGrant` are NOT
+   structured DER** — carried as their STD-004 textual policy-grant form and re-parsed
+   through the trusted policy parser (never reconstituted from serialized object state;
+   authority-forgery/gadget vector). Source-corroborated: `PermissionGrant` does not
+   implement `Serializable`; `DigestGrant.readObject` throws. Establishes the §7
+   governing authority-vs-signature principle.
+8. §7.6 — **Substituted-type set RESOLVED from source** (adds `Uuid`, `Marker` the table
+   omitted). `Date` **RATIFIED** epoch-millis `INTEGER`. `Permission` **RATIFIED**
+   string-form + reparse (structured form withdrawn). `MarshalledObject` **RATIFIED**
+   nested `MarshalledInstanceRecord` bound to `MAX_NESTING` + §4.5 caps (**needs a
+   `maxNesting` number**). `URL`/`URI`/`File`/`UID`/`Properties`/`StackTraceElement`
+   **RESOLVED from source** (external-form strings; `File`→`file:` URI; `Properties`
+   values always `String`). `Throwable` **[PROPOSED]** safe-subset vs the broader
+   as-built reflective-construction serializer — Peter to choose field set.
+   (`Float`/`Double`/`Character` RESOLVED — STD-008 §17.3.)
+9. §7.7.1 — **Hash algorithm migration [PROPOSED — Peter's call]**: algorithm
+   difference now **source-confirmed** (as-built = SHA-256 over `writeUTF` framing,
+   **truncated to 64-bit**, recursive 64-bit `superclassHash`; DER = full 32-byte
+   `SHA-256(DER(...))`). Settle Option A/B/C. Recommendation: Option B (version tag in
+   `EntryRecord`). Confirm before implementation.
 10. §7.7.1 — Confirm whether array-valued `EntryWireField` types (e.g. `String[]`)
     are permitted. If yes, encode as ORDER-SIGNIFICANT `SEQUENCE OF` per §3.8.
 11. §7.7.4 — Confirm `ServiceSpecRecord` operation set suffices for embedded device
     interface patterns. Confirm `void` return type representation in `TypeDescriptor`.
 12. §7.7.5 — Confirm Jini spec attribute limit (64 entries per `ServiceItemRecord`).
-    Confirm whether interface type identity uses `EntrySchemaRecord` hash scheme.
+    **[PROPOSED]** interface type identity is a *different* notion from `@SerialEntry`
+    schema identity (an interface has no `entryForm()`/`serialForm()`); it inherits the
+    §7.7.1 hash-migration decision and its width. Confirm the scheme + width against the
+    Registrar's interface index before pinning 32 bytes.
 13. §7.7.6 — **RESOLVED (v0.13).** The prior text conflated `Lease.ANY` (`-1`, "any
     duration acceptable") with `Lease.FOREVER` (`Long.MAX_VALUE`). Both are now
     distinct named values (`leaseAny`, `leaseForever`); `requestedDuration` admits
@@ -2417,15 +2813,25 @@ Consolidated list of every **[OPEN]** above, for the next working session:
     SPIRE instance. If cert + principal + signature exceeds datagram budget, settle
     one of: cert-on-first-announcement-only, cert-reference-with-fetch, or minimum
     MTU requirement for `net.jini.discovery.spiffe.*`.
-16. §7.7.7 — **`SpiffeCredentialManager.getTrustBundle()`**: confirm the exact method
-    name exposing the `X509Certificate[]` trust bundle. Add this method to
-    `SpiffeCredentialManager` if it does not exist.
-17. §7.7.7 — **`SvidRotationListener`**: confirm it is a `@FunctionalInterface` and
-    the registration method name on `SpiffeCredentialManager`.
-18. §7.7.8 — `UnicastResponse` construction from a pre-built proxy stub; confirm
-    whether a new subtype is needed for the `JeriEndpointRecord` client path.
-19. §7.7.8 — `JeriEndpointRecord` → JERI stub factory path on the client side
-    (constructing `SslEndpoint` + `AtomicILFactory` from `host:port:spiffeId`).
+16. §7.7.7 — **`SpiffeCredentialManager.getTrustBundle()` — RESOLVED/CONFIRMED**:
+    `public X509Certificate[] getTrustBundle()` exists at DirtyChai
+    `au.zeus.jdk.authorization.spire.SpiffeCredentialManager` line 293. Method name in
+    the spec is correct; no addition needed.
+17. §7.7.7 — **`SvidRotationListener` — RESOLVED, with correction**: it exists
+    (`SpiffeCredentialManager` line 692) but is **deliberately NOT a
+    `@FunctionalInterface`** ("Bootstrap-safe: no default methods, no
+    `@FunctionalInterface`", source comment). Registration is
+    **`addListener(SvidRotationListener)` / `removeListener(...)`**, not
+    `registerRotation*`. The spec's open-item assumption (that it is a
+    `@FunctionalInterface`) is corrected here.
+18. §7.7.8 — **RESOLVED**: `UnicastResponse(host, port, groups, registrar)` takes a
+    pre-built `ServiceRegistrar`; **no new subtype needed** for the `JeriEndpointRecord`
+    client path.
+19. §7.7.8 — **RESOLVED**: stub factory path is
+    `SslEndpoint.getInstance(host, port, socketFactory)` wrapped by `AtomicILFactory`
+    at the JERI proxy layer (confirmed against `SslEndpoint` + the discovery `Client`s).
+    **[PROPOSED sub-item:** confirm the exact `AtomicILFactory` args for the Registrar
+    stub on the DER client path.]
 20. Whole-document — validate every ASN.1 module against a real compiler
     (asn1c / pyasn1 / rasn). **Elevated (v0.13): this is now the next gating
     action, not an exit criterion.** External review found five modules that were
