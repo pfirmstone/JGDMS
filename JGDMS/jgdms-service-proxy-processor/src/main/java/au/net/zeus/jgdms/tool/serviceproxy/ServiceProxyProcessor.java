@@ -170,6 +170,45 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        // Pre-pass (P3, decision #1): validate every @SmartProxy delegate and index
+        // it by the erased-name SET of its api() (the apiKey), so the @JiniService
+        // loop can look up the delegate that owns a service's proxy shell.  Two
+        // delegates claiming the same api set is a fail-closed error (ambiguous
+        // shell ownership).  The delegate -- not @JiniService -- decides the
+        // forwarding target: when a delegate exists for a SMART service's api set,
+        // the generated Constrainable<Api>Proxy forwards to it rather than casting
+        // the deserialized server straight to the wire type.
+        java.util.Map<String, Delegate> delegates = new java.util.LinkedHashMap<>();
+        java.util.Set<String> matchedDelegateKeys = new java.util.LinkedHashSet<>();
+        TypeElement smart = elements.getTypeElement(SMART_PROXY);
+        if (smart != null) {
+            for (Element e : round.getElementsAnnotatedWith(smart)) {
+                if (e.getKind() != ElementKind.CLASS) {
+                    messager.printMessage(Kind.ERROR,
+                        "@SmartProxy must annotate a client-side logic delegate class.", e);
+                    continue;
+                }
+                TypeElement delegate = (TypeElement) e;
+                validateSmartProxy(delegate);
+                java.util.List<TypeMirror> apiTypes =
+                        annotationClassArrayValue(delegate, SMART_PROXY, "api");
+                if (apiTypes.isEmpty()) {
+                    continue; // no api() -> validateSmartProxy already has nothing to key on
+                }
+                String key = apiKeyOfMirrors(apiTypes);
+                Delegate prior = delegates.get(key);
+                if (prior != null) {
+                    messager.printMessage(Kind.ERROR,
+                        "@SmartProxy delegate " + delegate.getQualifiedName()
+                        + " claims the same api set as " + prior.element.getQualifiedName()
+                        + "; exactly one delegate may own the smart-proxy shell for an api"
+                        + " set.", delegate);
+                    continue;
+                }
+                delegates.put(key, new Delegate(delegate, readStates(delegate)));
+            }
+        }
+
         TypeElement jini = elements.getTypeElement(JINI_SERVICE);
         if (jini != null) {
             for (Element e : round.getElementsAnnotatedWith(jini)) {
@@ -192,23 +231,25 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
                     continue;
                 }
                 try {
-                    processJiniService((TypeElement) e);
+                    processJiniService((TypeElement) e, delegates, matchedDelegateKeys);
                 } catch (IOException ex) {
                     messager.printMessage(Kind.ERROR, "ServiceProxyProcessor: " + ex, e);
                 }
             }
         }
-        TypeElement smart = elements.getTypeElement(SMART_PROXY);
-        if (smart != null) {
-            for (Element e : round.getElementsAnnotatedWith(smart)) {
-                if (e.getKind() != ElementKind.CLASS) {
-                    messager.printMessage(Kind.ERROR,
-                        "@SmartProxy must annotate a client-side logic delegate class.", e);
-                    continue;
+
+        // A @SmartProxy delegate with no matching @JiniService in this round produced
+        // no shell -- the shell needs the service's backend/api context to be
+        // generated, so this is a warning, not an error (validate-only never
+        // generates, so the warning would be misleading there).
+        if (!validateOnly) {
+            for (var en : delegates.entrySet()) {
+                if (!matchedDelegateKeys.contains(en.getKey())) {
+                    messager.printMessage(Kind.WARNING,
+                        "@SmartProxy delegate " + en.getValue().element.getQualifiedName()
+                        + " has no matching @JiniService(proxy = SMART) for its api set in"
+                        + " this round; no proxy shell was generated.", en.getValue().element);
                 }
-                validateSmartProxy((TypeElement) e);
-                // Generation of the smart-proxy shell is a later phase (P3); for
-                // now @SmartProxy is validate-only regardless of mode.
             }
         }
         return false; // do not claim the annotations; allow other processors
@@ -216,7 +257,9 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
 
     // ---------------------------------------------------------------- @JiniService
 
-    private void processJiniService(TypeElement impl) throws IOException {
+    private void processJiniService(TypeElement impl,
+                                    java.util.Map<String, Delegate> delegates,
+                                    java.util.Set<String> matchedDelegateKeys) throws IOException {
         ServiceModel model = ServiceModel.of(impl, elements, types, messager);
         if (model == null) {
             return; // api() could not be resolved; error already reported
@@ -277,7 +320,19 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         }
         if (model.proxyType() == ServiceModel.ProxyType.SMART) {
             if (model.proxyHandWritten == null) {
-                writeProxy(model);
+                // Decision #1: when a @SmartProxy delegate owns this service's api
+                // set, the generated shell forwards to that delegate; otherwise the
+                // byte-identical direct-forwarding shell is emitted.  Exactly one
+                // shell per api set either way.
+                String key = apiKeyOfElements(model.apiInterfaces);
+                Delegate delegate = delegates.get(key);
+                if (delegate != null) {
+                    matchedDelegateKeys.add(key);
+                    if (!validateDelegateCtor(model, delegate)) {
+                        return; // fail-closed: reported a missing (serverType[,state]) ctor
+                    }
+                }
+                writeProxy(model, delegate);
             }
         }
         // DYNAMIC (shapes 1 & 2): no proxy class and no ILFactory are generated;
@@ -469,10 +524,30 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
      * throws rather than degrading to a plain proxy when the {@code server}
      * reference is not a {@code RemoteMethodControl}.
      */
-    private void writeProxy(ServiceModel m) throws IOException {
+    private void writeProxy(ServiceModel m, Delegate delegate) throws IOException {
         String pkg = elements.getPackageOf(m.api).getQualifiedName().toString();
         String api = m.api.getQualifiedName().toString();
         String apiSimple = m.api.getSimpleName().toString();
+        // P3: the delegate (if any) owns the forwarding behaviour.  A delegate with
+        // @State declarations makes the shell STATEFUL: it declares its own serial
+        // form for the durable fields over the @Stateless ConstrainableSmartProxy
+        // base (the {server, proxyID} state lives in AbstractSmartProxy's frame; the
+        // shell reads its own state fields from its own GetArg frame, exactly as
+        // ConstrainableRegistrarProxy layers `constraints` over RegistrarProxy).
+        String delegateFqn = delegate == null ? null
+                : delegate.element.getQualifiedName().toString();
+        java.util.List<StateField> states = delegate == null
+                ? java.util.Collections.emptyList() : delegate.states;
+        boolean stateful = !states.isEmpty();
+        // Extra ctor/create parameters and pass-through arguments for the durable
+        // @State fields (empty in the stateless case, keeping the direct-forwarding
+        // output byte-identical).
+        StringBuilder stateParams = new StringBuilder();
+        StringBuilder stateArgs = new StringBuilder();
+        for (StateField sf : states) {
+            stateParams.append(", ").append(sf.type).append(' ').append(sf.name);
+            stateArgs.append(", ").append(sf.name);
+        }
         // The proxy IMPLEMENTS the public api (its client-facing forwarding
         // methods) but its create()/ctor server parameter is typed as the wire
         // set, because the deserialized/exported server stub is a wire instance
@@ -511,7 +586,12 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
          .append(" * @see au.net.zeus.jgdms.proxy.AbstractSmartProxy\n")
          .append(" */\n");
         b.append("@org.apache.river.api.io.AtomicSerial\n");
-        b.append("@org.apache.river.api.io.AtomicSerial.Stateless\n");
+        // A stateful (@State) shell declares its OWN serial form for the durable
+        // fields, so it is NOT @Stateless; a delegate-less or state-less shell stays
+        // @Stateless (the base owns {server, proxyID}).
+        if (!stateful) {
+            b.append("@org.apache.river.api.io.AtomicSerial.Stateless\n");
+        }
         b.append("public final class ").append(simple).append("\n")
          .append("        extends ").append(ABSTRACT_SMART_PROXY).append(".ConstrainableSmartProxy\n")
          .append("        implements ");
@@ -525,6 +605,45 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         }
         b.append(" {\n\n");
         b.append("    private static final long serialVersionUID = 1L;\n\n");
+
+        // P3 delegate: client-side behaviour, NOT serialized -- rebuilt from the
+        // deserialized (validated) server in every constructor.  transient because a
+        // stateful shell is non-@Stateless and would otherwise try to serialize it.
+        if (delegate != null) {
+            b.append("    private transient final ").append(delegateFqn)
+             .append(" delegate;\n\n");
+        }
+        // P3.2 durable proxy state: fields the shell serializes (declared serial
+        // form over the @Stateless base) and passes to the delegate ctor after
+        // server.
+        if (stateful) {
+            for (StateField sf : states) {
+                b.append("    private final ").append(sf.type).append(' ')
+                 .append(sf.name).append(";\n");
+            }
+            b.append('\n');
+            b.append("    /** Serial form for the durable @State fields (over the "
+                    + "@Stateless base's {server, proxyID}). */\n");
+            b.append("    public static org.apache.river.api.io.AtomicSerial.SerialForm[] serialForm() {\n");
+            b.append("        return new org.apache.river.api.io.AtomicSerial.SerialForm[]{\n");
+            for (int i = 0; i < states.size(); i++) {
+                StateField sf = states.get(i);
+                b.append("            new org.apache.river.api.io.AtomicSerial.SerialForm(\"")
+                 .append(sf.name).append("\", ").append(sf.type).append(".class)");
+                b.append(i < states.size() - 1 ? ",\n" : "\n");
+            }
+            b.append("        };\n");
+            b.append("    }\n\n");
+            b.append("    /** Writes the durable @State fields declared by {@link #serialForm()}. */\n");
+            b.append("    public static void serialize(org.apache.river.api.io.AtomicSerial.PutArg arg, ")
+             .append(simple).append(" obj) throws java.io.IOException {\n");
+            for (StateField sf : states) {
+                b.append("        arg.put(\"").append(sf.name).append("\", obj.")
+                 .append(sf.name).append(");\n");
+            }
+            b.append("        arg.writeArgs();\n");
+            b.append("    }\n\n");
+        }
 
         // Fail-closed factory (SOW 2.1).
         b.append("    /**\n")
@@ -544,7 +663,8 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
          .append("     *         {@link ").append(REMOTE_METHOD_CONTROL).append("}\n")
          .append("     */\n");
         b.append("    public static ").append(ABSTRACT_SMART_PROXY)
-         .append(" create(").append(serverType).append(" server, net.jini.id.Uuid proxyID) {\n");
+         .append(" create(").append(serverType).append(" server, net.jini.id.Uuid proxyID")
+         .append(stateParams).append(") {\n");
         b.append("        if (!(server instanceof ").append(REMOTE_METHOD_CONTROL).append(")) {\n");
         b.append("            throw new IllegalArgumentException(\n");
         b.append("                \"service must be exported with a constrainable endpoint: \"\n");
@@ -553,7 +673,7 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         b.append("        net.jini.core.constraint.MethodConstraints serverConstraints =\n");
         b.append("                ((").append(REMOTE_METHOD_CONTROL).append(") server).getConstraints();\n");
         b.append("        return new ").append(simple)
-         .append("(server, proxyID, serverConstraints);\n");
+         .append("(server, proxyID, serverConstraints").append(stateArgs).append(");\n");
         b.append("    }\n\n");
 
         // Public (server, proxyID, constraints) ctor.
@@ -566,8 +686,16 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
          .append("     */\n");
         b.append("    public ").append(simple).append("(").append(serverType)
          .append(" server, net.jini.id.Uuid proxyID,\n")
-         .append("            net.jini.core.constraint.MethodConstraints constraints) {\n");
+         .append("            net.jini.core.constraint.MethodConstraints constraints")
+         .append(stateParams).append(") {\n");
         b.append("        super(server, proxyID, constraints);\n");
+        for (StateField sf : states) {
+            b.append("        this.").append(sf.name).append(" = ").append(sf.name).append(";\n");
+        }
+        if (delegate != null) {
+            b.append("        this.delegate = new ").append(delegateFqn)
+             .append("((").append(serverType).append(") server").append(stateArgs).append(");\n");
+        }
         b.append("    }\n\n");
 
         // AtomicSerial (GetArg) ctor.
@@ -582,6 +710,18 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
          .append("(org.apache.river.api.io.AtomicSerial.GetArg arg)\n")
          .append("            throws java.io.IOException, ClassNotFoundException {\n");
         b.append("        super(arg);\n");
+        // super(arg) has read+validated {server, proxyID} from AbstractSmartProxy's
+        // own frame.  Each @State field is read from THIS class's own GetArg frame
+        // (caller-class dispatch resolves it to this leaf's fields), then the
+        // behaviour delegate is rebuilt from the validated inherited `server`.
+        for (StateField sf : states) {
+            b.append("        this.").append(sf.name).append(" = arg.get(\"").append(sf.name)
+             .append("\", null, ").append(sf.type).append(".class);\n");
+        }
+        if (delegate != null) {
+            b.append("        this.delegate = new ").append(delegateFqn)
+             .append("((").append(serverType).append(") server").append(stateArgs).append(");\n");
+        }
         b.append("    }\n\n");
 
         // setConstraints returning a re-constrained copy via getReferentUuid().
@@ -589,7 +729,8 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         b.append("    public ").append(REMOTE_METHOD_CONTROL)
          .append(" setConstraints(net.jini.core.constraint.MethodConstraints constraints) {\n");
         b.append("        return new ").append(simple).append("(\n");
-        b.append("                (").append(serverType).append(") server, getReferentUuid(), constraints);\n");
+        b.append("                (").append(serverType).append(") server, getReferentUuid(), constraints")
+         .append(stateArgs).append(");\n");
         b.append("    }\n");
 
         // Forwarding methods -- every public API method across all api interfaces,
@@ -600,11 +741,19 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         // a sibling interface).  For a translating smart proxy (protocol != api)
         // every method is forwarded through the distinct internal wire protocol.
         for (ExecutableElement method : m.apiMethods) {
-            String castType = m.protocolIsApi() ? declaringTypeName(method) : serverType;
             b.append('\n');
             b.append("    @Override\n");
             b.append("    ").append(renderMethodSignature(method)).append(" {\n");
-            b.append("        ").append(renderForwardingBody(method, castType)).append('\n');
+            if (delegate != null) {
+                // The delegate implements the public api, so forwarding to it
+                // compiles even when the wire method name differs (genuinely
+                // disjoint translation); the delegate internally translates to the
+                // protocol.
+                b.append("        ").append(renderDelegateForwardingBody(method)).append('\n');
+            } else {
+                String castType = m.protocolIsApi() ? declaringTypeName(method) : serverType;
+                b.append("        ").append(renderForwardingBody(method, castType)).append('\n');
+            }
             b.append("    }\n");
         }
 
@@ -740,6 +889,199 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         }
         sb.append(");");
         return sb.toString();
+    }
+
+    /** The forwarding body through the delegate: {@code return delegate.name(args);}
+     *  (or no return for void).  The delegate implements the public api, so this
+     *  compiles even for a disjoint api/protocol method-name translation. */
+    private String renderDelegateForwardingBody(ExecutableElement method) {
+        StringBuilder sb = new StringBuilder();
+        boolean isVoid = method.getReturnType().getKind() == TypeKind.VOID;
+        if (!isVoid) {
+            sb.append("return ");
+        }
+        sb.append("delegate.").append(method.getSimpleName()).append('(');
+        var params = method.getParameters();
+        for (int i = 0; i < params.size(); i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(params.get(i).getSimpleName());
+        }
+        sb.append(");");
+        return sb.toString();
+    }
+
+    // ------------------------------------------------- @SmartProxy delegate support
+
+    /** A resolved {@code @SmartProxy} delegate plus its ordered {@code @State} fields. */
+    private static final class Delegate {
+        final TypeElement element;
+        final java.util.List<StateField> states;
+        Delegate(TypeElement element, java.util.List<StateField> states) {
+            this.element = element;
+            this.states = states;
+        }
+    }
+
+    /** A durable {@code @State} field: a serialized name plus its declared type
+     *  (fully-qualified so the emitted source needs no imports). */
+    private static final class StateField {
+        final String name;
+        final String type;
+        StateField(String name, String type) {
+            this.name = name;
+            this.type = type;
+        }
+    }
+
+    /**
+     * The order-independent identity of an api set: its erased qualified type names,
+     * sorted and joined.  A {@code @SmartProxy} delegate and the {@code @JiniService}
+     * it owns are paired iff their api sets share this key.
+     */
+    private String apiKeyOfMirrors(java.util.List<TypeMirror> apiTypes) {
+        java.util.TreeSet<String> names = new java.util.TreeSet<>();
+        for (TypeMirror tm : apiTypes) {
+            names.add(types.erasure(tm).toString());
+        }
+        return String.join(",", names);
+    }
+
+    /** The api-set key ({@link #apiKeyOfMirrors}) for resolved api {@code TypeElement}s. */
+    private String apiKeyOfElements(java.util.List<TypeElement> apis) {
+        java.util.TreeSet<String> names = new java.util.TreeSet<>();
+        for (TypeElement te : apis) {
+            names.add(types.erasure(te.asType()).toString());
+        }
+        return String.join(",", names);
+    }
+
+    /**
+     * Reads the delegate's {@code @SmartProxy.State}/{@code @States} declarations, in
+     * source (constructor-parameter) order: each contributes a durable field the
+     * shell serializes and passes to the delegate ctor after {@code server}.
+     */
+    private java.util.List<StateField> readStates(TypeElement delegate) {
+        java.util.List<StateField> out = new java.util.ArrayList<>();
+        String stateFqn  = SMART_PROXY + ".State";
+        String statesFqn = SMART_PROXY + ".States";
+        for (javax.lang.model.element.AnnotationMirror am : delegate.getAnnotationMirrors()) {
+            String at = typeName(am.getAnnotationType());
+            if (statesFqn.equals(at)) {
+                for (var en : am.getElementValues().entrySet()) {
+                    if (!en.getKey().getSimpleName().contentEquals("value")) {
+                        continue;
+                    }
+                    Object v = en.getValue().getValue();
+                    if (v instanceof java.util.List<?>) {
+                        for (Object o : (java.util.List<?>) v) {
+                            if (o instanceof javax.lang.model.element.AnnotationValue) {
+                                Object inner = ((javax.lang.model.element.AnnotationValue) o).getValue();
+                                if (inner instanceof javax.lang.model.element.AnnotationMirror) {
+                                    StateField sf = readState(
+                                        (javax.lang.model.element.AnnotationMirror) inner);
+                                    if (sf != null) {
+                                        out.add(sf);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (stateFqn.equals(at)) {
+                StateField sf = readState(am);
+                if (sf != null) {
+                    out.add(sf);
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Reads one {@code @SmartProxy.State} mirror into a {@link StateField}. */
+    private StateField readState(javax.lang.model.element.AnnotationMirror stateMirror) {
+        String name = null;
+        String type = null;
+        for (var en : elements.getElementValuesWithDefaults(stateMirror).entrySet()) {
+            String member = en.getKey().getSimpleName().toString();
+            Object value = en.getValue().getValue();
+            if ("name".equals(member) && value != null) {
+                name = value.toString();
+            } else if ("type".equals(member) && value instanceof TypeMirror) {
+                type = typeName((TypeMirror) value);
+            }
+        }
+        if (name == null || name.isEmpty() || type == null) {
+            return null;
+        }
+        return new StateField(name, type);
+    }
+
+    /**
+     * The {@code server} wire type as a {@code TypeMirror} when it is a single
+     * protocol interface (the {@link #serverType(ServiceModel)} single-interface
+     * case), else {@code null} (the aggregate {@code <Api>Backend}, which is
+     * generated in this same round and cannot be resolved as an element here).
+     */
+    private TypeMirror serverTypeMirror(ServiceModel m) {
+        return m.protocol.size() == 1 ? m.protocol.get(0) : null;
+    }
+
+    /**
+     * Validates (fail-closed) that the delegate declares a constructor
+     * {@code (serverType [, state types...])} the generated shell can call.  The
+     * first parameter must accept the wire {@code serverType} (a supertype of it);
+     * the remaining parameters must match the {@code @State} types in order.  When
+     * the server type is the aggregate backend (not resolvable here), only the
+     * parameter count and the trailing state types are checked.
+     *
+     * @return {@code true} if a compatible ctor exists (an error was reported and
+     *         {@code false} returned otherwise)
+     */
+    private boolean validateDelegateCtor(ServiceModel m, Delegate delegate) {
+        int expected = 1 + delegate.states.size();
+        TypeMirror serverType = serverTypeMirror(m);
+        for (Element e : delegate.element.getEnclosedElements()) {
+            if (e.getKind() != ElementKind.CONSTRUCTOR) {
+                continue;
+            }
+            ExecutableElement ctor = (ExecutableElement) e;
+            var params = ctor.getParameters();
+            if (params.size() != expected) {
+                continue;
+            }
+            // First parameter must accept the wire server type.
+            if (serverType != null
+                    && !types.isAssignable(serverType, params.get(0).asType())) {
+                continue;
+            }
+            // Remaining parameters must match the @State types (erased name compare).
+            boolean statesMatch = true;
+            for (int i = 0; i < delegate.states.size(); i++) {
+                String want = delegate.states.get(i).type;
+                String got = typeName(types.erasure(params.get(i + 1).asType()));
+                if (!want.equals(got)) {
+                    statesMatch = false;
+                    break;
+                }
+            }
+            if (statesMatch) {
+                return true;
+            }
+        }
+        StringBuilder sig = new StringBuilder(
+                serverType != null ? typeName(serverType) : serverType(m));
+        for (StateField sf : delegate.states) {
+            sig.append(", ").append(sf.type);
+        }
+        messager.printMessage(Kind.ERROR,
+            "@SmartProxy delegate " + delegate.element.getQualifiedName()
+            + " must declare a constructor (" + sig + ") so the generated proxy shell"
+            + " can reconstruct it from the deserialized server"
+            + (delegate.states.isEmpty() ? "" : " and its @State fields") + ".",
+            delegate.element);
+        return false;
     }
 
     // ------------------------------------------------------------------ helpers

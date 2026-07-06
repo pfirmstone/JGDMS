@@ -126,11 +126,19 @@ final class ProcessorHarness {
                 "package net.jini.core.constraint; public interface MethodConstraints {}");
         addStub("org.apache.river.api.io.AtomicSerial",
                 "package org.apache.river.api.io; import java.lang.annotation.*;"
+                + " import java.io.IOException;"
                 + " @Retention(RetentionPolicy.RUNTIME) @Target(ElementType.TYPE)"
                 + " public @interface AtomicSerial {"
                 + "   @Retention(RetentionPolicy.RUNTIME) @Target(ElementType.TYPE)"
                 + "   @interface Stateless {}"
-                + "   interface GetArg {} }");
+                // GetArg carries the typed reader the stateful (@State) shell uses to
+                // read its own frame's durable fields; PutArg/SerialForm carry the
+                // output plumbing the generated serialForm()/serialize() reference.
+                + "   interface GetArg {"
+                + "     <T> T get(String name, T val, Class<T> type) throws IOException, ClassNotFoundException;"
+                + "     Object get(String name, Object val) throws IOException, ClassNotFoundException; }"
+                + "   interface PutArg { void put(String name, Object value); void writeArgs() throws IOException; }"
+                + "   final class SerialForm { public SerialForm(String name, Class<?> type) {} } }");
         // Stub AbstractSmartProxy with the members the generated proxy references:
         // a server field, getReferentUuid(), and a ConstrainableSmartProxy base
         // exposing the (server, proxyID, constraints) and (GetArg) constructors
@@ -176,7 +184,11 @@ final class ProcessorHarness {
                 + " @Retention(RetentionPolicy.SOURCE) @Target(ElementType.TYPE)"
                 + " public @interface SmartProxy {"
                 + "   Class<?>[] api();"
-                + "   Class<?>[] protocol() default {}; }");
+                + "   Class<?>[] protocol() default {};"
+                + "   @Retention(RetentionPolicy.SOURCE) @Target(ElementType.TYPE)"
+                + "   @interface State { String name(); Class<?> type(); }"
+                + "   @Retention(RetentionPolicy.SOURCE) @Target(ElementType.TYPE)"
+                + "   @interface States { State[] value(); } }");
     }
 
     ProcessorHarness addStub(String fqn, String code) {

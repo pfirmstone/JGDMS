@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.tool.serviceproxy;
 
 import org.junit.Test;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -1043,5 +1044,207 @@ public class ServiceProxyProcessorTest {
         assertFalse(r.allMessages(), r.hasAnyError());
         assertTrue("default (DYNAMIC) must generate NOTHING: " + r.generated.keySet(),
             r.generated.isEmpty());
+    }
+
+    // ------------------------------------------------- @SmartProxy delegate shell (P3)
+
+    @Test
+    public void delegateForwardingShellForwardsToDelegateNotServer() {
+        // P3.1: a genuinely DISJOINT delegate -- public api Foo.currentCelsius(region)
+        // over wire protocol Bar.rawCelsius(region).  The generated shell must forward
+        // the api method to the DELEGATE (which implements Foo), not cast the wire
+        // server to Foo (Bar has no currentCelsius -- that would not compile).  The
+        // delegate is transient behaviour, rebuilt from the deserialized server in
+        // BOTH constructors.
+        ProcessorHarness h = new ProcessorHarness()
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   double rawCelsius(String region) throws RemoteException; }")
+            .add("hello.FooLogic",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy("
+                + "     api = Foo.class, protocol = Bar.class)"
+                + " public final class FooLogic implements Foo {"
+                + "   private final Bar server;"
+                + "   public FooLogic(Bar server) { this.server = server; }"
+                + "   public double currentCelsius(String region) throws RemoteException {"
+                + "     return server.rawCelsius(region); } }")
+            .add("hello.FooServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART)"
+                + " public class FooServiceImpl implements Bar {"
+                + "   public double rawCelsius(String region) throws RemoteException { return 0; } }");
+        ProcessorHarness.Result gen = h.run();
+        assertFalse(gen.allMessages(), gen.hasAnyError());
+        String proxy = gen.generated.get("hello.ConstrainableFooProxy");
+        assertTrue("shell must be generated; got " + gen.generated.keySet(), proxy != null);
+        // Exactly ONE shell (no direct-forwarding proxy in addition to the delegate one).
+        long shells = gen.generated.keySet().stream()
+                .filter(k -> k.startsWith("hello.Constrainable") && k.endsWith("Proxy")).count();
+        assertEquals("exactly one Constrainable*Proxy shell:\n" + gen.generated.keySet(),
+                1, shells);
+        assertTrue("transient final delegate field:\n" + proxy,
+            proxy.contains("private transient final hello.FooLogic delegate;"));
+        assertTrue("delegate built from the wire server in a ctor:\n" + proxy,
+            proxy.contains("this.delegate = new hello.FooLogic((hello.Bar) server);"));
+        assertTrue("forwards currentCelsius to the DELEGATE:\n" + proxy,
+            proxy.contains("return delegate.currentCelsius(region);"));
+        assertFalse("must NOT cast the wire server to the api (would not compile):\n" + proxy,
+            proxy.contains("((hello.Foo) server).currentCelsius"));
+        // The whole disjoint chain compiles ONLY because the shell forwards through
+        // the delegate -- this is the payoff the direct generator could not express.
+        ProcessorHarness.Result compiled = h.compileGenerated(gen);
+        assertTrue("delegate-forwarding shell must compile:\n" + compiled.allMessages()
+                + "\n--- proxy ---\n" + proxy, compiled.success);
+    }
+
+    @Test
+    public void noDelegateStillEmitsByteIdenticalDirectShell() {
+        // Regression guard for decision #1: a SMART service with NO @SmartProxy
+        // delegate takes the byte-identical direct-forwarding path (no delegate field,
+        // casts the server directly), exactly as before P3.
+        ProcessorHarness h = new ProcessorHarness()
+            .add("hello.HelloService",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String sayHello(String name) throws RemoteException; }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String sayHello(String name) throws RemoteException { return name; } }");
+        ProcessorHarness.Result r = h.run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+        String proxy = r.generated.get("hello.ConstrainableHelloServiceProxy");
+        assertTrue(proxy != null);
+        assertFalse("no-delegate shell must NOT carry a delegate field:\n" + proxy,
+            proxy.contains("delegate"));
+        assertTrue("no-delegate shell stays @Stateless:\n" + proxy,
+            proxy.contains("@org.apache.river.api.io.AtomicSerial.Stateless"));
+        assertTrue("no-delegate shell forwards through the server cast:\n" + proxy,
+            proxy.contains("((hello.HelloService) server).sayHello(name)"));
+    }
+
+    @Test
+    public void twoDelegatesForSameApiIsError() {
+        // Decision #1: exactly one delegate may own the shell for an api set.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   String foo(String s) throws RemoteException; }")
+            .add("hello.FooLogicA",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy(api = Foo.class)"
+                + " public final class FooLogicA implements Foo {"
+                + "   public FooLogicA(Foo server) {}"
+                + "   public String foo(String s) throws RemoteException { return s; } }")
+            .add("hello.FooLogicB",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy(api = Foo.class)"
+                + " public final class FooLogicB implements Foo {"
+                + "   public FooLogicB(Foo server) {}"
+                + "   public String foo(String s) throws RemoteException { return s; } }")
+            .run();
+        assertTrue(r.allMessages(),
+            r.hasError("claims the same api set"));
+    }
+
+    @Test
+    public void delegateMissingServerCtorIsError() {
+        // Fail-closed: the shell reconstructs the delegate via new Delegate((wire) server);
+        // a delegate lacking that ctor cannot be built.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   double rawCelsius(String region) throws RemoteException; }")
+            .add("hello.FooLogic",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy("
+                + "     api = Foo.class, protocol = Bar.class)"
+                + " public final class FooLogic implements Foo {"
+                + "   public FooLogic() {}"   // no (Bar) ctor
+                + "   public double currentCelsius(String region) throws RemoteException { return 0; } }")
+            .add("hello.FooServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART)"
+                + " public class FooServiceImpl implements Bar {"
+                + "   public double rawCelsius(String region) throws RemoteException { return 0; } }")
+            .run();
+        assertTrue(r.allMessages(),
+            r.hasError("must declare a constructor (hello.Bar)"));
+    }
+
+    @Test
+    public void statefulDelegateShellSerializesStateAndPassesToDelegate() {
+        // P3.2: a @State declaration makes the shell STATEFUL -- non-@Stateless, with
+        // its OWN serial form for the durable field, serialize() writing it, and a
+        // (GetArg) ctor reading it from its own frame and passing it to the delegate
+        // ctor AFTER server.  (The {server, proxyID} state stays in the @Stateless
+        // base's frame -- the frame-scoped GetArg namespace trap.)
+        ProcessorHarness h = new ProcessorHarness()
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   double rawCelsius(String region) throws RemoteException; }")
+            .add("hello.FooLogic",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.SmartProxy;"
+                + " @SmartProxy(api = Foo.class, protocol = Bar.class)"
+                + " @SmartProxy.State(name = \"unit\", type = String.class)"
+                + " public final class FooLogic implements Foo {"
+                + "   private final Bar server; private final String unit;"
+                + "   public FooLogic(Bar server, String unit) { this.server = server; this.unit = unit; }"
+                + "   public double currentCelsius(String region) throws RemoteException {"
+                + "     return server.rawCelsius(region); } }")
+            .add("hello.FooServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART)"
+                + " public class FooServiceImpl implements Bar {"
+                + "   public double rawCelsius(String region) throws RemoteException { return 0; } }");
+        ProcessorHarness.Result gen = h.run();
+        assertFalse(gen.allMessages(), gen.hasAnyError());
+        String proxy = gen.generated.get("hello.ConstrainableFooProxy");
+        assertTrue("shell must be generated; got " + gen.generated.keySet(), proxy != null);
+        assertTrue("stateful shell is @AtomicSerial:\n" + proxy,
+            proxy.contains("@org.apache.river.api.io.AtomicSerial\n"));
+        assertFalse("stateful shell must NOT be @Stateless:\n" + proxy,
+            proxy.contains("@org.apache.river.api.io.AtomicSerial.Stateless"));
+        assertTrue("durable state field declared:\n" + proxy,
+            proxy.contains("private final java.lang.String unit;"));
+        assertTrue("serial form declares the durable field:\n" + proxy,
+            proxy.contains("new org.apache.river.api.io.AtomicSerial.SerialForm(\"unit\", java.lang.String.class)"));
+        assertTrue("serialize writes the durable field:\n" + proxy,
+            proxy.contains("arg.put(\"unit\", obj.unit);"));
+        assertTrue("(GetArg) reads the durable field from its own frame:\n" + proxy,
+            proxy.contains("this.unit = arg.get(\"unit\", null, java.lang.String.class);"));
+        assertTrue("state passed to the delegate ctor AFTER server:\n" + proxy,
+            proxy.contains("this.delegate = new hello.FooLogic((hello.Bar) server, unit);"));
+        // And the whole stateful shell must compile against the serial stubs.
+        ProcessorHarness.Result compiled = h.compileGenerated(gen);
+        assertTrue("stateful delegate shell must compile:\n" + compiled.allMessages()
+                + "\n--- proxy ---\n" + proxy, compiled.success);
     }
 }
