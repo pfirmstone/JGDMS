@@ -38,6 +38,19 @@
 > when in capitals. "Fail closed" / "fail secure" means: on any ambiguity, breach, or
 > unrecognised input, construct no object, carry no traffic, and refuse — never fall
 > back to a permissive default.
+>
+> **Implementation vehicle (2026-07-06 decision).** The editorial note above assumes a
+> from-scratch ~30k-LOC RFC 9000/9002 build. That assumption is **superseded** for the
+> implementation: the transport is instead a fork of **kwik** (`github.com/pfirmstone/kwik`,
+> fork of `ptrd/kwik`) whose bundled TLS stack (agent15) is replaced by the JDK's JSSE
+> QUIC-TLS engine (`jdk.internal.net.quic.QuicTLSEngine`, JEP 517), so JGDMS's JSSE
+> SPIFFE/X.500 auth is reused unchanged and traffic secrets stay inside the engine. The
+> scope of that work is `SOW-Kwik-JSSE-QUIC-TLS-Transport.md` in the kwik fork root. **This
+> standard is unchanged by that choice:** the normative wire format and behaviour below are
+> implementation-independent and govern interop and audit regardless of which codebase
+> carries them. Runtime target is DirtyChai only (like JGDMS): the fork depends on
+> DirtyChai's trust-dispatch relaxation (B1/B2/B3) plus a qualified export of
+> `jdk.internal.net.quic` to the `tech.kwik.core` module.
 
 ---
 
