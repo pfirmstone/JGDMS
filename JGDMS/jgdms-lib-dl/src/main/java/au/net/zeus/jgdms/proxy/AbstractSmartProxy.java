@@ -517,11 +517,17 @@ public abstract class AbstractSmartProxy
         /**
          * {@link AtomicSerial} deserialization constructor.
          *
-         * <p>Validates that the deserialized {@code server} implements
-         * {@link RemoteMethodControl} <em>before</em> delegating to
-         * {@link AbstractSmartProxy#AbstractSmartProxy(GetArg)}, which performs
-         * all infrastructure-interface checks.  Both validations run before any
-         * field is assigned, satisfying the {@link AtomicSerial} contract.
+         * <p>The {@code server}/{@code proxyID} state is declared by the
+         * {@link AbstractSmartProxy} superclass, so it lives in the
+         * {@code AbstractSmartProxy} {@code @AtomicSerial} namespace — this
+         * {@code @Stateless} subclass frame cannot read it (each class in an
+         * {@code @AtomicSerial} hierarchy has its own {@link GetArg} namespace, and a
+         * {@code @Stateless} class contributes none).  We therefore let
+         * {@link AbstractSmartProxy#AbstractSmartProxy(GetArg)} read and validate
+         * {@code server} (non-null, infrastructure interfaces) from its own frame,
+         * then refine the check here — the inherited, already validated
+         * {@code server} field must additionally be a {@link RemoteMethodControl}.
+         * If it is not, deserialization fails before this object is published.
          *
          * @param arg the deserialization argument bag
          * @throws IOException if the {@code server} does not implement
@@ -529,7 +535,13 @@ public abstract class AbstractSmartProxy
          *                     superclass validations fail
          */
         protected ConstrainableSmartProxy(GetArg arg) throws IOException, ClassNotFoundException {
-            super(checkConstrainable(arg));
+            super(arg);
+            if (!(server instanceof RemoteMethodControl)) {
+                throw new InvalidObjectException(
+                        "deserialized server does not implement RemoteMethodControl"
+                        + "; actual type: "
+                        + (server == null ? "null" : server.getClass().getName()));
+            }
         }
 
         // -------------------------------------------------------------------------
@@ -557,26 +569,6 @@ public abstract class AbstractSmartProxy
                         "server must implement RemoteMethodControl; actual type: "
                         + server.getClass().getName());
             return server;
-        }
-
-        /**
-         * Validates that the deserialized {@code server} field implements
-         * {@link RemoteMethodControl} before passing {@code arg} to the
-         * superclass deserialization constructor.
-         *
-         * @return {@code arg} unchanged
-         * @throws InvalidObjectException if the server does not implement
-         *                                {@link RemoteMethodControl}
-         */
-        private static GetArg checkConstrainable(GetArg arg) throws IOException, ClassNotFoundException {
-            Object server = arg.get("server", null);
-            if (!(server instanceof RemoteMethodControl)) {
-                throw new InvalidObjectException(
-                        "deserialized server does not implement RemoteMethodControl"
-                        + "; actual type: "
-                        + (server == null ? "null" : server.getClass().getName()));
-            }
-            return arg;
         }
 
         /**
