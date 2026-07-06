@@ -120,6 +120,21 @@
                         <maxmem>1024m</maxmem>
                     </configuration>
             </plugin>
+            <!--
+              QuicEngineMtlsTest drives the internal jdk.internal.net.quic
+              QUIC-TLS engine (JEP 517) and needs an add-exports of that internal
+              package on the DirtyChai product image. It is EXCLUDED from the
+              default build so a normal build (any JDK) is never broken; run it
+              explicitly with the 'quic' profile below.
+            -->
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/QuicEngineMtlsTest.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
@@ -162,6 +177,31 @@
       (e.g. DirtyChai); it has no effect on standard JDK 17+ builds.
     -->
     <profiles>
+        <!--
+          Runs ONLY QuicEngineMtlsTest (ADVICE item D: QUIC-engine-pair mTLS/SPIFFE),
+          supplying the internal-package export the QUIC-TLS engine needs. Requires
+          the DirtyChai product image (JEP 517 QUIC-TLS). Usage:
+            mvn -o -pl jgdms-jeri test -Pquic
+        -->
+        <profile>
+            <id>quic</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <argLine>--add-exports java.base/jdk.internal.net.quic=ALL-UNNAMED</argLine>
+                            <excludes>
+                                <exclude>none</exclude>
+                            </excludes>
+                            <includes>
+                                <include>**/QuicEngineMtlsTest.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>dirtychai</id>
             <build>
