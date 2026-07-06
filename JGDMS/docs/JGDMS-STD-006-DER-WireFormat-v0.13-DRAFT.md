@@ -1,4 +1,11 @@
-# JGDMS-STD-006: Language-Neutral DER Wire Format
+# JGDMS-STD-006 — ATOMIC DER Wire Format
+
+> **Format name.** This standard defines the wire format named **ATOMIC DER** — it names
+> the `@AtomicSerial` object model it encodes (not the transport, not the project). The
+> **standard document identifier** remains `JGDMS-STD-006` (family consistency with
+> STD-001/003/008/…). Throughout: "ATOMIC DER" is the format's proper name; generic
+> "DER" (X.690 DER, "DER-encoded", "the DER value tree") continues to mean the ASN.1
+> encoding rules and is unchanged.
 
 **Status:** Draft (working scaffold for discussion)
 **Version:** 0.13-DRAFT
@@ -13,10 +20,22 @@
 > validated against an ASN.1 compiler (§4.5 makes compiler validation the next
 > gating action).
 >
+> **Naming/structure pass (2026-07-06)** — **RATIFIED by Peter:** (1) the wire format
+> is named **ATOMIC DER** (names the `@AtomicSerial` object model it encodes); the
+> standard document id stays `JGDMS-STD-006` and generic "DER" (X.690) is unchanged —
+> only the format's proper name changed (title, §1 note, §8 headings/prose). The
+> wire/code identifiers `MarshallingFormat.DER` and `"JGDMS-STD-006/DER"` are kept
+> verbatim (renaming them would be a wire change needing separate ratification).
+> (2) The §4.4 OID root is restructured under **Zeus Project Services Pty Ltd**
+> (registrant): `zeusProjectServices → jgdms(1) → atomicDer(1) → wireTypes(1)`, with
+> `TypedWireObject` typeIds under `…atomicDer.wireTypes`. `<PEN>` (written `999999`) is
+> a clearly-marked PLACEHOLDER; Zeus Project Services Pty Ltd will register an IANA PEN
+> and it MUST be replaced before v1.0.
+>
 > **Open-item resolution pass (2026-07-06)** — resolved the remaining `[OPEN]`
 > markers. **RATIFIED by Peter (2026-07-06):** §4.4 top-level discriminator is
-> **OID-rooted** (`TypedWireObject`, single discriminator per board H3; the PEN root
-> arc still needs Peter's allocation); §7.6 `Permission` and §7.5
+> **OID-rooted** (`TypedWireObject`, single discriminator per board H3; registrant Zeus
+> Project Services Pty Ltd, PEN placeholder pending registration); §7.6 `Permission` and §7.5
 > `PermissionGrant`/`DigestGrant` are **NOT structured DER** — carried as textual
 > string form and **re-parsed** through the trusted policy parser (governing
 > authority-vs-signature principle now stated in §7.5); §7.6 `Date` is **epoch-millis
@@ -273,10 +292,10 @@ it carries inherent problems that no validation discipline fully removes:
   this mechanism produces type conflicts, codebase annotation loss, codebase
   annotation mixing, stale-content failures, and complex configuration requirements.
   JGDMS replaces this mechanism entirely (§8); codebase annotations **do not appear**
-  in the DER wire format. `AtomicMarshalOutputStream` already defaults to
+  in the ATOMIC DER wire format. `AtomicMarshalOutputStream` already defaults to
   `writeCodebaseAnnotations=false`, making the existing Java-serialization stream
-  effectively annotation-free in JGDMS deployments today. The DER format formalises
-  this as a permanent property of the encoding.
+  effectively annotation-free in JGDMS deployments today. The ATOMIC DER format
+  formalises this as a permanent property of the encoding.
 
 DER with a published ASN.1 schema inverts all four of the above: one decode path, a
 language-neutral grammar with mature tooling in every serious language, a
@@ -967,15 +986,15 @@ are carried verbatim and never inspected or re-encoded.
 
 **RATIFIED (Peter, 2026-07-06): the top-level type discriminator is OID-rooted**
 (chosen over `ENUMERATED` for forward-compatibility and self-description — a new
-wire type is a new arc under the JGDMS root, allocatable without a coordinated
-enumerant-registry edit, and a decoder that does not recognise an OID can still name
-it). Each top-level wire object is wrapped in a `TypedWireObject` structure carrying
-one explicit `OBJECT IDENTIFIER` type tag, so a decoder selects the correct schema
-without inferring it from context:
+wire type is a new arc under the ATOMIC DER `wireTypes` root, allocatable without a
+coordinated enumerant-registry edit, and a decoder that does not recognise an OID can
+still name it). Each top-level wire object is wrapped in a `TypedWireObject` structure
+carrying one explicit `OBJECT IDENTIFIER` type tag, so a decoder selects the correct
+schema without inferring it from context:
 
 ```asn1
 TypedWireObject ::= SEQUENCE {
-    typeId  OBJECT IDENTIFIER,   -- the wire type's arc under the STD-006 type root
+    typeId  OBJECT IDENTIFIER,   -- the wire type's arc under …atomicDer.wireTypes
     body    OCTET STRING         -- canonical DER of the identified wire type (opaque
                                  -- to this envelope; decoded against the schema the
                                  -- typeId selects). Carried as an OCTET STRING so the
@@ -992,39 +1011,42 @@ places that can disagree, forcing a decoder to reject the mismatch). The `body`'
 inner universal tag is not a *second* discriminator here — it is opaque `OCTET STRING`
 content the envelope does not interpret; the `typeId` alone routes it.
 
-**OID root — arc PROPOSED, root allocation NEEDS PETER'S CONFIRMATION.** The
-accompanying ASN.1 validation module (`docs/asn1/JGDMS-STD-006-v0.13.asn1`) already
-declares its module identifier under the arc
+**OID root — registrant Zeus Project Services Pty Ltd; PEN placeholder pending
+registration.** The OID root belongs to **Zeus Project Services Pty Ltd** (the legal
+company). One IANA Private Enterprise Number (PEN) roots *all* the company's projects;
+JGDMS is a sub-arc, ATOMIC DER a sub-arc of JGDMS, and the `TypedWireObject` `typeId`
+values live under `…atomicDer.wireTypes`. The arc shape is:
 
 ```
-{ iso(1) identified-organization(3) dod(6) internet(1) private(4)
-  enterprise(1) jgdms(999999) std006(6) v13(13) }
-   = 1.3.6.1.4.1.999999.6.13
+1.3.6.1.4.1.<PEN>   Zeus Project Services Pty Ltd   -- IANA PEN, PLACEHOLDER pending registration
+        .1  jgdms
+            .1  atomicDer
+                .1  wireTypes    -- TypedWireObject type-ID subtree
+
+-- individual wire types are children of …atomicDer.wireTypes, e.g.
+--   marshalledInstance    …<PEN>.1.1.1.1
+--   unicastResponse       …<PEN>.1.1.1.2
+--   accessControlContext  …<PEN>.1.1.1.3
 ```
 
-where **`999999` is a PLACEHOLDER IANA Private Enterprise Number (PEN)**, not a
-registered allocation. This standard PROPOSES rooting the top-level type OIDs at a
-sibling `wireTypes` arc under the same enterprise node — e.g.
+Written as an ASN.1 value assignment (validation module):
 
-```
-std006-wireType OBJECT IDENTIFIER ::=
+```asn1
+zeusProjectServices OBJECT IDENTIFIER ::=
   { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-    enterprise(1) jgdms(999999) std006(6) wireTypes(1) }
-   = 1.3.6.1.4.1.999999.6.1
-
--- individual wire types are then children, e.g.
---   marshalledInstance  std006-wireType 1   (…999999.6.1.1)
---   unicastResponse     std006-wireType 2   (…999999.6.1.2)
---   accessControlContext std006-wireType 3  (…999999.6.1.3)
+    enterprise(1) 999999 }   -- PLACEHOLDER PEN — replace on IANA assignment
+jgdms       OBJECT IDENTIFIER ::= { zeusProjectServices 1 }
+atomicDer   OBJECT IDENTIFIER ::= { jgdms 1 }
+wireTypes   OBJECT IDENTIFIER ::= { atomicDer 1 }
 ```
 
-**FLAGGED for Peter: the `jgdms(999999)` PEN is a placeholder and the root arc
-allocation is Peter's to own.** An OID root registration (obtaining a real IANA PEN,
-or choosing a different registration authority / arc) is an organisational decision,
-not one this document can make. The concrete arc above is a proposal to make the
-scheme complete and testable; on ratification of a real PEN, `999999` is replaced
-everywhere (module header + this section) in one edit and the `wireTypes` sub-arc and
-per-type numbers below it are then normative.
+**NORMATIVE placeholder note.** `<PEN>` (written `999999` in the module so it compiles)
+is a **clearly-marked PLACEHOLDER**. Zeus Project Services Pty Ltd will register an
+IANA Private Enterprise Number, and `<PEN>` **MUST** be replaced with the assigned
+number **before v1.0**. On assignment, the number is replaced in one edit (module
+value assignment + this section) and every `wireTypes` child OID below it becomes
+normative; the arc *shape* (`zeusProjectServices → jgdms → atomicDer → wireTypes`) is
+already fixed.
 
 ### 4.5 Module Validity: Distinct-Tag Rule, No DEFAULT, Profile Size Ceilings
 
@@ -1149,7 +1171,11 @@ The marshalling format is named by a first-class `InvocationConstraint`,
 `net.jini.core.constraint.MarshallingFormat`, resolved by the existing JERI constraint
 machinery exactly as `Integrity`, `Confidentiality`, and `AtomicInputValidation` are:
 
-- `MarshallingFormat.DER` — identifier `"JGDMS-STD-006/DER"`.
+- `MarshallingFormat.DER` — identifier `"JGDMS-STD-006/DER"`. (This is the ATOMIC DER
+  format; the constraint symbol `DER` and the wire identifier string
+  `"JGDMS-STD-006/DER"` are **wire/code artifacts kept verbatim** — renaming the format
+  to "ATOMIC DER" is a documentation change and does not alter these on-wire/in-code
+  identifiers, which would be a wire-format change requiring separate ratification.)
 - `MarshallingFormat.JOSS` — identifier `"JOSS"`.
 
 The constraint carries the format **identifier string** rather than being an
@@ -2626,7 +2652,7 @@ stored in `GetArg` memory until construction completes, then released for GC.
 
 ## 8. Codebase Annotations — Deprecated for Removal
 
-Codebase annotations **do not appear** in the DER wire format. This section
+Codebase annotations **do not appear** in the ATOMIC DER wire format. This section
 records why, and where code identity does travel.
 
 ### 8.1 What Codebase Annotations Were
@@ -2695,7 +2721,7 @@ This architecture eliminates every failure class enumerated in §8.1:
 | Configuration errors | `CodebaseAccessor.getClassAnnotation()` is an authenticated API call; there is no `java.rmi.server.codebase` system property to misconfigure |
 | DNS trust / URL replay | Grants are `DigestGrant`-conditioned on SHA-256; a URL change or DNS substitution produces a hash mismatch |
 
-### 8.3 Implications for the DER Wire Format
+### 8.3 Implications for the ATOMIC DER Wire Format
 
 The DER object stream carries **no codebase annotation field** at any level —
 not per-object, not per-frame, not as a stream header. There is no frame-level
@@ -2813,9 +2839,11 @@ Consolidated list of every **[OPEN]** above, for the next working session:
 
 1. §4.4 — **RATIFIED (Peter, 2026-07-06): OID-rooted** type discrimination
    (`TypedWireObject { typeId OID, body OCTET STRING }`, single discriminator per board
-   H3). **OPEN sub-item: the `jgdms(999999)` PEN is a placeholder — the OID root arc
-   allocation NEEDS PETER'S CONFIRMATION** (proposed `wireTypes(1)` sub-arc under the
-   enterprise node; a real IANA PEN is Peter's to own).
+   H3). Root registrant = **Zeus Project Services Pty Ltd**; arc
+   `zeusProjectServices → jgdms(1) → atomicDer(1) → wireTypes(1)`; `typeId`s under
+   `…atomicDer.wireTypes`. **OPEN sub-item: `<PEN>` (written `999999`) is a PLACEHOLDER**
+   — Zeus Project Services Pty Ltd will register an IANA PEN and it MUST be replaced
+   before v1.0.
 2. §5.2 — Protocol version marker value (e.g. `0x03`); collision check.
 3. §7.1 — Confirm `PRINCIPAL_CTORS` allow-list stays in validation layer, not schema.
 4. §7.2 — **RESOLVED (v0.12)** against `RemoteContextCodec`: ACC records are

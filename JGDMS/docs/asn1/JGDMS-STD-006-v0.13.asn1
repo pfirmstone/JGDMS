@@ -1,7 +1,10 @@
 -- JGDMS-STD-006-v0.13.asn1
 --
--- Consolidated, COMPILING ASN.1 module for JGDMS-STD-006 (DER Wire Format) v0.13-DRAFT,
--- assembled from the asn1-fenced snippets in:
+-- Consolidated, COMPILING ASN.1 module for JGDMS-STD-006 — ATOMIC DER Wire Format —
+-- v0.13-DRAFT. "ATOMIC DER" is the FORMAT's proper name (it names the @AtomicSerial
+-- object model it encodes); "JGDMS-STD-006" remains the STANDARD document identifier;
+-- generic "DER" below means X.690 DER (the encoding rules), unchanged.
+-- Assembled from the asn1-fenced snippets in:
 --   JGDMS/docs/JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md  (sections 3.12, 4.3, 4.5, 7.1-7.8)
 --
 -- This file is a VALIDATION ARTIFACT for open item 20 ("validate every ASN.1 module
@@ -66,9 +69,13 @@
 --      exactly; see the byte-equality note at its definition below.
 -- ============================================================================
 
+-- Module OID under the Zeus Project Services Pty Ltd arc:
+--   enterprise(1) 999999   = the company PEN (PLACEHOLDER — replace on IANA assignment)
+--     jgdms(1) atomicDer(1) v13(13)
+-- (999999 is a documented placeholder so the module compiles; see spec section 4.4.)
 JGDMS-STD-006
 { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-  enterprise(1) jgdms(999999) std006(6) v13(13) }
+  enterprise(1) 999999 jgdms(1) atomicDer(1) v13(13) }
 DEFINITIONS
 EXPLICIT TAGS ::=
 BEGIN
@@ -140,13 +147,32 @@ AlgorithmIdentifier ::= SEQUENCE {
 -- Each top-level wire object is wrapped so a decoder selects its schema from a
 -- single explicit OBJECT IDENTIFIER (board H3: one discriminator, not two). The
 -- body is opaque OCTET STRING content the envelope never re-encodes (same
--- discipline as SignedObject.tbs, section 7.4.1). The typeId arc is rooted under
--- the JGDMS enterprise node; the PEN 999999 in the module header is a PLACEHOLDER
--- and the root arc allocation NEEDS PETER'S CONFIRMATION (spec section 4.4).
+-- discipline as SignedObject.tbs, section 7.4.1).
+--
+-- OID ROOT: registrant = Zeus Project Services Pty Ltd (the legal company); one
+-- IANA PEN roots all its projects, JGDMS is a sub-arc, ATOMIC DER a sub-arc of
+-- JGDMS, and TypedWireObject typeIds live under ...atomicDer.wireTypes:
+--     1.3.6.1.4.1.<PEN>   Zeus Project Services Pty Ltd  (PEN, PLACEHOLDER)
+--             .1  jgdms  .1  atomicDer  .1  wireTypes
+-- <PEN> (written 999999) is a documented PLACEHOLDER; Zeus Project Services Pty
+-- Ltd will register an IANA Private Enterprise Number and it MUST be replaced
+-- before v1.0 (spec section 4.4).
 -- ============================================================================
 
+zeusProjectServices OBJECT IDENTIFIER ::=
+  { iso(1) identified-organization(3) dod(6) internet(1) private(4)
+    enterprise(1) 999999 }   -- PLACEHOLDER PEN — replace on IANA assignment
+jgdms       OBJECT IDENTIFIER ::= { zeusProjectServices 1 }
+atomicDer   OBJECT IDENTIFIER ::= { jgdms 1 }
+wireTypes   OBJECT IDENTIFIER ::= { atomicDer 1 }   -- TypedWireObject type-ID subtree
+
+-- Example wire-type typeId allocations under ...atomicDer.wireTypes:
+--   marshalledInstance    { wireTypes 1 }
+--   unicastResponse       { wireTypes 2 }
+--   accessControlContext  { wireTypes 3 }
+
 TypedWireObject ::= SEQUENCE {
-    typeId  OBJECT IDENTIFIER,
+    typeId  OBJECT IDENTIFIER,   -- a child of wireTypes (...atomicDer.wireTypes.n)
     body    OCTET STRING
 }
 
