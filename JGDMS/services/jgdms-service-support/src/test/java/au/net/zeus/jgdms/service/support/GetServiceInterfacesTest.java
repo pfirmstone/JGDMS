@@ -27,6 +27,7 @@ import net.jini.config.EmptyConfiguration;
 import net.jini.export.ProxyAccessor;
 import org.apache.river.admin.DestroyAdmin;
 import au.net.zeus.jgdms.service.annotation.JiniService;
+import au.net.zeus.jgdms.service.annotation.ProxyType;
 import org.junit.Test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -51,6 +52,17 @@ public class GetServiceInterfacesTest {
 
     public interface BarService extends Remote {
         String bar(String s) throws RemoteException;
+    }
+
+    // --- translating SMART proxy fixtures: distinct client-api / wire-protocol
+    // interfaces, neither extends the other -----------------------------------
+
+    public interface ClientApi extends Remote {
+        String call(String s) throws RemoteException;
+    }
+
+    public interface WireProtocol extends Remote {
+        String invoke(String s) throws RemoteException;
     }
 
     private static DefaultJiniServiceParameters params() throws Exception {
@@ -117,6 +129,39 @@ public class GetServiceInterfacesTest {
     static class ExplicitSingleBase extends AbstractJiniService implements BarService {
         ExplicitSingleBase() throws Exception { super(params(), null); }
         @Override public String bar(String s) { return s; }
+    }
+
+    // --- translating SMART proxy: impl implements only the WIRE interface, but
+    // api() is declared explicitly -> the declared api wins, no inference -----
+
+    @JiniService(api = ClientApi.class, proxy = ProxyType.SMART, protocol = WireProtocol.class)
+    static final class DeclaredApiTranslatingSmart extends AbstractJiniService
+            implements WireProtocol {
+        DeclaredApiTranslatingSmart() throws Exception { super(params(), null); }
+        @Override public String invoke(String s) { return s; }
+        Class<?>[] serviceInterfaces() { return getServiceInterfaces(); }
+    }
+
+    // --- translating SMART proxy: impl implements only the WIRE interface AND
+    // api() is left empty -> must fail loud at construction (cannot infer) ----
+
+    @JiniService(proxy = ProxyType.SMART, protocol = WireProtocol.class)
+    static final class EmptyApiTranslatingSmart extends AbstractJiniService
+            implements WireProtocol {
+        EmptyApiTranslatingSmart() throws Exception { super(params(), null); }
+        @Override public String invoke(String s) { return s; }
+    }
+
+    // --- control: impl implements the client api directly, api() empty, and the
+    // service is NOT a translating SMART proxy (DYNAMIC, no protocol) -> the
+    // existing inference path must still work, unaffected by the new guard -----
+
+    @JiniService(proxy = ProxyType.DYNAMIC)
+    static final class InferredDirectClientApi extends AbstractJiniService
+            implements ClientApi {
+        InferredDirectClientApi() throws Exception { super(params(), null); }
+        @Override public String call(String s) { return s; }
+        Class<?>[] serviceInterfaces() { return getServiceInterfaces(); }
     }
 
     // --- tests ---------------------------------------------------------------
@@ -221,5 +266,56 @@ public class GetServiceInterfacesTest {
         first[0] = BarService.class; // mutate the returned array
         assertEquals("mutating the returned array must not corrupt the cache",
                 FooService.class, svc.serviceInterfaces()[0]);
+    }
+
+    // --- translating SMART proxy: api() must be declared, never inferred -----
+
+    @Test
+    public void declaredApiBeatsWireInterface() throws Exception {
+        // The impl implements only WireProtocol (the wire/internal interface); the
+        // declared api() (ClientApi) must be returned verbatim, never the wire
+        // interface the impl actually implements.
+        assertArrayEquals(new Class<?>[]{ ClientApi.class },
+                new DeclaredApiTranslatingSmart().serviceInterfaces());
+    }
+
+    @Test
+    public void emptyApiTranslatingSmartFailsLoud() {
+        // A translating SMART proxy (proxy=SMART with a distinct protocol()) exposes
+        // client interfaces via the downloaded proxy that the impl does NOT
+        // implement; inferring from the impl would misadvertise the wire interface.
+        // Construction (resolveServiceInterfaces() runs in the constructor) must
+        // fail fast instead of silently inferring WireProtocol.
+        try {
+            new EmptyApiTranslatingSmart();
+            fail("construction must fail when a translating SMART proxy has an empty api()");
+        } catch (Exception e) {
+            Throwable t = e;
+            boolean found = false;
+            while (t != null) {
+                if (t instanceof IllegalStateException
+                        && t.getMessage() != null
+                        && t.getMessage().contains("api()")
+                        && t.getMessage().contains("translating")) {
+                    found = true;
+                    break;
+                }
+                t = t.getCause();
+            }
+            if (!found) {
+                fail("expected an IllegalStateException mentioning a translating proxy and"
+                        + " api(), got " + e);
+            }
+        }
+    }
+
+    @Test
+    public void controlDirectClientApiInfersClientApi() throws Exception {
+        // A DYNAMIC service (not a translating SMART proxy) with an empty api()
+        // and whose impl implements the client api directly must still have it
+        // inferred — the new guard must not over-fire outside the translating
+        // SMART + protocol() case.
+        assertArrayEquals(new Class<?>[]{ ClientApi.class },
+                new InferredDirectClientApi().serviceInterfaces());
     }
 }
