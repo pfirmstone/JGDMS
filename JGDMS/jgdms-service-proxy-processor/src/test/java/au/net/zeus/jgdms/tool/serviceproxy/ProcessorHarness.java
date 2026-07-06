@@ -136,8 +136,21 @@ final class ProcessorHarness {
                 // output plumbing the generated serialForm()/serialize() reference.
                 + "   interface GetArg {"
                 + "     <T> T get(String name, T val, Class<T> type) throws IOException, ClassNotFoundException;"
-                + "     Object get(String name, Object val) throws IOException, ClassNotFoundException; }"
-                + "   interface PutArg { void put(String name, Object value); void writeArgs() throws IOException; }"
+                + "     Object get(String name, Object val) throws IOException, ClassNotFoundException;"
+                + "     boolean get(String name, boolean val) throws IOException;"
+                + "     byte get(String name, byte val) throws IOException;"
+                + "     char get(String name, char val) throws IOException;"
+                + "     short get(String name, short val) throws IOException;"
+                + "     int get(String name, int val) throws IOException;"
+                + "     long get(String name, long val) throws IOException;"
+                + "     float get(String name, float val) throws IOException;"
+                + "     double get(String name, double val) throws IOException; }"
+                + "   interface PutArg { void put(String name, Object value);"
+                + "     void put(String name, boolean value); void put(String name, byte value);"
+                + "     void put(String name, char value); void put(String name, short value);"
+                + "     void put(String name, int value); void put(String name, long value);"
+                + "     void put(String name, float value); void put(String name, double value);"
+                + "     void writeArgs() throws IOException; }"
                 + "   final class SerialForm { public SerialForm(String name, Class<?> type) {} } }");
         // Stub AbstractSmartProxy with the members the generated proxy references:
         // a server field, getReferentUuid(), and a ConstrainableSmartProxy base
@@ -177,14 +190,13 @@ final class ProcessorHarness {
                 + "   ProxyType proxy() default ProxyType.DYNAMIC;"
                 + "   boolean codebase() default false;"
                 + "   Class<?>[] protocol() default {};"
+                + "   Class<?> smartProxy() default Void.class;"
                 + "   String component() default \"\"; }");
         addStub("au.net.zeus.jgdms.service.annotation.SmartProxy",
                 "package au.net.zeus.jgdms.service.annotation;"
                 + " import java.lang.annotation.*;"
                 + " @Retention(RetentionPolicy.SOURCE) @Target(ElementType.TYPE)"
                 + " public @interface SmartProxy {"
-                + "   Class<?>[] api();"
-                + "   Class<?>[] protocol() default {};"
                 + "   @Retention(RetentionPolicy.SOURCE) @Target(ElementType.TYPE)"
                 + "   @interface State { String name(); Class<?> type(); }"
                 + "   @Retention(RetentionPolicy.SOURCE) @Target(ElementType.TYPE)"

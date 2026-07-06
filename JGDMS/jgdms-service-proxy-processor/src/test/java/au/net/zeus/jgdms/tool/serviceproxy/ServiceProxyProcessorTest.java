@@ -222,18 +222,28 @@ public class ServiceProxyProcessorTest {
 
     @Test
     public void smartProxyDelegateNotImplementingApiIsError() {
+        // The delegate named by @JiniService.smartProxy() must implement every api()
+        // interface (the check now lives on the @JiniService side, not @SmartProxy).
         ProcessorHarness.Result r = new ProcessorHarness()
-            .option("-Aserviceproxy.validateOnly")
             .add("hello.HelloService",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " public interface HelloService extends Remote {"
                 + "   String greet(String n) throws RemoteException; }")
             .add("hello.HelloSmartLogic",
                 "package hello;"
-                + " @au.net.zeus.jgdms.service.annotation.SmartProxy(api = HelloService.class)"
-                + " public final class HelloSmartLogic {}")  // does not implement HelloService
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy"
+                + " public final class HelloSmartLogic {"   // does not implement HelloService
+                + "   public HelloSmartLogic(HelloService server) {} }")
+            .add("hello.HelloServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART,"
+                + "     smartProxy = HelloSmartLogic.class)"
+                + " public class HelloServiceImpl implements HelloService {"
+                + "   public String greet(String n) throws RemoteException { return n; } }")
             .run();
-        assertTrue(r.allMessages(), r.hasError("must implement its declared api"));
+        assertTrue(r.allMessages(), r.hasError("must implement the api interface hello.HelloService"));
     }
 
     @Test
@@ -889,10 +899,9 @@ public class ServiceProxyProcessorTest {
 
     @Test
     public void smartProxyDelegateMissingOneOfMultipleApisIsError() {
-        // @SmartProxy api() is now Class<?>[]: the delegate must implement EVERY
-        // declared api interface.  Implementing only one of two -> fail-closed.
+        // The delegate must implement EVERY api() interface named by @JiniService.
+        // Implementing only one of two -> fail-closed.
         ProcessorHarness.Result r = new ProcessorHarness()
-            .option("-Aserviceproxy.validateOnly")
             .add("hello.Foo",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " public interface Foo extends Remote {"
@@ -901,22 +910,34 @@ public class ServiceProxyProcessorTest {
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " public interface Bar extends Remote {"
                 + "   int bar(int n) throws RemoteException; }")
+            .add("hello.Wire",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Wire extends Remote {"
+                + "   void wire() throws RemoteException; }")
             .add("hello.HelloSmartLogic",
                 "package hello; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.SmartProxy(api = { Foo.class, Bar.class })"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy"
                 + " public final class HelloSmartLogic implements Foo {"  // missing Bar
+                + "   public HelloSmartLogic(Wire server) {}"
                 + "   public String foo(String s) throws RemoteException { return s; } }")
+            .add("hello.MultiImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = { Foo.class, Bar.class }, protocol = Wire.class,"
+                + "     proxy = ProxyType.SMART, smartProxy = HelloSmartLogic.class)"
+                + " public class MultiImpl implements Wire {"
+                + "   public void wire() throws RemoteException {} }")
             .run();
         assertTrue(r.allMessages(),
-            r.hasError("must implement its declared api hello.Bar"));
+            r.hasError("must implement the api interface hello.Bar"));
     }
 
     @Test
     public void smartProxyDelegateImplementingAllApisIsClean() {
         // The dual of the above: a delegate implementing BOTH declared api interfaces
-        // validates cleanly.
+        // (and declaring the (Wire) ctor) validates cleanly and generates the shell.
         ProcessorHarness.Result r = new ProcessorHarness()
-            .option("-Aserviceproxy.validateOnly")
             .add("hello.Foo",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " public interface Foo extends Remote {"
@@ -925,21 +946,36 @@ public class ServiceProxyProcessorTest {
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " public interface Bar extends Remote {"
                 + "   int bar(int n) throws RemoteException; }")
+            .add("hello.Wire",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Wire extends Remote {"
+                + "   void wire() throws RemoteException; }")
             .add("hello.HelloSmartLogic",
                 "package hello; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.SmartProxy(api = { Foo.class, Bar.class })"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy"
                 + " public final class HelloSmartLogic implements Foo, Bar {"
+                + "   public HelloSmartLogic(Wire server) {}"
                 + "   public String foo(String s) throws RemoteException { return s; }"
                 + "   public int bar(int n) throws RemoteException { return n; } }")
+            .add("hello.MultiImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = { Foo.class, Bar.class }, protocol = Wire.class,"
+                + "     proxy = ProxyType.SMART, smartProxy = HelloSmartLogic.class)"
+                + " public class MultiImpl implements Wire {"
+                + "   public void wire() throws RemoteException {} }")
             .run();
         assertFalse(r.allMessages(), r.hasAnyError());
     }
 
     @Test
-    public void smartMultiInterfaceInferredFromImpl() {
-        // api() empty: BOTH service interfaces are inferred from the impl (minus the
-        // infrastructure Administrable) -- multiple inferred interfaces are the
-        // multi-interface case, NOT an ambiguity error.
+    public void smartMultiInterfaceEmptyApiIsError() {
+        // Ratified: api() inference is DYNAMIC-only.  A SMART service with an empty
+        // api() -- even when multiple service interfaces could be inferred -- must
+        // fail closed (a translating impl implements the wire interface, not the
+        // public api).  The multi-interface SMART GENERATION path (with explicit
+        // api()) is covered by smartMultiInterfaceGeneratesProxyForAll.
         ProcessorHarness h = new ProcessorHarness()
             .add("multi.Foo",
                 "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
@@ -953,21 +989,13 @@ public class ServiceProxyProcessorTest {
                 "package multi; import java.rmi.RemoteException;"
                 + " import au.net.zeus.jgdms.service.annotation.JiniService;"
                 + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
-                + " @JiniService(proxy = ProxyType.SMART)"  // no api() -> inferred
+                + " @JiniService(proxy = ProxyType.SMART)"  // no api() -> error for SMART
                 + " public class MultiImpl implements Foo, Bar, net.jini.admin.Administrable {"
                 + "   public String foo(String s) throws RemoteException { return s; }"
                 + "   public int bar(int n) throws RemoteException { return n; }"
                 + "   public Object getAdmin() { return null; } }");
         ProcessorHarness.Result gen = h.run();
-        assertFalse(gen.allMessages(), gen.hasAnyError());
-        String proxy = gen.generated.get("multi.ConstrainableFooProxy");
-        assertTrue("proxy generated for inferred multi-api; got " + gen.generated.keySet(),
-            proxy != null);
-        assertTrue("implements both inferred api interfaces (infra excluded):\n" + proxy,
-            proxy.contains("implements multi.Foo, multi.Bar"));
-        ProcessorHarness.Result compiled = h.compileGenerated(gen);
-        assertTrue("inferred multi-interface proxy must compile:\n"
-                + compiled.allMessages() + "\n" + proxy, compiled.success);
+        assertTrue(gen.allMessages(), gen.hasError("SMART proxy with an empty api()"));
     }
 
     @Test
@@ -1067,8 +1095,7 @@ public class ServiceProxyProcessorTest {
                 + "   double rawCelsius(String region) throws RemoteException; }")
             .add("hello.FooLogic",
                 "package hello; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.SmartProxy("
-                + "     api = Foo.class, protocol = Bar.class)"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy"
                 + " public final class FooLogic implements Foo {"
                 + "   private final Bar server;"
                 + "   public FooLogic(Bar server) { this.server = server; }"
@@ -1078,7 +1105,8 @@ public class ServiceProxyProcessorTest {
                 "package hello; import java.rmi.RemoteException;"
                 + " import au.net.zeus.jgdms.service.annotation.JiniService;"
                 + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
-                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART)"
+                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART,"
+                + "     smartProxy = FooLogic.class)"
                 + " public class FooServiceImpl implements Bar {"
                 + "   public double rawCelsius(String region) throws RemoteException { return 0; } }");
         ProcessorHarness.Result gen = h.run();
@@ -1092,8 +1120,13 @@ public class ServiceProxyProcessorTest {
                 1, shells);
         assertTrue("transient final delegate field:\n" + proxy,
             proxy.contains("private transient final hello.FooLogic delegate;"));
-        assertTrue("delegate built from the wire server in a ctor:\n" + proxy,
-            proxy.contains("this.delegate = new hello.FooLogic((hello.Bar) server);"));
+        // BLOCKER A: the delegate is built from the POST-super `this.server` (the
+        // constraint-transformed field), NOT the bare ctor parameter -- otherwise a
+        // later setConstraints would leave the delegate forwarding under the old stub.
+        assertTrue("delegate built from this.server (post-super constrained field):\n" + proxy,
+            proxy.contains("this.delegate = new hello.FooLogic((hello.Bar) this.server);"));
+        assertFalse("delegate must NOT be built from the bare ctor parameter:\n" + proxy,
+            proxy.contains("new hello.FooLogic((hello.Bar) server)"));
         assertTrue("forwards currentCelsius to the DELEGATE:\n" + proxy,
             proxy.contains("return delegate.currentCelsius(region);"));
         assertFalse("must NOT cast the wire server to the api (would not compile):\n" + proxy,
@@ -1135,28 +1168,124 @@ public class ServiceProxyProcessorTest {
     }
 
     @Test
-    public void twoDelegatesForSameApiIsError() {
-        // Decision #1: exactly one delegate may own the shell for an api set.
+    public void smartProxyInfersSmartWhenProxyOmitted() {
+        // Ratified: smartProxy() implies proxy=SMART, so proxy= need not be declared.
+        // A @JiniService(api, protocol, smartProxy) with NO proxy= generates the
+        // delegate-forwarding shell.
+        ProcessorHarness h = new ProcessorHarness()
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   double rawCelsius(String region) throws RemoteException; }")
+            .add("hello.FooLogic",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy"
+                + " public final class FooLogic implements Foo {"
+                + "   public FooLogic(Bar server) {}"
+                + "   public double currentCelsius(String region) throws RemoteException { return 0; } }")
+            .add("hello.FooServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " @JiniService(api = Foo.class, protocol = Bar.class,"  // NO proxy=
+                + "     smartProxy = FooLogic.class)"
+                + " public class FooServiceImpl implements Bar {"
+                + "   public double rawCelsius(String region) throws RemoteException { return 0; } }");
+        ProcessorHarness.Result gen = h.run();
+        assertFalse(gen.allMessages(), gen.hasAnyError());
+        assertTrue("smartProxy() alone must infer SMART and generate the shell: "
+                + gen.generated.keySet(),
+            gen.generated.containsKey("hello.ConstrainableFooProxy"));
+    }
+
+    @Test
+    public void smartProxyWithProxyDynamicIsError() {
+        // smartProxy() implies SMART; an explicit proxy=DYNAMIC contradicts it.
         ProcessorHarness.Result r = new ProcessorHarness()
             .add("hello.Foo",
                 "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
                 + " public interface Foo extends Remote {"
-                + "   String foo(String s) throws RemoteException; }")
-            .add("hello.FooLogicA",
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   double rawCelsius(String region) throws RemoteException; }")
+            .add("hello.FooLogic",
                 "package hello; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.SmartProxy(api = Foo.class)"
-                + " public final class FooLogicA implements Foo {"
-                + "   public FooLogicA(Foo server) {}"
-                + "   public String foo(String s) throws RemoteException { return s; } }")
-            .add("hello.FooLogicB",
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy"
+                + " public final class FooLogic implements Foo {"
+                + "   public FooLogic(Bar server) {}"
+                + "   public double currentCelsius(String region) throws RemoteException { return 0; } }")
+            .add("hello.FooServiceImpl",
                 "package hello; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.SmartProxy(api = Foo.class)"
-                + " public final class FooLogicB implements Foo {"
-                + "   public FooLogicB(Foo server) {}"
-                + "   public String foo(String s) throws RemoteException { return s; } }")
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.DYNAMIC,"
+                + "     smartProxy = FooLogic.class)"
+                + " public class FooServiceImpl implements Bar {"
+                + "   public double rawCelsius(String region) throws RemoteException { return 0; } }")
             .run();
         assertTrue(r.allMessages(),
-            r.hasError("claims the same api set"));
+            r.hasError("smartProxy() implies a SMART proxy"));
+    }
+
+    @Test
+    public void smartProxyReferencingNonMarkerIsError() {
+        // The smartProxy() class must carry the @SmartProxy marker.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   double rawCelsius(String region) throws RemoteException; }")
+            .add("hello.FooLogic",
+                "package hello; import java.rmi.RemoteException;"
+                + " public final class FooLogic implements Foo {"   // NOT @SmartProxy
+                + "   public FooLogic(Bar server) {}"
+                + "   public double currentCelsius(String region) throws RemoteException { return 0; } }")
+            .add("hello.FooServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART,"
+                + "     smartProxy = FooLogic.class)"
+                + " public class FooServiceImpl implements Bar {"
+                + "   public double rawCelsius(String region) throws RemoteException { return 0; } }")
+            .run();
+        assertTrue(r.allMessages(),
+            r.hasError("must be annotated @au.net.zeus.jgdms.service.annotation.SmartProxy"));
+    }
+
+    @Test
+    public void smartWithEmptyApiIsError() {
+        // Ratified: api() inference is DYNAMIC-only.  A SMART service with an empty
+        // api() (here via smartProxy() implying SMART) must fail closed -- a
+        // translating impl implements the wire interface, not the public api.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   double rawCelsius(String region) throws RemoteException; }")
+            .add("hello.FooLogic",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy"
+                + " public final class FooLogic {"
+                + "   public FooLogic(Bar server) {} }")
+            .add("hello.FooServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " @JiniService(protocol = Bar.class, smartProxy = FooLogic.class)"  // no api()
+                + " public class FooServiceImpl implements Bar {"
+                + "   public double rawCelsius(String region) throws RemoteException { return 0; } }")
+            .run();
+        assertTrue(r.allMessages(),
+            r.hasError("SMART proxy with an empty api()"));
     }
 
     @Test
@@ -1174,8 +1303,7 @@ public class ServiceProxyProcessorTest {
                 + "   double rawCelsius(String region) throws RemoteException; }")
             .add("hello.FooLogic",
                 "package hello; import java.rmi.RemoteException;"
-                + " @au.net.zeus.jgdms.service.annotation.SmartProxy("
-                + "     api = Foo.class, protocol = Bar.class)"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy"
                 + " public final class FooLogic implements Foo {"
                 + "   public FooLogic() {}"   // no (Bar) ctor
                 + "   public double currentCelsius(String region) throws RemoteException { return 0; } }")
@@ -1183,7 +1311,8 @@ public class ServiceProxyProcessorTest {
                 "package hello; import java.rmi.RemoteException;"
                 + " import au.net.zeus.jgdms.service.annotation.JiniService;"
                 + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
-                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART)"
+                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART,"
+                + "     smartProxy = FooLogic.class)"
                 + " public class FooServiceImpl implements Bar {"
                 + "   public double rawCelsius(String region) throws RemoteException { return 0; } }")
             .run();
@@ -1210,7 +1339,7 @@ public class ServiceProxyProcessorTest {
             .add("hello.FooLogic",
                 "package hello; import java.rmi.RemoteException;"
                 + " import au.net.zeus.jgdms.service.annotation.SmartProxy;"
-                + " @SmartProxy(api = Foo.class, protocol = Bar.class)"
+                + " @SmartProxy"
                 + " @SmartProxy.State(name = \"unit\", type = String.class)"
                 + " public final class FooLogic implements Foo {"
                 + "   private final Bar server; private final String unit;"
@@ -1221,7 +1350,8 @@ public class ServiceProxyProcessorTest {
                 "package hello; import java.rmi.RemoteException;"
                 + " import au.net.zeus.jgdms.service.annotation.JiniService;"
                 + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
-                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART)"
+                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART,"
+                + "     smartProxy = FooLogic.class)"
                 + " public class FooServiceImpl implements Bar {"
                 + "   public double rawCelsius(String region) throws RemoteException { return 0; } }");
         ProcessorHarness.Result gen = h.run();
@@ -1240,11 +1370,65 @@ public class ServiceProxyProcessorTest {
             proxy.contains("arg.put(\"unit\", obj.unit);"));
         assertTrue("(GetArg) reads the durable field from its own frame:\n" + proxy,
             proxy.contains("this.unit = arg.get(\"unit\", null, java.lang.String.class);"));
-        assertTrue("state passed to the delegate ctor AFTER server:\n" + proxy,
-            proxy.contains("this.delegate = new hello.FooLogic((hello.Bar) server, unit);"));
+        assertTrue("state passed to the delegate ctor AFTER this.server:\n" + proxy,
+            proxy.contains("this.delegate = new hello.FooLogic((hello.Bar) this.server, unit);"));
         // And the whole stateful shell must compile against the serial stubs.
         ProcessorHarness.Result compiled = h.compileGenerated(gen);
         assertTrue("stateful delegate shell must compile:\n" + compiled.allMessages()
+                + "\n--- proxy ---\n" + proxy, compiled.success);
+    }
+
+    @Test
+    public void primitiveStateShellUsesPrimitiveGetIdiom() {
+        // BLOCKER B: a primitive @State (int) must serialize/deserialize via the
+        // primitive get/put overloads.  The reference-type path
+        // get("port", null, int.class) throws every deserialize (int.class.isInstance
+        // of a boxed Integer is always false); the fix emits get("port", 0).
+        ProcessorHarness h = new ProcessorHarness()
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   double rawCelsius(String region) throws RemoteException; }")
+            .add("hello.FooLogic",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.SmartProxy;"
+                + " @SmartProxy"
+                + " @SmartProxy.State(name = \"port\", type = int.class)"
+                + " public final class FooLogic implements Foo {"
+                + "   private final Bar server; private final int port;"
+                + "   public FooLogic(Bar server, int port) { this.server = server; this.port = port; }"
+                + "   public double currentCelsius(String region) throws RemoteException {"
+                + "     return server.rawCelsius(region); } }")
+            .add("hello.FooServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.SMART,"
+                + "     smartProxy = FooLogic.class)"
+                + " public class FooServiceImpl implements Bar {"
+                + "   public double rawCelsius(String region) throws RemoteException { return 0; } }");
+        ProcessorHarness.Result gen = h.run();
+        assertFalse(gen.allMessages(), gen.hasAnyError());
+        String proxy = gen.generated.get("hello.ConstrainableFooProxy");
+        assertTrue("shell must be generated; got " + gen.generated.keySet(), proxy != null);
+        assertTrue("primitive state field is primitive-typed:\n" + proxy,
+            proxy.contains("private final int port;"));
+        assertTrue("serial form declares the primitive field:\n" + proxy,
+            proxy.contains("new org.apache.river.api.io.AtomicSerial.SerialForm(\"port\", int.class)"));
+        assertTrue("serialize writes the primitive field (overloaded put):\n" + proxy,
+            proxy.contains("arg.put(\"port\", obj.port);"));
+        assertTrue("(GetArg) reads via the PRIMITIVE get overload, not the 3-arg typed get:\n" + proxy,
+            proxy.contains("this.port = arg.get(\"port\", 0);"));
+        assertFalse("must NOT use the reference-type 3-arg get for a primitive:\n" + proxy,
+            proxy.contains("arg.get(\"port\", null, int.class)"));
+        assertTrue("primitive state passed to the delegate ctor:\n" + proxy,
+            proxy.contains("this.delegate = new hello.FooLogic((hello.Bar) this.server, port);"));
+        ProcessorHarness.Result compiled = h.compileGenerated(gen);
+        assertTrue("primitive @State shell must compile:\n" + compiled.allMessages()
                 + "\n--- proxy ---\n" + proxy, compiled.success);
     }
 }

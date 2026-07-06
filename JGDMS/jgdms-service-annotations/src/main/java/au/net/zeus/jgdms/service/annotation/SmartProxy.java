@@ -26,20 +26,37 @@ import java.lang.annotation.Target;
 /**
  * Marks a developer-written <em>client-side logic delegate</em> — the smart
  * proxy's own behaviour — so the service-proxy annotation processor can generate
- * the constrainable, {@code @AtomicSerial} proxy shell that wraps it.
+ * the constrainable, {@code @AtomicSerial} proxy shell that forwards to it.
+ *
+ * <p>This annotation is a pure <b>marker</b> plus a carrier for the delegate's
+ * durable-state ({@link State}) declarations.  The api/protocol wiring lives on the
+ * service side: the service's {@link JiniService @JiniService} names both its
+ * public {@link JiniService#api() api()} and its internal
+ * {@link JiniService#protocol() protocol()} once, and points at this class with
+ * {@link JiniService#smartProxy()}.  Declaring api/protocol here too would just
+ * duplicate them; the delegate simply <em>implements</em> the api and <em>accepts
+ * the wire type in its constructor</em>.
  *
  * <p>A <b>smart proxy</b> carries client-side behaviour or state rather than
  * forwarding one-to-one to the server.  Because an annotation processor can only
- * emit new files (never add members to the developer's class), the smart logic
- * is supplied through this shared delegate: a plain class (not remote, not the
+ * emit new files (never add members to the developer's class), the smart logic is
+ * supplied through this shared delegate: a plain class (not remote, not the
  * serialized proxy) that implements the public API and translates its calls into
- * the internal {@link #protocol()} interface.  The generated shell delegates
- * every public-API method to a delegate instance reconstructed from the
- * deserialized {@code server}.
+ * the internal protocol interface.  The generated shell delegates every public-API
+ * method to a delegate instance reconstructed from the deserialized {@code server}.
  *
  * <h2>Example</h2>
  * <pre>{@code
- * @SmartProxy(api = HelloService.class, protocol = HelloProtocol.class)
+ * // On the service implementation: api + protocol declared ONCE, pointing here.
+ * @JiniService(proxy = ProxyType.SMART,
+ *              api = { HelloService.class },
+ *              protocol = { HelloProtocol.class },
+ *              smartProxy = HelloSmartLogic.class)
+ * public class HelloWorldServiceImpl extends AbstractJiniService
+ *         implements HelloProtocol { ... }
+ *
+ * // The delegate: a bare @SmartProxy marker; implements the api, takes the wire type.
+ * @SmartProxy
  * public final class HelloSmartLogic implements HelloService {
  *     private final HelloProtocol server;         // internal wire interface
  *     private final Cache<String,String> cache;   // client-side state, not serialized
@@ -68,6 +85,14 @@ import java.lang.annotation.Target;
  * {@code serialForm()}/{@code serialize()}/{@code (GetArg)} plumbing and routes
  * it through the existing marshal-delegate machinery.
  *
+ * <p><b>{@code @State} values are not validated by the shell.</b>  The generated
+ * {@code (GetArg)} constructor reads each durable field and passes it straight to
+ * the delegate constructor; the <em>delegate constructor is the validation
+ * seam</em>.  A delegate that rejects a bad state value must throw from its
+ * constructor (an {@code IllegalArgumentException} or, to signal a corrupt stream,
+ * an {@code java.io.InvalidObjectException}); the atomic engine surfaces the throw
+ * and the object is never published.
+ *
  * @see JiniService
  * @since 3.1.1
  */
@@ -77,43 +102,17 @@ import java.lang.annotation.Target;
 public @interface SmartProxy {
 
     /**
-     * The public API interface(s) this delegate implements — the client-facing
-     * contract the generated proxy shell exposes and forwards to the delegate.
-     *
-     * <p>An <em>array</em>: list several interfaces directly and the delegate must
-     * implement <em>every</em> one of them (the generated shell forwards the method
-     * set across all of them).  There is no default: at least one api interface is
-     * required.
-     *
-     * @return the public API interface(s)
-     */
-    Class<?>[] api();
-
-    /**
-     * The internal service (backend / wire) interface(s) the delegate's constructor
-     * accepts — the typed {@code server} reference reconstructed from the
-     * validated deserialized stub.
-     *
-     * <p>An <em>array</em>: when several wire interfaces are named the framework
-     * aggregates them under the generated {@code <Api>Backend} type, which is the
-     * type the delegate's {@code server} parameter then takes.
-     *
-     * <p>Defaults to the empty array {@code {}}, interpreted by the processor as
-     * "same as {@link #api()}" (the delegate takes the public API interface(s) as
-     * its {@code server}).
-     *
-     * @return the internal wire interface(s), or empty to default to {@link #api()}
-     */
-    Class<?>[] protocol() default {};
-
-    /**
      * Declares a field of durable proxy state that the generated shell must
      * serialize (through validated atomic deserialization) and pass to the
      * delegate's constructor after {@code server}.
      *
-     * <p>Repeat, in constructor-parameter order, for each durable field.  A
-     * delegate with no {@code @State} declarations yields a {@code @Stateless}
-     * shell that serializes only {@code { server, proxyID }}.
+     * <p>Repeat (via {@link States}), in constructor-parameter order, for each
+     * durable field.  A delegate with no {@code @State} declarations yields a
+     * {@code @Stateless} shell that serializes only {@code { server, proxyID }}.
+     *
+     * <p>The declared value is passed to the delegate constructor <em>unvalidated</em>
+     * by the shell — the delegate constructor is the validation seam (throw to
+     * reject a bad or hostile value).
      */
     @Documented
     @Retention(RetentionPolicy.SOURCE)

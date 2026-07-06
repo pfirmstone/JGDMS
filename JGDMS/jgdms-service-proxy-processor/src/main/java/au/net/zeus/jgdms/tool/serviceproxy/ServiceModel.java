@@ -177,6 +177,16 @@ final class ServiceModel {
     /** The hand-written proxy class, if present (for validation), else null. */
     TypeElement proxyHandWritten;
 
+    /**
+     * The {@code @SmartProxy} client-side logic class named by
+     * {@link au.net.zeus.jgdms.service.annotation.JiniService#smartProxy()}, or
+     * {@code null} when none (or {@code Void.class}) was declared.  When present the
+     * generated SMART shell forwards to it (P3); the processor validates it is a
+     * {@code @SmartProxy} marker that implements every api interface and declares a
+     * {@code (serverType[, @State types])} constructor.
+     */
+    TypeElement smartProxyElement;
+
     /** Set by validation when a fatal error was reported (suppresses generation). */
     boolean hadError;
 
@@ -222,8 +232,10 @@ final class ServiceModel {
         List<TypeMirror> protocolTypes = new ArrayList<>();
         String component = "";
         ProxyType proxyType = ProxyType.DYNAMIC;
+        boolean proxyExplicit = false;
         boolean codebase = false;
         List<TypeMirror> apiTypes = new ArrayList<>();
+        TypeMirror smartProxyType = null;
         if (ann != null) {
             for (var en : ann.getElementValues().entrySet()) {
                 String name = en.getKey().getSimpleName().toString();
@@ -244,10 +256,18 @@ final class ServiceModel {
                         break;
                     case "proxy":
                         proxyType = ProxyType.from(enumConstant(av));
+                        proxyExplicit = true;
                         break;
                     case "codebase":
                         if (av.getValue() instanceof Boolean) {
                             codebase = (Boolean) av.getValue();
+                        }
+                        break;
+                    case "smartProxy":
+                        // A single Class<?>; Void.class means "no smart-proxy delegate".
+                        if (av.getValue() instanceof TypeMirror
+                                && !isVoid((TypeMirror) av.getValue())) {
+                            smartProxyType = (TypeMirror) av.getValue();
                         }
                         break;
                     default:
@@ -256,19 +276,43 @@ final class ServiceModel {
             }
         }
 
+        // Proxy-type resolution (ratified): a smartProxy() reference IMPLIES SMART,
+        // so proxy=SMART need not be stated.  A smartProxy() with an explicit
+        // proxy=DYNAMIC is a contradiction -> fail closed.
+        boolean smartProxyConflict = false;
+        if (smartProxyType != null) {
+            if (proxyExplicit && proxyType == ProxyType.DYNAMIC) {
+                smartProxyConflict = true;
+            }
+            proxyType = ProxyType.SMART;
+        }
+
         // Resolve ALL API interfaces: every api() element, or -- when api() is empty
         // -- inferred from the impl's implemented interfaces via the shared allowlist
         // (symmetric with the runtime rule in AbstractJiniService.classify, which
         // likewise returns ALL of them and does not treat multiple as ambiguous).
         // The first is the primary the proxy/backend is generated for; the rest are
         // registered on the model (multi-interface registration, D2).
-        List<TypeElement> apis = resolveApi(impl, apiTypes, types, messager);
+        if (smartProxyConflict) {
+            messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
+                "@JiniService.smartProxy() implies a SMART proxy; remove proxy=DYNAMIC"
+                + " or the smartProxy reference on " + impl.getQualifiedName() + ".", impl);
+            return null;
+        }
+        List<TypeElement> apis = resolveApi(impl, apiTypes, proxyType, types, messager);
         if (apis.isEmpty()) {
             return null; // diagnostic already emitted
         }
         TypeElement api = apis.get(0);
 
         ServiceModel m = new ServiceModel(impl, api);
+        // Resolve the @SmartProxy delegate class named by smartProxy() (if any).
+        if (smartProxyType != null && smartProxyType.getKind() == TypeKind.DECLARED) {
+            Element el = ((DeclaredType) smartProxyType).asElement();
+            if (el instanceof TypeElement) {
+                m.smartProxyElement = (TypeElement) el;
+            }
+        }
         m.apiInterfaces.addAll(apis);
         String simple = api.getSimpleName().toString();
         m.backendSimpleName = simple + "Backend";
@@ -396,6 +440,7 @@ final class ServiceModel {
      * explicit {@code api()} element is not an interface, or inference yields nothing.
      */
     private static List<TypeElement> resolveApi(TypeElement impl, List<TypeMirror> apiTypes,
+                                                ProxyType proxyType,
                                                 Types types, Messager messager) {
         if (!apiTypes.isEmpty()) {
             // Explicit api(): register EVERY declared interface (multi-interface).
@@ -410,6 +455,21 @@ final class ServiceModel {
                 explicit.add(te);
             }
             return explicit;
+        }
+        // api() inference is a DYNAMIC-only convenience (ratified): a SMART proxy
+        // (including any smartProxy()/translating service) must declare api()
+        // explicitly.  A translating SMART impl implements the WIRE/protocol
+        // interface, not the public api, so inferring api() from its interfaces
+        // would advertise the wire interface -- the exact footgun the runtime guard
+        // AbstractJiniService.resolveServiceInterfaces catches.  Fail closed here at
+        // compile time.
+        if (proxyType == ProxyType.SMART) {
+            messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
+                "@JiniService on " + impl.getQualifiedName() + " is a SMART proxy with an"
+                + " empty api(); a SMART/translating service must declare api() explicitly"
+                + " (only a DYNAMIC proxy can infer it from the implementation, which"
+                + " implements the wire/protocol interface, not the public api).", impl);
+            return java.util.Collections.emptyList();
         }
         // Infer from the impl's FULL interface closure via the shared allowlist:
         // every interface extending Remote, minus the four bootstrap accessors and

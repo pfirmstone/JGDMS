@@ -194,4 +194,33 @@ public @interface JiniService {
      *         (the default) otherwise
      */
     boolean codebase() default false;
+
+    /**
+     * The developer-written {@link SmartProxy @SmartProxy} client-side logic class
+     * whose behaviour the generated smart-proxy shell forwards to — the delegate the
+     * shell delegates each api call to.
+     *
+     * <p>Only meaningful when {@link #proxy()} is {@link ProxyType#SMART}: the
+     * generated {@code Constrainable<Api>Proxy} shell forwards every {@link #api()}
+     * method to an instance of this class reconstructed from the deserialized
+     * {@code server}, instead of casting the {@code server} straight to the wire
+     * type.  This is what enables genuinely disjoint api/protocol method-name
+     * translation (client {@code currentCelsius(region)} over wire
+     * {@code rawCelsius(...)}) that direct forwarding cannot express.
+     *
+     * <p>The referenced class must (a) be annotated {@code @SmartProxy}, (b)
+     * implement every {@link #api()} interface, and (c) declare a constructor
+     * {@code (<serverType> [, @State field types…])} the shell can call — the
+     * {@code serverType} being the single {@link #protocol()} interface, or the
+     * generated aggregate {@code <Api>Backend} when {@link #protocol()} names more
+     * than one.  These are compile-time (fail-closed) checks.
+     *
+     * <p>Naming a smart-proxy class on a {@link ProxyType#DYNAMIC} service is a
+     * compile error: a dynamic proxy carries no downloaded behaviour.  Defaults to
+     * {@link Void}, meaning "none" — the shell (if any) forwards directly.
+     *
+     * @return the {@code @SmartProxy}-annotated client-side logic class, or
+     *         {@link Void} for none
+     */
+    Class<?> smartProxy() default Void.class;
 }
