@@ -27,6 +27,9 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.admin.Administrable;
 import net.jini.admin.JoinAdmin;
+import net.jini.constraint.BasicMethodConstraints;
+import net.jini.core.constraint.Integrity;
+import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.CodebaseAccessor;
@@ -96,6 +99,11 @@ public class HelloDelegateSmartProxyRoundTripTest {
         String describe(String region) throws RemoteException;
     }
 
+    /** Public api carrying a PRIMITIVE durable state field ({@code int port}). */
+    public interface PortThermo extends Remote {
+        int portReading(String region) throws RemoteException;
+    }
+
     /** Internal wire protocol: the interface the exported server stub implements. */
     public interface RawThermo extends Remote {
         double rawCelsius(String region) throws RemoteException;
@@ -126,6 +134,20 @@ public class HelloDelegateSmartProxyRoundTripTest {
         @Override
         public String describe(String region) throws RemoteException {
             return label + "=" + server.rawCelsius(region);
+        }
+    }
+
+    /** A delegate with a PRIMITIVE durable state field ({@code int port}). */
+    public static final class PortLogic implements PortThermo {
+        private final RawThermo server;
+        private final int port;
+        public PortLogic(RawThermo server, int port) {
+            this.server = server;
+            this.port = port;
+        }
+        @Override
+        public int portReading(String region) throws RemoteException {
+            return port + (int) server.rawCelsius(region);
         }
     }
 
@@ -196,13 +218,13 @@ public class HelloDelegateSmartProxyRoundTripTest {
         public ConstrainableThermoProxy(RawThermo server, Uuid proxyID,
                                         MethodConstraints constraints) {
             super(server, proxyID, constraints);
-            this.delegate = new ThermoLogic((RawThermo) server);
+            this.delegate = new ThermoLogic((RawThermo) this.server);
         }
 
         public ConstrainableThermoProxy(GetArg arg)
                 throws IOException, ClassNotFoundException {
             super(arg);
-            this.delegate = new ThermoLogic((RawThermo) server);
+            this.delegate = new ThermoLogic((RawThermo) this.server);
         }
 
         @Override
@@ -248,14 +270,14 @@ public class HelloDelegateSmartProxyRoundTripTest {
                                           MethodConstraints constraints, String label) {
             super(server, proxyID, constraints);
             this.label = label;
-            this.delegate = new LabelledLogic((RawThermo) server, label);
+            this.delegate = new LabelledLogic((RawThermo) this.server, label);
         }
 
         public ConstrainableLabelledProxy(GetArg arg)
                 throws IOException, ClassNotFoundException {
             super(arg);
             this.label = arg.get("label", null, String.class);
-            this.delegate = new LabelledLogic((RawThermo) server, label);
+            this.delegate = new LabelledLogic((RawThermo) this.server, label);
         }
 
         @Override
@@ -268,6 +290,99 @@ public class HelloDelegateSmartProxyRoundTripTest {
         public String describe(String region) throws RemoteException {
             return delegate.describe(region);
         }
+    }
+
+    /**
+     * The generated-shape shell for a PRIMITIVE {@code @State(name="port",
+     * type=int.class)}: the primitive serial form + primitive {@code arg.get("port",
+     * 0)} idiom (NOT the reference-type 3-arg {@code get}, which would throw every
+     * deserialize).
+     */
+    @AtomicSerial
+    public static final class ConstrainablePortProxy
+            extends AbstractSmartProxy.ConstrainableSmartProxy
+            implements PortThermo {
+
+        private transient final PortLogic delegate;
+        private final int port;
+
+        public static SerialForm[] serialForm() {
+            return new SerialForm[]{
+                new SerialForm("port", int.class)
+            };
+        }
+
+        public static void serialize(PutArg arg, ConstrainablePortProxy obj)
+                throws IOException {
+            arg.put("port", obj.port);
+            arg.writeArgs();
+        }
+
+        public ConstrainablePortProxy(RawThermo server, Uuid proxyID,
+                                      MethodConstraints constraints, int port) {
+            super(server, proxyID, constraints);
+            this.port = port;
+            this.delegate = new PortLogic((RawThermo) this.server, port);
+        }
+
+        public ConstrainablePortProxy(GetArg arg)
+                throws IOException, ClassNotFoundException {
+            super(arg);
+            this.port = arg.get("port", 0);
+            this.delegate = new PortLogic((RawThermo) this.server, port);
+        }
+
+        @Override
+        public RemoteMethodControl setConstraints(MethodConstraints constraints) {
+            return new ConstrainablePortProxy(
+                    (RawThermo) server, getReferentUuid(), constraints, port);
+        }
+
+        @Override
+        public int portReading(String region) throws RemoteException {
+            return delegate.portReading(region);
+        }
+    }
+
+    /**
+     * An invocation handler for the wire server that RECORDS, into a shared holder,
+     * the {@link MethodConstraints} in effect when {@code rawCelsius} is invoked.
+     * {@code setConstraints(mc)} yields a fresh proxy whose handler carries {@code mc}
+     * (and the same holder), so a forwarded call reveals the constraints the delegate
+     * actually went out under.  Not {@code @AtomicSerial}: used only for the (no
+     * round-trip) constraint-downgrade regression.
+     */
+    private static final class RecordingHandler implements InvocationHandler {
+        private final MethodConstraints mc;
+        private final MethodConstraints[] lastCall;
+        RecordingHandler(MethodConstraints mc, MethodConstraints[] lastCall) {
+            this.mc = mc;
+            this.lastCall = lastCall;
+        }
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) {
+            switch (method.getName()) {
+                case "rawCelsius":
+                    lastCall[0] = mc;   // record the constraints this call went out under
+                    return RAW;
+                case "setConstraints":
+                    return Proxy.newProxyInstance(
+                            proxy.getClass().getClassLoader(),
+                            proxy.getClass().getInterfaces(),
+                            new RecordingHandler((MethodConstraints) args[0], lastCall));
+                case "getConstraints": return mc;
+                case "hashCode":       return System.identityHashCode(proxy);
+                case "equals":         return proxy == args[0];
+                case "toString":       return "RecordingWireServer";
+                default:               return null;
+            }
+        }
+    }
+
+    private static RawThermo recordingServer(MethodConstraints mc, MethodConstraints[] lastCall) {
+        return (RawThermo) Proxy.newProxyInstance(
+                HelloDelegateSmartProxyRoundTripTest.class.getClassLoader(),
+                WIRE_IFACES, new RecordingHandler(mc, lastCall));
     }
 
     // ------------------------------------------------------------------ tests
@@ -330,5 +445,65 @@ public class HelloDelegateSmartProxyRoundTripTest {
         // (the "degC=" prefix), while the forwarded wire call still resolves (RAW).
         assertEquals("durable @State must survive the wire and reach the delegate",
                 "degC=" + RAW, ((LabelledThermo) rt).describe("here"));
+    }
+
+    /**
+     * BLOCKER A regression (silent constraint downgrade): after a client hardens the
+     * proxy via {@code setConstraints}, an api call must be FORWARDED under the NEW
+     * constraints -- the delegate must be built from the post-super constrained
+     * {@code this.server}, not the un-constrained ctor parameter.  This test FAILS if
+     * the shell reverts to building the delegate from the bare {@code server}
+     * parameter.
+     */
+    @Test
+    public void setConstraintsHardensTheForwardedCall() throws Exception {
+        MethodConstraints[] lastCall = new MethodConstraints[1];
+        RawThermo server = recordingServer(null, lastCall);
+        Uuid id = UuidFactory.generate();
+
+        ConstrainableThermoProxy p0 = new ConstrainableThermoProxy(server, id, null);
+        p0.currentCelsius("here");
+        assertNull("baseline call runs under no constraints", lastCall[0]);
+
+        // Harden with an observably-different, non-null constraint set.
+        MethodConstraints strong = new BasicMethodConstraints(
+                new InvocationConstraints(Integrity.YES, null));
+        RemoteMethodControl p1 = p0.setConstraints(strong);
+
+        // Introspection reports the new constraints...
+        assertSame("getConstraints() must report the hardened constraints",
+                strong, p1.getConstraints());
+        // ...AND the forwarded api call must actually go out under them (not the old,
+        // weaker/null constraints the un-constrained parameter would carry).
+        lastCall[0] = null;
+        ((Thermo) p1).currentCelsius("here");
+        assertSame("hardened api call must be forwarded under the NEW constraints "
+                + "(delegate built from this.server, not the bare parameter)",
+                strong, lastCall[0]);
+    }
+
+    /**
+     * BLOCKER B regression (primitive @State): an {@code int} durable field survives
+     * the wire and reaches the rebuilt delegate constructor via the primitive
+     * {@code get} idiom.  Fails against reference-type-only codegen (which throws
+     * every deserialize for a primitive field).
+     */
+    @Test
+    public void primitiveStateShellRoundTripsAndStateReachesDelegate() throws Exception {
+        Uuid uuid = UuidFactory.generate();
+        ConstrainablePortProxy proxy =
+                new ConstrainablePortProxy(wireServer(), uuid, null, 8080);
+
+        assertEquals(8080 + (int) RAW, proxy.portReading("here"));
+
+        Object rt = new AtomicMarshalledInstance(proxy).get(false);
+
+        assertTrue("round-tripped shell must implement the public api",
+                rt instanceof PortThermo);
+        assertEquals("UUID identity must survive the round-trip",
+                uuid, ((ReferentUuid) rt).getReferentUuid());
+        // The primitive int port survived the wire and reached the rebuilt delegate.
+        assertEquals("primitive @State must survive the wire and reach the delegate",
+                8080 + (int) RAW, ((PortThermo) rt).portReading("here"));
     }
 }
