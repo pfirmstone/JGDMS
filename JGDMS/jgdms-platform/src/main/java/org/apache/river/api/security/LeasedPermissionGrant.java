@@ -233,14 +233,20 @@ public class LeasedPermissionGrant extends PermissionGrant {
     }
 
     /**
-     * Equality includes lease identity: two wrappers around the same wrapped
-     * grant but with different {@link Lease} instances are distinct, because
-     * different leases carry different (and non-interchangeable) expiries.
+     * Equality is by <em>exact class</em>, lease identity, and wrapped-grant
+     * equality: two wrappers around the same wrapped grant but with different
+     * {@link Lease} instances are distinct (different leases carry different,
+     * non-interchangeable expiries), and a plain leased grant is never equal to a
+     * subtype such as {@link OneShotLeasedPermissionGrant} in <em>either</em>
+     * direction. The {@code getClass()} test keeps {@link Object#equals} symmetric
+     * across the type hierarchy &mdash; a renewable lease can never compare equal to
+     * a one-shot escalation, nor vice versa &mdash; so subtypes need not (and must
+     * not) re-implement equality merely to add a type check.
      */
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof LeasedPermissionGrant)) return false;
+        if (o == null || o.getClass() != this.getClass()) return false;
         LeasedPermissionGrant that = (LeasedPermissionGrant) o;
         return this.lease == that.lease && decorated().equals(that.decorated());
     }

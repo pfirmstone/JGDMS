@@ -199,21 +199,26 @@ public class DynamicPolicyProviderOneShotTest {
         assertTrue("the one-shot grant carries the OneShot marker", oneShot instanceof OneShot);
         assertFalse("a plain leased grant is NOT one-shot", plain instanceof OneShot);
 
-        // Same wrapped grant + same lease, yet the one-shot grant is NOT equal to the
-        // plain leased grant: OneShotLeasedPermissionGrant.equals requires the argument
-        // to be an OneShotLeasedPermissionGrant, so a one-shot grant can never compare
-        // equal to a renewable leased grant (belt-and-braces on top of the type check).
-        assertNotEquals("one-shot is not equal to a plain leased grant", oneShot, plain);
+        // Same wrapped grant + same lease, yet a one-shot grant is never equal to a plain
+        // leased grant — and the inequality is SYMMETRIC (the Object.equals contract): the
+        // base LeasedPermissionGrant.equals compares by exact class (getClass()), so a
+        // renewable lease can never compare equal to a one-shot escalation in either direction.
+        assertNotEquals("one-shot != plain", oneShot, plain);
+        assertNotEquals("plain != one-shot (symmetric)", plain, oneShot);
+        assertFalse("oneShot.equals(plain) is false", oneShot.equals(plain));
+        assertFalse("plain.equals(oneShot) is false — symmetric", plain.equals(oneShot));
 
-        // Note the equality is deliberately ASYMMETRIC and the one-shot side is the
-        // load-bearing one for this guarantee: the base LeasedPermissionGrant.equals only
-        // checks `instanceof LeasedPermissionGrant` + lease-identity + wrapped-grant
-        // equality, so plain.equals(oneShot) is true here (the one-shot IS a leased grant
-        // with the same lease and wrapped grant). The security property — a renewable
-        // lease can never be mistaken FOR one-shot — is enforced by the OneShot *type*
-        // (Case 1/2: only `instanceof OneShot` grants are surfaced by impliesOnce and only
-        // non-OneShot grants contribute to implies), not by equals in either direction.
-        assertTrue("the distinguishing property is the type, not equals",
+        // Sanity: exact-class equality still holds for same-class wrappers over the same
+        // lease + wrapped grant — the getClass() fix must not break normal equality.
+        LeasedPermissionGrant plain2 = new LeasedPermissionGrant(wrapped, lease, clock);
+        assertEquals("two plain leased grants (same lease+wrapped) are equal", plain, plain2);
+        OneShotLeasedPermissionGrant oneShot2 = new OneShotLeasedPermissionGrant(wrapped, lease, clock);
+        assertEquals("two one-shot grants (same lease+wrapped) are equal", oneShot, oneShot2);
+
+        // The security property — a renewable lease can never be mistaken FOR one-shot — is
+        // enforced by the OneShot *type* (Case 1/2: only OneShot grants are surfaced by
+        // impliesOnce, only non-OneShot grants contribute to implies), independent of equals.
+        assertTrue("the distinguishing property is the type",
                 (oneShot instanceof OneShot) && !(plain instanceof OneShot));
     }
 

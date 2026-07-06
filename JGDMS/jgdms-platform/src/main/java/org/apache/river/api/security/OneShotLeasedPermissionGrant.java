@@ -59,19 +59,7 @@ public final class OneShotLeasedPermissionGrant extends LeasedPermissionGrant im
         super(wrapped, lease, clock);
     }
 
-    /**
-     * Equal only to another {@code OneShotLeasedPermissionGrant} with the same lease and wrapped
-     * grant. Overriding the (lease-identity) superclass equality to also require this exact type
-     * keeps a one-shot grant from ever comparing equal to a plain {@link LeasedPermissionGrant}
-     * (belt-and-braces; in practice each escalation has its own lease).
-     */
-    @Override
-    public boolean equals(Object o) {
-        return (o instanceof OneShotLeasedPermissionGrant) && super.equals(o);
-    }
-
-    @Override
-    public int hashCode() {
-        return 7 * super.hashCode() + 1;
-    }
+    // Equality is inherited from LeasedPermissionGrant, whose exact-class (getClass())
+    // test already makes a one-shot grant unequal to a plain leased grant symmetrically —
+    // no equals/hashCode override is needed or wanted here.
 }
