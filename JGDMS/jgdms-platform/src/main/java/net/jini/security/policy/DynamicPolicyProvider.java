@@ -22,6 +22,7 @@ import org.apache.river.api.security.AbstractPolicy;
 import org.apache.river.api.security.ScalableNestedPolicy;
 import org.apache.river.api.security.ConcurrentPolicyFile;
 import org.apache.river.api.security.CachingSecurityManager;
+import org.apache.river.api.security.OneShot;
 import java.security.AccessController;
 import java.security.AllPermission;
 import java.security.CodeSource;
@@ -523,11 +524,13 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         // Check the privileged case first.
         while (grants.hasNext()){
             PermissionGrant g = grants.next();
+            if (g instanceof OneShot) continue; // one-shot authority is reported by impliesOnce only
             if (g.isPrivileged() && g.implies(domain)) return true;
         }
         grants = dynamicPolicyGrants.iterator();
         while (grants.hasNext()){
             PermissionGrant g = grants.next();
+            if (g instanceof OneShot) continue; // one-shot grants never contribute to implies()
             if (!g.isPrivileged() && g.implies(domain)){
                 Collection<Permission> perms = g.getPermissions();
                 // But we only want to add relevant Permissions.
@@ -552,7 +555,52 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         }
         return pc.implies(permission);
     }
-    
+
+    /**
+     * Reports authority granted to {@code domain} by a <em>one-shot</em> dynamic grant
+     * only. One-shot grants are deliberately excluded from {@link #implies} (so they are
+     * neither cached nor recorded into generated policy); this method is the SM's
+     * after-{@code implies} probe that surfaces them. The combined "granted at least once"
+     * decision is {@code implies(d,p) || impliesOnce(d,p)} (see {@code ProtectionDomain.impliesOnce}).
+     *
+     * <p>A one-shot grant whose lease has expired or been cancelled reports {@code implies(domain)
+     * == false}, so this method denies it on the very next check &mdash; the dead-man switch, with
+     * no cache to clear because one-shot decisions were never cached.
+     *
+     * <p><b>No {@code @Override}, deliberately.</b> {@code Policy.impliesOnce} exists only in the
+     * DirtyChai JDK; jgdms-platform is built on a vanilla JDK 21 (the embedded-class rule), where
+     * {@code Policy} has no such method, so {@code @Override} would fail to compile. Omitting the
+     * annotation lets this compile as a plain method on a vanilla JDK while still overriding
+     * {@code Policy.impliesOnce} by signature at runtime on DirtyChai (dispatch is by name+descriptor,
+     * not by the compile-time annotation). The signature MUST match {@code Policy.impliesOnce}
+     * exactly: {@code public boolean impliesOnce(ProtectionDomain, Permission)}.
+     */
+    public boolean impliesOnce(ProtectionDomain domain, Permission permission) {
+        if (permission == null) throw new NullPointerException("permission not allowed to be null");
+        Class permClass = permission instanceof GrantPermission ? null : permission.getClass();
+        NavigableSet<Permission> permissions = new TreeSet<Permission>(comparator);
+        Iterator<PermissionGrant> grants = dynamicPolicyGrants.iterator();
+        while (grants.hasNext()){
+            PermissionGrant g = grants.next();
+            if (!(g instanceof OneShot)) continue;   // one-shot grants ONLY (the gap vs implies())
+            if (g.implies(domain)){                   // false once the lease is void (dead-man)
+                Iterator<Permission> it = g.getPermissions().iterator();
+                while (it.hasNext()){
+                    Permission p = it.next();
+                    if (permClass == null){
+                        permissions.add(p);
+                    } else if (permClass.isInstance(permission) || permission instanceof UnresolvedPermission){
+                        permissions.add(p);
+                    }
+                }
+            }
+        }
+        if (permissions.isEmpty()) return false;
+        PermissionCollection pc = convert(permissions, 4, 0.75F, 1, 2);
+        if (permClass == null) expandUmbrella(pc); // GrantPermission
+        return pc.implies(permission);
+    }
+
     /**
      * Calling refresh doesn't remove any dynamic grant's, it only clears
      * the cache and refreshes the underlying Policy, it also removes any

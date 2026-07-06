@@ -99,8 +99,9 @@ import net.jini.core.lease.Lease;
  * @author Peter Firmstone
  * @since 3.1.1
  * @see ExternallyVoidablePermissionGrant
+ * @see OneShotLeasedPermissionGrant
  */
-public final class LeasedPermissionGrant extends PermissionGrant {
+public class LeasedPermissionGrant extends PermissionGrant {
 
     private final Lease lease;
     private final Clock clock;

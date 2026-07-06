@@ -160,6 +160,51 @@ public final class LeasedDelegation {
     }
 
     /**
+     * Like {@link #grant}, but installs a <em>one-shot</em> ({@link OneShot}) delegation: a
+     * one-shot-aware policy ({@code DynamicPolicyProvider}) reports it <strong>only</strong> via
+     * {@code Policy.impliesOnce}, never {@code Policy.implies}, so the agent's escalated authority
+     * is never cached by a {@code CachingSecurityManager} and never recorded into generated policy
+     * by polpAudit. Intended for a human-gated escalation (Phase&nbsp;2 {@code EscalationGate}); a
+     * renewable delegation should use {@link #grant} instead.
+     *
+     * <p>Semantics are otherwise identical to {@link #grant}: agent-principal subset grant,
+     * lease-expiry dead-man switch, install-time {@code GrantPermission} ceiling, renewal/revoke
+     * owned by the returned handle (never the agent). Because the grant is never cached, expiry or
+     * {@link #revoke()} denies on the next check with no cache to clear.
+     *
+     * @see #grant(RevocablePolicy, Principal, Permission[], Lease)
+     */
+    public static LeasedDelegation grantOneShot(RevocablePolicy policy,
+                                                Principal agent,
+                                                Permission[] permissions,
+                                                Lease lease) {
+        return grantOneShot(policy, agent, permissions, lease, Clock.systemUTC());
+    }
+
+    /**
+     * Package-private variant of {@link #grantOneShot} accepting a pluggable {@link Clock} for
+     * deterministic testing of expiry; production callers use the four-argument form.
+     */
+    static LeasedDelegation grantOneShot(RevocablePolicy policy,
+                                         Principal agent,
+                                         Permission[] permissions,
+                                         Lease lease,
+                                         Clock clock) {
+        if (policy == null) throw new NullPointerException("policy");
+        if (agent == null) throw new NullPointerException("agent");
+        if (permissions == null) throw new NullPointerException("permissions");
+        // lease/clock null and Lease.FOREVER/expired are validated by the wrapper.
+        PermissionGrant scoped = PermissionGrantBuilder.newBuilder()
+                .principals(new Principal[]{agent})
+                .permissions(permissions)
+                .context(PermissionGrantBuilder.PRINCIPAL)
+                .build();
+        OneShotLeasedPermissionGrant leased = new OneShotLeasedPermissionGrant(scoped, lease, clock);
+        policy.grant(leased); // GrantPermission ceiling enforced here under an active SM
+        return new LeasedDelegation(agent, lease, leased);
+    }
+
+    /**
      * Returns {@code true} when the delegated authority is no longer in force —
      * the lease has expired, {@link #revoke()} has been called, or the underlying
      * grant has otherwise become void. Once void, always void.
