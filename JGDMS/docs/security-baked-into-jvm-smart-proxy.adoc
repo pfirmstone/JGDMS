@@ -86,8 +86,10 @@ an explicit deferred follow-on: the processor reads and stores `model.codebase()
 yet act on it" (see the shape-dispatch note at the top of `ServiceProxyProcessor`). So read
 `codebase = true` here as declaring intent; you still wire the `-dl` jar's publication by hand for
 now.
-// TODO(peter): confirm current -dl packaging status before publishing — update this note if the
-// codebase axis has since been implemented.
+// VERIFIED 2026-07-07: still deferred — the processor reads and stores model.codebase() but does
+// not act on it (ServiceProxyProcessor shape-dispatch note; ServiceModel stores codebase without
+// gating generation). The -dl smart-dl work built the module/PREFERRED.LIST/archetype packaging,
+// but auto-packaging from the codebase() flag has NOT landed. Note above is accurate as written.
 ====
 
 == The delegate: your client-side behaviour, and nothing security-sensitive
@@ -378,8 +380,9 @@ The exporter constrains the *server* stub; the fail-closed `create(...)` reads t
 off the stub and applies them to the smart proxy, so the object the client downloads is born
 already constrained. If the stub weren't constrainable, `create(...)` would throw and no proxy
 would ship — the same fail-fast discipline, one layer earlier.
-// TODO(peter): confirm the codebase/trust entries a SMART service needs in config for the -dl
-// codebase and ProxyTrust verifier once the deferred -dl packaging lands.
+// TODO(peter): the codebase/trust entries a SMART service needs in config for the -dl codebase and
+// ProxyTrust verifier can only be finalized once the deferred -dl packaging lands. VERIFIED
+// 2026-07-07: still not landed (processor does not act on codebase()), so this remains open.
 
 == Where this leaves us
 
