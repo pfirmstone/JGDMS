@@ -32,7 +32,15 @@
 > a clearly-marked PLACEHOLDER; Zeus Project Services Pty Ltd will register an IANA PEN
 > and it MUST be replaced before v1.0.
 >
-> **Ratified follow-ups (2026-07-06).** §7.7.1 **hash-algorithm migration = Option B**
+> **Ratified follow-ups (2026-07-06).** §7.4 **SCAP signature TBS = canonical DER of
+> the signed fields** (RATIFIED): each signed record's to-be-signed content is
+> `DER(SEQUENCE{signed fields})` with the signature field excluded (per-record coverage
+> table in §7.4), replacing the as-built non-DER `writeUTF` `canonicalBytes()`.
+> **Clean break** — SCAP unreleased → no legacy verdicts, no dual-format cutover, no
+> signature-format versioning; DER-canonical TBS from first release. Impl follow-up
+> (change SCAP classes to sign/verify over the DER TBS, not `canonicalBytes()`) flagged
+> as a separate `jgdms-platform` code task (not this doc branch). §7.7.1
+> **hash-algorithm migration = Option B**
 > (RATIFIED): the mandatory `hashAlgorithm` version tag makes the scheme self-describing
 > (`1` = ATOMIC DER `SHA-256(DER(EntrySchemaRecord))`, `2` = legacy RULE-7 64-bit;
 > unknown = reject; match within one algorithm only; enumerant numbers still to pin).
@@ -1736,29 +1744,49 @@ SignedObject ::= SEQUENCE {
 }
 ```
 
-**As-built vs generic wrapper (source note).** The prior draft claimed each verdict
-"wraps its payload as the `tbs` of a `SignedObject`." The as-built `@AtomicSerial`
-classes do **not** do this: each carries its signature **inline** as a `byte[]` field
-(`engineSignature` / `signature`) *alongside* the signed fields, not as a separate
-`SignedObject` envelope. Two consequences for §7.4.1: (1) the signed **TBS** is
-`DER(SEQUENCE { …the record's non-signature fields… })` — the record with its
-signature field excluded — computed once by the signer and reconstructed by the
-verifier (the record-level-signature rule of §7.4.1, same as §7.7.7 multicast, **not**
-the explicit-`tbs`-`OCTET STRING` rule); (2) the `SignedObject` type above is retained
-as an **optional generic form** a future signer MAY use, but is not the shape the
-current SCAP classes emit. **[PROPOSED — confirm the exact signed-field ordering for
-each record's TBS (which fields, in what order, with the signature excluded), since
-that ordering is the canonical signature input and must be pinned before interop.]**
+**Signature TBS = canonical DER of the signed fields (RATIFIED Peter, 2026-07-06).**
+Each signed SCAP record carries its signature **inline** as a `byte[]` field
+(`engineSignature` / `signature`) *alongside* the signed fields, not in a separate
+`SignedObject` envelope. Its **TBS (to-be-signed) content is the canonical DER of the
+record's signed fields, with the signature field itself excluded** — i.e.
+`DER(SEQUENCE { …the record's non-signature fields, in the order below… })`, computed
+once by the signer and reconstructed identically by the verifier (the
+record-level-signature rule of §7.4.1, same as §7.7.7 multicast — **not** the
+explicit-`tbs`-`OCTET STRING` wrapper). The `SignedObject` type above is retained as an
+**optional generic form** a future signer MAY use, but is not the shape the SCAP
+classes emit.
 
-The *signature input* must be the canonical DER of the `tbs`, computed identically on
-signer and verifier — specified normatively in §7.4.1 below. Under Java serialization
-the signed bytes were the Java-serialized form; under DER they are the canonical DER of
-the `tbs`. **SCAP is unreleased, so this is a clean break, not a compatibility
-problem:** there are no deployed Java-serialized verdicts that must remain verifiable,
-so no dual-format cutover and no signature-format versioning are required — the DER
-signature input is simply *the* format from first release. (The verdict cache, keyed by
-the JAR content hash per STD-002, is independent of verdict encoding and is unaffected
-regardless.)
+**Per-record TBS field coverage (NORMATIVE — signature field excluded from its own TBS):**
+
+| Record | Signed fields (the TBS `SEQUENCE`, in order) | Excluded (not in TBS) | Signer key |
+|---|---|---|---|
+| `JarAnalysisReport` | `contentHash`, per-class results (`className` + `clinitVerdict` + `atomicVerdict`), `declaredPermissions`, `codebaseUrls` | `engineSignature` | engine key |
+| `RegistryVerdict` | `codebaseUrls`, `verdict`, `timestamp` | `signature` | registry key |
+| `CrashReport` | `codebaseUrls`, `exitCode`, `incarnation`, `stderrSummary` | `signature` | Phoenix key |
+
+(`AnalysisRequest` is **unsigned**; its integrity is self-verifying — `check(GetArg)`
+re-hashes the unpacked jar and rejects a mismatched `contentHash` — so it has no TBS
+and is unchanged by this decision.)
+
+**Clean break — no legacy TBS, no versioning (NORMATIVE rationale).** This TBS is the
+**canonical DER** of the signed fields; it replaces the as-built, **non-DER**
+`writeUTF`-based canonicalisation (e.g. `JarAnalysisReport.canonicalBytes()` — a
+`ByteArrayOutputStream` with NUL-delimited `writeField` sections `"C"`/`"P"`/`"U"` and
+sorted fields; `RegistryVerdict`/`CrashReport` have the analogous "canonical serialized
+form"). Because **SCAP is UNRELEASED, this is a clean break, not a compatibility
+problem:** there are **no** deployed Java-serialized (or `writeUTF`-canonical) verdicts
+that must remain verifiable, so **no dual-format cutover and no signature-format
+versioning are required** — the DER-canonical TBS is simply *the* signature input from
+first release. (The verdict cache, keyed by the JAR content hash per STD-002, is
+independent of verdict encoding and is unaffected regardless.)
+
+> **Implementation follow-up (NOT in this doc branch — separate `jgdms-platform` code
+> change).** The SCAP `@AtomicSerial` classes currently compute/verify the signature
+> over the `writeUTF`-based `canonicalBytes()` (and the `RegistryVerdict`/`CrashReport`
+> equivalents). To conform to this ratified decision, the implementation MUST be changed
+> to compute and verify the signature over the **canonical DER TBS** (the per-record
+> field coverage above) instead. Flagged here as a distinct code task; this
+> documentation branch does not touch the SCAP classes.
 
 #### 7.4.1 Signature input (NORMATIVE)
 
@@ -2950,7 +2978,12 @@ Consolidated list of every **[OPEN]** above, for the next working session:
    `RegistryVerdict`, `CrashReport`; **no `SignedVerdict` class** — signatures are
    inline `byte[]` fields, not a `SignedObject` wrapper). Authority-classified **safe as
    structured DER** (signature-verified / content-hash-self-verified, §7.5 principle).
-   **[PROPOSED sub-items:** pin each record's signed-TBS field ordering; extract
+   **Signature TBS RATIFIED (Peter, 2026-07-06): the canonical DER of each record's
+   signed fields** (signature field excluded; per-record coverage table in §7.4),
+   replacing the as-built `writeUTF`-based `canonicalBytes()`. **Clean break** — SCAP
+   unreleased → no legacy verdicts, no dual-format, no signature-format versioning.
+   Impl follow-up flagged (compute/verify over DER TBS, not `canonicalBytes()`) as a
+   separate `jgdms-platform` code change. **[PROPOSED sub-items:** extract
    `ClassAnalysisResult` serialForm; confirm `VerdictType` enumerant values.]
 7. §7.5 — **RATIFIED (Peter, 2026-07-06): `PermissionGrant`/`DigestGrant` are NOT
    structured DER** — carried as their STD-004 textual policy-grant form and re-parsed
