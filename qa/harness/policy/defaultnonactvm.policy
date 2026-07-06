@@ -1588,3 +1588,548 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test
 grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test.jgdms.local/svc/mercury" {
     permission net.jini.security.AccessPermission "*";
 };
+grant codebase "file:/home/user/GitHub/JGDMS-wt-dl-lookup/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-platform-3.1.1-SNAPSHOT.jar"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/home/user/GitHub/JGDMS-wt-dl-lookup/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/service-starter-3.1.1-SNAPSHOT.jar"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/home/user/GitHub/JGDMS-wt-dl-lookup/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-jeri-3.1.1-SNAPSHOT.jar"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/home/user/GitHub/JGDMS-wt-dl-lookup/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/reggie-service-3.1.1-SNAPSHOT.jar"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/home/user/GitHub/JGDMS-wt-dl-lookup/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/home/user/GitHub/JGDMS-wt-dl-lookup/qa/lib/nonactivatablegroup.jar"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/home/user/GitHub/JGDMS-wt-dl-lookup/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar"
+{
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-servicediscovery-dl.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar",
+    digest "SHA-256:5273f3278d9d4a7d8f4fb45f89a5b59ca6d1d9fc2532c21caab9ce3db328fda0"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
