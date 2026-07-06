@@ -65,7 +65,10 @@ public interface RegionTemperatureService extends Remote {
 The public API interface stays clean — one method, no security types on it — and, as with the
 temperature post, `@JiniService` does not go here: `proxy`, `codebase` and `component` are
 implementation/deployment choices, so the annotation lives on `RegionServiceImpl` below, not on
-this interface. `proxy = ProxyType.SMART` is the whole difference: the enum's own javadoc calls
+this interface. (`api()` lives there too — it names `RegionTemperatureService` as the client
+contract the generated proxy exposes; left empty, as in the example below, it is *inferred* from
+the same `Remote`-extending interface, since that is all `RegionServiceImpl` implements.)
+`proxy = ProxyType.SMART` is the whole difference: the enum's own javadoc calls
 SMART "a smart proxy whose behaviour is downloaded" and "the only shape for which the processor
 generates a constrainable, `@AtomicSerial` proxy class." `codebase = true` says the proxy's *code*
 ships as a downloadable jar for clients that don't already hold it.
@@ -197,7 +200,9 @@ PROC --> ERR : fail-open / api mismatch
 ....
 
 The service impl wires it in by returning the generated proxy from `createProxy` — via that same
-fail-closed `create(...)`. This is also where `@JiniService` actually goes:
+fail-closed `create(...)` — and no longer needs a hand-written `getServiceInterfaces()` either:
+the processor (and `AbstractJiniService` at runtime) generate it from `api()`. This is also where
+`@JiniService` actually goes:
 
 [source,java]
 ----
@@ -233,10 +238,9 @@ public class RegionServiceImpl
                 (RegionTemperatureService) stub, serviceUuid);
     }
 
-    @Override
-    protected Class<?>[] getServiceInterfaces() {
-        return new Class<?>[]{ RegionTemperatureService.class };
-    }
+    // getServiceInterfaces() is generated, not hand-written: api() is left empty above, so
+    // the processor (and AbstractJiniService at runtime) infer it from the Remote-extending
+    // interfaces RegionServiceImpl implements — here, just RegionTemperatureService.
 
     // rawCelsius(...) etc. are served over the generated RegionTemperatureServiceBackend,
     // which the exported stub implements; the smart-proxy delegate calls RegionProtocol.

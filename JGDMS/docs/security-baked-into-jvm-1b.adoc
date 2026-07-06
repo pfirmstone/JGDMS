@@ -184,7 +184,11 @@ implementation* — never on the public API interface, which stays exactly the p
 `component` are implementation/deployment concerns, not part of the client-facing
 contract, so putting the annotation on the interface would wrongly force every
 implementor of `TemperatureReadingService` to inherit one service's choice of proxy
-shape and codebase policy. The interface stays untouched:
+shape and codebase policy. The fourth attribute, `api()`, is different in kind — it
+names the client-facing interface(s) the generated proxy is produced for — but it
+necessarily sits on the implementation too: left at its default it is *inferred* from
+the `Remote`-extending interfaces the annotated class itself implements, so there has
+to be an implementation to read that off. The interface stays untouched:
 
 [source,java]
 ----
@@ -200,8 +204,14 @@ public interface TemperatureReadingService extends Remote {
 }
 ----
 
-The three attributes that matter here — now declared on the implementation, below:
+The attributes that matter here — now declared on the implementation, below:
 
+* `api = TemperatureReadingService.class` — the client-facing API interface(s) the generated
+  proxy is produced for, and what `getServiceInterfaces()` returns. Left empty (the default), it
+  would be *inferred* from the `Remote`-extending interfaces the impl implements — here that is
+  still just `TemperatureReadingService`, so naming it explicitly changes nothing except making
+  the client contract visible at the annotation site. Naming it becomes necessary once an impl
+  implements more than one `Remote` interface, or the inference would be ambiguous.
 * `proxy = ProxyType.DYNAMIC` — the default. The service is exported as a
   `java.lang.reflect.Proxy` the client already holds the interface for; it is *constrainable by
   JERI construction*, so there is no proxy class to generate. (The other value, `ProxyType.SMART`,
@@ -220,8 +230,9 @@ calls into a different internal protocol. The thin, one-to-one sensor is the com
 costs one annotation.
 
 The implementation wrapper supplies the business logic and returns the exported stub. Under
-DYNAMIC the exported stub *is* the client proxy, so `createProxy` returns it unchanged. This is
-also where `@JiniService` actually goes:
+DYNAMIC the exported stub *is* the client proxy, so `createProxy` returns it unchanged; the
+processor also generates `getServiceInterfaces()` for you, from `api()`, so there is no override
+to hand-write there either. This is also where `@JiniService` actually goes:
 
 [source,java]
 ----
@@ -234,6 +245,7 @@ import au.net.zeus.jgdms.service.support.AbstractJiniService;
 // ... activation / lifecycle constructors elided ...
 
 @JiniService(
+        api       = TemperatureReadingService.class,  // the service (remote) API interface
         proxy     = ProxyType.DYNAMIC,        // DYNAMIC (default) | SMART
         codebase  = false,                    // no downloadable -dl jar to ship
         component = "com.example.sensor")     // config component for the wrapper
@@ -251,10 +263,9 @@ public class TemperatureServiceImpl
         return stub;
     }
 
-    @Override
-    protected Class<?>[] getServiceInterfaces() {
-        return new Class<?>[]{ TemperatureReadingService.class };
-    }
+    // getServiceInterfaces() is no longer hand-written: the processor (and
+    // AbstractJiniService at runtime) generate it from api() above, so it returns
+    // { TemperatureReadingService.class }.
 
     @Override
     public double currentCelsius() {
@@ -321,7 +332,9 @@ default.
   `AtomicSerial`-validated wire form, *not* the JOSS Java-serialization stream `BasicILFactory`
   would have given you;
 * the admin interfaces are appended by the framework, not by service-specific code that might
-  forget them.
+  forget them;
+* `getServiceInterfaces()` is generated from `api()`, not hand-written, so the client-facing
+  contract can't quietly drift out of sync with what the proxy actually implements.
 
 And — this is the whole point of the separation — *none of that moves security into code*.
 Integrity and Confidentiality are still declared in the deployment `.config`, still bound by the
