@@ -66,8 +66,13 @@ The public API interface stays clean — one method, no security types on it —
 temperature post, `@JiniService` does not go here: `proxy`, `codebase` and `component` are
 implementation/deployment choices, so the annotation lives on `RegionServiceImpl` below, not on
 this interface. (`api()` lives there too — it names `RegionTemperatureService` as the client
-contract the generated proxy exposes; left empty, as in the example below, it is *inferred* from
-the same `Remote`-extending interface, since that is all `RegionServiceImpl` implements.)
+contract the generated proxy exposes, and here it *must* be named explicitly: because this is a
+*translating* smart proxy, `RegionServiceImpl` implements only the internal wire interface
+`RegionProtocol` (below), *not* `RegionTemperatureService`, so the client contract cannot be
+inferred from the implementation. A translating SMART service — `proxy = SMART` with a distinct
+`protocol()` — that leaves `api()` empty is now *refused* at construction: `AbstractJiniService`
+throws `IllegalStateException` rather than silently advertising the wire interface as the service
+contract.)
 `proxy = ProxyType.SMART` is the whole difference: the enum's own javadoc calls
 SMART "a smart proxy whose behaviour is downloaded" and "the only shape for which the processor
 generates a constrainable, `@AtomicSerial` proxy class." `codebase = true` says the proxy's *code*
@@ -138,15 +143,32 @@ Two things are worth stressing, both enforced by the processor:
   deliberate: the security-load-bearing shell is *generated*, not hand-written, so you cannot get
   it subtly wrong. You write behaviour; the framework writes the safety.
 
-Because this delegate *translates* the public API into a distinct internal protocol
-(`protocol = RegionProtocol.class` differs from `api` — `RegionProtocol` is the developer-written
-wire interface declaring `rawCelsius`), the processor also generates a *backend interface*,
-`RegionTemperatureServiceBackend`, that the exported server stub implements: it aggregates
-`java.rmi.Remote`, the public API, and the required infrastructure interfaces
+Because this delegate *translates* the public API into a distinct internal protocol, `RegionProtocol`
+(`protocol = RegionProtocol.class`) is the real wire contract — the *internal service interface* in
+JGDMS-STD-009's terms, the analogue of Reggie's `Registrar` behind its public `ServiceRegistrar`. It
+is `RegionProtocol`, not `RegionTemperatureService`, that `RegionServiceImpl` implements and that the
+exported server stub carries: it extends `java.rmi.Remote`, declares the coarse wire method
+(`rawCelsius`), and aggregates the infrastructure interfaces every JGDMS stub must expose
 (`ServiceProxyAccessor`, `ServiceAttributesAccessor`, `ServiceIDAccessor`, `CodebaseAccessor`,
-`Administrable`, `JoinAdmin`, `DestroyAdmin`) under one `Remote` type. A non-translating smart
-proxy (`protocol == api`) gets no generated backend; this one does. (If you hand-write
-`RegionTemperatureServiceBackend` yourself, the processor validates it and does not regenerate it.)
+`Administrable`, `JoinAdmin`, `DestroyAdmin`) under that one `Remote` type, so admin and accessors
+ride the wire. The public `RegionTemperatureService` never appears on the wire at all — the smart
+proxy synthesises it on the client from cached `rawCelsius` readings. That split is exactly why
+`api()` must be declared: the server side implements only `RegionProtocol`, so there is nothing on
+the implementation to infer the client contract from.
+
+[NOTE]
+====
+*Honest status.* The type plumbing above is real today: the generated `create(...)`/constructor and
+the generated `<Api>Backend` are keyed off `protocol()`, not `api()`, and `api()` is declared and
+advertised through `getServiceInterfaces()` exactly as described. What is *not* yet wired is the
+translation itself. Bridging a disjoint method name — the client api's `smoothedCelsius()` to the
+wire protocol's `rawCelsius()` — is the job of the `@SmartProxy` delegate (`RegionSmartLogic`
+above), and that delegate mechanism has not landed: it is deferred follow-on work. Today's generated
+proxy is a *direct-forwarding* shape — it can forward a call to a same-named method on the server,
+but it cannot yet invoke a delegate that renames or recomputes it. So the `api`/`protocol` type split
+you see here is real and enforced at build time; the *behavioural* translation this post's example
+relies on is not end-to-end yet.
+====
 
 Only serialized *state* is a concern for the wire, and most smart proxies serialize only
 `{ server, proxyID }` — caches and endpoints are rebuilt lazily on the client — so the generated
@@ -167,7 +189,8 @@ class:
 * `implements` the public API (`RegionTemperatureService`), forwarding each method to a delegate
   instance rebuilt from the validated `server`;
 * exposes a fail-closed factory
-  `public static au.net.zeus.jgdms.proxy.AbstractSmartProxy create(RegionTemperatureService server, net.jini.id.Uuid proxyID)`.
+  `public static au.net.zeus.jgdms.proxy.AbstractSmartProxy create(RegionProtocol server, net.jini.id.Uuid proxyID)` —
+  the parameter is the *wire* stub (`RegionProtocol`), the object the impl actually exported.
 
 That factory is the crux. It *fails closed*: if `server` is not a `RemoteMethodControl`, it throws
 `IllegalArgumentException` rather than degrading to a plain, constraint-dropping proxy. There is no
@@ -208,6 +231,7 @@ the processor (and `AbstractJiniService` at runtime) generate it from `api()`. T
 ----
 package com.example.region;
 
+import java.rmi.RemoteException;
 import net.jini.id.Uuid;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 import au.net.zeus.jgdms.service.annotation.JiniService;
@@ -216,34 +240,41 @@ import au.net.zeus.jgdms.service.support.AbstractJiniService;
 // ... activation / lifecycle constructors elided ...
 
 @JiniService(
+        api       = RegionTemperatureService.class,  // DECLARED: the client contract the smart proxy exposes
         proxy     = ProxyType.SMART,           // download behaviour, run it on the client
         codebase  = true,                      // ship the proxy's code as a downloadable jar
+        protocol  = RegionProtocol.class,      // the internal wire interface this impl actually serves
         component = "com.example.region")      // config component for the service wrapper
 public class RegionServiceImpl
         extends AbstractJiniService
-        implements RegionTemperatureService {
+        implements RegionProtocol {            // the WIRE interface — NOT RegionTemperatureService
 
     static final String COMPONENT = "com.example.region";
 
     @Override
     protected Object createProxy(Object stub, Uuid serviceUuid) {
         // SMART (STD-009 §6 shape 3): hand the exported, constrainable server stub to
-        // the generated proxy's fail-closed factory. If the stub is not a
+        // the generated proxy's fail-closed factory. The stub is a RegionProtocol stub —
+        // that is the (wire) interface this impl implements. If it is not a
         // RemoteMethodControl (i.e. the service wasn't exported with a constrainable
         // endpoint), create(...) THROWS — it never returns a plain, constraint-dropping
         // proxy. The returned smart proxy is what the client downloads and runs.
         // The generated class is named Constrainable<Api>Proxy (processor derives
         // "Constrainable" + api.getSimpleName() + "Proxy"), in the api's package.
         return ConstrainableRegionTemperatureServiceProxy.create(
-                (RegionTemperatureService) stub, serviceUuid);
+                (RegionProtocol) stub, serviceUuid);
     }
 
-    // getServiceInterfaces() is generated, not hand-written: api() is left empty above, so
-    // the processor (and AbstractJiniService at runtime) infer it from the Remote-extending
-    // interfaces RegionServiceImpl implements — here, just RegionTemperatureService.
+    // getServiceInterfaces() is generated, not hand-written: it returns the DECLARED
+    // api() = { RegionTemperatureService }. It CANNOT be inferred here, because this impl
+    // implements only the wire interface RegionProtocol — which is precisely why api() must
+    // be declared, and why AbstractJiniService now refuses a translating SMART proxy whose
+    // api() is empty (fail-loud IllegalStateException).
 
-    // rawCelsius(...) etc. are served over the generated RegionTemperatureServiceBackend,
-    // which the exported stub implements; the smart-proxy delegate calls RegionProtocol.
+    @Override
+    public double rawCelsius(String stationId) throws RemoteException {
+        return readSensor(stationId);          // the raw wire read; the smart proxy smooths it client-side
+    }
 }
 ----
 
@@ -310,7 +341,7 @@ proxy carries:
 
 [source,groovy]
 ----
-import com.example.region.RegionTemperatureService
+import com.example.region.RegionProtocol
 import net.jini.core.constraint.Integrity
 import net.jini.core.constraint.Confidentiality
 import net.jini.core.constraint.ClientAuthentication
@@ -334,7 +365,7 @@ import org.apache.river.admin.DestroyAdmin
                     null
                 )
             ),
-            RegionTemperatureService.class,         // service class; the factory derives its ClassLoader
+            RegionProtocol.class,                    // wire interface the exported stub carries; the factory derives its ClassLoader
             [Administrable, JoinAdmin, DestroyAdmin] as Class[]
         ),
         false, true
