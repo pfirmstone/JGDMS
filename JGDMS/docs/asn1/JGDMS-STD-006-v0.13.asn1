@@ -431,13 +431,25 @@ StackTraceElement ::= SEQUENCE {
     lineNumber      INTEGER
 }
 
+-- SAFE SUBSET (RATIFIED 2026-07-06, spec section 7.6): only inert data travels
+-- (class NAME string, message, bounded stack, nested records). NO `clazz` Class,
+-- NO `perm` Permission, NO classname/length/eof; reflective-constructor
+-- reconstruction is EXCLUDED (gadget-adjacent). See spec section 7.6 Throwable note.
+--
+-- [0]/[1] IMPLICIT context tags on suppressed/cause: both are OPTIONAL and both
+-- would otherwise carry universal tag 0x30 (suppressed = SEQUENCE OF ...,
+-- cause = a ThrowableRecord SEQUENCE), so untagged they violate the X.680
+-- distinct-tag rule (section 4.5); they are indistinguishable when only one is
+-- present.
 ThrowableRecord ::= SEQUENCE {
-    className     UTF8String,
+    className     UTF8String,            -- class NAME only (not a Class object)
     message       UTF8String OPTIONAL,
     -- ORDER-SIGNIFICANT (section 3.8): stack frames are top-of-stack first
     stackTrace    SEQUENCE (SIZE(0..maxStackFrames)) OF StackTraceElement,
-    cause         ThrowableRecord OPTIONAL
-    -- acyclic; nesting <= maxCauseDepth
+    suppressed    [0] IMPLICIT SEQUENCE (SIZE(0..maxCollection)) OF ThrowableRecord OPTIONAL,
+    cause         [1] IMPLICIT ThrowableRecord OPTIONAL
+    -- suppressed[] and cause nest ThrowableRecords; depth <= maxCauseDepth /
+    -- MAX_NESTING, suppressed count <= maxCollection; acyclic (section 3.7/3.12).
 }
 
 -- Section 7.6 Permission: NOT a structured DER wire type.

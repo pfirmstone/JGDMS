@@ -32,6 +32,20 @@
 > a clearly-marked PLACEHOLDER; Zeus Project Services Pty Ltd will register an IANA PEN
 > and it MUST be replaced before v1.0.
 >
+> **Ratified follow-ups (2026-07-06).** §7.7.1 **hash-algorithm migration = Option B**
+> (RATIFIED): the mandatory `hashAlgorithm` version tag makes the scheme self-describing
+> (`1` = ATOMIC DER `SHA-256(DER(EntrySchemaRecord))`, `2` = legacy RULE-7 64-bit;
+> unknown = reject; match within one algorithm only; enumerant numbers still to pin).
+> §7.6 **`Throwable` = the SAFE SUBSET** (RATIFIED): only inert data travels —
+> `className` (name string), `message`, `stackTrace`, `suppressed[]`, `cause` (nested
+> `ThrowableRecord`s, `[0]`/`[1]` context-tagged for distinct-tag validity). The as-built
+> serializer's **reflective-constructor reconstruction is EXCLUDED** and its `clazz`
+> (`Class`), `perm` (`Permission`), and `classname`/`length`/`eof` fields are **dropped**
+> (gadget-adjacent; a `Permission`, if ever needed, follows the §7.6 string-form rule).
+> ASN.1 module updated (`ThrowableRecord` gains `suppressed`; both nesting fields
+> context-tagged) and re-validated (asn1tools, 55 types; both/cause-only/suppressed-only
+> round-trip).
+>
 > **Open-item resolution pass (2026-07-06)** — resolved the remaining `[OPEN]`
 > markers. **RATIFIED by Peter (2026-07-06):** §4.4 top-level discriminator is
 > **OID-rooted** (`TypedWireObject`, single discriminator per board H3; registrant Zeus
@@ -1881,7 +1895,7 @@ The irreducible substituted types requiring their own DER form:
 | `X500Principal` | `X500PrincipalSerializer` | `OCTET STRING` = `X500Principal.getEncoded()` — opaque & verbatim (§3.8), never re-encoded | **[RESOLVED — opaque octets; see note below]** |
 | `Date` | `DateSerializer` | `INTEGER` epoch-millis (`Date.getTime()`) | **[RATIFIED (Peter, 2026-07-06) — epoch-millis `INTEGER`, not `GeneralizedTime`]** |
 | `Permission` | *(none — `PermissionSerializer` DELETED 2026-06: reflective-gadget removal, JOSS engine audit)* | **NOT a structured DER type.** Either does not travel at all, or travels as its **textual string form** (`PermissionTextForm ::= UTF8String`) **re-parsed** through the trusted parser on decode | **[RATIFIED (Peter, 2026-07-06) — string-form + reparse; structured form withdrawn; see note]** |
-| `Throwable` | `ThrowableSerializer` | see below | **[PROPOSED — safe-subset `ThrowableRecord`; real serializer carries more, see note]** |
+| `Throwable` | `ThrowableSerializer` | bounded `ThrowableRecord` safe subset (name/message/stackTrace/suppressed/cause) — NO reflective reconstruction, NO `clazz`/`perm`; see below | **[RATIFIED (Peter, 2026-07-06) — safe subset; reflective path excluded]** |
 | `AccessControlContext` | `RemoteContextCodec` (jgdms-jeri) | §7.2 `AccessControlContextRecord` (reducing domains, codebases only) | reconciled §7.2 |
 
 **`Float` / `Double` / `Character` (strict-canonical, per STD-008 §17.3).** The boxed
@@ -1972,41 +1986,72 @@ source).**
   `declaringClass:String, methodName:String, fileName:String (nullable), lineNumber:int`;
   the spec's `SEQUENCE` matches. Resolved.
 
-**`Throwable` (security-sensitive — [PROPOSED], real serializer carries more).**
+**`Throwable` (security-sensitive — RATIFIED 2026-07-06: the SAFE SUBSET).**
 `Throwable` is a classic gadget vector under ordinary Java serialization; routing it
 through `ThrowableSerializer` rather than default serialization is a deliberate
-containment. The `ThrowableRecord` below is a proposed **safe, bounded subset**, and
-the cause chain is acyclic (§3.7) — a `Throwable` whose cause chain contained a cycle
-would be rejected:
+containment. **ATOMIC DER carries only the bounded, non-executable `ThrowableRecord`
+safe subset below** — it does **NOT** reproduce the as-built serializer's
+reflective-constructor reconstruction (see the exclusion note). The cause chain is
+acyclic (§3.7) — a `Throwable` whose cause chain contained a cycle would be rejected:
 
 ```asn1
+-- SAFE SUBSET (NORMATIVE). Only these fields travel; all are inert data (strings,
+-- ints, and nested records of the same shape). No Class object, no Permission, no
+-- reflective-reconstruction inputs.
 ThrowableRecord ::= SEQUENCE {
-    className     UTF8String,
+    className     UTF8String,            -- the throwable's class NAME only (not a Class object)
     message       UTF8String OPTIONAL,
     -- ORDER-SIGNIFICANT (§3.8): stack frames are top-of-stack first
     stackTrace    SEQUENCE SIZE(0..maxStackFrames) OF StackTraceElement,  -- §4.5
-    cause         ThrowableRecord OPTIONAL   -- acyclic; nesting <= maxCauseDepth (§4.5)
+    -- [0]/[1] IMPLICIT context tags (§4.5 distinct-tag rule): suppressed (SEQUENCE OF)
+    -- and cause (a ThrowableRecord SEQUENCE) are both OPTIONAL and both tag 0x30 —
+    -- untagged they are indistinguishable when only one is present.
+    -- suppressed exceptions, each a full ThrowableRecord; depth counts toward
+    -- maxCauseDepth / MAX_NESTING exactly as `cause` does (§4.5, §3.12).
+    suppressed    [0] IMPLICIT SEQUENCE SIZE(0..maxCollection) OF ThrowableRecord OPTIONAL,  -- §4.5
+    cause         [1] IMPLICIT ThrowableRecord OPTIONAL   -- acyclic; nesting <= maxCauseDepth (§4.5)
 }
 ```
 
-**[PROPOSED — needs ratification] `Throwable` reconstruction is broader than the safe
-subset.** The `ThrowableRecord` above is a *proposed* minimal shape. The as-built
+**Reflective reconstruction is EXCLUDED (NORMATIVE security rationale).** The as-built
 `ThrowableSerializer` (jgdms-platform, `org.apache.river.api.io.ThrowableSerializer`)
-in fact carries a wider `serialForm()`: `clazz` (a `Class`), `message`, `cause`,
-`stack` (`StackTraceElement[]`), `suppressed` (`Throwable[]`), plus `classname` /
-`length` / `eof` (to support `InvalidClassException` / `OptionalDataException` /
-`URISyntaxException`) and a `perm` (`Permission`) for `AccessControlException`. On
-decode it **reconstructs the throwable by reflectively selecting and invoking a
-constructor** (`init(...)`, `getDeclaredConstructor(...).setAccessible(true)`), keyed
-on the decoded `clazz`. This is a reflective construction surface — narrower than
-default Java serialization, but not field-only. **Peter's decisions needed:** (a) does
-the DER form keep the full field set (`suppressed`, `classname`/`length`/`eof`, `perm`)
-or restrict to the safe `ThrowableRecord` subset and drop the reflective-constructor
-reconstruction? (b) if `perm` (a `Permission`) is retained, it must follow the §7.6
-`Permission` string-form + reparse rule, not a structured field; (c) `suppressed[]` is
-itself a `SEQUENCE OF ThrowableRecord` and its depth participates in the `maxCauseDepth`
-/ `MAX_NESTING` bound. The `stackTrace`/`cause` bounds themselves (`maxStackFrames`=2048,
-`maxCauseDepth`=64, §4.5) still need their numbers confirmed (open item 21).
+reconstructs a throwable by **reflectively selecting and invoking a constructor** keyed
+on a decoded `Class` (`init(...)`, `clazz.getDeclaredConstructor(...).setAccessible(true).
+newInstance(...)`), and to that end carries extra fields — a `clazz` (`Class`),
+`classname` / `length` / `eof` (for `InvalidClassException` / `OptionalDataException` /
+`URISyntaxException`), and a `perm` (`Permission`, for `AccessControlException`).
+**ATOMIC DER does NOT admit any of this.** Driving constructor selection and reflective
+instantiation from wire-controlled state (a decoded class name plus decoded constructor
+arguments) is **gadget-adjacent**: it is exactly the "wire bytes choose which
+constructor runs, with attacker-supplied arguments" shape the format exists to remove
+(§2.1). Concretely:
+
+- **Dropped: `clazz` (the `Class`) and reflective constructor invocation.** Only the
+  class *name* string travels. A conforming decoder MUST NOT resolve that name to a
+  `Class` and invoke a constructor from it; the receiver constructs, at most, a single
+  fixed carrier type from the inert fields (a generic bounded throwable-shaped record),
+  never an arbitrary `clazz`-selected type. The class name is *data* (for logging /
+  diagnostics / a best-effort typed rebuild by trusted local code), not an instruction
+  to instantiate.
+- **Dropped: `perm` (`Permission`).** A `Permission` is authority-bearing (§7.5); it
+  MUST NOT travel as a structured field. If a future need arises to convey the permission
+  of an `AccessControlException`, it follows the §7.6 `Permission` rule — textual string
+  form, re-parsed — not a decoded `Permission` object fed to a constructor.
+- **Dropped: `classname` / `length` / `eof`.** These exist solely to feed the reflective
+  reconstruction of specific JDK exception subclasses (`InvalidClassException`,
+  `OptionalDataException`, `URISyntaxException`). With reflective reconstruction excluded
+  they carry no safe-subset meaning and are not transmitted. (Should a specific subclass's
+  extra state ever need to survive, it is added as a named, inert field with its own bound
+  — never as a reflective-constructor argument.)
+- **Kept: `className` (name), `message`, `stackTrace`, `suppressed[]`, `cause`.** All are
+  inert data: strings, bounded `StackTraceElement` records, and nested `ThrowableRecord`s.
+  Nothing here selects a constructor or conveys authority. `suppressed[]` and `cause`
+  nest `ThrowableRecord`s and their depth is bounded by `maxCauseDepth` / `MAX_NESTING`
+  (§3.12, §4.5); `stackTrace` by `maxStackFrames`; `suppressed[]` count by
+  `maxCollection`.
+
+The bound numbers themselves (`maxStackFrames`=2048, `maxCauseDepth`=64, §4.5; the
+`suppressed[]`/`maxCollection` cap) still need confirming (open item 21).
 
 **[OPEN → mostly RESOLVED] for §7.6 as a whole:**
 - **Complete substituted-type set (RESOLVED from source, with two additions).** Against
@@ -2031,8 +2076,11 @@ itself a `SEQUENCE OF ThrowableRecord` and its depth participates in the `maxCau
   `MarshalledObject` note above and open item 21).
 - `URL`/`URI`/`File`/`UID`/`Properties`/`StackTraceElement`: **RESOLVED from source**
   (see the note block above).
-- `Throwable`: safe-subset shape **[PROPOSED]**; bounds `maxStackFrames`/`maxCauseDepth`
-  (§4.5) numbers to confirm (open item 21).
+- `Throwable`: **RATIFIED 2026-07-06** — the bounded `ThrowableRecord` safe subset
+  (name/message/stackTrace/suppressed/cause); reflective-constructor reconstruction and
+  the `clazz`/`perm`/`classname`/`length`/`eof` fields are **excluded** (gadget-adjacent;
+  see the `Throwable` note above). Only the §4.5 bound *numbers*
+  (`maxStackFrames`/`maxCauseDepth`/`maxCollection`) remain to confirm (open item 21).
 
 ### 7.7 Jini Discovery/Registration Wire Types
 
@@ -2105,11 +2153,44 @@ different identities for the same `@SerialEntry` class. Three migration options:
 | Option | Mechanism | Impact |
 |---|---|---|
 | A | Registrar stores both hash forms during transition | No client changes; Registrar complexity increases |
-| B | `EntryRecord` carries a 1-byte hash algorithm version tag | Clean versioning; requires client and Registrar changes |
+| B | `EntryRecord` carries a hash-algorithm version tag | Clean versioning; requires client and Registrar changes |
 | C | DER Registrar only (new deployment); legacy Registrar retained for existing entries | No migration; two Registrar types coexist |
 
-**Recommendation: Option B.** A version tag is the cleanest long-term solution and
-makes the algorithm explicit in the wire format. **Confirm before implementation.**
+**RATIFIED (Peter, 2026-07-06): Option B.**
+
+**Option B restated (normative).** The wire carries an explicit **hash-algorithm
+version tag** as a field on every hashed record, so the hash scheme is self-describing
+and both the legacy 64-bit-truncated `writeUTF` hash and the ATOMIC DER
+`SHA-256(DER(EntrySchemaRecord))` hash can coexist and be told apart by inspection —
+never inferred. Concretely:
+
+- The version tag is the existing **`hashAlgorithm INTEGER (1..255)`** field already
+  present in `EntryRecord` (§7.7.2) and `EntryTemplate` (§7.7.5) — it is **mandatory,
+  no `DEFAULT`** (§4.5), so it is always transmitted and a divergent encoder cannot
+  silently omit it.
+- **Enumerant assignment (normative, closed set — unknown value is a fail-secure
+  reject, principle 6):**
+  - `hashAlgorithm = 1` → **ATOMIC DER**: `SHA-256(DER(EntrySchemaRecord))`, the full
+    32-byte hash over canonical DER with a recursive 32-byte `superclassHash` (§7.7.1).
+    This is the ATOMIC DER format's own scheme and the value a DER-native node writes.
+  - `hashAlgorithm = 2` → **legacy RULE-7**: the as-built SHA-256-over-`writeUTF`
+    scheme truncated to a 64-bit `long`, with a recursive 64-bit `superclassHash`
+    (source: `EntryClass.computeSerialEntryHash`). Reserved for interop with a legacy
+    Registrar's existing entries during transition; a DER-native node MUST NOT *emit*
+    it, but MUST recognise it on decode.
+  - other values → reserved; a decoder MUST reject an unrecognised `hashAlgorithm`.
+- **Matching is within one algorithm only.** Because Jini template matching is byte
+  equality on `schemaHash` (§7.7.2), an `EntryTemplate` and a stored `EntryRecord`
+  match **only when their `hashAlgorithm` values are equal** (already required by the
+  §7.7.5 comment "must match algorithm in stored `EntryRecord`"). A cross-algorithm
+  comparison is never attempted — the version tag makes that boundary explicit rather
+  than a silent mismatch.
+
+This makes the algorithm explicit in the wire format (the cleanest long-term choice)
+and is why the field is `INTEGER (1..255)` rather than a `DEFAULT`ed or absent value.
+Options A and C are not adopted. **The enumerant numbers above are [PROPOSED — confirm]
+(they need to be pinned before interop, like the other §4.5/enumerant numbers, open
+item 21); the *mechanism* — Option B, version tag in `hashAlgorithm` — is ratified.**
 
 #### 7.7.2 Entry Instances
 
@@ -2123,7 +2204,7 @@ EntryRecord ::= SEQUENCE {
     -- MANDATORY, no DEFAULT (§4.5): under DER a DEFAULT-valued component must be
     -- omitted, and a divergent encoder would silently break the byte-equality
     -- matching rule below.
-    hashAlgorithm   INTEGER (1..255),               -- 1 = SHA-256(DER(EntrySchemaRecord)); [OPEN: version tag per §7.7.1]
+    hashAlgorithm   INTEGER (1..255),               -- Option B version tag (§7.7.1, RATIFIED): 1 = ATOMIC DER SHA-256(DER(EntrySchemaRecord)), 2 = legacy RULE-7 64-bit; unknown = reject
     schemaHash      OCTET STRING (SIZE(32)),        -- identifies the @SerialEntry class
     -- ORDER-SIGNIFICANT (§3.8): fieldValues[i] corresponds to fields[i]
     -- in the EntrySchemaRecord identified by schemaHash.
@@ -2221,7 +2302,7 @@ ServiceItemRecord ::= SEQUENCE {
 }
 
 EntryTemplate ::= SEQUENCE {
-    hashAlgorithm INTEGER (1..255),               -- MANDATORY, no DEFAULT (§4.5); must match algorithm in stored EntryRecord
+    hashAlgorithm INTEGER (1..255),               -- Option B version tag (§7.7.1); MANDATORY, no DEFAULT (§4.5); MUST equal the stored EntryRecord's hashAlgorithm to match
     schemaHash    OCTET STRING (SIZE(32)),        -- identifies the @SerialEntry class to match
     -- ORDER-SIGNIFICANT (§3.8): fieldValues[i] matches fields[i].
     -- absent = wildcard (matches any value including null).
@@ -2886,11 +2967,13 @@ Consolidated list of every **[OPEN]** above, for the next working session:
    values always `String`). `Throwable` **[PROPOSED]** safe-subset vs the broader
    as-built reflective-construction serializer — Peter to choose field set.
    (`Float`/`Double`/`Character` RESOLVED — STD-008 §17.3.)
-9. §7.7.1 — **Hash algorithm migration [PROPOSED — Peter's call]**: algorithm
-   difference now **source-confirmed** (as-built = SHA-256 over `writeUTF` framing,
-   **truncated to 64-bit**, recursive 64-bit `superclassHash`; DER = full 32-byte
-   `SHA-256(DER(...))`). Settle Option A/B/C. Recommendation: Option B (version tag in
-   `EntryRecord`). Confirm before implementation.
+9. §7.7.1 — **Hash algorithm migration RATIFIED (Peter, 2026-07-06): Option B** — the
+   `hashAlgorithm INTEGER (1..255)` version tag on `EntryRecord`/`EntryTemplate`
+   (mandatory, no DEFAULT) makes the scheme self-describing: `1` = ATOMIC DER
+   `SHA-256(DER(EntrySchemaRecord))` (32-byte), `2` = legacy RULE-7 64-bit-truncated
+   `writeUTF` hash; unknown = reject; matching only within one algorithm. Algorithm
+   difference is source-confirmed (`EntryClass.computeSerialEntryHash`). **Enumerant
+   *numbers* [PROPOSED — confirm] (open item 21); the mechanism is ratified.**
 10. §7.7.1 — Confirm whether array-valued `EntryWireField` types (e.g. `String[]`)
     are permitted. If yes, encode as ORDER-SIGNIFICANT `SEQUENCE OF` per §3.8.
 11. §7.7.4 — Confirm `ServiceSpecRecord` operation set suffices for embedded device
