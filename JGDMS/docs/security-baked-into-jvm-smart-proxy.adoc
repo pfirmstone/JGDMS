@@ -335,7 +335,7 @@ import org.apache.river.admin.DestroyAdmin
                 )
             ),
             null,
-            RegionTemperatureService.classLoader,
+            RegionTemperatureService.class.getClassLoader(),
             [Administrable, JoinAdmin, DestroyAdmin] as Class[]
         ),
         false, true

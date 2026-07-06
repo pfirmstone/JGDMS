@@ -379,7 +379,7 @@ import org.apache.river.admin.DestroyAdmin
                 )
             ),
             null,
-            TemperatureReadingService.classLoader,
+            TemperatureReadingService.class.getClassLoader(),
             [Administrable, JoinAdmin, DestroyAdmin] as Class[]
         ),
         false, true
