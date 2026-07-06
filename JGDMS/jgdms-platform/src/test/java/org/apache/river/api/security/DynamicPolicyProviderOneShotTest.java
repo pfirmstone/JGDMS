@@ -215,6 +215,12 @@ public class DynamicPolicyProviderOneShotTest {
         OneShotLeasedPermissionGrant oneShot2 = new OneShotLeasedPermissionGrant(wrapped, lease, clock);
         assertEquals("two one-shot grants (same lease+wrapped) are equal", oneShot, oneShot2);
 
+        // impliesEquivalent (the permission-consolidation equivalence) is tightened to exact-class
+        // for the same reason: a one-shot escalation must never consolidate with a plain renewable
+        // grant, even when sharing a lease + wrapped grant. Symmetric — both directions false.
+        assertFalse("one-shot not impliesEquivalent to plain", oneShot.impliesEquivalent(plain));
+        assertFalse("plain not impliesEquivalent to one-shot (symmetric)", plain.impliesEquivalent(oneShot));
+
         // The security property — a renewable lease can never be mistaken FOR one-shot — is
         // enforced by the OneShot *type* (Case 1/2: only OneShot grants are surfaced by
         // impliesOnce, only non-OneShot grants contribute to implies), independent of equals.

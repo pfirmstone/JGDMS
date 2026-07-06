@@ -200,15 +200,19 @@ public class LeasedPermissionGrant extends PermissionGrant {
     }
 
     /**
-     * Two leased grants are equivalent only when both are leased by the
-     * <em>same</em> lease and their wrapped grants are equivalent.  A leased
-     * grant is deliberately NOT equivalent to its undecorated wrapped grant:
-     * treating them as equivalent would let external permission consolidation
-     * strip the lease constraint, widening authority past expiry.
+     * Two leased grants are equivalent (for permission consolidation) only when
+     * they are of the <em>same exact class</em>, leased by the <em>same</em>
+     * {@link Lease}, and their wrapped grants are equivalent. A leased grant is
+     * deliberately NOT equivalent to its undecorated wrapped grant (treating them
+     * as equivalent would let external permission consolidation strip the lease
+     * constraint, widening authority past expiry); and &mdash; consistent with
+     * {@link #equals} &mdash; the exact-class ({@code getClass()}) test keeps a
+     * one-shot escalation ({@link OneShotLeasedPermissionGrant}) from ever
+     * consolidating with a plain renewable leased grant in either direction.
      */
     @Override
     public boolean impliesEquivalent(PermissionGrant grant) {
-        if (!(grant instanceof LeasedPermissionGrant)) return false;
+        if (grant == null || grant.getClass() != this.getClass()) return false;
         LeasedPermissionGrant that = (LeasedPermissionGrant) grant;
         return this.lease == that.lease && decorated().impliesEquivalent(that.decorated());
     }
