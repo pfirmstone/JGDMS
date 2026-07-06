@@ -378,8 +378,7 @@ import org.apache.river.admin.DestroyAdmin
                     null
                 )
             ),
-            null,
-            TemperatureReadingService.class.getClassLoader(),
+            TemperatureReadingService.class,        // service class; the factory derives its ClassLoader
             [Administrable, JoinAdmin, DestroyAdmin] as Class[]
         ),
         false, true
