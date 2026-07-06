@@ -447,16 +447,27 @@ public abstract class AbstractJiniService
         if (api != null && api.length > 0) {
             return api.clone();
         }
-        // A translating SMART proxy (proxy=SMART with a distinct protocol()) exposes client
-        // interfaces via the downloaded proxy that the server impl does NOT implement — the
-        // impl implements the wire/protocol interface. Inference from the impl would
-        // misadvertise that wire interface, so require api() to be declared explicitly here.
-        if (ann.proxy() == ProxyType.SMART && ann.protocol() != Void.class) {
+        // A translating SMART proxy (proxy=SMART with a distinct, non-empty protocol[])
+        // exposes client interfaces via the downloaded proxy that the server impl does
+        // NOT implement — the impl implements the wire/protocol interface(s). Inference
+        // from the impl would misadvertise those wire interfaces, so require api() to be
+        // declared explicitly here.  protocol() is now Class<?>[] (default {}); reaching
+        // this branch means api() is already empty, so ANY non-empty protocol[] is
+        // distinct from the (empty) api set and triggers the fail-fast.
+        Class<?>[] protocol = ann.protocol();
+        if (ann.proxy() == ProxyType.SMART && protocol != null && protocol.length > 0) {
+            StringBuilder names = new StringBuilder();
+            for (int i = 0; i < protocol.length; i++) {
+                if (i > 0) {
+                    names.append(", ");
+                }
+                names.append(protocol[i].getName());
+            }
             throw new IllegalStateException(
                     "@" + JiniService.class.getSimpleName() + " on " + concrete.getName()
-                    + " is a translating SMART proxy (proxy=SMART, protocol=" + ann.protocol().getName()
-                    + ") with an empty api(); the client service interface(s) cannot be inferred from the"
-                    + " implementation, which implements the wire/protocol interface. Declare api() explicitly.");
+                    + " is a translating SMART proxy (proxy=SMART, protocol=[" + names
+                    + "]) with an empty api(); the client service interface(s) cannot be inferred from the"
+                    + " implementation, which implements the wire/protocol interface(s). Declare api() explicitly.");
         }
         // Infer ALL service interfaces via the shared classifier (D2, D6): every
         // implemented Remote interface minus the bootstrap accessors and Remote.

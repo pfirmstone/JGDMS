@@ -798,11 +798,25 @@ public class ServiceProxyProcessorTest {
                 + "   public int bar(int n) throws RemoteException { return n; } }");
         ProcessorHarness.Result gen = h.run();
         assertFalse(gen.allMessages(), gen.hasAnyError());
+        // A multi-element wire set has no single interface able to name it, so the
+        // framework aggregates it: the COMBINING backend <PrimaryApi>Backend is
+        // generated (extends Remote + every api + infra) and the proxy's create()/ctor
+        // take that aggregate type.
+        String backend = gen.generated.get("multi.FooBackend");
+        assertTrue("combining backend must be generated for a multi-api SMART service; got "
+                + gen.generated.keySet(), backend != null);
+        String bext = backend.substring(backend.indexOf("extends"), backend.indexOf(" {"));
+        assertTrue("backend aggregates BOTH api interfaces (thin: api IS the wire): " + bext,
+            bext.contains("multi.Foo") && bext.contains("multi.Bar"));
         String proxy = gen.generated.get("multi.ConstrainableFooProxy");
         assertTrue("proxy is named after the PRIMARY api; got " + gen.generated.keySet(),
             proxy != null);
         assertTrue("implements BOTH api interfaces:\n" + proxy,
             proxy.contains("implements multi.Foo, multi.Bar"));
+        assertTrue("create() takes the aggregate backend:\n" + proxy,
+            proxy.contains("create(multi.FooBackend server, net.jini.id.Uuid proxyID)"));
+        assertTrue("ctor takes the aggregate backend:\n" + proxy,
+            proxy.contains("public ConstrainableFooProxy(multi.FooBackend server,"));
         assertTrue("forwards foo() through Foo:\n" + proxy,
             proxy.contains("return ((multi.Foo) server).foo(s);"));
         assertTrue("forwards bar() through Bar:\n" + proxy,
@@ -810,6 +824,114 @@ public class ServiceProxyProcessorTest {
         ProcessorHarness.Result compiled = h.compileGenerated(gen);
         assertTrue("multi-interface proxy must compile:\n" + compiled.allMessages()
                 + "\n" + proxy, compiled.success);
+    }
+
+    @Test
+    public void smartMultiProtocolTranslatingAggregatesAllProtocols() {
+        // A SMART service that TRANSLATES its public api into MULTIPLE distinct wire
+        // protocols: the framework aggregates the whole protocol[] under the generated
+        // <Api>Backend (extends Remote + every protocol + infra, and NOT the api), and
+        // the proxy's create()/ctor take that aggregate backend.  The proxy still
+        // IMPLEMENTS the public api and forwards through the aggregate wire type.
+        ProcessorHarness h = new ProcessorHarness()
+            .add("multi.WireA",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface WireA extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .add("multi.WireB",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface WireB extends Remote {"
+                + "   int ping() throws RemoteException; }")
+            .add("multi.HelloService",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException;"
+                + "   int ping() throws RemoteException; }")
+            // impl implements only the WIRE interfaces (Registrar-style); the disjoint
+            // public api is advertised via the downloaded smart proxy.
+            .add("multi.HelloServiceImpl",
+                "package multi; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART,"
+                + "     protocol = { WireA.class, WireB.class })"
+                + " public class HelloServiceImpl implements WireA, WireB {"
+                + "   public String greet(String name) throws RemoteException { return name; }"
+                + "   public int ping() throws RemoteException { return 0; } }");
+        ProcessorHarness.Result r = h.run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+        String backend = r.generated.get("multi.HelloServiceBackend");
+        assertTrue("backend must aggregate the multi-protocol wire set; got "
+                + r.generated.keySet(), backend != null);
+        String ext = backend.substring(backend.indexOf("extends"), backend.indexOf(" {"));
+        assertTrue("backend aggregates BOTH wire protocols: " + ext,
+            ext.contains("multi.WireA") && ext.contains("multi.WireB"));
+        assertFalse("backend must NOT aggregate the disjoint public api: " + ext,
+            ext.contains("multi.HelloService"));
+        String proxy = r.generated.get("multi.ConstrainableHelloServiceProxy");
+        assertTrue("proxy must be generated; got " + r.generated.keySet(), proxy != null);
+        assertTrue("create() takes the aggregate backend (no single wire type names the set):\n"
+                + proxy, proxy.contains("create(multi.HelloServiceBackend server, net.jini.id.Uuid proxyID)"));
+        assertTrue("ctor takes the aggregate backend:\n" + proxy,
+            proxy.contains("public ConstrainableHelloServiceProxy(multi.HelloServiceBackend server,"));
+        assertTrue("proxy implements the public api:\n" + proxy,
+            proxy.contains("implements multi.HelloService"));
+        assertTrue("setConstraints re-wraps via the aggregate backend cast:\n" + proxy,
+            proxy.contains("(multi.HelloServiceBackend) server"));
+        // The whole translating chain compiles: the aggregate backend extends both
+        // wire interfaces, so ((HelloServiceBackend) server).greet / .ping resolve.
+        ProcessorHarness.Result compiled = h.compileGenerated(r);
+        assertTrue("multi-protocol translating proxy must compile:\n"
+                + compiled.allMessages() + "\n--- backend ---\n" + backend
+                + "\n--- proxy ---\n" + proxy, compiled.success);
+    }
+
+    @Test
+    public void smartProxyDelegateMissingOneOfMultipleApisIsError() {
+        // @SmartProxy api() is now Class<?>[]: the delegate must implement EVERY
+        // declared api interface.  Implementing only one of two -> fail-closed.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .option("-Aserviceproxy.validateOnly")
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   String foo(String s) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   int bar(int n) throws RemoteException; }")
+            .add("hello.HelloSmartLogic",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy(api = { Foo.class, Bar.class })"
+                + " public final class HelloSmartLogic implements Foo {"  // missing Bar
+                + "   public String foo(String s) throws RemoteException { return s; } }")
+            .run();
+        assertTrue(r.allMessages(),
+            r.hasError("must implement its declared api hello.Bar"));
+    }
+
+    @Test
+    public void smartProxyDelegateImplementingAllApisIsClean() {
+        // The dual of the above: a delegate implementing BOTH declared api interfaces
+        // validates cleanly.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .option("-Aserviceproxy.validateOnly")
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   String foo(String s) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   int bar(int n) throws RemoteException; }")
+            .add("hello.HelloSmartLogic",
+                "package hello; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy(api = { Foo.class, Bar.class })"
+                + " public final class HelloSmartLogic implements Foo, Bar {"
+                + "   public String foo(String s) throws RemoteException { return s; }"
+                + "   public int bar(int n) throws RemoteException { return n; } }")
+            .run();
+        assertFalse(r.allMessages(), r.hasAnyError());
     }
 
     @Test

@@ -168,15 +168,15 @@ final class ProcessorHarness {
                 + "   Class<?>[] api() default {};"
                 + "   ProxyType proxy() default ProxyType.DYNAMIC;"
                 + "   boolean codebase() default false;"
-                + "   Class<?> protocol() default Void.class;"
+                + "   Class<?>[] protocol() default {};"
                 + "   String component() default \"\"; }");
         addStub("au.net.zeus.jgdms.service.annotation.SmartProxy",
                 "package au.net.zeus.jgdms.service.annotation;"
                 + " import java.lang.annotation.*;"
                 + " @Retention(RetentionPolicy.SOURCE) @Target(ElementType.TYPE)"
                 + " public @interface SmartProxy {"
-                + "   Class<?> api();"
-                + "   Class<?> protocol() default Void.class; }");
+                + "   Class<?>[] api();"
+                + "   Class<?>[] protocol() default {}; }");
     }
 
     ProcessorHarness addStub(String fqn, String code) {

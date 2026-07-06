@@ -124,16 +124,26 @@ final class ServiceModel {
      */
     final List<ExecutableElement> apiMethods = new ArrayList<>();
 
-    /** Resolved internal wire interface ({@code protocol}); defaults to {@link #api}. */
-    TypeMirror protocol;
+    /**
+     * The resolved internal wire ({@code protocol}) interface(s).  When
+     * {@code protocol()} is empty (or names exactly the {@link #apiInterfaces api}
+     * set) this holds the api interface types (non-translating); when a distinct
+     * translating protocol is declared it holds those wire interface types.  A wire
+     * set of more than one element has no single Java type able to name it, so the
+     * generated aggregate {@link #backendSimpleName <Api>Backend} is used as the
+     * combined wire type in that case (see {@code ServiceProxyProcessor}).
+     */
+    final List<TypeMirror> protocol = new ArrayList<>();
 
     /**
-     * True when {@code protocol()} was left at its default ({@code Void.class}),
-     * i.e. the internal wire interface is the public API itself ({@code protocol
-     * == api}).  A do-nothing DYNAMIC proxy has {@code protocol == api} and needs
-     * NO generated backend interface: the API interface is already the wire
-     * interface (JGDMS-STD-009 §6, shapes 1 &amp; 2).  A generated backend interface
-     * is emitted only for the translating case {@code protocol != api}.
+     * True when the internal wire {@code protocol()} is the public API itself —
+     * {@code protocol()} left empty, or naming exactly the {@link #apiInterfaces
+     * api} set (an erased-type set comparison).  A do-nothing DYNAMIC proxy has
+     * {@code protocol == api} and needs NO generated backend interface: the API
+     * interface is already the wire interface (JGDMS-STD-009 §6, shapes 1 &amp; 2).
+     * A generated backend interface is emitted for the translating case
+     * ({@code protocol != api}) and, so the generated SMART proxy has a single type
+     * to name a multi-element wire set, when the wire set has &gt; 1 interface.
      */
     boolean protocolIsApi = true;
 
@@ -209,7 +219,7 @@ final class ServiceModel {
     static ServiceModel of(TypeElement impl, Elements elements, Types types, Messager messager) {
         // Read @JiniService members off the implementation class.
         AnnotationMirror ann = annotation(impl, ServiceProxyProcessor.JINI_SERVICE);
-        TypeMirror protocol = null;
+        List<TypeMirror> protocolTypes = new ArrayList<>();
         String component = "";
         ProxyType proxyType = ProxyType.DYNAMIC;
         boolean codebase = false;
@@ -223,9 +233,11 @@ final class ServiceModel {
                         collectClassArray(av, apiTypes);
                         break;
                     case "protocol":
-                        if (av.getValue() instanceof TypeMirror) {
-                            protocol = (TypeMirror) av.getValue();
-                        }
+                        // protocol() is now Class<?>[] (default {}); collectClassArray
+                        // handles both an array literal and a single value.  Void.class
+                        // is filtered out so a stale/explicit Void collapses to "empty".
+                        collectClassArray(av, protocolTypes);
+                        protocolTypes.removeIf(ServiceModel::isVoid);
                         break;
                     case "component":
                         component = String.valueOf(av.getValue());
@@ -289,17 +301,21 @@ final class ServiceModel {
                 }
             }
         }
-        // protocol default (Void.class) means "same as the annotated API".  A
-        // distinct protocol is the translating-smart-proxy signal that gates
+        // protocol default (empty {}) means "same as the annotated API".  A
+        // distinct protocol set is the translating-smart-proxy signal that gates
         // backend-interface generation (protocol != api); the do-nothing default
         // leaves protocolIsApi true so no backend is generated (§6 shapes 1 & 2).
-        if (protocol == null || isVoid(protocol)) {
-            m.protocol = api.asType();
+        // protocolIsApi is a SET comparison: the protocol[] is empty, or it names
+        // exactly the api[] set (erased).  The wire list (m.protocol) then holds the
+        // api interface types (non-translating) or the declared protocol types.
+        if (protocolTypes.isEmpty() || sameErasedSet(protocolTypes, apis, types)) {
+            for (TypeElement a : apis) {
+                m.protocol.add(a.asType());
+            }
             m.protocolIsApi = true;
         } else {
-            m.protocol = protocol;
-            m.protocolIsApi = types.isSameType(types.erasure(protocol),
-                                               types.erasure(api.asType()));
+            m.protocol.addAll(protocolTypes);
+            m.protocolIsApi = false;
         }
         m.component = component;
         // proxy gates constrainable proxy-class generation (SMART only, §6 shape
@@ -475,6 +491,26 @@ final class ServiceModel {
             }
         }
         return false;
+    }
+
+    /**
+     * True iff the declared {@code protocol[]} names exactly the {@code api[]} set,
+     * compared by erased qualified type name (order-independent).  Used to fold a
+     * redundant {@code protocol()} that merely restates the api into the
+     * non-translating (thin) case, so {@code protocolIsApi} stays a set comparison
+     * rather than a positional one.
+     */
+    private static boolean sameErasedSet(List<TypeMirror> protocolTypes,
+                                         List<TypeElement> apis, Types types) {
+        Set<String> a = new java.util.LinkedHashSet<>();
+        for (TypeElement e : apis) {
+            a.add(types.erasure(e.asType()).toString());
+        }
+        Set<String> p = new java.util.LinkedHashSet<>();
+        for (TypeMirror tm : protocolTypes) {
+            p.add(types.erasure(tm).toString());
+        }
+        return a.equals(p);
     }
 
     /** A dedup key for a method: simple name + erased parameter type names. */

@@ -258,7 +258,21 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         // packaging are a deferred design pass.  model.codebase() is read and
         // stored but does not gate generation.  Wrapper (P4) and smart-proxy
         // shell (P3) generation land in later phases.
-        if (!model.protocolIsApi() && !model.backendHandWritten) {
+        // A backend (aggregate wire interface) is generated:
+        //   (i)  TRANSLATING -- protocol != api (existing rule, DYNAMIC or SMART);
+        //        OR
+        //   (ii) COMBINING -- a SMART service whose wire set has MORE THAN ONE
+        //        interface (multi-api thin, or multi-protocol translating).  The
+        //        generated SMART proxy's create()/ctor need a SINGLE Java type to
+        //        name the whole wire set; no single interface can, so the aggregate
+        //        <Api>Backend is emitted and used as that type.  A DYNAMIC service
+        //        generates no proxy, so it needs no combining backend (its exported
+        //        java.lang.reflect.Proxy already carries every interface).
+        // Either way, a hand-written backend of the conventional name suppresses
+        // generation (the processor validates it instead).
+        boolean combiningBackend =
+                model.proxyType() == ServiceModel.ProxyType.SMART && model.protocol.size() > 1;
+        if ((!model.protocolIsApi() || combiningBackend) && !model.backendHandWritten) {
             writeBackend(model);
         }
         if (model.proxyType() == ServiceModel.ProxyType.SMART) {
@@ -383,11 +397,15 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
      * consistent.
      */
     private void validateSmartProxy(TypeElement delegate) {
-        TypeMirror apiType = annotationClassValue(delegate, SMART_PROXY, "api");
-        if (apiType != null && !implementsType(delegate.asType(), typeName(apiType))) {
-            messager.printMessage(Kind.ERROR,
-                "@SmartProxy delegate " + delegate.getQualifiedName()
-                + " must implement its declared api " + typeName(apiType) + ".", delegate);
+        // api() is now Class<?>[]: the delegate must implement EVERY declared api
+        // interface (the generated shell forwards the method set across all of them).
+        java.util.List<TypeMirror> apiTypes = annotationClassArrayValue(delegate, SMART_PROXY, "api");
+        for (TypeMirror apiType : apiTypes) {
+            if (!implementsType(delegate.asType(), typeName(apiType))) {
+                messager.printMessage(Kind.ERROR,
+                    "@SmartProxy delegate " + delegate.getQualifiedName()
+                    + " must implement its declared api " + typeName(apiType) + ".", delegate);
+            }
         }
         // A @SmartProxy delegate should not itself be @AtomicSerial (the
         // generated shell is the wire type, not the delegate) -- flagged only as
@@ -419,15 +437,18 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
          .append(" */\n");
         b.append("public interface ").append(simple).append("\n")
          .append("        extends ").append(REMOTE);
-        // Aggregate the internal wire PROTOCOL, not the public api (JGDMS-STD-009 §4,
-        // "Reggie Registrar vs ServiceRegistrar"): the service IMPL implements only
-        // the wire/protocol interface, so the exported JERI stub -- and therefore
-        // this backend it carries -- exposes the wire contract plus the infra.  The
-        // public api is disjoint, declared, and advertised only via the downloaded
-        // smart proxy (getServiceInterfaces() returns the api; the impl never
-        // implements it).  writeBackend runs only in the translating case
-        // (!protocolIsApi()), so m.protocol is always the distinct wire interface here.
-        b.append(",\n                ").append(typeName(m.protocol));
+        // Aggregate the internal wire PROTOCOL set, not the public api (JGDMS-STD-009
+        // §4, "Reggie Registrar vs ServiceRegistrar"): in the translating case the
+        // service IMPL implements only the wire/protocol interface(s), so the
+        // exported JERI stub -- and therefore this backend it carries -- exposes the
+        // wire contract plus the infra; the disjoint public api is advertised only
+        // via the downloaded smart proxy.  In the COMBINING case (multi-element thin
+        // wire set, protocol == api) m.protocol holds the api interface types, so the
+        // backend legitimately aggregates them (thin: the api IS the wire).  Either
+        // way m.protocol is the resolved wire set (never empty).
+        for (TypeMirror wire : m.protocol) {
+            b.append(",\n                ").append(typeName(wire));
+        }
         for (String infra : BACKEND_INFRA) {
             b.append(",\n                ").append(infra);
         }
@@ -454,18 +475,22 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         String apiSimple = m.api.getSimpleName().toString();
         // The proxy IMPLEMENTS the public api (its client-facing forwarding
         // methods) but its create()/ctor server parameter is typed as the wire
-        // PROTOCOL, because the deserialized/exported server stub is a protocol
-        // instance (the impl implements only the wire interface -- JGDMS-STD-009
-        // §4).  In the thin one-to-one case (protocol == api) `protocol` resolves
-        // to the same fully-qualified name as `api`, so the emitted text is
-        // byte-identical; only the translating case (protocol != api) differs, and
-        // keying create/ctor off protocol keeps the whole chain (the setConstraints
-        // `(protocol) server` cast, the forwarding `(protocol) server` casts, and
-        // the @SmartProxy delegate ctor which likewise takes the protocol) type-
-        // consistent -- previously create/ctor took api while setConstraints/
-        // forwarding cast to protocol, which fails to compile / ClassCastExceptions
-        // for a disjoint api != protocol translation.
-        String protocol = typeName(m.protocol);
+        // set, because the deserialized/exported server stub is a wire instance
+        // (the impl implements only the wire interface(s) -- JGDMS-STD-009 §4):
+        //
+        //   - a wire set of exactly ONE interface is named by that single interface
+        //     (thin single-api -> the api; translating single-protocol -> the
+        //     protocol), keeping the emitted text byte-identical to the pre-array
+        //     generator;
+        //   - a wire set of MORE THAN ONE interface has no single Java type able to
+        //     name it, so the generated aggregate <Api>Backend (which extends every
+        //     wire interface + infra) is used as the server type.
+        //
+        // Keying create/ctor off this server type keeps the whole chain (the
+        // setConstraints `(serverType) server` cast, the forwarding casts, and the
+        // @SmartProxy delegate ctor which likewise takes the wire type) type-
+        // consistent for both the thin and the translating cases.
+        String serverType = serverType(m);
         String simple = "Constrainable" + apiSimple + "Proxy";
         String fqn = pkg.isEmpty() ? simple : pkg + "." + simple;
 
@@ -519,7 +544,7 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
          .append("     *         {@link ").append(REMOTE_METHOD_CONTROL).append("}\n")
          .append("     */\n");
         b.append("    public static ").append(ABSTRACT_SMART_PROXY)
-         .append(" create(").append(protocol).append(" server, net.jini.id.Uuid proxyID) {\n");
+         .append(" create(").append(serverType).append(" server, net.jini.id.Uuid proxyID) {\n");
         b.append("        if (!(server instanceof ").append(REMOTE_METHOD_CONTROL).append(")) {\n");
         b.append("            throw new IllegalArgumentException(\n");
         b.append("                \"service must be exported with a constrainable endpoint: \"\n");
@@ -539,7 +564,7 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
          .append("     * @param proxyID     the service's stable unique identifier\n")
          .append("     * @param constraints per-method constraints, or {@code null}\n")
          .append("     */\n");
-        b.append("    public ").append(simple).append("(").append(protocol)
+        b.append("    public ").append(simple).append("(").append(serverType)
          .append(" server, net.jini.id.Uuid proxyID,\n")
          .append("            net.jini.core.constraint.MethodConstraints constraints) {\n");
         b.append("        super(server, proxyID, constraints);\n");
@@ -564,7 +589,7 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         b.append("    public ").append(REMOTE_METHOD_CONTROL)
          .append(" setConstraints(net.jini.core.constraint.MethodConstraints constraints) {\n");
         b.append("        return new ").append(simple).append("(\n");
-        b.append("                (").append(protocol).append(") server, getReferentUuid(), constraints);\n");
+        b.append("                (").append(serverType).append(") server, getReferentUuid(), constraints);\n");
         b.append("    }\n");
 
         // Forwarding methods -- every public API method across all api interfaces,
@@ -575,7 +600,7 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
         // a sibling interface).  For a translating smart proxy (protocol != api)
         // every method is forwarded through the distinct internal wire protocol.
         for (ExecutableElement method : m.apiMethods) {
-            String castType = m.protocolIsApi() ? declaringTypeName(method) : protocol;
+            String castType = m.protocolIsApi() ? declaringTypeName(method) : serverType;
             b.append('\n');
             b.append("    @Override\n");
             b.append("    ").append(renderMethodSignature(method)).append(" {\n");
@@ -657,6 +682,30 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
             }
         }
         return sb.toString();
+    }
+
+    /**
+     * The single Java type that names the generated SMART proxy's {@code server}
+     * (the create()/ctor parameter, the setConstraints and translating-forwarding
+     * cast target):
+     * <ul>
+     *   <li>a wire set of exactly ONE interface is named by that interface (thin
+     *       single-api → the api; translating single-protocol → the protocol),
+     *       keeping the emitted proxy byte-identical to the pre-array generator;</li>
+     *   <li>a wire set of MORE THAN ONE interface has no single interface able to
+     *       name it, so the aggregate {@code <Api>Backend} (which extends every wire
+     *       interface + infra, and which is generated or hand-written) is used.</li>
+     * </ul>
+     */
+    private String serverType(ServiceModel m) {
+        if (m.protocol.size() == 1) {
+            return typeName(m.protocol.get(0));
+        }
+        if (m.proxyHandWrittenBackend != null) {
+            return m.proxyHandWrittenBackend.getQualifiedName().toString();
+        }
+        String pkg = elements.getPackageOf(m.api).getQualifiedName().toString();
+        return pkg.isEmpty() ? m.backendSimpleName : pkg + "." + m.backendSimpleName;
     }
 
     /**
@@ -793,5 +842,40 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
             }
         }
         return null;
+    }
+
+    /**
+     * Reads a {@code Class<?>[]}-valued annotation member as a list of
+     * {@code TypeMirror} (survives the {@code MirroredTypesException} that reading
+     * live {@code Class} values would throw).  Tolerates a single (auto-wrapped)
+     * value as a one-element list.  {@code java.lang.Void} entries are filtered out
+     * so a stale/explicit {@code Void.class} collapses to "empty".
+     */
+    private java.util.List<TypeMirror> annotationClassArrayValue(Element e, String annFqn, String member) {
+        java.util.List<TypeMirror> out = new java.util.ArrayList<>();
+        for (javax.lang.model.element.AnnotationMirror am : e.getAnnotationMirrors()) {
+            if (!isType(am.getAnnotationType(), annFqn)) {
+                continue;
+            }
+            for (var en : am.getElementValues().entrySet()) {
+                if (!en.getKey().getSimpleName().contentEquals(member)) {
+                    continue;
+                }
+                Object v = en.getValue().getValue();
+                if (v instanceof java.util.List<?>) {
+                    for (Object o : (java.util.List<?>) v) {
+                        if (o instanceof javax.lang.model.element.AnnotationValue) {
+                            Object inner = ((javax.lang.model.element.AnnotationValue) o).getValue();
+                            if (inner instanceof TypeMirror && !isType((TypeMirror) inner, "java.lang.Void")) {
+                                out.add((TypeMirror) inner);
+                            }
+                        }
+                    }
+                } else if (v instanceof TypeMirror && !isType((TypeMirror) v, "java.lang.Void")) {
+                    out.add((TypeMirror) v);
+                }
+            }
+        }
+        return out;
     }
 }

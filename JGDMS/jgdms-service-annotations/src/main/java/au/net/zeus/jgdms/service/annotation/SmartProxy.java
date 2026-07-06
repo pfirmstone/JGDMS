@@ -77,26 +77,34 @@ import java.lang.annotation.Target;
 public @interface SmartProxy {
 
     /**
-     * The public API interface this delegate implements — the client-facing
+     * The public API interface(s) this delegate implements — the client-facing
      * contract the generated proxy shell exposes and forwards to the delegate.
      *
-     * @return the public API interface
+     * <p>An <em>array</em>: list several interfaces directly and the delegate must
+     * implement <em>every</em> one of them (the generated shell forwards the method
+     * set across all of them).  There is no default: at least one api interface is
+     * required.
+     *
+     * @return the public API interface(s)
      */
-    Class<?> api();
+    Class<?>[] api();
 
     /**
-     * The internal service (backend / wire) interface the delegate's constructor
+     * The internal service (backend / wire) interface(s) the delegate's constructor
      * accepts — the typed {@code server} reference reconstructed from the
      * validated deserialized stub.
      *
-     * <p>Defaults to {@link Void Void.class}, interpreted by the processor as
-     * "same as {@link #api()}" (the delegate takes the public API interface as
+     * <p>An <em>array</em>: when several wire interfaces are named the framework
+     * aggregates them under the generated {@code <Api>Backend} type, which is the
+     * type the delegate's {@code server} parameter then takes.
+     *
+     * <p>Defaults to the empty array {@code {}}, interpreted by the processor as
+     * "same as {@link #api()}" (the delegate takes the public API interface(s) as
      * its {@code server}).
      *
-     * @return the internal wire interface, or {@code Void.class} to default to
-     *         {@link #api()}
+     * @return the internal wire interface(s), or empty to default to {@link #api()}
      */
-    Class<?> protocol() default Void.class;
+    Class<?>[] protocol() default {};
 
     /**
      * Declares a field of durable proxy state that the generated shell must

@@ -138,20 +138,27 @@ public @interface JiniService {
     Class<?>[] api() default {};
 
     /**
-     * The internal service (backend / wire) interface the exported server stub
+     * The internal service (backend / wire) interface(s) the exported server stub
      * implements and the generated proxy invokes on its {@code server}
      * reference.
      *
-     * <p>Defaults to {@link Void Void.class}, which the processor interprets as
-     * "same as the {@link #api()} interface" — the thin, one-to-one forwarding
-     * case, where the public API and the wire interface coincide.  Supply a
-     * distinct interface when the proxy translates public-API calls into a coarser
-     * or finer internal protocol (a smart proxy).
+     * <p>An <em>array</em>: list several wire interfaces directly and the
+     * framework combines them — the processor generates the single aggregate
+     * {@code <Api>Backend} {@link java.rmi.Remote} interface that extends every
+     * element (plus the fixed JGDMS infrastructure accessors), so the developer
+     * never hand-writes an aggregate super-interface just to bundle them.
      *
-     * @return the internal wire interface, or {@code Void.class} to default to
-     *         the {@link #api()} interface
+     * <p>Defaults to the empty array {@code {}}, which the processor interprets as
+     * "same as the {@link #api()} interface(s)" — the thin, one-to-one forwarding
+     * case, where the public API and the wire interface coincide.  Supply distinct
+     * interface(s) when the proxy translates public-API calls into a coarser or
+     * finer internal protocol (a smart proxy).  Naming exactly the {@link #api()}
+     * set is also treated as non-translating.
+     *
+     * @return the internal wire interface(s); empty (the default) to default to
+     *         the {@link #api()} interface(s)
      */
-    Class<?> protocol() default Void.class;
+    Class<?>[] protocol() default {};
 
     /**
      * The configuration component name passed to the generated service wrapper's
