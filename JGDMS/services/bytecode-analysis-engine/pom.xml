@@ -33,7 +33,6 @@
     <name>Module :: Bytecode Analysis Engine</name>
 
     <modules>
-        <module>bytecode-analysis-engine-dl</module>
         <module>bytecode-analysis-engine-service</module>
     </modules>
 </project>

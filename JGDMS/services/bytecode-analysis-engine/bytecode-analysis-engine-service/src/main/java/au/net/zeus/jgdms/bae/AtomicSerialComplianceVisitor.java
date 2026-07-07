@@ -388,12 +388,6 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
      * runtime type of the deserialized value is never verified before the
      * object is fully constructed.
      *
-     * <p>Example of the correct pattern (from
-     * {@code BytecodeAnalysisEngineProxy.check()}):
-     * <pre>
-     *   BytecodeAnalysisEngineProxy sup = new BytecodeAnalysisEngineProxy(arg, true);
-     *   if (sup.server instanceof BytecodeAnalysisEngine ...) return true;
-     * </pre>
      * <p>An {@code instanceof} check (or explicit {@code CHECKCAST}) makes
      * the type exception fire in the static check method — before construction
      * — which is safe.  A bare null-check with no type verification is

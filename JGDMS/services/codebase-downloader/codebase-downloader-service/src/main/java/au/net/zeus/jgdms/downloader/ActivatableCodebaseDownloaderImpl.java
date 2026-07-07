@@ -116,7 +116,7 @@ import org.apache.river.start.lifecycle.LifeCycle;
  */
 @JiniService(
         api   = CodebaseDownloader.class,   // the service (remote) API interface
-        proxy = ProxyType.DYNAMIC)          // the raw exported stub is the client proxy
+        component = "au.net.zeus.jgdms.downloader") // configuration
 public class ActivatableCodebaseDownloaderImpl
         extends AbstractJiniService
         implements CodebaseDownloader {

@@ -21,32 +21,6 @@
 <head></head>
 <body bgcolor="white">
 
-<h2>Verdict Registry — Client-Side Proxy and Event Types</h2>
-
-<p>Download-safe proxy and event classes for the Verdict Registry (VR) service.
-These classes appear on the VR service's codebase and are downloaded by
-clients; they must not reference any server-side implementation classes.</p>
-
-<h3>{@link au.net.zeus.jgdms.vr.proxy.VerdictRegistryProxy}</h3>
-
-<p>Concrete smart proxy for the VR service.  Extends
-{@link au.net.zeus.jgdms.proxy.AbstractSmartProxy} and implements
-{@link au.net.zeus.jgdms.api.codebase.VerdictRegistry}.  All remote method
-calls are forwarded to the inner server stub which is validated on
-construction and during {@link org.apache.river.api.io.AtomicSerial}
-deserialization.</p>
-
-<p>The static {@code create(server, proxyID)} factory automatically returns
-the nested {@code ConstrainableVerdictRegistryProxy} variant when the server
-stub implements {@link net.jini.core.constraint.RemoteMethodControl}, enabling
-full constraint propagation for JERI-based deployments.</p>
-
-<h3>{@link au.net.zeus.jgdms.vr.proxy.VerdictEvent}</h3>
-
-<p>Remote event delivered to subscribers when the registry stores a new
-{@link au.net.zeus.jgdms.api.codebase.RegistryVerdict}.  Carries the
-affected codebase URI set and the new verdict type.</p>
-
 <h3>{@link au.net.zeus.jgdms.vr.proxy.VerdictEventLease}</h3>
 
 <p>Lease for a {@code VerdictEvent} subscription.  Clients must renew this

@@ -56,7 +56,7 @@ import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.net.Uri;
-import au.net.zeus.jgdms.vr.proxy.VerdictEvent;
+import au.net.zeus.jgdms.api.codebase.VerdictEvent;
 import au.net.zeus.jgdms.vr.proxy.VerdictEventLease;
 
 /**

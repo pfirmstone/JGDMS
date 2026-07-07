@@ -39,11 +39,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>au.net.zeus.jgdms.jfr</groupId>
-            <artifactId>jfr-telemetry-dl</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-service-support</artifactId>
             <version>${project.version}</version>

@@ -53,6 +53,12 @@
             <artifactId>jgdms-lib-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-lib</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

@@ -93,8 +93,6 @@ import org.apache.river.start.lifecycle.LifeCycle;
  */
 @JiniService(
         api       = HelloService.class,         // the service (remote) API interface
-        proxy     = ProxyType.DYNAMIC,          // shape 1: runtime java.lang.reflect.Proxy stub, no proxy class
-        codebase  = false,                      // no downloadable -dl jar; proxy is the JERI dynamic stub
         component = "au.net.zeus.jgdms.hello")  // config component for the service wrapper
 public class HelloWorldServiceImpl
         extends AbstractJiniService

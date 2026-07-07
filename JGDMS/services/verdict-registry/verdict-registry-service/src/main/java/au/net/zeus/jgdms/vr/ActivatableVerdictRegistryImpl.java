@@ -39,20 +39,16 @@ import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.net.Uri;
 import org.apache.river.config.Config;
 import au.net.zeus.jgdms.service.annotation.JiniService;
-import au.net.zeus.jgdms.service.annotation.ProxyType;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import au.net.zeus.jgdms.service.support.JiniServiceParameters;
 import org.apache.river.start.lifecycle.LifeCycle;
-import au.net.zeus.jgdms.vr.proxy.VerdictRegistryBackend;
-import au.net.zeus.jgdms.vr.proxy.VerdictRegistryProxy;
 
 /**
  * Activatable, Jini-aware wrapper around {@link VerdictRegistryImpl}.
  *
  * <p>This class adds the full Jini service infrastructure to the core
  * {@link VerdictRegistryImpl}: it reads all configuration from a Jini
- * {@link Configuration}, exports itself via a Jini exporter, builds a
- * {@link VerdictRegistryProxy} for clients, and registers with lookup
+ * {@link Configuration}, exports itself via a Jini exporter,  and registers with lookup
  * services.  All infrastructure boilerplate is inherited from
  * {@link AbstractJiniService}.
  *
@@ -102,11 +98,11 @@ import au.net.zeus.jgdms.vr.proxy.VerdictRegistryProxy;
  */
 @JiniService(
         api      = VerdictRegistry.class,   // the service (remote) API interface
-        proxy    = ProxyType.SMART,         // wraps the stub in a generated smart proxy
-        codebase = true)                    // ships a downloadable -dl proxy jar
+        codebase = true,                    // ships a downloadable -dl proxy jar
+        component = "au.net.zeus.jgdms.vr") // Configuration
 public class ActivatableVerdictRegistryImpl
         extends AbstractJiniService
-        implements VerdictRegistryBackend {
+        implements VerdictRegistry {
 
     /** Configuration component name for this service. */
     static final String COMPONENT = "au.net.zeus.jgdms.vr";
@@ -198,11 +194,6 @@ public class ActivatableVerdictRegistryImpl
     @Override
     protected void onExported(Object stub) throws RemoteException {
         impl.setEventSource((VerdictRegistry) stub);
-    }
-
-    @Override
-    protected Object createProxy(Object stub, Uuid serviceUuid) {
-        return VerdictRegistryProxy.create((VerdictRegistry) stub, serviceUuid);
     }
 
     // getServiceInterfaces() is inherited: it reads api() = { VerdictRegistry.class }

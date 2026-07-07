@@ -52,8 +52,6 @@ public abstract class RemotePolicyServiceProxy
         extends AbstractSmartProxy
         implements RemotePolicyService {
 
-    private static final long serialVersionUID = 1L;
-
     /**
      * Factory method — ALWAYS returns a
      * {@link ConstrainableRemotePolicyServiceProxy}, and fails closed when the

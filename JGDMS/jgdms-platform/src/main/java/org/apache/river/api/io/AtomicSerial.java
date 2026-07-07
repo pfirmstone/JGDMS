@@ -216,6 +216,8 @@ public @interface AtomicSerial {
 		throws IOException, ClassNotFoundException {
 	    if (arg == null) throw new NullPointerException();
 	    if (type == null) throw new NullPointerException();
+            MarshalDelegate delegate = MarshalDelegates.delegateFor(type);
+            if (delegate != null) return (T) delegate.create(type, arg);
 	    final Class[] param = { GetArg.class };
 	    Object[] args = { arg };
 	    Constructor<T> c;

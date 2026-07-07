@@ -30,6 +30,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import org.junit.Before;
 
 /**
  * Unit tests for {@link SpiffePrincipal}.
@@ -44,6 +45,11 @@ import static org.junit.Assert.fail;
  * {@code SpiffeCredentialManager} SVID-loading fixtures.
  */
 public class SpiffePrincipalTest {
+    
+    @Before
+    public void setup(){
+        System.setProperty("java.rmi.server.RMIClassLoaderSpi", "default");
+    }
 
     /** Java Object Serialization stream tag for a short UTF-8 string. */
     private static final byte TC_STRING = 0x74;

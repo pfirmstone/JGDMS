@@ -45,11 +45,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>au.net.zeus.jgdms.bae</groupId>
-            <artifactId>bytecode-analysis-engine-dl</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-service-support</artifactId>
             <version>${project.version}</version>

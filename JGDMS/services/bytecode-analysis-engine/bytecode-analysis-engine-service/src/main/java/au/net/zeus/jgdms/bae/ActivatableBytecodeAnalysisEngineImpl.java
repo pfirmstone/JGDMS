@@ -29,11 +29,8 @@ import net.jini.config.ConfigurationProvider;
 import net.jini.id.Uuid;
 import au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
-import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineBackend;
-import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy;
 import org.apache.river.config.Config;
 import au.net.zeus.jgdms.service.annotation.JiniService;
-import au.net.zeus.jgdms.service.annotation.ProxyType;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
 import au.net.zeus.jgdms.service.support.JiniServiceParameters;
 import org.apache.river.start.lifecycle.LifeCycle;
@@ -43,8 +40,7 @@ import org.apache.river.start.lifecycle.LifeCycle;
  *
  * <p>This class adds the full Jini service infrastructure to the core
  * {@link BytecodeAnalysisEngineImpl}: it reads all configuration from a Jini
- * {@link Configuration}, exports itself via a Jini exporter, builds a
- * {@link BytecodeAnalysisEngineProxy} for clients, and registers with lookup
+ * {@link Configuration}, exports itself via a Jini exporter and registers with lookup
  * services.  All infrastructure boilerplate is inherited from
  * {@link AbstractJiniService}.
  *
@@ -86,13 +82,11 @@ import org.apache.river.start.lifecycle.LifeCycle;
  * @see AbstractJiniService
  * @since 3.1.1
  */
-@JiniService(
-        api      = BytecodeAnalysisEngine.class,   // the service (remote) API interface
-        proxy    = ProxyType.SMART,                // wraps the stub in a generated smart proxy
-        codebase = true)                           // ships a downloadable -dl proxy jar
+@JiniService(api      = BytecodeAnalysisEngine.class,   // the service (remote) API interface
+             component="au.net.zeus.jgdms.bae" ) // the configuration
 public class ActivatableBytecodeAnalysisEngineImpl
         extends AbstractJiniService
-        implements BytecodeAnalysisEngineBackend {
+        implements BytecodeAnalysisEngine {
 
     /** Configuration component name for this service. */
     static final String COMPONENT = "au.net.zeus.jgdms.bae";
@@ -166,11 +160,6 @@ public class ActivatableBytecodeAnalysisEngineImpl
     // -------------------------------------------------------------------------
     // AbstractJiniService template methods
     // -------------------------------------------------------------------------
-
-    @Override
-    protected Object createProxy(Object stub, Uuid serviceUuid) {
-        return BytecodeAnalysisEngineProxy.create((BytecodeAnalysisEngine) stub, serviceUuid);
-    }
 
     // getServiceInterfaces() is inherited: it reads api() = { BytecodeAnalysisEngine.class }
     // from the @JiniService annotation above.

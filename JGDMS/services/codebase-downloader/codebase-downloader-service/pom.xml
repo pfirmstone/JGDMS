@@ -72,11 +72,6 @@
         </dependency>
         <!-- BAE and VerdictRegistry client proxies (needed at runtime for lookup) -->
         <dependency>
-            <groupId>au.net.zeus.jgdms.bae</groupId>
-            <artifactId>bytecode-analysis-engine-dl</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>au.net.zeus.jgdms.vr</groupId>
             <artifactId>verdict-registry-dl</artifactId>
             <version>${project.version}</version>

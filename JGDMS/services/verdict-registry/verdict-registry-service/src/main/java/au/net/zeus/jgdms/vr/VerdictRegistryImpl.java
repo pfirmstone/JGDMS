@@ -66,7 +66,7 @@ import org.apache.river.api.net.Uri;
 import org.apache.river.constants.ThrowableConstants;
 import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
-import au.net.zeus.jgdms.vr.proxy.VerdictEvent;
+import au.net.zeus.jgdms.api.codebase.VerdictEvent;
 import au.net.zeus.jgdms.vr.proxy.VerdictEventLease;
 
 /**

@@ -33,7 +33,6 @@
     <name>Module :: JFR Telemetry Service</name>
 
     <modules>
-        <module>jfr-telemetry-dl</module>
         <module>jfr-telemetry-service</module>
     </modules>
 </project>
