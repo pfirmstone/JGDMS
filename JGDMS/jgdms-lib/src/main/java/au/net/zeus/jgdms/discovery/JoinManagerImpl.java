@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.discovery;
 
 import java.io.IOException;
+import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -61,6 +62,7 @@ import net.jini.lease.LeaseRenewalEvent;
 import net.jini.lease.LeaseRenewalManager;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.constants.ThrowableConstants;
 import org.apache.river.logging.LogUtil;
 import org.apache.river.lookup.entry.LookupAttributes;
@@ -2649,9 +2651,12 @@ public class JoinManagerImpl implements net.jini.lookup.JoinManagerSpi {
             throws IOException, ConfigurationException, NullPointerException,
             IllegalArgumentException 
     {
-	if(!(serviceProxy instanceof java.io.Serializable)) {
+        if (serviceProxy == null) throw new NullPointerException("proxy cannot be null");
+        Class proxyClass = serviceProxy.getClass();
+	if(!(proxyClass.isAnnotationPresent(AtomicSerial.class)) ||
+                Proxy.isProxyClass(proxyClass)) {
             throw new IllegalArgumentException
-                                       ("serviceProxy must be Serializable");
+                                       ("serviceProxy must be @AtomicSerial or an instance of java.lang.reflect.Proxy");
 	}//endif
         /* Retrieve configuration items if applicable */
         if(config == null)  throw new NullPointerException("config is null");
