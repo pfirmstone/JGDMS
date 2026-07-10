@@ -48,6 +48,15 @@
             <artifactId>jgdms-service-support</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- @JiniService (on ActivatableVerdictRegistryImpl) is SOURCE-retained;
+             provided scope keeps the annotation off the runtime classpath.  The
+             service-proxy processor (see maven-compiler-plugin below) consumes it. -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms.tools</groupId>
+            <artifactId>service-proxy-annotations</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-platform</artifactId>
@@ -72,6 +81,19 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <release>21</release>
+                    <!-- Append the service-proxy processor to the inherited
+                         marshal-delegate processor (root pom pluginManagement) so
+                         @JiniService on ActivatableVerdictRegistryImpl is validated
+                         and its proxy generated.  combine.children="append" is
+                         required so the @AtomicSerial MarshalDelegate processor is
+                         NOT dropped. -->
+                    <annotationProcessorPaths combine.children="append">
+                        <path>
+                            <groupId>au.net.zeus.jgdms.tools</groupId>
+                            <artifactId>service-proxy-processor</artifactId>
+                            <version>${project.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
