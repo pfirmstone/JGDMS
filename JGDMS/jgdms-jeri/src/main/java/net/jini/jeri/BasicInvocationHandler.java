@@ -1232,7 +1232,7 @@ public class BasicInvocationHandler
      * Returns the wire marshalling-format identifier this handler's codec produces and
      * consumes (a {@link MarshallingFormat} payload id, STD-008 sec.18.3). The base
      * handler uses Java Object Serialization ({@link MarshalledInstance#FORMAT_JOSS});
-     * {@code AtomicDerInvocationHandler} overrides this to return the JGDMS-STD-006/DER
+     * {@code AtomicDerInvocationHandler} overrides this to return the JGDMS-STD-006/ATOMIC-DER
      * format. Used to satisfy or reject an in-band {@link MarshallingFormat} requirement.
      *
      * @return the payload-format identifier; never {@code null}.

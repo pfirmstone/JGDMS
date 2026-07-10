@@ -48,7 +48,7 @@ import java.util.Collections;
  * The full decode flow is:
  * <ol>
  *   <li>{@code get()} -> {@code getMarshalFactory()} (base implementation).</li>
- *   <li>{@code factoryForFormat("JGDMS-STD-006/DER")} -> ServiceLoader ->
+ *   <li>{@code factoryForFormat("JGDMS-STD-006/ATOMIC-DER")} -> ServiceLoader ->
  *       {@link DerMarshalFactoryProvider} -> {@link DerMarshalFactory}.</li>
  *   <li>{@code DerMarshalFactory.createMarshalInput(..., schemaBytes, ...)} (9-arg form)
  *       -> {@link DerMarshalInstanceInput}.</li>
@@ -134,7 +134,7 @@ public final class DerMarshalledInstance extends MarshalledInstance {
     // -------------------------------------------------------------------------
     //
     // The base MarshalledInstance.getMarshalFactory() reads this instance's
-    // payloadFormat field ("JGDMS-STD-006/DER") and calls factoryForFormat(format),
+    // payloadFormat field ("JGDMS-STD-006/ATOMIC-DER") and calls factoryForFormat(format),
     // which uses ServiceLoader to discover DerMarshalFactoryProvider -> DerMarshalFactory.
     //
     // This is the ServiceLoader-dispatch proof: get() exercises the base getMarshalFactory()

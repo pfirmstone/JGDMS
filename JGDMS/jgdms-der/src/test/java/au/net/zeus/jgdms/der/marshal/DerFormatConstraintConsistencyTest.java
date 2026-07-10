@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Cross-module consistency: the platform-side {@link MarshallingFormat#DER}
+ * Cross-module consistency: the platform-side {@link MarshallingFormat#ATOMIC_DER}
  * constraint identifier MUST equal the DER codec's wire format constant and the
  * {@link DerMarshalFactoryProvider}'s registered {@code payloadFormat}. The
  * constraint lives in {@code jgdms-platform} and inlines the identifier string
@@ -35,17 +35,17 @@ class DerFormatConstraintConsistencyTest {
     @Test
     void derConstraintMatchesRecordPayloadFormat() {
         assertEquals(MarshalledInstanceRecord.PAYLOAD_FORMAT,
-                MarshallingFormat.DER.getFormat(),
-                "MarshallingFormat.DER must name the same wire format as "
+                MarshallingFormat.ATOMIC_DER.getFormat(),
+                "MarshallingFormat.ATOMIC_DER must name the same wire format as "
                 + "MarshalledInstanceRecord.PAYLOAD_FORMAT");
     }
 
     @Test
     void derConstraintMatchesProviderPayloadFormat() {
         assertEquals(new DerMarshalFactoryProvider().payloadFormat(),
-                MarshallingFormat.DER.getFormat(),
-                "MarshallingFormat.DER must name the same format the ServiceLoader "
-                + "provider registers, so a MarshallingFormat.DER requirement resolves "
+                MarshallingFormat.ATOMIC_DER.getFormat(),
+                "MarshallingFormat.ATOMIC_DER must name the same format the ServiceLoader "
+                + "provider registers, so a MarshallingFormat.ATOMIC_DER requirement resolves "
                 + "to the DER MarshalFactory");
     }
 }

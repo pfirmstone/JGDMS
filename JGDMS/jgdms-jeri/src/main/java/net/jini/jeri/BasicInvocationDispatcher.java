@@ -704,7 +704,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * Returns the wire marshalling-format identifier this dispatcher's codec produces and
      * consumes (a {@link MarshallingFormat} payload id, STD-008 sec.18.3), supplied at
      * construction. The base/JOSS dispatcher uses {@link MarshalledInstance#FORMAT_JOSS};
-     * {@code AtomicDerInvocationDispatcher} passes the JGDMS-STD-006/DER format via the
+     * {@code AtomicDerInvocationDispatcher} passes the JGDMS-STD-006/ATOMIC-DER format via the
      * format-aware superclass constructor. (Supplied via the constructor rather than
      * overridden, because the export-time constraint check runs in a static Builder before
      * the instance exists.)

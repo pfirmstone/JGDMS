@@ -84,13 +84,13 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
                                    DerInputLimits limits)
             throws ExportException {
         // Pass the DER payload format so the superclass verifies/strips a
-        // MarshallingFormat.DER requirement at export + dispatch (STD-008 sec.18.3),
+        // MarshallingFormat.ATOMIC_DER requirement at export + dispatch (STD-008 sec.18.3),
         // and a DER reducing-context codec so the untrusted §7.3 reducing-context
         // block is decoded as DER -- matching the DER client handler, which derives
         // the same codec from its marshallingFormat() -- under the same per-deployment
         // DoS limits as the argument stream.
         super(methods, caps, serverConstraints, permissionClass, loader,
-                net.jini.core.constraint.MarshallingFormat.DER.getFormat(),
+                net.jini.core.constraint.MarshallingFormat.ATOMIC_DER.getFormat(),
                 new DerReducingContextCodec(java.util.Objects.requireNonNull(limits, "limits")));
         this.limits = limits;
     }

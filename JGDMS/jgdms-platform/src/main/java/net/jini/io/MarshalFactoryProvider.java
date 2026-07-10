@@ -26,7 +26,7 @@ package net.jini.io;
  * up the matching provider via {@link java.util.ServiceLoader}, and decodes with the
  * returned factory. This realises the historical {@code // TODO: ServiceProvider for
  * MarshalFactory} note: a {@code MarshalledInstance} produced by an alternative codec
- * (e.g. JGDMS-STD-006/DER) is decodable on any receiver that has the corresponding
+ * (e.g. JGDMS-STD-006/ATOMIC-DER) is decodable on any receiver that has the corresponding
  * provider on its classpath, with no subclass of {@code MarshalledInstance} and no
  * dynamic codebase loading required. The codec module registers its implementation in
  * {@code META-INF/services/net.jini.io.MarshalFactoryProvider}.
@@ -42,7 +42,7 @@ public interface MarshalFactoryProvider {
 
     /**
      * The self-describing payload-format identifier this provider handles
-     * (e.g. {@code "JGDMS-STD-006/DER"}). Must be non-{@code null} and must not equal
+     * (e.g. {@code "JGDMS-STD-006/ATOMIC-DER"}). Must be non-{@code null} and must not equal
      * {@link MarshalledInstance#FORMAT_JOSS} (which is the reserved built-in default).
      *
      * @return the format identifier; never {@code null}.

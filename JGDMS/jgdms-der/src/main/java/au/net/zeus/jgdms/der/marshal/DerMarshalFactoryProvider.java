@@ -29,7 +29,7 @@ import net.jini.io.MarshalFactoryProvider;
  * {@code META-INF/services/net.jini.io.MarshalFactoryProvider} when
  * {@code jgdms-der} is on the classpath. {@link net.jini.io.MarshalledInstance#get}
  * looks up this provider for any instance whose {@code payloadFormat} field equals
- * {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/DER"}),
+ * {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/ATOMIC-DER"}),
  * and delegates decoding to the returned {@link DerMarshalFactory}.
  *
  * <p>This enables a base {@link net.jini.io.MarshalledInstance} carrying DER state
@@ -53,7 +53,7 @@ public final class DerMarshalFactoryProvider implements MarshalFactoryProvider {
     /**
      * Returns the DER payload-format identifier handled by this provider.
      *
-     * @return {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/DER"})
+     * @return {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/ATOMIC-DER"})
      */
     @Override
     public String payloadFormat() {

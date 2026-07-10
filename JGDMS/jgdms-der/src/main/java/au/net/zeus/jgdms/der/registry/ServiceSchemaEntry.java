@@ -50,14 +50,14 @@ import java.util.Objects;
  *   <dt>{@code schemaVersion}</dt>
  *   <dd>Human-readable version label (optional; informational only; may be null).</dd>
  *   <dt>{@code schemaFormat}</dt>
- *   <dd>Format identifier; normally {@value #FORMAT_JGDMS_STD006_DER}; non-null.</dd>
+ *   <dd>Format identifier; normally {@value #FORMAT_JGDMS_STD006_ATOMIC_DER}; non-null.</dd>
  * </dl>
  */
 @AtomicSerial
 public final class ServiceSchemaEntry {
 
     /** Canonical format identifier for JGDMS-STD-006 DER encoding. */
-    public static final String FORMAT_JGDMS_STD006_DER = "JGDMS-STD-006/DER";
+    public static final String FORMAT_JGDMS_STD006_ATOMIC_DER = "JGDMS-STD-006/ATOMIC-DER";
 
     // -------------------------------------------------------------------------
     // Serial form -- ALL fields are primitive, String, or byte[] (S12.1)
@@ -97,7 +97,7 @@ public final class ServiceSchemaEntry {
      */
     private final String  schemaVersion;
 
-    /** Format identifier; normally {@value #FORMAT_JGDMS_STD006_DER}. */
+    /** Format identifier; normally {@value #FORMAT_JGDMS_STD006_ATOMIC_DER}. */
     private final String  schemaFormat;
 
     // -------------------------------------------------------------------------
@@ -115,7 +115,7 @@ public final class ServiceSchemaEntry {
      * @param schemaDigest     exactly 32-byte SHA-256 digest of the leaf schema record
      * @param serviceInterface fully-qualified name of the service API interface
      * @param schemaVersion    human-readable version label (may be null; stored as {@code ""})
-     * @param schemaFormat     format identifier; normally {@value #FORMAT_JGDMS_STD006_DER}
+     * @param schemaFormat     format identifier; normally {@value #FORMAT_JGDMS_STD006_ATOMIC_DER}
      * @throws NullPointerException     if {@code schemaDigest}, {@code serviceInterface},
      *                                  or {@code schemaFormat} is null
      * @throws IllegalArgumentException if {@code schemaDigest.length != 32} or

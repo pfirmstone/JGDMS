@@ -41,13 +41,13 @@ import static org.junit.jupiter.api.Assertions.*;
  *   <li>{@code schemaDigest} -- leaf SHA-256 digest (from
  *       {@link DerMarshalInstanceOutput#getSchemaDigest()}).</li>
  *   <li>{@code payloadFormat} -- {@link MarshalledInstanceRecord#PAYLOAD_FORMAT}
- *       ({@code "JGDMS-STD-006/DER"}), from
+ *       ({@code "JGDMS-STD-006/ATOMIC-DER"}), from
  *       {@link DerMarshalInstanceOutput#getPayloadFormat()}).</li>
  * </ul>
  *
  * <p>Decode flow (exercised by every round-trip test here):
  * {@code get()} -> {@code getMarshalFactory()} (base {@link MarshalledInstance} impl)
- *  -> {@code factoryForFormat("JGDMS-STD-006/DER")} -> ServiceLoader
+ *  -> {@code factoryForFormat("JGDMS-STD-006/ATOMIC-DER")} -> ServiceLoader
  *  -> {@link DerMarshalFactoryProvider} -> {@link DerMarshalFactory}
  *  -> 9-arg {@code createMarshalInput(..., schemaBytes, ...)}
  *  -> {@link DerMarshalInstanceInput#readObject(Class)}
@@ -165,7 +165,7 @@ class DerMarshalledInstanceTest {
      * <p>Specifically:
      * <ul>
      *   <li>{@link DerMarshalInstanceOutput#getPayloadFormat()} must equal
-     *       {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/DER"}).</li>
+     *       {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/ATOMIC-DER"}).</li>
      *   <li>{@link DerMarshalInstanceOutput#getSchemaBytes()} must be non-empty.</li>
      *   <li>{@link DerMarshalInstanceOutput#getSchemaDigest()} must be exactly 32 bytes.</li>
      *   <li>The bytes written to {@code objOut} must equal {@code rec.payloadBytes()} --
@@ -188,7 +188,7 @@ class DerMarshalledInstanceTest {
 
         byte[] writtenBytes = bout.toByteArray();
 
-        // 1. payloadFormat must be "JGDMS-STD-006/DER"
+        // 1. payloadFormat must be "JGDMS-STD-006/ATOMIC-DER"
         assertEquals(MarshalledInstanceRecord.PAYLOAD_FORMAT, out.getPayloadFormat(),
                 "getPayloadFormat() must return '" + MarshalledInstanceRecord.PAYLOAD_FORMAT + "'");
 
@@ -254,7 +254,7 @@ class DerMarshalledInstanceTest {
      *
      * <p>Verification: {@link DerMarshalledInstance} declares no {@code getMarshalFactory()}
      * override. The base implementation reads {@code payloadFormat} (set to
-     * {@code "JGDMS-STD-006/DER"}), calls {@code factoryForFormat}, which discovers
+     * {@code "JGDMS-STD-006/ATOMIC-DER"}), calls {@code factoryForFormat}, which discovers
      * {@link DerMarshalFactoryProvider} via ServiceLoader and returns a
      * {@link DerMarshalFactory}. If the ServiceLoader file is missing or the provider
      * class is wrong, an {@link IllegalStateException} is thrown by {@code factoryForFormat}

@@ -34,7 +34,7 @@ import org.junit.Test;
  *
  * <p>Note: the DER {@code MarshalFactoryProvider} lives in {@code jgdms-der}, which is
  * NOT on this module's test classpath. So here a <em>required</em>
- * {@link MarshallingFormat#DER} is correctly unsatisfiable
+ * {@link MarshallingFormat#ATOMIC_DER} is correctly unsatisfiable
  * ({@link UnsupportedConstraintException}); the round-trip-with-DER case is covered in
  * {@code jgdms-der}'s {@code DerConstraintConstructionTest}.
  */
@@ -57,13 +57,13 @@ public class MarshalledInstanceConstraintTest {
     public void requiredDerWithoutProviderIsUnsatisfiable() throws Exception {
 	// No DER provider on this module's classpath -> required DER cannot be honoured.
 	MarshalledInstance.chooseMarshalFactory(
-		new InvocationConstraints(MarshallingFormat.DER, null));
+		new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
     }
 
     @Test(expected = UnsupportedConstraintException.class)
     public void conflictingRequiredFormatsAreUnsatisfiable() throws Exception {
 	MarshalledInstance.chooseMarshalFactory(new InvocationConstraints(
-		new InvocationConstraint[]{ MarshallingFormat.DER, MarshallingFormat.JOSS },
+		new InvocationConstraint[]{ MarshallingFormat.ATOMIC_DER, MarshallingFormat.JOSS },
 		null));
     }
 
@@ -71,7 +71,7 @@ public class MarshalledInstanceConstraintTest {
     public void preferredDerFallsBackToJossWhenUnavailable() throws Exception {
 	// Only PREFERRED (not required) and unavailable here -> default (JOSS), no throw.
 	MarshalFactory f = MarshalledInstance.chooseMarshalFactory(
-		new InvocationConstraints(null, MarshallingFormat.DER));
+		new InvocationConstraints(null, MarshallingFormat.ATOMIC_DER));
 	assertTrue(f instanceof MarshalledInstance.MarshalFactoryInstance);
     }
 

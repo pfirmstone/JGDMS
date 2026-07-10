@@ -239,7 +239,7 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
 
     /**
      * The self-describing payload-format identifier for this codec:
-     * {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/DER"}).
+     * {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/ATOMIC-DER"}).
      * This value is captured by {@link net.jini.io.MarshalledInstance} into its
      * {@code payloadFormat} field, enabling ServiceLoader dispatch on the decode side.
      *

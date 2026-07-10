@@ -65,7 +65,7 @@ public final class DerReducingContextCodec implements ReducingContextCodec {
 
     @Override
     public String formatName() {
-        return MarshallingFormat.DER.getFormat();
+        return MarshallingFormat.ATOMIC_DER.getFormat();
     }
 
     @Override

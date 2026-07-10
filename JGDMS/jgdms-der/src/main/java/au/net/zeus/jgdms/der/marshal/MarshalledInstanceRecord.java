@@ -38,7 +38,7 @@ import java.util.Objects;
  *     payloadBytes       OCTET STRING,            -- DER object payload
  *     schemaBytes        OCTET STRING,            -- full schema chain, leaf-first, concatenated
  *     schemaDigest       OCTET STRING (SIZE(32)), -- SHA-256(DER(leaf AtomicSerialSchemaRecord))
- *     payloadFormat      UTF8String               -- "JGDMS-STD-006/DER"
+ *     payloadFormat      UTF8String               -- "JGDMS-STD-006/ATOMIC-DER"
  * }
  * </pre>
  *
@@ -67,7 +67,7 @@ import java.util.Objects;
 public final class MarshalledInstanceRecord {
 
     /** Canonical payloadFormat value for JGDMS-STD-006 DER encoding. */
-    public static final String PAYLOAD_FORMAT = "JGDMS-STD-006/DER";
+    public static final String PAYLOAD_FORMAT = "JGDMS-STD-006/ATOMIC-DER";
 
     /** Required byte length of schemaDigest (SIZE(32)). */
     private static final int DIGEST_LENGTH = 32;

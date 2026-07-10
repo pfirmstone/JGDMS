@@ -56,7 +56,7 @@ class ServiceSchemaEntryTest {
     @Test
     void test_7_1_a_AllDeclaredFieldsArePrimitiveStringOrByteArray() {
         for (Field f : ServiceSchemaEntry.class.getDeclaredFields()) {
-            // Skip static / synthetic fields (e.g. FORMAT_JGDMS_STD006_DER constant)
+            // Skip static / synthetic fields (e.g. FORMAT_JGDMS_STD006_ATOMIC_DER constant)
             if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
             Class<?> type = f.getType();
             boolean allowed = type.isPrimitive()
@@ -88,7 +88,7 @@ class ServiceSchemaEntryTest {
                 digest,
                 "com.example.MyService",
                 "1.0.0",
-                ServiceSchemaEntry.FORMAT_JGDMS_STD006_DER);
+                ServiceSchemaEntry.FORMAT_JGDMS_STD006_ATOMIC_DER);
 
         // Generate the schema for ServiceSchemaEntry
         SchemaChain.Result chain = SchemaGenerator.generateChain(ServiceSchemaEntry.class);
@@ -130,7 +130,7 @@ class ServiceSchemaEntryTest {
                 digest,
                 "net.jini.core.lookup.ServiceRegistrar",
                 "",  // empty is the DER-codec representation of "absent version"
-                ServiceSchemaEntry.FORMAT_JGDMS_STD006_DER);
+                ServiceSchemaEntry.FORMAT_JGDMS_STD006_ATOMIC_DER);
 
         SchemaChain.Result chain = SchemaGenerator.generateChain(ServiceSchemaEntry.class);
         byte[] encoded = ObjectCodec.encodeHierarchy(orig, chain);
@@ -169,7 +169,7 @@ class ServiceSchemaEntryTest {
                 leafDigest,
                 "com.example.SomeService",
                 "2.0",
-                ServiceSchemaEntry.FORMAT_JGDMS_STD006_DER);
+                ServiceSchemaEntry.FORMAT_JGDMS_STD006_ATOMIC_DER);
 
         // The schemaDigest field must equal the digest from SchemaGenerator
         assertArrayEquals(leafDigest, entry.getSchemaDigest(),
@@ -190,7 +190,7 @@ class ServiceSchemaEntryTest {
         byte[] short31 = new byte[31];
         assertThrows(IllegalArgumentException.class,
                 () -> new ServiceSchemaEntry(short31, "com.example.X", "v1",
-                        ServiceSchemaEntry.FORMAT_JGDMS_STD006_DER),
+                        ServiceSchemaEntry.FORMAT_JGDMS_STD006_ATOMIC_DER),
                 "31-byte digest must be rejected");
     }
 
@@ -199,7 +199,7 @@ class ServiceSchemaEntryTest {
         byte[] d = new byte[32];
         assertThrows(IllegalArgumentException.class,
                 () -> new ServiceSchemaEntry(d, "", "v1",
-                        ServiceSchemaEntry.FORMAT_JGDMS_STD006_DER),
+                        ServiceSchemaEntry.FORMAT_JGDMS_STD006_ATOMIC_DER),
                 "empty serviceInterface must be rejected");
     }
 }

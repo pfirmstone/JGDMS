@@ -192,7 +192,7 @@ class MarshalledInstanceRecordTest {
         // schemaDigest must equal chain.leafDigest()
         assertArrayEquals(chain.leafDigest(), rec.schemaDigest());
 
-        // payloadFormat is JGDMS-STD-006/DER
+        // payloadFormat is JGDMS-STD-006/ATOMIC-DER
         assertEquals(MarshalledInstanceRecord.PAYLOAD_FORMAT, rec.payloadFormat());
 
         // Round-trip the whole record

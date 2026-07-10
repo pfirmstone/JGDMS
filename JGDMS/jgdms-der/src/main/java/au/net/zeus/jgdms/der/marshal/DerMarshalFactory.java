@@ -56,7 +56,7 @@ import java.util.Collection;
  * <h2>ServiceLoader dispatch</h2>
  * <p>
  * {@link DerMarshalFactoryProvider} registers this factory as the handler for
- * {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/DER"}) via
+ * {@link MarshalledInstanceRecord#PAYLOAD_FORMAT} ({@code "JGDMS-STD-006/ATOMIC-DER"}) via
  * the {@link net.jini.io.MarshalFactoryProvider} ServiceLoader SPI. The base
  * {@link net.jini.io.MarshalledInstance#getMarshalFactory()} resolves this factory
  * through that mechanism; no subclass override of {@code getMarshalFactory()} is needed.

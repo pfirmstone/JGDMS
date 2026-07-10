@@ -32,10 +32,10 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * {@link net.jini.io.MarshalledInstance} hand-back objects. The format is named
  * by the same self-describing {@code payloadFormat} identifier that
  * {@code MarshalledInstance} carries as first-class state (JGDMS-STD-008 sec.13):
- * for example {@link #DER} selects the JGDMS-STD-006/DER canonical wire format and
+ * for example {@link #ATOMIC_DER} selects the JGDMS-STD-006/ATOMIC-DER canonical wire format and
  * {@link #JOSS} selects legacy Java Object Serialization.
  *
- * <p>Requiring {@link #DER} forces use of the schema-bearing, data-independent DER
+ * <p>Requiring {@link #ATOMIC_DER} forces use of the schema-bearing, data-independent DER
  * codec and thereby excludes Java Object Serialization, removing the
  * deserialization attack surface that each Java-Serialization permission grant
  * represents -- the motivation for JGDMS 4.0.0. A requirement for one format and
@@ -60,14 +60,14 @@ public final class MarshallingFormat implements InvocationConstraint, Serializab
     private static final long serialVersionUID = 5839852455936216357L;
 
     /**
-     * Requires the JGDMS-STD-006/DER canonical wire format. The identifier matches
+     * Requires the JGDMS-STD-006/ATOMIC-DER canonical wire format. The identifier matches
      * {@code MarshalledInstanceRecord.PAYLOAD_FORMAT} and the {@code payloadFormat()}
      * of the DER {@code MarshalFactoryProvider} (in the {@code jgdms-der} module);
      * it is a stable wire constant and is therefore inlined here to avoid a module
      * dependency from the platform on the codec.
      */
-    public static final MarshallingFormat DER =
-	    new MarshallingFormat("JGDMS-STD-006/DER");
+    public static final MarshallingFormat ATOMIC_DER =
+	    new MarshallingFormat("JGDMS-STD-006/ATOMIC-DER");
 
     /**
      * Requires legacy Java Object Serialization. The identifier is the stable wire
@@ -110,7 +110,7 @@ public final class MarshallingFormat implements InvocationConstraint, Serializab
      * Creates a constraint requiring the marshalling format with the given
      * {@code payloadFormat} identifier.
      *
-     * @param format the format identifier (e.g. {@code "JGDMS-STD-006/DER"}).
+     * @param format the format identifier (e.g. {@code "JGDMS-STD-006/ATOMIC-DER"}).
      * @throws NullPointerException if {@code format} is {@code null}.
      * @throws IllegalArgumentException if {@code format} is empty.
      */

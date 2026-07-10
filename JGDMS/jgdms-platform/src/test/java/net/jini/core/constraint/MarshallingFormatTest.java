@@ -51,7 +51,7 @@ public class MarshallingFormatTest {
 
     @Test
     public void derConstantHasCanonicalFormatId() {
-	assertEquals("JGDMS-STD-006/DER", MarshallingFormat.DER.getFormat());
+	assertEquals("JGDMS-STD-006/ATOMIC-DER", MarshallingFormat.ATOMIC_DER.getFormat());
     }
 
     @Test
@@ -62,26 +62,26 @@ public class MarshallingFormatTest {
 
     @Test
     public void equalsAndHashCodeBySameFormat() {
-	MarshallingFormat der2 = new MarshallingFormat("JGDMS-STD-006/DER");
-	assertEquals(MarshallingFormat.DER, der2);
-	assertEquals(MarshallingFormat.DER.hashCode(), der2.hashCode());
+	MarshallingFormat der2 = new MarshallingFormat("JGDMS-STD-006/ATOMIC-DER");
+	assertEquals(MarshallingFormat.ATOMIC_DER, der2);
+	assertEquals(MarshallingFormat.ATOMIC_DER.hashCode(), der2.hashCode());
     }
 
     @Test
     public void differentFormatsNotEqual() {
-	assertNotEquals(MarshallingFormat.DER, MarshallingFormat.JOSS);
-	assertFalse(MarshallingFormat.DER.equals(null));
-	assertFalse(MarshallingFormat.DER.equals("JGDMS-STD-006/DER"));
+	assertNotEquals(MarshallingFormat.ATOMIC_DER, MarshallingFormat.JOSS);
+	assertFalse(MarshallingFormat.ATOMIC_DER.equals(null));
+	assertFalse(MarshallingFormat.ATOMIC_DER.equals("JGDMS-STD-006/ATOMIC-DER"));
     }
 
     @Test
     public void isAnInvocationConstraint() {
-	assertTrue((Object) MarshallingFormat.DER instanceof InvocationConstraint);
+	assertTrue((Object) MarshallingFormat.ATOMIC_DER instanceof InvocationConstraint);
     }
 
     @Test
     public void toStringContainsFormat() {
-	assertTrue(MarshallingFormat.DER.toString().contains("JGDMS-STD-006/DER"));
+	assertTrue(MarshallingFormat.ATOMIC_DER.toString().contains("JGDMS-STD-006/ATOMIC-DER"));
     }
 
     /**
@@ -92,7 +92,7 @@ public class MarshallingFormatTest {
     @Test
     public void atomicSerialRoundTrip() throws Exception {
 	for (MarshallingFormat orig : new MarshallingFormat[]{
-		MarshallingFormat.DER, MarshallingFormat.JOSS,
+		MarshallingFormat.ATOMIC_DER, MarshallingFormat.JOSS,
 		new MarshallingFormat("application/cbor") }) {
 	    MarshallingFormat copy = new AtomicMarshalledInstance(orig)
 		    .get(false, MarshallingFormat.class);
@@ -104,13 +104,13 @@ public class MarshallingFormatTest {
     /**
      * Usable as a requirement: equals-based set membership in
      * {@link InvocationConstraints} works, so a method constraint of
-     * {@code MarshallingFormat.DER} can be expressed and detected.
+     * {@code MarshallingFormat.ATOMIC_DER} can be expressed and detected.
      */
     @Test
     public void usableAsRequirement() {
-	InvocationConstraints ic = new InvocationConstraints(MarshallingFormat.DER, null);
-	assertTrue(ic.requirements().contains(MarshallingFormat.DER));
-	assertTrue(ic.requirements().contains(new MarshallingFormat("JGDMS-STD-006/DER")));
+	InvocationConstraints ic = new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null);
+	assertTrue(ic.requirements().contains(MarshallingFormat.ATOMIC_DER));
+	assertTrue(ic.requirements().contains(new MarshallingFormat("JGDMS-STD-006/ATOMIC-DER")));
 	assertFalse(ic.requirements().contains(MarshallingFormat.JOSS));
     }
 }

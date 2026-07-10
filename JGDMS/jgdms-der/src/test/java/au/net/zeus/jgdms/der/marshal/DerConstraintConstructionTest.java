@@ -32,21 +32,21 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 /**
  * Enforcement surface 1 (JGDMS-STD-008 sec.13), proven where the DER
  * {@code MarshalFactoryProvider} IS on the classpath (unlike the platform-only test):
- * a {@link MarshallingFormat#DER} requirement selects the DER codec, and the
+ * a {@link MarshallingFormat#ATOMIC_DER} requirement selects the DER codec, and the
  * constraint-aware {@link MarshalledInstance} constructor round-trips via DER with NO
  * MarshalledInstance subclass.
  */
 class DerConstraintConstructionTest {
 
     private static InvocationConstraints requireDer() {
-        return new InvocationConstraints(MarshallingFormat.DER, null);
+        return new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null);
     }
 
     @Test
     void requiredDerSelectsTheDerFactory() throws Exception {
         MarshalFactory f = MarshalledInstance.chooseMarshalFactory(requireDer());
         assertInstanceOf(DerMarshalFactory.class, f,
-                "MarshallingFormat.DER must resolve to DerMarshalFactory via ServiceLoader");
+                "MarshallingFormat.ATOMIC_DER must resolve to DerMarshalFactory via ServiceLoader");
     }
 
     @Test

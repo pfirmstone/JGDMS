@@ -23,9 +23,14 @@
 > **Naming/structure pass (2026-07-06)** — **RATIFIED by Peter:** (1) the wire format
 > is named **ATOMIC DER** (names the `@AtomicSerial` object model it encodes); the
 > standard document id stays `JGDMS-STD-006` and generic "DER" (X.690) is unchanged —
-> only the format's proper name changed (title, §1 note, §8 headings/prose). The
-> wire/code identifiers `MarshallingFormat.DER` and `"JGDMS-STD-006/DER"` are kept
-> verbatim (renaming them would be a wire change needing separate ratification).
+> only the format's proper name changed (title, §1 note, §8 headings/prose).
+> **Wire-identifier rename — RATIFIED by Peter (2026-07-10):** the earlier decision to
+> keep the wire/code identifiers verbatim is **superseded**. The constraint constant is
+> now `MarshallingFormat.ATOMIC_DER` and the on-wire/in-code identifier string is
+> `"JGDMS-STD-006/ATOMIC-DER"`, aligning them with the format's proper name. This IS an
+> on-wire format-identifier change; it is safe precisely because STD-006 is a pre-1.0
+> DRAFT with no deployed peers, and is deliberately made before v1.0. (Applied to
+> `jgdms-platform`, `jgdms-der`, `jgdms-jeri` main + tests.)
 > (2) The §4.4 OID root is restructured under **Zeus Project Services Pty Ltd**
 > (registrant): `zeusProjectServices → jgdms(1) → atomicDer(1) → wireTypes(1)`, with
 > `TypedWireObject` typeIds under `…atomicDer.wireTypes`. `<PEN>` (written `999999`) is
@@ -1193,11 +1198,11 @@ The marshalling format is named by a first-class `InvocationConstraint`,
 `net.jini.core.constraint.MarshallingFormat`, resolved by the existing JERI constraint
 machinery exactly as `Integrity`, `Confidentiality`, and `AtomicInputValidation` are:
 
-- `MarshallingFormat.DER` — identifier `"JGDMS-STD-006/DER"`. (This is the ATOMIC DER
-  format; the constraint symbol `DER` and the wire identifier string
-  `"JGDMS-STD-006/DER"` are **wire/code artifacts kept verbatim** — renaming the format
-  to "ATOMIC DER" is a documentation change and does not alter these on-wire/in-code
-  identifiers, which would be a wire-format change requiring separate ratification.)
+- `MarshallingFormat.ATOMIC_DER` — identifier `"JGDMS-STD-006/ATOMIC-DER"`. (This is the
+  ATOMIC DER format; the constraint symbol and the wire identifier string were **renamed**
+  from the former `DER` / `"JGDMS-STD-006/DER"` to match the format's proper name. This
+  was a deliberate **on-wire format-identifier change**, ratified 2026-07-10 and applied
+  before v1.0 while STD-006 is a pre-1.0 DRAFT with no deployed peers.)
 - `MarshallingFormat.JOSS` — identifier `"JOSS"`.
 
 The constraint carries the format **identifier string** rather than being an
@@ -1215,7 +1220,7 @@ factory. On the client, `BasicInvocationHandler.requireMarshallingFormat` throws
 does not match the proxy's configured codec; on the server,
 `BasicInvocationDispatcher.verifyAndStripMarshallingFormat` rejects a mismatched
 requirement and strips the constraint before the transport sees it. So requiring
-`MarshallingFormat.DER` carries the same fail-before-transmission guarantee already given
+`MarshallingFormat.ATOMIC_DER` carries the same fail-before-transmission guarantee already given
 for authentication and confidentiality.
 
 The constraint is decode *policy*; the proxy's configured codec is decode *mechanism*. A
@@ -1273,7 +1278,7 @@ The two directions of a 3.X ↔ 4.0 mixed deployment:
 - **3.X client → 4.0 service:** works iff the 4.0 service offers a JOSS-capable endpoint for
   it (the 4.0 JOSS dispatcher still accepts `0x00`/`0x01`).
 - **4.0 client → 3.X service:** the 3.X service offers only a JOSS proxy; the client uses
-  JOSS unless it *requires* `MarshallingFormat.DER`, in which case the call correctly fails
+  JOSS unless it *requires* `MarshallingFormat.ATOMIC_DER`, in which case the call correctly fails
   fast.
 
 > **[OPEN — dual-export]** A no-full-shutdown 3.X→4.0 upgrade needs a single 4.0 service to
@@ -1304,10 +1309,10 @@ bytes*, so migrate the least-trusted edges first:
 - **Tier 4 — local persistence** read (JOSS retained read-only; see §5.5) — last, off the
   network.
 
-Requiring `MarshallingFormat.DER` on an endpoint is the **firewall**: it fail-fast rejects
+Requiring `MarshallingFormat.ATOMIC_DER` on an endpoint is the **firewall**: it fail-fast rejects
 any call that would otherwise ride JOSS, so a security-sensitive endpoint is never silently
 downgraded. On a transport without confidentiality+integrity, DER-requiring endpoints MUST
-require `MarshallingFormat.DER` (no negotiable fallback), since a plaintext format selection
+require `MarshallingFormat.ATOMIC_DER` (no negotiable fallback), since a plaintext format selection
 is downgrade-attackable.
 
 ### 5.5 End state
@@ -2682,7 +2687,7 @@ MarshalledInstanceRecord ::= SEQUENCE {
     -- schemaBytes before acting on it (see "schemaDigest verification" below).
     schemaDigest       OCTET STRING (SIZE(32)),
     -- Payload encoding format identifier.
-    payloadFormat      UTF8String     -- "JGDMS-STD-006/DER"
+    payloadFormat      UTF8String     -- "JGDMS-STD-006/ATOMIC-DER"
 
     -- NOTE: there is no codebase-annotation field. The authenticated
     -- `CodebaseAccessor` channel (§8.2) is the ONLY codebase mechanism (§8.3).
@@ -3381,7 +3386,7 @@ public class ServiceSchemaEntry implements Entry {
     public String  serviceInterface;
     /** Human-readable version label (optional; informational only). */
     public String  schemaVersion;
-    /** Format identifier: "JGDMS-STD-006/DER". */
+    /** Format identifier: "JGDMS-STD-006/ATOMIC-DER". */
     public String  schemaFormat;
 }
 ```

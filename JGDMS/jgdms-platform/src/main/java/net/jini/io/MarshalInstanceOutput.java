@@ -31,7 +31,7 @@ import java.io.ObjectOutput;
  * {@link MarshalFactoryProvider}) without subclassing. The default implementations
  * describe the legacy Java-Object-Serialization (JOSS) path: no schema and
  * {@code payloadFormat == }{@link MarshalledInstance#FORMAT_JOSS}. A schema-bearing
- * codec (e.g. the JGDMS-STD-006/DER codec) overrides them.
+ * codec (e.g. the JGDMS-STD-006/ATOMIC-DER codec) overrides them.
  *
  * @author peter
  */

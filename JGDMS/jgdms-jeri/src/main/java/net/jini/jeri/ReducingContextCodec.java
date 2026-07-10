@@ -37,7 +37,7 @@ import net.jini.io.MarshalledInstance;
  * <p>The codec is identified by a self-describing {@code payloadFormat} string --
  * the same identifier carried by {@link MarshallingFormat} and
  * {@link MarshalledInstance} (STD-008 sec.18.3), e.g. {@link MarshalledInstance#FORMAT_JOSS}
- * (Java-only legacy serialization) or {@code "JGDMS-STD-006/DER"} (the canonical,
+ * (Java-only legacy serialization) or {@code "JGDMS-STD-006/ATOMIC-DER"} (the canonical,
  * language-neutral DER wire format).  Using the published string id -- rather than a
  * private ordinal -- lets a non-Java peer (e.g. a Rust JERI implementation) encode and
  * decode the side-band block from the same documented format registry.  Cross-language
@@ -63,7 +63,7 @@ public interface ReducingContextCodec {
      * Returns the self-describing {@code payloadFormat} identifier of the wire format
      * this codec encodes and decodes -- the same string used by {@link MarshallingFormat}
      * and {@link MarshalledInstance} (e.g. {@link MarshalledInstance#FORMAT_JOSS} or
-     * {@code "JGDMS-STD-006/DER"}).  Must equal the marshalling format of the handler /
+     * {@code "JGDMS-STD-006/ATOMIC-DER"}).  Must equal the marshalling format of the handler /
      * dispatcher it serves.
      *
      * @return the payload-format identifier; never {@code null}
@@ -79,7 +79,7 @@ public interface ReducingContextCodec {
      * sufficient for the encode side (DoS limits bound decoding only).
      *
      * @param format the payload-format identifier (e.g. {@link MarshalledInstance#FORMAT_JOSS}
-     *               or {@code MarshallingFormat.DER.getFormat()})
+     *               or {@code MarshallingFormat.ATOMIC_DER.getFormat()})
      * @return a codec for {@code format}
      * @throws IllegalArgumentException if {@code format} is not a recognised built-in format
      * @throws NullPointerException if {@code format} is {@code null}
@@ -91,7 +91,7 @@ public interface ReducingContextCodec {
         if (MarshalledInstance.FORMAT_JOSS.equals(format)) {
             return new AtomicReducingContextCodec();
         }
-        if (MarshallingFormat.DER.getFormat().equals(format)) {
+        if (MarshallingFormat.ATOMIC_DER.getFormat().equals(format)) {
             return new DerReducingContextCodec();
         }
         throw new IllegalArgumentException(

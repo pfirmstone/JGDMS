@@ -362,7 +362,7 @@ public class AtomicDerInvocationLayerTest {
         FakeObjectEndpoint oe = new FakeObjectEndpoint();
         Assert.assertEquals(MarshalledInstance.FORMAT_JOSS,
                 new BasicInvocationHandler(oe, null).marshallingFormat());
-        Assert.assertEquals(MarshallingFormat.DER.getFormat(),
+        Assert.assertEquals(MarshallingFormat.ATOMIC_DER.getFormat(),
                 new AtomicDerInvocationHandler(oe, null).marshallingFormat());
     }
 
@@ -374,13 +374,13 @@ public class AtomicDerInvocationLayerTest {
         Assert.assertEquals(MarshalledInstance.FORMAT_JOSS,
                 new BasicInvocationDispatcher(methods, new FakeServerCapabilities(), null, null, loader)
                         .marshallingFormat());
-        Assert.assertEquals(MarshallingFormat.DER.getFormat(),
+        Assert.assertEquals(MarshallingFormat.ATOMIC_DER.getFormat(),
                 new AtomicDerInvocationDispatcher(methods, new FakeServerCapabilities(), null, null, loader)
                         .marshallingFormat());
     }
 
     /**
-     * A DER service may DECLARE a MarshallingFormat.DER server constraint and export
+     * A DER service may DECLARE a MarshallingFormat.ATOMIC_DER server constraint and export
      * successfully: the DER dispatcher satisfies it (verified, then stripped before the
      * transport check). Pre-A1b this would have thrown (unknown constraint at the transport).
      */
@@ -389,14 +389,14 @@ public class AtomicDerInvocationLayerTest {
         Collection<Method> methods = pointServiceMethods();
         ClassLoader loader = AtomicDerInvocationLayerTest.class.getClassLoader();
         MethodConstraints mc = new BasicMethodConstraints(
-                new InvocationConstraints(MarshallingFormat.DER, null));
+                new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
         AtomicDerInvocationDispatcher d = new AtomicDerInvocationDispatcher(
                 methods, new FakeServerCapabilities(), mc, null, loader);
         Assert.assertNotNull(d);
     }
 
     /**
-     * A JOSS service declaring a MarshallingFormat.DER server constraint FAILS to export
+     * A JOSS service declaring a MarshallingFormat.ATOMIC_DER server constraint FAILS to export
      * (its codec format does not match the required format) -- fail-fast, discriminating
      * against the DER case above.
      */
@@ -405,7 +405,7 @@ public class AtomicDerInvocationLayerTest {
         Collection<Method> methods = pointServiceMethods();
         ClassLoader loader = AtomicDerInvocationLayerTest.class.getClassLoader();
         MethodConstraints mc = new BasicMethodConstraints(
-                new InvocationConstraints(MarshallingFormat.DER, null));
+                new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
         new BasicInvocationDispatcher(methods, new FakeServerCapabilities(), mc, null, loader);
     }
 

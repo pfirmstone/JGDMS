@@ -67,7 +67,7 @@ public interface MarshalFactory {
      * ignores the schema arguments and delegates to
      * {@link #createMarshalInput(InputStream, InputStream, ClassLoader, boolean, ClassLoader, Collection)},
      * which is correct for schema-less formats (e.g. JOSS). A schema-bearing codec
-     * (e.g. JGDMS-STD-006/DER) overrides this to decode {@code objIn} against
+     * (e.g. JGDMS-STD-006/ATOMIC-DER) overrides this to decode {@code objIn} against
      * {@code schemaBytes}.
      *
      * @param objIn payload input.

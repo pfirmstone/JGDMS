@@ -400,7 +400,7 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
      * Creates a new <code>MarshalledInstance</code> whose contained object is encoded
      * using the wire format required by {@code constraints} (JGDMS-STD-008 sec.13). If
      * the constraints require a {@link MarshallingFormat}, that format's codec is used
-     * (e.g. {@link MarshallingFormat#DER} selects the JGDMS-STD-006/DER codec); with no
+     * (e.g. {@link MarshallingFormat#ATOMIC_DER} selects the JGDMS-STD-006/ATOMIC-DER codec); with no
      * format constraint the default Java-Object-Serialization codec is used. The
      * resulting instance is self-describing: its {@code payloadFormat} lets any receiver
      * decode it via {@link MarshalFactoryProvider} without a subclass.
