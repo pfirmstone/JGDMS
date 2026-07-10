@@ -18,11 +18,20 @@ package net.jini.loader.pref;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.Signature;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Set;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
@@ -77,6 +86,11 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         PreferredProxyCodebaseProvider.resetVerdictRetryBaseDelayMs();
         PreferredProxyCodebaseProvider.clearVerdictCache();
         PreferredProxyCodebaseProvider.resetInconclusiveStrictMode();
+        // Disable inline signature verification unless a test opts in, and
+        // clear the cache again so a signed verdict from one test cannot leak
+        // into another under the same content hash.
+        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(null, null);
+        PreferredProxyCodebaseProvider.clearVerdictCache();
     }
 
     // -------------------------------------------------------------------------
@@ -389,6 +403,192 @@ public class PreferredProxyCodebaseProviderVerdictTest {
                         newVerdict(VerdictType.SAFE), now);
         assertFalse("TTL=0 means cache is disabled, should always be expired",
                 cv.isAlive(now, 0L));
+    }
+
+    // -------------------------------------------------------------------------
+    // STD-006 §7.4 — direct-path inline signature verification
+    // -------------------------------------------------------------------------
+
+    private static final String SIG_ALG = "SHA256withRSA";
+
+    /** Reproduces the registry's authoritative canonical signing bytes. */
+    private static byte[] canonicalBytes(Uri[] urls, VerdictType type, long ts)
+            throws IOException {
+        Uri[] sorted = urls.clone();
+        Arrays.sort(sorted, new Comparator<Uri>() {
+            public int compare(Uri a, Uri b) {
+                return a.toString().compareTo(b.toString());
+            }
+        });
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream      dos  = new DataOutputStream(baos);
+        for (Uri uri : sorted) {
+            byte[] b = uri.toString().getBytes(StandardCharsets.UTF_8);
+            dos.writeInt(b.length);
+            dos.write(b);
+        }
+        dos.writeInt(type.ordinal());
+        dos.writeLong(ts);
+        dos.flush();
+        return baos.toByteArray();
+    }
+
+    private static RegistryVerdict signedHashVerdict(VerdictType type,
+                                                     PrivateKey signer)
+            throws Exception {
+        Uri[] urls = new Uri[]{ new Uri("urn:sha256:" + FAKE_HASH) };
+        long ts = System.currentTimeMillis();
+        Signature sig = Signature.getInstance(SIG_ALG);
+        sig.initSign(signer);
+        sig.update(canonicalBytes(urls, type, ts));
+        return new RegistryVerdict(urls, type, ts, sig.sign());
+    }
+
+    /**
+     * With a configured public key, a SAFE verdict bearing a genuine registry
+     * signature is accepted on the direct path.
+     */
+    @Test
+    public void directPath_genuineSignature_safeProceeds() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair keys = kpg.generateKeyPair();
+
+        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
+                keys.getPublic(), SIG_ALG);
+
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(signedHashVerdict(VerdictType.SAFE, keys.getPrivate()));
+
+        assertFalse("genuinely signed SAFE verdict must proceed",
+                PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
+    }
+
+    /**
+     * The core of the fix: a verdict whose signature does NOT verify against
+     * the configured key is refused (fail-closed) even when its VerdictType is
+     * SAFE — a substituted/forged verdict cannot green-light a codebase.
+     */
+    @Test
+    public void directPath_forgedSignature_safeRefused() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair genuine = kpg.generateKeyPair();
+        KeyPair attacker = kpg.generateKeyPair();
+
+        // Client trusts 'genuine'; verdict is signed by 'attacker'.
+        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
+                genuine.getPublic(), SIG_ALG);
+
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(signedHashVerdict(VerdictType.SAFE, attacker.getPrivate()));
+
+        try {
+            PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+            fail("Expected IOException: forged SAFE verdict must be refused");
+        } catch (IOException ex) {
+            assertTrue("message should mention signature",
+                    ex.getMessage().toLowerCase().contains("signature"));
+            assertTrue("message should contain the hash",
+                    ex.getMessage().contains(FAKE_HASH));
+        }
+    }
+
+    /**
+     * A DUMMY-signature verdict (as older tests build) is refused once a key is
+     * configured — proving the gate is live on the SAFE path.
+     */
+    @Test
+    public void directPath_unverifiableDummySignature_refused() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair keys = kpg.generateKeyPair();
+        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
+                keys.getPublic(), SIG_ALG);
+
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(newVerdict(VerdictType.SAFE)); // DUMMY_SIG
+
+        try {
+            PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+            fail("Expected IOException: unverifiable signature must be refused");
+        } catch (IOException ex) {
+            assertTrue(ex.getMessage().toLowerCase().contains("signature"));
+        }
+    }
+
+    /**
+     * Backward compatibility: with NO key configured (the default), the direct
+     * path does not attempt verification and a DUMMY-signature SAFE verdict
+     * proceeds exactly as before this change.
+     */
+    @Test
+    public void directPath_noKeyConfigured_dummySignatureProceeds() throws Exception {
+        assertNull("precondition: no verdict key configured",
+                PreferredProxyCodebaseProvider.getVerdictRegistryPublicKey());
+
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(newVerdict(VerdictType.SAFE)); // DUMMY_SIG
+
+        assertFalse("without a configured key, behaviour is unchanged",
+                PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
+    }
+
+    /**
+     * Even a DANGEROUS verdict must have its signature verified — a verifiably
+     * genuine DANGEROUS verdict is still refused (with the DANGEROUS message),
+     * confirming verification runs before the type dispatch and does not mask
+     * the DANGEROUS refusal.
+     */
+    @Test
+    public void directPath_genuineDangerous_refusedAsDangerous() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair keys = kpg.generateKeyPair();
+        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
+                keys.getPublic(), SIG_ALG);
+
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(signedHashVerdict(VerdictType.DANGEROUS, keys.getPrivate()));
+
+        try {
+            PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+            fail("Expected IOException for DANGEROUS verdict");
+        } catch (IOException ex) {
+            assertTrue("genuine DANGEROUS verdict refused as DANGEROUS",
+                    ex.getMessage().contains("DANGEROUS"));
+        }
+    }
+
+    @Test
+    public void setVerdictRegistryPublicKey_nullSigAlg_throwsIae() {
+        KeyPairGenerator kpg;
+        KeyPair keys;
+        try {
+            kpg = KeyPairGenerator.getInstance("RSA");
+            kpg.initialize(2048);
+            keys = kpg.generateKeyPair();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
+                    keys.getPublic(), null);
+            fail("Expected IllegalArgumentException for null sigAlgorithm with a key");
+        } catch (IllegalArgumentException expected) {
+            // pass
+        }
+    }
+
+    @Test
+    public void decodePublicKey_roundTrips() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        PublicKey original = kpg.generateKeyPair().getPublic();
+        byte[] der = original.getEncoded(); // X.509 SubjectPublicKeyInfo
+        PublicKey decoded = PreferredProxyCodebaseProvider.decodePublicKey(der, "RSA");
+        assertArrayEquals("decoded key must round-trip to identical encoding",
+                original.getEncoded(), decoded.getEncoded());
     }
 
     // -------------------------------------------------------------------------

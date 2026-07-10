@@ -38,6 +38,7 @@ import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.security.AccessController;
 import java.security.CodeSource;
+import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Permission;
@@ -45,7 +46,10 @@ import java.security.Policy;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
+import java.security.PublicKey;
 import java.security.UnresolvedPermission;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -147,6 +151,71 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     static final int DEFAULT_JAR_READ_TIMEOUT_MS = 30_000;
 
     private static volatile long verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
+
+    /**
+     * Known-good public identity key of the {@link VerdictRegistry}, used to
+     * verify the forge-proof inline signature carried by every
+     * {@link RegistryVerdict} on the <em>direct</em> verdict-consumption path.
+     *
+     * <p>When this key is configured (non-null) via
+     * {@link #setVerdictRegistryPublicKey} or the two-argument
+     * {@link #setVerdictRegistry(VerdictRegistry, java.security.PublicKey, String)},
+     * {@link #checkVerdictForJar} re-verifies the inline signature against it
+     * before acting on the verdict — regardless of how the verdict-registry
+     * proxy was authenticated at the transport layer.  This closes the
+     * "authenticated channel ⇒ trusted verdict" gap: the trust anchor becomes
+     * the registry's signature, not merely the identity of the endpoint that
+     * happened to return the object.
+     *
+     * <p>When {@code null} (the default) the direct path relies solely on the
+     * Jini {@code Integrity}/{@code ServerAuthentication} constraints that the
+     * deployer is expected to enforce on the injected proxy — the pre-existing
+     * behaviour, preserved for backward compatibility.
+     */
+    private static volatile PublicKey verdictRegistryPublicKey =
+            loadVerdictRegistryPublicKey();
+
+    /**
+     * JCA standard signature-algorithm name used to verify the inline
+     * {@link RegistryVerdict} signature (e.g. {@code "SHA256withRSA"}).
+     * Only consulted when {@link #verdictRegistryPublicKey} is non-null.
+     * Defaults to the value of the
+     * {@value #VERDICT_REGISTRY_SIG_ALGORITHM_PROPERTY} system property, or
+     * {@code "SHA256withRSA"} when unset.
+     */
+    private static volatile String verdictRegistrySigAlgorithm =
+            loadVerdictRegistrySigAlgorithm();
+
+    /**
+     * System property naming the file that holds the DER-encoded (X.509
+     * {@code SubjectPublicKeyInfo}) public identity key of the verdict
+     * registry.  When set and readable, the key is loaded at class-init time
+     * and the direct path enforces inline-signature verification.  Absent this
+     * property the key may still be injected programmatically via
+     * {@link #setVerdictRegistryPublicKey}.
+     */
+    static final String VERDICT_REGISTRY_PUBLIC_KEY_FILE_PROPERTY =
+            "jgdms.proxy.verdictRegistryPublicKeyFile";
+
+    /**
+     * System property naming the JCA key-factory algorithm to use when
+     * decoding the key file named by
+     * {@value #VERDICT_REGISTRY_PUBLIC_KEY_FILE_PROPERTY} (e.g. {@code "RSA"},
+     * {@code "EC"}).  Defaults to {@code "RSA"}.
+     */
+    static final String VERDICT_REGISTRY_KEY_ALGORITHM_PROPERTY =
+            "jgdms.proxy.verdictRegistryKeyAlgorithm";
+
+    /**
+     * System property naming the signature algorithm used to verify inline
+     * {@link RegistryVerdict} signatures.  Defaults to {@code "SHA256withRSA"}.
+     */
+    static final String VERDICT_REGISTRY_SIG_ALGORITHM_PROPERTY =
+            "jgdms.proxy.verdictRegistrySigAlgorithm";
+
+    /** Default signature algorithm when the property is unset. */
+    static final String DEFAULT_VERDICT_REGISTRY_SIG_ALGORITHM = "SHA256withRSA";
+
     private static final Semaphore JAR_LOAD_SEMAPHORE =
             new Semaphore(loadMaxConcurrentJarLoads(), true);
     private static final int maxCodebaseJars = loadMaxCodebaseJars();
@@ -261,6 +330,83 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         VerdictRegistryHolder.set(registry);
     }
 
+    /**
+     * Injects the {@link VerdictRegistry} proxy together with the registry's
+     * known-good public identity key, enabling forge-proof inline-signature
+     * verification on the direct verdict-consumption path.
+     *
+     * <p>This is the recommended production entry point.  Once the key is set,
+     * {@link #checkVerdictForJar} re-verifies the DER signature embedded in
+     * every {@link RegistryVerdict} against {@code publicKey} before acting on
+     * the verdict.  A verdict whose signature does not verify is refused with
+     * an {@link IOException} (fail-closed), <em>independently</em> of the
+     * transport-layer authentication of the proxy — so a verdict returned over
+     * an authenticated-but-not-integrity-constrained channel, or by a
+     * substituted proxy, cannot cause a DANGEROUS codebase to be accepted.
+     *
+     * @param registry     the registry proxy to use; may be {@code null} to
+     *                     disable verdict checking
+     * @param publicKey    the registry's known-good public identity key; may be
+     *                     {@code null} to leave the currently-configured key
+     *                     (if any) in place — pass a non-null key to enable
+     *                     verification
+     * @param sigAlgorithm the JCA standard signature-algorithm name (e.g.
+     *                     {@code "SHA256withRSA"}); ignored when
+     *                     {@code publicKey} is {@code null}, required otherwise
+     * @throws SecurityException if a security manager is installed and the
+     *         caller does not hold
+     *         {@code RuntimePermission("setVerdictRegistry")}
+     */
+    public static void setVerdictRegistry(VerdictRegistry registry,
+                                          PublicKey publicKey,
+                                          String sigAlgorithm) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
+        }
+        if (publicKey != null) {
+            if (sigAlgorithm == null || sigAlgorithm.trim().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "sigAlgorithm must be non-empty when publicKey is supplied");
+            }
+            verdictRegistryPublicKey    = publicKey;
+            verdictRegistrySigAlgorithm = sigAlgorithm.trim();
+        }
+        VerdictRegistryHolder.set(registry);
+    }
+
+    /**
+     * Configures the verdict-registry known-good public identity key used to
+     * verify inline {@link RegistryVerdict} signatures on the direct path.
+     * Passing {@code null} disables inline verification (reverting to
+     * channel-trust behaviour).
+     *
+     * @param publicKey    the registry's public identity key, or {@code null}
+     *                     to disable inline verification
+     * @param sigAlgorithm the JCA standard signature-algorithm name; ignored
+     *                     when {@code publicKey} is {@code null}, required
+     *                     otherwise
+     * @throws SecurityException if a security manager is installed and the
+     *         caller does not hold
+     *         {@code RuntimePermission("setVerdictRegistry")}
+     */
+    public static void setVerdictRegistryPublicKey(PublicKey publicKey,
+                                                   String sigAlgorithm) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
+        }
+        if (publicKey != null
+                && (sigAlgorithm == null || sigAlgorithm.trim().isEmpty())) {
+            throw new IllegalArgumentException(
+                    "sigAlgorithm must be non-empty when publicKey is supplied");
+        }
+        verdictRegistryPublicKey = publicKey;
+        if (publicKey != null) {
+            verdictRegistrySigAlgorithm = sigAlgorithm.trim();
+        }
+    }
+
     static void setVerdictRetryBaseDelayMs(long retryBaseDelayMs) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -304,6 +450,30 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     /** Clears the in-memory verdict cache.  For use in tests only. */
     static void clearVerdictCache() {
         VERDICT_CACHE.clear();
+    }
+
+    /** Returns the currently-configured verdict-registry public key (may be null). */
+    static PublicKey getVerdictRegistryPublicKey() {
+        return verdictRegistryPublicKey;
+    }
+
+    /** Returns the currently-configured verdict signature algorithm. */
+    static String getVerdictRegistrySigAlgorithm() {
+        return verdictRegistrySigAlgorithm;
+    }
+
+    /**
+     * Resets the verdict-registry public key and signature algorithm to the
+     * values derived from system properties at class-load time.  For use in
+     * tests only.
+     */
+    static void resetVerdictRegistryPublicKey() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
+        }
+        verdictRegistryPublicKey    = loadVerdictRegistryPublicKey();
+        verdictRegistrySigAlgorithm = loadVerdictRegistrySigAlgorithm();
     }
 
     static int parseMaxConcurrentJarLoads(String value) {
@@ -541,6 +711,86 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             return true;
         }
         return parseInconclusiveStrictMode(value);
+    }
+
+    private static String loadVerdictRegistrySigAlgorithm() {
+        String value;
+        try {
+            value = System.getProperty(VERDICT_REGISTRY_SIG_ALGORITHM_PROPERTY);
+        } catch (SecurityException ex) {
+            return DEFAULT_VERDICT_REGISTRY_SIG_ALGORITHM;
+        }
+        if (value == null || value.trim().isEmpty()) {
+            return DEFAULT_VERDICT_REGISTRY_SIG_ALGORITHM;
+        }
+        return value.trim();
+    }
+
+    /**
+     * Loads the verdict-registry public identity key from the file named by
+     * {@value #VERDICT_REGISTRY_PUBLIC_KEY_FILE_PROPERTY}, if that property is
+     * set.  The file must contain the DER-encoded X.509
+     * {@code SubjectPublicKeyInfo} form of the key.  Returns {@code null} when
+     * the property is unset, unreadable, or the key cannot be decoded — in
+     * which case the direct path retains its channel-trust behaviour and a
+     * warning is logged.
+     */
+    private static PublicKey loadVerdictRegistryPublicKey() {
+        String path;
+        try {
+            path = System.getProperty(VERDICT_REGISTRY_PUBLIC_KEY_FILE_PROPERTY);
+        } catch (SecurityException ex) {
+            return null;
+        }
+        if (path == null || path.trim().isEmpty()) {
+            return null;
+        }
+        String keyAlg;
+        try {
+            keyAlg = System.getProperty(VERDICT_REGISTRY_KEY_ALGORITHM_PROPERTY, "RSA");
+        } catch (SecurityException ex) {
+            keyAlg = "RSA";
+        }
+        try {
+            byte[] der = readAllBytes(new File(path.trim()));
+            PublicKey key = decodePublicKey(der, keyAlg);
+            logger.log(Level.CONFIG,
+                    "Verdict-registry public key loaded from {0} ({1}); "
+                    + "direct-path inline signature verification ENABLED",
+                    new Object[]{path, keyAlg});
+            return key;
+        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException ex) {
+            logger.log(Level.WARNING,
+                    "Unable to load verdict-registry public key from " + path
+                    + " (algorithm " + keyAlg + "); direct-path inline signature "
+                    + "verification DISABLED — relying on transport constraints only",
+                    ex);
+            return null;
+        }
+    }
+
+    /** Decodes an X.509 {@code SubjectPublicKeyInfo} DER blob into a key. */
+    static PublicKey decodePublicKey(byte[] der, String keyAlgorithm)
+            throws NoSuchAlgorithmException, InvalidKeySpecException {
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(der);
+        return KeyFactory.getInstance(keyAlgorithm).generatePublic(spec);
+    }
+
+    /** Reads a whole file (bounded by {@link #maxJarBytes}) into a byte array. */
+    private static byte[] readAllBytes(File f) throws IOException {
+        long len = f.length();
+        if (len > maxJarBytes) {
+            throw new IOException("Verdict-registry key file too large: " + len + " bytes");
+        }
+        try (java.io.InputStream in = new java.io.FileInputStream(f)) {
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = in.read(buf)) != -1) {
+                baos.write(buf, 0, n);
+            }
+            return baos.toByteArray();
+        }
     }
 
     /**
@@ -1178,6 +1428,23 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             throw new IOException(
                     "No verdict available for JAR (SHA-256: " + contentHash
                     + "); codebase refused: " + path);
+        }
+        // Defense-in-depth (STD-006 §7.4): when a known-good registry public
+        // key is configured, re-verify the forge-proof inline signature before
+        // acting on the verdict.  This makes the registry's signature — not the
+        // authenticity of the channel that returned the object — the trust
+        // anchor on this direct path.  Fail-closed: an unverifiable verdict is
+        // refused regardless of its VerdictType (so a forged/substituted SAFE
+        // verdict cannot green-light a DANGEROUS codebase).
+        PublicKey pk = verdictRegistryPublicKey;
+        if (pk != null && !verdict.verifySignature(pk, verdictRegistrySigAlgorithm)) {
+            logger.log(Level.SEVERE,
+                    "RegistryVerdict inline signature verification FAILED for JAR "
+                    + "(SHA-256: {0}); codebase refused: {1}",
+                    new Object[]{contentHash, path});
+            throw new IOException(
+                    "RegistryVerdict signature verification failed for JAR (SHA-256: "
+                    + contentHash + "); codebase refused: " + path);
         }
         VerdictType type = verdict.getVerdict();
         if (type == VerdictType.DANGEROUS) {

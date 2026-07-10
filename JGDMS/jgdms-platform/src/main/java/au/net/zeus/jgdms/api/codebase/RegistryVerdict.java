@@ -17,13 +17,22 @@
  */
 package au.net.zeus.jgdms.api.codebase;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
@@ -269,6 +278,96 @@ public final class RegistryVerdict implements Serializable {
         return "RegistryVerdict{verdict=" + verdict
                 + ", timestamp=" + timestamp
                 + ", urls=" + Arrays.toString(codebaseUrls) + '}';
+    }
+
+    /**
+     * Verifies the inline {@link #signature} of this verdict against a
+     * known-good public identity key.
+     *
+     * <p>This is the <em>forge-proof</em> trust anchor for a
+     * {@code RegistryVerdict}: unlike relying on the authenticity of the
+     * transport channel that delivered the verdict, a caller that holds the
+     * registry's genuine public key can prove, purely from the object's own
+     * bytes, that the verdict was issued by the registry that owns the
+     * corresponding private key and has not been altered.
+     *
+     * <p>The canonical bytes reconstructed here are <strong>identical</strong>
+     * to those signed by the registry when it issues a verdict: for each
+     * codebase URI in lexicographic order, a 4-byte big-endian UTF-8 byte
+     * length followed by those bytes, then the 4-byte big-endian
+     * {@link VerdictType#ordinal()}, then the 8-byte big-endian
+     * {@link #getTimestamp() timestamp}.  The URIs are sorted here so that the
+     * verification is independent of the iteration order in which they happen
+     * to be stored.
+     *
+     * <p>This method is side-effect free and never throws on a cryptographic
+     * mismatch — a bad signature, an unknown algorithm, or an incompatible key
+     * all yield {@code false} (fail-closed).  Callers must treat {@code false}
+     * as "do not trust this verdict".
+     *
+     * @param key          the registry's known-good public identity key;
+     *                     must be non-null
+     * @param sigAlgorithm the JCA standard signature-algorithm name the
+     *                     registry uses to sign verdicts (e.g.
+     *                     {@code "SHA256withRSA"}); must be non-null and
+     *                     non-empty
+     * @return {@code true} if and only if the inline signature verifies against
+     *         {@code key} using {@code sigAlgorithm}
+     * @throws NullPointerException     if {@code key} or {@code sigAlgorithm}
+     *                                  is {@code null}
+     * @throws IllegalArgumentException if {@code sigAlgorithm} is empty
+     */
+    public boolean verifySignature(PublicKey key, String sigAlgorithm) {
+        if (key == null) throw new NullPointerException("key");
+        if (sigAlgorithm == null) throw new NullPointerException("sigAlgorithm");
+        if (sigAlgorithm.isEmpty())
+            throw new IllegalArgumentException("sigAlgorithm must not be empty");
+        try {
+            Uri[] sorted = codebaseUrlCache.clone();
+            Arrays.sort(sorted, new Comparator<Uri>() {
+                @Override
+                public int compare(Uri a, Uri b) {
+                    return a.toString().compareTo(b.toString());
+                }
+            });
+            byte[] canonical = canonicalBytes(sorted, verdict, timestamp);
+            Signature sig = Signature.getInstance(sigAlgorithm);
+            sig.initVerify(key);
+            sig.update(canonical);
+            return sig.verify(signature);
+        } catch (NoSuchAlgorithmException | InvalidKeyException
+                | SignatureException | IOException e) {
+            // Fail-closed: any cryptographic failure means "not verified".
+            return false;
+        }
+    }
+
+    /**
+     * Produces the canonical bytes that the registry signs for a
+     * {@code RegistryVerdict}.  This format is authoritative and MUST stay
+     * byte-for-byte identical to the signing code in the verdict-registry
+     * service ({@code VerdictRegistryImpl.canonicalBytesForRegistryVerdict})
+     * and to the replica verifier
+     * ({@code ReadReplicaVerdictRegistry.canonicalBytesForRegistryVerdict}).
+     *
+     * <p>Format: for each URI in the supplied (already-sorted) order, a 4-byte
+     * big-endian UTF-8 byte length followed by those bytes; then the 4-byte
+     * big-endian verdict ordinal; then the 8-byte big-endian timestamp.
+     */
+    private static byte[] canonicalBytes(Uri[] sortedUrls,
+                                         VerdictType type,
+                                         long timestamp) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream      dos  = new DataOutputStream(baos);
+        for (Uri uri : sortedUrls) {
+            byte[] b = uri.toString().getBytes(StandardCharsets.UTF_8);
+            dos.writeInt(b.length);
+            dos.write(b);
+        }
+        dos.writeInt(type.ordinal());
+        dos.writeLong(timestamp);
+        dos.flush();
+        return baos.toByteArray();
     }
 
     // -------------------------------------------------------------------------
