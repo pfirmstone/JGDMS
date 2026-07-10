@@ -173,7 +173,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
      * to the registry proxy (belt half of belt-and-braces).
      */
     @Test
-    public void constrainRegistryProxy_appliesIntegrityAndServerAuth() {
+    public void constrainRegistryProxy_appliesIntegrityAndServerAuth() throws Exception {
         ConstrainableStubVerdictRegistry stub = new ConstrainableStubVerdictRegistry();
         VerdictRegistry constrained =
                 PreferredProxyCodebaseProvider.constrainRegistryProxy(stub);
@@ -502,26 +502,24 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     //                (secure by default / fail-closed)
     // -------------------------------------------------------------------------
 
-    /** Reproduces the registry's authoritative canonical signing bytes. */
-    private static byte[] canonicalBytes(Uri[] urls, VerdictType type, long ts)
-            throws IOException {
-        Uri[] sorted = urls.clone();
-        Arrays.sort(sorted, new Comparator<Uri>() {
-            public int compare(Uri a, Uri b) {
-                return a.toString().compareTo(b.toString());
-            }
-        });
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream      dos  = new DataOutputStream(baos);
-        for (Uri uri : sorted) {
-            byte[] b = uri.toString().getBytes(StandardCharsets.UTF_8);
-            dos.writeInt(b.length);
-            dos.write(b);
+    /**
+     * Reproduces the registry's authoritative canonical signing bytes by
+     * delegating to the single source of truth,
+     * {@link RegistryVerdict#signedContent(String[], VerdictType, long)} — the
+     * exact canonical DER TBS that {@link RegistryVerdict#verifySignature} (and
+     * therefore the direct-path gate under test) reconstructs for verification.
+     *
+     * <p>The URLs are encoded in their stored (construction) order — NOT
+     * re-sorted — matching the order-significant {@code SEQUENCE OF} wire form
+     * (JGDMS-STD-006 &sect;7.4.1) and the order the verdict is built with, so a
+     * genuinely-signed fixture verifies.
+     */
+    private static byte[] canonicalBytes(Uri[] urls, VerdictType type, long ts) {
+        String[] urlStrings = new String[urls.length];
+        for (int i = 0; i < urls.length; i++) {
+            urlStrings[i] = urls[i].toString();
         }
-        dos.writeInt(type.ordinal());
-        dos.writeLong(ts);
-        dos.flush();
-        return baos.toByteArray();
+        return RegistryVerdict.signedContent(urlStrings, type, ts);
     }
 
     private static RegistryVerdict signedHashVerdict(VerdictType type,
