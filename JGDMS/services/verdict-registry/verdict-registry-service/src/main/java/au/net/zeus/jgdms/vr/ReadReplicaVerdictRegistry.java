@@ -17,17 +17,10 @@
  */
 package au.net.zeus.jgdms.vr;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.security.Signature;
-import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,7 +46,6 @@ import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
-import au.net.zeus.jgdms.api.codebase.VerdictType;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.api.codebase.VerdictEvent;
@@ -500,47 +492,9 @@ public class ReadReplicaVerdictRegistry
      * @return {@code true} if the signature is valid
      */
     private boolean verifyVerdictSignature(RegistryVerdict rv) {
-        try {
-            Uri[] sortedUris = sortedUriArray(rv.getCodebaseUrls());
-            byte[] canonical = canonicalBytesForRegistryVerdict(
-                    sortedUris, rv.getVerdict(), rv.getTimestamp());
-            return verify(primaryPublicKey, sigAlgorithm, canonical, rv.getSignature());
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | SignatureException e) {
-            logger.log(Level.WARNING,
-                    "ReadReplicaVerdictRegistry: exception during signature verification; "
-                    + "treating as invalid.", e);
-            return false;
-        }
-    }
-
-    /**
-     * Produces the canonical bytes for a {@link RegistryVerdict} — identical
-     * to the format used by {@code VerdictRegistryImpl} when signing verdicts.
-     */
-    private static byte[] canonicalBytesForRegistryVerdict(Uri[] sortedUrls,
-                                                            VerdictType type,
-                                                            long timestamp)
-            throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream      dos  = new DataOutputStream(baos);
-        for (Uri uri : sortedUrls) {
-            byte[] b = uri.toString().getBytes(StandardCharsets.UTF_8);
-            dos.writeInt(b.length);
-            dos.write(b);
-        }
-        dos.writeInt(type.ordinal());
-        dos.writeLong(timestamp);
-        dos.flush();
-        return baos.toByteArray();
-    }
-
-    private static boolean verify(PublicKey key, String algorithm,
-                                  byte[] data, byte[] signature)
-            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-        Signature sig = Signature.getInstance(algorithm);
-        sig.initVerify(key);
-        sig.update(data);
-        return sig.verify(signature);
+        // Delegate to the verdict's own STD-006 §7.4 canonical DER TBS check —
+        // the single source of truth shared with the primary registry's signer.
+        return rv.verifySignature(primaryPublicKey, sigAlgorithm);
     }
 
     /**
@@ -559,15 +513,6 @@ public class ReadReplicaVerdictRegistry
             sb.append(s);
         }
         return sb.toString();
-    }
-
-    /**
-     * Returns a URI array sorted by string value (same order as the primary).
-     */
-    private static Uri[] sortedUriArray(Set<Uri> codebaseUrls) {
-        Uri[] arr = codebaseUrls.toArray(new Uri[0]);
-        Arrays.sort(arr, (a, b) -> a.toString().compareTo(b.toString()));
-        return arr;
     }
 
     /**

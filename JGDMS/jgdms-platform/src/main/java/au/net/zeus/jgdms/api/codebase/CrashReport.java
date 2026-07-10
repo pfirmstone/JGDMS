@@ -22,9 +22,11 @@ import java.io.InvalidObjectException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -192,8 +194,10 @@ public final class CrashReport implements Serializable {
 
     /**
      * DER-encoded signature produced by Phoenix's identity key over the
-     * canonical serialized form of {@link #codebaseUrls}, {@link #exitCode},
-     * {@link #incarnation}, and {@link #stderrSummary}.
+     * canonical DER TBS content of this report (JGDMS-STD-006 &sect;7.4) —
+     * {@link #codebaseUrls}, {@link #exitCode}, {@link #incarnation}, and
+     * {@link #stderrSummary} — as computed by {@link #signedContent()}.
+     * Excluded from its own TBS.
      *
      * @serial
      */
@@ -313,6 +317,52 @@ public final class CrashReport implements Serializable {
      */
     public byte[] getSignature() {
         return signature.clone();
+    }
+
+    /**
+     * Produces the canonical DER <em>to-be-signed</em> (TBS) content that
+     * Phoenix signs, and the registry reconstructs, for a {@code CrashReport}
+     * (JGDMS-STD-006 &sect;7.4 / &sect;7.4.1).  This is the single source of
+     * truth for the signed octets.
+     *
+     * <p>The bytes are {@code DER(SEQUENCE { SEQUENCE OF UTF8String codebaseUrls,
+     * INTEGER exitCode, INTEGER incarnation, UTF8String stderrSummary })}.  The
+     * {@code signature} field is excluded.  The codebase URLs are encoded in the
+     * supplied array order (order-significant, matching the {@code SEQUENCE OF}
+     * wire form); the caller is responsible for any canonicalisation of that
+     * order before both signing and construction.
+     *
+     * @param codebaseUrls  the codebase URI strings, in the order stored on the
+     *                      report; must be non-null with no null elements
+     * @param exitCode      the OS exit code
+     * @param incarnation   the Phoenix incarnation number
+     * @param stderrSummary the sanitised stderr excerpt; must be non-null
+     * @return the canonical DER TBS bytes
+     * @throws NullPointerException if {@code codebaseUrls} (or an element) or
+     *                              {@code stderrSummary} is {@code null}
+     */
+    public static byte[] signedContent(String[] codebaseUrls,
+                                       int exitCode,
+                                       long incarnation,
+                                       String stderrSummary) {
+        if (codebaseUrls == null) throw new NullPointerException("codebaseUrls");
+        if (stderrSummary == null) throw new NullPointerException("stderrSummary");
+        List<byte[]> urls = new ArrayList<byte[]>(codebaseUrls.length);
+        for (int i = 0; i < codebaseUrls.length; i++) {
+            if (codebaseUrls[i] == null)
+                throw new NullPointerException("codebaseUrls[" + i + "]");
+            urls.add(DerTbs.utf8(codebaseUrls[i]));
+        }
+        return DerTbs.sequence(Arrays.asList(
+                DerTbs.sequence(urls),
+                DerTbs.integer(exitCode),
+                DerTbs.integer(incarnation),
+                DerTbs.utf8(stderrSummary)));
+    }
+
+    /** The canonical DER TBS of this report's own stored fields. */
+    public byte[] signedContent() {
+        return signedContent(codebaseUrls, exitCode, incarnation, stderrSummary);
     }
 
     // -------------------------------------------------------------------------

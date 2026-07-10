@@ -17,17 +17,11 @@
  */
 package au.net.zeus.jgdms.api.codebase;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
-import java.util.Arrays;
-import java.util.Comparator;
 import org.apache.river.api.net.Uri;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -37,11 +31,12 @@ import static org.junit.Assert.*;
  * Verifies the forge-proof inline-signature check on {@link RegistryVerdict}
  * ({@link RegistryVerdict#verifySignature(PublicKey, String)}).
  *
- * <p>The canonical bytes produced here MUST match, byte-for-byte, the format
- * signed by {@code VerdictRegistryImpl} in the verdict-registry service; if this
- * test's {@link #canonicalBytes} and the production
- * {@code canonicalBytesForRegistryVerdict} ever diverge, a genuine signature
- * would fail to verify — which is exactly what this test guards against.
+ * <p>Signing here uses the single-source-of-truth canonical DER TBS
+ * ({@link RegistryVerdict#signedContent(String[], VerdictType, long)}), the same
+ * bytes the {@code VerdictRegistryImpl} signer and every verifier use, so a
+ * genuine registry signature verifies and any field tamper (including URL
+ * reordering) breaks it — which is exactly what these tests guard (STD-006
+ * &sect;7.4).
  */
 public class RegistryVerdictSignatureTest {
 
@@ -58,26 +53,13 @@ public class RegistryVerdictSignatureTest {
         wrongKeys    = kpg.generateKeyPair();
     }
 
-    /** Reproduces the registry's authoritative canonical signing format. */
-    private static byte[] canonicalBytes(Uri[] urls, VerdictType type, long ts)
-            throws IOException {
-        Uri[] sorted = urls.clone();
-        Arrays.sort(sorted, new Comparator<Uri>() {
-            public int compare(Uri a, Uri b) {
-                return a.toString().compareTo(b.toString());
-            }
-        });
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream      dos  = new DataOutputStream(baos);
-        for (Uri uri : sorted) {
-            byte[] b = uri.toString().getBytes(StandardCharsets.UTF_8);
-            dos.writeInt(b.length);
-            dos.write(b);
+    /** The registry's authoritative canonical DER TBS (order-significant). */
+    private static byte[] canonicalBytes(Uri[] urls, VerdictType type, long ts) {
+        String[] urlStrings = new String[urls.length];
+        for (int i = 0; i < urls.length; i++) {
+            urlStrings[i] = urls[i].toString();
         }
-        dos.writeInt(type.ordinal());
-        dos.writeLong(ts);
-        dos.flush();
-        return baos.toByteArray();
+        return RegistryVerdict.signedContent(urlStrings, type, ts);
     }
 
     private static byte[] sign(PrivateKey key, byte[] data) throws Exception {
@@ -170,10 +152,11 @@ public class RegistryVerdictSignatureTest {
     }
 
     @Test
-    public void urlOrderIndependent_verifies() throws Exception {
-        // Signature is computed over the SORTED url order; presenting the URLs
-        // in a different construction order must still verify because
-        // verifySignature() re-sorts.
+    public void urlOrderSignificant_reorderingDoesNotVerify() throws Exception {
+        // STD-006 §7.4.1: the TBS is the canonical DER of codebaseUrls as a
+        // SEQUENCE OF (order-preserving).  A verdict signed over one URL order
+        // and presented in a different construction order must NOT verify —
+        // the DER bytes differ, so this is tamper detection, not a false match.
         Uri a = new Uri("https://host/a.jar");
         Uri b = new Uri("https://host/b.jar");
         long ts = System.currentTimeMillis();
@@ -183,8 +166,14 @@ public class RegistryVerdictSignatureTest {
         RegistryVerdict reordered =
                 new RegistryVerdict(new Uri[]{ b, a }, VerdictType.SAFE, ts, sig);
 
-        assertTrue("verification must be independent of stored URL order",
+        assertFalse("reordering the codebase URLs must invalidate the signature",
                 reordered.verifySignature(registryKeys.getPublic(), SIG_ALG));
+
+        // Sanity: the SAME order that was signed still verifies.
+        RegistryVerdict inOrder =
+                new RegistryVerdict(new Uri[]{ a, b }, VerdictType.SAFE, ts, sig);
+        assertTrue("the signed URL order must verify",
+                inOrder.verifySignature(registryKeys.getPublic(), SIG_ALG));
     }
 
     @Test(expected = NullPointerException.class)

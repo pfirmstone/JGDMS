@@ -17,23 +17,21 @@
  */
 package au.net.zeus.jgdms.api.codebase;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -291,14 +289,15 @@ public final class RegistryVerdict implements Serializable {
      * bytes, that the verdict was issued by the registry that owns the
      * corresponding private key and has not been altered.
      *
-     * <p>The canonical bytes reconstructed here are <strong>identical</strong>
-     * to those signed by the registry when it issues a verdict: for each
-     * codebase URI in lexicographic order, a 4-byte big-endian UTF-8 byte
-     * length followed by those bytes, then the 4-byte big-endian
-     * {@link VerdictType#ordinal()}, then the 8-byte big-endian
-     * {@link #getTimestamp() timestamp}.  The URIs are sorted here so that the
-     * verification is independent of the iteration order in which they happen
-     * to be stored.
+     * <p>The bytes reconstructed here are <strong>identical</strong> to those
+     * signed by the registry when it issues a verdict: the canonical DER TBS of
+     * {@link #getCodebaseUrls() codebaseUrls}, {@link #getVerdict() verdict}, and
+     * {@link #getTimestamp() timestamp} produced by
+     * {@link #signedContent(String[], VerdictType, long)}.  The codebase URLs are
+     * encoded in their stored order (order-significant, matching the
+     * {@code SEQUENCE OF} wire form) — they are <em>not</em> re-sorted here, so a
+     * verdict presented with a different URL order than was signed will not
+     * verify (JGDMS-STD-006 &sect;7.4.1).
      *
      * <p>This method is side-effect free and never throws on a cryptographic
      * mismatch — a bad signature, an unknown algorithm, or an incompatible key
@@ -323,51 +322,62 @@ public final class RegistryVerdict implements Serializable {
         if (sigAlgorithm.isEmpty())
             throw new IllegalArgumentException("sigAlgorithm must not be empty");
         try {
-            Uri[] sorted = codebaseUrlCache.clone();
-            Arrays.sort(sorted, new Comparator<Uri>() {
-                @Override
-                public int compare(Uri a, Uri b) {
-                    return a.toString().compareTo(b.toString());
-                }
-            });
-            byte[] canonical = canonicalBytes(sorted, verdict, timestamp);
+            byte[] canonical = signedContent();
             Signature sig = Signature.getInstance(sigAlgorithm);
             sig.initVerify(key);
             sig.update(canonical);
             return sig.verify(signature);
         } catch (NoSuchAlgorithmException | InvalidKeyException
-                | SignatureException | IOException e) {
+                | SignatureException e) {
             // Fail-closed: any cryptographic failure means "not verified".
             return false;
         }
     }
 
     /**
-     * Produces the canonical bytes that the registry signs for a
-     * {@code RegistryVerdict}.  This format is authoritative and MUST stay
-     * byte-for-byte identical to the signing code in the verdict-registry
-     * service ({@code VerdictRegistryImpl.canonicalBytesForRegistryVerdict})
-     * and to the replica verifier
-     * ({@code ReadReplicaVerdictRegistry.canonicalBytesForRegistryVerdict}).
+     * Produces the canonical DER <em>to-be-signed</em> (TBS) content that the
+     * registry signs, and the verifier reconstructs, for a
+     * {@code RegistryVerdict} (JGDMS-STD-006 &sect;7.4 / &sect;7.4.1).  This is
+     * the single source of truth for the signed octets: the verdict-registry
+     * service signs these bytes when issuing a verdict, and both
+     * {@link #verifySignature(PublicKey, String)} and replica verifiers
+     * reconstruct them for verification.
      *
-     * <p>Format: for each URI in the supplied (already-sorted) order, a 4-byte
-     * big-endian UTF-8 byte length followed by those bytes; then the 4-byte
-     * big-endian verdict ordinal; then the 8-byte big-endian timestamp.
+     * <p>The bytes are {@code DER(SEQUENCE { SEQUENCE OF UTF8String codebaseUrls,
+     * INTEGER verdict.ordinal(), INTEGER timestamp })}.  The {@code signature}
+     * field is excluded.  The codebase URLs are encoded in the supplied array
+     * order (order-significant, matching the {@code SEQUENCE OF} wire form); the
+     * caller is responsible for any canonicalisation of that order before both
+     * signing and construction.
+     *
+     * @param codebaseUrls the codebase URI strings, in the order stored on the
+     *                     verdict; must be non-null with no null elements
+     * @param verdict      the verdict type; must be non-null
+     * @param timestamp    the issue timestamp (epoch millis)
+     * @return the canonical DER TBS bytes
+     * @throws NullPointerException if {@code codebaseUrls} (or an element) or
+     *                              {@code verdict} is {@code null}
      */
-    private static byte[] canonicalBytes(Uri[] sortedUrls,
-                                         VerdictType type,
-                                         long timestamp) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream      dos  = new DataOutputStream(baos);
-        for (Uri uri : sortedUrls) {
-            byte[] b = uri.toString().getBytes(StandardCharsets.UTF_8);
-            dos.writeInt(b.length);
-            dos.write(b);
+    public static byte[] signedContent(String[] codebaseUrls,
+                                       VerdictType verdict,
+                                       long timestamp) {
+        if (codebaseUrls == null) throw new NullPointerException("codebaseUrls");
+        if (verdict == null) throw new NullPointerException("verdict");
+        List<byte[]> urls = new ArrayList<byte[]>(codebaseUrls.length);
+        for (int i = 0; i < codebaseUrls.length; i++) {
+            if (codebaseUrls[i] == null)
+                throw new NullPointerException("codebaseUrls[" + i + "]");
+            urls.add(DerTbs.utf8(codebaseUrls[i]));
         }
-        dos.writeInt(type.ordinal());
-        dos.writeLong(timestamp);
-        dos.flush();
-        return baos.toByteArray();
+        return DerTbs.sequence(Arrays.asList(
+                DerTbs.sequence(urls),
+                DerTbs.integer(verdict.ordinal()),
+                DerTbs.integer(timestamp)));
+    }
+
+    /** The canonical DER TBS of this verdict's own stored fields. */
+    private byte[] signedContent() {
+        return signedContent(codebaseUrls, verdict, timestamp);
     }
 
     // -------------------------------------------------------------------------

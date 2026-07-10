@@ -33,6 +33,8 @@ import java.security.Signature;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Set;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.UnknownLeaseException;
@@ -70,6 +72,27 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     private static final String FAKE_HASH =
             "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899";
 
+    private static final String SIG_ALG = "SHA256withRSA";
+
+    /**
+     * The registry identity key pair used by the default {@code @Before}
+     * configuration.  Verdicts produced by {@link #newVerdict} /
+     * {@link #newVerdictForHash} are genuinely signed with
+     * {@link #REGISTRY_KEYS} so that, under the secure-by-default (mandatory
+     * signature) gate, SAFE/INCONCLUSIVE verdicts are accepted.
+     */
+    private static final KeyPair REGISTRY_KEYS = generateRsaKeyPair();
+
+    private static KeyPair generateRsaKeyPair() {
+        try {
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+            kpg.initialize(2048);
+            return kpg.generateKeyPair();
+        } catch (Exception e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Reset shared state between tests
     // -------------------------------------------------------------------------
@@ -77,6 +100,13 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     @Before
     public void disableVerdictRetrySleep() {
         PreferredProxyCodebaseProvider.setVerdictRetryBaseDelayMs(0L);
+        // Secure by default: a known-good registry key is REQUIRED for any
+        // verdict to be accepted.  Configure the shared test key so the
+        // SAFE/INCONCLUSIVE/cache tests (whose verdicts are genuinely signed by
+        // REGISTRY_KEYS) can proceed.  Fail-closed behaviour without a key is
+        // covered by directPath_noKeyConfigured_failsClosed().
+        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
+                REGISTRY_KEYS.getPublic(), SIG_ALG);
     }
 
     @After
@@ -86,11 +116,20 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         PreferredProxyCodebaseProvider.resetVerdictRetryBaseDelayMs();
         PreferredProxyCodebaseProvider.clearVerdictCache();
         PreferredProxyCodebaseProvider.resetInconclusiveStrictMode();
-        // Disable inline signature verification unless a test opts in, and
+        // Clear the configured key so state does not leak between tests, and
         // clear the cache again so a signed verdict from one test cannot leak
         // into another under the same content hash.
         PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(null, null);
         PreferredProxyCodebaseProvider.clearVerdictCache();
+    }
+
+    /** Signs the canonical bytes for {@code (urls, type, ts)} with {@code signer}. */
+    private static byte[] signVerdict(Uri[] urls, VerdictType type, long ts,
+                                      PrivateKey signer) throws Exception {
+        Signature sig = Signature.getInstance(SIG_ALG);
+        sig.initSign(signer);
+        sig.update(canonicalBytes(urls, type, ts));
+        return sig.sign();
     }
 
     // -------------------------------------------------------------------------
@@ -114,10 +153,63 @@ public class PreferredProxyCodebaseProviderVerdictTest {
 
     @Test
     public void setVerdictRegistryDelegatesToHolder() {
-        StubVerdictRegistry stub = new StubVerdictRegistry();
+        // A constrainable stub returns a distinct constrained copy from
+        // setConstraints(); setVerdictRegistry stores THAT constrained copy.
+        ConstrainableStubVerdictRegistry stub = new ConstrainableStubVerdictRegistry();
         PreferredProxyCodebaseProvider.setVerdictRegistry(stub);
-        assertSame("setVerdictRegistry should delegate to VerdictRegistryHolder",
-                stub, VerdictRegistryHolder.get());
+        VerdictRegistry stored = VerdictRegistryHolder.get();
+        assertSame("holder should hold the constrained copy",
+                stub.constrainedCopy, stored);
+        assertNotNull("constraints must have been applied at the boundary",
+                stub.constrainedCopy.appliedConstraints);
+    }
+
+    // -------------------------------------------------------------------------
+    // STD-006 §7.4 — channel constraints (Integrity + ServerAuthentication)
+    // -------------------------------------------------------------------------
+
+    /**
+     * The injection boundary must apply Integrity.YES + ServerAuthentication.YES
+     * to the registry proxy (belt half of belt-and-braces).
+     */
+    @Test
+    public void constrainRegistryProxy_appliesIntegrityAndServerAuth() {
+        ConstrainableStubVerdictRegistry stub = new ConstrainableStubVerdictRegistry();
+        VerdictRegistry constrained =
+                PreferredProxyCodebaseProvider.constrainRegistryProxy(stub);
+
+        assertSame("returns the constrained copy", stub.constrainedCopy, constrained);
+        MethodConstraints mc = stub.constrainedCopy.appliedConstraints;
+        assertNotNull("constraints applied", mc);
+        java.lang.reflect.Method m =
+                VerdictRegistry.class.getMethod("getVerdictByHash", String.class);
+        java.util.Set<net.jini.core.constraint.InvocationConstraint> reqs =
+                mc.getConstraints(m).requirements();
+        assertTrue("Integrity.YES required on getVerdictByHash",
+                reqs.contains(net.jini.core.constraint.Integrity.YES));
+        assertTrue("ServerAuthentication.YES required on getVerdictByHash",
+                reqs.contains(net.jini.core.constraint.ServerAuthentication.YES));
+    }
+
+    /**
+     * Secure by default: a proxy that cannot carry constraints (not a
+     * RemoteMethodControl) is REJECTED rather than trusted.
+     */
+    @Test
+    public void constrainRegistryProxy_unconstrainableProxy_rejected() {
+        StubVerdictRegistry plain = new StubVerdictRegistry(); // not RemoteMethodControl
+        try {
+            PreferredProxyCodebaseProvider.constrainRegistryProxy(plain);
+            fail("Expected IllegalArgumentException for unconstrainable proxy");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("RemoteMethodControl"));
+        }
+    }
+
+    @Test
+    public void constrainRegistryProxy_null_passesThrough() {
+        assertNull("null proxy passes through unchanged",
+                PreferredProxyCodebaseProvider.constrainRegistryProxy(null));
     }
 
     // -------------------------------------------------------------------------
@@ -406,10 +498,9 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     // -------------------------------------------------------------------------
-    // STD-006 §7.4 — direct-path inline signature verification
+    // STD-006 §7.4 — direct-path MANDATORY inline signature verification
+    //                (secure by default / fail-closed)
     // -------------------------------------------------------------------------
-
-    private static final String SIG_ALG = "SHA256withRSA";
 
     /** Reproduces the registry's authoritative canonical signing bytes. */
     private static byte[] canonicalBytes(Uri[] urls, VerdictType type, long ts)
@@ -438,30 +529,50 @@ public class PreferredProxyCodebaseProviderVerdictTest {
             throws Exception {
         Uri[] urls = new Uri[]{ new Uri("urn:sha256:" + FAKE_HASH) };
         long ts = System.currentTimeMillis();
-        Signature sig = Signature.getInstance(SIG_ALG);
-        sig.initSign(signer);
-        sig.update(canonicalBytes(urls, type, ts));
-        return new RegistryVerdict(urls, type, ts, sig.sign());
+        return new RegistryVerdict(urls, type, ts,
+                signVerdict(urls, type, ts, signer));
     }
 
     /**
-     * With a configured public key, a SAFE verdict bearing a genuine registry
-     * signature is accepted on the direct path.
+     * With the (default) configured key, a SAFE verdict bearing a genuine
+     * registry signature is accepted on the direct path.
      */
     @Test
     public void directPath_genuineSignature_safeProceeds() throws Exception {
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        KeyPair keys = kpg.generateKeyPair();
-
-        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
-                keys.getPublic(), SIG_ALG);
-
         StubVerdictRegistry stub = new StubVerdictRegistry();
-        stub.setVerdictToReturn(signedHashVerdict(VerdictType.SAFE, keys.getPrivate()));
+        stub.setVerdictToReturn(
+                signedHashVerdict(VerdictType.SAFE, REGISTRY_KEYS.getPrivate()));
 
         assertFalse("genuinely signed SAFE verdict must proceed",
                 PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
+    }
+
+    /**
+     * Secure by default: with NO registry key configured, NO verdict can be
+     * trusted — even a genuine SAFE verdict is refused (fail-closed).  This is
+     * the behaviour change from the previous opt-in design.
+     */
+    @Test
+    public void directPath_noKeyConfigured_failsClosed() throws Exception {
+        // Clear the key configured by @Before.
+        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(null, null);
+        assertNull("precondition: no verdict key configured",
+                PreferredProxyCodebaseProvider.getVerdictRegistryPublicKey());
+
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        // Even a genuinely-signed SAFE verdict must be refused with no key.
+        stub.setVerdictToReturn(
+                signedHashVerdict(VerdictType.SAFE, REGISTRY_KEYS.getPrivate()));
+
+        try {
+            PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+            fail("Expected IOException: no configured key must fail closed");
+        } catch (IOException ex) {
+            assertTrue("message should mention the missing key / fail-closed",
+                    ex.getMessage().toLowerCase().contains("public key"));
+            assertTrue("message should contain the hash",
+                    ex.getMessage().contains(FAKE_HASH));
+        }
     }
 
     /**
@@ -473,13 +584,9 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     public void directPath_forgedSignature_safeRefused() throws Exception {
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
         kpg.initialize(2048);
-        KeyPair genuine = kpg.generateKeyPair();
         KeyPair attacker = kpg.generateKeyPair();
 
-        // Client trusts 'genuine'; verdict is signed by 'attacker'.
-        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
-                genuine.getPublic(), SIG_ALG);
-
+        // Client trusts REGISTRY_KEYS (from @Before); verdict is signed by 'attacker'.
         StubVerdictRegistry stub = new StubVerdictRegistry();
         stub.setVerdictToReturn(signedHashVerdict(VerdictType.SAFE, attacker.getPrivate()));
 
@@ -495,19 +602,17 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     /**
-     * A DUMMY-signature verdict (as older tests build) is refused once a key is
-     * configured — proving the gate is live on the SAFE path.
+     * A DUMMY-signature verdict is refused under the configured key — proving
+     * the gate is live on the SAFE path regardless of VerdictType.
      */
     @Test
     public void directPath_unverifiableDummySignature_refused() throws Exception {
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        KeyPair keys = kpg.generateKeyPair();
-        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
-                keys.getPublic(), SIG_ALG);
+        Uri[] urls = new Uri[]{ new Uri("urn:sha256:" + FAKE_HASH) };
+        RegistryVerdict dummy = new RegistryVerdict(
+                urls, VerdictType.SAFE, System.currentTimeMillis(), DUMMY_SIG);
 
         StubVerdictRegistry stub = new StubVerdictRegistry();
-        stub.setVerdictToReturn(newVerdict(VerdictType.SAFE)); // DUMMY_SIG
+        stub.setVerdictToReturn(dummy);
 
         try {
             PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
@@ -518,38 +623,15 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     }
 
     /**
-     * Backward compatibility: with NO key configured (the default), the direct
-     * path does not attempt verification and a DUMMY-signature SAFE verdict
-     * proceeds exactly as before this change.
-     */
-    @Test
-    public void directPath_noKeyConfigured_dummySignatureProceeds() throws Exception {
-        assertNull("precondition: no verdict key configured",
-                PreferredProxyCodebaseProvider.getVerdictRegistryPublicKey());
-
-        StubVerdictRegistry stub = new StubVerdictRegistry();
-        stub.setVerdictToReturn(newVerdict(VerdictType.SAFE)); // DUMMY_SIG
-
-        assertFalse("without a configured key, behaviour is unchanged",
-                PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
-    }
-
-    /**
-     * Even a DANGEROUS verdict must have its signature verified — a verifiably
-     * genuine DANGEROUS verdict is still refused (with the DANGEROUS message),
-     * confirming verification runs before the type dispatch and does not mask
-     * the DANGEROUS refusal.
+     * A genuine DANGEROUS verdict passes the signature gate and is then refused
+     * as DANGEROUS — confirming verification runs before type dispatch and does
+     * not mask the DANGEROUS refusal.
      */
     @Test
     public void directPath_genuineDangerous_refusedAsDangerous() throws Exception {
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        KeyPair keys = kpg.generateKeyPair();
-        PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
-                keys.getPublic(), SIG_ALG);
-
         StubVerdictRegistry stub = new StubVerdictRegistry();
-        stub.setVerdictToReturn(signedHashVerdict(VerdictType.DANGEROUS, keys.getPrivate()));
+        stub.setVerdictToReturn(
+                signedHashVerdict(VerdictType.DANGEROUS, REGISTRY_KEYS.getPrivate()));
 
         try {
             PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
@@ -562,18 +644,9 @@ public class PreferredProxyCodebaseProviderVerdictTest {
 
     @Test
     public void setVerdictRegistryPublicKey_nullSigAlg_throwsIae() {
-        KeyPairGenerator kpg;
-        KeyPair keys;
-        try {
-            kpg = KeyPairGenerator.getInstance("RSA");
-            kpg.initialize(2048);
-            keys = kpg.generateKeyPair();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
         try {
             PreferredProxyCodebaseProvider.setVerdictRegistryPublicKey(
-                    keys.getPublic(), null);
+                    REGISTRY_KEYS.getPublic(), null);
             fail("Expected IllegalArgumentException for null sigAlgorithm with a key");
         } catch (IllegalArgumentException expected) {
             // pass
@@ -582,9 +655,7 @@ public class PreferredProxyCodebaseProviderVerdictTest {
 
     @Test
     public void decodePublicKey_roundTrips() throws Exception {
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        PublicKey original = kpg.generateKeyPair().getPublic();
+        PublicKey original = REGISTRY_KEYS.getPublic();
         byte[] der = original.getEncoded(); // X.509 SubjectPublicKeyInfo
         PublicKey decoded = PreferredProxyCodebaseProvider.decodePublicKey(der, "RSA");
         assertArrayEquals("decoded key must round-trip to identical encoding",
@@ -596,12 +667,22 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     // -------------------------------------------------------------------------
 
     /**
-     * Constructs a minimal {@link RegistryVerdict} with the given type.
+     * Constructs a minimal {@link RegistryVerdict} with the given type, GENUINELY
+     * SIGNED by {@link #REGISTRY_KEYS} so it passes the mandatory signature gate
+     * when the shared key is configured (the default in {@code @Before}).
      */
     private static RegistryVerdict newVerdict(VerdictType type)
             throws URISyntaxException {
-        Uri[] urls = new Uri[]{new Uri("urn:sha256:" + FAKE_HASH)};
-        return new RegistryVerdict(urls, type, System.currentTimeMillis(), DUMMY_SIG);
+        try {
+            Uri[] urls = new Uri[]{new Uri("urn:sha256:" + FAKE_HASH)};
+            long ts = System.currentTimeMillis();
+            byte[] sig = signVerdict(urls, type, ts, REGISTRY_KEYS.getPrivate());
+            return new RegistryVerdict(urls, type, ts, sig);
+        } catch (URISyntaxException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -1423,11 +1504,22 @@ public class PreferredProxyCodebaseProviderVerdictTest {
                 wildcardPd.implies(new INCONCLUSIVEPermit(FAKE_HASH)));
     }
 
-    /** Builds a {@link RegistryVerdict} for a specific content hash. */
+    /**
+     * Builds a {@link RegistryVerdict} for a specific content hash, GENUINELY
+     * SIGNED by {@link #REGISTRY_KEYS} so it passes the mandatory signature gate.
+     */
     private static RegistryVerdict newVerdictForHash(VerdictType type, String hash)
             throws URISyntaxException {
-        Uri[] urls = new Uri[]{new Uri("urn:sha256:" + hash)};
-        return new RegistryVerdict(urls, type, System.currentTimeMillis(), DUMMY_SIG);
+        try {
+            Uri[] urls = new Uri[]{new Uri("urn:sha256:" + hash)};
+            long ts = System.currentTimeMillis();
+            byte[] sig = signVerdict(urls, type, ts, REGISTRY_KEYS.getPrivate());
+            return new RegistryVerdict(urls, type, ts, sig);
+        } catch (URISyntaxException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -1447,6 +1539,40 @@ public class PreferredProxyCodebaseProviderVerdictTest {
                 throws RemoteException {
             this.lastQueriedHash = contentHash;
             return super.getVerdictByHash(contentHash);
+        }
+    }
+
+    /**
+     * A {@link StubVerdictRegistry} that is also a {@link RemoteMethodControl},
+     * so {@code constrainRegistryProxy} can attach method constraints.
+     * {@link #setConstraints} returns a distinct copy (as a real constrainable
+     * proxy would) recording the constraints that were applied.
+     */
+    private static class ConstrainableStubVerdictRegistry
+            extends StubVerdictRegistry implements RemoteMethodControl {
+
+        /** The copy returned by {@link #setConstraints}. */
+        final ConstrainableStubVerdictRegistry constrainedCopy;
+        /** The constraints applied to this instance (null until set). */
+        volatile MethodConstraints appliedConstraints;
+
+        ConstrainableStubVerdictRegistry() {
+            this.constrainedCopy = new ConstrainableStubVerdictRegistry(true);
+        }
+
+        private ConstrainableStubVerdictRegistry(boolean isCopy) {
+            this.constrainedCopy = this; // copy of a copy is itself
+        }
+
+        @Override
+        public RemoteMethodControl setConstraints(MethodConstraints constraints) {
+            constrainedCopy.appliedConstraints = constraints;
+            return constrainedCopy;
+        }
+
+        @Override
+        public MethodConstraints getConstraints() {
+            return appliedConstraints;
         }
     }
 }

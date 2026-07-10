@@ -17,8 +17,6 @@
  */
 package au.net.zeus.jgdms.vr;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -26,7 +24,6 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -637,7 +634,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                         "Invalid Phoenix signature on CrashReport; discarding");
                 return;
             }
-        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException | IOException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException e) {
             logger.log(Level.WARNING,
                     "Phoenix signature verification failed; discarding", e);
             return;
@@ -1080,7 +1077,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             byte[] canonical = canonicalBytesForRegistryVerdict(sortedUrls, type, timestamp);
             byte[] signature = sign(registryPrivateKey, registrySigAlgorithm, canonical);
             return new RegistryVerdict(sortedUrls, type, timestamp, signature);
-        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException | IOException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException e) {
             logger.log(Level.SEVERE, "Failed to sign RegistryVerdict", e);
             return null;
         }
@@ -1139,59 +1136,26 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     }
 
     /**
-     * Produces the canonical bytes for a {@link CrashReport} that are
-     * verified against the Phoenix public key.
-     *
-     * <p>Format:
-     * <ol>
-     *   <li>For each URL in lexicographic order:
-     *       4-byte big-endian byte-length, then UTF-8 bytes.</li>
-     *   <li>4-byte big-endian exit code.</li>
-     *   <li>8-byte big-endian incarnation number.</li>
-     *   <li>4-byte big-endian byte-length of stderrSummary UTF-8, then those
-     *       bytes.</li>
-     * </ol>
+     * Produces the canonical DER TBS bytes for a {@link CrashReport} that are
+     * verified against the Phoenix public key — the single source of truth is
+     * {@link CrashReport#signedContent()} (JGDMS-STD-006 &sect;7.4).
      */
-    static byte[] canonicalBytesForCrashReport(CrashReport report) throws IOException {
-        String[] sorted = sortedUriStrings(report.getCodebaseUrls());
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream      dos  = new DataOutputStream(baos);
-        for (String url : sorted) {
-            byte[] b = url.getBytes(StandardCharsets.UTF_8);
-            dos.writeInt(b.length);
-            dos.write(b);
-        }
-        dos.writeInt(report.getExitCode());
-        dos.writeLong(report.getIncarnation());
-        byte[] stderrBytes = report.getStderrSummary().getBytes(StandardCharsets.UTF_8);
-        dos.writeInt(stderrBytes.length);
-        dos.write(stderrBytes);
-        dos.flush();
-        return baos.toByteArray();
+    static byte[] canonicalBytesForCrashReport(CrashReport report) {
+        return report.signedContent();
     }
 
     /**
-     * Produces the canonical bytes that the registry signs for a
-     * {@link RegistryVerdict}.
-     *
-     * <p>Format: sorted URLs (4-byte length-prefixed UTF-8 each), 4-byte
-     * verdict ordinal, 8-byte timestamp.
+     * Produces the canonical DER TBS bytes that the registry signs for a
+     * {@link RegistryVerdict} — the single source of truth is
+     * {@link RegistryVerdict#signedContent(String[], VerdictType, long)}
+     * (JGDMS-STD-006 &sect;7.4).  The codebase URLs are encoded in the supplied
+     * (already-canonicalised) array order.
      */
     private static byte[] canonicalBytesForRegistryVerdict(Uri[] sortedUrls,
                                                             VerdictType type,
-                                                            long timestamp)
-            throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream      dos  = new DataOutputStream(baos);
-        for (Uri uri : sortedUrls) {
-            byte[] b = uri.toString().getBytes(StandardCharsets.UTF_8);
-            dos.writeInt(b.length);
-            dos.write(b);
-        }
-        dos.writeInt(type.ordinal());
-        dos.writeLong(timestamp);
-        dos.flush();
-        return baos.toByteArray();
+                                                            long timestamp) {
+        return RegistryVerdict.signedContent(
+                uriArrayToStrings(sortedUrls), type, timestamp);
     }
 
     private static byte[] sign(PrivateKey key, String algorithm, byte[] data)

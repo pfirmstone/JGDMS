@@ -17,12 +17,10 @@
  */
 package au.net.zeus.jgdms.api.codebase;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -200,8 +198,10 @@ public final class JarAnalysisReport implements Serializable {
 
     /**
      * DER-encoded signature produced by the engine's private key over the
-     * canonical serialized form of {@link #contentHash}, {@link #results},
-     * and {@link #declaredPermissions}.
+     * canonical DER TBS content of this report (JGDMS-STD-006 &sect;7.4) —
+     * {@link #contentHash}, the per-class results, {@link #declaredPermissions},
+     * and {@link #codebaseUrls} — as computed by {@link #canonicalBytes()}.
+     * Excluded from its own TBS.
      */
     private final byte[] engineSignature;
 
@@ -422,74 +422,59 @@ public final class JarAnalysisReport implements Serializable {
     /**
      * Returns the exact bytes that the engine signs and the registry verifies
      * for this report — the single source of truth for the report's signed
-     * canonical form.
+     * <em>to-be-signed</em> (TBS) content (JGDMS-STD-006 &sect;7.4 / &sect;7.4.1).
      *
-     * <p>The format is a NUL-delimited ({@code 0x00}) UTF-8 byte stream with
-     * three section markers ({@code "C"}, {@code "P"}, {@code "U"}) that
-     * disambiguate the concatenation of the three variable-length sections:
+     * <p>The bytes are the <strong>canonical DER</strong> of the report's signed
+     * fields, wrapped in a {@code SEQUENCE}, with the {@code engineSignature}
+     * field excluded from its own TBS.  The field order is pinned by &sect;7.4
+     * and is <em>order-significant</em>: the per-class results are emitted in the
+     * report's stored (insertion) order — {@code classNames[i]} paired with
+     * {@code classResults[i]} — and the permission and URL lists in their stored
+     * order, matching the {@code SEQUENCE OF} wire form (never re-sorted):
      * <pre>
-     *   contentHash + NUL
-     *   "C" + NUL
-     *   for each className in sorted(results.keySet()):
-     *       className + NUL + clinitVerdict.name() + NUL + atomicVerdict.name() + NUL
-     *   "P" + NUL
-     *   for each perm in sorted(declaredPermissions):
-     *       perm + NUL
-     *   "U" + NUL
-     *   for each url in sorted(codebaseUrls):
-     *       url + NUL
+     *   SEQUENCE {
+     *     UTF8String        contentHash,
+     *     SEQUENCE OF SEQUENCE {          -- one per class, stored order
+     *         UTF8String    className,
+     *         UTF8String    clinitVerdict.name(),
+     *         UTF8String    atomicVerdict.name()
+     *     },
+     *     SEQUENCE OF UTF8String          declaredPermissions,   -- stored order
+     *     SEQUENCE OF UTF8String          codebaseUrls           -- stored order
+     *   }
      * </pre>
      *
      * <p>Both the analysis engine (when signing) and the
      * {@link VerdictRegistry} (when verifying) MUST use exactly these bytes, so
      * any change to a report field that affects the signed content is reflected
-     * here and only here.
+     * here and only here.  The signer encodes this once; the verifier
+     * reconstructs it identically from the received fields and verifies the
+     * signature against it without re-encoding (&sect;7.4.1).
      *
-     * @return the canonical signed/verified byte representation of this report
+     * @return the canonical DER TBS byte representation of this report
      */
     public byte[] canonicalBytes() {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
-        try {
-            writeField(baos, contentHash);
-
-            // Section "C": per-class results, sorted by class name.
-            writeField(baos, "C");
-            List<String> sortedNames = new ArrayList<String>(results.keySet());
-            Collections.sort(sortedNames);
-            for (String name : sortedNames) {
-                ClassAnalysisResult cr = results.get(name);
-                writeField(baos, name);
-                writeField(baos, cr.getClinitVerdict().name());
-                writeField(baos, cr.getAtomicVerdict().name());
-            }
-
-            // Section "P": declared permissions, sorted.
-            writeField(baos, "P");
-            String[] sortedPerms = declaredPermissions.clone();
-            Arrays.sort(sortedPerms);
-            for (String perm : sortedPerms) {
-                writeField(baos, perm);
-            }
-
-            // Section "U": codebase URLs, sorted.
-            writeField(baos, "U");
-            String[] sortedUrls = codebaseUrls.clone();
-            Arrays.sort(sortedUrls);
-            for (String url : sortedUrls) {
-                writeField(baos, url);
-            }
-        } catch (IOException e) {
-            // ByteArrayOutputStream.write never throws — unreachable.
-            throw new AssertionError("ByteArrayOutputStream threw IOException", e);
+        List<byte[]> perClass = new ArrayList<byte[]>(classNames.length);
+        for (int i = 0; i < classNames.length; i++) {
+            ClassAnalysisResult cr = classResults[i];
+            perClass.add(DerTbs.sequence(Arrays.asList(
+                    DerTbs.utf8(classNames[i]),
+                    DerTbs.utf8(cr.getClinitVerdict().name()),
+                    DerTbs.utf8(cr.getAtomicVerdict().name()))));
         }
-        return baos.toByteArray();
-    }
-
-    /** Writes {@code s} as UTF-8 bytes followed by a single NUL (0x00). */
-    private static void writeField(ByteArrayOutputStream baos, String s)
-            throws IOException {
-        baos.write(s.getBytes(StandardCharsets.UTF_8));
-        baos.write(0);
+        List<byte[]> perms = new ArrayList<byte[]>(declaredPermissions.length);
+        for (String perm : declaredPermissions) {
+            perms.add(DerTbs.utf8(perm));
+        }
+        List<byte[]> urls = new ArrayList<byte[]>(codebaseUrls.length);
+        for (String url : codebaseUrls) {
+            urls.add(DerTbs.utf8(url));
+        }
+        return DerTbs.sequence(Arrays.asList(
+                DerTbs.utf8(contentHash),
+                DerTbs.sequence(perClass),
+                DerTbs.sequence(perms),
+                DerTbs.sequence(urls)));
     }
 
     /**

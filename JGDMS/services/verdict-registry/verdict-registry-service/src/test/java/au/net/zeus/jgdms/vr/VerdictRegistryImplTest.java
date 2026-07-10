@@ -693,22 +693,14 @@ public class VerdictRegistryImplTest {
         long   incarnation = 0L;
         String stderr      = "crash";
 
-        // Build canonical bytes manually (mirrors VerdictRegistryImpl)
-        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-        java.io.DataOutputStream dos = new java.io.DataOutputStream(baos);
-        for (Uri uri : sorted) {
-            byte[] b = uri.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            dos.writeInt(b.length);
-            dos.write(b);
+        // Sign the single-source-of-truth canonical DER TBS (STD-006 §7.4),
+        // over the SAME URL order the report is constructed with.
+        String[] urlStrings = new String[sorted.length];
+        for (int i = 0; i < sorted.length; i++) {
+            urlStrings[i] = sorted[i].toString();
         }
-        dos.writeInt(exitCode);
-        dos.writeLong(incarnation);
-        byte[] stderrBytes = stderr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        dos.writeInt(stderrBytes.length);
-        dos.write(stderrBytes);
-        dos.flush();
-
-        byte[] sig = rsaSign(signingKey, baos.toByteArray());
+        byte[] sig = rsaSign(signingKey,
+                CrashReport.signedContent(urlStrings, exitCode, incarnation, stderr));
         return new CrashReport(sorted, exitCode, incarnation, stderr, sig);
     }
 

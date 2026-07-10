@@ -71,8 +71,12 @@ import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import net.jini.constraint.BasicMethodConstraints;
 import net.jini.constraint.StringMethodConstraints;
+import net.jini.core.constraint.Integrity;
+import net.jini.core.constraint.InvocationConstraint;
+import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.constraint.ServerAuthentication;
 import net.jini.export.CodebaseAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.context.IntegrityEnforcement;
@@ -157,20 +161,20 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * verify the forge-proof inline signature carried by every
      * {@link RegistryVerdict} on the <em>direct</em> verdict-consumption path.
      *
-     * <p>When this key is configured (non-null) via
-     * {@link #setVerdictRegistryPublicKey} or the two-argument
-     * {@link #setVerdictRegistry(VerdictRegistry, java.security.PublicKey, String)},
-     * {@link #checkVerdictForJar} re-verifies the inline signature against it
-     * before acting on the verdict — regardless of how the verdict-registry
-     * proxy was authenticated at the transport layer.  This closes the
-     * "authenticated channel ⇒ trusted verdict" gap: the trust anchor becomes
-     * the registry's signature, not merely the identity of the endpoint that
-     * happened to return the object.
+     * <p><strong>REQUIRED configuration — secure by default.</strong>
+     * {@link #checkVerdictForJar} verifies the inline signature against this
+     * key before acting on any verdict, regardless of how the verdict-registry
+     * proxy was authenticated at the transport layer.  This makes the
+     * registry's signature — not the identity of the endpoint that happened to
+     * return the object — the trust anchor on this direct path.
      *
-     * <p>When {@code null} (the default) the direct path relies solely on the
-     * Jini {@code Integrity}/{@code ServerAuthentication} constraints that the
-     * deployer is expected to enforce on the injected proxy — the pre-existing
-     * behaviour, preserved for backward compatibility.
+     * <p>When this key is {@code null} (i.e. not configured via
+     * {@link #setVerdictRegistryPublicKey}, the two-argument
+     * {@link #setVerdictRegistry(VerdictRegistry, java.security.PublicKey, String)},
+     * or the {@value #VERDICT_REGISTRY_PUBLIC_KEY_FILE_PROPERTY} system
+     * property), no verdict can be trusted and {@link #checkVerdictForJar}
+     * <strong>fails closed</strong> — every codebase is refused.  There is no
+     * "trust the channel instead" fallback: the signature is mandatory.
      */
     private static volatile PublicKey verdictRegistryPublicKey =
             loadVerdictRegistryPublicKey();
@@ -215,6 +219,24 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 
     /** Default signature algorithm when the property is unset. */
     static final String DEFAULT_VERDICT_REGISTRY_SIG_ALGORITHM = "SHA256withRSA";
+
+    /**
+     * Mandatory transport constraints applied to the verdict-registry proxy at
+     * the injection boundary: {@link Integrity#YES} and
+     * {@link ServerAuthentication#YES} required on <em>every</em> method.  This
+     * is the "belt" half of the belt-and-braces defense (the "braces" being the
+     * mandatory inline-signature verification in {@link #checkVerdictForJar}):
+     * the client only ever talks to a cryptographically server-authenticated,
+     * integrity-protected registry endpoint, and independently verifies the
+     * signature on what that endpoint returns.
+     */
+    static final MethodConstraints REGISTRY_METHOD_CONSTRAINTS =
+            new BasicMethodConstraints(
+                    new InvocationConstraints(
+                            new InvocationConstraint[]{
+                                Integrity.YES, ServerAuthentication.YES
+                            },
+                            (InvocationConstraint[]) null));
 
     private static final Semaphore JAR_LOAD_SEMAPHORE =
             new Semaphore(loadMaxConcurrentJarLoads(), true);
@@ -327,35 +349,78 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         if (sm != null) {
             sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
         }
-        VerdictRegistryHolder.set(registry);
+        VerdictRegistryHolder.set(constrainRegistryProxy(registry));
+    }
+
+    /**
+     * Applies the mandatory {@link #REGISTRY_METHOD_CONSTRAINTS}
+     * ({@link Integrity#YES} + {@link ServerAuthentication#YES}) to a
+     * verdict-registry proxy at the injection boundary.
+     *
+     * <p>Secure by default: a non-null registry proxy MUST be a
+     * {@link RemoteMethodControl} so the constraints can be attached; any other
+     * (unconstrainable) proxy is rejected rather than silently trusted.  The
+     * returned constrained proxy is what gets stored and later used by
+     * {@link #checkVerdictForJar}, guaranteeing that every remote verdict
+     * lookup is made over a server-authenticated, integrity-protected channel.
+     *
+     * @param registry the raw proxy to constrain; {@code null} passes through
+     *                 (disables verdict checking / clears the holder)
+     * @return the constrained proxy, or {@code null} if {@code registry} was
+     *         {@code null}
+     * @throws IllegalArgumentException if {@code registry} is non-null but is
+     *         not a {@link RemoteMethodControl} (cannot be constrained)
+     */
+    static VerdictRegistry constrainRegistryProxy(VerdictRegistry registry) {
+        if (registry == null) {
+            return null;
+        }
+        if (!(registry instanceof RemoteMethodControl)) {
+            throw new IllegalArgumentException(
+                    "VerdictRegistry proxy must implement RemoteMethodControl so that "
+                    + "Integrity.YES + ServerAuthentication.YES can be enforced; refusing "
+                    + "to trust an unconstrainable proxy of type "
+                    + registry.getClass().getName());
+        }
+        return (VerdictRegistry) ((RemoteMethodControl) registry)
+                .setConstraints(REGISTRY_METHOD_CONSTRAINTS);
     }
 
     /**
      * Injects the {@link VerdictRegistry} proxy together with the registry's
-     * known-good public identity key, enabling forge-proof inline-signature
-     * verification on the direct verdict-consumption path.
+     * known-good public identity key — the recommended production entry point,
+     * secure by default on both the channel and the payload.
      *
-     * <p>This is the recommended production entry point.  Once the key is set,
-     * {@link #checkVerdictForJar} re-verifies the DER signature embedded in
-     * every {@link RegistryVerdict} against {@code publicKey} before acting on
-     * the verdict.  A verdict whose signature does not verify is refused with
-     * an {@link IOException} (fail-closed), <em>independently</em> of the
-     * transport-layer authentication of the proxy — so a verdict returned over
-     * an authenticated-but-not-integrity-constrained channel, or by a
-     * substituted proxy, cannot cause a DANGEROUS codebase to be accepted.
+     * <p><strong>Belt and braces.</strong>
+     * <ul>
+     *   <li><em>Channel (belt):</em> the proxy is constrained at this boundary
+     *       to require {@link Integrity#YES} + {@link ServerAuthentication#YES}
+     *       on every remote call (see {@link #constrainRegistryProxy}); a proxy
+     *       that cannot carry these constraints is rejected.</li>
+     *   <li><em>Payload (braces):</em> {@link #checkVerdictForJar} verifies the
+     *       forge-proof DER signature embedded in every {@link RegistryVerdict}
+     *       against {@code publicKey} before acting on it.  A verdict whose
+     *       signature does not verify — or any verdict at all when no key is
+     *       configured — is refused (fail-closed), so a substituted proxy or a
+     *       forged/tampered verdict cannot cause a DANGEROUS codebase to be
+     *       accepted.</li>
+     * </ul>
      *
      * @param registry     the registry proxy to use; may be {@code null} to
-     *                     disable verdict checking
+     *                     disable verdict checking (clears the holder)
      * @param publicKey    the registry's known-good public identity key; may be
      *                     {@code null} to leave the currently-configured key
-     *                     (if any) in place — pass a non-null key to enable
-     *                     verification
+     *                     (if any) in place — this key is REQUIRED for the
+     *                     direct path to accept any verdict
      * @param sigAlgorithm the JCA standard signature-algorithm name (e.g.
      *                     {@code "SHA256withRSA"}); ignored when
      *                     {@code publicKey} is {@code null}, required otherwise
-     * @throws SecurityException if a security manager is installed and the
-     *         caller does not hold
+     * @throws SecurityException        if a security manager is installed and
+     *         the caller does not hold
      *         {@code RuntimePermission("setVerdictRegistry")}
+     * @throws IllegalArgumentException if {@code registry} is non-null but not a
+     *         {@link RemoteMethodControl}, or if {@code publicKey} is non-null
+     *         but {@code sigAlgorithm} is empty
      */
     public static void setVerdictRegistry(VerdictRegistry registry,
                                           PublicKey publicKey,
@@ -372,17 +437,20 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             verdictRegistryPublicKey    = publicKey;
             verdictRegistrySigAlgorithm = sigAlgorithm.trim();
         }
-        VerdictRegistryHolder.set(registry);
+        VerdictRegistryHolder.set(constrainRegistryProxy(registry));
     }
 
     /**
      * Configures the verdict-registry known-good public identity key used to
      * verify inline {@link RegistryVerdict} signatures on the direct path.
-     * Passing {@code null} disables inline verification (reverting to
-     * channel-trust behaviour).
+     *
+     * <p>This key is <strong>required</strong> for the direct path to accept
+     * any verdict.  Passing {@code null} does <em>not</em> revert to any
+     * "trust the channel" behaviour — it removes the trust anchor entirely, so
+     * {@link #checkVerdictForJar} then fails closed and refuses every codebase.
      *
      * @param publicKey    the registry's public identity key, or {@code null}
-     *                     to disable inline verification
+     *                     to clear it (direct path then fails closed)
      * @param sigAlgorithm the JCA standard signature-algorithm name; ignored
      *                     when {@code publicKey} is {@code null}, required
      *                     otherwise
@@ -1429,15 +1497,36 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     "No verdict available for JAR (SHA-256: " + contentHash
                     + "); codebase refused: " + path);
         }
-        // Defense-in-depth (STD-006 §7.4): when a known-good registry public
-        // key is configured, re-verify the forge-proof inline signature before
-        // acting on the verdict.  This makes the registry's signature — not the
-        // authenticity of the channel that returned the object — the trust
-        // anchor on this direct path.  Fail-closed: an unverifiable verdict is
-        // refused regardless of its VerdictType (so a forged/substituted SAFE
-        // verdict cannot green-light a DANGEROUS codebase).
+        // STD-006 §7.4 — SECURE BY DEFAULT (fail-closed).  The forge-proof
+        // inline signature is the trust anchor on this direct path, NOT the
+        // authenticity of the channel that returned the object.  A verdict may
+        // be acted upon ONLY if its inline signature verifies against the
+        // configured known-good registry public key.  Therefore:
+        //
+        //   * If NO registry public key is configured, we cannot establish
+        //     trust in ANY verdict — refuse the load (do not treat the codebase
+        //     as SAFE), regardless of VerdictType.  The registry public key is
+        //     REQUIRED configuration (see setVerdictRegistry / the
+        //     jgdms.proxy.verdictRegistryPublicKeyFile system property).
+        //   * If the signature does not verify, the verdict is forged,
+        //     substituted, or corrupted — refuse the load, regardless of
+        //     VerdictType, so a forged SAFE verdict cannot green-light a
+        //     DANGEROUS codebase.
         PublicKey pk = verdictRegistryPublicKey;
-        if (pk != null && !verdict.verifySignature(pk, verdictRegistrySigAlgorithm)) {
+        if (pk == null) {
+            logger.log(Level.SEVERE,
+                    "No verdict-registry public key configured; cannot verify the "
+                    + "inline RegistryVerdict signature — codebase refused (fail-closed) "
+                    + "for JAR (SHA-256: {0}): {1}.  Configure the registry public key "
+                    + "via setVerdictRegistry(vr, key, alg), setVerdictRegistryPublicKey, "
+                    + "or the " + VERDICT_REGISTRY_PUBLIC_KEY_FILE_PROPERTY + " system property.",
+                    new Object[]{contentHash, path});
+            throw new IOException(
+                    "No verdict-registry public key configured; RegistryVerdict signature "
+                    + "cannot be verified — codebase refused (fail-closed) for JAR (SHA-256: "
+                    + contentHash + "): " + path);
+        }
+        if (!verdict.verifySignature(pk, verdictRegistrySigAlgorithm)) {
             logger.log(Level.SEVERE,
                     "RegistryVerdict inline signature verification FAILED for JAR "
                     + "(SHA-256: {0}); codebase refused: {1}",
