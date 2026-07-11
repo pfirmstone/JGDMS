@@ -132,7 +132,7 @@ au.net.zeus.rmi.tls.init.level = SEVERE
 net.jini.jeri.level = FINE
 net.jini.jeri.BasicInvocationDispatcher.level = SEVERE
 net.jini.jeri.BasicInvocationHandler.level = SEVERE
-net.jini.jeri.BasicJeriExporter.level = SEVERE
+net.jini.jeri.BasicJeriExporter.level = FINE
 net.jini.jeri.BasicJeriTrustVerifier.level = SEVERE
 net.jini.jeri.BasicObjectEndpoint.level = SEVERE
 
@@ -150,7 +150,7 @@ org.apache.river.api.io.level=SEVERE
 #net.jini.jeri.http.server.level = SEVERE
 
 # For TcpEndpoint and TcpServerEndpoint
-#net.jini.jeri.tcp.level = SEVERE
+#net.jini.jeri.tcp.level = FINE
 #net.jini.jeri.tcp.client.level = SEVERE
 #net.jini.jeri.tcp.server.level = SEVERE
 
@@ -171,7 +171,7 @@ net.jini.iiop.IiopExporter.level = SEVERE
 
 # For Preferred Classes
 net.jini.loader.level = SEVERE
-net.jini.loader.pref.PreferredClassLoader.level = SEVERE
+net.jini.loader.pref.PreferredClassLoader.level = FINE
 net.jini.loader.pref.PreferredClassLoader.preferred.level = SEVERE
 net.jini.loader.pref.PreferredClassLoader.exception.level = SEVERE
 net.jini.loader.pref.PreferredClassProvider.level = SEVERE
@@ -282,10 +282,10 @@ org.apache.river.example.browser.level = SEVERE
 org.apache.river.qa.harness.level = CONFIG
 org.apache.river.qa.harness.test.level = CONFIG
 org.apache.river.qa.harness.service.level = CONFIG
-org.apache.river.qa.harness.config.level = CONFIG
+org.apache.river.qa.harness.config.level = FINE
 org.apache.river.test.spec.jeri.mux.level = SEVERE
 
-org.apache.river.jeri.level = CONFIG
+org.apache.river.jeri.level = FINE
 org.apache.river.thread.level = CONFIG
 net.jini.jeri.connection.level = CONFIG
 net.jini.jeri.ssl.level = CONFIG

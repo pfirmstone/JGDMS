@@ -221,9 +221,18 @@ public class ConstrainableProxyUtil {
 	MethodConstraints methodConstraints, Object proxy, Method[] mappings)
 	throws InvalidObjectException
     {
-	if (!(proxy instanceof RemoteMethodControl))
-	    throw new InvalidObjectException(
-	        "Proxy does not implement RemoteMethodControl");
+	if (!(proxy instanceof RemoteMethodControl)){
+            Class proxyClass = proxy.getClass();
+            Class[] interfaces = proxyClass.getInterfaces();
+            StringBuilder sb = new StringBuilder();
+            sb.append("Proxy does not implement RemoteMethodControl").append("\n");
+            sb.append("interfaces:");
+            for (int i = 0, l = interfaces.length; i < l; i++){
+                sb.append(interfaces[i].getName()).append(":");
+            }
+            
+	    throw new InvalidObjectException(sb.toString());
+        }
 
 	final MethodConstraints proxyMethodConstraints =
 	    ((RemoteMethodControl) proxy).getConstraints();

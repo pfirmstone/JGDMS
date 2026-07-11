@@ -89,7 +89,7 @@
     <property name="log.config.file" location="${log.config}" />
     <property name="security.policy" location="harness/policy/qa.policy" />
     <property name="harness.props" location="${src.dir}/org/apache/river/test/resources/qaHarness.prop"/>
-    <!--possible values: any combination of jeri,jsse,http,https,kerberos,none
+    <!--possible values: any combination of der,jeri,jsse,http,https,kerberos,none
         default: none -->
     <property name="harness.configs" value="jeri"/>
     <!-- possible values: activatable,transient,persistent
