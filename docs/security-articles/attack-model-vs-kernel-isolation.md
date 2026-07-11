@@ -104,6 +104,27 @@ Sources: [Subject javadoc (JDK 23)](https://docs.oracle.com/en/java/javase/23/do
 [Security Manager Is Permanently Disabled (JDK 25 docs)](https://docs.oracle.com/en/java/javase/25/security/security-manager-is-permanently-disabled.html),
 [JEP 403](https://openjdk.org/jeps/403).
 
+### Second instance: SQLPermission, admitted outright rather than inferred
+
+Verified 2026-07-10. Stronger than the `Subject` case because it isn't
+an inference from conditional javadoc wording — it's a direct
+first-party admission in the class's own deprecation notice.
+`java.sql.SQLPermission` is `@Deprecated(since="26", forRemoval=true)`;
+the javadoc states: *"There is no replacement for this class. This
+class was only useful in conjunction with the SecurityManager, which
+is no longer supported."* It guarded `DriverManager.deregisterDriver`,
+`DriverManager.setLogWriter`/`setLogStream`,
+`Connection.setNetworkTimeout`, `Connection.abort`, and
+`SyncFactory.setJNDIContext`/`setLogger` — deregistering a driver out
+from under other code, redirecting or suppressing the JDBC log stream,
+forcibly aborting a connection you don't own, and JNDI context control
+for RowSet sync are all now unguarded, by the platform's own account,
+with nothing filling the gap. A second concrete data point for the
+same pattern as `Subject`, and a cleaner citation since no inference is
+required.
+
+Sources: [SQLPermission javadoc (JDK 26)](https://docs.oracle.com/en/java/javase/26/docs/api/java.sql/java/sql/SQLPermission.html).
+
 ## AI agent authority: the same failure mode, a new deputy
 
 Verified 2026-07-10. Gives the article a three-point historical arc,
@@ -157,6 +178,89 @@ Sources: [AI Agent Confused Deputy Problem 2026 (safeguard.sh)](https://safeguar
 [Your AI Agent Is an Easily Confused Deputy (SANS)](https://www.sans.org/blog/your-ai-agent-easily-confused-deputy-why-cloud-security-needs-credential-broker),
 [Agent Authentication & Delegated Access (Zylos Research, 2026)](https://zylos.ai/research/2026-04-11-agent-authentication-delegated-access-oauth-scoped-tokens),
 [MCP authorization and AI agent access control (nhimg.org)](https://nhimg.org/community/agentic-ai-and-nhis/mcp-authorization-and-ai-agent-access-control-what-changes/).
+
+## What OpenJDK actually has, vs. what's already built here
+
+Verified 2026-07-10. Three comparison points for "what do they have that
+we don't" — in each case OpenJDK's own sources either admit the gap
+outright or show the legacy mechanism is still load-bearing today.
+
+**Secure remote invocation:** nothing beyond legacy RMI. No active
+successor project exists in OpenJDK itself. Telling: searching for "the
+modern secure RPC successor to RMI" surfaces a description of
+JGDMS/JERI itself (via the ["Security Baked Into the JVM" collaboration
+piece](https://blog.frankel.ch/security-baked-into-jvm/1/)) — pluggable
+transport, per-method security requirements declared in deployment
+config rather than scattered in app code, hardened deserialization via
+`AtomicInputValidation`, `LoadClassPermission`-gated code loading before
+anything runs, cryptographic trust before any code executes. There is
+no second, competing answer to point to from the OpenJDK side.
+
+**Deterministic/atomic wire format:** explicitly out of scope, in
+writing. OpenJDK's own Amber design note, ["Towards Better
+Serialization"](https://github.com/openjdk/amber-docs/blob/master/site/design-notes/towards-better-serialization.md),
+states: *"Much ink has been spilled over the choice of
+bytestream-encoding format, but in reality this is the least of our
+concerns."* It also states it's *"not a goal of this effort to address
+resource-consumption attacks,"* and leaves gadget chains and
+class-identity verification as *"implementation concerns for frameworks
+building atop this foundation."* A genuinely quotable admission that
+the exact problem DER-based deterministic identity solves isn't one
+OpenJDK is solving.
+
+**Cross-hierarchy invariant validation:** same design note, same
+pattern. It states plainly: *"every class must carry its own
+serialization behavior, rather than inheriting it from a supertype that
+implements Serializable"* — no concrete mechanism is given for
+coordinating validation across a multi-level class hierarchy; each
+class author is left to correctly delegate to superclass construction
+on their own. Contrast with GetArg's actual mechanism: each class in
+the hierarchy gets its own private namespace, and the superclass
+instance is constructed and validated *before* the subclass constructor
+proceeds, so a subclass can rely on a genuinely-validated superclass
+rather than hoping every class author remembered to coordinate
+correctly. State this as "we have a concrete mechanism," not "solved" —
+hierarchy coordination is exactly the kind of thing that stays subtle
+in practice.
+
+**RMI isn't legacy cruft nobody touches — it's live infrastructure
+today.** `javax.management.remote.rmi` remains the standard,
+out-of-the-box connector for remote JMX management; VisualVM's remote
+connections go through it via JRMP, configured with the same
+`com.sun.management.jmxremote.rmi.port` properties that have existed
+for decades. Oracle's own JDK 25 JMX connector docs, updated as
+recently as April 2026, still describe it as the default with no
+replacement connector in the platform. Undercuts any "RMI doesn't
+matter, nobody uses it" framing — it's the thing still running under
+JMX/VisualVM right now, carrying every weakness already covered in this
+document (RMI registry/JRMP deserialization surface, no built-in mutual
+auth, no code identity model).
+
+**Open design question worth pursuing separately:** the JMX Remote API
+(JSR 160) was explicitly built pluggable from the start —
+`JMXConnectorProvider`/`JMXConnectorServerProvider`, discoverable via
+`ServiceLoader` or the `jmx.remote.protocol.provider.pkgs` property. RMI
+is only the *mandatory* default; an optional JMXMP connector already
+proved the model (JSSE/JAAS/SASL instead of RMI's security model,
+TCP transport + native Java serialization for object wrapping), though
+it was never bundled in the JDK proper — it shipped as a separate
+optional jar (`jmxremote_optional.jar`) that had to be manually added,
+and never displaced RMI as the practical default despite being more
+secure. That's a cautionary precedent, not just an encouraging one: a
+better-designed connector existing isn't sufficient for adoption if it
+isn't the path of least resistance. A `service:jmx:jeri://` connector
+built on JERI (transport) + Atomic DER (object wrapping) is
+architecturally straightforward to build — the generic connector's
+transport/object-wrapping split maps directly onto JERI's own
+extensible transport layer plus the DER marshalling stack — but the
+JMXMP precedent says the hard part isn't the engineering, it's making
+it the easy/obvious choice (e.g., a genuinely trivial drop-in
+experience with VisualVM/JConsole, not just an available alternative).
+
+Sources: [JMXConnectorFactory (JDK 23) javadoc](https://download.java.net/java/early_access/valhalla/docs/api/java.management/javax/management/remote/JMXConnectorFactory.html),
+[Using JMX Connectors to Manage Resources Remotely (JDK 21 docs)](https://docs.oracle.com/en/java/javase/21/jmx/using-jmx-connectors-manage-resources-remotely.html),
+[JMX Remote API Specification (JSR 160), Appendix A](https://docs.oracle.com/javase/7/docs/technotes/guides/jmx/overview/appendixA.html),
+[JMX Connectors (JDK 25 docs)](https://docs.oracle.com/en/java/javase/25/jmx/jmx-connectors.html).
 
 ## Corrections / caveats for future editing
 
