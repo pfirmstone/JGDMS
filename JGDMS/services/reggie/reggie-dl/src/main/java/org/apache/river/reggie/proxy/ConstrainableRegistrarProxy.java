@@ -114,11 +114,12 @@ public final class ConstrainableRegistrarProxy
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
-    private static MethodConstraints check(GetArg arg)
+    private static MethodConstraints check(GetArg arg, Registrar server)
 	    throws IOException, ClassNotFoundException{
-	// Read the superclass field directly rather than constructing a plain
-	// RegistrarProxy (now abstract); super(arg) still runs its validation.
-	Registrar server = (Registrar) arg.get("server", null);
+	// The server field is private to RegistrarProxy's serialForm namespace:
+	// a subclass cannot read it from its own GetArg frame (that resolves
+	// against this class's namespace, which holds only CONSTRAINTS), so it
+	// is passed in from the inherited field after super(arg) has populated it.
 	MethodConstraints constraints = arg.get(CONSTRAINTS, null, MethodConstraints.class);
 	MethodConstraints proxyCon = null;
 	if (server instanceof RemoteMethodControl &&
@@ -131,15 +132,14 @@ public final class ConstrainableRegistrarProxy
 	    constraints, server, methodMappings);
 	return constraints;
     }
-    
-    public ConstrainableRegistrarProxy(GetArg arg) 
+
+    public ConstrainableRegistrarProxy(GetArg arg)
 	    throws IOException, ClassNotFoundException{
-	this(arg, check(arg));
-    }
-    
-    ConstrainableRegistrarProxy(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException{
+	// super(arg) reads and validates the inherited server field in
+	// RegistrarProxy's own namespace; only then can constraints be checked
+	// against it (reading server pre-super yielded null -> NPE).
 	super(arg);
-	this.constraints = constraints;
+	this.constraints = check(arg, server);
     }
     
     /**

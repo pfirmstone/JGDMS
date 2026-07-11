@@ -85,7 +85,11 @@ public class SystemAccessILFactory extends AtomicILFactory {
      * @param policy the group policy, or <code>null</code>
      **/
     public SystemAccessILFactory(GroupPolicy policy, ClassLoader loader) {
-	super(null, null, loader);
+	// AtomicILFactory requires a non-null loader (unlike the former
+	// BasicILFactory superclass); fall back to this factory's own defining
+	// loader, which resolves the phoenix/activation classes.
+	super(null, null,
+	      loader != null ? loader : SystemAccessILFactory.class.getClassLoader());
 	this.policy = policy;
 	this.localAccessCheck = true;
     }
@@ -124,7 +128,10 @@ public class SystemAccessILFactory extends AtomicILFactory {
 				 GroupPolicy policy,
 				 ClassLoader loader)
     {
-	super(serverConstraints, permClass, loader);
+	// AtomicILFactory requires a non-null loader; fall back to this
+	// factory's own defining loader when none was supplied.
+	super(serverConstraints, permClass,
+	      loader != null ? loader : SystemAccessILFactory.class.getClassLoader());
 	this.policy = policy;
 	this.localAccessCheck = false;
     }
