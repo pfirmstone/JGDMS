@@ -17,6 +17,10 @@
  */
 package au.net.zeus.jgdms.proxy;
 
+import au.net.zeus.jgdms.proxy.createfor.ConstrainableDummyApiProxy;
+import au.net.zeus.jgdms.proxy.createfor.ConstrainableStatefulApiProxy;
+import au.net.zeus.jgdms.proxy.createfor.DummyApi;
+import au.net.zeus.jgdms.proxy.createfor.StatefulApi;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import net.jini.admin.Administrable;
@@ -35,6 +39,7 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Unit tests for {@link AbstractSmartProxy} and its nested
@@ -316,5 +321,91 @@ public class AbstractSmartProxyTest {
                 proxy instanceof AbstractSmartProxy);
         assertTrue("constrainable proxy must implement RemoteMethodControl",
                 proxy instanceof RemoteMethodControl);
+    }
+
+    // =========================================================================
+    // createFor(...) -- reflective generated-factory resolution
+    // =========================================================================
+
+    @Test
+    public void testCreateForResolvesGeneratedClassAndInvokesCreate() {
+        Object server = new Object();
+        Uuid uuid = UuidFactory.generate();
+        Object proxy = AbstractSmartProxy.createFor(DummyApi.class, server, uuid);
+        assertTrue("resolved proxy must be the generated fixture class",
+                proxy instanceof ConstrainableDummyApiProxy);
+        ConstrainableDummyApiProxy p = (ConstrainableDummyApiProxy) proxy;
+        assertSame("server argument must reach the generated factory unchanged",
+                server, p.server);
+        assertSame("proxyID argument must reach the generated factory unchanged",
+                uuid, p.proxyID);
+    }
+
+    @Test
+    public void testCreateForPassesStateArgsAfterServerAndProxyId() {
+        Object server = new Object();
+        Uuid uuid = UuidFactory.generate();
+        Object proxy = AbstractSmartProxy.createFor(StatefulApi.class, server, uuid, "degC");
+        assertTrue(proxy instanceof ConstrainableStatefulApiProxy);
+        ConstrainableStatefulApiProxy p = (ConstrainableStatefulApiProxy) proxy;
+        assertSame(server, p.server);
+        assertSame(uuid, p.proxyID);
+        assertEquals("state arg must be threaded through after server/proxyID",
+                "degC", p.label);
+    }
+
+    @Test
+    public void testCreateForPropagatesGeneratedFactoryIllegalArgumentExceptionUnwrapped() {
+        // The real generated create() throws IllegalArgumentException (fail-closed,
+        // non-constrainable server); createFor must propagate it unwrapped, not
+        // hide it behind a reflection exception.
+        Uuid uuid = UuidFactory.generate();
+        try {
+            AbstractSmartProxy.createFor(StatefulApi.class, "not-constrainable", uuid, "degC");
+            fail("expected IllegalArgumentException from the generated factory");
+        } catch (IllegalArgumentException expected) {
+            assertEquals("server does not implement RemoteMethodControl", expected.getMessage());
+        }
+    }
+
+    @Test
+    public void testCreateForThrowsIllegalStateExceptionWhenNoGeneratedClassExists() {
+        // DummyService has no ConstrainableDummyServiceProxy in this package.
+        try {
+            AbstractSmartProxy.createFor(DummyService.class, new Object(), UuidFactory.generate());
+            fail("expected IllegalStateException: no generated proxy class");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage(),
+                    expected.getMessage().contains("ConstrainableDummyServiceProxy"));
+        }
+    }
+
+    @Test
+    public void testCreateForThrowsIllegalStateExceptionOnStateArgMismatch() {
+        // ConstrainableDummyApiProxy.create(server, proxyID) takes NO state args;
+        // supplying one must fail loudly, not silently drop it.
+        try {
+            AbstractSmartProxy.createFor(DummyApi.class, new Object(), UuidFactory.generate(),
+                    "unexpected");
+            fail("expected IllegalStateException: state-arg count mismatch");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage(),
+                    expected.getMessage().contains("smartProxyStateArgs"));
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testCreateForNullPrimaryApiThrowsIAE() {
+        AbstractSmartProxy.createFor(null, new Object(), UuidFactory.generate());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testCreateForNullServerThrowsIAE() {
+        AbstractSmartProxy.createFor(DummyApi.class, null, UuidFactory.generate());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testCreateForNullProxyIdThrowsIAE() {
+        AbstractSmartProxy.createFor(DummyApi.class, new Object(), null);
     }
 }

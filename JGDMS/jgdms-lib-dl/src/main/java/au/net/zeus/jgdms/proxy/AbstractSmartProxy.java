@@ -408,6 +408,121 @@ public abstract class AbstractSmartProxy
         return ReferentUuids.compare(this, o);
     }
 
+    // -------------------------------------------------------------------------
+    // Reflective factory resolution
+    // -------------------------------------------------------------------------
+
+    /**
+     * Resolves the generated {@code Constrainable<Api>Proxy} class for
+     * {@code primaryApi} by the deterministic naming convention the service-proxy
+     * annotation processor uses ({@code "Constrainable" + primaryApi.getSimpleName()
+     * + "Proxy"}, in {@code primaryApi}'s package) and invokes its static
+     * {@code create(server, proxyID, ...stateArgs)} factory.
+     *
+     * <p>This is what
+     * {@code au.net.zeus.jgdms.service.support.AbstractJiniService}'s default
+     * {@code createProxy(Object, Uuid)} implementation calls for a
+     * {@code proxy() == SMART} service, so that hand-written service code never
+     * needs to name the generated proxy class directly — the same reasoning that
+     * led {@code ServiceProxyProcessor}'s delegate-constructor validation to
+     * recommend {@code java.rmi.Remote} over the generated aggregate backend's
+     * name: a processor-synthesized name is an implementation detail, not a
+     * contract to hand-write against.
+     *
+     * <p><b>Compile-time-safety note.</b> Unlike a hand-written call to the
+     * generated factory (where every argument's type is checked by {@code javac}),
+     * {@code stateArgs} here is untyped: a wrong type or count for a stateful
+     * {@code @SmartProxy} delegate surfaces as a runtime
+     * {@link IllegalArgumentException} from reflection (at service start, not
+     * deep in production — {@link #createFor} is called once, from
+     * {@code createProxy}, during service startup) rather than as a compile
+     * error. A service that wants the state arguments themselves compile-checked
+     * may still override {@code createProxy(Object, Uuid)} directly and call the
+     * generated factory by name instead of using this method.
+     *
+     * @param primaryApi the service's primary API interface (by convention,
+     *                   {@code getServiceInterfaces()[0]} — the generated proxy
+     *                   is always named after this interface, even for a
+     *                   multi-interface service); must not be {@code null}
+     * @param server     the remote server stub to pass as the factory's first
+     *                   argument; must not be {@code null}
+     * @param proxyID    the service's stable unique identifier; must not be
+     *                   {@code null}
+     * @param stateArgs  the delegate's {@code @SmartProxy.State} constructor
+     *                   arguments, in declaration order; empty for a stateless
+     *                   smart proxy
+     * @return the constructed proxy, as returned by the generated factory
+     * @throws IllegalArgumentException if {@code primaryApi}, {@code server}, or
+     *         {@code proxyID} is {@code null}, or if the underlying
+     *         {@code create(...)} factory itself throws it (e.g. {@code server}
+     *         is not a {@link RemoteMethodControl})
+     * @throws IllegalStateException if no generated proxy class or factory
+     *         method can be resolved, or {@code stateArgs} does not match the
+     *         factory's actual parameter list — almost always a codegen/wiring
+     *         bug (the service-proxy annotation processor did not run, the
+     *         service is not {@code proxy() == SMART}, or
+     *         {@code smartProxyStateArgs()} is out of sync with the delegate's
+     *         {@code @SmartProxy.State} declarations)
+     */
+    public static Object createFor(Class<?> primaryApi, Object server, Uuid proxyID,
+                                    Object... stateArgs) {
+        if (primaryApi == null) throw new IllegalArgumentException("primaryApi must not be null");
+        if (server == null) throw new IllegalArgumentException("server must not be null");
+        if (proxyID == null) throw new IllegalArgumentException("proxyID must not be null");
+
+        Package pkgObj = primaryApi.getPackage();
+        String pkg = pkgObj == null ? "" : pkgObj.getName();
+        String simple = "Constrainable" + primaryApi.getSimpleName() + "Proxy";
+        String fqn = pkg.isEmpty() ? simple : pkg + "." + simple;
+
+        Class<?> proxyClass;
+        try {
+            proxyClass = Class.forName(fqn, true, primaryApi.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(
+                    "no generated smart proxy class " + fqn + " for " + primaryApi.getName()
+                    + " -- was the service-proxy annotation processor run, and is"
+                    + " @JiniService.proxy() == SMART?", e);
+        }
+
+        java.lang.reflect.Method create = null;
+        for (java.lang.reflect.Method m : proxyClass.getDeclaredMethods()) {
+            if (java.lang.reflect.Modifier.isStatic(m.getModifiers())
+                    && "create".equals(m.getName())) {
+                create = m;
+                break;
+            }
+        }
+        if (create == null) {
+            throw new IllegalStateException(
+                    "generated smart proxy class " + fqn + " has no static create(...) factory");
+        }
+
+        Object[] args = new Object[2 + stateArgs.length];
+        args[0] = server;
+        args[1] = proxyID;
+        System.arraycopy(stateArgs, 0, args, 2, stateArgs.length);
+        try {
+            return create.invoke(null, args);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException(
+                    "cannot invoke generated factory " + fqn + ".create(...)", e);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException(
+                    "generated factory " + fqn + ".create(...) does not accept "
+                    + args.length + " argument(s) -- server, proxyID"
+                    + (stateArgs.length == 0 ? "" : " and " + stateArgs.length + " state value(s)")
+                    + "; check smartProxyStateArgs() matches the delegate's @SmartProxy.State"
+                    + " declarations", e);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+            if (cause instanceof Error) throw (Error) cause;
+            throw new IllegalStateException(
+                    "generated factory " + fqn + ".create(...) failed", cause);
+        }
+    }
+
     // =========================================================================
     // Nested class: ConstrainableSmartProxy
     // =========================================================================

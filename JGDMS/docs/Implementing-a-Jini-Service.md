@@ -361,26 +361,55 @@ public class RegionServiceImpl
         implements RegionProtocol {
 
     @Override
-    protected Object createProxy(Object stub, Uuid serviceUuid) {
-        // stub is a RegionProtocol stub. If it isn't a RemoteMethodControl
-        // (not exported with a constrainable endpoint), create() throws —
-        // it never returns a plain, constraint-dropping proxy.
-        return ConstrainableRegionTemperatureServiceProxy.create(
-                (RegionProtocol) stub, serviceUuid);
-    }
-
-    @Override
     public double rawCelsius(String stationId) throws RemoteException {
         return readSensor(stationId);
     }
 }
 ```
 
-Unlike DYNAMIC, a SMART service **must** override `createProxy` — the
-generated `Constrainable<Api>Proxy.create(server, proxyID)` factory is what
-turns the exported server stub into the object clients download. The
-generated class name is always `Constrainable` + `api.getSimpleName()` +
-`Proxy`, in the api interface's package.
+That's it — **no `createProxy` override needed**. `AbstractJiniService`'s
+default `createProxy(Object, Uuid)` already knows, from `@JiniService.proxy()`,
+that this is a SMART service; it resolves the generated
+`Constrainable<Api>Proxy` class *reflectively*, by the same deterministic
+naming convention the processor itself uses (`"Constrainable" +
+api.getSimpleName() + "Proxy"`, in the api's package — off
+`getServiceInterfaces()[0]`, the already-resolved primary API interface), and
+invokes its static `create(server, proxyID, ...)` factory
+(`AbstractSmartProxy.createFor`). The generated class name never has to appear
+in your source. If `stub` isn't a `RemoteMethodControl` (not exported with a
+constrainable endpoint), the generated factory throws — it never returns a
+plain, constraint-dropping proxy.
+
+**Stateful delegate?** Override `smartProxyStateArgs()` instead of
+`createProxy` — return the durable values, in `@SmartProxy.State` declaration
+order:
+
+```java
+@Override
+protected Object[] smartProxyStateArgs() {
+    return new Object[]{ "degC" };   // e.g. the label a stateful delegate needs
+}
+```
+
+Note the tradeoff: `smartProxyStateArgs()` returns an untyped `Object[]`, so a
+wrong type or count for the state values surfaces as a runtime
+`IllegalStateException` at service start (reflection), not a `javac` compile
+error — unlike the stateless case, which has nothing untyped to get wrong. If
+you'd rather have the state arguments themselves compile-checked, override
+`createProxy` directly instead and call the generated factory by name (see
+below); either is a `protected` extension point, not a fixed contract.
+
+Overriding `createProxy` directly remains available — for example, a
+hand-written smart proxy outside the `@JiniService`/`@SmartProxy` codegen path,
+or the compile-checked-state-args alternative above:
+
+```java
+@Override
+protected Object createProxy(Object stub, Uuid serviceUuid) {
+    return ConstrainableRegionTemperatureServiceProxy.create(
+            (RegionProtocol) stub, serviceUuid);
+}
+```
 
 ### 6. What gets generated
 
@@ -441,10 +470,11 @@ once, to avoid duplicating it on both sides.
 - **Hand-written proxy extends `AbstractSmartProxy` directly instead of
   `.ConstrainableSmartProxy`.** Compile error — the fail-open shape is
   refused, not silently accepted.
-- **Forgetting to override `createProxy` on a SMART service.** The
-  `AbstractJiniService` default returns the raw stub unchanged, which is
-  correct for DYNAMIC but wrong for SMART — clients would receive the bare
-  server stub instead of the downloadable proxy.
+- **Stateful `@SmartProxy` delegate, but `smartProxyStateArgs()` not
+  overridden.** The default returns an empty array — the generated factory
+  call fails with `IllegalStateException` at service start (wrong argument
+  count), not silently. Override `smartProxyStateArgs()` to supply the actual
+  values, in `@SmartProxy.State` declaration order.
 - **`@SmartProxy.State` field validated by the shell.** It isn't — the
   generated `(GetArg)` ctor passes the deserialized value straight to the
   delegate constructor unvalidated. Validate it yourself, in the delegate
