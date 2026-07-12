@@ -46,6 +46,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 /**
  * Unit tests for {@link JarAnalyzer}, focusing on the
@@ -338,6 +339,133 @@ public class JarAnalyzerTest {
         assertEquals(
                 "permission java.awt.AWTPermission \"all\";",
                 second[0]);
+    }
+
+    // =========================================================================
+    // Decompression caps (Fix 3)
+    // =========================================================================
+
+    /**
+     * A single {@code .class} entry whose uncompressed size exceeds the
+     * per-entry decompression cap (64 MiB) must abort the whole
+     * {@code analyze()} call with an {@link AnalysisException} — not be
+     * silently truncated or skipped.  All-zero content compresses to a tiny
+     * DEFLATE size, so the JAR bytes themselves stay small even though the
+     * entry claims to decompress far past the cap.
+     */
+    @Test
+    public void testAnalyze_OversizedClassEntry_RejectedAsAnalysisException()
+            throws IOException {
+        byte[] jarBytes = buildJarWithOversizedEntry(
+                "au/net/zeus/jgdms/bae/test/Big.class");
+        try {
+            analyzer.analyze(new AnalysisRequest(jarBytes, HASH, null));
+            fail("Expected AnalysisException for an oversized .class entry");
+        } catch (AnalysisException expected) {
+            // expected — per-entry decompression cap enforced
+        }
+    }
+
+    /**
+     * Bypass 1/2 regression: an oversized entry that is <em>not</em> a
+     * {@code .class} file (and is therefore only drained, never handed to
+     * the ASM visitors) must still be rejected.  Before the fix, entries
+     * skipped via {@code continue} were inflated-and-discarded with no size
+     * check at all by the next {@code getNextEntry()} call — an
+     * unbounded-CPU-time bypass even though the bytes were immediately
+     * thrown away.
+     */
+    @Test
+    public void testAnalyze_OversizedNonClassEntry_RejectedAsAnalysisException()
+            throws IOException {
+        byte[] jarBytes = buildJarWithOversizedEntry("resources/data.bin");
+        try {
+            analyzer.analyze(new AnalysisRequest(jarBytes, HASH, null));
+            fail("Expected AnalysisException for an oversized skipped entry");
+        } catch (AnalysisException expected) {
+            // expected — drained entries are capped too (Bypass 2 closed)
+        }
+    }
+
+    /**
+     * Bypass 1 regression: switching from {@code JarInputStream} (which
+     * eagerly inflates {@code META-INF/MANIFEST.MF} inside its constructor,
+     * before any cap can fire) to {@code ZipInputStream} means the manifest
+     * is just another entry, subject to the same caps as everything else.
+     * An oversized manifest must be rejected exactly like any other
+     * oversized entry.
+     */
+    @Test
+    public void testAnalyze_OversizedManifest_RejectedAsAnalysisException()
+            throws IOException {
+        byte[] jarBytes = buildJarWithOversizedEntry("META-INF/MANIFEST.MF");
+        try {
+            analyzer.analyze(new AnalysisRequest(jarBytes, HASH, null));
+            fail("Expected AnalysisException for an oversized manifest entry");
+        } catch (AnalysisException expected) {
+            // expected — Bypass 1 closed: the manifest is no longer eagerly
+            // (and unboundedly) parsed before caps can apply
+        }
+    }
+
+    /**
+     * A JAR with more entries than {@code MAX_ENTRIES} (10,000) must be
+     * rejected, independent of any individual entry's size.
+     */
+    @Test
+    public void testAnalyze_TooManyEntries_RejectedAsAnalysisException()
+            throws IOException {
+        byte[] jarBytes = buildJarWithManyEntries(10_001);
+        try {
+            analyzer.analyze(new AnalysisRequest(jarBytes, HASH, null));
+            fail("Expected AnalysisException for too many JAR entries");
+        } catch (AnalysisException expected) {
+            // expected — MAX_ENTRIES cap enforced
+        }
+    }
+
+    /**
+     * A small, normal JAR (well under every cap) must continue to analyze
+     * successfully — the caps must not false-positive on ordinary input.
+     */
+    @Test
+    public void testAnalyze_SmallNormalJar_NotAffectedByCaps()
+            throws IOException, AnalysisException {
+        byte[] jarBytes = buildJar(minimalClassBytes(), null);
+        JarAnalysisReport report = analyzer.analyze(
+                new AnalysisRequest(jarBytes, HASH, null));
+        assertNotNull(report);
+        assertEquals(VerdictType.SAFE, report.deriveVerdictType());
+    }
+
+    /** Builds a JAR with a single entry whose uncompressed size is ~65 MiB
+     * (all zeros, so it compresses to a tiny DEFLATE size) — 1 MiB over the
+     * 64 MiB per-entry cap. */
+    private static byte[] buildJarWithOversizedEntry(String entryName) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (JarOutputStream jos = new JarOutputStream(baos)) {
+            JarEntry entry = new JarEntry(entryName);
+            jos.putNextEntry(entry);
+            byte[] chunk = new byte[1024 * 1024]; // 1 MiB of zeros
+            for (int i = 0; i < 65; i++) { // 65 MiB > 64 MiB per-entry cap
+                jos.write(chunk);
+            }
+            jos.closeEntry();
+        }
+        return baos.toByteArray();
+    }
+
+    /** Builds a JAR with {@code count} tiny empty entries. */
+    private static byte[] buildJarWithManyEntries(int count) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (JarOutputStream jos = new JarOutputStream(baos)) {
+            for (int i = 0; i < count; i++) {
+                JarEntry entry = new JarEntry("e" + i + ".txt");
+                jos.putNextEntry(entry);
+                jos.closeEntry();
+            }
+        }
+        return baos.toByteArray();
     }
 
     // =========================================================================

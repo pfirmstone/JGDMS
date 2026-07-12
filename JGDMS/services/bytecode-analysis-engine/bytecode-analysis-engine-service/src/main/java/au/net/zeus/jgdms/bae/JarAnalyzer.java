@@ -36,8 +36,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.jar.JarEntry;
-import java.util.jar.JarInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import au.net.zeus.jgdms.api.codebase.AnalysisException;
@@ -105,6 +105,39 @@ final class JarAnalyzer {
      */
     private static final byte[] PLACEHOLDER_SIGNATURE = new byte[]{ 0 };
 
+    /**
+     * Decompression-bomb guard: maximum uncompressed size of any single ZIP
+     * entry.  Checked incrementally as bytes are read (every
+     * {@value #READ_CHUNK_SIZE}-byte chunk), so an oversized entry aborts
+     * mid-inflate rather than after fully inflating past the cap.  Applies to
+     * every entry — including ones whose content is discarded (see
+     * {@link #drainEntry}) — so a huge-compression-ratio entry that is not a
+     * {@code .class} file cannot be used as an unbounded-CPU-time bypass.
+     */
+    private static final long MAX_ENTRY_UNCOMPRESSED_SIZE = 64L * 1024 * 1024;
+
+    /**
+     * Decompression-bomb guard: maximum aggregate uncompressed size across
+     * every entry read or drained during one {@link #analyze} call.  Unlike
+     * {@link #MAX_ENTRY_UNCOMPRESSED_SIZE}, this is a running total for the
+     * whole JAR, so many entries individually under the per-entry cap cannot
+     * be combined to exhaust memory/CPU.
+     */
+    private static final long MAX_TOTAL_INFLATED_SIZE = 256L * 1024 * 1024;
+
+    /** Cap on the total number of ZIP entries (of any kind) processed per JAR. */
+    private static final int MAX_ENTRIES = 10_000;
+
+    /** Cap on the number of {@code .class} entries processed per JAR. */
+    private static final int MAX_CLASS_ENTRIES = 5_000;
+
+    /**
+     * Read-buffer size, and the granularity at which the decompression caps
+     * above are checked (every chunk read, not after fully inflating an
+     * entry).
+     */
+    private static final int READ_CHUNK_SIZE = 8192;
+
     private final PrivateKey enginePrivateKey;
     private final String     sigAlgorithm;
 
@@ -156,41 +189,70 @@ final class JarAnalyzer {
         Set<String>              parseFailures = new HashSet<String>();
         List<String>             permissionLines = new ArrayList<String>();
 
+        // NOTE on decompression-cap enforcement: a ZipInputStream that is
+        // abandoned mid-entry (i.e. read() is stopped before EOF) will, on
+        // the *next* getNextEntry() call, silently inflate and discard the
+        // remainder of the abandoned entry inside closeEntry() — with no
+        // size check of its own.  That means once ANY cap below is exceeded
+        // we must NOT loop back around to read another entry (that would
+        // immediately re-open the exact bypass these caps close); instead we
+        // abort the whole JAR by throwing, which propagates out through the
+        // catch blocks below to an AnalysisException — the same fail-secure,
+        // whole-JAR-rejection outcome already used for an unreadable JAR
+        // stream.
         try {
-            JarInputStream jis = new JarInputStream(
+            ZipInputStream zis = new ZipInputStream(
                     new ByteArrayInputStream(jarBytes));
+            CapCounters counters = new CapCounters();
             try {
-                JarEntry entry;
-                while ((entry = jis.getNextJarEntry()) != null) {
+                ZipEntry entry;
+                while ((entry = zis.getNextEntry()) != null) {
+                    counters.entries++;
+                    if (counters.entries > MAX_ENTRIES) {
+                        throw new CapExceededException(
+                                "JAR contains more than " + MAX_ENTRIES + " entries");
+                    }
                     String entryName = entry.getName();
                     if ("META-INF/PERMISSIONS.LIST".equals(entryName)) {
-                        byte[] data = readEntry(jis);
-                        if (data != null) {
-                            parsePermissionsList(data, permissionLines);
-                        }
+                        byte[] data = readEntry(zis, entryName, counters);
+                        parsePermissionsList(data, permissionLines);
                         continue;
                     }
-                    if (!entryName.endsWith(".class")) continue;
-                    byte[] classBytes = readEntry(jis);
-                    if (classBytes == null) {
-                        // Read failure — treat as parse failure
-                        parseFailures.add(entryNameToClassName(entryName));
+                    if (!entryName.endsWith(".class")) {
+                        // Not a class entry — still must be drained under the
+                        // same caps rather than left for the next
+                        // getNextEntry() call to inflate unbounded.
+                        drainEntry(zis, entryName, counters);
                         continue;
                     }
+                    counters.classEntries++;
+                    if (counters.classEntries > MAX_CLASS_ENTRIES) {
+                        throw new CapExceededException(
+                                "JAR contains more than " + MAX_CLASS_ENTRIES
+                                + " .class entries");
+                    }
+                    byte[] classBytes = readEntry(zis, entryName, counters);
                     String[] clinitOwner = new String[1];
-                    ClinitBlockingVisitor.indexClass(
+                    boolean indexed = ClinitBlockingVisitor.indexClass(
                             classBytes, callGraph, isNativeMap, clinitOwner);
                     String className = clinitOwner[0];
-                    if (className == null || className.isEmpty()) {
-                        // ASM could not determine the class name (parse failure)
+                    if (!indexed || className == null || className.isEmpty()) {
+                        // ASM could not fully index the class — either it
+                        // could not determine the class name at all, or
+                        // indexClass caught a Throwable partway through
+                        // parsing (see ClinitBlockingVisitor#indexClass).
+                        // Either way, fail-secure: treat as parse failure.
                         parseFailures.add(entryNameToClassName(entryName));
                     } else {
                         rawClasses.put(className, classBytes);
                     }
                 }
             } finally {
-                jis.close();
+                zis.close();
             }
+        } catch (CapExceededException e) {
+            throw new AnalysisException(
+                    "JAR analysis aborted: decompression cap exceeded", e);
         } catch (IOException e) {
             throw new AnalysisException("Cannot read JAR bytes as a JAR stream", e);
         }
@@ -344,22 +406,116 @@ final class JarAnalyzer {
     }
 
     /**
-     * Reads all bytes from the current JAR entry stream.
+     * Reads all bytes from the current ZIP entry stream, enforcing the
+     * per-entry and aggregate decompression caps.
      *
-     * @return the entry bytes, or {@code null} if an I/O error occurs
+     * @param zis       the stream positioned at the entry to read
+     * @param entryName the entry's name, for diagnostics
+     * @param counters  running totals shared across the whole {@link #analyze}
+     *                  call
+     * @return the entry's bytes; never {@code null}
+     * @throws CapExceededException if the per-entry or aggregate cap is
+     *                               exceeded while reading
+     * @throws IOException if a genuine I/O error occurs
      */
-    private static byte[] readEntry(JarInputStream jis) {
-        try {
-            ByteArrayOutputStream buf = new ByteArrayOutputStream(8192);
-            byte[] tmp = new byte[8192];
-            int n;
-            while ((n = jis.read(tmp)) != -1) {
+    private static byte[] readEntry(ZipInputStream zis, String entryName,
+                                    CapCounters counters) throws IOException {
+        return readCapped(zis, entryName, counters, true);
+    }
+
+    /**
+     * Reads and discards all bytes from the current ZIP entry stream — used
+     * for entries whose content is not needed (e.g. non-{@code .class}
+     * entries) — while still enforcing the same per-entry and aggregate
+     * decompression caps as {@link #readEntry}.
+     *
+     * <p>This closes Bypass 2 of the zip-bomb guard: without it, an entry
+     * skipped via {@code continue} would be silently inflated in full by the
+     * next {@code getNextEntry()} call (inside {@code ZipInputStream}'s
+     * internal {@code closeEntry()}), with no size check at all — an
+     * unbounded-CPU-time bypass even though the bytes are immediately
+     * discarded and never pose a memory-exhaustion risk.
+     *
+     * @param zis       the stream positioned at the entry to drain
+     * @param entryName the entry's name, for diagnostics
+     * @param counters  running totals shared across the whole {@link #analyze}
+     *                  call
+     * @throws CapExceededException if the per-entry or aggregate cap is
+     *                               exceeded while draining
+     * @throws IOException if a genuine I/O error occurs
+     */
+    private static void drainEntry(ZipInputStream zis, String entryName,
+                                   CapCounters counters) throws IOException {
+        readCapped(zis, entryName, counters, false);
+    }
+
+    /**
+     * Shared implementation for {@link #readEntry} and {@link #drainEntry}:
+     * reads the current ZIP entry to EOF in {@link #READ_CHUNK_SIZE}-byte
+     * chunks, checking both the per-entry ({@link #MAX_ENTRY_UNCOMPRESSED_SIZE})
+     * and aggregate ({@link #MAX_TOTAL_INFLATED_SIZE}) caps after every chunk
+     * — i.e. the cap fires the moment it is exceeded, not after the entry has
+     * been fully (and unboundedly) inflated.
+     *
+     * @param capture if {@code true}, bytes are accumulated and returned; if
+     *                {@code false}, bytes are read and discarded (draining)
+     * @return the entry's bytes if {@code capture} is {@code true};
+     *         {@code null} otherwise
+     */
+    private static byte[] readCapped(ZipInputStream zis, String entryName,
+                                     CapCounters counters, boolean capture)
+            throws IOException {
+        ByteArrayOutputStream buf = capture
+                ? new ByteArrayOutputStream(READ_CHUNK_SIZE) : null;
+        byte[] tmp = new byte[READ_CHUNK_SIZE];
+        long entryTotal = 0;
+        int n;
+        while ((n = zis.read(tmp)) != -1) {
+            entryTotal += n;
+            counters.totalInflated += n;
+            if (entryTotal > MAX_ENTRY_UNCOMPRESSED_SIZE) {
+                throw new CapExceededException("JAR entry '" + entryName
+                        + "' exceeds the per-entry uncompressed size cap of "
+                        + MAX_ENTRY_UNCOMPRESSED_SIZE + " bytes");
+            }
+            if (counters.totalInflated > MAX_TOTAL_INFLATED_SIZE) {
+                throw new CapExceededException(
+                        "Aggregate uncompressed size of JAR exceeds "
+                        + MAX_TOTAL_INFLATED_SIZE
+                        + " bytes (while reading entry '" + entryName + "')");
+            }
+            if (capture) {
                 buf.write(tmp, 0, n);
             }
-            return buf.toByteArray();
-        } catch (IOException e) {
-            logger.log(Level.WARNING, "Failed to read JAR entry bytes", e);
-            return null;
+        }
+        return capture ? buf.toByteArray() : null;
+    }
+
+    /**
+     * Running totals shared across the entry-reading loop in one
+     * {@link #analyze} call; local to that call (never a static/instance
+     * field) so concurrent {@code analyze} calls on the same
+     * {@code JarAnalyzer} instance never share counters.
+     */
+    private static final class CapCounters {
+        /** Aggregate uncompressed bytes read/drained so far this call. */
+        long totalInflated;
+        /** Total ZIP entries seen so far this call (of any kind). */
+        int  entries;
+        /** {@code .class} entries seen so far this call. */
+        int  classEntries;
+    }
+
+    /**
+     * Signals that a decompression cap ({@link #MAX_ENTRY_UNCOMPRESSED_SIZE},
+     * {@link #MAX_TOTAL_INFLATED_SIZE}, {@link #MAX_ENTRIES}, or
+     * {@link #MAX_CLASS_ENTRIES}) was exceeded while reading a JAR.  A subtype
+     * of {@link IOException} so it can be caught either specifically (for a
+     * clearer diagnostic) or generically alongside genuine I/O errors.
+     */
+    private static final class CapExceededException extends IOException {
+        CapExceededException(String message) {
+            super(message);
         }
     }
 

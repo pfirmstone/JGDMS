@@ -142,9 +142,14 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
         try {
             ClassReader cr = new ClassReader(classBytes);
             cr.accept(v, ClassReader.SKIP_FRAMES | ClassReader.SKIP_DEBUG);
-        } catch (Exception e) {
-            // ASM parse failure — conservative: treat as MISSING_CONSTRUCTOR
-            // since we cannot verify anything
+        } catch (Throwable e) {
+            // ASM parse failure (including Errors such as StackOverflowError
+            // from a crafted deeply-nested/recursive class structure) —
+            // conservative: treat as MISSING_CONSTRUCTOR since we cannot
+            // verify anything.  Fail-secure regardless of failure kind: this
+            // method already returns a terminal verdict from the catch block,
+            // so widening from Exception to Throwable introduces no
+            // partial-state hazard.
             return AtomicSerialVerdict.MISSING_CONSTRUCTOR;
         }
         return v.computeVerdict();

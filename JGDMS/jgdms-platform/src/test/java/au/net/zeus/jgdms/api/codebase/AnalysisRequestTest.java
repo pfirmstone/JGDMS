@@ -139,4 +139,78 @@ public class AnalysisRequestTest {
                             && expected.getMessage().contains("contentHash"));
         }
     }
+
+    // =========================================================================
+    // maxBfsDepth ceiling (Fix 4) — enforced at both the public constructor
+    // and check()/deserialization, since a locally-constructed request never
+    // calls check() at all.
+    // =========================================================================
+
+    /**
+     * The public, locally-constructed-request constructor must reject a
+     * {@code maxBfsDepth} above {@link AnalysisRequest#MAX_MAX_BFS_DEPTH}.
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void testConstructorRejectsMaxBfsDepthAboveCeiling() throws Exception {
+        byte[] jarBytes = normalisedJar();
+        String hash = sha256Hex(jarBytes);
+        new AnalysisRequest(jarBytes, hash, null,
+                AnalysisRequest.MAX_MAX_BFS_DEPTH + 1);
+    }
+
+    /**
+     * A {@code maxBfsDepth} exactly at the ceiling must still be accepted —
+     * the ceiling is inclusive.
+     */
+    @Test
+    public void testConstructorAcceptsMaxBfsDepthAtCeiling() throws Exception {
+        byte[] jarBytes = normalisedJar();
+        String hash = sha256Hex(jarBytes);
+        AnalysisRequest req = new AnalysisRequest(jarBytes, hash, null,
+                AnalysisRequest.MAX_MAX_BFS_DEPTH);
+        Assert.assertEquals(AnalysisRequest.MAX_MAX_BFS_DEPTH, req.getMaxBfsDepth());
+    }
+
+    /**
+     * {@code check()} (the deserialization path) must independently reject a
+     * {@code maxBfsDepth} above the ceiling — it must not rely solely on the
+     * public constructor's guard.  Since the public constructor now also
+     * enforces the ceiling, an out-of-range value cannot be produced through
+     * the normal API; this test uses reflection to set the field directly
+     * after construction, standing in for an attacker who controls the wire
+     * bytes directly rather than going through this JVM's constructor (the
+     * same threat model {@link #testMismatchedHashRejected} exercises for
+     * the content-hash binding).
+     */
+    @Test
+    public void testCheckRejectsMaxBfsDepthAboveCeilingOnDeserialize() throws Exception {
+        byte[] jarBytes = normalisedJar();
+        String hash = sha256Hex(jarBytes);
+        AnalysisRequest req = new AnalysisRequest(
+                jarBytes, hash, new Uri("https://example.com/test.jar"),
+                AnalysisRequest.DEFAULT_MAX_BFS_DEPTH);
+        forceMaxBfsDepth(req, AnalysisRequest.MAX_MAX_BFS_DEPTH + 1);
+
+        byte[] serialized = serialize(req);
+
+        try {
+            deserialize(serialized);
+            Assert.fail("Expected InvalidObjectException for maxBfsDepth above ceiling");
+        } catch (InvalidObjectException expected) {
+            Assert.assertTrue(
+                    "message should mention maxBfsDepth",
+                    expected.getMessage() != null
+                            && expected.getMessage().contains("maxBfsDepth"));
+        }
+    }
+
+    /** Reflectively overwrites the private final {@code maxBfsDepth} field,
+     * bypassing the constructor's own ceiling guard — simulates an
+     * attacker-controlled value arriving on the wire rather than a value
+     * this JVM's constructor validated. */
+    private static void forceMaxBfsDepth(AnalysisRequest req, int value) throws Exception {
+        java.lang.reflect.Field f = AnalysisRequest.class.getDeclaredField("maxBfsDepth");
+        f.setAccessible(true);
+        f.setInt(req, value);
+    }
 }
