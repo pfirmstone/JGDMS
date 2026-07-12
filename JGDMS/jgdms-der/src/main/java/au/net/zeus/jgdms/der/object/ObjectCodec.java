@@ -24,6 +24,11 @@ import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.getarg.CollectionWireTypes;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
+import au.net.zeus.jgdms.der.object.immutable.ImmutableList;
+import au.net.zeus.jgdms.der.object.immutable.ImmutableMap;
+import au.net.zeus.jgdms.der.object.immutable.ImmutableSet;
+import au.net.zeus.jgdms.der.object.immutable.ImmutableSortedMap;
+import au.net.zeus.jgdms.der.object.immutable.ImmutableSortedSet;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
@@ -49,6 +54,7 @@ import java.security.AccessController;
 import java.security.Permission;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1984,6 +1990,36 @@ public final class ObjectCodec {
                                           DeserializationCompletion decodeUnit,
                                           ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
+        return decodeCollection(rawBytes, wireType, depth, decodeUnit, resolution, null);
+    }
+
+    /**
+     * As {@link #decodeCollection(byte[], String, int, DeserializationCompletion,
+     * ResolutionContext)}, additionally taking the receiving field's LOCAL declared Java type
+     * (e.g. from {@code callerClass.getDeclaredField(name).getType()}), consulted <b>only</b> to
+     * choose which immutable wrapper INTERFACE shape to hand back for an {@code orderedset:}/
+     * {@code orderedmap:} field: {@link CollectionWireTypes#disciplineFor} maps both a {@code
+     * SortedSet}/{@code NavigableSet} field and a {@code LinkedHashSet}/{@code EnumSet} field to
+     * the same {@code orderedset:} PRESERVE_ORDERED token (symmetrically for maps), so the token
+     * alone cannot tell them apart. This parameter never changes which bytes are decoded, the
+     * element/entry values, or their order -- only whether the returned object additionally
+     * implements {@link java.util.SortedSet}/{@link java.util.SortedMap}.
+     *
+     * <p>{@code declaredType} is {@code null} when unknown (a nested collection-of-collection
+     * element, an {@code Any}-typed element, or a synthesized field with no backing {@code
+     * Field}) -- decode then falls back to the plain (non-sorted) wrapper shape, which is exactly
+     * what this codec always returned before this parameter existed. A caller whose {@code
+     * check(GetArg)} then does {@code arg.get(name, val, SortedSet.class)} on such a field gets a
+     * fail-secure {@code InvalidObjectException} (a type mismatch), never a data-integrity issue.
+     *
+     * @param declaredType the receiving field's local declared Java type, or {@code null} if
+     *                     unknown/not applicable
+     */
+    public static Object decodeCollection(byte[] rawBytes, String wireType, int depth,
+                                          DeserializationCompletion decodeUnit,
+                                          ResolutionContext resolution,
+                                          Class<?> declaredType)
+            throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(rawBytes, "rawBytes");
         Objects.requireNonNull(wireType, "wireType");
         // Depth-bound DoS guard (STD-008 sec.16.2), symmetric with decodeNested/decodeHierarchy:
@@ -2023,9 +2059,9 @@ public final class ObjectCodec {
         }
 
         if (CollectionWireTypes.isMap(wireType)) {
-            return decodeMap(body, wireType, canonicalise, depth, decodeUnit, resolution);
+            return decodeMap(body, wireType, canonicalise, depth, decodeUnit, resolution, declaredType);
         }
-        return decodeSetOrList(body, wireType, canonicalise, depth, decodeUnit, resolution);
+        return decodeSetOrList(body, wireType, canonicalise, depth, decodeUnit, resolution, declaredType);
     }
 
     /**
@@ -2043,16 +2079,27 @@ public final class ObjectCodec {
      *       transmitted order is the value.</li>
      * </ul>
      * Element count is capped at {@link #MAX_COLLECTION} (§4.5) before building.
+     *
+     * <p>Elements are accumulated into a plain {@link ArrayList} (a purely positional append --
+     * {@code ArrayList.add} never invokes {@code hashCode()}/{@code equals()}/{@code compareTo()}
+     * on the element), never a {@code HashSet}/{@code LinkedHashSet} (whose {@code add} hashes the
+     * element) and never a {@code TreeSet} (whose {@code add} compares it). The final immutable
+     * wrapper ({@link ImmutableList}, {@link ImmutableSet}, or {@link ImmutableSortedSet}) is then
+     * built from that list via a single {@code List.toArray()} array copy -- so construction of
+     * the returned collection value invokes zero methods on the decoded elements (STD-006 §3.8 /
+     * the {@code AtomicSerial.GetArg} contract: fields are replaced by a "safe limited
+     * functionality immutable Collection instance").
      */
     private static Object decodeSetOrList(DerReader body, String wireType, boolean canonicalise,
                                           int depth, DeserializationCompletion decodeUnit,
-                                          ResolutionContext resolution)
+                                          ResolutionContext resolution, Class<?> declaredType)
             throws DerException, IOException, ClassNotFoundException {
         String elemWT = CollectionWireTypes.elementWireType(wireType);
         boolean setKind = CollectionWireTypes.isSetKind(wireType);   // set: / orderedset: -> Set
         boolean multiset = CollectionWireTypes.isMultiset(wireType); // bag: (non-decreasing)
-        // Order-retaining containers so the decoded value round-trips the transmitted order.
-        Collection<Object> out = setKind ? new LinkedHashSet<>() : new ArrayList<>();
+        // Purely positional accumulator -- see method Javadoc for why this must never be a
+        // hash-bucketed (HashSet/LinkedHashSet) or comparison-ordered (TreeSet) structure.
+        List<Object> out = new ArrayList<>();
 
         int count = 0;
         byte[] prevEnc = null; // immediate predecessor encoding (O(1) memory, O(n) total)
@@ -2085,7 +2132,20 @@ public final class ObjectCodec {
             }
             out.add(element);
         }
-        return out;
+
+        if (!setKind) {
+            // list: (preserve) or bag: (canonicalise multiset, duplicates retained) -> a List
+            // (Discipline.CANONICALISE_MULTISET is documented as "reconstructed as a List").
+            return new ImmutableList<>(out);
+        }
+        // set: (canonicalise) never carries SortedSet-declared semantics (CollectionWireTypes
+        // .disciplineFor never maps a Comparable-ordered class to CANONICALISE); only
+        // orderedset: (PRESERVE_ORDERED, which bundles SortedSet/NavigableSet together with
+        // LinkedHashSet/EnumSet under one token) needs the declared-type check.
+        if (!canonicalise && isSortedType(declaredType, true)) {
+            return new ImmutableSortedSet<>(out);
+        }
+        return new ImmutableSet<>(out);
     }
 
     /**
@@ -2095,16 +2155,27 @@ public final class ObjectCodec {
      * curKey) < 0}) -- symmetry with the key-only encode sort, subsuming the duplicate-key check
      * in O(n). A PRESERVE map ({@code orderedmap:}) applies no order check. Entry count is capped
      * at {@link #MAX_COLLECTION} (§4.5).
+     *
+     * <p>Entries are accumulated into a plain {@link ArrayList} of {@link
+     * AbstractMap.SimpleImmutableEntry} pairs (a purely positional append -- constructing a
+     * {@code SimpleImmutableEntry} only assigns its key/value fields, and {@code ArrayList.add}
+     * never invokes {@code hashCode()}/{@code equals()}/{@code compareTo()} on either), never a
+     * {@code HashMap}/{@code LinkedHashMap} (whose {@code put} hashes the key) and never a {@code
+     * TreeMap} (whose {@code put} compares it). The final immutable wrapper ({@link ImmutableMap}
+     * or {@link ImmutableSortedMap}) is built from that list via a single {@code
+     * List.toArray(Object[])} array copy -- so construction of the returned map value invokes
+     * zero methods on the decoded keys/values.
      */
     private static Object decodeMap(DerReader body, String wireType, boolean canonicalise,
                                     int depth, DeserializationCompletion decodeUnit,
-                                    ResolutionContext resolution)
+                                    ResolutionContext resolution, Class<?> declaredType)
             throws DerException, IOException, ClassNotFoundException {
         String[] kv = CollectionWireTypes.mapKeyValueWireTypes(wireType);
         String keyWT = kv[0];
         String valWT = kv[1];
-        // Order-retaining so the decoded value round-trips the transmitted entry order.
-        Map<Object, Object> out = new LinkedHashMap<>();
+        // Purely positional accumulator -- see method Javadoc for why this must never be a
+        // hash-bucketed (HashMap/LinkedHashMap) or comparison-ordered (TreeMap) structure.
+        List<Map.Entry<?, ?>> out = new ArrayList<>();
 
         int count = 0;
         byte[] prevKeyEnc = null;
@@ -2134,9 +2205,34 @@ public final class ObjectCodec {
                 }
                 prevKeyEnc = keyEnc;
             }
-            out.put(key, val);
+            out.add(new AbstractMap.SimpleImmutableEntry<>(key, val));
         }
-        return out;
+
+        // map: (canonicalise) never carries SortedMap-declared semantics (see decodeSetOrList's
+        // matching comment); only orderedmap: (PRESERVE_ORDERED) needs the declared-type check.
+        if (!canonicalise && isSortedType(declaredType, false)) {
+            return new ImmutableSortedMap<>(out);
+        }
+        return new ImmutableMap<>(out);
+    }
+
+    /**
+     * Whether {@code declaredType} -- the receiving field's LOCAL declared Java type, or {@code
+     * null} if unknown -- is itself a {@code SortedSet}/{@code NavigableSet} ({@code set == true})
+     * or a {@code SortedMap}/{@code NavigableMap} ({@code set == false}). Used only to select the
+     * immutable wrapper shape for an {@code orderedset:}/{@code orderedmap:} field; see {@link
+     * #decodeCollection(byte[], String, int, DeserializationCompletion, ResolutionContext, Class)}.
+     * {@code null} (unknown) conservatively returns {@code false} (the plain, non-sorted shape).
+     */
+    private static boolean isSortedType(Class<?> declaredType, boolean set) {
+        if (declaredType == null) {
+            return false;
+        }
+        return set
+                ? (java.util.SortedSet.class.isAssignableFrom(declaredType)
+                        || java.util.NavigableSet.class.isAssignableFrom(declaredType))
+                : (java.util.SortedMap.class.isAssignableFrom(declaredType)
+                        || java.util.NavigableMap.class.isAssignableFrom(declaredType));
     }
 
     /**
