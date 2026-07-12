@@ -898,6 +898,103 @@ public class ServiceProxyProcessorTest {
     }
 
     @Test
+    public void smartProxyMultiProtocolDelegateAcceptsRemoteInCtor() {
+        // The generated aggregate backend (multi.HelloServiceBackend) is a
+        // processor-synthesized name the delegate author cannot know in advance --
+        // it does not exist until this same compilation generates it.  Declaring
+        // the delegate's first ctor parameter as java.rmi.Remote (and casting
+        // internally to whichever protocol interface(s) it needs) must validate and
+        // compile, without the delegate ever naming the generated backend.
+        ProcessorHarness h = new ProcessorHarness()
+            .add("multi.WireA",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface WireA extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .add("multi.WireB",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface WireB extends Remote {"
+                + "   int ping() throws RemoteException; }")
+            .add("multi.HelloService",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException;"
+                + "   int ping() throws RemoteException; }")
+            .add("multi.HelloSmartLogic",
+                "package multi; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy"
+                + " public final class HelloSmartLogic implements HelloService {"
+                + "   private final WireA a;"
+                + "   private final WireB b;"
+                + "   public HelloSmartLogic(java.rmi.Remote server) {"
+                + "     this.a = (WireA) server;"
+                + "     this.b = (WireB) server; }"
+                + "   public String greet(String name) throws RemoteException { return a.greet(name); }"
+                + "   public int ping() throws RemoteException { return b.ping(); } }")
+            .add("multi.HelloServiceImpl",
+                "package multi; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART,"
+                + "     protocol = { WireA.class, WireB.class }, smartProxy = HelloSmartLogic.class)"
+                + " public class HelloServiceImpl implements WireA, WireB {"
+                + "   public String greet(String name) throws RemoteException { return name; }"
+                + "   public int ping() throws RemoteException { return 0; } }");
+        ProcessorHarness.Result r = h.run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+        String proxy = r.generated.get("multi.ConstrainableHelloServiceProxy");
+        assertTrue("proxy must be generated; got " + r.generated.keySet(), proxy != null);
+        assertTrue("delegate rebuilt from the aggregate backend, cast for the delegate's Remote ctor:\n"
+                + proxy, proxy.contains("new multi.HelloSmartLogic((multi.HelloServiceBackend) this.server)"));
+        ProcessorHarness.Result compiled = h.compileGenerated(r);
+        assertTrue("Remote-ctor delegate shell must compile:\n" + compiled.allMessages()
+                + "\n" + proxy, compiled.success);
+    }
+
+    @Test
+    public void delegateCtorMismatchInMultiProtocolRecommendsRemoteNotGeneratedBackend() {
+        // The diagnostic must recommend the ONE signature a delegate author can
+        // actually write (java.rmi.Remote) rather than the processor-generated
+        // backend name (multi.HelloServiceBackend), which does not exist until this
+        // compilation generates it and so cannot be known in advance.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("multi.WireA",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface WireA extends Remote {"
+                + "   String greet(String name) throws RemoteException; }")
+            .add("multi.WireB",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface WireB extends Remote {"
+                + "   int ping() throws RemoteException; }")
+            .add("multi.HelloService",
+                "package multi; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface HelloService extends Remote {"
+                + "   String greet(String name) throws RemoteException;"
+                + "   int ping() throws RemoteException; }")
+            .add("multi.HelloSmartLogic",
+                "package multi; import java.rmi.RemoteException;"
+                + " @au.net.zeus.jgdms.service.annotation.SmartProxy"
+                + " public final class HelloSmartLogic implements HelloService {"
+                + "   public HelloSmartLogic() {}"   // no server ctor at all
+                + "   public String greet(String name) throws RemoteException { return name; }"
+                + "   public int ping() throws RemoteException { return 0; } }")
+            .add("multi.HelloServiceImpl",
+                "package multi; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = HelloService.class, proxy = ProxyType.SMART,"
+                + "     protocol = { WireA.class, WireB.class }, smartProxy = HelloSmartLogic.class)"
+                + " public class HelloServiceImpl implements WireA, WireB {"
+                + "   public String greet(String name) throws RemoteException { return name; }"
+                + "   public int ping() throws RemoteException { return 0; } }")
+            .run();
+        assertTrue(r.allMessages(),
+            r.hasError("must declare a constructor (java.rmi.Remote)"));
+        assertFalse("must not ask the delegate author to name the generated backend:\n"
+                + r.allMessages(),
+            r.allMessages().contains("must declare a constructor (multi.HelloServiceBackend)"));
+    }
+
+    @Test
     public void smartProxyDelegateMissingOneOfMultipleApisIsError() {
         // The delegate must implement EVERY api() interface named by @JiniService.
         // Implementing only one of two -> fail-closed.

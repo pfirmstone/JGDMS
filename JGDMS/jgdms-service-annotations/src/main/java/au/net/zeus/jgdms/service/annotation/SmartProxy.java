@@ -76,6 +76,33 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
+ * <h2>Multi-protocol delegates</h2>
+ * When {@link JiniService#protocol()} names more than one interface, the exported
+ * server stub is an aggregate {@code <Api>Backend} that the processor synthesizes
+ * (or, for a hand-written backend, the type the service developer already wrote and
+ * named). Unless the backend is hand-written, its name is an internal convention the
+ * delegate author cannot know in advance -- it does not exist until this same
+ * compilation generates it. In that case declare the delegate constructor's first
+ * parameter as {@code java.rmi.Remote} rather than guessing the generated backend's
+ * name, and cast internally to whichever protocol interface(s) the delegate actually
+ * calls:
+ * <pre>{@code
+ * @SmartProxy
+ * public final class MultiLogic implements Api {
+ *     private final ProtocolA a;
+ *     private final ProtocolB b;
+ *
+ *     public MultiLogic(java.rmi.Remote server) {
+ *         this.a = (ProtocolA) server;
+ *         this.b = (ProtocolB) server;   // the aggregate backend implements every protocol
+ *     }
+ *     // ...
+ * }
+ * }</pre>
+ * A single-protocol delegate (the common case, shown above) has no such problem --
+ * the protocol interface is the developer's own declaration, so the constructor may
+ * name it directly.
+ *
  * <h2>Serialized state versus behaviour</h2>
  * Behaviour is <em>not</em> serialized state.  Most smart proxies serialize only
  * {@code { server, proxyID }} (caches and endpoints are rebuilt lazily on the

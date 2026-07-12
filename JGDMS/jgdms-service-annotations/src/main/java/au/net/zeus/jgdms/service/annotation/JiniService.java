@@ -211,9 +211,12 @@ public @interface JiniService {
      * <p>The referenced class must (a) be annotated {@code @SmartProxy}, (b)
      * implement every {@link #api()} interface, and (c) declare a constructor
      * {@code (<serverType> [, @State field types…])} the shell can call — the
-     * {@code serverType} being the single {@link #protocol()} interface, or the
-     * generated aggregate {@code <Api>Backend} when {@link #protocol()} names more
-     * than one.  These are compile-time (fail-closed) checks.
+     * {@code serverType} being the single {@link #protocol()} interface when there
+     * is exactly one, or, when {@link #protocol()} names more than one, either a
+     * hand-written aggregate backend (if the developer wrote and named one) or
+     * simply {@code java.rmi.Remote}, since the processor-generated aggregate
+     * {@code <Api>Backend} in that case is an internal name the delegate author
+     * cannot know in advance.  These are compile-time (fail-closed) checks.
      *
      * <p>Naming a smart-proxy class on a {@link ProxyType#DYNAMIC} service is a
      * compile error: a dynamic proxy carries no downloaded behaviour.  Defaults to
