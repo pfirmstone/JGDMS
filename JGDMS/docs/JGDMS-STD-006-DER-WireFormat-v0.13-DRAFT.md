@@ -3200,20 +3200,30 @@ disturbed.
 Both directions are handled without error, without special deserialization modes,
 and without coordination between the sender and receiver.
 
-**Primary case vs. fallback case.**
-When the at-marshal-time schema is available — from the `MarshalledInstance`
-schema embedding, from `ServiceSchemaEntry`, or from `SchemaAccessor` — every
-byte in every SEQUENCE is accounted for by the schema. All fields are decoded and
-stored in `GetArg`. None are discarded at the SEQUENCE level. Fields stored but
-never requested by any constructor become eligible for GC after construction
-completes. This is the primary operational mode.
+**The wire decoder is always given the at-marshal-time schema — there is no
+fallback case at the SEQUENCE level.**
+The schema passed to the wire decoder — from the `MarshalledInstance` schema
+embedding, from `ServiceSchemaEntry`, or from `SchemaAccessor` — is always the
+schema the SEQUENCE was actually encoded with. Every byte in every SEQUENCE is
+accounted for by that schema: the decoder reads exactly one TLV per schema field,
+in order, and every schema field is decoded and stored in `GetArg`. Fields stored
+but never requested by any constructor become eligible for GC after construction
+completes. This is the only operational mode at the wire level; there is no
+"older schema" degradation path here.
 
-The "remaining bytes discarded" path described in §3.9 case (c) is the fallback:
-it arises only when the decoder's schema is older than the data. When the correct
-schema is used this path is never reached. The `MarshalledInstance` schema embedding
-exists precisely to ensure the correct schema is always available for stored data,
-eliminating the fallback case for the most important category — long-lived persisted
-or transmitted objects.
+A payload SEQUENCE whose TLV count does not match its own schema's field count —
+too few TLVs, or extra trailing TLVs — is therefore not a legitimate evolution
+signal at the wire level. It means the bytes do not match the schema they claim
+to be encoded with: corruption or tampering. The decoder fails closed with a
+decode error rather than silently defaulting the missing fields or discarding the
+extras. (An earlier revision of this draft described "remaining bytes discarded"
+as an expected fallback when "the decoder's schema is older than the data"; that
+scenario does not arise through the calling convention described above — the
+decoder never receives any schema but the at-marshal-time one — and describing it
+as expected leniency conflated wire-level integrity with the `GetArg`-level
+evolution mechanism in §3.9 cases (b)/(c), which operates one layer up, on the
+gap between the at-marshal-time schema and the local class's current
+`serialForm()`, never on the gap between a schema and its own payload.)
 
 **Why the strictness produces this property.**
 Because each namespace is private and no class can reach into another's SEQUENCE,

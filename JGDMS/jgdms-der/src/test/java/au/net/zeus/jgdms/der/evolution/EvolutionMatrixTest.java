@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.evolution;
 
+import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.evolution.fixtures.Ev3_EvolvedSub;
 import au.net.zeus.jgdms.der.evolution.fixtures.Ev4_Child;
@@ -787,13 +788,22 @@ class EvolutionMatrixTest {
     /**
      * S11.8 / 6.2c -- Field present on wire, absent from the (decoder's) schema.
      *
-     * <p>This is the S3.9 case (c) at the field-store level: the payload contains MORE
-     * TLVs than the schema has fields.  The known fields are decoded; trailing extra
-     * TLVs are read-and-discarded to the SEQUENCE boundary.
-     * {@link DerFieldStore#trailingFieldsDiscarded()} must be {@code > 0}.
+     * <p>Previously this exercised the S3.9 case (c) "narrower schema / wider
+     * payload" leniency at the field-store level: the payload contained MORE TLVs
+     * than the schema had fields, and the extras were silently read-and-discarded.
+     * That leniency conflated a wire-level TLV-count mismatch against the schema
+     * the bytes were actually decoded with against the separate, legitimate
+     * schema-evolution mechanism -- a class's current {@code serialForm()}
+     * differing from the at-marshal-time schema, handled entirely by
+     * {@code @AtomicSerial} via {@code GetArg.get(name, default, type)}.
+     *
+     * <p>{@code DerFieldStore} is always given the exact at-marshal-time schema
+     * (already threaded through every caller); a TLV-count mismatch against that
+     * schema is corruption or tampering, not evolution (STD-006 S3.9/S11.8), so
+     * decoding must now fail with a {@link DerException} instead of discarding.
      *
      * <p>Simulation: build a NARROWER schema (2 fields) against a payload that
-     * contains 4 TLVs.  The 2 extra TLVs are discarded.
+     * contains 4 TLVs, and assert construction throws.
      */
     @Test
     void test_6_2c_FieldPresentOnWire_AbsentFromDecoderSchema_TrailingDiscarded() throws Exception {
@@ -805,31 +815,18 @@ class EvolutionMatrixTest {
                     new AtomicSerialFieldDef("label", "java.lang.String")
                 ));
 
-        // WIDER payload: 4 TLVs (the decoder's schema only covers the first 2)
+        // WIDER payload: 4 TLVs (the schema only declares 2 fields)
         byte[] payload = DerWriter.writeSequence(List.of(
                 DerWriter.writeInteger(BigInteger.valueOf(9)),
                 DerWriter.writeUtf8String("known-label"),
-                DerWriter.writeUtf8String("extra-field-1"),  // not in decoder's schema
-                DerWriter.writeInteger(BigInteger.valueOf(42)) // not in decoder's schema
+                DerWriter.writeUtf8String("extra-field-1"),  // not in the schema
+                DerWriter.writeInteger(BigInteger.valueOf(42)) // not in the schema
         ));
 
-        DerFieldStore store = new DerFieldStore(narrowSchema, payload);
-
-        // Assert: known fields decoded correctly
-        assertEquals(9,             store.get("id",    0),   "6.2c: id correct");
-        assertEquals("known-label", store.get("label", "?"), "6.2c: label correct");
-
-        // Assert: trailing fields discarded (S3.9 case (c) at field-store level)
-        assertEquals(2, store.trailingFieldsDiscarded(),
-                "6.2c: exactly 2 trailing TLVs must be discarded (present on wire, absent from schema)");
-
-        // Assert: no error (decode succeeded despite extra TLVs)
-        assertTrue(store.trailingFieldsDiscarded() > 0,
-                "6.2c: trailingFieldsDiscarded() must be > 0 when wire has more TLVs than schema");
-
-        // Assert: the 2 known fields are the only ones present in the store
-        assertEquals(Set.of("id", "label"), store.presentFieldNames(),
-                "6.2c: only the 2 schema-known fields should be present");
+        assertThrows(DerException.class, () -> new DerFieldStore(narrowSchema, payload),
+                "6.2c: a payload with 4 TLVs against a 2-field schema is a TLV-count "
+                + "mismatch against the schema -- corruption or tampering, not schema "
+                + "evolution -- so decoding must fail rather than discard the 2 extra TLVs");
     }
 
     // =========================================================================

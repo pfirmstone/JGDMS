@@ -191,16 +191,17 @@ class ObjectCodecTest {
     @Test
     void test_4_1_5b_CheckBeforeConstruction_NullName_ThrowsBeforeObject()
             throws Exception {
-        // Build DER SEQUENCE for SimpleRecord with name=null (absent from payload)
-        // To produce a null name, we encode the payload without the name field,
-        // but SimpleRecord.check reads name via arg.get("name", null) -- absent means null.
-        // Easier: write an OCTET STRING null is not representable, so write a short payload.
-        // Simplest: encode only active, count, and payload -- omit name (payload shorter than schema)
+        // Build DER SEQUENCE for SimpleRecord with name=null. A compliant encoder
+        // never omits a field's TLV to represent null -- it writes a PRESENT DER
+        // NULL TLV (0x05 0x00) for that field (same pattern ObjectCodec itself uses
+        // to encode a null field). So all 4 schema fields get a TLV; DerFieldStore's
+        // strict decode (STD-006 S3.9/S11.8) succeeds and SimpleRecord.check() is
+        // reached, which then rejects the null name.
         byte[] activeTlv  = DerWriter.writeBoolean(false);
         byte[] countTlv   = DerWriter.writeInteger(0);
-        // Omit name (absent -> null when GetArg returns default null)
-        // That means sequence has only 2 TLVs; DerFieldStore will set name=ABSENT -> returns null
-        byte[] sequenceDer = DerWriter.writeSequence(List.of(activeTlv, countTlv));
+        byte[] nameTlv    = new byte[]{0x05, 0x00}; // name = DER NULL (present, not omitted)
+        byte[] payloadTlv = DerWriter.writeOctetString(new byte[]{});
+        byte[] sequenceDer = DerWriter.writeSequence(List.of(activeTlv, countTlv, nameTlv, payloadTlv));
 
         AtomicSerialSchemaRecord schema = SchemaGenerator.generate(SimpleRecord.class);
 
