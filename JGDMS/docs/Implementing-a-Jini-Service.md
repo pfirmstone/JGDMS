@@ -287,10 +287,16 @@ public final class HelloSmartLogic implements HelloService {
 ```
 
 ```java
-@JiniService(api = HelloService.class, proxy = ProxyType.SMART,
+@JiniService(api = HelloService.class,
         protocol = { WireA.class, WireB.class }, smartProxy = HelloSmartLogic.class)
 public class HelloServiceImpl implements WireA, WireB { ... }
 ```
+
+No `proxy = ProxyType.SMART` needed — declaring `smartProxy()` (or, as here, a
+translating `protocol()`) already implies it; either the delegate or a distinct
+protocol is a strong enough signal that `proxy()` would just be restating what's
+already implied. See [the attribute reference](#jiniservice-attribute-reference)
+for the one case `proxy()` must still be stated explicitly.
 
 This is always valid: every protocol interface extends `Remote` by
 definition, so `Remote` is always a common supertype, and — unlike the
@@ -351,7 +357,6 @@ public final class LabelledPortLogic implements ... { ... }
 ```java
 @JiniService(
         api        = RegionTemperatureService.class,
-        proxy      = ProxyType.SMART,
         codebase   = true,
         protocol   = RegionProtocol.class,
         smartProxy = RegionSmartLogic.class,
@@ -446,10 +451,10 @@ stub) — it does not change how the server is exported.
 |---|---|---|
 | `api()` | `{}` (infer) | Public service interface(s). Must be declared explicitly for a translating SMART service (`protocol() != api()`, non-empty) — cannot be inferred. |
 | `protocol()` | `{}` (= `api()`) | Internal wire interface(s) the exported stub implements. More than one → the processor generates the aggregate `<Api>Backend`. |
-| `proxy()` | `ProxyType.DYNAMIC` | `DYNAMIC` or `SMART` — see [Choosing DYNAMIC vs SMART](#choosing-dynamic-vs-smart). |
+| `proxy()` | `ProxyType.DYNAMIC` | `DYNAMIC` or `SMART` — usually **inferred**, not stated: `smartProxy()` or a translating `protocol()` each imply `SMART` on their own (an explicit `proxy = DYNAMIC` contradicting either is a compile error). Only load-bearing on its own for a *thin* `SMART` proxy (`protocol() == api()`, no `smartProxy()`) — see [Choosing DYNAMIC vs SMART](#choosing-dynamic-vs-smart). |
 | `codebase()` | `false` | Ship a downloadable `-dl` jar. Independent axis from `proxy()` (STD-009 §6 shape 2 for DYNAMIC + codebase). |
 | `component()` | `""` | Config component name passed to `AbstractJiniService`. |
-| `smartProxy()` | `Void.class` (none) | The `@SmartProxy` delegate class. Only meaningful when `proxy() == SMART`; naming one on a DYNAMIC service is a compile error. |
+| `smartProxy()` | `Void.class` (none) | The `@SmartProxy` delegate class. Implies `proxy() == SMART`; contradicting that with an explicit `proxy = DYNAMIC` is a compile error. |
 
 `@SmartProxy` (on the delegate class itself) takes no attributes of its own
 beyond the nested `@SmartProxy.State`/`@SmartProxy.States` durable-field
@@ -465,8 +470,11 @@ once, to avoid duplicating it on both sides.
 - **Delegate constructor names the generated aggregate backend instead of
   `Remote`.** Don't — you can't know that name in advance. See
   [multiple protocol interfaces](#3-write-the-smartproxy-delegate--multiple-protocol-interfaces).
-- **`smartProxy()` set on a `DYNAMIC` service.** Compile error — a dynamic
-  proxy carries no downloaded behaviour, so there is nothing to forward to.
+- **`smartProxy()`, or a translating `protocol()`, alongside an explicit
+  `proxy = ProxyType.DYNAMIC`.** Compile error — both imply `SMART`; a dynamic
+  proxy carries no downloaded behaviour and cannot bridge `api() != protocol()`,
+  so an explicit contradiction is rejected rather than silently misbehaving.
+  Simplest fix: just remove the explicit `proxy = DYNAMIC` (it's inferred).
 - **Hand-written proxy extends `AbstractSmartProxy` directly instead of
   `.ConstrainableSmartProxy`.** Compile error — the fail-open shape is
   refused, not silently accepted.

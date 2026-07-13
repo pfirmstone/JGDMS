@@ -1325,8 +1325,73 @@ public class ServiceProxyProcessorTest {
                 + " public class FooServiceImpl implements Bar {"
                 + "   public double rawCelsius(String region) throws RemoteException { return 0; } }")
             .run();
+        // This fixture's protocol (Bar) also differs from api (Foo), so BOTH
+        // smartProxy() and the translating protocol() independently imply SMART;
+        // the combined diagnostic names both causes.
         assertTrue(r.allMessages(),
-            r.hasError("smartProxy() implies a SMART proxy"));
+            r.hasError("smartProxy() and a translating protocol() implies a SMART proxy"));
+    }
+
+    @Test
+    public void translatingProtocolWithProxyDynamicIsError() {
+        // protocol() differs from api() (translating) but NO smartProxy(). DYNAMIC
+        // has no codegen to bridge api()!=protocol() -- its exported
+        // java.lang.reflect.Proxy only ever carries the interfaces the impl
+        // actually implements -- so this must fail closed exactly like the
+        // smartProxy()-vs-DYNAMIC contradiction above.
+        ProcessorHarness.Result r = new ProcessorHarness()
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.FooServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " import au.net.zeus.jgdms.service.annotation.ProxyType;"
+                + " @JiniService(api = Foo.class, protocol = Bar.class, proxy = ProxyType.DYNAMIC)"
+                + " public class FooServiceImpl implements Bar {"
+                + "   public double currentCelsius(String region) throws RemoteException { return 0; } }")
+            .run();
+        assertTrue(r.allMessages(),
+            r.hasError("a translating protocol() implies a SMART proxy"));
+    }
+
+    @Test
+    public void translatingProtocolWithNoExplicitProxyInfersSmartAndGenerates() {
+        // No proxy= at all -- a translating protocol() alone must infer SMART and
+        // generate the direct-forwarding constrainable proxy, exactly as if
+        // proxy=ProxyType.SMART had been written explicitly.  (Foo/Bar share the
+        // same method name so direct forwarding -- no @SmartProxy delegate --
+        // compiles.)
+        ProcessorHarness h = new ProcessorHarness()
+            .add("hello.Foo",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Foo extends Remote {"
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.Bar",
+                "package hello; import java.rmi.Remote; import java.rmi.RemoteException;"
+                + " public interface Bar extends Remote {"
+                + "   double currentCelsius(String region) throws RemoteException; }")
+            .add("hello.FooServiceImpl",
+                "package hello; import java.rmi.RemoteException;"
+                + " import au.net.zeus.jgdms.service.annotation.JiniService;"
+                + " @JiniService(api = Foo.class, protocol = Bar.class)"
+                + " public class FooServiceImpl implements Bar {"
+                + "   public double currentCelsius(String region) throws RemoteException { return 0; } }");
+        ProcessorHarness.Result r = h.run();
+        assertFalse(r.allMessages(), r.hasAnyError());
+        String proxy = r.generated.get("hello.ConstrainableFooProxy");
+        assertTrue("proxy must be generated (protocol()!=api() alone must infer SMART); got "
+                + r.generated.keySet(), proxy != null);
+        assertTrue("proxy forwards through the wire type Bar:\n" + proxy,
+            proxy.contains("((hello.Bar) server).currentCelsius(region)"));
+        ProcessorHarness.Result compiled = h.compileGenerated(r);
+        assertTrue("inferred-SMART translating proxy must compile:\n" + compiled.allMessages()
+                + "\n" + proxy, compiled.success);
     }
 
     @Test
