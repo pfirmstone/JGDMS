@@ -63,6 +63,7 @@ import net.jini.config.EmptyConfiguration;
 import net.jini.config.NoSuchEntryException;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
+import net.jini.constraint.BasicMethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
@@ -229,19 +230,16 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
                 throw new IllegalArgumentException
                                  ("LookupLocator has been discovered already");
             }
-	    Collection context = null;
 	    InvocationConstraints ic = InvocationConstraints.EMPTY;
 	    if (l instanceof RemoteMethodControl) {
 		MethodConstraints mc =
 		    ((RemoteMethodControl) l).getConstraints();
-		context = new ArrayList(1);
-		context.add(mc);
 		if (mc != null) {
 		    ic = mc.getConstraints(getRegistrarMethod);
 		}
 	    }
 	    try {
-                doUnicastDiscovery(l, ic, context);
+                doUnicastDiscovery(l, ic);
 		return true;
 	    } catch (Throwable e) {
                 if( logger.isLoggable(Level.INFO) ) {
@@ -272,8 +270,7 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
         *  contained in the <code>locator</code> parameter of this class.
 	*/
         private void doUnicastDiscovery(LookupLocator locator,
-					InvocationConstraints ic, 
-					final Collection context)
+					InvocationConstraints ic)
 	    throws IOException, ClassNotFoundException
         {
 	    UnicastResponse resp = new MultiIPDiscovery() {
@@ -284,12 +281,22 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
 							Socket s)
 		throws IOException, ClassNotFoundException
 		{
+		    // Proxy deserialization resolves the codebase annotation via a
+		    // remote CodebaseAccessor call over this point-to-point socket;
+		    // it cannot satisfy multicast/transport discovery constraints.
+		    // Pass a transport-stripped constraint context
+		    // (getUnfulfilledConstraints removes multicast TTL/packet-size,
+		    // protocol version and timeouts, preserving integrity /
+		    // authentication), mirroring AbstractLookupDiscovery.
+		    InvocationConstraints unfulfilled = dc.getUnfulfilledConstraints();
+		    Collection ctx = new ArrayList(1);
+		    ctx.add(new BasicMethodConstraints(unfulfilled));
 		    return disco.doUnicastDiscovery(
 					    s,
-					    dc.getUnfulfilledConstraints(),
+					    unfulfilled,
 					    null,
 					    null,
-					    context);
+					    ctx);
 		    
 		}
 		
