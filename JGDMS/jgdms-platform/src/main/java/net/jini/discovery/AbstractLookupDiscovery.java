@@ -21,6 +21,8 @@ package net.jini.discovery;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
@@ -48,6 +50,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
@@ -233,8 +236,10 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     private final DiscoveryConstraints multicastRequestConstraints;
     /* The network interfaces (NICs) through which multicast packets will
      * be sent.
-     * 
-     * Effectively immutable array.
+     *
+     * Effectively immutable array. For NICS_USE_AUTO the array is the
+     * statically filtered set computed once at construction; per-interface
+     * liveness re-selection is deferred to a later increment.
      */
     private final NetworkInterface[] nics;
     /* NICs that initially failed are retried after this number of millisecs.*/
@@ -273,6 +278,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     private static final int NICS_USE_SYS  = 1;//use NIC assigned by the system
     private static final int NICS_USE_LIST = 2;//use list of NICs from config
     private static final int NICS_USE_NONE = 3;//multicast disabled
+    private static final int NICS_USE_AUTO = 4;//statically filtered, healthy NICs
     /** Flag that indicates how the set of network interfaces was configured */
     private final int nicsToUse;
     
@@ -443,8 +449,11 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	    sock = new MulticastSocket(Constants.discoveryPort);
             switch(nicsToUse) {
                 case NICS_USE_ALL:
-                    /* Using all interfaces. Skip (but report) any interfaces
-                     * that are "bad" or not configured for multicast.
+                case NICS_USE_AUTO:
+                    /* Using all interfaces (NICS_USE_ALL) or the statically
+                     * filtered, healthy set (NICS_USE_AUTO). Skip (but report at
+                     * HANDLED, not SEVERE) any interfaces that are "bad" or not
+                     * configured for multicast, quarantining them for retry.
                      */
                     for(int i=0;i<nics.length;i++) {
                         try {
@@ -456,7 +465,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                             }//endif
                             retryNics.add(nics[i]);
                             if( logger.isLoggable(Levels.HANDLED) ) {
-                                LogRecord logRec = 
+                                LogRecord logRec =
                                   new LogRecord(Levels.HANDLED,
 						"network interface "
                                                 +"is bad or not configured "
@@ -516,7 +525,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                     break;//multicast disabled, do nothing
                 default:
                     throw new AssertionError("nicsToUse flag out of range "
-                                             +"(0-3): "+nicsToUse);
+                                             +"(0-4): "+nicsToUse);
             }//end switch(nicsToUse)
 	}//end constructor
 
@@ -1491,6 +1500,79 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
             /* Configuration items related to the network interface(s) */
             NetworkInterface[] nics = null;
             int nicsToUse = NICS_USE_ALL;
+            /* New (Inc2) entry: an explicit policy string takes precedence over
+             * the legacy multicastInterfaces overload. Absent -> legacy
+             * resolution below (whose all-absent default now flips to AUTO).
+             */
+            String multicastInterfacePolicy = null;
+            try {
+                multicastInterfacePolicy = (String)config.getEntry
+                                                    (COMPONENT_NAME,
+                                                     "multicastInterfacePolicy",
+                                                     String.class);
+            } catch(NoSuchEntryException e) {
+                multicastInterfacePolicy = null;//fall through to legacy overload
+            }
+            if(multicastInterfacePolicy != null) {
+                String policy =
+                    multicastInterfacePolicy.trim().toLowerCase(Locale.ROOT);
+                if( "auto".equals(policy) ) {
+                    nics = selectMulticastInterfaces();
+                    nicsToUse = NICS_USE_AUTO;
+                    if( logger.isLoggable(Level.CONFIG) ) {
+                        logger.log(Level.CONFIG,
+                               "LookupDiscovery - multicast interface policy "
+                               +"'auto'; selected network interface(s): {0}",
+                               Arrays.asList(nics) );
+                    }//endif
+                } else if( "all".equals(policy) ) {
+                    Enumeration en = NetworkInterface.getNetworkInterfaces();
+                    List nicList = (en != null) ?
+                        Collections.list(en) : Collections.EMPTY_LIST;
+                    nics = (NetworkInterface[])(nicList.toArray
+                                     (new NetworkInterface[nicList.size()]) );
+                    nicsToUse = NICS_USE_ALL;
+                    if( logger.isLoggable(Level.CONFIG) ) {
+                        logger.log(Level.CONFIG,"LookupDiscovery - multicast "
+                                   +"network interface(s): {0}", nicList);
+                    }//endif
+                } else if( "system".equals(policy) ) {
+                    nics = null;
+                    nicsToUse = NICS_USE_SYS;
+                    logger.config("LookupDiscovery - using system default "
+                                  +"network interface for multicast");
+                } else if( "none".equals(policy) ) {
+                    nics = new NetworkInterface[0];
+                    nicsToUse = NICS_USE_NONE;
+                    logger.config("LookupDiscovery - MULTICAST DISABLED");
+                } else if( "list".equals(policy) ) {
+                    NetworkInterface[] listNics = null;
+                    try {
+                        listNics = (NetworkInterface[])config.getEntry
+                                                    (COMPONENT_NAME,
+                                                     "multicastInterfaces",
+                                                     NetworkInterface[].class);
+                    } catch(NoSuchEntryException e) {
+                        listNics = null;
+                    }
+                    if( (listNics == null) || (listNics.length == 0) ) {
+                        throw new ConfigurationException(
+                            "multicastInterfacePolicy=list requires a non-empty "
+                            +"multicastInterfaces entry");
+                    }//endif
+                    nics = listNics;
+                    nicsToUse = NICS_USE_LIST;
+                    if( logger.isLoggable(Level.CONFIG) ) {
+                        logger.log(Level.CONFIG,
+                               "LookupDiscovery - multicast network "
+                               +"interface(s): {0}", Arrays.asList(nics) );
+                    }//endif
+                } else {
+                    throw new ConfigurationException(
+                        "unrecognized multicastInterfacePolicy: "
+                        +multicastInterfacePolicy);
+                }//endif
+            } else {//no policy entry: legacy multicastInterfaces resolution
             try {
                 nics = (NetworkInterface[])config.getEntry
                                                        (COMPONENT_NAME,
@@ -1513,18 +1595,20 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                         }//endif
                     }//endif
                 }//endif
-            } catch(NoSuchEntryException e) {// no config item, use default - all
-                Enumeration en = NetworkInterface.getNetworkInterfaces();
-                List nicList = (en != null) ?
-                    Collections.list(en) : Collections.EMPTY_LIST;
-                nics = (NetworkInterface[])(nicList.toArray
-                                         (new NetworkInterface[nicList.size()]) );
-                nicsToUse = NICS_USE_ALL;
+            } catch(NoSuchEntryException e) {// no config item, use default - AUTO
+                /* Inc2 (D1): the all-absent default flips from NICS_USE_ALL to
+                 * NICS_USE_AUTO, populating nics[] from the static health filter
+                 * instead of a raw enumeration.
+                 */
+                nics = selectMulticastInterfaces();
+                nicsToUse = NICS_USE_AUTO;
                 if( logger.isLoggable(Level.CONFIG) ) {
                     logger.log(Level.CONFIG,"LookupDiscovery - multicast network "
-                                            +"interface(s): {0}", nicList);
+                                            +"interface(s) (auto-selected): {0}",
+                                            Arrays.asList(nics));
                 }//endif
             }
+            }//endif(multicastInterfacePolicy)
             this.nics = nics;
             this.nicsToUse = nicsToUse;
 
@@ -1984,10 +2068,14 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                                  DatagramPacket[] packet)
                                                  throws InterruptedIOException
     {
+        NetworkInterface[] nics = this.nics;
         switch(nicsToUse) {
             case NICS_USE_ALL:
-                /* Using all interfaces. Skip (but report) any interfaces
-                 * that are "bad" or not configured for multicast.
+            case NICS_USE_AUTO:
+                /* Using all interfaces (NICS_USE_ALL) or the statically
+                 * filtered, healthy set (NICS_USE_AUTO). Skip (but report at
+                 * HANDLED, not SEVERE) any interfaces that are "bad" or not
+                 * configured for multicast.
                  */
                 for(int i=0;i<nics.length;i++) {
                     try {
@@ -1997,7 +2085,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                         throw e;//to signal a graceful exit
                     } catch(IOException e) {
                         if( logger.isLoggable(Levels.HANDLED) ) {
-                            LogRecord logRec = 
+                            LogRecord logRec =
                               new LogRecord(Levels.HANDLED,
 					    "network interface is "
                                             +"bad or not configured for "
@@ -2008,7 +2096,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                         }//endif
                     } catch(Exception e) {
                         if( logger.isLoggable(Levels.HANDLED) ) {
-                            LogRecord logRec = 
+                            LogRecord logRec =
                               new LogRecord(Levels.HANDLED, "exception while "
                                             +"sending packet through network "
                                             +"interface: {0}");
@@ -2079,7 +2167,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
             case NICS_USE_NONE:
                 break;//multicast disabled, do nothing
             default:
-                throw new AssertionError("nicsToUse flag out of range (0-3): "
+                throw new AssertionError("nicsToUse flag out of range (0-4): "
                                          +nicsToUse);
         }//end switch(nicsToUse)
     }//end sendPacketByNIC
@@ -2254,7 +2342,89 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	    throw (IOException)e.getException();
 	}//end try/catch
     }//end requestGroups
-    
+
+    /**
+     * Enumerates the system's network interfaces and returns those that pass a
+     * static multicast-health filter: up, multicast-capable, and holding at
+     * least one address of the active IP family. Loopback interfaces are NOT
+     * excluded: a multicast-capable loopback is a legitimate (and on single-host
+     * setups, the only) discovery path, while a loopback that cannot multicast is
+     * already rejected by {@link NetworkInterface#supportsMulticast()}. The
+     * active family is IPv6 when {@link Constants#IPv6} is <code>true</code>
+     * (i.e. the <code>java.net.preferIPv6Addresses</code> property, read once
+     * under privilege in {@link Constants}), otherwise IPv4 — using that single
+     * source of truth guarantees the filtered interfaces match the family of the
+     * multicast group actually joined. If no interface passes the filter, the
+     * full enumeration is returned as a fallback (so discovery still attempts),
+     * logged at <code>CONFIG</code>. Pure computation aside from interface
+     * enumeration; performs no network I/O.
+     */
+    private static NetworkInterface[] selectMulticastInterfaces()
+                                                       throws SocketException
+    {
+        boolean preferIPv6 = Constants.IPv6.booleanValue();
+        Enumeration en = NetworkInterface.getNetworkInterfaces();
+        List nicList = (en != null) ?
+            Collections.list(en) : Collections.EMPTY_LIST;
+        List filtered = new ArrayList(nicList.size());
+        for(int i=0;i<nicList.size();i++) {
+            NetworkInterface nic = (NetworkInterface)nicList.get(i);
+            try {
+                if( !nic.isUp() )              continue;
+                if( !nic.supportsMulticast() ) continue;
+            } catch(SocketException e) {
+                if( logger.isLoggable(Levels.HANDLED) ) {
+                    LogRecord logRec =
+                      new LogRecord(Levels.HANDLED,
+                                    "exception while querying network "
+                                    +"interface: {0}");
+                    logRec.setParameters(new Object[]{nic});
+                    logRec.setThrown(e);
+                    logger.log(logRec);
+                }//endif
+                continue;
+            }
+            if( hasAddressOfFamily(nic, preferIPv6) ) {
+                filtered.add(nic);
+            }//endif
+        }//end loop
+        if( filtered.isEmpty() ) {
+            /* No interface is up + multicast-capable + has an address of the
+             * active family; fall back to the full enumeration so discovery
+             * still attempts rather than going silent.
+             */
+            if( logger.isLoggable(Level.CONFIG) ) {
+                logger.log(Level.CONFIG, "LookupDiscovery - no network "
+                           +"interface passed the multicast health filter; "
+                           +"falling back to full enumeration: {0}", nicList);
+            }//endif
+            return (NetworkInterface[])(nicList.toArray
+                                     (new NetworkInterface[nicList.size()]) );
+        }//endif
+        return (NetworkInterface[])(filtered.toArray
+                                 (new NetworkInterface[filtered.size()]) );
+    }//end selectMulticastInterfaces
+
+    /**
+     * Returns <code>true</code> if the given interface holds at least one
+     * bound address of the active IP family (IPv6 when <code>preferIPv6</code>,
+     * otherwise IPv4).
+     */
+    private static boolean hasAddressOfFamily(NetworkInterface nic,
+                                              boolean preferIPv6)
+    {
+        Enumeration addrs = nic.getInetAddresses();
+        while( addrs.hasMoreElements() ) {
+            InetAddress addr = (InetAddress)addrs.nextElement();
+            if(preferIPv6) {
+                if(addr instanceof Inet6Address) return true;
+            } else {
+                if(addr instanceof Inet4Address) return true;
+            }//endif
+        }//end loop
+        return false;
+    }//end hasAddressOfFamily
+
     private static void prepareSocket(Socket s, DiscoveryConstraints dc)
 	throws SocketException
     {

@@ -195,6 +195,60 @@ import net.jini.core.constraint.MethodConstraints;
  *            previously discovered lookup services for <i>liveness</i>.
  * </table>
  * 
+ * <a name="multicastInterfacePolicy"></a>
+ * <table summary="Describes the multicastInterfacePolicy
+ *                configuration entry" border="0" cellpadding="2">
+ *   <tr valign="top">
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>multicastInterfacePolicy</code>
+ *
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
+ *     Type: <td> <code>String</code>
+ *
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
+ *     Default: <td> <code>no entry</code>
+ *
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
+ *     Description:
+ *       <td> This entry selects the strategy used to choose the network
+ *            interface(s) on which multicast discovery is performed, taking
+ *            precedence over the <a href="#multicastInterfaces">
+ *            <code>multicastInterfaces</code></a> overload. Permitted values are:
+ *            <ul>
+ *            <li><code>auto</code> &ndash; enumerate the system interfaces and
+ *                use only those that are up, multicast-capable, and hold at
+ *                least one address of the active IP family (IPv6 when
+ *                <code>java.net.preferIPv6Addresses</code> is <code>true</code>,
+ *                otherwise IPv4); if none qualify, fall back to all interfaces.
+ *                A multicast-capable loopback interface is retained (it may be
+ *                the only discovery path on a single-host deployment); a
+ *                loopback that cannot multicast is excluded by the
+ *                multicast-capable test.
+ *            <li><code>all</code> &ndash; use every interface in the system
+ *                (the historical default behavior).
+ *            <li><code>system</code> &ndash; use the operating system's default
+ *                interface (equivalent to <code>multicastInterfaces</code> set
+ *                to <code>null</code>).
+ *            <li><code>list</code> &ndash; use exactly the interfaces supplied
+ *                in the <code>multicastInterfaces</code> entry, which must be
+ *                present and non-empty.
+ *            <li><code>none</code> &ndash; disable multicast discovery
+ *                (equivalent to a zero-length <code>multicastInterfaces</code>).
+ *            </ul>
+ *            When this entry is absent, interface selection falls back to the
+ *            legacy <code>multicastInterfaces</code> overload, except that when
+ *            <code>multicastInterfaces</code> is <i>also</i> absent the default
+ *            is now <code>auto</code> (prior to this release the all-absent
+ *            default was <code>all</code>). A multi-homed host that requires the
+ *            historical "use every interface" behavior should set this entry to
+ *            <code>all</code>. An unrecognized value (or <code>list</code> with
+ *            an absent or empty <code>multicastInterfaces</code> entry) causes
+ *            construction to fail with a
+ *            {@link net.jini.config.ConfigurationException} rather than silently
+ *            falling back &ndash; multicast interface selection is fail-closed.
+ * </table>
+ *
  * <a name="multicastInterfaceRetryInterval"></a>
  * <table summary="Describes the multicastInterfaceRetryInterval
  *                configuration entry" border="0" cellpadding="2">
@@ -244,12 +298,17 @@ import net.jini.core.constraint.MethodConstraints;
  *            in the array corresponding to this configuration item
  *            will be used to send and receive multicast packets when
  *            this utility is participating in the multicast discovery
- *            process. When not set, this utility will use all of the
- *            network interfaces in the system. When this entry is set
- *            to a zero length array, multicast discovery is effectively
- *            <b><i>disabled</i></b>. And when set to <code>null</code>,
- *            the interface to which the operating system defaults will be
- *            used.
+ *            process. When set to a zero length array, multicast discovery
+ *            is effectively <b><i>disabled</i></b>. And when set to
+ *            <code>null</code>, the interface to which the operating system
+ *            defaults will be used. When this entry is not set (and no
+ *            <a href="#multicastInterfacePolicy">
+ *            <code>multicastInterfacePolicy</code></a> entry is present),
+ *            this utility selects interfaces automatically using the
+ *            <code>auto</code> policy. <b>Note:</b> prior to this release the
+ *            not-set default was to use <i>all</i> of the network interfaces
+ *            in the system; set <code>multicastInterfacePolicy</code> to
+ *            <code>all</code> to restore that behavior.
  * </table>
  * 
  * <a name="multicastRequestHost"></a>
