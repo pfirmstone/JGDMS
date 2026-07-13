@@ -68,6 +68,8 @@ import java.lang.annotation.Target;
  *     ...
  * }
  * }</pre>
+ * {@code proxy} is shown explicitly above for clarity, but is usually inferred —
+ * see {@link #proxy()}.
  *
  * <h2>The three roles</h2>
  * The design keeps three interface roles distinct (see the design note
@@ -155,6 +157,14 @@ public @interface JiniService {
      * finer internal protocol (a smart proxy).  Naming exactly the {@link #api()}
      * set is also treated as non-translating.
      *
+     * <p>A distinct (translating) {@code protocol()} <em>implies</em> {@link
+     * ProxyType#SMART}, the same way {@link #smartProxy()} does — {@link #proxy()}
+     * need not be stated. {@link ProxyType#DYNAMIC} has no codegen able to bridge
+     * {@code api() != protocol()} (its exported {@code java.lang.reflect.Proxy}
+     * only ever carries the interfaces the implementation actually implements), so
+     * an explicit {@code proxy = DYNAMIC} alongside a translating {@code protocol()}
+     * is a compile error rather than a silently broken service.
+     *
      * @return the internal wire interface(s); empty (the default) to default to
      *         the {@link #api()} interface(s)
      */
@@ -178,6 +188,17 @@ public @interface JiniService {
      * (see JGDMS-STD-009 §6).  Defaults to {@link ProxyType#DYNAMIC} — the common
      * case, a service whose public API interface the client already holds.
      *
+     * <p><b>Usually inferred, not stated.</b> Declaring {@link #smartProxy()}, or a
+     * distinct (translating) {@link #protocol()}, already implies {@code SMART} —
+     * both are compile-time errors if contradicted by an explicit
+     * {@code proxy = DYNAMIC}. The one case {@code proxy()} must still be stated
+     * explicitly is a <em>thin</em> {@code SMART} proxy: {@code protocol() == api()}
+     * (or unset) with no {@link #smartProxy()} delegate — a downloadable
+     * constrainable proxy that does no custom translation or client-side logic (the
+     * shape Reggie/Fiddler/Mahalo/Mercury's hand-written proxies use). That
+     * configuration is indistinguishable from plain {@code DYNAMIC} by any other
+     * attribute, so it is the one real, irreducible choice this element makes.
+     *
      * @return the proxy type; {@link ProxyType#DYNAMIC} by default
      */
     ProxyType proxy() default ProxyType.DYNAMIC;
@@ -200,13 +221,15 @@ public @interface JiniService {
      * whose behaviour the generated smart-proxy shell forwards to — the delegate the
      * shell delegates each api call to.
      *
-     * <p>Only meaningful when {@link #proxy()} is {@link ProxyType#SMART}: the
-     * generated {@code Constrainable<Api>Proxy} shell forwards every {@link #api()}
-     * method to an instance of this class reconstructed from the deserialized
-     * {@code server}, instead of casting the {@code server} straight to the wire
-     * type.  This is what enables genuinely disjoint api/protocol method-name
-     * translation (client {@code currentCelsius(region)} over wire
-     * {@code rawCelsius(...)}) that direct forwarding cannot express.
+     * <p>Only meaningful for a {@link ProxyType#SMART} proxy; naming one here
+     * <em>implies</em> {@code SMART} (see {@link #proxy()}) — no need to also write
+     * {@code proxy = ProxyType.SMART}. The generated {@code Constrainable<Api>Proxy}
+     * shell forwards every {@link #api()} method to an instance of this class
+     * reconstructed from the deserialized {@code server}, instead of casting the
+     * {@code server} straight to the wire type.  This is what enables genuinely
+     * disjoint api/protocol method-name translation (client
+     * {@code currentCelsius(region)} over wire {@code rawCelsius(...)}) that direct
+     * forwarding cannot express.
      *
      * <p>The referenced class must (a) be annotated {@code @SmartProxy}, (b)
      * implement every {@link #api()} interface, and (c) declare a constructor
@@ -218,9 +241,10 @@ public @interface JiniService {
      * {@code <Api>Backend} in that case is an internal name the delegate author
      * cannot know in advance.  These are compile-time (fail-closed) checks.
      *
-     * <p>Naming a smart-proxy class on a {@link ProxyType#DYNAMIC} service is a
-     * compile error: a dynamic proxy carries no downloaded behaviour.  Defaults to
-     * {@link Void}, meaning "none" — the shell (if any) forwards directly.
+     * <p>Naming a smart-proxy class here <em>while also</em> explicitly declaring
+     * {@code proxy = ProxyType.DYNAMIC} is a compile error (the two contradict): a
+     * dynamic proxy carries no downloaded behaviour.  Defaults to {@link Void},
+     * meaning "none" — the shell (if any) forwards directly.
      *
      * @return the {@code @SmartProxy}-annotated client-side logic class, or
      *         {@link Void} for none

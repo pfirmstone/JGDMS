@@ -68,6 +68,19 @@ import javax.lang.model.util.Types;
  * The {@code codebase} axis of the §6 shape dispatch ({@code -dl} packaging) is a
  * follow-on task; {@code codebase} is stored but not yet acted on.
  *
+ * <p>{@code proxyType} is mostly <em>inferred</em>, not read verbatim off the
+ * annotation: a {@code smartProxy()} reference or a translating (distinct)
+ * {@code protocol()} each independently imply {@link ProxyType#SMART} (an explicit
+ * {@code proxy = DYNAMIC} contradicting either is a fail-closed compile error) —
+ * {@code DYNAMIC} has no codegen able to bridge {@code api() != protocol()} or
+ * forward through a delegate, so leaving either signal un-acted-on would silently
+ * generate a backend interface (or nothing at all) with no proxy class to use it.
+ * {@code proxy()} is only load-bearing, on its own, for the thin case
+ * ({@code protocol() == api()}, no {@code smartProxy()}): {@code DYNAMIC} vs. a
+ * thin {@code SMART} proxy (no translation, no delegate — the shape
+ * Reggie/Fiddler/Mahalo/Mercury's hand-written proxies use) is a genuine choice no
+ * other element can distinguish.
+ *
  * <p>All resolution is name- and mirror-based; nothing here loads a live
  * {@code Class}, so the processor depends only on {@code java.compiler}.
  */
@@ -278,12 +291,40 @@ final class ServiceModel {
 
         // Proxy-type resolution (ratified): a smartProxy() reference IMPLIES SMART,
         // so proxy=SMART need not be stated.  A smartProxy() with an explicit
-        // proxy=DYNAMIC is a contradiction -> fail closed.
-        boolean smartProxyConflict = false;
+        // proxy=DYNAMIC is a contradiction -> fail closed.  declaredProxyType is the
+        // RAW, un-inferred value read off the annotation, captured before either
+        // inference rule below mutates proxyType -- both conflict checks compare
+        // against this snapshot, not the progressively-inferred proxyType, so that
+        // (e.g.) a smartProxy()-driven inference happening first doesn't mask a
+        // genuine explicit-DYNAMIC contradiction with a translating protocol()
+        // checked second.
+        ProxyType declaredProxyType = proxyType;
+        boolean smartProxyConflict = smartProxyType != null
+                && proxyExplicit && declaredProxyType == ProxyType.DYNAMIC;
         if (smartProxyType != null) {
-            if (proxyExplicit && proxyType == ProxyType.DYNAMIC) {
-                smartProxyConflict = true;
-            }
+            proxyType = ProxyType.SMART;
+        }
+
+        // A declared, translating protocol() (non-empty and distinct from api())
+        // ALSO implies SMART, for the same reason smartProxy() does: DYNAMIC has no
+        // codegen to bridge api() != protocol() -- its exported
+        // java.lang.reflect.Proxy only ever carries the interfaces the impl
+        // actually implements, so a DYNAMIC service with a translating protocol
+        // would otherwise silently generate a backend interface (gated on
+        // protocol != api alone, independent of proxyType) but no proxy class and
+        // no ILFactory, handing clients a stub that does not even implement api().
+        // Compares the RAW annotation-declared apiTypes, not the resolved/possibly
+        // -inferred apis list (not available this early): if api() is left empty
+        // while a translating protocol() is declared, that already differs from
+        // the (empty) api set, so this still infers SMART -- which then correctly
+        // routes into resolveApi's existing "a SMART/translating service must
+        // declare api() explicitly" diagnostic below, rather than silently
+        // inferring api() from the wire interface the way DYNAMIC would have.
+        boolean translatingProtocol = !protocolTypes.isEmpty()
+                && !sameErasedTypeMirrorSet(protocolTypes, apiTypes, types);
+        boolean protocolConflict = translatingProtocol
+                && proxyExplicit && declaredProxyType == ProxyType.DYNAMIC;
+        if (translatingProtocol) {
             proxyType = ProxyType.SMART;
         }
 
@@ -293,10 +334,14 @@ final class ServiceModel {
         // likewise returns ALL of them and does not treat multiple as ambiguous).
         // The first is the primary the proxy/backend is generated for; the rest are
         // registered on the model (multi-interface registration, D2).
-        if (smartProxyConflict) {
+        if (smartProxyConflict || protocolConflict) {
+            String cause = smartProxyConflict && protocolConflict
+                    ? "smartProxy() and a translating protocol()"
+                    : smartProxyConflict ? "smartProxy()" : "a translating protocol()";
             messager.printMessage(javax.tools.Diagnostic.Kind.ERROR,
-                "@JiniService.smartProxy() implies a SMART proxy; remove proxy=DYNAMIC"
-                + " or the smartProxy reference on " + impl.getQualifiedName() + ".", impl);
+                "@JiniService on " + impl.getQualifiedName() + ": " + cause
+                + " implies a SMART proxy; remove the explicit proxy=DYNAMIC (or the"
+                + " smartProxy()/protocol() declaration that implies SMART).", impl);
             return null;
         }
         List<TypeElement> apis = resolveApi(impl, apiTypes, proxyType, types, messager);
@@ -569,6 +614,28 @@ final class ServiceModel {
         Set<String> p = new java.util.LinkedHashSet<>();
         for (TypeMirror tm : protocolTypes) {
             p.add(types.erasure(tm).toString());
+        }
+        return a.equals(p);
+    }
+
+    /**
+     * True iff two raw {@code Class<?>[]}-valued annotation members ({@code protocol()}
+     * and {@code api()}, before {@code api()} inference has run) name the same set of
+     * types, compared by erased qualified name (order-independent). Unlike
+     * {@link #sameErasedSet}, both sides are still {@code TypeMirror}s -- used by the
+     * proxy-type inference in {@link #of} to detect a translating {@code protocol()}
+     * before the resolved {@code apis} list exists (an explicitly empty {@code api()}
+     * compared against a non-empty {@code protocol()} correctly reads as "differs").
+     */
+    private static boolean sameErasedTypeMirrorSet(List<TypeMirror> protocolTypes,
+                                                   List<TypeMirror> apiTypes, Types types) {
+        Set<String> p = new java.util.LinkedHashSet<>();
+        for (TypeMirror tm : protocolTypes) {
+            p.add(types.erasure(tm).toString());
+        }
+        Set<String> a = new java.util.LinkedHashSet<>();
+        for (TypeMirror tm : apiTypes) {
+            a.add(types.erasure(tm).toString());
         }
         return a.equals(p);
     }
