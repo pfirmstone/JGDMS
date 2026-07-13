@@ -274,16 +274,20 @@ class Std006ConformanceTest {
      */
     @Test
     void s9p3_failSecure_constraintBreach_invalidObject() throws Exception {
-        // Manually build a payload with name=null (absent, which SimpleRecord.check rejects).
+        // Manually build a payload with name=null. A compliant encoder never omits a
+        // field's TLV to represent null -- it writes a PRESENT DER NULL TLV (0x05 0x00)
+        // for that field, same as ObjectCodec's own null-field encoding (STD-008 sec.16.3;
+        // see ObjectCodec's "return new byte[]{0x05, 0x00}" null-field path). So the TLV
+        // count here matches the schema exactly (4 TLVs for SimpleRecord's 4 fields);
+        // DerFieldStore's strict decode (STD-006 S3.9/S11.8) succeeds and reaches
+        // SimpleRecord.check(), which then rejects the null name.
         // Schema field order: active(0), count(1), name(2), payload(3).
-        // DerFieldStore decodes positionally. To leave "name" ABSENT (case b), we encode
-        // only 2 TLVs (active + count), stopping before position 2. Both "name" and
-        // "payload" are then ABSENT in the store, so arg.get("name", null) returns null.
         AtomicSerialSchemaRecord schema = SchemaGenerator.generate(SimpleRecord.class);
-        // Build a 2-field payload: active=false, count=0 (name and payload absent -> case b).
         byte[] payload = DerWriter.writeSequence(List.of(
                 DerWriter.writeBoolean(false),
-                DerWriter.writeInteger(BigInteger.ZERO)
+                DerWriter.writeInteger(BigInteger.ZERO),
+                new byte[]{0x05, 0x00},                        // name = DER NULL (present)
+                DerWriter.writeOctetString(new byte[]{1, 2, 3})
         ));
 
         // decode must fail with InvalidObjectException (check runs first, throws on null name).
@@ -493,19 +497,24 @@ class Std006ConformanceTest {
     void s9p8_checkRunsBeforeConstruction() throws Exception {
         // --- Single-class: name=null violates SimpleRecord.check ---
         // Schema field order: active(0), count(1), name(2), payload(3).
-        // Encode only 2 TLVs (active + count). DerFieldStore case (b): name is ABSENT,
-        // so arg.get("name", null) returns null -> SimpleRecord.check throws.
+        // "name"'s null value is a PRESENT DER NULL TLV (0x05 0x00), never an omitted
+        // TLV -- matching how ObjectCodec itself encodes a null field. TLV count
+        // matches the schema exactly, so DerFieldStore's strict decode succeeds and
+        // SimpleRecord.check() is reached and rejects the null name.
         AtomicSerialSchemaRecord srSchema = SchemaGenerator.generate(SimpleRecord.class);
         byte[] noName = DerWriter.writeSequence(List.of(
                 DerWriter.writeBoolean(true),
-                DerWriter.writeInteger(BigInteger.ONE)));
+                DerWriter.writeInteger(BigInteger.ONE),
+                new byte[]{0x05, 0x00},                       // name = DER NULL (present)
+                DerWriter.writeOctetString(new byte[]{})));
         assertThrows(InvalidObjectException.class,
                 () -> ObjectCodec.decode(SimpleRecord.class, srSchema, noName),
                 "check() must throw before constructing SimpleRecord with null name");
 
         // --- Hierarchy: betaOnly=null violates Beta.check ---
         SchemaChain.Result betaChain = SchemaGenerator.generateChain(Beta.class);
-        // Encode Alpha's SEQUENCE normally, but Beta's with only "x" (no betaOnly).
+        // Encode Alpha's SEQUENCE normally, but Beta's with "betaOnly" as a present
+        // DER NULL TLV (not omitted).
         AtomicSerialSchemaRecord alphaRec = betaChain.chain().stream()
                 .filter(r -> r.className().equals(Alpha.class.getName()))
                 .findFirst().orElseThrow();
@@ -515,9 +524,10 @@ class Std006ConformanceTest {
         byte[] alphaSeq = DerWriter.writeSequence(List.of(
                 DerWriter.writeInteger(BigInteger.TEN),
                 DerWriter.writeUtf8String("label")));
-        // Beta: only "x", omit "betaOnly" -> null -> Beta.check throws
+        // Beta: "x" present, "betaOnly" = DER NULL (present, not omitted) -> Beta.check throws
         byte[] betaSeq = DerWriter.writeSequence(List.of(
-                DerWriter.writeInteger(BigInteger.ONE)));
+                DerWriter.writeInteger(BigInteger.ONE),
+                new byte[]{0x05, 0x00}));                     // betaOnly = DER NULL (present)
         byte[] hierarchyPayload = DerWriter.writeSequence(List.of(alphaSeq, betaSeq));
 
         assertThrows(InvalidObjectException.class,

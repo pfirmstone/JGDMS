@@ -24,6 +24,7 @@ import org.objectweb.asm.Opcodes;
 import au.net.zeus.jgdms.api.codebase.ClinitVerdict;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * Unit tests for {@link ClinitBlockingVisitor} focusing on:
@@ -484,6 +485,270 @@ public class ClinitBlockingVisitorTest {
                 "(IIJLjava/util/function/BooleanSupplier;)V",
                 Opcodes.INVOKESTATIC);
         assertEquals(ClinitVerdict.BLOCKING_GUARDED, analyze(bytes));
+    }
+
+    // -------------------------------------------------------------------------
+    // indexClass fail-secure Throwable handling (Fix 2)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Builds a class whose header/constant-pool/class-structure is fully
+     * valid — so ASM's {@code visit()} callback fires and sets the owning
+     * class name — but whose {@code <clinit>} body is corrupted: the
+     * trailing {@code RETURN} (0xB1) is overwritten with {@code TABLESWITCH}
+     * (0xAA), whose garbage default/low/high operands (whatever bytes
+     * happen to follow) drive ASM's instruction decoder to read past the end
+     * of the backing byte array.
+     *
+     * <p>This deterministically reproduces "parses the header cleanly, then
+     * throws mid-method-body" — the scenario the fail-secure contract on
+     * {@link ClinitBlockingVisitor#indexClass} targets (the production
+     * concern is a {@link StackOverflowError} from unbounded ASM recursion,
+     * but any {@link Throwable} thrown after {@code visit()} exercises the
+     * identical code path, since the catch clauses purge/reset state the
+     * same way regardless of the Throwable's concrete type).
+     */
+    private static byte[] buildClassThatThrowsMidClinitBody() {
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        cw.visit(Opcodes.V11,
+                 Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER,
+                 "au/net/zeus/jgdms/bae/test/Corrupted",
+                 null, "java/lang/Object", null);
+        MethodVisitor mv = cw.visitMethod(
+                Opcodes.ACC_STATIC, "<clinit>", "()V", null, null);
+        mv.visitCode();
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC,
+                "java/lang/Thread", "sleep", "(J)V", false);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(2, 0);
+        mv.visitEnd();
+        cw.visitEnd();
+        byte[] bytes = cw.toByteArray();
+
+        for (int i = bytes.length - 1; i >= 0; i--) {
+            if ((bytes[i] & 0xFF) == 0xB1) { // RETURN
+                bytes[i] = (byte) 0xAA;      // TABLESWITCH
+                return bytes;
+            }
+        }
+        throw new IllegalStateException(
+                "RETURN opcode not found in generated class — test fixture is broken");
+    }
+
+    /**
+     * {@code indexClass} must fail secure when ASM throws partway through
+     * parsing (after {@code visit()} already set the class name): it must
+     * return {@code false}, reset {@code clinitOwner[0]} to {@code null}
+     * (undoing what {@code visit()} set), and purge any {@code callGraph}/
+     * {@code isNativeMap} entries it added for this class before the throw
+     * (the {@code <clinit>} method's edge to {@code Thread.sleep} would
+     * otherwise have already been recorded before the corrupted instruction
+     * is reached).  A caller that only checked {@code clinitOwner[0] == null}
+     * — as {@link JarAnalyzer} did before this fix — would previously have
+     * seen a non-null owner and a (silently truncated) call graph, and
+     * treated the class as cleanly, fully indexed.
+     */
+    @Test
+    public void testIndexClass_ThrowableAfterVisit_FailsSecure() {
+        byte[] corrupted = buildClassThatThrowsMidClinitBody();
+
+        java.util.Map<String, java.util.Set<String>> callGraph =
+                new java.util.HashMap<>();
+        java.util.Map<String, Boolean> isNativeMap = new java.util.HashMap<>();
+        String[] clinitOwner = { null };
+
+        boolean indexed = ClinitBlockingVisitor.indexClass(
+                corrupted, callGraph, isNativeMap, clinitOwner);
+
+        assertFalse(indexed);
+        assertNull(clinitOwner[0]);
+        // No partial call-graph/native-method state may survive a failed parse.
+        assertTrue(callGraph.isEmpty());
+        assertTrue(isNativeMap.isEmpty());
+    }
+
+    /**
+     * End-to-end: a JAR containing only the corrupted class from
+     * {@link #buildClassThatThrowsMidClinitBody()} must not be reported
+     * {@code CLEAN} / {@code SAFE} — it must receive the same fail-secure
+     * verdict as any other unparseable class ({@code BLOCKING} +
+     * {@code MISSING_CONSTRUCTOR}), proving the whole pipeline (not just
+     * {@code indexClass} in isolation) routes the failure through the
+     * existing parse-failure path.
+     */
+    @Test
+    public void testJarAnalyzer_ThrowableMidClinitBody_NotReportedClean()
+            throws Exception {
+        byte[] corrupted = buildClassThatThrowsMidClinitBody();
+
+        java.security.KeyPairGenerator kpg =
+                java.security.KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(1024);
+        JarAnalyzer analyzer = new JarAnalyzer(
+                kpg.generateKeyPair().getPrivate(), "SHA256withRSA");
+
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        try (java.util.jar.JarOutputStream jos =
+                new java.util.jar.JarOutputStream(baos)) {
+            java.util.jar.JarEntry entry = new java.util.jar.JarEntry(
+                    "au/net/zeus/jgdms/bae/test/Corrupted.class");
+            jos.putNextEntry(entry);
+            jos.write(corrupted);
+            jos.closeEntry();
+        }
+
+        au.net.zeus.jgdms.api.codebase.JarAnalysisReport report = analyzer.analyze(
+                new au.net.zeus.jgdms.api.codebase.AnalysisRequest(
+                        baos.toByteArray(), "irrelevant-hash", null));
+
+        assertEquals(1, report.getResults().size());
+        au.net.zeus.jgdms.api.codebase.ClassAnalysisResult car =
+                report.getResults().values().iterator().next();
+        assertEquals(ClinitVerdict.BLOCKING, car.getClinitVerdict());
+        assertEquals(au.net.zeus.jgdms.api.codebase.AtomicSerialVerdict.MISSING_CONSTRUCTOR,
+                car.getAtomicVerdict());
+        assertEquals(au.net.zeus.jgdms.api.codebase.VerdictType.DANGEROUS,
+                report.deriveVerdictType());
+    }
+
+    // -------------------------------------------------------------------------
+    // BFS parent-pointer path reconstruction (Fix 4)
+    // -------------------------------------------------------------------------
+
+    /**
+     * The parent-pointer rewrite of the BFS must reconstruct the exact same
+     * root-to-sink path the old full-path-copy approach produced.  Chains
+     * class A (reads a static field of B, triggering B's {@code <clinit>})
+     * to class B (whose {@code <clinit>} calls the blocking sink directly),
+     * and asserts {@code callPath} is exactly
+     * {@code [A/<clinit>/()V, B/<clinit>/()V, java/lang/Thread/sleep/(J)V]}.
+     */
+    @Test
+    public void testAnalyzeClinitReachability_PathReconstruction_MultiHop()
+            throws Exception {
+        String classA = "au/net/zeus/jgdms/bae/test/PathA";
+        String classB = "au/net/zeus/jgdms/bae/test/PathB";
+
+        byte[] aBytes = buildClinitReadingStaticField(classA, classB, "FLAG", "I");
+
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        cw.visit(Opcodes.V11,
+                 Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER,
+                 classB, null, "java/lang/Object", null);
+        cw.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "FLAG", "I", null, null).visitEnd();
+        MethodVisitor mv = cw.visitMethod(
+                Opcodes.ACC_STATIC, "<clinit>", "()V", null, null);
+        mv.visitCode();
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC,
+                "java/lang/Thread", "sleep", "(J)V", false);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+        cw.visitEnd();
+        byte[] bBytes = cw.toByteArray();
+
+        java.util.Map<String, java.util.Set<String>> callGraph =
+                new java.util.HashMap<>();
+        java.util.Map<String, Boolean> isNativeMap = new java.util.HashMap<>();
+        ClinitBlockingVisitor.indexClass(aBytes, callGraph, isNativeMap, new String[]{null});
+        ClinitBlockingVisitor.indexClass(bBytes, callGraph, isNativeMap, new String[]{null});
+
+        ClinitBlockingVisitor.ClinitAnalysisResult result =
+                ClinitBlockingVisitor.analyzeClinitReachability(
+                        classA, callGraph, isNativeMap, 20);
+
+        assertEquals(ClinitVerdict.BLOCKING, result.verdict);
+        java.util.List<String> expectedPath = java.util.Arrays.asList(
+                classA + "/<clinit>/()V",
+                classB + "/<clinit>/()V",
+                "java/lang/Thread/sleep/(J)V");
+        assertEquals(expectedPath, result.callPath);
+    }
+
+    /**
+     * Depth-boundary regression (review requirement #2): a node reached
+     * exactly AT {@code maxDepth} must still have its own callees checked
+     * for a sink — it is only not <em>enqueued</em> for further expansion
+     * beyond that.  Chains root A → B (depth 1) → C (depth 2), where C's
+     * {@code <clinit>} calls the blocking sink directly (a depth-3 edge from
+     * the root, but reachable purely by <em>checking</em> C's callees, not
+     * by enqueuing past it).
+     *
+     * <p>With {@code maxDepth == 2}, C is processed (its callees ARE
+     * checked) and the sink is found.  With {@code maxDepth == 1}, C is
+     * discovered as B's callee (so it has a parent-pointer entry) but is
+     * never enqueued/processed, so its callee — the sink — is never
+     * reached, and the verdict must be {@code CLEAN}.  Getting the boundary
+     * off by one either way would silently change the effective analysis
+     * depth.
+     */
+    @Test
+    public void testAnalyzeClinitReachability_DepthBoundary_CalleesOfMaxDepthNodeStillChecked()
+            throws Exception {
+        String classA = "au/net/zeus/jgdms/bae/test/DepthA";
+        String classB = "au/net/zeus/jgdms/bae/test/DepthB";
+        String classC = "au/net/zeus/jgdms/bae/test/DepthC";
+
+        byte[] aBytes = buildClinitReadingStaticField(classA, classB, "FLAG", "I");
+        byte[] bBytes = buildClassReadingStaticFieldAndDeclaring(classB, classC);
+
+        ClassWriter cwC = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        cwC.visit(Opcodes.V11,
+                  Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER,
+                  classC, null, "java/lang/Object", null);
+        MethodVisitor mvC = cwC.visitMethod(
+                Opcodes.ACC_STATIC, "<clinit>", "()V", null, null);
+        mvC.visitCode();
+        mvC.visitMethodInsn(Opcodes.INVOKESTATIC,
+                "java/lang/Thread", "sleep", "(J)V", false);
+        mvC.visitInsn(Opcodes.RETURN);
+        mvC.visitMaxs(0, 0);
+        mvC.visitEnd();
+        cwC.visitEnd();
+        byte[] cBytes = cwC.toByteArray();
+
+        java.util.Map<String, java.util.Set<String>> callGraph =
+                new java.util.HashMap<>();
+        java.util.Map<String, Boolean> isNativeMap = new java.util.HashMap<>();
+        ClinitBlockingVisitor.indexClass(aBytes, callGraph, isNativeMap, new String[]{null});
+        ClinitBlockingVisitor.indexClass(bBytes, callGraph, isNativeMap, new String[]{null});
+        ClinitBlockingVisitor.indexClass(cBytes, callGraph, isNativeMap, new String[]{null});
+
+        ClinitVerdict atMaxDepth = ClinitBlockingVisitor.analyzeClinitReachability(
+                classA, callGraph, isNativeMap, 2).verdict;
+        assertEquals(ClinitVerdict.BLOCKING, atMaxDepth);
+
+        ClinitVerdict oneShallower = ClinitBlockingVisitor.analyzeClinitReachability(
+                classA, callGraph, isNativeMap, 1).verdict;
+        assertEquals(ClinitVerdict.CLEAN, oneShallower);
+    }
+
+    /**
+     * Builds a class that both (a) declares its own static field {@code FLAG}
+     * (of type {@code I}) — so that another class's {@code GETSTATIC} of
+     * {@code className.FLAG} names a "real" declaring class — and (b) whose
+     * {@code <clinit>} itself reads {@code fieldOwner.FLAG}, chaining onward
+     * to {@code fieldOwner}'s {@code <clinit>}.
+     */
+    private static byte[] buildClassReadingStaticFieldAndDeclaring(
+            String className, String fieldOwner) {
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        cw.visit(Opcodes.V11,
+                 Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER,
+                 className, null, "java/lang/Object", null);
+        cw.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "FLAG", "I", null, null).visitEnd();
+        MethodVisitor mv = cw.visitMethod(
+                Opcodes.ACC_STATIC, "<clinit>", "()V", null, null);
+        mv.visitCode();
+        mv.visitFieldInsn(Opcodes.GETSTATIC, fieldOwner, "FLAG", "I");
+        mv.visitInsn(Opcodes.POP);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+        cw.visitEnd();
+        return cw.toByteArray();
     }
 
     // -------------------------------------------------------------------------

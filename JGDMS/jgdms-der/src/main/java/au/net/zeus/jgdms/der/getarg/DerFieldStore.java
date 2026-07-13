@@ -51,34 +51,38 @@ import java.util.Set;
  * it never triggers decoding. This is the complete-field-store / get-is-selection
  * semantics required by S3.9.
  *
- * <h2>Three decoding cases (S3.9)</h2>
+ * <h2>Strict decode contract (S3.9, S11.8)</h2>
  *
  * <p>Field-to-TLV matching is positional: {@code schema.fields().get(i)} maps to
- * the i-th child TLV in the payload SEQUENCE. Three runtime outcomes are possible:
+ * the i-th child TLV in the payload SEQUENCE. The {@code schema} passed to this
+ * store is always the <em>at-marshal-time</em> schema -- the schema the payload
+ * bytes were actually written with (already threaded through every caller of
+ * this class). Decoding is therefore strict against that schema:
  *
  * <dl>
- *   <dt><b>(a) Exact match</b></dt>
+ *   <dt><b>Exact match</b></dt>
  *   <dd>The payload SEQUENCE contains exactly as many TLVs as the schema has
- *   fields. Every schema field is decoded and stored. No bytes are discarded.
- *   {@link #trailingFieldsDiscarded()} returns 0; all fields are present.</dd>
+ *   fields. Every schema field is decoded and stored. {@link #trailingFieldsDiscarded()}
+ *   returns 0; all fields are present.</dd>
  *
- *   <dt><b>(b) Payload shorter than schema (forward compatibility -- old data, new schema)</b></dt>
- *   <dd>The payload SEQUENCE boundary is reached before the schema field list is
- *   exhausted. Fields already decoded are stored; remaining schema fields are
- *   <em>absent</em> from the store. {@code get(name, default)} returns
- *   {@code default} for absent fields; {@link #defaulted(String)} returns
- *   {@code true}.</dd>
- *
- *   <dt><b>(c) Payload longer than schema (backward compatibility -- new data, old schema)</b></dt>
- *   <dd>The schema field list is exhausted before the payload SEQUENCE boundary.
- *   The known fields are decoded positionally. The trailing extra TLVs are
- *   read-and-discarded using {@link DerReader#readTlvHeader()} +
- *   {@link DerReader#readRawContent(int)}. {@link #trailingFieldsDiscarded()}
- *   returns the count of discarded trailing TLVs. No error occurs.</dd>
+ *   <dt><b>TLV-count mismatch (payload shorter or longer than the schema)</b></dt>
+ *   <dd>If the payload SEQUENCE boundary is reached before every schema field has
+ *   been decoded, or if TLVs remain in the payload SEQUENCE after every schema
+ *   field has been decoded, decoding fails with a {@link DerException}. A
+ *   mismatch against the <em>transmitted</em> schema is not a legitimate
+ *   evolution signal -- the bytes were written against exactly this schema, so a
+ *   count mismatch means the bytes are corrupt or have been tampered with.</dd>
  * </dl>
  *
- * <p>Cases (b) and (c) are expected operational modes, not errors. The model is
- * <em>symmetric</em> (S11.8): absent -> default; extra -> read-and-discarded.
+ * <p>Schema evolution -- a class field being added or removed <em>between</em>
+ * schema versions -- is deliberately not this class's concern. It is handled
+ * entirely by {@code @AtomicSerial}'s {@code check(GetArg)}, via
+ * {@code GetArg.get(name, default, type)}: a name that is absent from the
+ * at-marshal-time schema (as opposed to a schema-declared field whose TLV is
+ * missing from the payload) legitimately triggers {@link #defaulted(String)}
+ * through the separate "name not in schema" path -- see {@link #defaulted(String)}.
+ * The wire decoder never silently defaults or discards to paper over a
+ * TLV-count mismatch against the schema the bytes claim to be encoded with.
  *
  * <h2>Namespace invariant (S3.9, S3.10)</h2>
  *
@@ -173,12 +177,15 @@ public final class DerFieldStore {
     private final AtomicSerialSchemaRecord schema;
 
     /**
-     * Ordered map from field name -> decoded value (or {@link #ABSENT}).
+     * Ordered map from field name -> decoded value.
      * <p>
-     * The insertion order matches the schema field list. All schema field names
-     * are present as keys; the value is either the decoded Java object or
-     * {@code ABSENT} when the payload did not provide a TLV for that position
-     * (case (b)).
+     * The insertion order matches the schema field list. Since decoding is strict
+     * (see class Javadoc, "Strict decode contract"), every schema field is either
+     * decoded successfully or construction fails with a {@link DerException} --
+     * the {@link #ABSENT} sentinel is never stored here by {@link #decodeAllFields}.
+     * A key simply being absent from this map (as opposed to mapping to
+     * {@code ABSENT}) is how {@link #defaulted(String)} recognizes a field name
+     * that is not defined in the at-marshal-time schema at all.
      * <p>
      * LinkedHashMap preserves insertion order (= schema order), which is required
      * by the deterministic field enumeration contract.
@@ -186,8 +193,10 @@ public final class DerFieldStore {
     private final Map<String, Object> fields;
 
     /**
-     * Number of extra trailing TLVs in the payload SEQUENCE that were read and
-     * discarded because the schema had no corresponding field (case (c)).
+     * Always 0. Retained only to keep {@link DecodeResult}'s shape and
+     * {@link #trailingFieldsDiscarded()}'s return type unchanged; a payload
+     * SEQUENCE with more TLVs than the schema declares is now rejected during
+     * construction rather than discarded (see class Javadoc).
      */
     private final int trailingDiscarded;
 
@@ -292,18 +301,28 @@ public final class DerFieldStore {
     /**
      * Decodes all fields from the SEQUENCE content reader into an ordered map.
      *
-     * <p>Implements the three-case logic from S3.9:
+     * <p>Decoding is strict against {@code schema} -- the at-marshal-time schema the
+     * payload bytes were written with (STD-006 S3.9, S11.8):
      * <ul>
-     *   <li>(a) Exact match -- all schema fields present in payload.</li>
-     *   <li>(b) Payload shorter -- schema fields exhausted before payload;
-     *       remaining schema fields stored as {@link #ABSENT}.</li>
-     *   <li>(c) Payload longer -- payload TLVs remaining after schema exhausted;
-     *       read-and-discard each extra TLV.</li>
+     *   <li>Exact match -- every schema field has a corresponding payload TLV; all
+     *       are decoded and stored.</li>
+     *   <li>Payload shorter than schema -- the payload SEQUENCE boundary is reached
+     *       before every schema field has been decoded: this is a TLV-count mismatch
+     *       against the transmitted schema, i.e. corruption or tampering, and decoding
+     *       fails with a {@link DerException}. It is <em>not</em> schema evolution --
+     *       evolution (old data / new schema) is handled by {@code @AtomicSerial} via
+     *       {@code GetArg.get(name, default, type)}, never by this decoder.</li>
+     *   <li>Payload longer than schema -- TLVs remain in the payload SEQUENCE after
+     *       every schema field has been decoded: also a TLV-count mismatch against the
+     *       transmitted schema, and decoding fails with a {@link DerException}.</li>
      * </ul>
      *
      * @param schema the schema to decode against
      * @param seq    a sub-reader bounded to the SEQUENCE content
-     * @return decoded field map and trailing discard count
+     * @return decoded field map (trailing discard count is always 0; retained in
+     *         {@link DecodeResult} for API shape only, see {@link #trailingFieldsDiscarded()})
+     * @throws DerException if the payload SEQUENCE has fewer or more TLVs than
+     *                       {@code schema} declares
      */
     private static DecodeResult decodeAllFields(AtomicSerialSchemaRecord schema,
                                                  DerReader seq, ResolutionContext res) throws DerException {
@@ -313,8 +332,20 @@ public final class DerFieldStore {
 
         int schemaIdx = 0;
 
-        // Phase 1: decode known fields (stop when either schema or payload exhausted)
-        while (schemaIdx < fieldDefs.size() && seq.hasMore()) {
+        // Decode every schema field positionally, strictly against the transmitted
+        // schema. A payload TLV must exist for every schema field -- if the payload
+        // SEQUENCE is exhausted first, that is corruption/tampering, not evolution.
+        while (schemaIdx < fieldDefs.size()) {
+            if (!seq.hasMore()) {
+                throw new DerException(
+                        "DerFieldStore: payload SEQUENCE for class '" + schema.className()
+                        + "' has fewer TLVs than its schema declares (missing field '"
+                        + fieldDefs.get(schemaIdx).wireName() + "', " + (fieldDefs.size() - schemaIdx)
+                        + " of " + fieldDefs.size() + " schema field(s) unfulfilled); per STD-006 "
+                        + "S3.9/S11.8 a TLV-count mismatch against the transmitted schema is "
+                        + "corruption or tampering, not schema evolution -- evolution is "
+                        + "@AtomicSerial's responsibility via GetArg, never the wire decoder's");
+            }
             AtomicSerialFieldDef def = fieldDefs.get(schemaIdx);
             final Object value;
             if ("@AtomicSerial".equals(def.wireType())) {
@@ -346,23 +377,21 @@ public final class DerFieldStore {
             schemaIdx++;
         }
 
-        // Phase 2: case (b) -- schema has more fields than payload
-        // Mark remaining schema fields as absent (no TLV in payload).
-        while (schemaIdx < fieldDefs.size()) {
-            map.put(fieldDefs.get(schemaIdx).wireName(), ABSENT);
-            schemaIdx++;
+        // Every schema field has now been decoded. Any TLV still remaining in the
+        // payload SEQUENCE means the payload has more TLVs than its schema declares --
+        // again a TLV-count mismatch against the transmitted schema (corruption or
+        // tampering), not a legitimate "new data, old schema" evolution case.
+        if (seq.hasMore()) {
+            throw new DerException(
+                    "DerFieldStore: payload SEQUENCE for class '" + schema.className()
+                    + "' has more TLVs than its schema declares (" + fieldDefs.size()
+                    + " schema field(s) exhausted with payload TLVs remaining); per STD-006 "
+                    + "S3.9/S11.8 a TLV-count mismatch against the transmitted schema is "
+                    + "corruption or tampering, not schema evolution -- evolution is "
+                    + "@AtomicSerial's responsibility via GetArg, never the wire decoder's");
         }
 
-        // Phase 3: case (c) -- payload has more TLVs than schema
-        // Read-and-discard each extra TLV up to the SEQUENCE boundary.
-        int discarded = 0;
-        while (seq.hasMore()) {
-            DerReader.TlvHeader hdr = seq.readTlvHeader();
-            seq.readRawContent(hdr.contentLength());
-            discarded++;
-        }
-
-        return new DecodeResult(Collections.unmodifiableMap(map), discarded);
+        return new DecodeResult(Collections.unmodifiableMap(map), 0);
     }
 
     // =========================================================================
@@ -371,7 +400,8 @@ public final class DerFieldStore {
 
     /**
      * Returns the decoded value for the named field if present in the store, or
-     * {@code defaultValue} if the field is absent (case (b)).
+     * {@code defaultValue} if the field is absent (not defined in the at-marshal-time
+     * schema this store was built from -- see {@link #defaulted(String)}).
      *
      * <p>This is a pure selection operation. No decoding occurs here; all decoding
      * happened at construction time.
@@ -503,9 +533,16 @@ public final class DerFieldStore {
     // =========================================================================
 
     /**
-     * Returns {@code true} if the named field is absent from the store -- i.e.
-     * the payload did not supply a TLV for this field (case (b)) or the field is
-     * not defined in the schema at all. Mirrors {@code ObjectInputStream.GetField.defaulted()}.
+     * Returns {@code true} if the named field is absent from the store -- i.e. the
+     * field is not defined in the at-marshal-time schema this store was built from
+     * at all. Mirrors {@code ObjectInputStream.GetField.defaulted()}.
+     *
+     * <p>This is the legitimate schema-evolution path: a caller (typically
+     * {@code DerGetArg}, on behalf of a newer class version) may ask for a field
+     * name the transmitted schema never declared. It is distinct from -- and must
+     * not be confused with -- a schema-declared field whose TLV is missing from the
+     * payload, which is now a decode-time {@link DerException} (see the class
+     * Javadoc, "Strict decode contract"), not a {@code defaulted()} case.
      *
      * <p>When {@code defaulted} returns {@code true}, a subsequent
      * {@code get(name, default)} call will return {@code default}.
@@ -560,11 +597,13 @@ public final class DerFieldStore {
     }
 
     /**
-     * Returns the number of extra trailing TLVs in the payload SEQUENCE that
-     * were read-and-discarded because the schema had no corresponding field
-     * (case (c)). Zero for cases (a) and (b).
+     * Always returns 0. Retained for API compatibility: a payload SEQUENCE with
+     * more TLVs than the schema declares is no longer read-and-discarded -- since
+     * this change it is rejected as a TLV-count mismatch against the transmitted
+     * schema (corruption or tampering) during construction. See the class Javadoc
+     * ("Strict decode contract").
      *
-     * @return count of discarded trailing TLVs (>= 0)
+     * @return 0, always
      */
     public int trailingFieldsDiscarded() {
         return trailingDiscarded;
@@ -600,8 +639,9 @@ public final class DerFieldStore {
      * raw record (wireType {@code "@AtomicSerial"}), regardless of whether the value
      * is null (DER NULL) or a real object.
      *
-     * <p>A field that is absent (case (b)) returns {@code false} here; the caller
-     * checks {@link #defaulted(String)} and returns the default value.
+     * <p>A field that is absent (name not defined in the schema) returns
+     * {@code false} here; the caller checks {@link #defaulted(String)} and returns
+     * the default value.
      *
      * @param name the field name
      * @return {@code true} if the stored value is a {@link NestedRaw} wrapper
@@ -714,8 +754,9 @@ public final class DerFieldStore {
      * {@code orderedmap:}), regardless of whether the value is null (DER NULL) or a
      * real collection.
      *
-     * <p>A field that is absent (case (b)) returns {@code false}; the caller checks
-     * {@link #defaulted(String)} and returns the default.
+     * <p>A field that is absent (name not defined in the schema) returns
+     * {@code false}; the caller checks {@link #defaulted(String)} and returns
+     * the default.
      *
      * @param name the field name
      * @return {@code true} if the stored value is a {@link CollectionRaw} wrapper
@@ -769,8 +810,9 @@ public final class DerFieldStore {
      * Returns {@code true} if the named field holds a nested {@code @AtomicSerial[]}
      * raw array record (wireType {@code "array:@AtomicSerial:<class>"}).
      *
-     * <p>A field that is absent (case (b)) returns {@code false}; the caller
-     * checks {@link #defaulted(String)} and returns the default.
+     * <p>A field that is absent (name not defined in the schema) returns
+     * {@code false}; the caller checks {@link #defaulted(String)} and returns
+     * the default.
      *
      * @param name the field name
      * @return {@code true} if the stored value is a {@link NestedArrayRaw} wrapper

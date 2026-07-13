@@ -88,6 +88,17 @@ public final class AnalysisRequest implements Serializable {
     /** Default BFS depth limit for call-graph traversal from {@code <clinit>}. */
     public static final int DEFAULT_MAX_BFS_DEPTH = 10;
 
+    /**
+     * Upper bound on {@link #getMaxBfsDepth()}.  Enforced both by
+     * {@link #check(GetArg)} (the deserialization path) and by the public
+     * {@link #AnalysisRequest(byte[], String, Uri, int)} constructor (the
+     * locally-constructed path) — a caller building a request directly
+     * bypasses {@code check} entirely, so the ceiling must be checked at
+     * both sites to be load-bearing.  Guards {@code ClinitBlockingVisitor}'s
+     * BFS against an unreasonably large requested depth.
+     */
+    public static final int MAX_MAX_BFS_DEPTH = 50;
+
     private static final String PACKED_JAR_BYTES = "packedJarBytes";
     private static final String CONTENT_HASH   = "contentHash";
     private static final String ORIGINAL_URI   = "originalUri";
@@ -286,6 +297,9 @@ public final class AnalysisRequest implements Serializable {
         int maxBfsDepth = arg.get(MAX_BFS_DEPTH, DEFAULT_MAX_BFS_DEPTH);
         if (maxBfsDepth <= 0)
             throw new InvalidObjectException("maxBfsDepth must be positive");
+        if (maxBfsDepth > MAX_MAX_BFS_DEPTH)
+            throw new InvalidObjectException(
+                    "maxBfsDepth must not exceed " + MAX_MAX_BFS_DEPTH);
         return jarBytes;
     }
 
@@ -386,7 +400,8 @@ public final class AnalysisRequest implements Serializable {
      * @param contentHash SHA-256 hex digest of {@code jarBytes}; must be
      *                    non-null and non-empty
      * @param originalUri the origin URI for traceability; may be {@code null}
-     * @param maxBfsDepth BFS depth limit; must be positive
+     * @param maxBfsDepth BFS depth limit; must be positive and must not
+     *                    exceed {@link #MAX_MAX_BFS_DEPTH}
      * @throws IllegalArgumentException if any argument fails a precondition
      * @throws NullPointerException     if {@code jarBytes} or
      *                                  {@code contentHash} is {@code null}
@@ -400,6 +415,13 @@ public final class AnalysisRequest implements Serializable {
         if (contentHash == null)  throw new NullPointerException("contentHash");
         if (contentHash.isEmpty()) throw new IllegalArgumentException("contentHash must not be empty");
         if (maxBfsDepth <= 0)     throw new IllegalArgumentException("maxBfsDepth must be positive");
+        // Enforced here too (not only in check()/deserialization): a
+        // locally-constructed AnalysisRequest goes through this constructor
+        // directly and never calls check(), so the ceiling must be checked
+        // at both sites to actually bound the BFS.
+        if (maxBfsDepth > MAX_MAX_BFS_DEPTH)
+            throw new IllegalArgumentException(
+                    "maxBfsDepth must not exceed " + MAX_MAX_BFS_DEPTH);
 
         this.jarBytes         = jarBytes.clone();
         this.packedJarBytes   = packJar(this.jarBytes);

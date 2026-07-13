@@ -171,7 +171,12 @@ final class ConstrainableProxyComplianceVisitor extends ClassVisitor {
         try {
             ClassReader cr = new ClassReader(classBytes);
             cr.accept(v, ClassReader.SKIP_FRAMES | ClassReader.SKIP_DEBUG);
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // Widened from Exception to Throwable so crafted-bytecode Errors
+            // (e.g. StackOverflowError from unbounded ASM recursion) are also
+            // fail-secure.  Sound as-is: verdict() checks facts.unreadable
+            // first, before any other field is consulted, so there is no
+            // partial-state hazard from a mid-parse Throwable.
             v.facts.unreadable = true;
         }
         return v.facts;

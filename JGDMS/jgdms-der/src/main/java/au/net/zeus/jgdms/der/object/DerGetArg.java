@@ -241,7 +241,8 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                 return ObjectCodec.decodeCollection(
                         store.rawCollection(name),
                         store.collectionWireType(name),
-                        depth, decodeUnit, resolution);
+                        depth, decodeUnit, resolution,
+                        declaredCollectionFieldType(callerClass, name));
             } catch (DerException e) {
                 throw nested("failed to decode collection field", name, e);
             } catch (ClassNotFoundException e) {
@@ -298,6 +299,50 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                 "DerGetArg: " + what + " '" + name + "': " + cause.getMessage());
         ioe.initCause(cause);
         return ioe;
+    }
+
+    /**
+     * Best-effort resolution of the LOCAL declared Java type of {@code callerClass}'s field
+     * {@code name}, consulted ONLY by {@link ObjectCodec#decodeCollection(byte[], String, int,
+     * DeserializationCompletion, ResolutionContext, Class)} to choose which immutable wrapper
+     * INTERFACE shape (plain vs {@code SortedSet}/{@code SortedMap}) to hand to the receiving
+     * class's {@code check(GetArg)} for an {@code orderedset:}/{@code orderedmap:} field.
+     * STD-006 §3.8's {@code PRESERVE_ORDERED} discipline bundles {@code SortedSet}/{@code
+     * NavigableSet} together with {@code LinkedHashSet}/{@code EnumSet} into the SAME wire token,
+     * so the token alone cannot distinguish them (see {@code CollectionWireTypes#disciplineFor}).
+     * This mirrors, on the decode side, the same {@code declaring.getDeclaredField(sf.getName())}
+     * lookup {@code SchemaGenerator.backingFieldGenericType} performs on the encode side to derive
+     * the token in the first place.
+     *
+     * <h2>Scope -- never affects WHAT is decoded, only how it is WRAPPED</h2>
+     * <p>This lookup does <b>not</b> select which schema/field-list drives decoding -- per
+     * STD-006 §7.8 (normative), decode always uses the schema that travelled with the data; the
+     * receiver's own {@code serialForm()}/fields are never consulted for that. This is strictly
+     * narrower: it only ever changes which {@code java.util} interface the ALREADY-decoded,
+     * already-ordered elements are exposed through. A disagreement with the wire (schema
+     * mismatch, a renamed/retyped field, or a synthesized field with no backing {@code Field})
+     * degrades to the plain (non-sorted) shape -- the same shape this codec always returned
+     * before this feature existed -- so at worst a caller's {@code arg.get(name, val,
+     * SortedSet.class)} throws a fail-secure {@code InvalidObjectException}; it can never corrupt
+     * the decoded elements or their order.
+     *
+     * <p>Never throws: returns {@code null} (unknown) if there is no such field, if a {@code
+     * SecurityException} is thrown under a restrictive policy, or on any other reflective
+     * failure. Reading a {@link java.lang.reflect.Field}'s declared type is metadata-only (no
+     * {@code setAccessible} / value access), so this is run privileged purely to avoid making an
+     * optional, best-effort convenience fail under a caller-sensitive policy that would otherwise
+     * be unrelated to whether this field decodes correctly.
+     */
+    private static Class<?> declaredCollectionFieldType(Class<?> callerClass, String name) {
+        try {
+            return java.security.AccessController.doPrivileged(
+                    (java.security.PrivilegedExceptionAction<Class<?>>)
+                            () -> callerClass.getDeclaredField(name).getType());
+        } catch (Exception e) {
+            // Best-effort only -- see method Javadoc. Any failure here (no such field, a
+            // SecurityException, ...) simply means the plain, non-sorted wrapper shape is used.
+            return null;
+        }
     }
 
     // =========================================================================

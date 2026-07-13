@@ -282,52 +282,40 @@ class DerFieldStoreTest {
     }
 
     /**
-     * 3.2b -- Case (b): schema has MORE fields than the payload provides.
+     * 3.2b -- Former case (b): schema has MORE fields than the payload provides.
      * Build a payload SEQUENCE with FEWER TLVs than the schema lists.
-     * Assert missing fields return defaults and are reported as defaulted.
+     * This is now a TLV-count mismatch against the transmitted schema (corruption
+     * or tampering, STD-006 S3.9/S11.8), so decoding must fail rather than
+     * silently default the missing fields.
      */
     @Test
-    void task3_2b_schemaMoreThanPayload_absentFieldsReturnDefaults() throws DerException {
+    void task3_2b_schemaMoreThanPayload_absentFieldsReturnDefaults() {
         // Schema declares 3 fields; payload only provides 1
         AtomicSerialSchemaRecord sch = schema("com.example.Old",
                 new String[]{"a", "b", "c"},
                 new String[]{"int", "java.lang.String", "boolean"});
 
-        // Payload: only field "a" is present (old data written before "b" and "c" existed)
+        // Payload: only field "a" is present -- "b" and "c" TLVs are missing
         byte[] payload = seqOf(
                 DerWriter.writeInteger(55L)
                 // "b" and "c" TLVs absent from payload
         );
 
-        DerFieldStore store = new DerFieldStore(sch, payload);
-
-        // "a" is present
-        assertFalse(store.defaulted("a"), "Case (b): 'a' must be present");
-        assertEquals(55, store.get("a", 0));
-
-        // "b" and "c" are absent -- get() must return defaults
-        assertTrue(store.defaulted("b"), "Case (b): 'b' must be absent/defaulted");
-        assertTrue(store.defaulted("c"), "Case (b): 'c' must be absent/defaulted");
-        assertEquals("myDefault", store.get("b", "myDefault"),
-                "Case (b): absent 'b' returns caller's default");
-        assertEquals(true, store.get("c", true),
-                "Case (b): absent 'c' returns caller's boolean default");
-
-        // trailingDiscarded is 0 (this is case (b), not case (c))
-        assertEquals(0, store.trailingFieldsDiscarded(),
-                "Case (b): no trailing TLVs were discarded (the payload was the shorter one)");
-
-        // Only 1 field is present
-        assertEquals(Set.of("a"), store.presentFieldNames());
+        assertThrows(DerException.class, () -> new DerFieldStore(sch, payload),
+                "payload with fewer TLVs than schema fields must fail to decode -- "
+                + "missing 'b'/'c' TLVs against the transmitted 3-field schema is "
+                + "corruption or tampering, not schema evolution");
     }
 
     /**
-     * 3.2c -- Case (c): payload has MORE TLVs than the schema has fields.
-     * Build a payload SEQUENCE with MORE TLVs than the schema lists.
-     * Assert extra trailing TLVs are discarded and known fields decoded correctly.
+     * 3.2c -- Former case (c): payload has MORE TLVs than the schema has fields.
+     * Build a payload SEQUENCE with MORE TLVs than the schema lists. This is now a
+     * TLV-count mismatch against the transmitted schema (corruption or tampering,
+     * STD-006 S3.9/S11.8), so decoding must fail rather than silently discard the
+     * extra trailing TLVs.
      */
     @Test
-    void task3_2c_payloadMoreThanSchema_extraTlvsDiscarded() throws DerException {
+    void task3_2c_payloadMoreThanSchema_extraTlvsDiscarded() {
         // Schema declares 2 fields; payload provides 4
         AtomicSerialSchemaRecord sch = schema("com.example.New",
                 new String[]{"x", "y"},
@@ -337,24 +325,13 @@ class DerFieldStoreTest {
         byte[] payload = seqOf(
                 DerWriter.writeInteger(77L),           // x
                 DerWriter.writeBoolean(false),          // y
-                DerWriter.writeUtf8String("extra1"),    // extra TLV #1 (discarded)
-                DerWriter.writeInteger(999L)            // extra TLV #2 (discarded)
+                DerWriter.writeUtf8String("extra1"),    // extra TLV #1
+                DerWriter.writeInteger(999L)            // extra TLV #2
         );
 
-        DerFieldStore store = new DerFieldStore(sch, payload);
-
-        // Known fields decoded correctly
-        assertFalse(store.defaulted("x"), "Case (c): 'x' must be present");
-        assertFalse(store.defaulted("y"), "Case (c): 'y' must be present");
-        assertEquals(77, store.get("x", 0));
-        assertEquals(false, store.get("y", true));
-
-        // Extra TLVs read-and-discarded
-        assertEquals(2, store.trailingFieldsDiscarded(),
-                "Case (c): exactly 2 trailing TLVs should be discarded");
-
-        // Only the 2 known fields are present
-        assertEquals(Set.of("x", "y"), store.presentFieldNames());
+        assertThrows(DerException.class, () -> new DerFieldStore(sch, payload),
+                "payload with 2 extra trailing TLVs beyond the 2-field schema must "
+                + "fail to decode, not silently discard the extras");
     }
 
     /**
@@ -376,32 +353,44 @@ class DerFieldStoreTest {
                 new String[]{"id", "flag", "msg"},
                 new String[]{"int", "boolean", "java.lang.String"});
 
-        // Schema B: interprets ONLY TLV position 0 as (int "count"), rest discarded
+        // Schema B: declares only 1 field -- deliberately mismatched against
+        // sharedPayload's 3 TLVs, to show decoding follows whichever schema is
+        // passed in (never an ambient/global schema), strictly.
         AtomicSerialSchemaRecord schemaB = schema("com.example.B",
                 new String[]{"count"},
                 new String[]{"int"});
 
         DerFieldStore storeA = new DerFieldStore(schemaA, sharedPayload);
-        DerFieldStore storeB = new DerFieldStore(schemaB, sharedPayload);
 
-        // storeA interprets all 3 TLVs as per schemaA
+        // storeA interprets all 3 TLVs as per schemaA (exact match)
         assertEquals("com.example.A", storeA.className());
         assertEquals(42, storeA.get("id", 0));
         assertEquals(true, storeA.get("flag", false));
         assertEquals("hello", storeA.get("msg", "?"));
         assertEquals(0, storeA.trailingFieldsDiscarded());
+        assertSame(schemaA, storeA.schema(), "storeA schema must be the passed-in schemaA");
 
-        // storeB interprets only the first TLV; the remaining 2 are discarded (case c)
+        // Decoding sharedPayload against schemaB (1 field, 3 TLVs) is a TLV-count
+        // mismatch against schemaB's own contract -- corruption/tampering, not a
+        // legitimate evolution case, so it must throw rather than silently discard
+        // the 2 TLVs schemaB doesn't declare.
+        assertThrows(DerException.class, () -> new DerFieldStore(schemaB, sharedPayload),
+                "schemaB declares only 1 field; sharedPayload has 3 TLVs, so decoding "
+                + "must fail rather than silently discard the 2 extra TLVs");
+
+        // Constructing schemaB against a payload that actually matches its own field
+        // count succeeds and confirms schema identity is the passed-in schemaB, not
+        // schemaA or any ambient schema.
+        byte[] matchingPayload = seqOf(DerWriter.writeInteger(42L));
+        DerFieldStore storeB = new DerFieldStore(schemaB, matchingPayload);
         assertEquals("com.example.B", storeB.className());
         assertEquals(42, storeB.get("count", 0));
-        assertEquals(2, storeB.trailingFieldsDiscarded(),
-                "storeB must discard the 2 TLVs not covered by its schema");
-
-        // The two stores used different schemas -- confirm schema identity
-        assertSame(schemaA, storeA.schema(), "storeA schema must be the passed-in schemaA");
+        assertEquals(0, storeB.trailingFieldsDiscarded());
         assertSame(schemaB, storeB.schema(), "storeB schema must be the passed-in schemaB");
 
-        // "flag" field doesn't exist in schemaB
+        // "flag"/"msg" don't exist in schemaB's namespace at all -- the untouched
+        // "name not in schema" defaulting mechanism, distinct from a TLV-count
+        // mismatch.
         assertTrue(storeB.defaulted("flag"), "storeB knows nothing about 'flag'");
         assertTrue(storeB.defaulted("msg"), "storeB knows nothing about 'msg'");
     }
@@ -604,28 +593,61 @@ class DerFieldStoreTest {
         assertTrue(store.defaulted("anything"));
     }
 
-    /** defaulted() returns false for present fields, true for absent fields */
+    /**
+     * defaulted() returns false for present fields, true for a name the schema
+     * doesn't declare at all. A schema-declared field whose TLV is missing from
+     * the payload is now a decode-time error (TLV-count mismatch), not a
+     * defaulted() case -- see {@link #task3_2b_schemaMoreThanPayload_absentFieldsReturnDefaults()}.
+     */
     @Test
     void task3_4_defaulted_presentVsAbsent() throws DerException {
         AtomicSerialSchemaRecord sch = schema("com.example.D",
                 new String[]{"p", "q"},
                 new String[]{"int", "int"});
-        // Only provide "p"; "q" is absent (case b)
-        byte[] payload = seqOf(DerWriter.writeInteger(1L));
-        DerFieldStore store = new DerFieldStore(sch, payload);
+
+        // Both schema fields present -> defaulted() is false for both.
+        byte[] fullPayload = seqOf(DerWriter.writeInteger(1L), DerWriter.writeInteger(2L));
+        DerFieldStore store = new DerFieldStore(sch, fullPayload);
         assertFalse(store.defaulted("p"), "'p' is present, defaulted must be false");
-        assertTrue(store.defaulted("q"), "'q' is absent, defaulted must be true");
+        assertFalse(store.defaulted("q"), "'q' is present, defaulted must be false");
+
+        // "r" isn't declared in the schema at all -- the untouched, legitimate
+        // "name not in schema" defaulting mechanism.
+        assertTrue(store.defaulted("r"), "'r' isn't declared in the schema at all");
+
+        // Providing "p"'s TLV but omitting "q"'s is now a TLV-count mismatch
+        // against the schema; decoding must fail, not silently default "q".
+        byte[] partialPayload = seqOf(DerWriter.writeInteger(1L));
+        assertThrows(DerException.class, () -> new DerFieldStore(sch, partialPayload),
+                "payload with fewer TLVs than schema fields must fail to decode, "
+                + "not silently default the missing field");
     }
 
-    /** typed get overloads return correct defaults */
+    /**
+     * Typed get overloads return correct defaults for fields not defined in the
+     * schema at all. A schema that declares fields with no corresponding payload
+     * TLVs is now a decode-time error, not a source of universally-defaulted
+     * fields -- see {@link #task3_2b_schemaMoreThanPayload_absentFieldsReturnDefaults()}.
+     */
     @Test
     void task3_4_typedGetDefaultsForAbsentFields() throws DerException {
         AtomicSerialSchemaRecord sch = schema("com.example.Defaults",
                 new String[]{"a", "b", "c", "d", "e"},
                 new String[]{"boolean", "byte", "short", "int", "long"});
-        // Payload is empty -- all fields absent
+
+        // Payload is empty while the schema declares 5 fields -- a TLV-count
+        // mismatch against the schema; decoding must fail rather than silently
+        // default every field.
         byte[] payload = seqOf();
-        DerFieldStore store = new DerFieldStore(sch, payload);
+        assertThrows(DerException.class, () -> new DerFieldStore(sch, payload),
+                "empty payload against a 5-field schema must fail to decode, not "
+                + "silently default every field");
+
+        // The typed get overloads' default-return behavior is unaffected by the
+        // strict-decode fix: it still applies to names the schema doesn't declare
+        // at all (an empty schema against an empty, exactly-matching payload).
+        AtomicSerialSchemaRecord emptySch = new AtomicSerialSchemaRecord("com.example.Empty", List.of());
+        DerFieldStore store = new DerFieldStore(emptySch, seqOf());
 
         assertEquals(true, store.get("a", true));
         assertEquals((byte) 42, store.get("b", (byte) 42));
@@ -666,35 +688,34 @@ class DerFieldStoreTest {
                 "presentFieldNames() must preserve schema field order");
     }
 
-    /** Case (b): mixing present and absent fields -- first N present, rest absent */
+    /**
+     * A payload providing TLVs for only some schema-declared fields (the first N,
+     * with the rest missing) is a TLV-count mismatch against the schema -- decoding
+     * must fail, not mark the trailing fields defaulted.
+     */
     @Test
-    void task3_2b_partialPayload_firstTwoPresent_lastAbsent() throws DerException {
+    void task3_2b_partialPayload_firstTwoPresent_lastAbsent() {
         AtomicSerialSchemaRecord sch = schema("com.example.Partial",
                 new String[]{"a", "b", "c", "d"},
                 new String[]{"int", "boolean", "java.lang.String", "byte[]"});
-        // Only "a" and "b" have TLVs in the payload
+        // Only "a" and "b" have TLVs in the payload; "c" and "d" are missing
         byte[] payload = seqOf(
                 DerWriter.writeInteger(10L),
                 DerWriter.writeBoolean(true)
         );
-        DerFieldStore store = new DerFieldStore(sch, payload);
 
-        // Present
-        assertFalse(store.defaulted("a"));
-        assertFalse(store.defaulted("b"));
-        assertEquals(10, store.get("a", 0));
-        assertEquals(true, store.get("b", false));
-
-        // Absent
-        assertTrue(store.defaulted("c"));
-        assertTrue(store.defaulted("d"));
-        assertEquals("fallback", store.get("c", "fallback"));
-        assertNull(store.get("d", null));
+        assertThrows(DerException.class, () -> new DerFieldStore(sch, payload),
+                "payload with 2 TLVs against a 4-field schema must fail to decode, "
+                + "not silently default the missing 'c'/'d' fields");
     }
 
-    /** Case (c): single known field + multiple discarded trailing TLVs */
+    /**
+     * A payload providing one known field's TLV plus several trailing TLVs the
+     * schema doesn't declare is a TLV-count mismatch against the schema --
+     * decoding must fail, not discard the trailing TLVs.
+     */
     @Test
-    void task3_2c_manyTrailingTlvsDiscarded() throws DerException {
+    void task3_2c_manyTrailingTlvsDiscarded() {
         AtomicSerialSchemaRecord sch = schema("com.example.One",
                 new String[]{"id"},
                 new String[]{"int"});
@@ -707,8 +728,9 @@ class DerFieldStoreTest {
                 DerWriter.writeInteger(99L),
                 DerWriter.writeBoolean(false)
         );
-        DerFieldStore store = new DerFieldStore(sch, payload);
-        assertEquals(1, store.get("id", 0));
-        assertEquals(5, store.trailingFieldsDiscarded());
+
+        assertThrows(DerException.class, () -> new DerFieldStore(sch, payload),
+                "payload with 5 extra trailing TLVs beyond the 1-field schema must "
+                + "fail to decode, not silently discard the extras");
     }
 }

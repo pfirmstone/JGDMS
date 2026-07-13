@@ -256,7 +256,7 @@ public abstract class TxnMgrProxy implements TransactionManager, Administrable,
 	    // Verify that the server implements RemoteMethodControl
             if( !(backend instanceof RemoteMethodControl) ) {
                 throw new InvalidObjectException(
-		    "ConstrainableTxnMgrProxy.readObject failure - backend " +
+		    "ConstrainableTxnMgrProxy failure - backend " +
 		    "does not implement constrainable functionality ");
             }//endif
 	    return arg;

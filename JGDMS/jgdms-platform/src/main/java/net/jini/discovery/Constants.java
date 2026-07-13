@@ -118,8 +118,9 @@ public class Constants {
 		} else {
 		    announcementAddress = InetAddress.getByName("FF05::155");
 		}
+	    } else {
+		announcementAddress = InetAddress.getByName("224.0.1.84");
 	    }
-            announcementAddress = InetAddress.getByName("224.0.1.84");
             return announcementAddress;
         }
     }

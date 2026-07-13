@@ -59,7 +59,11 @@ public class AccessILFactory extends AtomicILFactory {
      * @param loader the class loader, or <code>null</code>
      **/
     public AccessILFactory(ClassLoader loader) {
-	super(null, null, loader);
+	// AtomicILFactory requires a non-null loader (unlike the former
+	// BasicILFactory superclass); fall back to this factory's own defining
+	// loader, which resolves the phoenix/activation classes.
+	super(null, null,
+	      loader != null ? loader : AccessILFactory.class.getClassLoader());
     }
 
     /**

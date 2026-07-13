@@ -1071,6 +1071,11 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
      * the server type is the aggregate backend (not resolvable here), only the
      * parameter count and the trailing state types are checked.
      *
+     * <p>The diagnostic reported on failure names {@link #recommendedDelegateServerType}
+     * rather than the raw {@link #serverType}, so a developer who cannot possibly know
+     * the processor-generated backend's name is told the one signature they actually
+     * can write ({@code Remote}) instead.
+     *
      * @return {@code true} if a compatible ctor exists (an error was reported and
      *         {@code false} returned otherwise)
      */
@@ -1104,7 +1109,7 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
                 return true;
             }
         }
-        StringBuilder sig = new StringBuilder(serverType(m));
+        StringBuilder sig = new StringBuilder(recommendedDelegateServerType(m));
         for (StateField sf : states) {
             sig.append(", ").append(sf.type);
         }
@@ -1118,17 +1123,49 @@ public final class ServiceProxyProcessor extends AbstractProcessor {
     }
 
     /**
+     * The delegate first-parameter type to recommend in diagnostics -- as opposed to
+     * {@link #serverType}, which names the type the generated shell actually casts
+     * {@code this.server} to, and which may be a processor-synthesized backend the
+     * delegate author cannot spell.
+     *
+     * <ul>
+     *   <li>a single protocol interface, or a hand-written aggregate backend
+     *       ({@code m.proxyHandWrittenBackend != null}) -- the developer already
+     *       declared and named this type themselves, so recommend it directly
+     *       ({@link #serverType});</li>
+     *   <li>a processor-generated aggregate {@code <Api>Backend} -- the name is an
+     *       internal convention that does not exist until this same compilation
+     *       generates it, so recommend {@code java.rmi.Remote} instead: the common
+     *       supertype every protocol interface already extends, always resolvable,
+     *       and already accepted by {@link #firstParamAcceptsServer}'s fallback.</li>
+     * </ul>
+     */
+    private String recommendedDelegateServerType(ServiceModel m) {
+        if (m.protocol.size() == 1 || m.proxyHandWrittenBackend != null) {
+            return serverType(m);
+        }
+        return REMOTE;
+    }
+
+    /**
      * Whether a delegate ctor's first parameter accepts the wire {@code server} the
      * shell passes ({@code (serverType) this.server}):
      * <ul>
      *   <li>single protocol interface: the parameter must be a supertype of it
-     *       ({@code isAssignable(protocol, param)});</li>
+     *       ({@code isAssignable(protocol, param)}) -- the developer's own declared
+     *       protocol interface, so naming it directly is fine;</li>
      *   <li>aggregate {@code <Api>Backend} (multi-protocol, no single resolvable
      *       type this round): the parameter names the backend by its
-     *       fully-qualified name, OR is a common supertype of EVERY protocol
-     *       interface (so a value of the aggregate backend, which extends them all,
-     *       is assignable to it).  This closes the earlier hole where the
-     *       aggregate-server first-param check was skipped.</li>
+     *       fully-qualified name (only realistic when it is hand-written -- see
+     *       {@link #recommendedDelegateServerType}), OR is a common supertype of
+     *       EVERY protocol interface (so a value of the aggregate backend, which
+     *       extends them all, is assignable to it).  {@code java.rmi.Remote} is
+     *       always such a common supertype, and is the signature a delegate author
+     *       actually should write here -- they cannot know the generated backend's
+     *       name, but every protocol interface extends {@code Remote} by
+     *       definition, so it is always valid and always resolvable regardless of
+     *       annotation-processing round order.  This closes the earlier hole where
+     *       the aggregate-server first-param check was skipped.</li>
      * </ul>
      */
     private boolean firstParamAcceptsServer(ServiceModel m, TypeMirror param) {
