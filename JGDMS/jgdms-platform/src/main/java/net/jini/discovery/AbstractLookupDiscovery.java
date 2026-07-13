@@ -2887,7 +2887,18 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	throws IOException, ClassNotFoundException
     {
 	final Collection context = new ArrayList(1);
-	context.add(methodConstraints);
+	// Discovery-transport constraints (MulticastTimeToLive, MulticastMaxPacketSize,
+	// DiscoveryProtocolVersion, socket/connection timeouts) are meaningless for the
+	// unicast codebase-annotation RPC that proxy deserialization performs
+	// (PreferredProxyCodebaseProvider.resolve -> CodebaseAccessor.getClassAnnotation
+	// over a point-to-point endpoint). Supplying the raw discovery methodConstraints
+	// leaked e.g. MulticastTimeToLive[0] into that call, which a TcpEndpoint cannot
+	// satisfy -> UnsupportedConstraintException. getUnfulfilledConstraints() strips
+	// exactly those transport constraints while preserving Integrity / authentication
+	// / principal constraints, so the codebase download still runs under the
+	// configured unicast-discovery trust requirements.
+	context.add(new BasicMethodConstraints(
+	    unicastDiscoveryConstraints.getUnfulfilledConstraints()));
 	final Subject discoverySubject = getDiscoverySubject();
 	try {
 	    return AccessController.doPrivileged(

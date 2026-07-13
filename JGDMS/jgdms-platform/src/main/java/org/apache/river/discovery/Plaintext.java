@@ -25,8 +25,6 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.nio.Buffer;
@@ -64,9 +62,6 @@ import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.io.MarshalledInstance;
-import net.jini.io.MarshalInputStream;
-import net.jini.io.MarshalOutputStream;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import org.apache.river.api.io.AtomicMarshalInputStream;
@@ -403,58 +398,6 @@ public class Plaintext {
 	}
     }
     
-    /**
-     * Writes unicast response according to the net.jini.discovery.plaintext
-     * format.
-     */
-    public static void writeUnicastResponse(OutputStream out,
-					    UnicastResponse response,
-					    Collection context)
-	throws IOException
-    {
-	try {
-	    DataOutput dout = new DataOutputStream(out);
-
-	    // write LUS host
-	    dout.writeUTF(response.getHost());
-
-	    // write LUS port
-	    dout.writeShort(intToUshort(response.getPort()));
-
-	    // write LUS member groups
-	    String[] groups = response.getGroups();
-	    dout.writeInt(groups.length);
-	    for (int i = 0; i < groups.length; i++) {
-		dout.writeUTF(groups[i]);
-	    }
-
-	    // write LUS proxy
-	    // Note this instance is compatible with ObjectOutputStream,
-	    // it doesn't write annotations, it isn't compatible with
-	    // MarshalOutputStream
-	    MarshalledInstance mi = null;
-	    Object registrar = response.getRegistrar();
-	    if (context != null){
-		for (Object o : context){
-		    if (o instanceof AtomicValidationEnforcement &&
-			    ((AtomicValidationEnforcement)o).enforced())
-		    {
-			throw new UnsupportedConstraintException(
-				"Constraint not supported: "
-				+ AtomicInputValidation.YES
-			);
-		    }
-		}
-	    } else { // Avoid NPE.
-		context = Collections.EMPTY_SET;
-	    }
-	    mi = new MarshalledInstance(registrar, context);
-	    new ObjectOutputStream(out).writeObject(mi);
-	} catch (RuntimeException e) {
-	    throw new DiscoveryProtocolException(null, e);
-	}
-    }
-    
      /**
      * Writes unicast response according to the net.jini.discovery.plaintext
      * format, with the exception that the registrar proxy is written using
@@ -507,64 +450,6 @@ public class Plaintext {
 	});
     }
 
-    /**
-     * Reads unicast response according to the net.jini.discovery.plaintext
-     * format.
-     */
-    public static UnicastResponse readUnicastResponse(
-					    InputStream in,
-					    ClassLoader defaultLoader,
-					    boolean verifyCodebaseIntegrity,
-					    ClassLoader verifierLoader,
-					    Collection context)
-	throws IOException, ClassNotFoundException
-    {
-	try {
-	    
-	    if (context != null){
-		for (Object o : context){
-		    if (o instanceof AtomicValidationEnforcement &&
-			    ((AtomicValidationEnforcement)o).enforced())
-		    {
-			throw new UnsupportedConstraintException(
-				"Unsupported constraint: " 
-				+ AtomicInputValidation.YES
-			);
-		    }
-		}
-	    }
-	    
-	    DataInput din = new DataInputStream(in);
-
-	    // read LUS host
-	    String host = din.readUTF();
-
-	    // read LUS port
-	    int port = din.readUnsignedShort();
-
-	    // read LUS member groups
-	    String[] groups = new String[din.readInt()];
-	    for (int i = 0; i < groups.length; i++) {
-		groups[i] = din.readUTF();
-	    }
-
-	    // read LUS proxy
-	    MarshalledInstance mi = (MarshalledInstance) 
-		new ObjectInputStream(in).readObject();
-	    
-	    ServiceRegistrar reg = (ServiceRegistrar) mi.get(
-		defaultLoader,
-		verifyCodebaseIntegrity,
-		verifierLoader,
-		context);
-
-	    return new UnicastResponse(host, port, groups, reg);
-
-	} catch (RuntimeException e) {
-	    throw new DiscoveryProtocolException(null, e);
-	}
-    }
-    
     /**
      * Reads unicast response similar to the net.jini.discovery.plaintext
      * format, but with the exception of not using a MarshalledInstance of

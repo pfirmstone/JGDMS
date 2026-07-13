@@ -110,7 +110,11 @@ public class Client
 	throws IOException, ClassNotFoundException
     {
 	Plaintext.checkConstraints(constraints);
-	return Plaintext.readUnicastResponse(
+	// Read the registrar proxy via AtomicMarshalInputStream (V2), matching
+	// the V2 server write: @AtomicSerial service proxies are not
+	// java.io.Serializable, so the JOSS MarshalledInstance path
+	// (readUnicastResponse) cannot deserialize them. Mirrors ssl/https.
+	return Plaintext.readV2UnicastResponse(
 		   new BufferedInputStream(socket.getInputStream()),
 		   defaultLoader,
 		   false,

@@ -179,7 +179,10 @@ public abstract class EndpointBasedClient
 					    Collection context)
 	throws IOException, ClassNotFoundException
     {
-	return Plaintext.readUnicastResponse(
+	// V2 (AtomicMarshalInputStream) unmarshalling, mirroring the V2 server
+	// write; the JOSS V1 path has been removed. Used by the kerberos format
+	// (no override); ssl/https override this hook with their own V2 read.
+	return Plaintext.readV2UnicastResponse(
 	    in, defaultLoader, verifyCodebaseIntegrity, verifierLoader, context);
     }
     

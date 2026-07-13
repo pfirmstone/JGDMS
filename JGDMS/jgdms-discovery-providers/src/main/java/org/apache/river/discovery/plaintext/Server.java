@@ -114,7 +114,12 @@ public class Server
 	    checker.checkClientSubject(null);
 	}
 	OutputStream out = new BufferedOutputStream(socket.getOutputStream());
-	Plaintext.writeUnicastResponse(out, response, context);
+	// Marshal the registrar proxy via AtomicMarshalOutputStream (V2): the
+	// service proxies (e.g. reggie's ConstrainableRegistrarProxy) are
+	// @AtomicSerial and no longer java.io.Serializable, so the JOSS
+	// MarshalledInstance path (writeUnicastResponse) throws
+	// NotSerializableException. This matches the ssl/https providers.
+	Plaintext.writeV2UnicastResponse(out, response, context);
 	out.flush();
     }
 }

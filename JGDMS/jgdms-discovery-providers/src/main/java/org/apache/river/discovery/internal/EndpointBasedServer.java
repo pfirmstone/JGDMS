@@ -173,7 +173,11 @@ public abstract class EndpointBasedServer
 					Collection context)
 	throws IOException
     {
-	Plaintext.writeUnicastResponse(out, response, context);
+	// V2 (AtomicMarshalOutputStream) marshalling: service proxies are
+	// @AtomicSerial, not java.io.Serializable, so the removed JOSS V1 path
+	// could not marshal them. Used by the kerberos format (which does not
+	// override this hook); ssl/https override it with their own V2 call.
+	Plaintext.writeV2UnicastResponse(out, response, context);
 	out.flush();
     }
     
