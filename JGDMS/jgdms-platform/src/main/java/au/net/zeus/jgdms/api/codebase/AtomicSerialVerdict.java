@@ -38,6 +38,29 @@ public enum AtomicSerialVerdict {
      * {@code (GetArg)} constructor exists, validation is performed before
      * the super-constructor call, {@code serialForm()} is present, and
      * {@code serialize(PutArg, T)} is present.
+     *
+     * <p><b>What this verdict does and does not establish.</b>
+     * {@code COMPLIANT} means the class passed a bytecode-level shape and
+     * data-dependency check — it does <em>not</em> mean the check/validation
+     * logic was proven to actually validate anything.  The analysis is a
+     * lightweight, single-pass, non-recursive scan (see
+     * {@code au.net.zeus.jgdms.bae.AtomicSerialComplianceVisitor} in the
+     * bytecode-analysis-engine module): it confirms that a value derived
+     * from reading the deserialization argument reaches an observable
+     * outcome (a return, a branch, a cast, or a call this codebase could
+     * plausibly have authored) before construction completes, but it does
+     * not recursively verify what a called method does with that value.  A
+     * downloaded proxy that ships its own same-package, same-jar helper
+     * method which never reads its own parameter (a no-op "validator" that
+     * exists purely to satisfy this shape check) currently still earns
+     * {@code COMPLIANT} — the same top-trust bucket as a class with genuine
+     * validation logic — because distinguishing the two would require
+     * recursively verifying the callee's own body, which this pass-level
+     * analysis does not do.  Closing that gap (bounded recursive
+     * callee-body verification) is tracked as a separate, not-yet-built
+     * follow-on to this check; callers that need a stronger guarantee than
+     * "shape and dependency checked" should not treat {@code COMPLIANT} as
+     * a proof of correct validation.
      */
     COMPLIANT,
 
@@ -68,6 +91,20 @@ public enum AtomicSerialVerdict {
      * annotated {@code @Stateless}.
      */
     MISSING_SERIAL_FORM,
+
+    /**
+     * The class is annotated {@code @AtomicSerial} but lacks the required
+     * {@code public static void serialize(PutArg, T)} method (the encode-side
+     * counterpart of the {@code (GetArg)} constructor), and is not annotated
+     * {@code @Stateless}.  {@link #COMPLIANT} requires both {@code
+     * serialForm()} <em>and</em> {@code serialize(PutArg, T)} to be present;
+     * a class with a validated {@code (GetArg)} constructor but no {@code
+     * serialize} method can still be constructed from an untrusted stream
+     * without ever being safely re-encoded, which is not itself a
+     * deserialization hazard but is a protocol-completeness gap this verdict
+     * makes visible.
+     */
+    MISSING_SERIALIZE,
 
     /**
      * The class has the {@code (GetArg)} constructor and a static validation

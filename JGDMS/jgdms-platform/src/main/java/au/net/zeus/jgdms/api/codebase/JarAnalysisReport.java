@@ -56,7 +56,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *       result → {@link VerdictType#DANGEROUS}</li>
  *   <li>Any {@link AtomicSerialVerdict} violation
  *       ({@code MISSING_CONSTRUCTOR}, {@code VALIDATION_ORDER},
- *       {@code MISSING_SERIAL_FORM}, {@code UNTYPED_GET}) → {@link VerdictType#DANGEROUS}</li>
+ *       {@code MISSING_SERIAL_FORM}, {@code MISSING_SERIALIZE},
+ *       {@code UNTYPED_GET}) → {@link VerdictType#DANGEROUS}</li>
  *   <li>Any {@link ClinitVerdict#NATIVE_OPACITY} or
  *       {@link AtomicSerialVerdict#NOT_ANNOTATED} → {@link VerdictType#INCONCLUSIVE}</li>
  *   <li>All results {@link ClinitVerdict#CLEAN} and
@@ -491,8 +492,8 @@ public final class JarAnalysisReport implements Serializable {
      *       intended to be granted; granting it enables virtual-thread
      *       carrier-pinning, a potential Denial of Service (DoS).</li>
      *   <li>Any {@link AtomicSerialVerdict} of {@code MISSING_CONSTRUCTOR},
-     *       {@code VALIDATION_ORDER}, {@code MISSING_SERIAL_FORM}, or
-     *       {@code UNTYPED_GET}
+     *       {@code VALIDATION_ORDER}, {@code MISSING_SERIAL_FORM},
+     *       {@code MISSING_SERIALIZE}, or {@code UNTYPED_GET}
      *       → {@link VerdictType#DANGEROUS}</li>
      *   <li>Any {@link ConstrainableProxyVerdict#JAVA_SERIALIZATION} — a smart
      *       proxy that implements {@code java.io.Serializable}, an unvalidated
@@ -537,6 +538,7 @@ public final class JarAnalysisReport implements Serializable {
             if (av == AtomicSerialVerdict.MISSING_CONSTRUCTOR
                     || av == AtomicSerialVerdict.VALIDATION_ORDER
                     || av == AtomicSerialVerdict.MISSING_SERIAL_FORM
+                    || av == AtomicSerialVerdict.MISSING_SERIALIZE
                     || av == AtomicSerialVerdict.UNTYPED_GET) {
                 return VerdictType.DANGEROUS;
             }
