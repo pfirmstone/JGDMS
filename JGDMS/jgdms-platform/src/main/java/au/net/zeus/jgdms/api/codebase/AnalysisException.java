@@ -17,6 +17,8 @@
  */
 package au.net.zeus.jgdms.api.codebase;
 
+import java.io.NotSerializableException;
+
 /**
  * Thrown by {@link BytecodeAnalysisEngine#analyzeJar} when a non-transient
  * analysis failure occurs.
@@ -64,5 +66,43 @@ public class AnalysisException extends Exception {
      */
     public AnalysisException(String message, Throwable cause) {
         super(message, cause);
+    }
+    
+    /**
+     * java.io deserialization is disabled; reconstruct via {@code @AtomicSerial}
+     * (the {@link #RemoteEvent(GetArg)} constructor) instead. Poisoning this
+     * superclass hook also blocks JOSS reconstruction of every subclass, since
+     * java.io invokes the superclass {@code readObject} first.
+     *
+     * @throws NotSerializableException always
+     */
+    private void readObject(java.io.ObjectInputStream in)
+	throws java.io.IOException, ClassNotFoundException
+    {
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
+    }
+
+    /**
+     * @throws NotSerializableException always
+     */
+    private void readObjectNoData() throws java.io.ObjectStreamException {
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
+    }
+
+    /**
+     * java.io serialization is disabled; this class is marshalled via its
+     * {@code @AtomicSerial} form ({@link #serialize}) instead.
+     *
+     * @throws NotSerializableException always
+     */
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException
+    {
+	throw new NotSerializableException(
+	    "java.io serialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (PutArg)");
     }
 }

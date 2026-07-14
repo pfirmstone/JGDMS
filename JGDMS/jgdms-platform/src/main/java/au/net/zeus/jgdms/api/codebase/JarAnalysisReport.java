@@ -19,8 +19,6 @@ package au.net.zeus.jgdms.api.codebase;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,7 +31,7 @@ import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
- * Immutable, serializable analysis report produced by a
+ * Immutable, analysis report produced by a
  * {@link BytecodeAnalysisEngine} for a single JAR file.
  *
  * <p>A {@code JarAnalysisReport} is the structured output of
@@ -80,9 +78,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * @author GitHub Copilot
  */
 @AtomicSerial
-public final class JarAnalysisReport implements Serializable {
-
-    private static final long serialVersionUID = 3L;
+public final class JarAnalysisReport {
 
     private static final String CONTENT_HASH         = "contentHash";
     private static final String CLASS_NAMES           = "classNames";
@@ -90,15 +86,6 @@ public final class JarAnalysisReport implements Serializable {
     private static final String ENGINE_SIGNATURE      = "engineSignature";
     private static final String DECLARED_PERMISSIONS  = "declaredPermissions";
     private static final String CODEBASE_URLS         = "codebaseUrls";
-
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(CONTENT_HASH,        String.class),
-        new ObjectStreamField(CLASS_NAMES,         String[].class),
-        new ObjectStreamField(CLASS_RESULTS,       ClassAnalysisResult[].class),
-        new ObjectStreamField(ENGINE_SIGNATURE,    byte[].class),
-        new ObjectStreamField(DECLARED_PERMISSIONS, String[].class)
-    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {

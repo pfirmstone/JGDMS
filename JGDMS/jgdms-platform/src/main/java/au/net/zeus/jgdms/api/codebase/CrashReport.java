@@ -19,8 +19,6 @@ package au.net.zeus.jgdms.api.codebase;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -75,9 +73,7 @@ import org.apache.river.api.net.Uri;
  * @author GitHub Copilot
  */
 @AtomicSerial
-public final class CrashReport implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public final class CrashReport {
 
     /** Maximum number of characters accepted in {@link #stderrSummary}. */
     public static final int MAX_STDERR_LENGTH = 4096;
@@ -87,15 +83,6 @@ public final class CrashReport implements Serializable {
     private static final String INCARNATION    = "incarnation";
     private static final String STDERR_SUMMARY = "stderrSummary";
     private static final String SIGNATURE      = "signature";
-
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(CODEBASE_URLS,  String[].class),
-        new ObjectStreamField(EXIT_CODE,      Integer.TYPE),
-        new ObjectStreamField(INCARNATION,    Long.TYPE),
-        new ObjectStreamField(STDERR_SUMMARY, String.class),
-        new ObjectStreamField(SIGNATURE,      byte[].class)
-    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {

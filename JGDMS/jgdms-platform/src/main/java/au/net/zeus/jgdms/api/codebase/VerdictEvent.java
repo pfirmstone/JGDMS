@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
-import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;

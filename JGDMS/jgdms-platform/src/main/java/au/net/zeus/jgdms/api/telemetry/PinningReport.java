@@ -19,8 +19,6 @@ package au.net.zeus.jgdms.api.telemetry;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -68,9 +66,7 @@ import org.apache.river.api.net.Uri;
  * @author GitHub Copilot
  */
 @AtomicSerial
-public final class PinningReport implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public final class PinningReport {
 
     /**
      * Maximum number of individual {@code jdk.VirtualThreadPinned} events that
@@ -94,16 +90,6 @@ public final class PinningReport implements Serializable {
     private static final String EVENT_COUNT     = "eventCount";
     private static final String PERIOD_START_MS = "periodStartMs";
     private static final String PERIOD_END_MS   = "periodEndMs";
-
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(CODEBASE_URLS,   String[].class),
-        new ObjectStreamField(PINNED_NANOS,    Long.TYPE),
-        new ObjectStreamField(EVENT_COUNT,     Long.TYPE),
-        new ObjectStreamField(PERIOD_START_MS, Long.TYPE),
-        new ObjectStreamField(PERIOD_END_MS,   Long.TYPE)
-    };
-
 
     // -------------------------------------------------------------------------
     // @AtomicSerial protocol

@@ -20,8 +20,6 @@ package au.net.zeus.jgdms.api.codebase;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -81,9 +79,7 @@ import org.apache.river.api.net.Uri;
  * @author GitHub Copilot
  */
 @AtomicSerial
-public final class AnalysisRequest implements Serializable {
-
-    private static final long serialVersionUID = 2L;
+public final class AnalysisRequest {
 
     /** Default BFS depth limit for call-graph traversal from {@code <clinit>}. */
     public static final int DEFAULT_MAX_BFS_DEPTH = 10;
@@ -103,14 +99,6 @@ public final class AnalysisRequest implements Serializable {
     private static final String CONTENT_HASH   = "contentHash";
     private static final String ORIGINAL_URI   = "originalUri";
     private static final String MAX_BFS_DEPTH  = "maxBfsDepth";
-
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(PACKED_JAR_BYTES, byte[].class),
-        new ObjectStreamField(CONTENT_HASH,     String.class),
-        new ObjectStreamField(ORIGINAL_URI,     String.class),
-        new ObjectStreamField(MAX_BFS_DEPTH,    Integer.TYPE)
-    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {

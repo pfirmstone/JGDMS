@@ -19,8 +19,6 @@ package au.net.zeus.jgdms.api.codebase;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -59,9 +57,7 @@ import org.apache.river.api.io.Valid;
  * @author GitHub Copilot
  */
 @AtomicSerial
-public final class ClassAnalysisResult implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public final class ClassAnalysisResult {
 
     private static final String CLASS_NAME        = "className";
     private static final String CLINIT_VERDICT     = "clinitVerdict";
@@ -69,16 +65,6 @@ public final class ClassAnalysisResult implements Serializable {
     private static final String PROXY_VERDICT       = "constrainableProxyVerdict";
     private static final String BLOCKING_CALL_PATH = "blockingCallPath";
     private static final String CYCLE_PARTICIPANTS  = "cycleParticipants";
-
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(CLASS_NAME,        String.class),
-        new ObjectStreamField(CLINIT_VERDICT,     ClinitVerdict.class),
-        new ObjectStreamField(ATOMIC_VERDICT,     AtomicSerialVerdict.class),
-        new ObjectStreamField(PROXY_VERDICT,       ConstrainableProxyVerdict.class),
-        new ObjectStreamField(BLOCKING_CALL_PATH, String[].class),
-        new ObjectStreamField(CYCLE_PARTICIPANTS,  String[].class)
-    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {

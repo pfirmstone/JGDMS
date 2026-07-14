@@ -19,8 +19,6 @@ package au.net.zeus.jgdms.api.codebase;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -74,7 +72,7 @@ import org.apache.river.api.net.Uri;
  * @author GitHub Copilot
  */
 @AtomicSerial
-public final class RegistryVerdict implements Serializable {
+public final class RegistryVerdict {
 
     private static final long serialVersionUID = 1L;
 
@@ -82,14 +80,6 @@ public final class RegistryVerdict implements Serializable {
     private static final String VERDICT        = "verdict";
     private static final String TIMESTAMP      = "timestamp";
     private static final String SIGNATURE      = "signature";
-
-    // serialPersistentFields is INDEPENDENT of serialForm() (dual-path JOSS keep, STD-008 sec9.1)
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField(CODEBASE_URLS, String[].class),
-        new ObjectStreamField(VERDICT,       VerdictType.class),
-        new ObjectStreamField(TIMESTAMP,     Long.TYPE),
-        new ObjectStreamField(SIGNATURE,     byte[].class)
-    };
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
