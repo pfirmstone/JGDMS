@@ -144,7 +144,7 @@
          stable across rebuilds of unchanged source, instead of changing every
          build from per-build timestamps. -->
     <project.build.outputTimestamp>2024-01-01T00:00:00Z</project.build.outputTimestamp>
-    <asm.version>9.7.1</asm.version>
+    <asm.version>9.10.1</asm.version>
     <dependency-check-maven.version>10.0.4</dependency-check-maven.version>
   </properties>
 
