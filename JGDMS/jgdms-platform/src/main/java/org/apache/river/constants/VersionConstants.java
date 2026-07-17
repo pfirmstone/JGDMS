@@ -24,6 +24,6 @@ package org.apache.river.constants;
  *
  */
 public interface VersionConstants {
-    /** Current version of the JGDMS release */ 
-    String SERVER_VERSION = "3.1.0";
+    /** Current version of the JGDMS release */
+    String SERVER_VERSION = "4.0.0";
 }

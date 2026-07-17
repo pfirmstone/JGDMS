@@ -4,7 +4,7 @@
 
   <groupId>au.net.zeus</groupId>
   <artifactId>jgdms</artifactId>
-  <version>3.1.1-SNAPSHOT</version>
+  <version>4.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>JGDMS Project</name>
@@ -143,7 +143,7 @@
          function of the source.  This keeps DigestGrant / httpmd codebase hashes
          stable across rebuilds of unchanged source, instead of changing every
          build from per-build timestamps. -->
-    <project.build.outputTimestamp>2024-01-01T00:00:00Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2026-07-17T10:45:34Z</project.build.outputTimestamp>
     <asm.version>9.10.1</asm.version>
     <dependency-check-maven.version>10.0.4</dependency-check-maven.version>
   </properties>
@@ -390,7 +390,7 @@
             <path>
               <groupId>au.net.zeus.jgdms.tools</groupId>
               <artifactId>marshal-delegate-processor</artifactId>
-              <version>3.1.1-SNAPSHOT</version>
+              <version>4.0.0-SNAPSHOT</version>
             </path>
           </annotationProcessorPaths>
         </configuration>
