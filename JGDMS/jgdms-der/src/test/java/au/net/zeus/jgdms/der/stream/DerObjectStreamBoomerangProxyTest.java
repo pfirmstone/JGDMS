@@ -20,7 +20,7 @@ package au.net.zeus.jgdms.der.stream;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
-import au.net.zeus.jgdms.der.object.TolerantProxyHandler;
+import au.net.zeus.jgdms.der.object.BoomerangProxyHandler;
 import org.apache.river.api.io.AtomicSerial;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tolerant per-name resolution and {@link TolerantProxyHandler} wrap/re-forward behaviour for the
+ * Tolerant per-name resolution and {@link BoomerangProxyHandler} wrap/re-forward behaviour for the
  * top-level object-stream bare {@code [8]} {@code java.lang.reflect.Proxy} item (STD-008
  * sec.15.2), the {@code DerObjectStreamCodec.readObject}/{@code writeObject} half of the fix.
  *
@@ -61,11 +61,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>In package {@code au.net.zeus.jgdms.der.stream} to reach the package-private
  * {@link DerObjectStreamCodec}.
  */
-class DerObjectStreamTolerantProxyTest {
+class DerObjectStreamBoomerangProxyTest {
 
     interface Greeter { String greet(); }
     interface Marker  { String mark(); }
-    interface Extra   { String extra(); }
 
     /** A minimal @AtomicSerial InvocationHandler whose answer must survive the round-trip. */
     @AtomicSerial
@@ -160,6 +159,14 @@ class DerObjectStreamTolerantProxyTest {
         DerReader.TlvHeader hdr = r.readTlvHeader();
         assertEquals((byte) 0xA8, wireBytes[0], "must be the [8] proxy tag");
         byte[] content = r.readRawContent(hdr.contentLength());
+        return rawInterfaceNamesFromContent(content);
+    }
+
+    /**
+     * As {@link #rawInterfaceNames(byte[])}, but parses [8] TLV CONTENT bytes directly (no outer
+     * tag+length header) -- the shape {@link BoomerangProxyHandler#originalWireBytes()} returns.
+     */
+    private static String[] rawInterfaceNamesFromContent(byte[] content) throws DerException {
         DerReader pr = new DerReader(content);
         int count = pr.readInteger().intValueExact();
         String[] names = new String[count];
@@ -213,12 +220,12 @@ class DerObjectStreamTolerantProxyTest {
         assertEquals("hi", ((Greeter) back).greet(), "the real handler must still work for the resolved interface");
 
         InvocationHandler h = Proxy.getInvocationHandler(back);
-        assertTrue(h instanceof TolerantProxyHandler, "a drop must wrap the handler");
-        TolerantProxyHandler tph = (TolerantProxyHandler) h;
+        assertTrue(h instanceof BoomerangProxyHandler, "a drop must wrap the handler");
+        BoomerangProxyHandler bph = (BoomerangProxyHandler) h;
         assertArrayEquals(
                 new String[]{ Greeter.class.getName(), Marker.class.getName() },
-                tph.originalInterfaceNames(),
-                "the wrapper must retain the FULL original wire-declared interface list");
+                rawInterfaceNamesFromContent(bph.originalWireBytes()),
+                "the wrapper must retain the FULL original wire-declared interface list, byte-for-byte");
 
         boolean logged = captured.stream().anyMatch(r ->
                 r.getLevel() == Level.WARNING
@@ -249,18 +256,20 @@ class DerObjectStreamTolerantProxyTest {
         Object back = read(bytes, getClass().getClassLoader());
         assertTrue(back instanceof Greeter && back instanceof Marker);
         InvocationHandler h = Proxy.getInvocationHandler(back);
-        assertFalse(h instanceof TolerantProxyHandler,
+        assertFalse(h instanceof BoomerangProxyHandler,
                 "when nothing is dropped, the real handler must be used directly, unwrapped");
         assertTrue(h instanceof AnswerHandler, "the plain real handler class must round-trip unmodified");
     }
 
     /**
      * THE CORE LANDMINE-FIX TEST: two-hop forwarding. Hop 1 decodes with Marker missing (Greeter
-     * resolves) -- this builds a TolerantProxyHandler-wrapped proxy. Hop 1 then re-encodes
+     * resolves) -- this builds a BoomerangProxyHandler-wrapped proxy. Hop 1 then re-encodes
      * (forwards) that proxy. The re-encoded wire bytes must list the ORIGINAL full interface set
-     * (Greeter AND Marker), not just the narrowed set -- this must fail if the write-side fix
-     * (ProxyWireSupport.interfaceNamesForWrite / handlerForWrite) is reverted to a naive
-     * {@code obj.getClass().getInterfaces()} reflection.
+     * (Greeter AND Marker), not just the narrowed set, AND must be byte-identical to the original
+     * sender's bytes (not merely structurally equivalent) -- this must fail if the write-side fix
+     * (ProxyWireSupport.wireContentForBoomerang) is reverted to a naive
+     * {@code obj.getClass().getInterfaces()} reflection or to re-deriving fresh bytes from parsed
+     * state instead of relaying the retained bytes verbatim.
      */
     @Test
     void twoHopForward_reEncodesFullOriginalInterfaceSet_notNarrowedSet() throws Exception {
@@ -272,19 +281,27 @@ class DerObjectStreamTolerantProxyTest {
         Object atHop1 = read(wireFromSender, hop1Loader);
         assertTrue(atHop1 instanceof Greeter);
         assertFalse(atHop1 instanceof Marker);
-        assertTrue(Proxy.getInvocationHandler(atHop1) instanceof TolerantProxyHandler,
-                "hop1 must have built a TolerantProxyHandler-wrapped (narrowed) proxy");
+        assertTrue(Proxy.getInvocationHandler(atHop1) instanceof BoomerangProxyHandler,
+                "hop1 must have built a BoomerangProxyHandler-wrapped (narrowed) proxy");
 
         // Hop 1 forwards (re-encodes) the narrowed proxy it holds.
         byte[] wireForwardedByHop1 = write(atHop1);
 
         // White-box: the re-encoded wire item's interface-name list must be the FULL original
-        // pair, in original order -- NOT narrowed to just Greeter. This is the direct byte-level
-        // regression check: a reverted write-side fix would re-derive names from
+        // pair, in original order -- NOT narrowed to just Greeter. This is a structural regression
+        // check: a reverted write-side fix would re-derive names from
         // atHop1.getClass().getInterfaces(), which is Greeter-only, and this assertion would fail.
         assertArrayEquals(new String[]{ Greeter.class.getName(), Marker.class.getName() },
                 rawInterfaceNames(wireForwardedByHop1),
                 "forwarded wire item must carry the FULL original interface list, not the narrowed runtime set");
+
+        // THE ACTUAL POINT OF THIS FIX: the forwarded wire bytes must be byte-identical to the
+        // original sender's bytes, not merely structurally/semantically equivalent -- a freshly
+        // re-derived encoding (even one listing the same names in the same order) would be this
+        // node's OWN new encoding, forfeiting the sender's @AtomicSerial-validated integrity
+        // guarantee that byte-for-byte relay preserves. See BoomerangProxyHandler.
+        assertArrayEquals(wireFromSender, wireForwardedByHop1,
+                "forwarded wire bytes must be byte-identical to the original sender's bytes, not a fresh re-encoding");
 
         // Black-box corroboration: a downstream hop that CAN resolve both must get a proxy
         // implementing BOTH interfaces from the forwarded bytes -- impossible if hop1's forward
@@ -294,37 +311,5 @@ class DerObjectStreamTolerantProxyTest {
         assertTrue(atDownstream instanceof Marker,
                 "a downstream hop that CAN resolve Marker must still get it from the forwarded proxy");
         assertEquals("hop0", ((Marker) atDownstream).mark(), "the real handler's state must have round-tripped intact");
-    }
-
-    /**
-     * A hop that receives an already-TolerantProxyHandler-wrapped proxy and is itself missing a
-     * DIFFERENT interface (not the one the first hop dropped): the final retained-names list must
-     * still be the very first hop's original list, not overwritten by the second hop's own
-     * (different) view. Exercised directly against the wrap helper (white-box, the mechanism the
-     * design calls out as needing to be idempotent) in addition to the wire-level emergent
-     * behaviour already covered by {@link #twoHopForward_reEncodesFullOriginalInterfaceSet_notNarrowedSet()}.
-     */
-    @Test
-    void idempotentWrap_preservesFirstHopsOriginalList() throws Exception {
-        // Simulate: hop1 already produced a TolerantProxyHandler retaining [Greeter, Marker, Extra].
-        AnswerHandler real = new AnswerHandler("deep");
-        TolerantProxyHandler hop1Wrapped = new TolerantProxyHandler(
-                real, new String[]{ Greeter.class.getName(), Marker.class.getName(), Extra.class.getName() });
-
-        // Hop2 decodes the SAME already-wrapped handler object (defence-in-depth path exercised
-        // directly, since on a real wire hop the write-side fix always unwraps before writing --
-        // see ProxyWireSupport.handlerForWrite -- so a genuinely re-decoded handler is never
-        // itself a TolerantProxyHandler; this proves the wrap helper itself never double-wraps or
-        // discards the retained list even if it were ever handed one).
-        InvocationHandler hop2Result = au.net.zeus.jgdms.der.object.ProxyWireSupport.wrapForDrop(
-                hop1Wrapped, new String[]{ Greeter.class.getName(), Extra.class.getName() } /* hop2's own (different) view */);
-
-        assertTrue(hop2Result instanceof TolerantProxyHandler);
-        TolerantProxyHandler finalWrapper = (TolerantProxyHandler) hop2Result;
-        assertArrayEquals(
-                new String[]{ Greeter.class.getName(), Marker.class.getName(), Extra.class.getName() },
-                finalWrapper.originalInterfaceNames(),
-                "must retain hop1's ORIGINAL list, not hop2's own narrower/different view");
-        assertTrue(finalWrapper.realHandler() == real, "must not double-wrap the real handler");
     }
 }

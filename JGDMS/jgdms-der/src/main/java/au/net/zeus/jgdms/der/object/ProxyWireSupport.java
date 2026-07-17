@@ -31,7 +31,7 @@ import java.util.logging.Logger;
  * Shared read/write-side support for the bare {@code [8]} {@code java.lang.reflect.Proxy} wire
  * item (STD-008 sec.15.2), used by BOTH {@code au.net.zeus.jgdms.der.stream.DerObjectStreamCodec}
  * (top-level object-stream items) and {@link ObjectCodec} (nested {@code @AtomicSerial} record
- * fields) so the tolerant per-name resolution and {@link TolerantProxyHandler} wrap/unwrap logic
+ * fields) so the tolerant per-name resolution and {@link BoomerangProxyHandler} wrap/unwrap logic
  * exists in exactly one place instead of being duplicated across the two independent {@code [8]}
  * implementations.
  */
@@ -133,57 +133,42 @@ public final class ProxyWireSupport {
     }
 
     /**
-     * Wraps {@code decodedHandler} in a {@link TolerantProxyHandler} carrying the FULL original
-     * wire-declared {@code originalNames}, UNLESS {@code decodedHandler} is already a
-     * {@code TolerantProxyHandler} -- in which case it is returned unchanged, so an earlier hop's
-     * retained original-name list is never overwritten by this hop's own (possibly narrower or
-     * simply different) view (idempotent across multiple hops: the retained list belongs to
-     * whichever hop first saw the full original wire form).
+     * Wraps {@code decodedHandler} in a {@link BoomerangProxyHandler} carrying the FULL original
+     * {@code [8]} TLV content bytes {@code originalWireBytes} this hop received.
+     *
+     * <p>No idempotency handling is needed here (an earlier design wrapped-if-not-already-wrapped
+     * to avoid a later hop's own view overwriting an earlier hop's retained state): with
+     * byte-for-byte retention there is no multi-hop "whose list wins" question to reconcile in
+     * the first place. Every hop either forwards its OWN verbatim retained bytes (via
+     * {@link #wireContentForBoomerang}, checked before this method is ever reached again for the
+     * same object) or, if it never dropped anything, encodes fresh bytes from its own live proxy
+     * state -- there is nothing to merge or preserve-across across hops, so this always wraps
+     * unconditionally.
      *
      * <p>Callers should invoke this ONLY when at least one interface was dropped at this hop
      * ({@code Resolved.droppedNames.length > 0}); the nothing-dropped case should use
      * {@code decodedHandler} directly, unwrapped -- zero overhead, zero behaviour change.
      *
-     * @param decodedHandler the real handler just decoded off the wire for this hop
-     * @param originalNames  this hop's own wire-declared interface name list (the full list this
-     *                       hop received, before its own filtering)
+     * @param decodedHandler    the real handler just decoded off the wire for this hop
+     * @param originalWireBytes this hop's own wire-received {@code [8]} TLV content bytes (the
+     *                          full content this hop received, before its own filtering)
      */
-    public static InvocationHandler wrapForDrop(InvocationHandler decodedHandler, String[] originalNames) {
-        if (decodedHandler instanceof TolerantProxyHandler already) {
-            return already;
-        }
-        return new TolerantProxyHandler(decodedHandler, originalNames);
+    public static InvocationHandler wrapForDrop(InvocationHandler decodedHandler, byte[] originalWireBytes) {
+        return new BoomerangProxyHandler(decodedHandler, originalWireBytes);
     }
 
     /**
-     * The interface names to WRITE for a live proxy {@code proxyObj}: the retained original list
-     * if {@code proxyObj}'s current handler is a {@link TolerantProxyHandler} (so a previously
-     * narrowed proxy re-forwards its pristine original interface set, not the narrowed runtime
-     * set -- the write-side landmine fix), else {@code proxyObj.getClass().getInterfaces()}'s
-     * names, exactly as before this fix.
+     * The exact {@code [8]} TLV content bytes to re-emit verbatim for a live proxy
+     * {@code proxyObj}, or {@code null} if {@code proxyObj}'s current handler is not a
+     * {@link BoomerangProxyHandler} (the common, nothing-ever-dropped case) -- in which case the
+     * caller must build fresh content from {@code proxyObj.getClass().getInterfaces()} and the
+     * live handler, exactly as before this fix.
+     *
+     * <p>Byte-for-byte re-emission, not name-based re-derivation: see
+     * {@link BoomerangProxyHandler}.
      */
-    public static String[] interfaceNamesForWrite(Object proxyObj) {
+    public static byte[] wireContentForBoomerang(Object proxyObj) {
         InvocationHandler live = Proxy.getInvocationHandler(proxyObj);
-        if (live instanceof TolerantProxyHandler tph) {
-            return tph.originalInterfaceNames();
-        }
-        Class<?>[] ifaces = proxyObj.getClass().getInterfaces();
-        String[] names = new String[ifaces.length];
-        for (int i = 0; i < ifaces.length; i++) {
-            names[i] = ifaces[i].getName();
-        }
-        return names;
-    }
-
-    /**
-     * The handler to WRITE for a live proxy {@code proxyObj}: the unwrapped real handler if
-     * {@code proxyObj}'s current handler is a {@link TolerantProxyHandler} (so the re-emitted
-     * wire item's {@code [1]} handler position is shape-identical to what a fully-resolving node
-     * would have sent -- {@code TolerantProxyHandler} is never itself a wire type), else the live
-     * handler unchanged, exactly as before this fix.
-     */
-    public static InvocationHandler handlerForWrite(Object proxyObj) {
-        InvocationHandler live = Proxy.getInvocationHandler(proxyObj);
-        return live instanceof TolerantProxyHandler tph ? tph.realHandler() : live;
+        return live instanceof BoomerangProxyHandler bph ? bph.originalWireBytes() : null;
     }
 }

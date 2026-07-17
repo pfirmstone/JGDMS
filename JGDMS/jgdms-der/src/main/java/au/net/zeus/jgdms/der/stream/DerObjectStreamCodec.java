@@ -82,8 +82,8 @@ import java.util.Set;
  * Interface names in a [8] item are resolved TOLERANTLY: a name that fails to resolve locally is
  * dropped rather than failing the whole item, provided at least one interface still resolves --
  * see {@link au.net.zeus.jgdms.der.object.ProxyWireSupport} and
- * {@link au.net.zeus.jgdms.der.object.TolerantProxyHandler}, which also preserve the full
- * original interface list for a later re-forward of a narrowed proxy.)
+ * {@link au.net.zeus.jgdms.der.object.BoomerangProxyHandler}, which also preserve the full
+ * original wire bytes for a byte-for-byte-faithful later re-forward of a narrowed proxy.)
  *
  * <h2>No handle table -- pure value-tree, deterministic (STD-008 sec.15.3)</h2>
  * <p>
@@ -382,27 +382,34 @@ final class DerObjectStreamCodec {
         // reconstructed via Proxy.newProxyInstance. No ProxySerializer/bootstrap/codebase -- the
         // interfaces + handler must be locally resolvable on the receiver (sec.15.2).
         //
-        // If obj's live handler is a TolerantProxyHandler (this node itself decoded obj from a
+        // If obj's live handler is a BoomerangProxyHandler (this node itself decoded obj from a
         // [8] item that dropped >=1 interface it couldn't resolve locally -- see readObject
-        // below), re-emit the RETAINED ORIGINAL interface list and the UNWRAPPED real handler,
-        // not obj.getClass().getInterfaces() (which only shows the narrowed runtime set this
-        // node built). Otherwise -- the common case -- behaviour is unchanged.
+        // below), re-emit the RETAINED ORIGINAL wire bytes verbatim, byte-for-byte, rather than
+        // re-deriving fresh bytes from obj.getClass().getInterfaces() (which only shows the
+        // narrowed runtime set this node built, and would also forfeit the sender's
+        // @AtomicSerial-validated integrity guarantee -- see BoomerangProxyHandler). Otherwise --
+        // the common case, nothing was ever dropped -- behaviour is unchanged: encode fresh.
         if (Proxy.isProxyClass(obj.getClass())) {
-            String[] ifaceNames = ProxyWireSupport.interfaceNamesForWrite(obj);
-            if (ifaceNames.length == 0 || ifaceNames.length > ProxyWireSupport.MAX_PROXY_INTERFACES) {
-                throw new IOException("DER stream [8] proxy: interface count " + ifaceNames.length
+            byte[] retained = ProxyWireSupport.wireContentForBoomerang(obj);
+            if (retained != null) {
+                writeBuffer.add(DerWriter.writeTlv(CTX_PROXY, retained));
+                return;
+            }
+            Class<?>[] ifaces = obj.getClass().getInterfaces();
+            if (ifaces.length == 0 || ifaces.length > ProxyWireSupport.MAX_PROXY_INTERFACES) {
+                throw new IOException("DER stream [8] proxy: interface count " + ifaces.length
                         + " out of range (1.." + ProxyWireSupport.MAX_PROXY_INTERFACES + ")");
             }
-            InvocationHandler h = ProxyWireSupport.handlerForWrite(obj);
+            InvocationHandler h = Proxy.getInvocationHandler(obj);
             if (!h.getClass().isAnnotationPresent(AtomicSerial.class)) {
                 throw new UnsupportedOperationException(
                         "DER stream [8] proxy: InvocationHandler "
                         + h.getClass().getName() + " is not @AtomicSerial");
             }
             java.io.ByteArrayOutputStream content = new java.io.ByteArrayOutputStream();
-            content.writeBytes(DerWriter.writeInteger(BigInteger.valueOf(ifaceNames.length)));
-            for (String name : ifaceNames) {
-                content.writeBytes(DerWriter.writeUtf8String(name));
+            content.writeBytes(DerWriter.writeInteger(BigInteger.valueOf(ifaces.length)));
+            for (Class<?> iface : ifaces) {
+                content.writeBytes(DerWriter.writeUtf8String(iface.getName()));
             }
             try {
                 content.writeBytes(DerWriter.writeTlv(CTX_ATOMIC, encodeAtomicRecord(h)));
@@ -763,9 +770,10 @@ final class DerObjectStreamCodec {
             // loader -- Warres): resolves each interface name independently rather than failing
             // the whole item when a single name doesn't resolve locally. Names that don't resolve
             // are dropped (and logged); the proxy still builds over the resolvable subset, wrapped
-            // in a TolerantProxyHandler that retains the full original name list so a later
-            // re-forward of this proxy doesn't silently lose the dropped interfaces (see
-            // ProxyWireSupport / TolerantProxyHandler and the write side above).
+            // in a BoomerangProxyHandler that retains the full original wire bytes so a later
+            // re-forward of this proxy doesn't silently lose the dropped interfaces -- and re-emits
+            // those bytes byte-for-byte rather than re-deriving them (see ProxyWireSupport /
+            // BoomerangProxyHandler and the write side above).
             ProxyWireSupport.Resolved resolved = ProxyWireSupport.resolveTolerant(names, resolution);
             // DeSerializationPermission("PROXY") gate before reconstruction -- DER counterpart of
             // AtomicMarshalInputStream.instantiateProxy's deSerializationPermitted(PROXY). No-op w/o SM.
@@ -775,7 +783,7 @@ final class DerObjectStreamCodec {
             InvocationHandler realHandler = (InvocationHandler) handler;
             InvocationHandler toUse = resolved.droppedNames.length == 0
                     ? realHandler
-                    : ProxyWireSupport.wrapForDrop(realHandler, names);
+                    : ProxyWireSupport.wrapForDrop(realHandler, content);
             try {
                 return Proxy.newProxyInstance(resolved.proxyClass.getClassLoader(), resolved.interfaces, toUse);
             } catch (IllegalArgumentException e) {

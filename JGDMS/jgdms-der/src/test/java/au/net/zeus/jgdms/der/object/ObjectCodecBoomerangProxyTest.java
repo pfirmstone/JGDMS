@@ -17,6 +17,8 @@
 
 package au.net.zeus.jgdms.der.object;
 
+import au.net.zeus.jgdms.der.DerException;
+import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.object.fixtures.Greeter;
 import au.net.zeus.jgdms.der.object.fixtures.GreeterHandler;
@@ -38,11 +40,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tolerant per-name resolution and {@link TolerantProxyHandler} wrap/re-forward behaviour for the
+ * Tolerant per-name resolution and {@link BoomerangProxyHandler} wrap/re-forward behaviour for the
  * NESTED (field-level) bare {@code [8]} CTX_PROXY record (STD-008 sec.15.2), the
  * {@code ObjectCodec.decodeProxy}/{@code encodeProxy} half of the fix -- proves the shared
  * {@link ProxyWireSupport} helper behaves identically at both {@code [8]} sites, not just the
- * top-level object-stream one covered by {@code DerObjectStreamTolerantProxyTest}.
+ * top-level object-stream one covered by {@code DerObjectStreamBoomerangProxyTest}.
  *
  * <p>{@link OuterWithProxy#getGreeter()} is declared as the {@link Greeter} interface, but the
  * runtime value here is a {@code Proxy} implementing BOTH {@link Greeter} and the extra
@@ -51,7 +53,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * "drop" {@code Marker} specifically while {@code Greeter} (the declared/needed type) still
  * resolves.
  */
-class ObjectCodecTolerantProxyTest {
+class ObjectCodecBoomerangProxyTest {
 
     interface Marker { String mark(); }
 
@@ -87,6 +89,21 @@ class ObjectCodecTolerantProxyTest {
     private static byte[] encode(OuterWithProxy outer) throws Exception {
         SchemaChain.Result chain = SchemaGenerator.generateChain(OuterWithProxy.class);
         return ObjectCodec.encodeHierarchy(outer, chain);
+    }
+
+    /**
+     * Parses a {@code [8]} CTX_PROXY TLV's leading interface-name list directly off its CONTENT
+     * bytes (no outer tag+length header) -- the shape {@link BoomerangProxyHandler#originalWireBytes()}
+     * returns (white-box check).
+     */
+    private static String[] rawInterfaceNamesFromContent(byte[] content) throws DerException {
+        DerReader pr = new DerReader(content);
+        int count = pr.readInteger().intValueExact();
+        String[] names = new String[count];
+        for (int i = 0; i < count; i++) {
+            names[i] = pr.readUtf8String();
+        }
+        return names;
     }
 
     /**
@@ -126,9 +143,10 @@ class ObjectCodecTolerantProxyTest {
         assertEquals("nested-hi: world", g.greet("world"), "the real handler must still work");
 
         InvocationHandler h = Proxy.getInvocationHandler(g);
-        assertTrue(h instanceof TolerantProxyHandler);
+        assertTrue(h instanceof BoomerangProxyHandler);
         assertArrayEquals(new String[]{ Greeter.class.getName(), Marker.class.getName() },
-                ((TolerantProxyHandler) h).originalInterfaceNames());
+                rawInterfaceNamesFromContent(((BoomerangProxyHandler) h).originalWireBytes()),
+                "the wrapper must retain the FULL original wire-declared interface list, byte-for-byte");
     }
 
     /**
@@ -166,14 +184,17 @@ class ObjectCodecTolerantProxyTest {
         Greeter g = decoded.getGreeter();
         assertTrue(g instanceof Greeter && g instanceof Marker);
         InvocationHandler h = Proxy.getInvocationHandler(g);
-        assertFalse(h instanceof TolerantProxyHandler, "nothing dropped -> plain handler, unwrapped");
+        assertFalse(h instanceof BoomerangProxyHandler, "nothing dropped -> plain handler, unwrapped");
         assertTrue(h instanceof GreeterHandler);
     }
 
     /**
      * Nested-field counterpart of the two-hop forwarding landmine-fix test: hop1 decodes with
      * Marker missing, re-encodes (forwards) the resulting OuterWithProxy, and the re-encoded
-     * nested [8] record must carry the FULL original interface set, not the narrowed one.
+     * nested [8] record must carry the FULL original interface set, not the narrowed one -- AND
+     * the re-encoded bytes must be byte-identical to the original sender's bytes, not merely a
+     * structurally equivalent fresh re-encoding (the actual point of this fix; see
+     * BoomerangProxyHandler).
      */
     @Test
     void nestedProxy_twoHopForward_reEncodesFullOriginalInterfaceSet() throws Exception {
@@ -184,9 +205,12 @@ class ObjectCodecTolerantProxyTest {
 
         SelectivelyBlockingLoader hop1Loader = new SelectivelyBlockingLoader(real, "Marker");
         OuterWithProxy atHop1 = decode(wireFromSender, hop1Loader);
-        assertTrue(Proxy.getInvocationHandler(atHop1.getGreeter()) instanceof TolerantProxyHandler);
+        assertTrue(Proxy.getInvocationHandler(atHop1.getGreeter()) instanceof BoomerangProxyHandler);
 
         byte[] wireForwardedByHop1 = encode(atHop1);
+        assertArrayEquals(wireFromSender, wireForwardedByHop1,
+                "forwarded wire bytes must be byte-identical to the original sender's bytes, not a fresh re-encoding");
+
         OuterWithProxy atDownstream = decode(wireForwardedByHop1, real);
 
         Greeter g = atDownstream.getGreeter();
