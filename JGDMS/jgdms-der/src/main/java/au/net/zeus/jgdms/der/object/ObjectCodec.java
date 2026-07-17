@@ -174,13 +174,6 @@ public final class ObjectCodec {
     private static final Permission PROXY = new DeSerializationPermission("PROXY");
 
     /**
-     * Maximum number of interfaces a nested {@code java.lang.reflect.Proxy} field value
-     * may declare (matches {@code DerObjectStreamCodec.MAX_PROXY_INTERFACES}); bounds the
-     * {@code [8]} interface-name list against a hostile stream.
-     */
-    private static final int MAX_PROXY_INTERFACES = 127;
-
-    /**
      * {@code [8]} context-constructed tag: a nested {@code java.lang.reflect.Proxy} field
      * value (interface names + the {@code @AtomicSerial} InvocationHandler). Identical tag
      * to the object-stream {@code CTX_PROXY} so the two layers share one wire discriminator.
@@ -1535,22 +1528,27 @@ public final class ObjectCodec {
      */
     private static byte[] encodeProxy(Object proxy, String fieldName, int depth)
             throws DerException {
-        Class<?>[] ifaces = proxy.getClass().getInterfaces();
-        if (ifaces.length == 0 || ifaces.length > MAX_PROXY_INTERFACES) {
+        // If proxy's live handler is a TolerantProxyHandler (this node itself decoded proxy from
+        // a [8] item that dropped >=1 interface it couldn't resolve locally -- see decodeProxy
+        // below), re-emit the RETAINED ORIGINAL interface list and the UNWRAPPED real handler,
+        // not proxy.getClass().getInterfaces() (which only shows the narrowed runtime set this
+        // node built). Otherwise -- the common case -- behaviour is unchanged.
+        String[] ifaceNames = ProxyWireSupport.interfaceNamesForWrite(proxy);
+        if (ifaceNames.length == 0 || ifaceNames.length > ProxyWireSupport.MAX_PROXY_INTERFACES) {
             throw new DerException("ObjectCodec: nested proxy field '" + fieldName
-                    + "' interface count " + ifaces.length
-                    + " out of range (1.." + MAX_PROXY_INTERFACES + ")");
+                    + "' interface count " + ifaceNames.length
+                    + " out of range (1.." + ProxyWireSupport.MAX_PROXY_INTERFACES + ")");
         }
-        InvocationHandler h = Proxy.getInvocationHandler(proxy);
+        InvocationHandler h = ProxyWireSupport.handlerForWrite(proxy);
         if (nearestAtomicSerial(h.getClass()) == null) {
             throw new DerException("ObjectCodec: nested proxy field '" + fieldName
                     + "' InvocationHandler " + h.getClass().getName()
                     + " is not @AtomicSerial");
         }
         ByteArrayOutputStream content = new ByteArrayOutputStream();
-        content.writeBytes(DerWriter.writeInteger(BigInteger.valueOf(ifaces.length)));
-        for (Class<?> i : ifaces) {
-            content.writeBytes(DerWriter.writeUtf8String(i.getName()));
+        content.writeBytes(DerWriter.writeInteger(BigInteger.valueOf(ifaceNames.length)));
+        for (String name : ifaceNames) {
+            content.writeBytes(DerWriter.writeUtf8String(name));
         }
         // Handler as a nested @AtomicSerial value (depth + 1): reuses the depth bound,
         // ResolutionContext and DGC decode-unit threading of the nested-field path.
@@ -1695,9 +1693,9 @@ public final class ObjectCodec {
         } catch (ArithmeticException e) {
             throw new DerException("ObjectCodec.decodeProxy: interface count overflow", e);
         }
-        if (count <= 0 || count > MAX_PROXY_INTERFACES) {
+        if (count <= 0 || count > ProxyWireSupport.MAX_PROXY_INTERFACES) {
             throw new DerException("ObjectCodec.decodeProxy: interface count " + count
-                    + " out of range (1.." + MAX_PROXY_INTERFACES + ")");
+                    + " out of range (1.." + ProxyWireSupport.MAX_PROXY_INTERFACES + ")");
         }
         String[] names = new String[count];
         for (int i = 0; i < count; i++) {
@@ -1718,14 +1716,24 @@ public final class ObjectCodec {
             throw new DerException("ObjectCodec.decodeProxy: handler is not an InvocationHandler ("
                     + (handler == null ? "null" : handler.getClass().getName()) + ")");
         }
-        // Endpoint-assigned resolution of the proxy class (the raw loader stays inside the
-        // ResolutionContext); the DeSerializationPermission("PROXY") gate runs on its interfaces.
-        Class<?> proxyClass = resolution.loadProxyClass(names);
-        Class<?>[] ifaces = proxyClass.getInterfaces();
-        checkProxyDeSerializationPermitted(ifaces);
+        // Endpoint-assigned TOLERANT resolution of the proxy class (the raw loader stays inside
+        // the ResolutionContext): resolves each interface name independently rather than failing
+        // the whole item when a single name doesn't resolve locally. Names that don't resolve are
+        // dropped (and logged); the proxy still builds over the resolvable subset, wrapped in a
+        // TolerantProxyHandler that retains the full original name list so a later re-forward of
+        // this proxy doesn't silently lose the dropped interfaces (see ProxyWireSupport /
+        // TolerantProxyHandler and the write side above).
+        ProxyWireSupport.Resolved resolved = ProxyWireSupport.resolveTolerant(names, resolution);
+        // DeSerializationPermission("PROXY") gate runs on the RESOLVED (narrowed) interfaces
+        // actually being instantiated, not the full original names.
+        checkProxyDeSerializationPermitted(resolved.interfaces);
+        InvocationHandler realHandler = (InvocationHandler) handler;
+        InvocationHandler toUse = resolved.droppedNames.length == 0
+                ? realHandler
+                : ProxyWireSupport.wrapForDrop(realHandler, names);
         try {
             return Proxy.newProxyInstance(
-                    proxyClass.getClassLoader(), ifaces, (InvocationHandler) handler);
+                    resolved.proxyClass.getClassLoader(), resolved.interfaces, toUse);
         } catch (IllegalArgumentException e) {
             throw new DerException("ObjectCodec.decodeProxy: proxy reconstruction failed", e);
         }

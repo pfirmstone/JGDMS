@@ -26,6 +26,7 @@ import au.net.zeus.jgdms.der.marshal.MarshalledInstanceCodec;
 import au.net.zeus.jgdms.der.marshal.MarshalledInstanceRecord;
 import au.net.zeus.jgdms.der.object.DerProxySerializer;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
+import au.net.zeus.jgdms.der.object.ProxyWireSupport;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
 import java.util.Arrays;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
@@ -77,7 +78,12 @@ import java.util.Set;
  * [0]->0x80, [1]->0xa1, [3]->0x83, [5]->0x85, [7]->0xa7, [8]->0xa8.
  * (A {@code java.lang.reflect.Proxy} whose interfaces + {@code @AtomicSerial} handler are
  * locally resolvable is transmitted bare as [8]; one that needs a codebase download is
- * instead substituted by a {@code ProxySerializer} and rides the [1] path, per STD-008 sec.15.2.)
+ * instead substituted by a {@code ProxySerializer} and rides the [1] path, per STD-008 sec.15.2.
+ * Interface names in a [8] item are resolved TOLERANTLY: a name that fails to resolve locally is
+ * dropped rather than failing the whole item, provided at least one interface still resolves --
+ * see {@link au.net.zeus.jgdms.der.object.ProxyWireSupport} and
+ * {@link au.net.zeus.jgdms.der.object.TolerantProxyHandler}, which also preserve the full
+ * original interface list for a later re-forward of a narrowed proxy.)
  *
  * <h2>No handle table -- pure value-tree, deterministic (STD-008 sec.15.3)</h2>
  * <p>
@@ -110,9 +116,6 @@ final class DerObjectStreamCodec {
     private static final Tag CTX_PROXY       = new Tag(Tag.CLASS_CONTEXT, true,  8);
     /** [9] constructed context tag: top-level value array (UTF8 componentWireType + element SEQUENCE). */
     private static final Tag CTX_ARRAY       = new Tag(Tag.CLASS_CONTEXT, true,  9);
-
-    /** DoS bound on a [8] proxy's interface count (mirrors AtomicMarshalInputStream's Byte.MAX_VALUE). */
-    private static final int MAX_PROXY_INTERFACES = 127;
 
     /** {@link DeSerializationPermission}("PROXY") required to reconstruct a [8] proxy (mirrors JOSS). */
     private static final Permission PROXY_PERM = new DeSerializationPermission("PROXY");
@@ -378,22 +381,28 @@ final class DerObjectStreamCodec {
         // bare java.lang.reflect.Proxy -> [8]: interface names + the @AtomicSerial InvocationHandler,
         // reconstructed via Proxy.newProxyInstance. No ProxySerializer/bootstrap/codebase -- the
         // interfaces + handler must be locally resolvable on the receiver (sec.15.2).
+        //
+        // If obj's live handler is a TolerantProxyHandler (this node itself decoded obj from a
+        // [8] item that dropped >=1 interface it couldn't resolve locally -- see readObject
+        // below), re-emit the RETAINED ORIGINAL interface list and the UNWRAPPED real handler,
+        // not obj.getClass().getInterfaces() (which only shows the narrowed runtime set this
+        // node built). Otherwise -- the common case -- behaviour is unchanged.
         if (Proxy.isProxyClass(obj.getClass())) {
-            Class<?>[] ifaces = obj.getClass().getInterfaces();
-            if (ifaces.length == 0 || ifaces.length > MAX_PROXY_INTERFACES) {
-                throw new IOException("DER stream [8] proxy: interface count " + ifaces.length
-                        + " out of range (1.." + MAX_PROXY_INTERFACES + ")");
+            String[] ifaceNames = ProxyWireSupport.interfaceNamesForWrite(obj);
+            if (ifaceNames.length == 0 || ifaceNames.length > ProxyWireSupport.MAX_PROXY_INTERFACES) {
+                throw new IOException("DER stream [8] proxy: interface count " + ifaceNames.length
+                        + " out of range (1.." + ProxyWireSupport.MAX_PROXY_INTERFACES + ")");
             }
-            InvocationHandler h = Proxy.getInvocationHandler(obj);
+            InvocationHandler h = ProxyWireSupport.handlerForWrite(obj);
             if (!h.getClass().isAnnotationPresent(AtomicSerial.class)) {
                 throw new UnsupportedOperationException(
                         "DER stream [8] proxy: InvocationHandler "
                         + h.getClass().getName() + " is not @AtomicSerial");
             }
             java.io.ByteArrayOutputStream content = new java.io.ByteArrayOutputStream();
-            content.writeBytes(DerWriter.writeInteger(BigInteger.valueOf(ifaces.length)));
-            for (Class<?> i : ifaces) {
-                content.writeBytes(DerWriter.writeUtf8String(i.getName()));
+            content.writeBytes(DerWriter.writeInteger(BigInteger.valueOf(ifaceNames.length)));
+            for (String name : ifaceNames) {
+                content.writeBytes(DerWriter.writeUtf8String(name));
             }
             try {
                 content.writeBytes(DerWriter.writeTlv(CTX_ATOMIC, encodeAtomicRecord(h)));
@@ -725,9 +734,9 @@ final class DerObjectStreamCodec {
             Object handler;
             try {
                 count = pr.readInteger().intValueExact();
-                if (count <= 0 || count > MAX_PROXY_INTERFACES) {
+                if (count <= 0 || count > ProxyWireSupport.MAX_PROXY_INTERFACES) {
                     throw new IOException("readObject: [8] proxy interface count " + count
-                            + " out of range (1.." + MAX_PROXY_INTERFACES + ")");
+                            + " out of range (1.." + ProxyWireSupport.MAX_PROXY_INTERFACES + ")");
                 }
                 names = new String[count];
                 for (int i = 0; i < count; i++) {
@@ -750,17 +759,25 @@ final class DerObjectStreamCodec {
                 throw new IOException("readObject: [8] proxy handler is not an InvocationHandler ("
                         + (handler == null ? "null" : handler.getClass().getName()) + ")");
             }
-            // Endpoint-assigned resolution of the proxy class (NEVER the thread-context loader --
-            // Warres): ClassLoading.loadProxyClass picks the right preferred/OSGi-aware loader,
-            // with the endpoint's defaultLoader anchoring the parent so the shared interfaces
-            // resolve to the receiver's types. The raw loader stays inside the ResolutionContext.
-            Class<?> proxyClass = resolution.loadProxyClass(names);
-            Class<?>[] ifaces = proxyClass.getInterfaces();
+            // Endpoint-assigned TOLERANT resolution of the proxy class (NEVER the thread-context
+            // loader -- Warres): resolves each interface name independently rather than failing
+            // the whole item when a single name doesn't resolve locally. Names that don't resolve
+            // are dropped (and logged); the proxy still builds over the resolvable subset, wrapped
+            // in a TolerantProxyHandler that retains the full original name list so a later
+            // re-forward of this proxy doesn't silently lose the dropped interfaces (see
+            // ProxyWireSupport / TolerantProxyHandler and the write side above).
+            ProxyWireSupport.Resolved resolved = ProxyWireSupport.resolveTolerant(names, resolution);
             // DeSerializationPermission("PROXY") gate before reconstruction -- DER counterpart of
             // AtomicMarshalInputStream.instantiateProxy's deSerializationPermitted(PROXY). No-op w/o SM.
-            checkProxyDeSerializationPermitted(ifaces);
+            // Runs against the RESOLVED (narrowed) interface set actually being instantiated, not
+            // the full original names -- that's what's actually being granted a live proxy.
+            checkProxyDeSerializationPermitted(resolved.interfaces);
+            InvocationHandler realHandler = (InvocationHandler) handler;
+            InvocationHandler toUse = resolved.droppedNames.length == 0
+                    ? realHandler
+                    : ProxyWireSupport.wrapForDrop(realHandler, names);
             try {
-                return Proxy.newProxyInstance(proxyClass.getClassLoader(), ifaces, (InvocationHandler) handler);
+                return Proxy.newProxyInstance(resolved.proxyClass.getClassLoader(), resolved.interfaces, toUse);
             } catch (IllegalArgumentException e) {
                 throw new IOException("readObject: [8] proxy reconstruction failed", e);
             }
