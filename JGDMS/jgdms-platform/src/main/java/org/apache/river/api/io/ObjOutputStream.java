@@ -1870,9 +1870,15 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
                 }
             }
 
-            if ( objClass.isAnnotationPresent(AtomicSerial.class)
+            // Honour the serialization-proxy pattern: a class may implement
+            // Replace (writeReplace -> a @AtomicSerial proxy) without itself
+            // being @AtomicSerial (e.g. AID/ConstrainableAID). Such a class must
+            // still have writeReplace applied; otherwise it falls through to
+            // writeNewObject and is rejected as not serializable.
+            if ( (objClass.isAnnotationPresent(AtomicSerial.class)
+                        || object instanceof Replace)
                     && computeClassBasedReplacement) {
-                
+
                 if(object instanceof Replace){
 //                    Method methodWriteReplace = clDesc.getMethodWriteReplace();
                     Object replObj = ((Replace)object).writeReplace(); 
