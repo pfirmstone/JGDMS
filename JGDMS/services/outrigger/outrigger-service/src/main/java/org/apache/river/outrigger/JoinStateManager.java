@@ -22,10 +22,13 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
@@ -43,7 +46,6 @@ import org.apache.river.config.Config;
 import org.apache.river.logging.Levels;
 import org.apache.river.outrigger.proxy.StorableObject;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages
@@ -548,10 +550,13 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
          
         out.writeInt(attributes.length);
         for (int i=0; i<attributes.length; i++) {
-            // Dual-read upgrade: always write the canonical MarshalledInstance
-            // (AtomicMarshalledInstance is the JOSS/@AtomicSerial-validated
-            // form, not DER -- see its javadoc; still schema-checked).
-            out.writeObject(new AtomicMarshalledInstance(attributes[i]));
+            // Dual-read upgrade: write via DER (MarshallingFormat.ATOMIC_DER);
+            // old JOSS-encoded entries still decode via the existing dual-read
+            // instanceof MarshalledInstance check in readAttributes below
+            // (payloadFormat dispatch happens inside MarshalledInstance.get(),
+            // no code change needed there).
+            out.writeObject(new MarshalledInstance(attributes[i], Collections.EMPTY_SET,
+                    new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)));
 	}
     }
  
@@ -586,6 +591,11 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
             } catch (ClassNotFoundException e) {
 		logger.log(Level.INFO, "Encountered ClassNotFoundException " +
 		    "recovering attribute, dropping attribute", e);
+            } catch (IllegalStateException e) {
+                // MarshalledInstance.get()'s payloadFormat could not be
+                // resolved (e.g. jgdms-der missing from the classpath).
+		logger.log(Level.INFO, "Encountered IllegalStateException recovering " +
+                    "attribute, dropping attribute", e);
             }
         }
  

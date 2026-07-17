@@ -22,9 +22,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
+import java.util.Collections;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -66,7 +68,8 @@ class EventID implements Serializable {
 
     public static void serialize(PutArg arg, EventID o) throws IOException {
         arg.put("id", o.id);
-        arg.put("source", new AtomicMarshalledInstance(o.source));
+        arg.put("source", new MarshalledInstance(o.source, Collections.EMPTY_SET,
+                new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)));
         arg.writeArgs();
     }
 
@@ -187,10 +190,12 @@ class EventID implements Serializable {
         throws IOException
     {
         stream.defaultWriteObject();
-        // Dual-read upgrade: write the canonical MarshalledInstance
-        // (AtomicMarshalledInstance is the JOSS/@AtomicSerial-validated form,
-        // not DER -- see its javadoc) instead of a lossy java.rmi.MarshalledObject.
-        stream.writeObject(new AtomicMarshalledInstance(source));
+        // Dual-read upgrade: write via DER (MarshallingFormat.ATOMIC_DER); old
+        // JOSS-encoded entries still decode via the dual-read instanceof
+        // MarshalledInstance check in readObject below (payloadFormat dispatch
+        // happens inside MarshalledInstance.get(), no code change needed there).
+        stream.writeObject(new MarshalledInstance(source, Collections.EMPTY_SET,
+                new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)));
     }
 
     /**

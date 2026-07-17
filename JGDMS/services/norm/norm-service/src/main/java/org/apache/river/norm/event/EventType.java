@@ -26,13 +26,15 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 import net.jini.security.ProxyPreparer;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -239,9 +241,10 @@ public class EventType implements Serializable {
 	
 	if (listener == null) {
 	    clearListener();
-	} else {	    
-	    marshalledListener = 
-                new AtomicMarshalledInstance(listener);
+	} else {
+	    marshalledListener =
+                new MarshalledInstance(listener, Collections.EMPTY_SET,
+                        new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
 	    this.listener = listener;
 	    this.handback = handback;
 	}
@@ -280,6 +283,12 @@ public class EventType implements Serializable {
 	    // $$$ is this really the right thing to do?
 	    // we probably really have a corrupted marshalledListener here
 	} catch (ClassNotFoundException e) {
+	    logger.log(Levels.HANDLED,
+		       "Problem unmarshalling listener -- will retry later",
+		       e);
+	} catch (IllegalStateException e) {
+	    // MarshalledInstance.get()'s payloadFormat could not be
+	    // resolved (e.g. jgdms-der missing from the classpath).
 	    logger.log(Levels.HANDLED,
 		       "Problem unmarshalling listener -- will retry later",
 		       e);

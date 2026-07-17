@@ -21,9 +21,11 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.SyncFailedException;
+import java.util.Collections;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * This class provides the interface for writing <tt>RemoteEvent</tt>s to 
@@ -158,10 +160,12 @@ class EventWriter {
 	    // successful read later on (i.e. should always be able to read the
 	    // MarshalledInstance but we might not be able to reconstruct a
 	    // RemoteEvent object because of codebase problems). Dual-read upgrade:
-	    // write the canonical MarshalledInstance (AtomicMarshalledInstance is
-	    // the JOSS/@AtomicSerial-validated form, not DER -- see its javadoc)
-	    // rather than a java.rmi.MarshalledObject.
-	    MarshalledInstance mi = new AtomicMarshalledInstance(ev);
+	    // write via DER (MarshallingFormat.ATOMIC_DER); old JOSS-encoded
+	    // entries still decode via the existing dual-read instanceof
+	    // MarshalledInstance check (payloadFormat dispatch happens inside
+	    // MarshalledInstance.get(), no code change needed there).
+	    MarshalledInstance mi = new MarshalledInstance(ev, Collections.EMPTY_SET,
+	            new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
 	    eout.reset();
 	    eout.writeObject(mi);
 	    eout.flush();

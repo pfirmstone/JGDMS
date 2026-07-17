@@ -27,9 +27,12 @@ import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.lease.Lease;
@@ -39,7 +42,6 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.io.MarshalledInstance;
 import net.jini.lease.LeaseRenewalSet;
 import net.jini.security.ProxyPreparer;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -202,7 +204,8 @@ class ClientLeaseWrapper implements Lease, Serializable {
 
 	clientLeaseExpiration = clientLease.getExpiration();
 	clientLease.setSerialFormat(Lease.ABSOLUTE);
-	marshalledClientLease = new AtomicMarshalledInstance(clientLease);
+	marshalledClientLease = new MarshalledInstance(clientLease, Collections.EMPTY_SET,
+	        new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
 
 	this.renewDuration = renewDuration;
 	membershipExpiration = calcMembershipExpiration(membershipDuration, now);

@@ -47,6 +47,8 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationProvider;
 import net.jini.config.ConfigurationException;
 import net.jini.config.NoSuchEntryException;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
@@ -79,6 +81,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.HashMap;
@@ -126,7 +129,6 @@ import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.thread.NamedThreadFactory;
 import org.apache.river.mercury.proxy.*;
 import org.apache.river.proxy.CodebaseProvider;
@@ -3749,10 +3751,12 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    throws IOException
 	{
 	    stream.defaultWriteObject();
-	    // Dual-read upgrade: write the canonical MarshalledInstance
-	    // (AtomicMarshalledInstance is the JOSS/@AtomicSerial-validated form,
-	    // not DER -- see its javadoc) rather than a lossy java.rmi.MarshalledObject.
-	    stream.writeObject(new AtomicMarshalledInstance(target));
+	    // Dual-read upgrade: write via DER (MarshallingFormat.ATOMIC_DER);
+	    // old JOSS-encoded entries still decode via the existing dual-read
+	    // instanceof MarshalledInstance check below (payloadFormat dispatch
+	    // happens inside MarshalledInstance.get(), no code change needed there).
+	    stream.writeObject(new MarshalledInstance(target, Collections.EMPTY_SET,
+	            new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)));
 	}
 
 	/**
@@ -4322,7 +4326,8 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
              */
             try {
                 marshalledAttrs.add(
-                    new AtomicMarshalledInstance(attrs[i]));
+                    new MarshalledInstance(attrs[i], Collections.EMPTY_SET,
+                        new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)));
             } catch(Throwable e) {
 	        if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
                     RECOVERY_LOGGER.log(Levels.HANDLED,

@@ -24,6 +24,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.rmi.MarshalledObject;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
@@ -33,6 +34,8 @@ import java.util.logging.LogRecord;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.NoSuchEntryException;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
@@ -49,7 +52,6 @@ import org.apache.river.logging.Levels;
 import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * Utility class that combines <code>JoinManager</code> with persistence.
@@ -410,10 +412,13 @@ public class JoinState extends LogHandler implements SubStore {
 	
 	out.writeInt(attributes.length);
 	for (int i=0; i<attributes.length; i++) {
-	    // Dual-read upgrade: always write the canonical MarshalledInstance
-	    // (AtomicMarshalledInstance is the JOSS/@AtomicSerial-validated
-	    // form, not DER -- see its javadoc; still schema-checked).
-	    out.writeObject(new AtomicMarshalledInstance(attributes[i]));
+	    // Dual-read upgrade: write via DER (MarshallingFormat.ATOMIC_DER);
+	    // old JOSS-encoded entries still decode via the existing dual-read
+	    // instanceof MarshalledInstance check in readAttributes below
+	    // (payloadFormat dispatch happens inside MarshalledInstance.get(),
+	    // no code change needed there).
+	    out.writeObject(new MarshalledInstance(attributes[i], Collections.EMPTY_SET,
+	            new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)));
 	}
     }
 
@@ -446,6 +451,12 @@ public class JoinState extends LogHandler implements SubStore {
 			   "Problem recovering attribute -- discarding",
 			   e);
 	    } catch (ClassNotFoundException e) {
+		logger.log(Level.INFO,
+			   "Problem recovering attribute -- discarding",
+			   e);
+	    } catch (IllegalStateException e) {
+		// MarshalledInstance.get()'s payloadFormat could not be
+		// resolved (e.g. jgdms-der missing from the classpath).
 		logger.log(Level.INFO,
 			   "Problem recovering attribute -- discarding",
 			   e);

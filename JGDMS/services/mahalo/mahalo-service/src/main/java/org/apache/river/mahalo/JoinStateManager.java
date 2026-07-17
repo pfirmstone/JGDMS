@@ -28,12 +28,15 @@ import java.io.OutputStream;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
@@ -53,7 +56,6 @@ import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
 import org.apache.river.mahalo.proxy.*;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages
@@ -730,10 +732,13 @@ class JoinStateManager extends LogHandler {
          
         out.writeInt(attributes.length);
         for (int i=0; i<attributes.length; i++) {
-            // Dual-read upgrade: always write the canonical MarshalledInstance
-            // (AtomicMarshalledInstance is the JOSS/@AtomicSerial-validated
-            // form, not DER -- see its javadoc; still schema-checked).
-            out.writeObject(new AtomicMarshalledInstance(attributes[i]));
+            // Dual-read upgrade: write via DER (MarshallingFormat.ATOMIC_DER);
+            // old JOSS-encoded entries still decode via the existing dual-read
+            // instanceof MarshalledInstance check in readAttributes below
+            // (payloadFormat dispatch happens inside MarshalledInstance.get(),
+            // no code change needed there).
+            out.writeObject(new MarshalledInstance(attributes[i], Collections.EMPTY_SET,
+                    new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)));
 	}
     }
  
@@ -765,12 +770,19 @@ class JoinStateManager extends LogHandler {
                 entries.add(mi.get(false));
             } catch (IOException e) {
                 if(initlogger.isLoggable(Levels.HANDLED)) {
-	            initlogger.log(Levels.HANDLED, 
+	            initlogger.log(Levels.HANDLED,
 		    "Exception getting service attribute ... skipping", e);
 		}
             } catch (ClassNotFoundException e) {
                 if(initlogger.isLoggable(Levels.HANDLED)) {
-	            initlogger.log(Levels.HANDLED, 
+	            initlogger.log(Levels.HANDLED,
+		    "Exception getting service attribute ... skipping", e);
+		}
+            } catch (IllegalStateException e) {
+                // MarshalledInstance.get()'s payloadFormat could not be
+                // resolved (e.g. jgdms-der missing from the classpath).
+                if(initlogger.isLoggable(Levels.HANDLED)) {
+	            initlogger.log(Levels.HANDLED,
 		    "Exception getting service attribute ... skipping", e);
 		}
             }

@@ -98,6 +98,7 @@ import net.jini.config.ConfigurationProvider;
 import net.jini.config.NoSuchEntryException;
 import net.jini.constraint.BasicMethodConstraints;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
@@ -139,7 +140,6 @@ import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.action.GetBooleanAction;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -885,7 +885,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    arg.put("seqNo", o.seqNo);
 	    arg.put("handback", o.handback);
 	    arg.put("leaseExpiration", o.leaseExpiration);
-	    arg.put("listener", o.listener == null ? null : new AtomicMarshalledInstance(o.listener));
+	    arg.put("listener", o.listener == null ? null : new MarshalledInstance(o.listener,
+	            Collections.EMPTY_SET,
+	            new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)));
 	    arg.writeArgs();
 	}
 
@@ -1010,7 +1012,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    throws IOException
 	{
 	    stream.defaultWriteObject();
-	    stream.writeObject(new AtomicMarshalledInstance(listener));
+	    // Dual-read upgrade: write via DER (MarshallingFormat.ATOMIC_DER);
+	    // old JOSS-encoded entries still decode via the existing dual-read
+	    // instanceof MarshalledInstance check in readObject below
+	    // (payloadFormat dispatch happens inside MarshalledInstance.get(),
+	    // no code change needed there).
+	    stream.writeObject(new MarshalledInstance(listener, Collections.EMPTY_SET,
+	            new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)));
 	}
 
 	/**

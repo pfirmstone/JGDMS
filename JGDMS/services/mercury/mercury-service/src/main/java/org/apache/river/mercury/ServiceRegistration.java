@@ -19,7 +19,7 @@ package org.apache.river.mercury;
 
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.river.api.io.AtomicMarshalledInstance;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
@@ -27,6 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Condition;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.event.UnknownEventException;
 import net.jini.id.Uuid;
@@ -229,8 +231,9 @@ class ServiceRegistration extends AbstractLeasedResource
 	    marshalledEventTarget = null;
 	} else {
 	    preparedEventTarget = preparedTarget;
-	    marshalledEventTarget = 
-                new AtomicMarshalledInstance(preparedTarget);
+	    marshalledEventTarget =
+                new MarshalledInstance(preparedTarget, Collections.EMPTY_SET,
+                        new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
 	}
     }
     
@@ -269,8 +272,19 @@ class ServiceRegistration extends AbstractLeasedResource
         }
         synchronized (this){
             if (marshalledEventTarget != null) {
-                RemoteEventListener unprepared = 
-                    (RemoteEventListener) marshalledEventTarget.get(false);
+                RemoteEventListener unprepared;
+                try {
+                    unprepared =
+                        (RemoteEventListener) marshalledEventTarget.get(false);
+                } catch (IllegalStateException e) {
+                    // MarshalledInstance.get()'s payloadFormat could not be
+                    // resolved (e.g. jgdms-der missing from the classpath).
+                    // Surface this as the checked IOException this method
+                    // already documents, rather than letting an undocumented
+                    // unchecked exception escape.
+                    throw new IOException(
+                        "Unable to resolve MarshalledInstance payload format", e);
+                }
                 preparedEventTarget = (RemoteEventListener)
                     targetPreparer.prepareProxy(unprepared);
             }

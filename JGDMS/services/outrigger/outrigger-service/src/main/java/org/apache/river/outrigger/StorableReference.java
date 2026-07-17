@@ -23,9 +23,11 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
+import java.util.Collections;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * This class holds a proxy for some remote resource. When
@@ -100,8 +102,19 @@ class StorableReference implements Externalizable {
 	 * of duplicating the work of the first).
 	 */
 
-	if (obj == null)
-	    obj = instance.get(false);
+	if (obj == null) {
+	    try {
+		obj = instance.get(false);
+	    } catch (IllegalStateException e) {
+		// MarshalledInstance.get()'s payloadFormat could not be
+		// resolved (e.g. jgdms-der missing from the classpath).
+		// Surface this as the checked IOException this method already
+		// documents, rather than letting an undocumented unchecked
+		// exception escape.
+		throw new IOException(
+		    "Unable to resolve MarshalledInstance payload format", e);
+	    }
+	}
 
 	if (!prepared) {
 	    if (preparer != null)
@@ -118,8 +131,14 @@ class StorableReference implements Externalizable {
     // inherit doc comment
     public void writeExternal(ObjectOutput out) throws IOException {
 	synchronized (this) {
+	    // Dual-read upgrade: write via DER (MarshallingFormat.ATOMIC_DER);
+	    // old JOSS-encoded entries still decode via the dual-read
+	    // instanceof MarshalledInstance check in readExternal below
+	    // (payloadFormat dispatch happens inside MarshalledInstance.get(),
+	    // no code change needed there).
 	    if (instance == null)
-		instance = new AtomicMarshalledInstance(obj);   // JOSS/@AtomicSerial-validated form, not DER -- see its javadoc
+		instance = new MarshalledInstance(obj, Collections.EMPTY_SET,
+		        new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
             out.writeObject(instance);
 	}
     }

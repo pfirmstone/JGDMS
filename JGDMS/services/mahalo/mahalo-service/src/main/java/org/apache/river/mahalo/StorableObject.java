@@ -24,8 +24,10 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
+import java.util.Collections;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -100,7 +102,12 @@ public class StorableObject implements java.io.Serializable {
 
     private static MarshalledInstance toMI(Object obj) throws RemoteException{
 	try {
-            return new AtomicMarshalledInstance(obj);   // JOSS/@AtomicSerial-validated form, not DER -- see its javadoc
+            // Dual-read upgrade: write via DER (MarshallingFormat.ATOMIC_DER);
+            // old JOSS-encoded entries still decode via readInstance()/get()
+            // below (payloadFormat dispatch happens inside
+            // MarshalledInstance.get(), no code change needed there).
+            return new MarshalledInstance(obj, Collections.EMPTY_SET,
+                    new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
         } catch (RemoteException e){
 	    throw e;
         } catch (IOException e){
@@ -151,6 +158,10 @@ public class StorableObject implements java.io.Serializable {
 	} catch (IOException e) {
 	    fatalError("can't decode object", e);
 	} catch (ClassNotFoundException e) {
+	    fatalError("can't decode object", e);
+	} catch (IllegalStateException e) {
+	    // MarshalledInstance.get()'s payloadFormat could not be
+	    // resolved (e.g. jgdms-der missing from the classpath).
 	    fatalError("can't decode object", e);
 	}
 	fatalError("how did we get here?", null);
