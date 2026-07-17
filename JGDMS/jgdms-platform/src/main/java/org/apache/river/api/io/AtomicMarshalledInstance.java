@@ -40,18 +40,29 @@ import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
- * Implementation of MarshalledInstance that performs input validation 
+ * Implementation of MarshalledInstance that performs input validation
  * during un-marshaling.
- * 
+ *
  * Unlike MarshalledInstance, AtomicMarshalledInstance does not use code base
  * annotations by default.
- * 
+ *
  * Note that this implementation doesn't replace the stored object instance
  * if it's an instance of {@link ProxyAccessor}, but will replace any {@link ProxyAccessor}
  * references it contains.
- * 
+ *
  * @author peter
+ * @deprecated This is JOSS -- built entirely on {@link AtomicMarshalOutputStream}/
+ *     {@link AtomicMarshalInputStream} (the Java-Serialization-coupled, object-stream
+ *     wire format half of the {@code @AtomicSerial} marshalling path). It is being
+ *     superseded by the DER marshalling path's {@code MarshalledInstance}
+ *     implementation ({@code au.net.zeus.jgdms.der.marshal.DerMarshalledInstance},
+ *     {@code jgdms-der} module), which encodes {@code @AtomicSerial} records as ASN.1
+ *     DER rather than the Java Serialization object-stream protocol. Not yet
+ *     scheduled for removal -- the DER path is not fully load-bearing for every JOSS
+ *     consumer yet -- but new code should target {@code DerMarshalledInstance}, not
+ *     this.
  */
+@Deprecated
 @AtomicSerial
 public final class AtomicMarshalledInstance extends MarshalledInstance {
     
