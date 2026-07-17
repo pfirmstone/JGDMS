@@ -343,11 +343,23 @@ final class ClinitBlockingVisitor {
      *
      * <p>Only methods actually defined by {@code rootClass} are returned:
      * {@code callGraph} keys are the classes' own defined methods (populated by
-     * {@link #indexClass}), and the {@code rootClass + "/"} prefix match is
-     * exact at the owner boundary (JVM internal names separate the package with
-     * {@code /}, inner classes with {@code $}), so a sibling class whose name
-     * shares a prefix — e.g. {@code com/FooBar} versus {@code com/Foo} — is not
-     * captured.
+     * {@link #indexClass}), matched by a {@code rootClass + "/"} prefix. This
+     * correctly excludes a sibling class whose name shares a prefix (e.g.
+     * {@code com/FooBar} versus {@code com/Foo}) and an inner class (e.g.
+     * {@code com/Foo$Inner}), since {@code $} and other non-matching characters
+     * break the prefix match.
+     *
+     * <p><b>Not exact at arbitrary sub-package boundaries.</b> A class
+     * internally named {@code com/Foo/Bar} — i.e. a class in a "package" named
+     * after {@code rootClass} — also matches the {@code com/Foo/} prefix and
+     * would be captured. This is fail-secure <em>over</em>-capture, not
+     * under-capture: at worst it roots more methods than {@code rootClass}
+     * itself defines, which can only surface additional true findings or a
+     * conservative false-positive verdict, never mask a real sink. It also
+     * requires a hand-crafted class layout no ordinary compiler can emit (a
+     * class cannot share a fully-qualified name with another class's
+     * package). Left as a known, deliberately-unfixed edge case rather than
+     * complicating the prefix match for something that can only fail safe.
      *
      * @param rootClass the internal binary class name whose surface to collect
      * @param callGraph populated by {@link #indexClass} for all JAR classes
@@ -372,6 +384,28 @@ final class ClinitBlockingVisitor {
      * registry-driven, allowlist-based, fail-secure BFS the {@code <clinit>}
      * check uses, but covering a downloaded proxy's whole constructible /
      * invocable surface rather than static initialization alone.
+     *
+     * <p><b>Hard precondition for any caller analyzing a multi-class artifact
+     * (e.g. a downloaded proxy JAR): rooting a single class's surface only
+     * catches a dangerous call reachable via an ordinary, non-reflective
+     * invocation edge into another class.</b> A call reached via reflection
+     * ({@code Method.invoke}) or a {@code MethodHandle} into a
+     * <em>different</em> class — a helper class the entry class delegates to,
+     * or a compiler-generated anonymous/inner class — is opaque to this BFS
+     * the same way any reflective edge is, and evades detection when only the
+     * entry class's own surface is rooted, even though the target method is
+     * itself a definite sink and would be caught immediately if analysed on
+     * its own. Rooting a single class's surface closes reflection laundering
+     * only for calls that land back inside that same class; it does not, by
+     * itself, close it for the JAR as a whole.
+     *
+     * <p>A caller that needs the whole-JAR guarantee (e.g. deciding whether a
+     * downloaded proxy is safe to load) <b>MUST</b> compute the union of
+     * {@link #invocableSurfaceRoots} for <em>every</em> class in the JAR and
+     * pass that whole set to {@link #analyzeReachability} directly (or
+     * equivalently call this method once per class and treat any non-CLEAN
+     * result as disqualifying) — never analyse only the proxy's own entry
+     * class in isolation and treat a CLEAN result as covering the JAR.
      *
      * @param rootClass  the internal binary class name whose surface to analyse
      * @param callGraph  populated by {@link #indexClass} for all JAR classes
