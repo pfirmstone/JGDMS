@@ -27,15 +27,15 @@
 // the codebase/principal clauses as appropriate for that granting role.
 //
 
-// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar" {
     permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.LoadClassPermission \"ALLOW\";";
 };
 
-// proxy codebase: file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar" {
-    permission net.jini.security.GrantPermission "java.io.FilePermission \"file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar\", \"read\";";
+grant codebase "file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar" {
+    permission net.jini.security.GrantPermission "java.io.FilePermission \"file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar\", \"read\";";
 };
 

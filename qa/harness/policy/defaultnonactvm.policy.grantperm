@@ -27,33 +27,33 @@
 // the codebase/principal clauses as appropriate for that granting role.
 //
 
-// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar" {
     permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.LoadClassPermission \"ALLOW\"; org.apache.river.api.io.DeSerializationPermission \"ENTRY\";";
 };
 
-// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/mahalo-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/mahalo-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/mahalo-dl-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/mahalo-dl-4.0.0-SNAPSHOT.jar" {
     permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.LoadClassPermission \"ALLOW\";";
 };
 
-// proxy codebase: file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar" {
-    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.SerialObjectPermission \"jdk.proxy6.$Proxy15\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"net.jini.id.UuidFactory$Impl\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"net.jini.jeri.BasicInvocationHandler\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"net.jini.jeri.BasicObjectEndpoint\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"net.jini.jeri.tcp.TcpEndpoint\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"org.apache.river.api.io.AtomicMarshalledInstance\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"org.apache.river.reggie.proxy.ConstrainableRegistration\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"org.apache.river.reggie.proxy.ConstrainableServiceLease\"; java.io.FilePermission \"file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar\", \"read\";";
+grant codebase "file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar" {
+    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.SerialObjectPermission \"jdk.proxy6.$Proxy15\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"net.jini.id.UuidFactory$Impl\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"net.jini.jeri.BasicInvocationHandler\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"net.jini.jeri.BasicObjectEndpoint\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"net.jini.jeri.tcp.TcpEndpoint\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"org.apache.river.api.io.AtomicMarshalledInstance\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"org.apache.river.reggie.proxy.ConstrainableRegistration\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"org.apache.river.reggie.proxy.ConstrainableServiceLease\"; java.io.FilePermission \"file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar\", \"read\";";
 };
 
-// proxy codebase: file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/outrigger-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/outrigger-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/outrigger-dl-3.1.1-SNAPSHOT.jar" {
-    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.SerialObjectPermission \"net.jini.io.MarshalledInstance\"; java.io.FilePermission \"/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/outrigger-dl-3.1.1-SNAPSHOT.jar\", \"read\"; java.io.FilePermission \"file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/outrigger-dl-3.1.1-SNAPSHOT.jar\", \"read\";";
+grant codebase "file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/outrigger-dl-4.0.0-SNAPSHOT.jar" {
+    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.SerialObjectPermission \"net.jini.io.MarshalledInstance\"; java.io.FilePermission \"/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/outrigger-dl-4.0.0-SNAPSHOT.jar\", \"read\"; java.io.FilePermission \"file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/outrigger-dl-4.0.0-SNAPSHOT.jar\", \"read\";";
 };
 
-// proxy codebase: file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/reggie-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/reggie-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/reggie-dl-3.1.1-SNAPSHOT.jar" {
-    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.SerialObjectPermission \"org.apache.river.reggie.proxy.EntryClass\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"org.apache.river.reggie.proxy.ServiceType\"; java.io.FilePermission \"/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/reggie-dl-3.1.1-SNAPSHOT.jar\", \"read\"; java.io.FilePermission \"file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/reggie-dl-3.1.1-SNAPSHOT.jar\", \"read\";";
+grant codebase "file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/reggie-dl-4.0.0-SNAPSHOT.jar" {
+    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.SerialObjectPermission \"org.apache.river.reggie.proxy.EntryClass\"; au.zeus.jdk.authorization.guards.SerialObjectPermission \"org.apache.river.reggie.proxy.ServiceType\"; java.io.FilePermission \"/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/reggie-dl-4.0.0-SNAPSHOT.jar\", \"read\"; java.io.FilePermission \"file:/home/user/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/reggie-dl-4.0.0-SNAPSHOT.jar\", \"read\";";
 };
 

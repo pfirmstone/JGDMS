@@ -27,33 +27,33 @@
 // the codebase/principal clauses as appropriate for that granting role.
 //
 
-// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo" {
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar", principal org.apache.river.api.security.UnresolvedPrincipal "CN=Mahalo" {
     permission net.jini.security.GrantPermission "java.lang.RuntimePermission \"createVirtualThread\";";
 };
 
-// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", principal org.apache.river.api.security.UnresolvedPrincipal "CN=Phoenix" {
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar", principal org.apache.river.api.security.UnresolvedPrincipal "CN=Phoenix" {
     permission net.jini.security.GrantPermission "java.lang.RuntimePermission \"createVirtualThread\";";
 };
 
-// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar" {
-    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.LoadClassPermission \"ALLOW\"; java.io.FilePermission \"file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/jgdms-lib-dl-3.1.1-SNAPSHOT.jar\", \"read\"; java.lang.RuntimePermission \"createVirtualThread\";";
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar" {
+    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.LoadClassPermission \"ALLOW\"; java.io.FilePermission \"file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/jgdms-lib-dl-4.0.0-SNAPSHOT.jar\", \"read\"; java.lang.RuntimePermission \"createVirtualThread\";";
 };
 
-// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/mahalo-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/mahalo-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/mahalo-dl-3.1.1-SNAPSHOT.jar" {
-    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.LoadClassPermission \"ALLOW\"; java.io.FilePermission \"file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/mahalo-dl-3.1.1-SNAPSHOT.jar\", \"read\";";
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/mahalo-dl-4.0.0-SNAPSHOT.jar" {
+    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.LoadClassPermission \"ALLOW\"; java.io.FilePermission \"file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/mahalo-dl-4.0.0-SNAPSHOT.jar\", \"read\";";
 };
 
-// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/phoenix-dl-3.1.1-SNAPSHOT.jar
+// proxy codebase: file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/phoenix-dl-4.0.0-SNAPSHOT.jar
 // proxy-shape permissions present: false
-grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/phoenix-dl-3.1.1-SNAPSHOT.jar" {
-    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.LoadClassPermission \"ALLOW\"; java.io.FilePermission \"file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib-dl/phoenix-dl-3.1.1-SNAPSHOT.jar\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\";";
+grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/phoenix-dl-4.0.0-SNAPSHOT.jar" {
+    permission net.jini.security.GrantPermission "au.zeus.jdk.authorization.guards.LoadClassPermission \"ALLOW\"; java.io.FilePermission \"file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib-dl/phoenix-dl-4.0.0-SNAPSHOT.jar\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\";";
 };
 

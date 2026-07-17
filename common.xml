@@ -38,7 +38,7 @@
     <property name="lib" value="lib"/>
     <property name="lib-dl" value="lib-dl"/>
     <property name="lib-ext" value="lib-ext"/>
-    <property name="dist" value="JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/"/>
+    <property name="dist" value="JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/"/>
     <property name="doc.spec.api" value="${doc}/specs/api"/>
     <property name="doc.api" value="${doc}/api"/>
     <property name="build" value="build"/>
@@ -98,7 +98,7 @@
     <property name="jskprivate.include" value="-in org.apache.river.action -in org.apache.river.collection -in org.apache.river.constants -in org.apache.river.system -in org.apache.river.logging -skip org.apache.river.logging.LogManager -skip org.apache.river.logging.Levels -in org.apache.river.outrigger"/>
     <!-- Common packages to exclude within ClassDep -->
     <property name="jskplatform.exclude" value="-out org.apache.river.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river.api -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip org.apache.river.config.ConfigUtil -skip org.apache.river.config.KeyStores -skip org.apache.river.logging.LogManager"/>
-    <property name="jgdms.version" value="3.1.1-SNAPSHOT"/>
+    <property name="jgdms.version" value="4.0.0-SNAPSHOT"/>
     <property name="jsk.home" location="${root}"/>
     <property name="river.lib.dir" location="${jsk.home}/${dist}/${lib}"/>
     <property name="river.lib-dl.dir" location="${jsk.home}/${dist}/${lib-dl}"/>
@@ -144,7 +144,7 @@
         <pathelement path="${river.classes.dir}"/>
     </path>
 
-    <fileset id="asm.jars" dir="${root}/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib">
+    <fileset id="asm.jars" dir="${root}/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib">
         <include name="asm-9.7.1.jar" />
         <include name="asm-commons-9.7.1.jar" />
     </fileset>
@@ -187,7 +187,7 @@
     </path>
    
     <path id="classdep.jar.classpath">
-        <pathelement location="${river.lib.dir}/classdep-3.1.1-SNAPSHOT.jar"/>
+        <pathelement location="${river.lib.dir}/classdep-4.0.0-SNAPSHOT.jar"/>
         <path refid="asm.classpath" />
     </path>
 

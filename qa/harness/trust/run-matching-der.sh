@@ -25,8 +25,8 @@
 # STAGING (do before running, when jeri source changed):
 #   cd JGDMS/JGDMS
 #   JAVA_HOME=<dirtychai> mvn -o -pl jgdms-platform,jgdms-jeri -Dmaven.test.skip=true package
-#   cp jgdms-jeri/target/jgdms-jeri-3.1.1-SNAPSHOT.jar \
-#      ../dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-jeri-3.1.1-SNAPSHOT.jar
+#   cp jgdms-jeri/target/jgdms-jeri-4.0.0-SNAPSHOT.jar \
+#      ../dist/target/JGDMS-4.0.0-SNAPSHOT/lib/jgdms-jeri-4.0.0-SNAPSHOT.jar
 #   # (stage ONLY the jeri jar -- platform built under DirtyChai is tainted by the
 #   #  --release 21 embedded-copy trap; net.jini.jeri.* is NOT embedded, so jeri is safe.)
 # ============================================================================
