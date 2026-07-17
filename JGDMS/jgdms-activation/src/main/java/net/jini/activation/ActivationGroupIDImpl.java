@@ -74,8 +74,14 @@ public class ActivationGroupIDImpl implements Serializable, ActivationGroupID {
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ActivationGroupID) {
-            ActivationGroupID id = (ActivationGroupID) obj;
-            return (uid.equals(id.getUID()) && system.equals(id.getSystem()));
+            // Identity is the globally-unique uid alone, consistent with the
+            // uid-only hashCode. The system must NOT participate: it is a
+            // constrained JERI proxy whose equality includes client
+            // constraints and proxy preparation, so a round-tripped group id
+            // (sent to an activation-group child and returned via activeGroup)
+            // would fail its own groupTable lookup with UnknownGroupException
+            // even though it denotes the same group.
+            return uid.equals(((ActivationGroupID) obj).getUID());
         }
         return false;
     }
