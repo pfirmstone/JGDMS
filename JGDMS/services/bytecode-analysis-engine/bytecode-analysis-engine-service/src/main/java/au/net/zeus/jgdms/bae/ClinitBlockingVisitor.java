@@ -19,6 +19,7 @@ package au.net.zeus.jgdms.bae;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
@@ -33,24 +34,38 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
 import au.net.zeus.jgdms.api.codebase.ClinitVerdict;
 
 /**
- * ASM-based visitor that analyses a single class's {@code <clinit>} (static
- * initializer) method for blocking call paths.
+ * ASM-based visitor that indexes a class's call graph and answers
+ * registry-driven, allowlist-based, fail-secure reachability questions over it.
  *
  * <p>The visitor is used in two phases by {@link JarAnalyzer}:
  * <ol>
- *   <li><strong>Index phase</strong> — {@link #indexClass(byte[], Map)} is
- *       called for every {@code .class} entry in the JAR.  It populates the
- *       shared call-graph map: for each class, the set of
- *       {@code "owner/name/descriptor"} triples directly called from
- *       {@code <clinit>}.</li>
- *   <li><strong>Analysis phase</strong> — {@link #analyzeClinitReachability}
- *       performs a BFS from the root class's {@code <clinit>} through the
- *       call graph, up to a configurable depth, looking for calls that reach
- *       a {@link BlockingSinkRegistry#BLOCKING_SINKS known blocking sink} or an
- *       unregistered native method.</li>
+ *   <li><strong>Index phase</strong> — {@link #indexClass} is called for every
+ *       {@code .class} entry in the JAR.  It populates the shared call-graph
+ *       map: for <em>each defined method</em> of each class, the set of
+ *       {@code "owner/name/descriptor"} triples it directly calls (plus
+ *       synthetic {@code <clinit>} edges for static-field references).</li>
+ *   <li><strong>Analysis phase</strong> — a BFS over the indexed call graph
+ *       looks for calls that reach a
+ *       {@link BlockingSinkRegistry#BLOCKING_SINKS known blocking sink} or an
+ *       unregistered native method, up to a configurable depth.  The BFS is
+ *       exposed at three levels of generality, all sharing one implementation
+ *       ({@link #analyzeReachability}):
+ *       <ul>
+ *         <li>{@link #analyzeClinitReachability} — rooted at a class's
+ *             {@code <clinit>} only (the original virtual-thread carrier-pinning
+ *             DoS check; behaviour unchanged).</li>
+ *         <li>{@link #analyzeInvocableSurfaceReachability} — rooted at a
+ *             downloaded proxy's whole constructible / invocable surface.</li>
+ *         <li>{@link #analyzeReachability} — the multi-source primitive, rooted
+ *             at any caller-supplied set of methods and parameterised by a
+ *             {@link SinkPolicy} so future consumers (a {@code nanoTime}-family
+ *             timing denylist, a lock-contention detector) reuse the machinery
+ *             rather than duplicating it.</li>
+ *       </ul></li>
  * </ol>
  *
  * <p>Thread safety: this class is stateless; all state is passed as method
@@ -194,25 +209,103 @@ final class ClinitBlockingVisitor {
     }
 
     // -------------------------------------------------------------------------
-    // Phase 2: BFS reachability analysis from <clinit>
+    // Phase 2: BFS reachability analysis
     // -------------------------------------------------------------------------
 
     /**
+     * Pluggable policy that tells {@link #analyzeReachability} which call sites
+     * are terminal "hits", which native methods are known-safe (so they do not
+     * trip the fail-secure {@link ClinitVerdict#NATIVE_OPACITY} default-deny),
+     * and — for a sink hit — which {@link ClinitVerdict} to assign.
+     *
+     * <p>This is the seam that lets future consumers (a {@code nanoTime}-family
+     * timing denylist, a lock-contention/{@code MONITORENTER} detector) reuse
+     * the whole call-graph BFS machinery in {@link #analyzeReachability} by
+     * supplying a <em>different</em> sink set rather than mutating the shared
+     * {@link BlockingSinkRegistry} (which would cross-contaminate the existing
+     * {@code <clinit>} blocking analysis).  It is deliberately minimal: three
+     * methods, matching exactly what the traversal needs and no more.
+     *
+     * <p>The default {@link #BLOCKING_SINK_POLICY} reproduces the historical
+     * {@code <clinit>}-blocking behaviour byte-for-byte.
+     */
+    interface SinkPolicy {
+        /**
+         * @return {@code true} if the call site {@code owner/name/descriptor}
+         *         is a terminal sink that must halt the traversal with a hit.
+         */
+        boolean isSink(String owner, String name, String descriptor);
+
+        /**
+         * @return {@code true} if the <em>native</em> method
+         *         {@code owner/name/descriptor} is known not to warrant a
+         *         {@link ClinitVerdict#NATIVE_OPACITY} verdict (i.e. it is on
+         *         the known-safe allowlist).  Anything not covered here that is
+         *         native and reachable is treated fail-secure as opaque.
+         */
+        boolean isSafeNative(String owner, String name, String descriptor);
+
+        /**
+         * Maps a discovered sink hit to a verdict, given the reconstructed
+         * root-to-sink {@code path} and the whole {@code callGraph} (so a
+         * policy may inspect sibling calls, e.g. for permission-guard
+         * detection).
+         *
+         * @return the verdict for this sink hit; never {@code null}
+         */
+        ClinitVerdict sinkVerdict(List<String> path,
+                                  Map<String, Set<String>> callGraph);
+    }
+
+    /**
+     * The default policy: the exact {@code <clinit>}-blocking semantics this
+     * class shipped with.  Sinks are {@link BlockingSinkRegistry#isBlocking};
+     * safe natives are {@link BlockingSinkRegistry#isSafeNative}; a sink hit is
+     * {@link ClinitVerdict#BLOCKING_GUARDED} when a permission guard is present
+     * on the path and {@link ClinitVerdict#BLOCKING} otherwise.
+     */
+    static final SinkPolicy BLOCKING_SINK_POLICY = new SinkPolicy() {
+        @Override
+        public boolean isSink(String owner, String name, String descriptor) {
+            return BlockingSinkRegistry.isBlocking(owner, name, descriptor);
+        }
+
+        @Override
+        public boolean isSafeNative(String owner, String name, String descriptor) {
+            return BlockingSinkRegistry.isSafeNative(owner, name, descriptor);
+        }
+
+        @Override
+        public ClinitVerdict sinkVerdict(List<String> path,
+                                         Map<String, Set<String>> callGraph) {
+            return hasPermissionGuardOnPath(path, callGraph)
+                    ? ClinitVerdict.BLOCKING_GUARDED
+                    : ClinitVerdict.BLOCKING;
+        }
+    };
+
+    /**
      * Performs a BFS from {@code rootClass + "/<clinit>/()V"} through the
-     * {@code callGraph} up to {@code maxDepth} hops.  Returns the
-     * {@link ClinitVerdict} and the shortest path to the first blocking sink,
-     * if any.
+     * {@code callGraph} up to {@code maxDepth} hops, using the default
+     * {@link #BLOCKING_SINK_POLICY}.  Returns the {@link ClinitVerdict} and the
+     * shortest path to the first blocking sink, if any.
+     *
+     * <p>This is the original, {@code <clinit>}-rooted entry point, retained
+     * unchanged for {@link JarAnalyzer}'s per-class blocking verdict.  It is now
+     * a thin adapter over the generalized {@link #analyzeReachability} (rooted
+     * at the single {@code <clinit>} method), which the T2 work introduced so
+     * the same machinery can be rooted at an arbitrary invocable surface.  Its
+     * behaviour — verdicts <em>and</em> reconstructed paths — is identical to
+     * the pre-T2 implementation for every input.
      *
      * @param rootClass  the internal binary class name to start from
      * @param callGraph  populated by {@link #indexClass} for all JAR classes
      * @param isNativeMap populated by {@link #indexClass} for all JAR classes
      * @param maxDepth   maximum BFS depth (see {@link
      *                   au.net.zeus.jgdms.api.codebase.AnalysisRequest#getMaxBfsDepth()})
-     * @return a two-element array: {@code [verdict, path]}, where
-     *         {@code verdict} is a {@link ClinitVerdict} and {@code path} is
-     *         a {@link List}&lt;String&gt; of call-site triples leading to the
-     *         blocking sink (empty for {@code CLEAN} / {@code NATIVE_OPACITY}
-     *         / {@code CYCLE})
+     * @return a {@link ClinitAnalysisResult} carrying the verdict and the path
+     *         of call-site triples leading to the blocking sink (empty for
+     *         {@code CLEAN} / {@code NATIVE_OPACITY} with no path)
      */
     static ClinitAnalysisResult analyzeClinitReachability(
             String rootClass,
@@ -222,23 +315,165 @@ final class ClinitBlockingVisitor {
 
         String clinitKey = rootClass + "/<clinit>/()V";
 
-        // If there is no <clinit> at all, it's clean.
+        // If there is no <clinit> at all, it's clean.  (analyzeReachability
+        // would also return CLEAN for an absent root, but the explicit
+        // short-circuit here documents and pins the historical contract.)
         if (!callGraph.containsKey(clinitKey)) {
             return new ClinitAnalysisResult(ClinitVerdict.CLEAN,
                     Collections.<String>emptyList());
         }
 
-        // BFS: each node is a method key.  Rather than every queued node
-        // carrying a full copy of the path-so-far (O(V·pathlen) memory), we
-        // record each node's parent exactly once, at first-visit time, and
-        // reconstruct the full path only once — by walking backward from a
-        // found sink to the root — the single time a sink is actually found.
-        Set<String> visited          = new HashSet<String>();
-        Map<String, String> parent   = new HashMap<String, String>();
-        Deque<BfsNode> queue         = new ArrayDeque<BfsNode>();
+        return analyzeReachability(Collections.singleton(clinitKey),
+                callGraph, isNativeMap, maxDepth, BLOCKING_SINK_POLICY);
+    }
 
-        queue.add(new BfsNode(clinitKey, 0));
-        visited.add(clinitKey);
+    /**
+     * Returns the set of method keys ({@code "owner/name/descriptor"}) that
+     * constitute {@code rootClass}'s own invocable surface: <em>every</em>
+     * method the class defines — its {@code <clinit>}, every constructor, and
+     * every declared method regardless of access modifier.
+     *
+     * <p>The whole surface (not merely {@code public}/interface methods) is
+     * returned deliberately, on fail-secure grounds: for a downloaded proxy the
+     * attacker controls the class's own bytecode, so a dangerous call reachable
+     * only from a {@code private} method — e.g. one invoked reflectively from a
+     * public method, a hop the call graph cannot follow — must still be rooted.
+     * Rooting at the whole surface is a strict superset of any narrower entry
+     * set, so it can only ever find <em>more</em> reachable sinks, never fewer.
+     *
+     * <p>Only methods actually defined by {@code rootClass} are returned:
+     * {@code callGraph} keys are the classes' own defined methods (populated by
+     * {@link #indexClass}), and the {@code rootClass + "/"} prefix match is
+     * exact at the owner boundary (JVM internal names separate the package with
+     * {@code /}, inner classes with {@code $}), so a sibling class whose name
+     * shares a prefix — e.g. {@code com/FooBar} versus {@code com/Foo} — is not
+     * captured.
+     *
+     * @param rootClass the internal binary class name whose surface to collect
+     * @param callGraph populated by {@link #indexClass} for all JAR classes
+     * @return the (possibly empty) set of method keys owned by {@code rootClass}
+     */
+    static Set<String> invocableSurfaceRoots(
+            String rootClass, Map<String, Set<String>> callGraph) {
+        String prefix = rootClass + "/";
+        Set<String> roots = new LinkedHashSet<String>();
+        for (String key : callGraph.keySet()) {
+            if (key.startsWith(prefix)) {
+                roots.add(key);
+            }
+        }
+        return roots;
+    }
+
+    /**
+     * Convenience entry point that runs {@link #analyzeReachability} rooted at
+     * {@code rootClass}'s entire {@linkplain #invocableSurfaceRoots invocable
+     * surface}.  This is the generalization T2 exists to provide: the same
+     * registry-driven, allowlist-based, fail-secure BFS the {@code <clinit>}
+     * check uses, but covering a downloaded proxy's whole constructible /
+     * invocable surface rather than static initialization alone.
+     *
+     * @param rootClass  the internal binary class name whose surface to analyse
+     * @param callGraph  populated by {@link #indexClass} for all JAR classes
+     * @param isNativeMap populated by {@link #indexClass} for all JAR classes
+     * @param maxDepth   maximum BFS depth
+     * @param policy     the sink policy (e.g. {@link #BLOCKING_SINK_POLICY}, or
+     *                   a future timing / lock-contention policy)
+     * @return the reachability verdict and path; {@code CLEAN} if the class
+     *         defines no methods or none reach a sink within {@code maxDepth}
+     */
+    static ClinitAnalysisResult analyzeInvocableSurfaceReachability(
+            String rootClass,
+            Map<String, Set<String>> callGraph,
+            Map<String, Boolean> isNativeMap,
+            int maxDepth,
+            SinkPolicy policy) {
+        return analyzeReachability(
+                invocableSurfaceRoots(rootClass, callGraph),
+                callGraph, isNativeMap, maxDepth, policy);
+    }
+
+    /**
+     * Generalized, multi-source reachability BFS — the keystone T2 primitive.
+     * Performs a breadth-first traversal of {@code callGraph} seeded at
+     * <em>every</em> method key in {@code rootMethodKeys} simultaneously (all at
+     * depth 0), up to {@code maxDepth} hops, and returns the shortest-path hit
+     * against {@code policy}, or {@code CLEAN} if none is reachable.
+     *
+     * <p>Root selection is a real parameter here (not hardcoded to
+     * {@code <clinit>}): callers pass a single method, a class's whole invocable
+     * surface, or any arbitrary set.  Because the traversal shares one
+     * {@code visited} set across all roots, seeding many roots is no more
+     * expensive in the worst case than seeding one — total work stays
+     * O(V + E) over the reachable sub-graph, independent of the root count.
+     *
+     * <p><strong>Fail-secure posture (unchanged from the {@code <clinit>}
+     * version):</strong> any reachable native method not affirmed safe by
+     * {@code policy.isSafeNative} yields {@link ClinitVerdict#NATIVE_OPACITY};
+     * this default-deny is applied to the roots themselves as well as their
+     * transitive callees, so a downloaded class's own unregistered native
+     * method — which has no body and therefore no out-edges for a callee-only
+     * scan to discover — is still caught when it is a root.
+     *
+     * <p>The parent-pointer path reconstruction from the prior hardening is
+     * preserved (each node records its parent once, at first-visit; the full
+     * path is rebuilt only on the single hit), so this remains O(V + E) memory
+     * rather than O(V·pathlen).
+     *
+     * @param rootMethodKeys the method keys to seed the BFS from; keys not
+     *                       present in {@code callGraph} are ignored, and an
+     *                       empty/all-absent set yields {@code CLEAN}
+     * @param callGraph      populated by {@link #indexClass} for all JAR classes
+     * @param isNativeMap    populated by {@link #indexClass} for all JAR classes
+     * @param maxDepth       maximum BFS depth; defensively clamped to
+     *                       {@link AnalysisRequest#MAX_MAX_BFS_DEPTH}
+     * @param policy         the sink policy (never {@code null})
+     * @return the reachability verdict and the shortest root-to-sink path
+     */
+    static ClinitAnalysisResult analyzeReachability(
+            Collection<String> rootMethodKeys,
+            Map<String, Set<String>> callGraph,
+            Map<String, Boolean> isNativeMap,
+            int maxDepth,
+            SinkPolicy policy) {
+
+        // Defensive depth clamp: JarAnalyzer already validates maxDepth via
+        // AnalysisRequest, but a future consumer of this primitive might not,
+        // and an unbounded depth over a whole invocable surface is a DoS vector
+        // in its own right.  Never widen past the platform ceiling.
+        if (maxDepth > AnalysisRequest.MAX_MAX_BFS_DEPTH) {
+            maxDepth = AnalysisRequest.MAX_MAX_BFS_DEPTH;
+        }
+
+        // Retain only roots that actually exist in the call graph, preserving
+        // encounter order for deterministic shortest-path selection when equal-
+        // length paths exist from different roots.
+        Set<String> roots = new LinkedHashSet<String>();
+        for (String r : rootMethodKeys) {
+            if (r != null && callGraph.containsKey(r)) {
+                roots.add(r);
+            }
+        }
+        if (roots.isEmpty()) {
+            return new ClinitAnalysisResult(ClinitVerdict.CLEAN,
+                    Collections.<String>emptyList());
+        }
+
+        // BFS with parent pointers (see method javadoc for the memory rationale).
+        Set<String> visited        = new HashSet<String>();
+        Map<String, String> parent = new HashMap<String, String>();
+        Deque<BfsNode> queue       = new ArrayDeque<BfsNode>();
+
+        // Seed all roots at depth 0.  Evaluate each root as a potential hit
+        // first (fail-secure: a root that is itself an unregistered native must
+        // not be skipped just because it has no out-edges to walk).
+        for (String root : roots) {
+            visited.add(root);
+            ClinitAnalysisResult rootHit = evaluateNode(
+                    root, roots, parent, callGraph, isNativeMap, policy);
+            if (rootHit != null) return rootHit;
+            queue.add(new BfsNode(root, 0));
+        }
 
         while (!queue.isEmpty()) {
             BfsNode current = queue.poll();
@@ -257,37 +492,9 @@ final class ClinitBlockingVisitor {
                 // path can be reconstructed if it turns out to be the hit.
                 parent.put(callee, current.key);
 
-                // Decompose the key into owner/name/descriptor
-                int lastSlash = callee.lastIndexOf('/');
-                int prevSlash = (lastSlash > 0)
-                        ? callee.lastIndexOf('/', lastSlash - 1) : -1;
-                if (prevSlash < 0) continue; // malformed key
-
-                String descriptor = callee.substring(lastSlash + 1);
-                String ownerAndName = callee.substring(0, lastSlash);
-                int nameSlash = ownerAndName.lastIndexOf('/');
-                if (nameSlash < 0) continue;
-                String owner = ownerAndName.substring(0, nameSlash);
-                String name  = ownerAndName.substring(nameSlash + 1);
-
-                // Check blocking sink — determine if the path to this blocker
-                // is defended by a permission guard (BLOCKING_GUARDED) or not
-                // (BLOCKING).
-                if (BlockingSinkRegistry.isBlocking(owner, name, descriptor)) {
-                    List<String> path = reconstructPath(callee, clinitKey, parent);
-                    ClinitVerdict v = hasPermissionGuardOnPath(path, callGraph)
-                            ? ClinitVerdict.BLOCKING_GUARDED
-                            : ClinitVerdict.BLOCKING;
-                    return new ClinitAnalysisResult(v, path);
-                }
-
-                // Check unregistered native
-                Boolean isNative = isNativeMap.get(callee);
-                if (Boolean.TRUE.equals(isNative)
-                        && !BlockingSinkRegistry.isSafeNative(owner, name, descriptor)) {
-                    List<String> path = reconstructPath(callee, clinitKey, parent);
-                    return new ClinitAnalysisResult(ClinitVerdict.NATIVE_OPACITY, path);
-                }
+                ClinitAnalysisResult hit = evaluateNode(
+                        callee, roots, parent, callGraph, isNativeMap, policy);
+                if (hit != null) return hit;
 
                 // Continue BFS if callee has its own call graph entry.  The
                 // depth boundary is preserved exactly as before: a node AT
@@ -305,32 +512,83 @@ final class ClinitBlockingVisitor {
     }
 
     /**
+     * Evaluates a single already-visited node {@code key} against
+     * {@code policy}: returns a hit result if the node is a terminal sink or an
+     * unregistered (opaque) native method, otherwise {@code null}.
+     *
+     * <p>Key decomposition mirrors the historical inline logic exactly: a
+     * malformed key (fewer than two {@code /} separators) is silently treated
+     * as a non-hit — such keys can never be legitimate {@code callGraph} entries
+     * (those are always well-formed {@code owner/name/descriptor}) so they are
+     * likewise never enqueued by the caller, preserving prior behaviour.
+     */
+    private static ClinitAnalysisResult evaluateNode(
+            String key,
+            Set<String> roots,
+            Map<String, String> parent,
+            Map<String, Set<String>> callGraph,
+            Map<String, Boolean> isNativeMap,
+            SinkPolicy policy) {
+
+        // Decompose the key into owner/name/descriptor
+        int lastSlash = key.lastIndexOf('/');
+        int prevSlash = (lastSlash > 0) ? key.lastIndexOf('/', lastSlash - 1) : -1;
+        if (prevSlash < 0) return null; // malformed key — non-hit
+
+        String descriptor = key.substring(lastSlash + 1);
+        String ownerAndName = key.substring(0, lastSlash);
+        int nameSlash = ownerAndName.lastIndexOf('/');
+        if (nameSlash < 0) return null;
+        String owner = ownerAndName.substring(0, nameSlash);
+        String name  = ownerAndName.substring(nameSlash + 1);
+
+        // Terminal sink?  The policy decides the verdict (e.g. BLOCKING vs
+        // BLOCKING_GUARDED for the default blocking policy).
+        if (policy.isSink(owner, name, descriptor)) {
+            List<String> path = reconstructPath(key, roots, parent);
+            return new ClinitAnalysisResult(
+                    policy.sinkVerdict(path, callGraph), path);
+        }
+
+        // Unregistered native — fail-secure default-deny.
+        Boolean isNative = isNativeMap.get(key);
+        if (Boolean.TRUE.equals(isNative)
+                && !policy.isSafeNative(owner, name, descriptor)) {
+            List<String> path = reconstructPath(key, roots, parent);
+            return new ClinitAnalysisResult(ClinitVerdict.NATIVE_OPACITY, path);
+        }
+
+        return null;
+    }
+
+    /**
      * Reconstructs the root-to-{@code sink} path by walking the
      * {@code parent} pointers backward from {@code sink} and reversing the
      * result.  Produces exactly the same sequence the old full-path-copy BFS
-     * built: {@code [clinitKey, ..., sink]}.
+     * built: {@code [root, ..., sink]}.
      *
-     * <p>Termination is explicit — the walk stops the moment it reaches
-     * {@code clinitKey} (the seeded root, which never has a {@code parent}
-     * entry of its own) rather than relying on {@code parent.get(...)}
-     * incidentally returning {@code null}, so the loop cannot spin forever
-     * even if the map were ever mutated unexpectedly.
+     * <p>Termination is explicit — the walk stops the moment it reaches any
+     * seeded {@code root} (roots never have a {@code parent} entry of their own)
+     * rather than relying on {@code parent.get(...)} incidentally returning
+     * {@code null}, so the loop cannot spin forever even if the map were ever
+     * mutated unexpectedly.  For a single-root ({@code <clinit>}) traversal this
+     * is byte-for-byte the prior behaviour.
      *
-     * @param sink      the node the path must end at (a blocking sink or
-     *                  native-opaque callee)
-     * @param clinitKey the root node the path must start at
-     * @param parent    child → parent map, populated once per node at
-     *                  first-visit time by the BFS above
-     * @return the path from {@code clinitKey} to {@code sink}, inclusive
+     * @param sink   the node the path must end at (a blocking sink or
+     *               native-opaque callee); may itself be a root (path of one)
+     * @param roots  the seeded root set the path must start at
+     * @param parent child → parent map, populated once per node at first-visit
+     * @return the path from the reaching root to {@code sink}, inclusive
      */
-    private static List<String> reconstructPath(String sink, String clinitKey,
-                                                 Map<String, String> parent) {
+    private static List<String> reconstructPath(String sink,
+                                                Set<String> roots,
+                                                Map<String, String> parent) {
         List<String> path = new ArrayList<String>();
         String cur = sink;
         while (cur != null) {
             path.add(cur);
-            if (cur.equals(clinitKey)) {
-                break; // reached the root — stop explicitly
+            if (roots.contains(cur)) {
+                break; // reached a seeded root — stop explicitly
             }
             cur = parent.get(cur);
         }
@@ -350,7 +608,7 @@ final class ClinitBlockingVisitor {
      * whether the check appears before or after the blocking call in execution
      * order (which cannot be determined statically from a call graph alone).
      *
-     * @param path      the BFS path from {@code <clinit>} to the blocking sink
+     * @param path      the BFS path from the root to the blocking sink
      * @param callGraph the indexed call graph
      * @return {@code true} if a permission guard is present on the path
      */
