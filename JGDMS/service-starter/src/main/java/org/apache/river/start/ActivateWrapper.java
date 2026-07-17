@@ -55,6 +55,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.Replace;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.net.Uri;
 import org.apache.river.api.util.Startable;
@@ -164,7 +165,7 @@ import org.apache.river.api.util.Startable;
  *
  */
  
-public class ActivateWrapper implements Remote, Serializable {
+public class ActivateWrapper implements Remote, Serializable, Replace {
 
     /** Configure logger */
     static final Logger logger = Logger.getLogger("org.apache.river.start.wrapper");
@@ -642,7 +643,7 @@ public class ActivateWrapper implements Remote, Serializable {
      * Return a reference to service being wrapped in place
      * of this object.
      */
-    private Object writeReplace() throws ObjectStreamException {
+    public Object writeReplace() throws ObjectStreamException {
         Object impl_proxy = impl;
 	if (impl instanceof ProxyAccessor) {
 	    impl_proxy = ((ProxyAccessor) impl).getProxy();
