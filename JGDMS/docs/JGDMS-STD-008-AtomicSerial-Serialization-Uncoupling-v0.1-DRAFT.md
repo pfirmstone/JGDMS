@@ -19,7 +19,7 @@ normative DGC algorithm (§6).
 > **Changes in v0.9:** §18 added — A1 in-band JERI `MarshallingFormat` enforcement.
 > A1a: `DerMarshalInputStream implements org.apache.river.api.io.AtomicObjectInput`
 > (the DER service satisfies `AtomicInputValidation.YES`; in-band DER object args
-> route via `readObject(type)`). A1b: `MarshallingFormat.DER` as a JERI in-band
+> route via `readObject(type)`). A1b: `MarshallingFormat.ATOMIC_DER` as a JERI in-band
 > constraint in `BasicInvocationHandler`/`BasicInvocationDispatcher` — a transport
 > spike confirmed it is invocation-layer-only (like `AtomicInputValidation`), so no
 > tcp/http/ssl/kerberos edits. **Needs Peter qa** (edits in shared Basic* code).
@@ -671,7 +671,7 @@ Platform defines the contract; der provides the DER implementation; no cycle.
 > `schemaBytes`, `schemaDigest` and `payloadFormat` are first-class fields of
 > `MarshalledInstance`. The codec that produces/consumes `payloadBytes`+`schemaBytes`
 > is selected at runtime by `payloadFormat` via a `MarshalFactory` obtained from
-> `java.util.ServiceLoader` (the JGDMS-STD-006/DER factory is provided by the DER
+> `java.util.ServiceLoader` (the JGDMS-STD-006/ATOMIC-DER factory is provided by the DER
 > module). The decoder MUST use the embedded `schemaBytes` to populate `GetArg`
 > (§7.8 normative), comparing `schemaDigest` to the receiver's current
 > `serialForm()` digest only for the §12.4 fast-path. No codebase annotation appears
@@ -692,7 +692,7 @@ Platform defines the contract; der provides the DER implementation; no cycle.
 Implemented on branch `der-wireformat-std006` (platform + `jgdms-der`). The [OPEN]
 items are resolved as:
 
-- **`payloadFormat` = `String`** (e.g. `"JOSS"`, `"JGDMS-STD-006/DER"`). A human-readable
+- **`payloadFormat` = `String`** (e.g. `"JOSS"`, `"JGDMS-STD-006/ATOMIC-DER"`). A human-readable
   string is extensible without a platform enum and avoids OID-registry overhead; an
   OID/enum mapping can be layered later. `MarshalledInstance.FORMAT_JOSS` is the reserved
   built-in default.
@@ -745,7 +745,7 @@ scopes that work; it is grounded in the current call path and is **not yet imple
   - constraint check loop — `BasicInvocationHandler.java:894-926`: walks the request's
     *unfulfilled* requirements; recognises only `Integrity.YES` and
     `AtomicInputValidation.YES`; **any other requirement throws
-    `UnsupportedConstraintException`** (line 902-904). So a `MarshallingFormat.DER`
+    `UnsupportedConstraintException`** (line 902-904). So a `MarshallingFormat.ATOMIC_DER`
     requirement is REJECTED today.
   - wire framing — `:962-974`: writes a **marshalling-protocol-version byte**
     (`0x00` legacy / `0x01` atomic / `0x02` ACC+Subjects) + integrity + atomicValidation
@@ -847,7 +847,7 @@ effectively a STD-006 "streaming profile" (a new phase/spec), not constraint glu
    Tested in isolation (round-trip method+args byte-buffers), no network.
 3. **B2:** wire B1 into the `Der*` handler/dispatcher; loopback `ObjectEndpoint` test
    (in-memory, no sockets/dist) exercising a real call round-trip under
-   `MarshallingFormat.DER`.
+   `MarshallingFormat.ATOMIC_DER`.
 4. **A1 (coordinated):** the `BasicInvocationHandler`/`Dispatcher`/`ServerCapabilities`
    constraint-loop edits; verified against your qa suite (your go-ahead + run).
 
@@ -1223,9 +1223,9 @@ Goal: a service requiring `AtomicInputValidation.YES` can be served by the DER c
   the AtomicDer dispatcher's input stream is an `AtomicObjectInput` and an `AtomicInputValidation.YES`
   method constraint is satisfied (does not throw) on the DER path.
 
-### 18.3 A1b -- `MarshallingFormat.DER` as a distinct in-band requirement (LARGER; optional)
+### 18.3 A1b -- `MarshallingFormat.ATOMIC_DER` as a distinct in-band requirement (LARGER; optional)
 
-Goal: a `MethodConstraints` of `MarshallingFormat.DER` flowing through JERI is recognised and
+Goal: a `MethodConstraints` of `MarshallingFormat.ATOMIC_DER` flowing through JERI is recognised and
 either satisfied (DER configured) or fails-secure (non-DER configured) -- declarative format
 enforcement, beyond "use the DER ILFactory."
 
@@ -1235,7 +1235,7 @@ enforcement, beyond "use the DER ILFactory."
   matches the configured codec is satisfied; a mismatch throws `UnsupportedConstraintException`.
   Add an overridable `protected String marshallingFormat()` to the Basic handler/dispatcher
   (default `MarshalledInstance.FORMAT_JOSS`), overridden in `AtomicDer*` to return
-  `"JGDMS-STD-006/DER"`, so the base loop can compare without knowing subclasses.
+  `"JGDMS-STD-006/ATOMIC-DER"`, so the base loop can compare without knowing subclasses.
 - **The transport question (REQUIRES A SPIKE FIRST).** The per-transport `Constraints` helpers
   (`tcp/Constraints.java`, `http/Constraints.java`, and the ssl/kerberos equivalents) classify
   constraints via a hardcoded support map and THROW on an unknown *requirement*
@@ -1243,7 +1243,7 @@ enforcement, beyond "use the DER ILFactory."
   not in those maps and still works -- because it is enforced at the invocation layer (the wire
   byte + `AtomicValidationEnforcement`), and is NOT passed to the transport as a server
   constraint requirement. **Open question to resolve by a ~1-2h spike before any code:** does a
-  `MarshallingFormat.DER` *server* constraint reach `tcp.Constraints` (and get rejected), or can
+  `MarshallingFormat.ATOMIC_DER` *server* constraint reach `tcp.Constraints` (and get rejected), or can
   it follow the same invocation-layer-only path as `AtomicInputValidation`? If the latter (most
   likely), A1b needs NO transport edits -- it is invocation-layer only, and is much smaller. If
   the former, each transport's `Constraints` map needs `MarshallingFormat` added as a
@@ -1264,7 +1264,7 @@ recognised as atomic-validating via the `AtomicObjectInput` marker). It delivers
 service satisfies `AtomicInputValidation.YES`" with no qa dependency.
 
 Treat **A1b** as a separate, explicitly-gated decision: its marginal value is declarative
-`MarshallingFormat.DER` enforcement that flows through JERI, which configuration
+`MarshallingFormat.ATOMIC_DER` enforcement that flows through JERI, which configuration
 (`AtomicDerILFactory`) already achieves operationally. If wanted, start with the ~1-2h
 transport spike (sec.18.3) to convert the effort range into a number before touching shared code.
 
@@ -1272,9 +1272,9 @@ transport spike (sec.18.3) to convert the effort range into a number before touc
 
 **Spike result (2026-06-16).** `TcpServerEndpoint.checkConstraints` (the export-time
 `ServerCapabilities` path) was probed directly:
-`MarshallingFormat.DER` *required* → REJECTED (`UnsupportedConstraintException`);
+`MarshallingFormat.ATOMIC_DER` *required* → REJECTED (`UnsupportedConstraintException`);
 `AtomicInputValidation.YES` *required* → REJECTED (identically); `Integrity.YES` →
-REJECTED; `Integrity.NO` → accepted; `MarshallingFormat.DER` *preferred* → accepted
+REJECTED; `Integrity.NO` → accepted; `MarshallingFormat.ATOMIC_DER` *preferred* → accepted
 (silently dropped). **Conclusion:** `MarshallingFormat` is NOT transport-declarable — it
 behaves exactly like `AtomicInputValidation`, so it is handled at the **invocation layer**
 and must NOT be added to the per-transport `Constraints` maps. (Adding it there would be
@@ -1295,13 +1295,13 @@ wrong and would break export.) A1b is therefore invocation-layer-only — no
   dispatcher's format (throw on mismatch → `ExportException` at export) and strips all
   `MarshallingFormat` entries before the transport check — at BOTH export (the `Builder`)
   and per-call dispatch (before `request.checkConstraints`).
-- Net effect for embedded devices: a client/service may **require `MarshallingFormat.DER`**
+- Net effect for embedded devices: a client/service may **require `MarshallingFormat.ATOMIC_DER`**
   declaratively; a DER-configured peer satisfies it, a JOSS-configured peer fails fast
   (client: at call; server: at export). Java Serialization is thereby excludable by
   constraint, not only by configuration.
 
 **Tests (+4, `AtomicDerInvocationLayerTest`):** handler/dispatcher `marshallingFormat()`
-values (JOSS vs DER); a DER dispatcher EXPORTS with a `MarshallingFormat.DER` server
+values (JOSS vs DER); a DER dispatcher EXPORTS with a `MarshallingFormat.ATOMIC_DER` server
 constraint; a JOSS dispatcher with the same constraint FAILS export (`ExportException`) —
 discriminating. Verified `mvn -o -pl jgdms-platform,jgdms-jeri,jgdms-der test` →
 platform 262 + jeri 92 + der 367 = 721 green.
