@@ -100,6 +100,160 @@ DirtyChai effort is explicitly moving away from (JERI+DER is JGDMS's answer to e
 class of mechanism) — their breakage is the intended outcome, not a regression to work
 around.
 
+### 2.1 Verified: "throw in the constructor" alone is insufficient — `Unsafe`/`ReflectionFactory` bypass constructors entirely
+
+Peter raised a concern about §2 as originally scoped ("gut the constructors so they throw"):
+`sun.misc.Unsafe.allocateInstance(Class)` and `jdk.internal.reflect.ReflectionFactory`'s
+serialization-specific constructor factory (`newConstructorForSerialization`) both create an
+instance **without ever invoking any constructor** — so a design that only guts the
+constructor body leaves a zero-initialized, fully-`instanceof`-valid `ObjectInputStream`/
+`ObjectOutputStream` reachable to anyone who can reach either bypass, with every non-constructor
+method still functional. This was verified empirically against DirtyChai's actual built product
+image (not assumed), and the verification changes the recommendation in a specific, bounded way.
+
+**What was verified, and how.** Built product image used:
+`/home/user/GitHub/DirtyChai/build/linux-x86_64-server-release/images/jdk` — `openjdk version
+"27-internal"`, confirming the SOW's stated OpenJDK 27 target. A standalone test class (outside
+the DirtyChai repo — no DirtyChai source read as a basis for writing DirtyChai code, per that
+repo's own advise-only policy) was compiled and run **against this real JDK** to test three
+things directly:
+
+1. **The public API gate (`Unsafe.getUnsafe()`)** — blocked as designed: DirtyChai's
+   `sun.misc.Unsafe.getUnsafe()` (`src/jdk.unsupported/share/classes/sun/misc/Unsafe.java:111`)
+   is unmodified stock OpenJDK and still gates on `VM.isSystemDomainLoader(caller.getClassLoader())`,
+   throwing for any non-bootstrap caller. This is the "front door" and it is not the concern.
+2. **The reflective `Unsafe` bypass** — **confirmed live and unconditionally reachable from
+   plain classpath code, with zero flags.** `sun.misc.Unsafe.class.getDeclaredField("theUnsafe")`
+   + `setAccessible(true)` + `.get(null)` succeeded with **no `SecurityManager` installed and no
+   `--add-opens`/`--add-modules` needed at all**, then `Unsafe.allocateInstance(TargetClass)`
+   produced a zero-initialized instance whose constructor body provably never ran (verified via a
+   marker field left at its default value). Root cause, confirmed by reading source: DirtyChai's
+   `jdk.unsupported/share/classes/module-info.java` is **unmodified stock OpenJDK** —
+   `exports sun.misc; exports sun.reflect; opens sun.misc; opens sun.reflect;` — all
+   **unconditional** (not qualified to specific modules), and the classpath/unnamed module reads
+   `jdk.unsupported` by default with no extra flags (empirically confirmed: the test needed none).
+3. **The `ReflectionFactory.newConstructorForSerialization` bypass** — **also confirmed live and
+   reachable**, and via a *more direct* path than `Unsafe`: `sun.reflect.ReflectionFactory`
+   (`src/jdk.unsupported/share/classes/sun/reflect/ReflectionFactory.java`) wraps
+   `jdk.internal.reflect.ReflectionFactory.newConstructorForSerialization` and its public factory
+   method has **only a `SecurityManager`-conditional gate**:
+   `if (security != null) security.checkPermission(new RuntimePermission("reflectionFactoryAccess"));`
+   (lines 84-89) — **no caller-classloader check at all**, unlike `Unsafe.getUnsafe()`. With no
+   `SecurityManager` installed, this method is callable directly (not even via reflection-on-a-
+   private-field) by any code on the classpath, and `newConstructorForSerialization(TargetClass,
+   Object.class.getDeclaredConstructor())` yields a `Constructor` that, when invoked, builds a
+   `TargetClass` instance while running only `Object`'s no-arg constructor — the target's own
+   constructor (gutted or not) never executes. This was empirically confirmed.
+
+**What actually gates both bypasses, and where that leaves the risk.** Both routes verified
+above have a real, unmodified, stock-OpenJDK gate that only activates **when a `SecurityManager`
+is installed**: `java.lang.reflect.AccessibleObject.checkPermission()`
+(`src/java.base/share/classes/java/lang/reflect/AccessibleObject.java:84-88`) requires
+`ReflectPermission("suppressAccessChecks")` before `setAccessible(true)` succeeds (gates the
+`Unsafe` route), and `ReflectionFactory.getReflectionFactory()`'s `reflectionFactoryAccess`
+`RuntimePermission` check (above) gates the `ReflectionFactory` route directly. **Neither gate
+is DirtyChai-specific hardening — both are checked and confirmed unmodified from stock OpenJDK**,
+which matters because it means this isn't a gap DirtyChai introduced; it's a gap that exists
+**whenever no `SecurityManager` is installed**, which is a precondition of DirtyChai's entire
+security model being active at all (not unique to this design). Searched
+`src/java.base/share/classes/au/zeus/jdk/` for any DirtyChai-added filtering of `Unsafe`/
+`ReflectionFactory` reflection specifically: none exists. The one related DirtyChai addition
+found, `System.java`'s `isUnsafeReflectionFrame()` (~line 3062), is a `StackWalker` frame-detector
+used **only** inside the defense-in-depth path for `setSecurityManager()` itself (to stop a
+malicious *custom* `SecurityManager` from being installed via an Unsafe/reflection-laundered call
+stack) — a narrower, different purpose than gating general `Unsafe`/`ReflectionFactory` use, and
+not a control this design can lean on.
+
+So: **under DirtyChai's actual intended operating mode for JGDMS (a `SecurityManager` — normally
+`CombinerSecurityManager` — installed with a least-privilege `ConcurrentPolicyFile` policy)**,
+both bypasses are already gated by permissions (`ReflectPermission("suppressAccessChecks")`,
+`RuntimePermission("reflectionFactoryAccess")`) that a correctly-scoped policy must not grant to
+untrusted codebases — the same class of maximally-dangerous permission JGDMS's own least-privilege
+norm (memory: `polp-no-allpermission-scaffolding`) already treats as throwaway-QA-only. Spot-checked
+JGDMS's own policy corpus for exactly this: `grep -rl "suppressAccessChecks\|reflectionFactoryAccess"`
+across `~/GitHub/JGDMS` matches **only** `qa/src/.../end2end/policies/end2end.policy` (QA test
+fixture scaffolding) and one stale QA log file — **not** any production/deployment-oriented example
+policy. **If** DirtyChai/JGDMS is ever run with no `SecurityManager` installed at all, both bypasses
+are trivially reachable with zero permission checks (empirically confirmed above) — but at that
+point essentially all of DirtyChai's SM-based hardening is simultaneously moot, which is a
+pre-existing, general operating precondition of the whole security model, not something this SOW's
+design change causes or can fix.
+
+**Adversarial assessment of Fix A ("gut every method, not just the constructor").**
+Gutting every public/security-relevant method body to throw unconditionally as its first statement
+closes the *specific* gap Peter raised: even a `Unsafe`/`ReflectionFactory`-allocated,
+constructor-never-ran instance becomes inert, because there is no method left whose body does
+anything before throwing — this holds regardless of how the instance was allocated. Checked
+adversarially for residual gaps:
+
+- **Native methods bypassing the Java-level gut:** checked — `grep -n "native "` against both
+  `ObjectInputStream.java` and `ObjectOutputStream.java` in DirtyChai returns nothing. Neither
+  class declares any native method, so there is no JNI-reachable path that a Java-level "throw
+  first" edit fails to cover. This is a real (if narrow) thing worth re-checking if upstream ever
+  adds one.
+- **Raw field read/write via `Unsafe`, bypassing methods entirely:** real capability (confirmed
+  present in this build's `sun.misc.Unsafe` surface: `objectFieldOffset`, `getObject`/`putObject`,
+  `compareAndSwapObject`, etc.) — but **moot under Fix A specifically because the throw is the
+  first statement of every method**: an attacker could use `Unsafe` to forge/corrupt any private
+  field of a gutted OIS/OOS instance, but since no method reads a field before throwing, the
+  forged state is never consulted. This conclusion depends entirely on the throw being truly
+  unconditional and first — not gated behind any `if (initialized)`/lazy-check pattern (the same
+  shape of partial-gate gap Peter's concern originally targeted at the constructor). Worth stating
+  as an explicit implementation requirement for whoever writes this: **every method body's first
+  statement, no exceptions, no conditional paths that read state before the throw.**
+- **`instanceof`/type-dispatch elsewhere treating a gutted-but-still-`instanceof`-valid instance
+  specially, without calling any of its methods:** the theoretical residual risk Fix A cannot
+  close by construction — a gutted instance still satisfies `x instanceof ObjectInputStream`, so
+  any code elsewhere that branches on *type* rather than calling a (now-throwing) *method* is
+  unaffected by Fix A. Not found in the three load-bearing consumers (§3, which stop referencing
+  OIS/OOS entirely once migrated to the DER-backed SPI) or in the 17-file call-site audit (§5,
+  all either `new ObjectInputStream(...)`/`extends ObjectInputStream` — construction/subclassing,
+  not bare `instanceof` checks) — but this was **not** exhaustively re-grepped for bare
+  `instanceof ObjectInputStream`/`instanceof ObjectOutputStream` patterns across all of DirtyChai
+  (out of scope for this pass; flagged here as a cheap, worthwhile follow-up audit, not a blocker).
+- **A more general point this exercise surfaces:** if `Unsafe`/`ReflectionFactory` access is
+  actually reachable (no SM, or an over-permissive policy), the attacker is not limited to
+  resurrecting OIS/OOS specifically — the identical `allocateInstance`/`newConstructorForSerialization`
+  technique bypasses the constructor of *any* class in the JVM, including DirtyChai's own hardened
+  classes (`CombinerSecurityManager`, `ConcurrentPolicyFile`, any future gutted `SecurityManager`
+  shell, etc.). Fix A makes OIS/OOS specifically inert against this technique, but does nothing
+  for the general exposure — which is squarely a "is `Unsafe`/`ReflectionFactory` reachable"
+  question, not an "is this one class hardened enough" question.
+
+**Assessment of Fix B (separate-module approach) against what was actually found.** Fix B's
+stated appeal — "no bypass-the-constructor attack surface at all, since there's no functional
+bytecode present" — turns out to add little over a *correctly implemented* Fix A here, for two
+concrete reasons specific to this design (not a general dismissal of module-separation as a
+technique elsewhere): (1) the three load-bearing consumers (§3) are being migrated **off** OIS/OOS
+entirely regardless of Fix A vs Fix B, so neither fix's OIS/OOS-specific hardening is even in their
+path once §3 lands; (2) for the legacy-plumbing consumers (§5 — RMI/JMX/JNDI/rowset/jshell/desktop),
+§2 already treats their breakage as the *intended, desired* outcome — whether that breakage
+manifests as "class exists, every method throws" (Fix A) or "class/module absent, `NoClassDefFoundError`"
+(Fix B) is the same practical outcome (unusable) via a different exception shape, so Fix B buys
+nothing there either. Fix B's engineering cost, by contrast, is substantial and specific to this
+codebase: `java.io` is a single package that cannot be split across modules, so Fix B would require
+relocating the *real* implementation to a new package in a new optional module, keeping a
+JEP-486-style gutted stub under `java.io` for compile/link compatibility anyway (i.e. **Fix B
+does not replace Fix A, it adds an entire second module on top of it**), plus cascading explicit
+`requires` changes across `java.rmi`, `java.management.rmi`, `java.naming`, `java.sql.rowset`,
+`jdk.jshell`, and parts of `java.desktop` (§5), plus a `jlink`/default-image packaging decision
+about whether that new module ships by default. Given (1) and (2), that cost buys no additional
+protection for the specific concern raised here.
+
+**Recommendation.** **Fix A, implemented correctly (every method, unconditional first-statement
+throw, no partial/conditional gating anywhere) is the warranted fix — Fix B is not warranted for
+this concern specifically**, given what was verified: the actual residual exposure after a correct
+Fix A is not "OIS/OOS is still reachable" (it verifiably would not be) but "is `Unsafe`/
+`ReflectionFactory` reachable by untrusted code at all" — a pre-existing, JVM-wide question that
+threatens every hardened class equally, not something scoped to OIS/OOS, and not something Fix B
+would fix either (Fix B protects only OIS/OOS from a technique that, if live, threatens everything
+else DirtyChai hardens too). The verified, already-effective control for the actual root cause is
+policy discipline DirtyChai/JGDMS already has the mechanism for: **never grant
+`ReflectPermission("suppressAccessChecks")` or `RuntimePermission("reflectionFactoryAccess")` to
+untrusted codebases**, consistent with existing least-privilege norms; a worthwhile, low-cost
+follow-up (not blocking this SOW) is an explicit audit confirming no JGDMS production/example
+policy grants either permission outside QA test scaffolding (spot-checked here: currently true).
+
 ---
 
 ## 3. The exception: three load-bearing internal consumers
@@ -304,7 +458,9 @@ here rather than silently folding them into "expected.")
    the on-disk migration decision must be settled here, before the next phase makes them
    irreversible).
 2. **P1 — gut the public `ObjectInputStream`/`ObjectOutputStream`** (§2) once P0 is proven:
-   replace constructors with the unconditional throw, JEP-486-style. At this point the
+   replace constructors **and, per §2.1's verified `Unsafe`/`ReflectionFactory` bypass finding,
+   every other public/security-relevant method body** with the unconditional throw,
+   JEP-486-style — constructor-only gutting is verified insufficient (§2.1). At this point the
    expected-breakage list (§5) breaks as intended; the three load-bearing consumers do not,
    because they no longer touch OIS/OOS.
 3. **P2 — audit/response for the module-scope findings** (§5's `java.desktop`/`jdk.jshell`
@@ -314,6 +470,179 @@ here rather than silently folding them into "expected.")
 4. **P3 — deprecation/removal cleanup**: once P1 is stable, consider whether the "keep a
    minimal class for compile/link compatibility" shell classes need any further trimming
    (mirroring whatever JEP 486 ultimately did to `SecurityManager`'s shell class over time).
+
+---
+
+## 7. Board-guidance-informed analysis: two review reflexes applied
+
+The following is analysis, not new design — it applies two review reflexes from
+`JGDMS-Board-Reviewer-Guidance.md` to this SOW's existing content. Where it surfaces a real
+gap, that gap is stated as an **open question**, matching this document's existing style
+(§4); nothing here is force-closed.
+
+### 7.1 Reflex 1 — "second door to the same machinery" (ungated reconstruction door), applied to §4.2's dual-read option
+
+The board-guidance reflex: *"A new wire form or tag that reaches an object-reconstruction
+mechanism bypassing the gate the primary path goes through... a polymorphic/self-describing
+form that lets the wire name the class to reconstruct is exactly where capability escalation
+hides."*
+
+§4.2 already states two options for `JceKeyStore`'s `SecretKeyEntry` on-disk format and does
+not pick one: **dual-read** (parse legacy classic-format bytes on load, always write the new
+DER format going forward) or **DER-only** (no legacy read path, operator must re-import).
+Applying the reflex directly to the dual-read option: legacy `SecretKeyEntry` bytes are
+exactly "the wire names the class to reconstruct" — `engineLoad` (verified §3.3, ~line 841)
+opens `ois = new ObjectInputStream(dis)` and calls `ois.readObject()`, which walks
+`ObjectStreamClass`, resolves class names off the stream, and drives reconstruction via
+reflection — the identical shape the codebase's DER/`@AtomicSerial` design (STD-008) and this
+SOW's own §2 exist to close off. **A dual-read legacy path is not compatible with §2's stated
+design in its current unconditional form.** §2 requires *"no runtime opt-back-in (no
+property, no permission, no subclass hook that restores function)"* and §6/P1 calls for
+"every other public/security-relevant method body" gutted, JEP-486-style, with **no path
+back to functional**. A legacy-format `SecretKeyEntry` decode path requires, by construction,
+a reachable, functional `ObjectInputStream` instance somewhere in `java.base` — that is
+precisely "a path back to functional," even if narrowly invoked.
+
+**What is actually there today, and why it matters to this tension:** `JceKeyStore` does not
+call bare `ois.readObject()` — it first installs a custom `ObjectInputFilter`
+(`DeserializationChecker`, `JceKeyStore.java` ~lines 949-994) via
+`ois2.setObjectInputFilter(new DeserializationChecker(fullLength))` (~line 847) *before*
+`readObject()` runs. The filter is a real, load-bearing, depth-indexed class allowlist:
+depth 1 must be `SealedObjectForKeyProtector`, depth 2 must be `SealedObject` or `byte[]`,
+anything deeper must be `null`/`Object`, and it additionally bounds `arrayLength()` against
+the keystore's own `fullLength` — then falls through to the JVM-wide default
+`ObjectInputFilter.Config.getSerialFilter()`. This is a genuine, narrow, already-present gate
+on exactly this reconstruction path — not an ungated door today. But it is gated by
+`ObjectInputFilter` (JEP 290/415 class/depth/size allowlisting), **a different gate from,
+and not integrated with,** this codebase's `DeSerializationPermission("ATOMIC")` model (the
+per-class, per-protection-domain check in `ObjectCodec.checkAtomicDeSerializationPermitted`,
+`jgdms-der/.../ObjectCodec.java` ~lines 198-233, which is the primary path's gate everywhere
+else in this design). Retaining this filter keeps the *specific* risk narrow (three named
+classes, bounded size), but it does not close the *structural* risk §2 is designed to close:
+the full `ObjectStreamClass`/reflective-construction machinery, and everything §2.1 found
+about `Unsafe`/`ReflectionFactory` bypassing constructors, remains reachable through this one
+call site for as long as dual-read exists — meaning §2's "structural closure, not continued
+vigilance" framing (§1) would have exactly one surviving vigilance-dependent exception.
+
+**Conclusion.** The honest scoping, consistent with Reflex 1 and with this SOW's own §2
+design intent: **§2's unconditional, no-opt-back-in gut is incompatible with a general
+backward-compat classic-byte read path, full stop.** Two ways to reconcile, neither resolved
+here (same "not resolved" framing as §4.2):
+
+- **Take §4.2's DER-only option** — no legacy read path, ever; only data written after the
+  cutover is coverable by the new SPI. This is the only option that lets §2's "gutted,
+  unconditionally, no path back to functional" claim hold literally and without caveat.
+- **If dual-read is judged operationally necessary** (existing deployed JCEKS keystores with
+  secret keys cannot all be forced through a re-import step), then §2's claim must be
+  explicitly downgraded from "no opt-back-in, full stop" to "no *general-purpose* opt-back-in;
+  one narrowly-scoped, filter-gated, single-call-site legacy decode path survives, isolated to
+  `JceKeyStore.engineLoad`'s `SecretKeyEntry` case, read-only (never used for new writes), and
+  — to avoid being a structurally different, ungated door relative to the rest of this design —
+  should additionally be routed through the same `DeSerializationPermission`-style permission
+  gate the DER path uses everywhere else, not left to rely on `ObjectInputFilter` alone." This
+  turns the existing `DeserializationChecker` from an accidental survivor into a *documented,
+  deliberate, permission-reinforced* exception, with an explicit deprecation-window framing
+  (the two options are not symmetric in permanence — dual-read implies an eventual removal
+  date, not a permanent architecture).
+
+Either path is a real decision for DirtyChai's maintainers (same posture as the rest of §4);
+this analysis's contribution is naming the conflict between §4.2's dual-read option and §2's
+"no opt-back-in, ever" claim explicitly, so it is not discovered later as a contradiction
+between two already-written sections of this same document.
+
+### 7.2 Reflex 2 — pre-deletion audit ("what does the old layer do beyond its headline job?")
+
+The board-guidance reflex: *"Read the old layer's core state machine end-to-end; for every
+behavior ask 'is this pure {headline job}, or a contract the layer above depends on?' ...
+Nothing gets deleted until every item is reproduced or its removal is explicitly documented
+and accepted; 'no half-retirement' is a MUST."*
+
+Catalog of `ObjectInputStream`/`ObjectOutputStream`'s public/protected API surface (read
+directly from `/home/user/GitHub/DirtyChai/src/java.base/share/classes/java/io/
+Object{Input,Output}Stream.java`), checked against the SOW's current SPI sketch (§3, "serialize
+this payload to bytes / rebuild it from bytes," by analogy to `Serializer`/`DerReplacer`) and
+against how the three load-bearing consumers actually use the class:
+
+| Capability | Status vs. current SOW design |
+|---|---|
+| `readObject`/`writeObject` (core marshal/unmarshal) | **Reproduced** — this is the SPI's entire reason to exist (§3). |
+| `defaultReadObject`/`defaultWriteObject`, `GetField`/`PutField` (`readFields()`/`writeFields()`) | **Dropped / not addressed for the consumers' OWN classes.** Not just used for the wrapped payload: `SignedObject.readObject` (`SignedObject.java` ~lines 264-277) uses `s.readFields()` to restore its **own** `content`/`signature`/`thealgorithm` fields, and `SealedObject.readObject` (`SealedObject.java` ~lines 429-438) uses `s.defaultReadObject()` for its **own** fields. §3/§4.1 only discuss replacing OIS/OOS for the *wrapped payload*; they do not address that `SignedObject`/`SealedObject` are themselves `Serializable` classes whose own wire form depends on this machinery — gutting public OIS/OOS (§2/P1) breaks the ability to Java-serialize a `SignedObject`/`SealedObject` *instance itself* (e.g. if one is passed to RMI or another `ObjectOutputStream` elsewhere), independent of and in addition to the payload-marshalling concern §3 already covers. Open question, not previously stated in this SOW. |
+| `resolveClass`/`resolveProxyClass` | **Undecided.** `SealedObject`'s package-private `extObjectInputStream` (lines 454-478) overrides `resolveClass` as a workaround for a specific class-loading bug ("bug 4224921"), falling back to a secondary lookup when `super.resolveClass()` fails. The DER codec has its own class-resolution path (`ResolutionContext`/`loadClass` in `ObjectCodec`), but the SOW does not state whether/how that subsumes this specific workaround's need. |
+| `registerValidation` (`ObjectInputValidation`) | **Dropped, but not used by the three consumers** (checked, not found) — moot for §3's scope specifically, but an unaddressed general capability of the retired class. |
+| `resolveObject`/`enableResolveObject`, `replaceObject`/`enableReplaceObject` | **Reproduced by analogy, not called out.** Not used by the three consumers directly, but this is functionally the same shape as `DerReplacer.replace`/`resolve` already cited in §3 as the borrowed precedent — worth stating explicitly in §3 rather than leaving the correspondence implicit. |
+| `useProtocolVersion` (OOS) | **Dropped, reasonable.** No DER equivalent needed — DER's schema-driven framing is self-describing per encode, not globally versioned the way OOS's protocol version is. Not previously stated as a decision. |
+| `reset()` (OOS) | **Dropped, appears safe for the three consumers** (each opens a fresh stream per operation; none was found relying on handle-table reset) — but this is a general capability of the retired class with no DER equivalent, worth one explicit line rather than silence. |
+| `readStreamHeader`/`writeStreamHeader`, `readClassDescriptor`/`writeClassDescriptor` | **Dropped, subsumed by design.** Not overridden by any of the three consumers; DER's own TLV framing (§ObjectCodec) replaces the role these play. Reasonable, but implicit rather than stated. |
+| **`ObjectInputFilter` (`getObjectInputFilter`/`setObjectInputFilter`, JEP 290/415)** | **Dropped / not addressed — the most significant finding of this catalog.** `JceKeyStore.engineLoad` installs a custom, load-bearing `DeserializationChecker` filter (see §7.1) specifically to bound the `SecretKeyEntry` decode. This is a real security control §3.3/§4.2 do not mention at all. Whatever `JceKeyStore` does going forward (DER-only or dual-read, §4.2/§7.1), this filter's allowlist/size-bound *behavior* needs an explicit successor — either the DER path's fixed-type contract (§4.1: "payload must have DER support") is argued to structurally subsume it (plausible, since `@AtomicSerial` already restricts reconstructable types to a known, registered set — but this argument is not made anywhere in the current SOW), or the filter's role is explicitly retained (as discussed in §7.1 for the dual-read case). Not resolved here; flagged as a gap this SOW should account for before implementation. |
+| Low-level `DataInput`/`DataOutput` passthrough (`readInt`, `writeUTF`, etc.) | **Not applicable.** `JceKeyStore` already uses `DataInputStream`/`DataOutputStream` directly for its non-OIS framing (§3.3) — never reaches these via OIS/OOS. |
+
+---
+
+## 8. Independent verification (2026-07-11): internal call-site census for `SignedObject`/`SealedObject`/`JceKeyStore`
+
+Dispatched as a follow-up to the independent Fable 5 review of §2.1/§7 (below), specifically to
+ground P0's migration scope in actual usage rather than continued inference from §3 alone.
+Searched both `/home/user/GitHub/DirtyChai/src` (all bundled modules, `.java` only, excluding
+test trees) and `/home/user/GitHub/JGDMS` for real construction/call sites of all three classes,
+independent of the code-path analysis already in §3.
+
+**`SignedObject`: zero internal callers found.** The only hit in the whole DirtyChai tree is the
+class's own Javadoc usage example (`SignedObject.java:49`). No other `java.base` code, and no
+other bundled module, constructs or reads a `SignedObject` anywhere. Confirms §3.1 as previously
+written (the class's own constructor/`getObject()` *is* the mechanism, §3.1's finding stands) and
+additionally establishes that P0's `SignedObject` migration has **no downstream internal callers
+to also update** — it is a self-contained edit to one class.
+
+**`SealedObject`: exactly one internal consumer chain, confirmed narrow.** `SealedObject` is used
+internally only by `com.sun.crypto.provider.KeyProtector` (`KeyProtector.java:327,354,363,372-376`)
+to seal/unseal private and secret keys, via a package-private subclass
+`SealedObjectForKeyProtector` (`SealedObjectForKeyProtector.java:34`) — which is exactly the class
+§3.3's `JceKeyStore.engineStore`/`engineLoad` finding already names (`sealedKey` field,
+`~line 643`/`~line 841`) and §7.1's `DeserializationChecker` filter already gates (depth-1 class
+check). `SharedSecrets`/`JavaxCryptoSealedObjectAccess`
+(`SharedSecrets.java:111,507-515`) is a `jdk.internal.access` bridge exposing `SealedObject`'s
+package-private `getExtObjectInputStream` to `com.sun.crypto.provider` — plumbing for this same
+`KeyProtector`→`JceKeyStore` path, not a separate, previously-unaccounted-for consumer. **No new
+migration scope beyond §3.2/§3.3/§7.1 as already written** — this confirms the existing analysis
+was already complete, rather than surfacing a gap.
+
+**`JceKeyStore`: registration site confirmed, and confirmed not default-loaded anywhere.**
+Registered as the `"JCEKS"` `KeyStore` service by `SunJCE.java:765-766`
+(`ps("KeyStore", "JCEKS", "com.sun.crypto.provider.JceKeyStore")`) — the actual service-provider
+config `KeyStore.getInstance("JCEKS")` resolves through. Checked whether anything reaches JCEKS
+*without* an application explicitly asking for it, since that would have changed P0's urgency:
+`java.security:323` sets `keystore.type=pkcs12` as the platform default; the JKS↔PKCS12
+`keystore.type.compat` cross-load (`:328-333`) never involves JCEKS; `keytool`
+(`Main.java:1399`) touches the string `"JCEKS"` only in a type-probe branch when a file already
+opened turns out to be that type, not as a default action; no TLS/`KeyManagerFactory`/
+`TrustManagerFactory` default path was found constructing a JCEKS keystore. **Confirmed: JCEKS,
+and therefore this entire `SealedObject`/`JceKeyStore` OIS dependency, is reachable only when an
+application explicitly requests a `"JCEKS"`-type keystore** — not a platform default, not touched
+by TLS defaults or bundled tooling. Also confirmed by grep: plain JKS keystores
+(`sun.security.provider.JavaKeyStore`) have zero references to `SealedObject`/`JceKeyStore` — the
+OIS dependency is isolated to the JCEKS type specifically, nothing bleeds into the more commonly
+used JKS/PKCS12 types.
+
+**JGDMS's own source: zero hits, confirmed.** Grepped `/home/user/GitHub/JGDMS` for all three
+class names: no `.java` source anywhere touches `java.security.SignedObject`,
+`javax.crypto.SealedObject`, or `com.sun.crypto.provider.JceKeyStore`. The only textual matches
+are JGDMS-STD-006's own DER wire-format ASN.1 constructs, named `SignedObject`/`SealedObject` by
+design analogy (e.g. `docs/JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md:1738`,
+`SignedObject ::= SEQUENCE {...}`) — unrelated to the JDK classes. Confirms JGDMS itself has no
+stake in this migration beyond the SOW's advisory role; nothing in JGDMS's own codebase needs to
+change regardless of how DirtyChai resolves §2/§3/§4.
+
+**Explicit limits of this census, stated rather than implied away:** this is a complete
+enumeration of what's reachable by static search across DirtyChai's and JGDMS's own source — it
+is not, and cannot be, a claim about arbitrary third-party application code. `SignedObject`,
+`SealedObject`, and `KeyStore.getInstance("JCEKS")` are all public JDK APIs; any external
+application deployed on DirtyChai can call any of them directly, and that dependence is invisible
+to a source-tree search of either repo. That category remains open and unenumerable — it does not
+block P0 (which only needs to migrate the classes' own internal mechanism, §3), but it is relevant
+to §4.2/§7.1's on-disk-compatibility decision: the population of "existing JCEKS keystores with
+secret keys in the wild" is exactly the unenumerable external-application category, which is why
+§4.2 poses dual-read vs. DER-only as a real operational tradeoff rather than something this census
+can resolve by search.
 
 ---
 
@@ -353,3 +682,22 @@ here rather than silently folding them into "expected.")
   connector would let operators stop depending on.
 - `/home/user/GitHub/DirtyChai/CLAUDE.md` — the no-AI-contribution policy this document
   is written to comply with (advisory analysis only, no DirtyChai source or doc changes).
+- §7 verification sources: `JGDMS-Board-Reviewer-Guidance.md` (`~/GitHub/JGDMS/JGDMS/docs/`),
+  reflex 4 ("ungated reconstruction doors," ~line 501) and the pre-deletion-audit reflex
+  (~lines 788-796); `com.sun.crypto.provider.JceKeyStore`'s `DeserializationChecker`
+  (`JceKeyStore.java` ~lines 841-859, 949-994); `java.security.SignedObject.readObject`
+  (`SignedObject.java` ~lines 264-277); `javax.crypto.SealedObject.readObject` and
+  `extObjectInputStream.resolveClass` (`SealedObject.java` ~lines 429-478); `ObjectCodec`'s
+  `checkAtomicDeSerializationPermitted`/`ATOMIC` gate
+  (`jgdms-der/src/main/java/au/net/zeus/jgdms/der/object/ObjectCodec.java` ~lines 156-233).
+- §2.1 verification sources: `sun.misc.Unsafe.getUnsafe()`
+  (`src/jdk.unsupported/share/classes/sun/misc/Unsafe.java:111`);
+  `sun.reflect.ReflectionFactory.getReflectionFactory()`/`newConstructorForSerialization`
+  (`src/jdk.unsupported/share/classes/sun/reflect/ReflectionFactory.java:83-118`);
+  `jdk.unsupported`'s `module-info.java` (unconditional `exports`/`opens` of `sun.misc`,
+  `sun.reflect`); `java.lang.reflect.AccessibleObject.checkPermission()`
+  (`src/java.base/share/classes/java/lang/reflect/AccessibleObject.java:84-88`);
+  `java.lang.System`'s `isUnsafeReflectionFrame()` (~line 3062, `setSecurityManager()`-only
+  StackWalker heuristic, not a general reflection gate). Empirical test run against the built
+  product image `/home/user/GitHub/DirtyChai/build/linux-x86_64-server-release/images/jdk`
+  (`openjdk version "27-internal"`), standalone test code outside the DirtyChai repo.

@@ -35,6 +35,32 @@
 > the model leans on remain **design-ahead-of-code** — interface stripping (§6.4) and
 > RULE-D1's refuse-non-DER gate (§10) — each flagged with an implementation-status note
 > at its definition.
+>
+> **Cross-referenced 2026-07-17 (independent convergence, not yet reconciled into the
+> body text below).** A separate design thread — starting from a completely different
+> question (a public r/java debate about `System.nanoTime`-class timing side channels
+> in mobile code) — arrived at §8.6's general principle ("never run downloaded code in
+> your own process") independently, then went substantially further into concrete,
+> buildable detail for the **client-side smart-proxy tenant** specifically. See
+> `SOW-Unix-Domain-Socket-JERI-Transport.md` §12 (mandatory per-SPIFFE-principal
+> sidecar routing, the client/subprocess unmarshalling split, DGC-based lifecycle,
+> CPU-affinity requirement), `SOW-SubProcessDynamicPolicy.md` (the concrete build-out
+> of §8.6's "attenuated, leased delegation problem," left there as future work), and
+> `SOW-Smart-Proxy-Isolation-Architecture-Overview.md` (index tying the set together).
+> Three things worth flagging explicitly, each noted again at its own section below:
+> (1) §6.4's "no live consumer today" caveat for interface stripping is likely now
+> **stale** — the newer session's client-side local delegate stub is plausibly the
+> first live consumer, and independently re-derived the identical
+> `RMIClassLoader.loadProxyClass` all-or-nothing finding this section already
+> documents; (2) §8.4's filter sidecar CPU-affinity/cache-timing-side-channel gap was
+> flagged the same day and has since been **decided** (see §8.4's own note): filter
+> workers for different, mutually-untrusting clients MUST run on separate physical
+> cores sharing no L1/L2, confirming this was a real gap, not a deliberate scoping
+> choice; (3) §8.6's closing line ("full sidecar/worker design... out of scope
+> for this standard") is **only true for the filter tenant now** — the smart-proxy
+> tenant has a concrete task-level design in the SOWs above. **This note flags the
+> overlap for reconciliation; it does not itself resolve which document is
+> authoritative where they diverge — that needs Peter's own pass.**
 
 ---
 
@@ -410,6 +436,31 @@ on demand.
 > `LeaseListener`) declare only **non-`Remote`, local** interfaces, which never cross to
 > the receiver, so nothing currently needs stripping. Stripping/boomerang first bites
 > when a listener ships an extra **`Remote`** interface a receiver may lack.
+>
+> **Update 2026-07-17: "no live consumer today" is likely stale.** A separate design
+> thread (`SOW-Unix-Domain-Socket-JERI-Transport.md` §12 point 3(ii)) independently
+> re-derived the identical finding in this note — `RMIClassLoader.loadProxyClass`
+> resolves a dynamic proxy's interfaces all-or-nothing, confirmed fresh against
+> `au.net.zeus.jgdms.der.stream.DerObjectStreamCodec`'s bare-`Proxy` `[8]` wire item and
+> `au.net.zeus.jgdms.der.object.DerProxySerializer` — and hit the same gap from a
+> different direction: a new **client-side local delegate stub** (a
+> `java.lang.reflect.Proxy` forwarding calls over UDS to a smart proxy hosted in an
+> isolated sidecar process) needs to be built from *whichever* of the real object's
+> interfaces the client happens to have locally, with the rest silently dropped —
+> exactly this section's "stripping" concept, not a new mechanism. That design proposes
+> a concrete field-level realization: a new interface-name-list field on
+> `org.apache.river.api.io.ProxySerializer`'s wire form (currently just
+> `bootstrapProxy`/`serviceProxy`), populated at serialization time from the live
+> sender-side object, resolved leniently (per-name, local-only, no download, catch and
+> drop on `ClassNotFoundException`) rather than through the existing all-or-nothing
+> path. If built, this becomes this section's first live consumer — the "no live
+> consumer today" line should be revisited once (if) it lands. It also directly needs
+> this section's **boomerang** discipline: the local delegate stub is process-bound and
+> **must not** be naively re-serialized if forwarded onward (e.g. to a downstream
+> ServiceAPI consumer) — the retained wire form (that stub's own `ProxySerializer`
+> instance, or the `MarshalledInstance` it was built from) should be relayed instead,
+> the same "relay the DER form, never re-derive from a live/stripped proxy" rule this
+> section already states for the listener/filter case.
 
 ### 6.5 Downloadable artifacts, module structure, and client reach
 
@@ -515,6 +566,77 @@ bandwidth: evaluate at the data, ship only matches. It carries the highest
 confused-deputy risk (foreign code beside server data), so it is the most tightly
 constrained construct in this standard.
 
+> **DECIDED 2026-07-17 (Peter), superseding the "standard JVM bytecode" premise below
+> — the rest of §8 (and parts of §5, §7, §9.1, §11, §12) describe the PRE-2026-07-17
+> model and need re-deriving, not just re-reading, against this decision.** Resolving
+> the "does a filter need to be standard JVM bytecode at all" question raised earlier
+> the same day (§8.5's design-fork note): **no — filters are not compiled Java
+> classes.** They are expressed in a small, purpose-built, restricted
+> predicate/expression format instead. Peter's stated reason extends further than
+> "smaller/safer": **the same restricted mechanism can be used by both Rust and Java
+> services** — i.e. this is not a Java-specific execution format with a Rust
+> compatibility shim bolted on; it is a single, host-language-agnostic format every
+> service (JVM or otherwise) implements its own small evaluator for. This has several
+> immediate, direct consequences, recorded here so they aren't silently lost or left
+> contradicting the untouched text below:
+>
+> - **§8.4's "cross-language bridge via a co-located JVM sidecar" (§8.5) is no longer
+>   the *only* way a non-JVM host offers filter pushdown — it may not be needed at
+>   all.** If the filter format itself is portable and Rust can host a small native
+>   evaluator for it directly, a Rust data service doesn't need to spawn a JVM
+>   subprocess just to run a filter — the entire "ship a stripped-down JVM" /
+>   "Rust-native JVM interpreter" discussion above (§8.5's notes) may turn out to be
+>   solving a problem this decision removes for the *filter* case specifically. (A
+>   sidecar/process-isolation boundary may still be wanted for blast-radius
+>   containment independent of language — that's a separate question from "does it
+>   have to be a JVM.")
+> - **Filters plausibly stop being an exception to RULE-B1 (§9.1) and become an
+>   instance of it.** §9.1 currently distinguishes "a value whose class already
+>   exists at the receiver" (ordinary ServiceAPI parameter, no `@RemoteFunction`
+>   needed) from "behaviour that has to cross the wire" (`@RemoteFunction`,
+>   escalation). A restricted expression-tree/predicate format is **data** — an AST of
+>   comparison/boolean nodes over declared fields — evaluated by an interpreter every
+>   receiver already has locally (platform code, not downloaded per-filter). That
+>   looks structurally like the ordinary-parameter case §9.1 already describes, not
+>   the code-shipping escalation `FUNCTION` was built for. Needs an explicit
+>   re-derivation, not assumed either way here.
+> - **RULE-F1's `@AtomicSerial`/`@Stateless` wire-form requirement (§8.1) and RULE-F3's
+>   BAE load-time `@Stateless` check (§8.3) were designed for a *compiled class*
+>   crossing the wire.** For a restricted expression format, statelessness/no-capture
+>   is plausibly true **by construction** (if the format has no syntax for mutable
+>   state or captured references, there's nothing to check for) rather than something
+>   a load-time bytecode scan verifies — the same "safe by construction, not by
+>   runtime gate" shift §8.5's interpreter discussion already identified. §8.1/§8.3's
+>   *rules* may still hold in spirit; their *mechanism* (bytecode annotation +
+>   load-time class inspection) needs redesigning for a non-bytecode wire form.
+> - **§5's Filter row ("Codebase (derived): implied (code ships)") and §7's FUNCTION
+>   column ("Stream: a separate codebase stream"; "Configuration: required (httpmd
+>   source, digest, annotation, ILFactory)") assumed behaviour download.** If nothing
+>   downloadable ships — only a data-encoded expression riding the existing DER
+>   stream, evaluated by platform code every receiver already has — the FUNCTION
+>   form's whole "codebase implied" premise (§7's organizing principle: "`FUNCTION`
+>   means behaviour download, full stop") needs re-examining. This may also bear on
+>   whether `FUNCTION` still needs a `codebase`-carrying separate stream at all, or
+>   whether it can ride the caller's existing stream the way `DYNAMIC` already does
+>   (§7) — genuinely open, not decided here.
+> - **§11 (Reggie/Outrigger as first consumers) and §12 (`AbstractRemoteFunction` as a
+>   distinct base class "for sandboxed downloaded mobile code... no export, no join")**
+>   both reasoned from the compiled-class/codebase model and should be re-checked once
+>   the new format's shape is designed — not necessarily wrong, but not yet verified
+>   against this decision either.
+>
+> **What is NOT yet decided, deliberately left open here:** the concrete shape of the
+> restricted expression/predicate format itself (an AST? a small stack-bytecode ISA
+> of our own design? something closer to a JSON/DER-encoded query-expression tree?);
+> what operator/comparison vocabulary it needs for Outrigger/Reggie's first-consumer
+> use cases (§11); how BAE's role changes (verifying a restricted, purpose-built format
+> is a different, likely much simpler task than verifying arbitrary Java bytecode, but
+> is still a real design task); and whether a sidecar/process boundary is still wanted
+> for defense-in-depth once the format itself is safe by construction. §8.1-§8.6, §9.1,
+> §11, and §12 below are left as-written (the prior, now-superseded-in-part model) so
+> nothing is lost — treat them as historical/needing-re-derivation, not current, where
+> they conflict with this note.
+
 ### 8.1 Wire form — `@AtomicSerial @Stateless` (RULE-F1)
 
 A filter **MUST** be `@AtomicSerial` (it crosses the wire; the atomic engine is the
@@ -540,6 +662,50 @@ BAE **MUST** load-verify `@Stateless` by rejecting any filter that declares
 non-static instance fields (a hostile client could annotate `@Stateless` yet declare
 fields to smuggle a graph). Compile-gate **plus** load-gate, exactly as for the
 constrainable proxy (§10).
+
+> **Researched 2026-07-17: how does the sidecar get permission to load and run a
+> filter — two separate mechanisms, not one, following existing precedent rather than
+> inventing from scratch.** The question split into (a) a server-side trust/hook point
+> before the filter is handed to the sidecar loader, and (b) how a computed permission
+> actually lands inside the sidecar's own separate JVM.
+>
+> **(a) Trust hook — a `filterPreparer` `Configuration` entry, mirroring existing
+> `ProxyPreparer` precedent.** `net.jini.security.ProxyPreparer`/`BasicProxyPreparer`
+> (`jgdms-platform/src/main/java/net/jini/security/BasicProxyPreparer.java`) is not a
+> client-only convention — real services already use it to prepare **client-authored**
+> proxies they receive, structurally the same direction as a filter: Mercury prepares
+> a client's registered `RemoteEventListener` via a `"listenerPreparer"` config entry
+> (`MailboxImpl.java:1157`, read at `MailboxImplInit.java:177-185`); Mahalo prepares a
+> client's `TransactionParticipant` via `"participantPreparer"`
+> (`TxnManagerImpl.java:712`, `TxnManagerImplInitializer.java:155-161`). A
+> `filterPreparer` entry, read the same way, is the idiomatic, low-risk place for a
+> service to hook filter trust decisions before load — no new configuration pattern
+> to invent. It does **not** need `BasicProxyPreparer`'s `verify()`/`setConstraints()`
+> behavior (a filter is `@Stateless`/`@AtomicSerial`, not a `RemoteMethodControl`
+> proxy) — only the `Configuration`-entry convention is what's reusable here.
+>
+> **(b) Permission delivery — `SubProcessDynamicPolicy`, not
+> `BasicProxyPreparer.grant()`.** `BasicProxyPreparer.grant()` *does* already perform a
+> real dynamic permission grant (`grant()` at `BasicProxyPreparer.java:404-432` calls
+> `Security.grant(proxy.getClass(), perms)`, `Security.java:1287-1307`, which requires
+> the calling context already hold `GrantPermission` for what it grants and then calls
+> `DynamicPolicy.grant(...)` on the **installed policy of the calling JVM**) — but that
+> is exactly the wrong locus for this case: the grant decision is made in the
+> **service's** JVM, while the permission must land in the **sidecar's** separate JVM,
+> across the UDS boundary. `BasicProxyPreparer`/`Security.grant` has no mechanism to
+> target a different process's policy at all. The mechanism that already solves that
+> exact cross-process topology is `SubProcessDynamicPolicy`
+> (`SOW-SubProcessDynamicPolicy.md`), designed this session for the client-side
+> smart-proxy sidecar — same shape of problem (verdict-computed grant, pushed into an
+> already-running isolated subprocess's own `DynamicPolicyProvider`, over the same
+> channel the sidecar is already reached through), now understood to generalize to the
+> **server-side filter sidecar too**, not a client-only mechanism. In practice the
+> permission set for a filter is expected to be minimal-to-empty given "zero ambient
+> authority" (§8.4) — the load-time digest gate (this section) is doing most of the
+> real security work, and the grant, if any, is narrow (e.g. nothing beyond what's
+> needed to read the DER field-projection socket). `SOW-SubProcessDynamicPolicy.md`'s
+> own scope/non-goals should be updated to reflect this generalization rather than
+> reading as client-side-only — not yet done as of this note.
 
 ### 8.4 Runtime — process isolation over a Unix domain socket **[PROPOSED]**
 
@@ -572,6 +738,29 @@ a local, peer-cred'd, DER-only channel likely needs **no** SSLEngine migration
 worker: spun up ephemerally per query, digest-gated on which filter it will load,
 torn down after so no filter contaminates the next.
 
+> **Decided (Peter, 2026-07-17): yes, filter sidecars need the same CPU-affinity
+> treatment as the smart-proxy sidecar.** This section had no treatment of
+> cache-timing side channels (Flush+Reload/Evict+Reload/Prime+Probe-class) — flagged
+> as a gap earlier the same day, now resolved rather than left open. Ruling: filter
+> workers for different, mutually-untrusting clients/queries **MUST** run on
+> **separate physical CPU cores that do not share L1/L2 cache** — not merely different
+> processes. This closes the same gap the smart-proxy sidecar has (§8 and §12 point 2
+> of `SOW-Unix-Domain-Socket-JERI-Transport.md`): "zero ambient authority" (no
+> network, no filesystem) closes *capability* risk but does nothing about *side-channel
+> observation* risk — a sandboxed process with no external access can still Prime+Probe
+> a physical core it shares with another mutually-untrusting worker. L1/L2 are the
+> operative boundary because they are core-private (or shared only across a single
+> core's hyperthread siblings) on essentially all current hardware, unlike L3, which is
+> normally shared platform-wide and out of scope for pinning-based defenses; disjoint
+> physical-core assignment (hyperthread-aware — two mutually-untrusting workers must
+> not land on sibling threads of the same core either) is therefore both necessary and
+> sufficient at this layer. Whether the per-query ephemeral lifecycle (this section)
+> narrows the exposure window in practice doesn't change the requirement — the ruling
+> is unconditional, not lifecycle-dependent. Scope this alongside the filter runtime
+> build (§13); it is the same requirement `SOW-Unix-Domain-Socket-JERI-Transport.md`
+> §12 point 2 already states for the smart-proxy sidecar, not a separate mechanism to
+> design twice.
+
 ### 8.5 Cross-language bridge
 
 Because the worker decouples *where the data lives* from *what runtime the filter
@@ -579,6 +768,170 @@ needs*, a co-located JVM **filter sidecar** over UDS lets even a non-JVM data
 service (e.g. Rust) offer Java-filter pushdown without the data process ever
 touching foreign code. This partially lifts the §9.2 "cannot accept remote functions"
 floor.
+
+> **[OPEN, flagged 2026-07-17] Spawning mechanics when the *host* is non-JVM are
+> unscoped — this paragraph asserts the pattern, it doesn't design it.** Everything
+> this section (and `SOW-Unix-Domain-Socket-JERI-Transport.md` §12 point 3, and
+> `SOW-SubProcessDynamicPolicy.md`) has designed so far assumes a **JVM parent**
+> spawning a JVM sidecar — trivial with `ProcessBuilder`, DGC lifecycle riding JERI's
+> own wire protocol, `SubProcessDynamicPolicy`'s grant delivered over a channel both
+> ends already speak natively. A Rust (or other non-JVM) *data-service* host spawning
+> a JVM *filter sidecar* raises several distinct, currently-unanswered questions:
+>
+> - **Process spawn itself is not the hard part** — any language can shell out to
+>   launch a `java` process (Rust's `std::process::Command` is the direct analogue of
+>   `ProcessBuilder`). The **JVM launch command/flags must be a fixed, trusted
+>   constant the host cannot be tricked into varying** (e.g. it must not be possible
+>   for a compromised or buggy data-plane to launch the sidecar JVM without a
+>   SecurityManager, or with a weakened policy) — this is an integrity requirement on
+>   the host's own spawn logic, not a JVM-side concern, and isn't designed anywhere
+>   yet. Worth considering whether the sidecar should be a **self-verifying, attested**
+>   worker image (memory: the role-neutral attested DirtyChai worker concept) rather
+>   than one whose safety depends on trusting the parent's launch invocation.
+> - **The UDS/DER channel itself is presumably already covered** by the premise that a
+>   "Rust JERI implementation" exists at all — STD-006 is explicitly designed to be
+>   non-JVM-implementable (§9.2: "a non-JVM service... deals only in DATA-by-value over
+>   a wire protocol, classes pre-agreed at both ends"), so a genuine Rust JERI
+>   implementation should already carry what's needed to speak DER/UDS to the sidecar
+>   and to the `VerdictRegistry` (a network call regardless of caller language) —
+>   **needs verifying, not assuming**, particularly whether such an implementation's
+>   DGC support (dirty-set/lease calls) is faithful enough for the §8.4/UDS-SOW-§12-
+>   point-7 lifecycle model to work unmodified from a non-JVM peer.
+> - **`SubProcessDynamicPolicy`'s grant wire-shape must be DER-encodable and
+>   Rust-constructible**, not merely Java-constructible — a `Permission[]`-shaped
+>   payload originating in a Rust process is a real interop requirement this SOW set
+>   has not yet had to consider (everything so far assumed a JVM on both ends of every
+>   grant-delivery call).
+> - **JVM startup cost may dominate the pushdown's own rationale.** §8's whole
+>   premise is bandwidth: "evaluate at the data, ship only matches" — if the sidecar is
+>   a fresh JVM spawned per query (§8.4's current lifecycle model) on a
+>   resource-constrained non-JVM host (e.g. an embedded target), JIT warmup/classload/
+>   heap-reservation cost could plausibly exceed the cost of just shipping the
+>   candidate data, defeating the entire point. This makes STD-009's own still-open
+>   §14 item ("Filter sidecar lifecycle: per-query vs pooled-per-digest") **more
+>   load-bearing in the cross-language case than in the pure-JVM case**, not just an
+>   optimization — a pooled, kept-warm sidecar (with CDS/AOT as a further mitigation
+>   lever, per existing DirtyChai build practice) is plausibly close to *required*
+>   here, not optional. None of this is decided; flagged for whoever picks this up.
+>
+> **Proposal raised 2026-07-17 (Peter): ship a stripped-down JVM as the sidecar
+> image, addressing the startup-cost point directly.** Directionally sound and
+> well-trodden — this is the same "shrink + prewarm" toolkit already used to make
+> Java viable for cloud/serverless cold-start (AWS Lambda's Java runtime and
+> similar), not a novel technique. Two distinct things hide under "stripped down
+> JVM," and picking the wrong one would silently break the SM/POLP layer this whole
+> design leans on:
+>
+> - **`jlink` custom runtime image (the fit).** `jlink` prunes at *module*
+>   granularity only — it cannot remove classes from `java.base`, where
+>   `SecurityManager`/`AccessController`/DirtyChai's own SM patches live — so a
+>   `jlink`'d DirtyChai image is still a real, full-featured, SM-capable JVM, just
+>   without `java.desktop`/`java.naming`/`java.sql`/etc. Given the filter's own
+>   "zero ambient authority" role (§8.4 — no network, no filesystem beyond the UDS
+>   socket), the module set it actually needs is plausibly close to `java.base` plus
+>   whatever the DER/UDS transport requires — very little else. Combine with a
+>   dedicated CDS/AppCDS archive built for that exact module set (the same
+>   already-standard DirtyChai build practice, just re-scoped) for both smaller
+>   footprint and faster boot.
+> - **AOT/native-image (GraalVM Native Image or similar) — likely the wrong fit,
+>   flagged not ruled out with full certainty.** A fundamentally different
+>   execution substrate, not a DirtyChai-fork artifact at all, historically with
+>   limited-to-no support for installing a real, dynamic `SecurityManager` the way
+>   DirtyChai's HotSpot-based fork does. Choosing this would mean re-deriving this
+>   entire session's SM/POLP-dependent analysis for a different runtime — a much
+>   larger undertaking than `jlink`, and probably a non-starter given how load-
+>   bearing SM is throughout this design (`SOW-BAE-Timing-Sidechannel-Denial.md`
+>   §1b). Needs an explicit current-version check before ruling out entirely, but
+>   `jlink` is the safer default direction.
+> - **`CRaC` (Coordinated Restore at Checkpoint) as a further lever for the
+>   per-query-ephemeral lifecycle specifically** — pre-warm a sidecar with the
+>   filter-loading machinery already JIT'd/initialized, checkpoint it, then restore
+>   (fork) a fresh instance per query near-instantly instead of a cold boot. Worth
+>   investigating for §14's lifecycle question, but needs its own security review
+>   before adoption, not just accepted at face value — a checkpointed process image
+>   is itself a sensitive artifact (what state does it retain across restores; does
+>   anything need scrubbing) and CRIU-based restore has its own attack surface.
+> - **A real, currently-open landmine directly relevant to choosing `jlink`:**
+>   `SOW-dirtychai-digest-codesource-locale-hazard-2026-07-06.md` (DirtyChai,
+>   ADVISE-ONLY, not yet fixed) documents that `DigestCodeSource.computeDigest`'s
+>   `file:`-directory path lazily initializes the CLDR locale provider via
+>   `Collator.getInstance()` — **not SM-safe**, and it fires on the **first class
+>   load**, aborting boot entirely under `-Djava.security.manager=default`. The
+>   stock full "product image" hides this only because its CDS archive happens to
+>   pre-materialize the CLDR/`Collator` classes at dump time; the hazard is real
+>   whenever CDS is off or the archive doesn't cover those classes. **A custom,
+>   module-pruned `jlink` image is exactly the deployment shape most likely to run
+>   without a matching archive** — it needs its *own*, separately-built and
+>   kept-valid CDS archive (a stock JDK's default archive doesn't apply to a
+>   different module set), and any drift, rebuild-without-regeneration, or missing
+>   archive silently reintroduces total bootstrap failure under SM. **This SOW
+>   should land in DirtyChai before any `jlink`'d sidecar image ships to
+>   production** — not an incidental detail, a real dependency.
+> - **Integrity framing.** Once the sidecar ships as a *custom runtime image*, not
+>   just custom application code, that image itself becomes part of the trust
+>   boundary — it should be built via the same trusted DirtyChai pipeline and be an
+>   attested, integrity-verified artifact in its own right (the existing
+>   role-neutral attested-worker concept), not a separately-blessed, less-scrutinized
+>   build variant.
+> - **Honesty check for the embedded/constrained-hardware case.** A `jlink`'d image
+>   is still a real JRE — real tens-of-MB-plus disk footprint and real heap, not
+>   comparable to a `musl`-static Rust binary's footprint. It narrows the gap
+>   significantly versus a full JDK; it does not close it. If the target hardware is
+>   constrained enough that this still doesn't fit, that's a different, harder
+>   question this note doesn't resolve.
+>
+> **Further proposal raised 2026-07-17 (Peter): a small JVM-bytecode interpreter
+> written in Rust, with stripped Java libraries, instead of shipping a `jlink`'d
+> DirtyChai image. Recorded here as a MAJOR OPEN DESIGN FORK — genuinely interesting,
+> deliberately NOT decided, and not to be treated as a direction by default.** This is
+> categorically bigger than the `jlink`-vs-`native-image` question above (a build
+> configuration choice); this is "build a new, core-TCB, security-critical execution
+> engine." Real considerations on both sides, not a rubber stamp either way:
+>
+> - **The genuinely strong argument for it:** if the interpreter's instruction/method
+>   set is restricted **by construction** (no I/O opcodes, no reflection, no native
+>   calls ever implemented), "zero ambient authority" (§8.4) stops being a runtime-
+>   enforced property (`SecurityManager`/policy checks against a general-purpose
+>   runtime that *could* do more) and becomes true by omission — the same paradigm
+>   eBPF's verifier and WebAssembly's capability-free sandbox use. That is arguably a
+>   **stronger** security property for this narrow case than the JVM-sidecar's own
+>   SM/POLP-based model, not a weaker one. It also sidesteps the CDS/CLDR/SM bootstrap
+>   hazard above entirely (no `SecureClassLoader`/`DigestCodeSource`/locale-service
+>   path to have a hazard in), and BAE's static bytecode analysis stays reusable
+>   either way — it parses standard `.class` files independent of what executes them.
+> - **The genuinely real risks, stated plainly:** (1) it discards DirtyChai's mature,
+>   carefully-reasoned `SecurityManager`/`DynamicPolicy`/`PermissionCollection`/
+>   `LeasedPermissionGrant` machinery and requires an equivalent trust model built
+>   from scratch, in a different language, by a much smaller team than builds
+>   production JVMs — the "safe by construction" argument above only holds if the
+>   restricted instruction set is actually complete and actually enforced everywhere,
+>   a new correctness claim to prove, not one inherited for free. (2) Bytecode/
+>   classfile-verifier correctness is the single hardest, highest-stakes part of any
+>   JVM, and a from-scratch implementation concentrates risk exactly there — Rust's
+>   memory safety (no buffer overflow/use-after-free in the interpreter's own code) is
+>   real and valuable, but is **not** the same property as interpreted-language type
+>   safety (correct operand-stack/constant-pool/type-flow handling), and does not
+>   protect against logic bugs or whatever `unsafe` blocks a real interpreter likely
+>   needs somewhere. Conflating "written in Rust" with "verifier-sound" would be the
+>   wrong lesson to take from this. (3) This is a categorically larger, more
+>   open-ended engineering commitment than a build-configuration change — closer in
+>   scope to research-grade alternative JVMs (Avian, JamVM, CACAO; none
+>   production-security-hardened) than to `jlink`'ing an existing runtime — worth
+>   weighing explicitly against this project's own standing "lean resourcing" /
+>   "do the minimum you can do confidently" principles before committing engineering
+>   capacity to building and *maintaining* it indefinitely.
+> - **A further, distinct fork worth naming rather than silently folding in:** does a
+>   filter need to *be* standard JVM bytecode at all? Given RULE-F1/F2/F3 already
+>   restrict a filter to `@Stateless`, `@AtomicSerial`, pure `(candidate, params) →
+>   boolean` with no captured state, a purpose-built restricted expression/predicate
+>   format — not JVM classfiles — might be an even smaller, more auditable target than
+>   "a JVM, just small." That would be a real departure from this section's current
+>   model (a real compiled Java class extending `AbstractRemoteFunction`), not an
+>   implementation detail, and needs to be recognized as its own decision if raised
+>   again, not conflated with "which interpreter do we ship."
+> - **Recommendation, not a ruling:** this deserves a dedicated feasibility/scoping
+>   pass of its own — separate from, and after, the `jlink`/CDS work above — before
+>   being treated as a direction. Nothing above is decided.
 
 ### 8.6 Generalization: the sidecar as a mobile-code container [PROPOSED]
 
@@ -651,6 +1004,23 @@ proxy sidecar needs network-to-service + UDS-serving-API and **no display, no se
 so compromising one yields nothing of the other's, and either is independently killable.
 (This composition/selection model, the delegation credential model, and full
 sidecar/worker design are their own design surface, out of scope for this standard.)
+
+> **Status update 2026-07-17.** "Out of scope for this standard" above is now only
+> accurate for the **filter** tenant and the **ServiceUI kill-switch/disjoint-sidecar
+> composition** material specifically — both remain genuinely open, untouched by the
+> newer work. For the **smart-proxy** tenant, "the delegation credential model" and
+> "full sidecar/worker design" this paragraph defers now have a concrete task-level
+> answer: `SOW-Unix-Domain-Socket-JERI-Transport.md` §12 (routing, lifecycle, the
+> `-api`/`-dl`-as-process-boundary mechanics this section already anticipated almost
+> exactly) and `SOW-SubProcessDynamicPolicy.md` (the "attenuated, leased delegation"
+> problem two paragraphs above, named here but left unbuilt — now a six-task SOW
+> reusing `LeasedPermissionGrant`/`LeasedDelegation`). The lifecycle model differs by
+> design from the filter's per-query teardown (§8.4): a smart proxy is long-lived and
+> stateful by nature (§3.3's "any client state"), so the newer work pools one sidecar
+> per remote SPIFFE principal and tears it down via JERI's own DGC (dirty-set/lease)
+> liveness once nothing holds a live reference — not per-call. This is a different
+> lifecycle answer for a different tenant, not a revision of §8.4's filter answer,
+> which stays whatever §14's own still-open item resolves it to.
 
 ---
 

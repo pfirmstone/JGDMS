@@ -36,6 +36,40 @@ weaken deny-by-default admission control — it exists for the "something novel 
 through anyway" case, and its coverage is honestly narrow (§5): it catches
 byte-identical recurrences of a payload already seen once, nothing more.
 
+**Precondition on decoder strictness (verified 2026-07-11, this session — resolves an
+open risk to this SOW's central premise, not merely a footnote).** The
+"byte-identical recurrence, nothing more" scoping above, and the stable-identifier
+claim two paragraphs up, both silently assume the *decoder* enforces DER's
+determinism as strictly as the *encoder* does. A security audit earlier this session
+found that assumption false as currently implemented:
+`DerFieldStore.decodeAllFields` (`jgdms-der/.../getarg/DerFieldStore.java:308-366`)
+tolerates a mismatch between a class's SEQUENCE and that class's own transmitted,
+schemaDigest-verified schema — silently defaulting missing fields (case (b)) and
+silently reading-and-discarding trailing TLVs (case (c)) instead of rejecting the
+mismatch. Because the encoder (`ObjectCodec.encode`, same module) always writes
+exactly as many TLVs as its accompanying schema declares, any such mismatch at
+decode time can only come from corruption, tampering, or a bug — never a legitimate
+wire form — yet the current decoder tolerates it anyway. Consequence for *this* SOW
+specifically: an attacker can take an already-registry-blocked payload, append one
+harmless trailing TLV inside a class's SEQUENCE (fixing up the enclosing length),
+and obtain a byte-different payload that still decodes to the identical logical
+object — a free, zero-cost digest-mint that evades this entire mechanism without
+varying the attack at all, which is strictly worse than §4's stated "attacker must
+change something about the logical payload" limitation. The maintainer has since
+clarified (and this session verified against the code, tracing `decodeAllFields`'s
+only two callers and the encode-side symmetry) that this leniency is a
+cleanly-separable bolt-on inside `decodeAllFields` itself, not a structural
+conflation of the transmitted schema with anything else — genuine cross-version
+compatibility is correctly handled one layer up, at `@AtomicSerial`/`GetArg`
+(`arg.get(name, default)` for a field name the transmitted schema never declared at
+all), which does not depend on this leniency and is unaffected by removing it. A
+precise fix — reject decode outright on any TLV-count/shape mismatch between a
+class's SEQUENCE and its own transmitted schema — has been proposed (not yet
+applied; pending maintainer review) in the same session that added this note. Once
+applied, the determinism premise this SOW is built on holds exactly as stated with
+no caveat; until then, treat this SOW's core mechanism as resting on a precondition
+that is not yet true of the codebase.
+
 **Correction to a premise going in:** there is **no existing SHA-256 content digest
 of payload *values*** anywhere in the codebase today to build on directly. The two
 existing digest mechanisms are adjacent, not identical:
@@ -1009,7 +1043,15 @@ actually do the load-bearing work.
   is a real, narrow limitation, not a hedge: this mechanism defends against
   **lazy or automated re-use of an already-caught payload** (a bot replaying a
   known-working exploit, a script kiddie reusing a public PoC verbatim), not
-  against a motivated attacker willing to vary their payload per attempt.
+  against a motivated attacker willing to vary their payload per attempt. **This
+  entire bullet is conditional on the decoder-strictness precondition noted in
+  §0** — with the `DerFieldStore.decodeAllFields` leniency still in place, "any
+  actual change to a field value... produces a different digest" is true, but the
+  converse the attacker actually exploits — a different digest *without* any
+  change to the logical content (an inert trailing TLV) — is also currently
+  possible, which is a strictly cheaper evasion than "vary the payload." The
+  proposed fix in §0 closes that gap; until applied, this scoping section
+  understates the mechanism's evadability.
 - **Whole-graph digest vs. sub-component digest is a real scoping choice (§2.2),
   not just an optimization.** A whole-object-graph digest only catches the exact
   full payload recurring; a sub-component digest (of a nested `@AtomicSerial`
