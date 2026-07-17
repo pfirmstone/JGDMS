@@ -998,9 +998,16 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
                 case TC_EXCEPTION:
 //		    System.out.println("TC_EXCEPTION");
                     Exception exc = readException();
-		    if (type != null && !type.isInstance(exc))
-			throw new InvalidObjectException("Was expecting " + type 
-				+ " but got an Exception");
+		    if (type != null && !type.isInstance(exc)){
+			// TC_EXCEPTION is a writer-abort signal, not a typed value:
+			// the peer threw while serializing the value of the expected
+			// type. Surface that real cause instead of discarding it.
+			InvalidObjectException ioe = new InvalidObjectException(
+				"Was expecting " + type
+				+ " but the peer aborted serialization");
+			ioe.initCause(exc);
+			throw ioe;
+		    }
                     throw new WriteAbortedException(Messages.getString("luni.BD"), exc); //$NON-NLS-1$
                 case TC_RESET:
 //		    System.out.println("TC_RESET");
