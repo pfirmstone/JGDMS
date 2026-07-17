@@ -460,7 +460,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * proxy), that writeReplaces itself to the original.
      */
     @AtomicSerial
-    static class WrappedGID extends ActivationGroupIDImpl {
+    static class WrappedGID extends ActivationGroupIDImpl implements Replace {
 	/** Original gid */
 	private final ActivationGroupID id;
 	/** Prepared system proxy */
@@ -495,7 +495,14 @@ abstract class AbstractActivationGroup extends ActivationGroup
 	    return sys;
 	}
 
-	private Object writeReplace() {
+	// WrappedGID must serialize AS the original id. Its own inherited uid is a
+	// fresh UID minted by super(sys) (ActivationGroupIDImpl(ActivationSystem)),
+	// so transmitting a WrappedGID would present the activation system an
+	// unknown group id (groupTable lookup miss -> UnknownGroupException). The
+	// atomic marshalling stream honours writeReplace only via the Replace
+	// interface (not a reflective private method), so WrappedGID implements
+	// Replace and this method is public.
+	public Object writeReplace() {
 	    return id;
 	}
     }
