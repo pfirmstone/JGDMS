@@ -30,8 +30,8 @@ import net.jini.security.TrustVerifier;
  * {@link ProxyTrust#getProxyVerifier ProxyTrust.getProxyVerifier} method of
  * a trusted bootstrap proxy will be implemented (on the server side) by
  * delegating to the corresponding method of this local interface.
- * {@link ProxyTrustExporter} is one example of this form of delegation,
- * <code>net.jini.jeri.ProxyTrustILFactory</code> is another example.
+ * <code>net.jini.jeri.ProxyTrustILFactory</code> is one example of this
+ * form of delegation.
  *
  * @author Sun Microsystems, Inc.
  * @since 2.0

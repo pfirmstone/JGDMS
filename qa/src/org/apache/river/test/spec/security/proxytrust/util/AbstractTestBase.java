@@ -26,7 +26,6 @@ import java.rmi.RemoteException;
 import java.rmi.server.RMIClassLoader;
 import java.util.ArrayList;
 import java.util.List;
-import java.lang.reflect.Method;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 
@@ -35,13 +34,10 @@ import org.apache.river.qa.harness.QATestEnvironment;
 
 // net.jini
 import org.apache.river.qa.harness.Test;
-import net.jini.export.Exporter;
 import net.jini.security.TrustVerifier;
-import net.jini.security.proxytrust.ProxyTrustExporter;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.ProxyTrust;
-import net.jini.security.proxytrust.ProxyTrustInvocationHandler;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.constraint.BasicMethodConstraints;
@@ -83,107 +79,6 @@ public abstract class AbstractTestBase extends QATestEnvironment implements Test
         } catch (Exception e) {
             throw new ExceptionInInitializerError(e);
         }
-    }
-
-    /**
-     * Print arguments specified and then create ProxyTrustExporter with
-     * specified arguments.
-     *
-     * @param mainExporter Main exporter for ProxyTrustExporter
-     * @param bootExporter Boot exporter for ProxyTrustExporter
-     * @return ProxyTrustExporter
-     */
-    public ProxyTrustExporter createPTE(Exporter mainExporter,
-                                        Exporter bootExporter) {
-        logger.fine("Creating ProxyTrustExporter[mainExporter = "
-                + mainExporter + ", bootExporter = " + bootExporter + "]");
-        return new ProxyTrustExporter(mainExporter, bootExporter);
-    }
-
-    /**
-     * Print arguments specified and then create ProxyTrustInvocationHandler
-     * with specified arguments.
-     *
-     * @param main the main proxy
-     * @param boot the bootstrap proxy
-     * @return ProxyTrustInvocationHandler
-     */
-    public ProxyTrustInvocationHandler createPTIH(RemoteMethodControl main,
-                                                  ProxyTrust boot) {
-        logger.fine("Creating ProxyTrustInvocationHandler[main = "
-                + main + ", boot = " + boot + "]");
-        return new ProxyTrustInvocationHandler(main, boot);
-    }
-
-    /**
-     * Print arguments specified and then call 'invoke' method of
-     * ProxyTrustInvocationHandler specified.
-     *
-     * @param ptih ProxyTrustInvocationHandler
-     * @param proxy the proxy object
-     * @param method the method being invoked
-     * @param args the arguments to the specified method
-     * @return result of 'invoke' method call
-     * @throws NullPointerException if ptih is null
-     * @throws rethrow any exception thrown by invoke method
-     */
-    public Object ptihInvoke(ProxyTrustInvocationHandler ptih, Object proxy,
-            Method method, Object[] args) throws Exception {
-        if (ptih == null) {
-            throw new NullPointerException(
-                    "ProxyTrustInvocationHandler specified is null.");
-        }
-        logger.fine("Call 'invoke(): Proxy"
-                + ProxyTrustUtil.interfacesToString(proxy) + ", Method: "
-                + method + ", Args: " + ProxyTrustUtil.arrayToString(args)
-                + "'.");
-        try {
-            return ptih.invoke(proxy, method, args);
-        } catch (Throwable t) {
-            if (t instanceof Exception) {
-                throw ((Exception) t);
-            } else {
-                throw new Error(t);
-            }
-        }
-    }
-
-    /**
-     * Print arguments specified and then call 'checkTrustEquivalence' method of
-     * ProxyTrustInvocationHandler specified.
-     *
-     * @param ptih ProxyTrustInvocationHandler
-     * @param obj parameter to 'checkTrustEquivalence' method
-     * @return result of 'checkTrustEquivalence' method call
-     * @throws NullPointerException if ptih is null
-     */
-    public boolean ptihCheckTrustEquivalence(ProxyTrustInvocationHandler ptih,
-            Object obj) {
-        if (ptih == null) {
-            throw new NullPointerException(
-                    "ProxyTrustInvocationHandler specified is null.");
-        }
-        logger.fine("Call 'checkTrustEquivalence(" + obj + ")' method of "
-                + ptih + ".");
-        return ptih.checkTrustEquivalence(obj);
-    }
-
-    /**
-     * Print arguments specified and then call 'equals' method of
-     * ProxyTrustInvocationHandler specified.
-     *
-     * @param ptih ProxyTrustInvocationHandler
-     * @param obj parameter to 'equals' method
-     * @return result of 'equals' method call
-     * @throws NullPointerException if ptih is null
-     */
-    public boolean ptihEquals(ProxyTrustInvocationHandler ptih, Object obj) {
-        if (ptih == null) {
-            throw new NullPointerException(
-                    "ProxyTrustInvocationHandler specified is null.");
-        }
-        logger.fine("Call 'equals(" + obj + ")' method of " + ptih + ".");
-        return ptih.equals(obj);
     }
 
     /**
@@ -252,30 +147,6 @@ public abstract class AbstractTestBase extends QATestEnvironment implements Test
         TestClassLoader cl = new TestClassLoader();
         InvocationHandler ih = new InvHandler(impl);
         return (ProxyTrust) ProxyTrustUtil.newProxyInstance(impl, ih, cl);
-    }
-
-    /**
-     * Returns true if object specified != null, is instance of Boolean and
-     * equal to value expected. In this case success message will be printed.
-     * Otherwise false will be returned.
-     *
-     * @param obj object for checking
-     * @param value expected value
-     * @return true if obj != null, is instance of Boolean and equal to value
-     *          and false otherwise
-     */
-    public boolean isOk(Object obj, boolean value) {
-        if ((obj == null) || !(obj instanceof Boolean)
-                || ((Boolean) obj).booleanValue() != value) {
-            // FAIL
-            return false;
-        }
-
-        // PASS
-        logger.fine("'invoke' method of constructed "
-                + "ProxyTrustInvocationHandler returned " + value
-                + " as expected.");
-        return true;
     }
 
     /**

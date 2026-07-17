@@ -36,7 +36,6 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.TrustEquivalence;
-import net.jini.security.proxytrust.ProxyTrustExporter;
 
 // org.apache.river
 import org.apache.river.jeri.internal.runtime.Util;

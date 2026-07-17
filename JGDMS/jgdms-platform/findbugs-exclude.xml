@@ -79,11 +79,6 @@
         <Bug pattern="MS_OOI_PKGPROTECT"/>
     </Match>
     <Match>
-        <!-- ProxyTrust is Remote  -->
-        <Class name="net.jini.security.proxytrust.ProxyTrustInvocationHandler"/>
-        <Bug pattern="SE_BAD_FIELD"/>
-    </Match>
-    <Match>
         <!-- ActivationSystem is Remote -->
         <Class name="org.apache.river.api.io.ActivationGroupIDSerializer"/>
         <Bug pattern="SE_BAD_FIELD"/>

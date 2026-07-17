@@ -100,19 +100,6 @@ public class JgdmsPlatformGroundTruthTest {
     }
 
     @Test
-    public void proxyTrustExporterSharesAfterCleanerFix() {
-        // The §8 audit flagged ProxyTrustExporter (static Executor pool + lock).
-        // Its WeakReference/ReferenceQueue/reaper-pool machinery was replaced
-        // with java.lang.ref.Cleaner, dissolving the hazard, so it now SHAREs
-        // with no hazard rather than being preferred.
-        ClassDecision d = get("net/jini/security/proxytrust/ProxyTrustExporter");
-        assertEquals(Decision.SHARE, d.getAnalysisDecision());
-        assertTrue("Cleaner refactor removed all static-state hazards",
-                d.getHazards().isEmpty());
-        assertFalse(d.isNeedsReview());
-    }
-
-    @Test
     public void preferSetIsExactlyUuidFactory() {
         int prefer = 0;
         StringBuilder names = new StringBuilder();
