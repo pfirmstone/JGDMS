@@ -132,7 +132,16 @@ import org.apache.river.impl.Messages;
  *	if these limits are reached.
  *</p>
  * @author peter
+ * @deprecated This is JOSS -- the Java-Serialization-coupled half of the
+ *     {@code @AtomicSerial} marshalling path (Java object-stream wire format).
+ *     It is being superseded by the DER marshalling path
+ *     ({@code au.net.zeus.jgdms.der.marshal.DerMarshalInstanceInput},
+ *     {@code jgdms-der} module), which decodes {@code @AtomicSerial} records from
+ *     ASN.1 DER rather than the Java Serialization object-stream protocol. Not
+ *     yet scheduled for removal -- the DER path is not fully load-bearing for
+ *     every JOSS consumer yet -- but new code should target DER, not this.
  */
+@Deprecated
 public class AtomicMarshalInputStream extends MarshalInputStream implements AtomicObjectInput {
   
     private final InputStream emptyStream = new ByteArrayInputStream(

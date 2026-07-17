@@ -42,14 +42,23 @@ import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.io.MarshalOutputStream;
 
 /**
- * This AtomicMarshalOutputStream, replaces a number of Java Object's in the stream 
- * with Serializer's that ordinarily would not be deserializable by 
- * AtomicMarshalInputStream or would not be safe to be deserialized, this 
- * includes, but is not limited to Java Collections classes, Throwable 
+ * This AtomicMarshalOutputStream, replaces a number of Java Object's in the stream
+ * with Serializer's that ordinarily would not be deserializable by
+ * AtomicMarshalInputStream or would not be safe to be deserialized, this
+ * includes, but is not limited to Java Collections classes, Throwable
  * subclasses and object versions of primitive values.
- * 
+ *
  * @author peter
+ * @deprecated This is JOSS -- the Java-Serialization-coupled half of the
+ *     {@code @AtomicSerial} marshalling path (Java object-stream wire format).
+ *     It is being superseded by the DER marshalling path
+ *     ({@code au.net.zeus.jgdms.der.marshal.DerMarshalInstanceOutput},
+ *     {@code jgdms-der} module), which encodes {@code @AtomicSerial} records as
+ *     ASN.1 DER rather than the Java Serialization object-stream protocol. Not
+ *     yet scheduled for removal -- the DER path is not fully load-bearing for
+ *     every JOSS consumer yet -- but new code should target DER, not this.
  */
+@Deprecated
 public class AtomicMarshalOutputStream extends MarshalOutputStream {
     private static final Logger logger = Logger.getLogger("org.apache.river.api.io");
     

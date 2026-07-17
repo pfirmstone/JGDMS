@@ -65,12 +65,21 @@ import org.apache.river.impl.Messages;
  * A specialized {@link OutputStream} that is able to write (serialize) Java
  * objects as well as primitive data types (int, byte, char etc.). The data can
  * later be loaded using an ObjectInputStream.
- * 
+ *
  * @see ObjectInputStream
  * @see ObjectOutput
  * @see Serializable
  * @see Externalizable
+ * @deprecated This is JOSS -- the Java-Serialization-coupled half of the
+ *     {@code @AtomicSerial} marshalling path (Java object-stream wire format,
+ *     underlying {@link AtomicMarshalOutputStream}). It is being superseded by
+ *     the DER marshalling path ({@code au.net.zeus.jgdms.der.stream.DerObjectStreamCodec},
+ *     {@code jgdms-der} module), which encodes {@code @AtomicSerial} records as
+ *     ASN.1 DER rather than the Java Serialization object-stream protocol. Not
+ *     yet scheduled for removal -- the DER path is not fully load-bearing for
+ *     every JOSS consumer yet -- but new code should target DER, not this.
  */
+@Deprecated
 class ObjOutputStream extends OutputStream implements ObjectOutput,
         ObjectStreamConstants, ObjectStreamContext {
 

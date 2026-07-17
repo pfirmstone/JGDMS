@@ -42,7 +42,16 @@ import org.apache.river.resource.Service;
 /**
  *
  * @author peter
+ * @deprecated This is JOSS -- the Java-Serialization-coupled half of the
+ *     {@code @AtomicSerial} marshalling path (Java object-stream wire format).
+ *     It is being superseded by the DER marshalling path
+ *     ({@code au.net.zeus.jgdms.der.object.DerProxySerializer}, {@code jgdms-der}
+ *     module), which carries a downloadable proxy over ASN.1 DER rather than the
+ *     Java Serialization object-stream protocol. Not yet scheduled for removal --
+ *     the DER path is not fully load-bearing for every JOSS consumer yet -- but
+ *     new code should target DER, not this.
  */
+@Deprecated
 @AtomicSerial
 class ProxySerializer {
 
