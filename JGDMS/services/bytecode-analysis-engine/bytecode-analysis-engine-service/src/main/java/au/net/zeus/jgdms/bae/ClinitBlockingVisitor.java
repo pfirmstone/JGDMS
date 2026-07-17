@@ -218,13 +218,29 @@ final class ClinitBlockingVisitor {
      * trip the fail-secure {@link ClinitVerdict#NATIVE_OPACITY} default-deny),
      * and — for a sink hit — which {@link ClinitVerdict} to assign.
      *
-     * <p>This is the seam that lets future consumers (a {@code nanoTime}-family
-     * timing denylist, a lock-contention/{@code MONITORENTER} detector) reuse
-     * the whole call-graph BFS machinery in {@link #analyzeReachability} by
-     * supplying a <em>different</em> sink set rather than mutating the shared
-     * {@link BlockingSinkRegistry} (which would cross-contaminate the existing
+     * <p>This is the seam that lets a future <em>call-based</em> sink denylist
+     * (e.g. a {@code System.nanoTime}-family timing denylist — confirmed
+     * buildable this way, see {@code ReachabilitySurfaceTest}) reuse the whole
+     * call-graph BFS machinery in {@link #analyzeReachability} by supplying a
+     * <em>different</em> sink set rather than mutating the shared {@link
+     * BlockingSinkRegistry} (which would cross-contaminate the existing
      * {@code <clinit>} blocking analysis).  It is deliberately minimal: three
      * methods, matching exactly what the traversal needs and no more.
+     *
+     * <p><b>Does NOT generalize to opcode-level or method-flag detection —
+     * confirmed by direct testing, not assumed.</b> This seam, and the call
+     * graph it walks, model only method-call edges (populated by {@link
+     * #indexClass} from {@code INVOKE*} instructions) and the synthetic
+     * static-field {@code <clinit>} edges; a {@code synchronized} block or
+     * method's {@code MONITORENTER}/{@code MONITOREXIT}/{@code
+     * ACC_SYNCHRONIZED} never produces a call-graph node or edge at all, so no
+     * {@code SinkPolicy}, however aggressive, is ever consulted about a
+     * monitor operation through this seam. A future lock-contention detector
+     * therefore <b>cannot</b> be built by "supplying a different sink set" —
+     * it needs the shared indexer ({@code ClinitIndexVisitor}) itself extended
+     * to synthesize monitor pseudo-edges, which is exactly the shared-machinery
+     * change this seam exists to avoid for call-based sinks. Scope that work
+     * accordingly rather than assuming this seam already covers it.
      *
      * <p>The default {@link #BLOCKING_SINK_POLICY} reproduces the historical
      * {@code <clinit>}-blocking behaviour byte-for-byte.
@@ -328,6 +344,61 @@ final class ClinitBlockingVisitor {
     }
 
     /**
+     * Builds a one-time {@code owner class -> its own method keys} index over
+     * {@code callGraph}, for O(1)-per-class lookup by {@link
+     * #invocableSurfaceRoots(String, Map)}.
+     *
+     * <p><b>Exists to close a real, measured quadratic-cost gap</b>: without a
+     * pre-built index, computing per-class invocable-surface roots by scanning
+     * the whole shared {@code callGraph} for every class (the intended usage —
+     * once per class in a JAR, to build the whole-JAR reachability guarantee
+     * {@link #analyzeInvocableSurfaceReachability} documents as a MUST) is
+     * O(N&middot;M) in total JAR method count: benign at small scale, measured
+     * at ~2.4s for 25k methods across 5k classes, and did not complete within
+     * 90s for 20k classes. A caller analysing more than one class from the
+     * same {@code callGraph} <b>MUST</b> build this index once via this method
+     * and reuse it, rather than calling the single-scan overload of {@link
+     * #invocableSurfaceRoots(String, Map)} in a per-class loop.
+     *
+     * <p>Owner extraction relies on a real invariant of the {@code
+     * "owner/name/descriptor"} key format, not a heuristic: a JVM method
+     * descriptor always begins with {@code '('}, and neither an internal class
+     * name (owner) nor a method name may itself contain {@code '('} — so the
+     * index of the first {@code '('} in a key unambiguously marks the start of
+     * the descriptor, regardless of how many {@code '/'} characters appear
+     * inside the descriptor's own embedded type names.
+     *
+     * @param callGraph populated by {@link #indexClass} for all JAR classes
+     * @return an index from internal binary class name to the set of method
+     *         keys ({@code "owner/name/descriptor"}) that class itself defines
+     */
+    static Map<String, Set<String>> buildOwnerIndex(
+            Map<String, Set<String>> callGraph) {
+        Map<String, Set<String>> index = new HashMap<String, Set<String>>();
+        for (String key : callGraph.keySet()) {
+            int descStart = key.indexOf('(');
+            if (descStart < 1) continue; // malformed key; skip defensively
+            // First boundary found is name/descriptor, not owner/name — lastIndexOf's
+            // fromIndex is inclusive, so searching from (descStart - 1) lands on the
+            // separator immediately preceding the descriptor, i.e. the end of the
+            // method name. A second backward search from just before that boundary
+            // is required to find the actual owner/name separator.
+            int nameDescBoundary = key.lastIndexOf('/', descStart - 1);
+            if (nameDescBoundary < 1) continue; // malformed key; skip defensively
+            int ownerNameBoundary = key.lastIndexOf('/', nameDescBoundary - 1);
+            if (ownerNameBoundary < 0) continue; // malformed key; skip defensively
+            String owner = key.substring(0, ownerNameBoundary);
+            Set<String> ownedKeys = index.get(owner);
+            if (ownedKeys == null) {
+                ownedKeys = new LinkedHashSet<String>();
+                index.put(owner, ownedKeys);
+            }
+            ownedKeys.add(key);
+        }
+        return index;
+    }
+
+    /**
      * Returns the set of method keys ({@code "owner/name/descriptor"}) that
      * constitute {@code rootClass}'s own invocable surface: <em>every</em>
      * method the class defines — its {@code <clinit>}, every constructor, and
@@ -341,25 +412,47 @@ final class ClinitBlockingVisitor {
      * Rooting at the whole surface is a strict superset of any narrower entry
      * set, so it can only ever find <em>more</em> reachable sinks, never fewer.
      *
-     * <p>Only methods actually defined by {@code rootClass} are returned:
-     * {@code callGraph} keys are the classes' own defined methods (populated by
-     * {@link #indexClass}), matched by a {@code rootClass + "/"} prefix. This
-     * correctly excludes a sibling class whose name shares a prefix (e.g.
-     * {@code com/FooBar} versus {@code com/Foo}) and an inner class (e.g.
-     * {@code com/Foo$Inner}), since {@code $} and other non-matching characters
-     * break the prefix match.
+     * <p><b>O(1) lookup — pass a pre-built {@link #buildOwnerIndex} result, not
+     * the raw {@code callGraph}, when analysing more than one class.</b> See
+     * {@link #invocableSurfaceRoots(String, Map)} for the single-scan overload
+     * this replaces for repeated/per-class use, and {@link #buildOwnerIndex}
+     * for why the single-scan overload is unsafe to call in a per-class loop.
      *
-     * <p><b>Not exact at arbitrary sub-package boundaries.</b> A class
-     * internally named {@code com/Foo/Bar} — i.e. a class in a "package" named
-     * after {@code rootClass} — also matches the {@code com/Foo/} prefix and
-     * would be captured. This is fail-secure <em>over</em>-capture, not
-     * under-capture: at worst it roots more methods than {@code rootClass}
-     * itself defines, which can only surface additional true findings or a
-     * conservative false-positive verdict, never mask a real sink. It also
-     * requires a hand-crafted class layout no ordinary compiler can emit (a
-     * class cannot share a fully-qualified name with another class's
-     * package). Left as a known, deliberately-unfixed edge case rather than
-     * complicating the prefix match for something that can only fail safe.
+     * @param rootClass  the internal binary class name whose surface to collect
+     * @param ownerIndex the result of {@link #buildOwnerIndex} over the same
+     *                   call graph
+     * @return the (possibly empty) set of method keys owned by {@code rootClass}
+     */
+    static Set<String> invocableSurfaceRootsIndexed(
+            String rootClass, Map<String, Set<String>> ownerIndex) {
+        Set<String> owned = ownerIndex.get(rootClass);
+        return owned != null ? owned : Collections.<String>emptySet();
+    }
+
+    /**
+     * Single-scan convenience overload: builds a fresh {@link #buildOwnerIndex}
+     * and immediately discards it. <b>Safe for a single, one-off lookup only —
+     * do not call this in a per-class loop over one JAR</b>; each call is
+     * O(N) in total {@code callGraph} size, so a per-class loop over M classes
+     * is O(N&middot;M), a real, measured DoS-shaped cost (see {@link
+     * #buildOwnerIndex} for the measured numbers). Callers analysing more than
+     * one class from the same {@code callGraph} must call {@link
+     * #buildOwnerIndex} once and use {@link #invocableSurfaceRootsIndexed}
+     * instead.
+     *
+     * <p>Owner-boundary matching is otherwise identical: exact for sibling
+     * (e.g. {@code com/FooBar} vs {@code com/Foo}) and inner-class ({@code
+     * com/Foo$Inner}) names. <b>Not exact at arbitrary sub-package
+     * boundaries</b> — a class internally named {@code com/Foo/Bar} (a class
+     * in a "package" named after {@code rootClass}) is also captured. This is
+     * fail-secure <em>over</em>-capture, not under-capture: at worst it roots
+     * more methods than {@code rootClass} itself defines, which can only
+     * surface additional true findings or a conservative false-positive
+     * verdict, never mask a real sink, and it requires a hand-crafted class
+     * layout no ordinary compiler can emit (a class cannot share a
+     * fully-qualified name with another class's package). Left as a known,
+     * deliberately-unfixed edge case rather than complicating the match for
+     * something that can only fail safe.
      *
      * @param rootClass the internal binary class name whose surface to collect
      * @param callGraph populated by {@link #indexClass} for all JAR classes
@@ -367,14 +460,7 @@ final class ClinitBlockingVisitor {
      */
     static Set<String> invocableSurfaceRoots(
             String rootClass, Map<String, Set<String>> callGraph) {
-        String prefix = rootClass + "/";
-        Set<String> roots = new LinkedHashSet<String>();
-        for (String key : callGraph.keySet()) {
-            if (key.startsWith(prefix)) {
-                roots.add(key);
-            }
-        }
-        return roots;
+        return invocableSurfaceRootsIndexed(rootClass, buildOwnerIndex(callGraph));
     }
 
     /**
@@ -424,6 +510,38 @@ final class ClinitBlockingVisitor {
             SinkPolicy policy) {
         return analyzeReachability(
                 invocableSurfaceRoots(rootClass, callGraph),
+                callGraph, isNativeMap, maxDepth, policy);
+    }
+
+    /**
+     * Same as {@link #analyzeInvocableSurfaceReachability}, but takes a
+     * pre-built {@link #buildOwnerIndex} result instead of scanning the whole
+     * {@code callGraph} for {@code rootClass}'s surface on every call. <b>This
+     * is the overload a per-class loop over one JAR must use</b> — build the
+     * index once via {@link #buildOwnerIndex}, then call this once per class;
+     * see {@link #buildOwnerIndex}'s javadoc for the measured quadratic cost
+     * of doing this via the single-scan {@link
+     * #analyzeInvocableSurfaceReachability} overload instead.
+     *
+     * @param rootClass  the internal binary class name whose surface to analyse
+     * @param ownerIndex the result of {@link #buildOwnerIndex} over {@code callGraph}
+     * @param callGraph  populated by {@link #indexClass} for all JAR classes
+     * @param isNativeMap populated by {@link #indexClass} for all JAR classes
+     * @param maxDepth   maximum BFS depth
+     * @param policy     the sink policy (e.g. {@link #BLOCKING_SINK_POLICY}, or
+     *                   a future timing / lock-contention policy)
+     * @return the reachability verdict and path; {@code CLEAN} if the class
+     *         defines no methods or none reach a sink within {@code maxDepth}
+     */
+    static ClinitAnalysisResult analyzeInvocableSurfaceReachabilityIndexed(
+            String rootClass,
+            Map<String, Set<String>> ownerIndex,
+            Map<String, Set<String>> callGraph,
+            Map<String, Boolean> isNativeMap,
+            int maxDepth,
+            SinkPolicy policy) {
+        return analyzeReachability(
+                invocableSurfaceRootsIndexed(rootClass, ownerIndex),
                 callGraph, isNativeMap, maxDepth, policy);
     }
 
