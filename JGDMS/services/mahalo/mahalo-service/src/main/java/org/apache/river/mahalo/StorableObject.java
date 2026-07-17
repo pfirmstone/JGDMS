@@ -100,7 +100,7 @@ public class StorableObject implements java.io.Serializable {
 
     private static MarshalledInstance toMI(Object obj) throws RemoteException{
 	try {
-            return new AtomicMarshalledInstance(obj);   // DER form carries the schema
+            return new AtomicMarshalledInstance(obj);   // JOSS/@AtomicSerial-validated form, not DER -- see its javadoc
         } catch (RemoteException e){
 	    throw e;
         } catch (IOException e){

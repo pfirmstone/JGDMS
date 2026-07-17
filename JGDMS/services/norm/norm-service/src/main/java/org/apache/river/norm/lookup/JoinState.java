@@ -411,7 +411,8 @@ public class JoinState extends LogHandler implements SubStore {
 	out.writeInt(attributes.length);
 	for (int i=0; i<attributes.length; i++) {
 	    // Dual-read upgrade: always write the canonical MarshalledInstance
-	    // (AtomicMarshalledInstance = DER form; carries the schema).
+	    // (AtomicMarshalledInstance is the JOSS/@AtomicSerial-validated
+	    // form, not DER -- see its javadoc; still schema-checked).
 	    out.writeObject(new AtomicMarshalledInstance(attributes[i]));
 	}
     }

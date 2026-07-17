@@ -187,8 +187,9 @@ class EventID implements Serializable {
         throws IOException
     {
         stream.defaultWriteObject();
-        // Dual-read upgrade: write the canonical MarshalledInstance (DER form,
-        // carries the schema) instead of a lossy java.rmi.MarshalledObject.
+        // Dual-read upgrade: write the canonical MarshalledInstance
+        // (AtomicMarshalledInstance is the JOSS/@AtomicSerial-validated form,
+        // not DER -- see its javadoc) instead of a lossy java.rmi.MarshalledObject.
         stream.writeObject(new AtomicMarshalledInstance(source));
     }
 

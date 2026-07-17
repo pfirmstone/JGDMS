@@ -119,7 +119,7 @@ class StorableReference implements Externalizable {
     public void writeExternal(ObjectOutput out) throws IOException {
 	synchronized (this) {
 	    if (instance == null)
-		instance = new AtomicMarshalledInstance(obj);   // DER form carries the schema
+		instance = new AtomicMarshalledInstance(obj);   // JOSS/@AtomicSerial-validated form, not DER -- see its javadoc
             out.writeObject(instance);
 	}
     }

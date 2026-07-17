@@ -158,8 +158,9 @@ class EventWriter {
 	    // successful read later on (i.e. should always be able to read the
 	    // MarshalledInstance but we might not be able to reconstruct a
 	    // RemoteEvent object because of codebase problems). Dual-read upgrade:
-	    // write the canonical MarshalledInstance (AtomicMarshalledInstance =
-	    // DER form, carries the schema) rather than a java.rmi.MarshalledObject.
+	    // write the canonical MarshalledInstance (AtomicMarshalledInstance is
+	    // the JOSS/@AtomicSerial-validated form, not DER -- see its javadoc)
+	    // rather than a java.rmi.MarshalledObject.
 	    MarshalledInstance mi = new AtomicMarshalledInstance(ev);
 	    eout.reset();
 	    eout.writeObject(mi);
