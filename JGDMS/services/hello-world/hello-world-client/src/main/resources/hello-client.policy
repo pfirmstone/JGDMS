@@ -42,10 +42,16 @@ grant codebase "file:${hello.dl.codebase}/-" {
 };
 
 /* -------------------------------------------------------------------------
- * Jini lookup service download classes — full trust.
+ * Jini lookup service download classes (Reggie's registrar proxy).
+ * This is downloaded/mobile code, not local trusted infrastructure — a
+ * proxy must never be granted AllPermission. This minimal set mirrors
+ * deploy/policy/host1-lookup.policy's grant to the identical jar
+ * (file:${jgdms.lib-dl}/*).
  * ------------------------------------------------------------------------- */
 grant codebase "file:${reggie.dl.codebase}/-" {
-    permission java.security.AllPermission;
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
 /* -------------------------------------------------------------------------

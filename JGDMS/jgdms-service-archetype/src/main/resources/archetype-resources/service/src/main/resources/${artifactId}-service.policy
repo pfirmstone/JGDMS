@@ -38,9 +38,15 @@ grant codebase "file:${dollar}{service.codebase}/-" {
 
 /* -------------------------------------------------------------------------
  * Jini lookup service (Reggie) codebase — allow the service to register.
+ * This is downloaded/mobile code, not local trusted infrastructure — a
+ * proxy must never be granted AllPermission. This minimal set mirrors
+ * deploy/policy/host1-lookup.policy's grant to the identical jar
+ * (file:${dollar}{jgdms.lib-dl}/*).
  * ------------------------------------------------------------------------- */
 grant codebase "file:${dollar}{reggie.codebase}/-" {
-    permission java.security.AllPermission;
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
 /* -------------------------------------------------------------------------
