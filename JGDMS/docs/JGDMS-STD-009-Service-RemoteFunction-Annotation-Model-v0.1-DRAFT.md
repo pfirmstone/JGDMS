@@ -461,6 +461,43 @@ on demand.
 > instance, or the `MarshalledInstance` it was built from) should be relayed instead,
 > the same "relay the DER form, never re-derive from a live/stripped proxy" rule this
 > section already states for the listener/filter case.
+>
+> **BUILT 2026-07-17 (trunk `a20455e3e`), superseding the "PROPOSED, unbuilt" status
+> above for the generic bare-`[8]` Proxy case — verified directly against the merged
+> source, not assumed.** `au.net.zeus.jgdms.der.object.BoomerangProxyHandler`
+> (`jgdms-der`) is now the real implementation of this section's stripping + boomerang
+> pattern at the DER `[8]` wire-item granularity: `DerObjectStreamCodec.decodeProxy`/
+> `ObjectCodec.decodeProxy` still resolve each wire-declared interface name
+> independently and drop unresolvable ones (unchanged), but the live proxy's handler is
+> now wrapped in `BoomerangProxyHandler`, which retains the **raw original `[8]` TLV
+> content bytes** (not a parsed name list) so a later re-forward
+> (`ProxyWireSupport.wireContentForBoomerang`, checked first in both codecs' write
+> paths) emits those bytes byte-for-byte instead of re-deriving fresh DER from
+> `proxy.getClass().getInterfaces()` — closing an integrity gap the prior
+> `TolerantProxyHandler` design had (name-based re-derivation forfeited the sender's
+> `@AtomicSerial`-validated integrity guarantee across the hop). `invoke()` is pure
+> passthrough to the real handler — zero behaviour change for any interface that
+> resolved locally; the fast path for "nothing was ever dropped" is also explicitly
+> unchanged. `BoomerangProxyHandler` deliberately has no `serialForm`/`GetArg`
+> constructor — it is a decode-time-only artefact, never itself a wire type.
+> **Confirmed via independent verification pass (2026-07-17): this merge does not
+> affect the UDS smart-proxy isolation design** (`SOW-Unix-Domain-Socket-JERI-
+> Transport.md` §12, `SOW-SubProcessDynamicPolicy.md`) — the client-side local
+> delegate stub's interface selection was already designed to bypass this exact
+> mechanism entirely (a dedicated new `ProxySerializer` field, not the generic
+> bare-`[8]` path); `ProxySerializer`'s `bootstrapProxy` field *does* flow through
+> `encodeProxy`/`decodeProxy` (its declared type is an interface,
+> `Proxy.isProxyClass` dispatch is runtime-class-based, not declared-field-type-based
+> — worth being precise about, a naive read could assume otherwise), but always hits
+> the unchanged "nothing dropped" fast path, since its two interfaces
+> (`CodebaseAccessor`, `RemoteMethodControl`) are fixed platform types every node
+> always resolves; `serviceProxy`'s own content stays an opaque, undecoded
+> `MarshalledInstance` at this layer regardless, per the design's own "client never
+> unmarshals the smart proxy" property (§12 point 3(i)) — unaffected either way. Worth
+> reconsidering, not now, not decided here: whether the still-unbuilt `ProxySerializer`
+> interface-name field proposed above should be unified with `BoomerangProxyHandler`'s
+> now-real byte-retention mechanism rather than inventing a parallel one — flagged for
+> whoever picks up that task, not a redesign performed in this verification pass.
 
 ### 6.5 Downloadable artifacts, module structure, and client reach
 
