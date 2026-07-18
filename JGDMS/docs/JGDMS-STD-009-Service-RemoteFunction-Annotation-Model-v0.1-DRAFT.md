@@ -673,6 +673,53 @@ constrained construct in this standard.
 > §11, and §12 below are left as-written (the prior, now-superseded-in-part model) so
 > nothing is lost — treat them as historical/needing-re-derivation, not current, where
 > they conflict with this note.
+>
+> **Concrete format recommendation — Claude's recommendation to Peter, 2026-07-17,
+> NOT a decision, informed by a dedicated research pass on current (2026) third-party
+> option maturity.** Primary candidates considered: a fully custom AST/expression-tree
+> format (DER-encoded, reusing STD-006); CEL (Common Expression Language); Wasm
+> (wasmtime/Chicory/GraalWasm) hosting compiled logic; OPA/Rego (which itself compiles
+> to Wasm); Starlark (ruled out early — a real scripting language with loops/
+> recursion, wrong shape for "functional only"). Research findings, current as of
+> 2026-07: **CEL is a stronger contender than a first-pass "avoid all third-party
+> dependencies" instinct would suggest** — the spec was formally relocated to a
+> dedicated `cel-expr` GitHub org in June 2026 pursuing CNCF Sandbox status (active
+> institutionalization, not stagnation), has real, currently-maintained Rust
+> (`cel-rust/cel-rust`) and Java (`cel-expr/cel-java`, commits current to January
+> 2026) implementations, is non-Turing-complete and mutation-free **by design** (no
+> unbounded loops/recursion, cost bounded by input+expression size — Kubernetes'
+> admission-control usage even ships static cost estimation), and has deep,
+> current production adoption (Kubernetes `ValidatingAdmissionPolicy`, Envoy,
+> Elasticsearch). By contrast, wasmtime — the leading Rust Wasm runtime — had its
+> largest-ever security-advisory batch in April 2026 (triple 2025's total, including
+> a Critical Cranelift codegen bug, found via new LLM-assisted fuzzing) plus a further
+> CVE this month; a large, actively-probed attack surface, and fuel-metering's
+> termination guarantee has a real caveat (a loop calling host functions without
+> consuming fuel can still run indefinitely — the embedding has to be careful).
+> OPA/Rego is solid but is a full policy language (rule sets, partial evaluation,
+> sets/objects) — more machinery than a bare predicate format needs, and its Java
+> path (JNI bindings over `regorus`) isn't published/first-class. **Recommended
+> middle path, not either extreme:** adopt **CEL's grammar/semantics** as the
+> predicate language — well-specified, field-tested, genuinely bounded-by-design, so
+> we aren't the ones inventing and proving a novel termination guarantee — but write
+> **our own minimal tree-walking evaluators**, in Rust and in Java, over the existing
+> DER binary encoding, rather than taking on `cel-java`/`cel-rust` as runtime
+> dependencies. Reasoning: those two are independently-maintained implementations of
+> a shared spec, not one shared codebase — "same semantics across hosts" isn't free
+> even with them, it still needs version-pinning and running the conformance suite
+> ourselves — so the dependency doesn't fully buy back the cross-language-consistency
+> risk it might seem to. A small, self-written, DER-native evaluator keeps the TCB
+> single-sourced and fully auditable by this team while borrowing CEL's proven
+> grammar design instead of re-deriving bounded-execution semantics from scratch.
+> **Still not decided** — Peter's call. **The §11 contingency is now checked
+> (2026-07-17, see §11's own note): CEL-shaped vocabulary is sufficient** for
+> everything found in Outrigger/Reggie's real matching code — no grammar gap. The
+> research surfaced a different, real cost instead: neither service exposes typed
+> field values to match against today (Outrigger: none at all, every field opaque
+> `MarshalledInstance` bytes; Reggie: partial, immutable-typed attributes only) — so
+> "build the filter" is mostly new typed-field-projection matching-runtime work, not
+> a grammar/language risk. Doesn't change the format recommendation; does change
+> what §11's eventual SOW needs to scope as its real first task.
 
 ### 8.1 Wire form — `@AtomicSerial @Stateless` (RULE-F1)
 
@@ -1183,6 +1230,62 @@ matching-extension mechanism** — the functional gate of
 `DESIGN-CorroborationFramework.md`, realised over the two core matchers. That is
 what justifies the sidecar / `@Stateless` / BAE machinery: it is foundational, not a
 bolt-on.
+
+> **Researched 2026-07-17: does a CEL-shaped grammar (§8's format-recommendation
+> note) actually cover what these two consumers need? Yes on vocabulary; the "rides
+> existing infrastructure" claim above needs correcting.** Checked directly against
+> both services' real matching code, not assumed from this section's prose:
+>
+> - **Matching in both services today is 100% opaque-byte equality — no ranges, no
+>   inequality, no ordering exists anywhere in either codebase currently.** Nothing
+>   found exceeds CEL's comparison/boolean/string-operator vocabulary — no aggregate,
+>   no cross-record computation, nothing needing loops or recursion. CEL-shaped is
+>   sufficient for everything found.
+> - **This paragraph's "rides the existing Blitz field-index... exactly the §8.4
+>   field-projection" claim is only half true, and overstates it for Outrigger
+>   specifically.** `EntryRep` (`services/outrigger/outrigger-dl/.../EntryRep.java:77`)
+>   stores **every** field — including numeric/`String` fields — as
+>   `MarshalledInstance[]`; matching (`EntryRep.matches()`, lines 916-940) is raw
+>   serialized-byte equality (`MarshalledInstance.equals`,
+>   `jgdms-platform/.../MarshalledInstance.java:914-922`); `EntryFieldIndex`
+>   (`services/outrigger/outrigger-service/.../EntryFieldIndex.java:107-215`) is a
+>   hash-bucket accelerator over `MarshalledInstance.hashCode()`, not a typed-value
+>   index — it narrows equality candidates, it does not decode types. A numeric field
+>   is, at this layer, indistinguishable from an opaque blob. **Typed field-projection
+>   for a CEL evaluator to operate on does not exist yet in Outrigger — it is new
+>   matching-runtime work, not something to expose from existing infrastructure.**
+> - **Reggie is materially better positioned, but not fully there either.**
+>   `EntryRep.fields()`/`needsMarshal()`/`IMMUTABLE_TYPES`
+>   (`services/reggie/reggie-dl/.../proxy/EntryRep.java:103-105,163-179,219-238`) leave
+>   `String`/`Integer`/`Boolean`/`Long`/etc. as real, unwrapped, typed values — only
+>   non-primitive-wrapper attribute types get `MarshalledWrapper`-boxed (itself
+>   another opaque-byte-equals comparison, `MarshalledWrapper.java:321-325`). So
+>   range/string-operator predicates over Reggie's common immutable-typed attribute
+>   fields need no new deserialization plumbing — a real, usable asymmetry with
+>   Outrigger — but non-immutable attribute types hit the same opaque-blob problem.
+> - **"Computed" (this section's own phrase, "ranges, inequality, compound,
+>   computed") is undefined anywhere in this document set.** Checked every other
+>   `docs/` reference to the word — none define it in a predicate/filter sense
+>   (`DESIGN-CorroborationFramework.md`'s usage is unrelated, belief-fidelity tiers).
+>   Left as an open term needing a concrete example before it can be scoped — not
+>   guessed at here.
+>   **Concrete example confirmed 2026-07-17** (Peter, Survey-zoot application
+>   discussion, see `DESIGN-CorroborationFramework.md` §8's cross-pointer note): a
+>   bounded, pure, fixed-formula **value transform**, not just a boolean predicate —
+>   e.g. converting raw bearing/elevation/distance into vector components at an
+>   instrument, using CEL arithmetic plus a small, fixed, platform-audited set of
+>   custom functions. The *application* (instrument-level filter/transform pushdown at
+>   the F0 tier) is confirmed as a real fit; whether this is precisely what this
+>   section's original 2026-07-03 author meant by "computed" is still not verifiable
+>   (no record of their intent exists) — treat "computed ⊇ bounded value transforms" as
+>   settled scope going forward, not as archaeology of the original phrase.
+> - **Correction to how this section's SOW should be scoped, once written:** "build a
+>   filter" is not primarily a grammar/language problem (CEL-shaped is sufficient) —
+>   it is primarily **new typed-field-projection matching-runtime work in both
+>   services**, disproportionately larger in Outrigger (every field opaque today)
+>   than in Reggie (partial typed carve-out already exists). Whoever scopes §11 into
+>   a real task breakdown should treat that as the actual first-class task, not a
+>   rider on existing infrastructure the way this section currently implies.
 
 ---
 

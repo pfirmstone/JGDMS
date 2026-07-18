@@ -96,6 +96,40 @@ A domain plug-in provides:
 
 The survey plug-in's details (instrument integration, error budget, field method) belong in Survey-zoot. This is the general/plug-in seam: general at the SPI, lean at the implementation.
 
+> **Cross-pointer 2026-07-17 (flagged here at the JGDMS-side seam only — real design belongs in
+> Survey-zoot, per this doc's own scope note above): a possible application for JGDMS's `@RemoteFunction`
+> filter mechanism (`JGDMS-STD-009-...-DRAFT.md` §8/§11) at the F0 tier specifically.** STD-009 §11
+> already names this framework's Consistency-test SPI as a forward reference ("the `Test` predicate of
+> `DESIGN-CorroborationFramework.md`"); this note is the other direction — where filter-shaped pushdown
+> might serve *this* framework, not the reverse. The **Estimator** and **Consistency-test** SPIs above
+> stay firmly out of scope for this — DynAdjust's least-squares adjustment and Baarda/χ² testing are
+> iterative, stateful, rigorous numerical procedures, not bounded pure predicates; conflating them with a
+> CEL-shaped filter would repeat the exact category error flagged in
+> `SOW-Smart-Proxy-Isolation-Architecture-Overview.md` §1a (CEL cannot replace genuinely stateful
+> computation). What plausibly *does* fit: **bounded, threshold-based screening at or near the
+> instrument, before an observation is worth admitting to F1+ processing at all** — e.g. rejecting/
+> flagging observations against PDOP/HDOP, SNR, elevation-mask, or instrument-reported quality flags,
+> all bounded comparisons over a handful of typed numeric fields, structurally identical to the
+> Outrigger/Reggie filter case. Two live JGDMS-side threads make this concretely relevant rather than
+> abstract: (1) the "GLS instrument federation" embedded-JERI-in-Rust work means an instrument-hosted
+> filter of this kind needs no JVM sidecar at all, since the CEL-shaped format's whole point is being
+> safe-by-construction without process isolation — this is a genuinely cheap win specifically for
+> resource-constrained field instruments, not just a JVM-service optimization; (2) STD-009 §11's own
+> still-open "what does 'computed' mean" question (its phrase "ranges, inequality, compound, computed"
+> is undefined anywhere in that document set) plausibly has a concrete answer here too — a bounded, pure,
+> **fixed-formula value transform** (not just a boolean predicate), e.g. converting raw bearing/elevation/
+> distance into vector components at the instrument (the "convert to vector-math convention in one
+> isolated step" lesson already captured elsewhere in this project's working notes) — CEL's arithmetic
+> operators plus a small, fixed, platform-audited set of custom functions (not arbitrary user code) could
+> cover this while staying bounded/safe. **Application confirmed (Peter, 2026-07-17) — the direction is
+> validated: bounded, instrument-level filter/value-transform pushdown, at the F0 screening tier, is a
+> real fit for this framework, distinct from and never substituting for the Estimator/Consistency-test
+> SPIs above.** Detailed design is still unstarted — the exact predicate/vocabulary needs, the concrete
+> custom-function set, and where this actually lives belong in **Survey-zoot's own repo** (present
+> locally, real per-instrument modules for RTC360/GLS/etc.), including checking whether an informal
+> version of this screening pattern already exists there before assuming a blank slate. This note
+> records the confirmed *direction* only, not a design.
+
 ## 9. Status / unverified assumptions
 
 | Assumption | Claim | Status | Notes |

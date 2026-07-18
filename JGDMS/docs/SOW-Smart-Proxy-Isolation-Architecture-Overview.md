@@ -44,6 +44,48 @@ original framing) are moving to **mandatory, unconditional process isolation**:
 
 ---
 
+## 1a. Open idea (Claude's analysis, not decided): does CEL narrow the smart-proxy isolation surface?
+
+Raised by Peter 2026-07-17, downstream of the filter-format work (STD-009 §8): could CEL (or the
+CEL-shaped bounded-expression format now recommended for filters, §2.2a) also substitute for smart
+proxies generally, reducing how often §1's full isolation machinery is even needed?
+
+**No, not as a general/universal replacement — three definitional reasons, not incidental ones:**
+(1) smart proxies hold **client state** across calls (STD-009 §3.3) — CEL evaluations are pure and
+stateless per invocation, there's no place for that state to live; (2) smart proxies implement
+**multi-method APIs with shared internal logic** — CEL evaluates one expression to one value, with no
+way to share state/logic across a bag of independent per-method expressions; (3) smart proxies routinely
+need to **call the backend** as part of their logic — CEL's whole safety case (bounded,
+non-Turing-complete, no ambient authority) depends on it *not* doing I/O. **Named trap: bolting an
+I/O-capable custom function onto CEL to let it drive backend calls, in pursuit of "full replacement,"
+would quietly discard the exact property that made CEL safe for the filter case in the first place —
+don't drift into this.**
+
+**The real, narrower value: not every class currently shaped like a smart proxy is actually using the
+stateful/I/O-capable part of that power.** Some downloaded "smart proxy" logic genuinely is just a
+bounded, stateless, I/O-free computation (derived-value computation, client-side validation/transform)
+that happens to be expressed as a whole downloaded class today only because Jini's classic model had no
+lighter-weight way to express "bounded client-side logic." For exactly that subset, a CEL-shaped function
+substitutes cleanly, and the win is structural, not incremental: **no downloaded bytecode at all**, so
+none of §1's UDS-isolation/`SubProcessDynamicPolicy`/DGC-lifecycle machinery is needed for that case —
+not because it got safer, but because there's nothing mobile left to isolate.
+
+**How this fits STD-009's existing taxonomy, not a new one:** maps directly onto §3.1's `DYNAMIC`/`SMART`
+proxy-type choice as **design guidance**, not a new mechanism — "if the client-side logic is bounded,
+stateless, and I/O-free, express it as a CEL-shaped function; reach for `SMART` (and everything in §1
+above) only when genuine state or backend calls are needed." Could shrink how often the full isolation
+path is reached in practice; does not reduce what §1 needs to handle for the cases that genuinely are
+stateful/I/O-capable — those are unaffected by this idea either way.
+
+**Status: flagged idea, not a decision. Nothing in §1 above changes because of this** — the isolation
+architecture remains necessary and correct for genuine smart proxies regardless of how this resolves.
+Not yet scoped as a task anywhere; would need its own design pass (concretely: what fraction of
+real-world smart-proxy use cases are actually state/I/O-free? worth checking against real service code
+before investing further, the same discipline `§11`'s Outrigger/Reggie check just applied to the filter
+format) before becoming more than an idea.
+
+---
+
 ## 2. The four documents, in dependency/read order
 
 ### 2.1 `SOW-Unix-Domain-Socket-JERI-Transport.md` — the anchor
