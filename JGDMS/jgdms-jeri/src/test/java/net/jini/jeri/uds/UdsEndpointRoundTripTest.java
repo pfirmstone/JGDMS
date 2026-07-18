@@ -486,6 +486,46 @@ public class UdsEndpointRoundTripTest {
                 + "must be rejected (F5)", failed);
     }
 
+    /**
+     * F5 (group-writable variant): binding a socket in a GROUP-writable,
+     * NON-sticky directory ({@code rwxrwx---}) must also be rejected.  The
+     * socket file is forced owner-only, so a group member could never use it
+     * anyway; but a same-group attacker in such a directory can win the race
+     * between the owner-only chmod's NOFOLLOW pre-check and the path-based
+     * chmod, redirecting that chmod onto a server-owned file.  The parent-dir
+     * check must reject group-write-without-sticky exactly as it rejects
+     * world-write-without-sticky, closing that window up front.
+     */
+    @Test
+    public void testGroupWritableNonStickyParentRejected() throws Exception {
+        Assume.assumeTrue("group-writable-parent policy is POSIX-specific; on "
+                + "non-POSIX the file ACL is the control (F1)",
+                isPosix(dir));
+
+        Path openDir = Files.createTempDirectory("udsjeri-grp");
+        // Make it group-writable WITHOUT the sticky bit: rwxrwx--- (0770).
+        // Not world-writable, so this exercises the GROUP_WRITE branch only.
+        Files.setPosixFilePermissions(openDir,
+                PosixFilePermissions.fromString("rwxrwx---"));
+        Path openSocket = openDir.resolve("s.sock");
+        Exporter exporter = new BasicJeriExporter(
+                UdsServerEndpoint.getInstance(openSocket.toString()),
+                new AtomicILFactory(null, null, getClass().getClassLoader()),
+                false, true);
+        boolean failed = false;
+        try {
+            exporter.export(new EchoImpl());
+        } catch (Exception expected) {
+            failed = true;
+        } finally {
+            try { exporter.unexport(true); } catch (Exception ignore) { }
+            Files.deleteIfExists(openSocket);
+            Files.deleteIfExists(openDir);
+        }
+        Assert.assertTrue("binding under a group-writable, non-sticky directory "
+                + "must be rejected (F5)", failed);
+    }
+
     // ------------------------------------------------------ HIGH-1: no leaked socket
 
     /**

@@ -635,12 +635,27 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 
 	/**
 	 * F5/F4: validates the socket file's containing directory.  On POSIX a
-	 * world-writable directory WITHOUT the sticky bit is rejected: in such a
-	 * directory any local user can rename or replace the owner-only socket
+	 * directory writable by anyone other than the owner (group OR others)
+	 * WITHOUT the sticky bit is rejected: in such a directory any local user
+	 * sharing that write access can rename or replace the owner-only socket
 	 * file, defeating the access gate.  The sticky bit (as on {@code /tmp})
-	 * restores per-owner delete/rename protection and is accepted.  On a
-	 * non-POSIX platform this is a best-effort check (the ACL gate on the
-	 * file itself is the primary control there).
+	 * restores per-owner delete/rename protection and is accepted.
+	 *
+	 * <p><b>Why group-write is rejected too (not only world-write).</b>  The
+	 * socket file itself is forced to {@code rwx------} (owner-only), so a
+	 * group member can never use the socket regardless of the directory mode
+	 * -- there is no legitimate reason to place an owner-only UDS control
+	 * socket in a group-writable directory.  A group-writable, non-sticky
+	 * parent is, however, a live attack surface: a same-group attacker can
+	 * win the race between {@code restrictPosixOwnerOnly}'s NOFOLLOW
+	 * pre-check and its path-based (follow-links) {@code chmod}, swapping in
+	 * a symlink to a server-owned file so the owner-only chmod lands on that
+	 * victim file instead of the socket.  The post-check detects this and
+	 * fails the listen closed (no unprotected socket is bound), but only
+	 * <em>after</em> the collateral chmod; rejecting the group-writable
+	 * non-sticky parent up front closes the window entirely.  On a non-POSIX
+	 * platform this is a best-effort check (the ACL gate on the file itself
+	 * is the primary control there).
 	 */
 	private void validateParentDirectory(Path socketPath)
 	    throws IOException
@@ -658,14 +673,20 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		return; // non-POSIX: file-level ACL (F1) is the control here
 	    }
 	    Set<PosixFilePermission> perms = posix.readAttributes().permissions();
-	    if (perms.contains(PosixFilePermission.OTHERS_WRITE)
-		&& !hasStickyBit(parent))
+	    boolean othersWritable = perms.contains(PosixFilePermission.OTHERS_WRITE);
+	    boolean groupWritable = perms.contains(PosixFilePermission.GROUP_WRITE);
+	    if ((othersWritable || groupWritable) && !hasStickyBit(parent))
 	    {
 		throw new IOException(
-		    "refusing to bind a Unix domain socket in world-writable, "
-			+ "non-sticky directory " + parent + ": the owner-only "
-			+ "socket file could be renamed or replaced by another "
-			+ "local user, defeating the access gate");
+		    "refusing to bind a Unix domain socket in "
+			+ (othersWritable ? "world" : "group")
+			+ "-writable, non-sticky directory " + parent + ": another "
+			+ "local user sharing write access to that directory could "
+			+ "rename or symlink-swap the owner-only socket file, "
+			+ "defeating the access gate (and redirecting the owner-only "
+			+ "chmod onto a server-owned file).  Use an owner-private "
+			+ "directory, or add the sticky bit to restore per-owner "
+			+ "rename/delete protection.");
 	    }
 	}
 
