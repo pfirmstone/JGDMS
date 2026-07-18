@@ -54,6 +54,7 @@ import net.jini.config.NoSuchEntryException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.io.MarshalledInstance;
+import au.net.zeus.jgdms.der.marshal.DerMarshalledInstance;
 import net.jini.lookup.DiscoveryAdmin;
 import net.jini.security.ProxyPreparer;
 
@@ -248,7 +249,7 @@ public class ActivatableServiceStarterAdmin
 	}
         //XXX temporary work-around for jrmp dgc problem
 	try {
-	    serviceRef = new MarshalledInstance(created.proxy).get(false);
+	    serviceRef = new DerMarshalledInstance(created.proxy).get(false);
         } catch (IOException e) {
 	    throw new TestException("Problem unmarshalling proxy", e);
         } catch (ClassNotFoundException e) {

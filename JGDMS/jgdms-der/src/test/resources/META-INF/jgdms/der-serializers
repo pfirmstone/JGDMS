@@ -1,4 +1,0 @@
-# DER replacement serializers contributed by jgdms-der test fixtures.
-# One @Serializer(replaceObType=...) class name per line; the replaceObType
-# mapping is read from each class's annotation by DerReplacer.
-au.net.zeus.jgdms.der.serial.fixtures.MarkerSerializer

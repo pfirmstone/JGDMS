@@ -19,6 +19,7 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectStreamException;
 import java.security.MessageDigest;
 import java.util.Arrays;
@@ -52,20 +53,39 @@ class X500PrincipalSerializer implements Resolve {
     
     private final byte [] encoded;
     private final X500Principal principal;
-    
+
     X500PrincipalSerializer(X500Principal principal){
         this.principal = principal;
         encoded = principal.getEncoded();
     }
-    
+
     X500PrincipalSerializer(GetArg arg) throws IOException, ClassNotFoundException{
-        this(new X500Principal(arg.get("encoded", new byte[0], byte[].class)));
+        this(check(arg.get("encoded", new byte[0], byte[].class)));
     }
-    
+
+    /*
+     * WI-5: reconstruct the X500Principal from attacker-supplied encoded bytes,
+     * converting the unchecked IllegalArgumentException thrown by the X500Principal
+     * constructor on a malformed DN into a checked InvalidObjectException -- the
+     * fail-secure decode contract (mirrors URISerializer's URISyntaxException handling).
+     * The verbatim getEncoded() DER is carried unchanged and is NOT re-canonicalized
+     * (that would break signatures over the DN).
+     */
+    private static X500Principal check(byte[] encoded) throws InvalidObjectException {
+        try {
+            return new X500Principal(encoded);
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            InvalidObjectException e =
+                    new InvalidObjectException("Malformed X500Principal encoding");
+            e.initCause(ex);
+            throw e;
+        }
+    }
+
     @Override
     public Object readResolve() throws ObjectStreamException {
 	if (principal != null) return principal;
-        return new X500Principal(encoded);
+        return check(encoded);
     }
 
     @Override

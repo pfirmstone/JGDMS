@@ -23,6 +23,8 @@ import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import au.net.zeus.jgdms.der.serial.fixtures.Holder;
 import au.net.zeus.jgdms.der.serial.fixtures.Marker;
 import au.net.zeus.jgdms.der.serial.fixtures.MarkerSerializer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -35,20 +37,46 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Exercises the DER replacement seam (Increment 1): a ServiceLoader-registered
- * {@code DerSerializerProvider} lets the DER codec encode a NON-{@code @AtomicSerial}
- * type ({@code Marker}) by substituting an {@code @AtomicSerial} serializer
- * ({@code MarkerSerializer}) on encode and resolving it back via {@code readResolve}
- * on decode.
+ * Exercises the DER replacement seam end-to-end: a registered {@code @Serializer}
+ * lets the DER codec encode a NON-{@code @AtomicSerial} type ({@code Marker}) by
+ * substituting an {@code @AtomicSerial} serializer ({@code MarkerSerializer}) on
+ * encode and resolving it back via {@code readResolve} on decode.
+ *
+ * <p>Since WI-2 closed the production registry to a single platform resource
+ * (X500Principal only), the synthetic {@code Marker} serializer is injected through
+ * the package-private {@link DerReplacer#registerForTest} seam and removed again in
+ * {@link #tearDown()} -- it never leaks into the closed production set and the test
+ * does not rely on a classpath-merge.
  */
 class DerReplacerSeamTest {
 
+    @BeforeEach
+    void registerMarker() {
+        DerReplacer.registerForTest(Marker.class, MarkerSerializer.class);
+    }
+
+    @AfterEach
+    void tearDown() {
+        DerReplacer.resetForTest();
+    }
+
     @Test
-    void serializerIsDiscoveredViaSerializerAnnotation() {
+    void registeredTypeIsReportedRegisteredAndUnregisteredIsNot() throws Exception {
         assertTrue(DerReplacer.isRegistered(Marker.class),
-                "MarkerSerializer must be registered via its @Serializer(replaceObType) annotation");
+                "the injected MarkerSerializer must be registered for Marker");
         assertFalse(DerReplacer.isRegistered(String.class),
                 "unregistered types must not be reported as registered");
+    }
+
+    @Test
+    void productionRegistryHasNoMarkerAfterReset() throws Exception {
+        DerReplacer.resetForTest();
+        try {
+            assertFalse(DerReplacer.isRegistered(Marker.class),
+                    "test serializer must NOT leak into the closed production registry");
+        } finally {
+            DerReplacer.registerForTest(Marker.class, MarkerSerializer.class);
+        }
     }
 
     @Test

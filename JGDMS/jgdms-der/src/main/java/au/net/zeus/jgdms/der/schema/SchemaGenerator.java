@@ -314,6 +314,7 @@ public final class SchemaGenerator {
         if (javaType == int.class     || javaType == Integer.class) return "int";
         if (javaType == long.class    || javaType == Long.class)    return "long";
         if (javaType == String.class)                               return "java.lang.String";
+        if (javaType == Class.class)                                return "java.lang.Class";
 
         // byte[] is UNCHANGED: OCTET STRING, NOT promoted to "array:byte".
         // This preserves the existing compact encoding and back-compat (STD-008 sec.17.2).

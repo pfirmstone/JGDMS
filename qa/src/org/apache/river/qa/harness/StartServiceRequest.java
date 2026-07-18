@@ -21,6 +21,7 @@ package org.apache.river.qa.harness;
 
 import java.io.IOException;
 import net.jini.io.MarshalledInstance;
+import au.net.zeus.jgdms.der.marshal.DerMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -83,7 +84,7 @@ class StartServiceRequest implements SlaveRequest {
     public Object doSlaveRequest(SlaveTest slaveTest) throws Exception {
 	Admin admin = slaveTest.getAdminManager().getAdmin(serviceName, count);
 	admin.start();
-	MarshalledInstance mo = new MarshalledInstance(admin.getProxy());
+	MarshalledInstance mo = new DerMarshalledInstance(admin.getProxy());
 	return mo;
     }
 }

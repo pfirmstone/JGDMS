@@ -1,0 +1,22 @@
+# JGDMS DER @Serializer registry -- PLATFORM-CONTROLLED, wire-contract (STD-006/008).
+#
+# This is the SINGLE closed set of @Serializer(replaceObType=...) classes the DER
+# codec (au.net.zeus.jgdms.der.serial.DerReplacer) will substitute for a
+# non-@AtomicSerial value on the wire. It is read from jgdms-der's OWN jar only
+# (Class.getResourceAsStream, not a classpath getResources() merge): the registered
+# set is part of the wire contract (it feeds SchemaGenerator -> schemaDigest and is
+# the admission boundary in SM-less deployments), so an addition -- especially an
+# interface-keyed serializer -- is a versioned schema change requiring board review.
+#
+# Each entry MUST be an @AtomicSerial + @Serializer class (DerReplacer refuses to
+# register a non-@AtomicSerial one). One class name per line; '#' and blank lines
+# ignored.
+#
+# X500Principal (a MethodConstraints principals[] element) is the only type a real
+# constrained-proxy graph currently requires. Its wire form is getEncoded() carried
+# VERBATIM (canonical ASN.1 DER of the DN); it must not be re-canonicalized/sorted.
+# Further clean inert value leaves (URI, StackTraceElement, File) are added REACTIVELY
+# only as a real graph surfaces them, each individually vetted. Throwable, Properties,
+# and MarshalledObject are DEFERRED (unresolved security/canonicality defects) and are
+# deliberately NOT listed.
+org.apache.river.api.io.X500PrincipalSerializer

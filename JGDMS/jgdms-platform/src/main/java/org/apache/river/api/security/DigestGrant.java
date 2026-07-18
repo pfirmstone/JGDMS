@@ -141,7 +141,7 @@ class DigestGrant extends URIGrant {
      */
     @Override
     public boolean implies(CodeSource codeSource, Principal[] p) {
-        if (!super.implies(codeSource, p)) return false;
+        if (!implies(p)) return false; // Ignore URL, it doesn't define identity.
         if (DIGEST_CODE_SOURCE_CLASS == null) return false;
         if (!DIGEST_CODE_SOURCE_CLASS.isInstance(codeSource)) return false;
         try {

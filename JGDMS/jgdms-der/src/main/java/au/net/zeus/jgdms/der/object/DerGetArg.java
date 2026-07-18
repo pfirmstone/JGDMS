@@ -242,7 +242,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                         store.rawCollection(name),
                         store.collectionWireType(name),
                         depth, decodeUnit, resolution,
-                        declaredCollectionFieldType(callerClass, name));
+                        declaredFieldType(callerClass, name));
             } catch (DerException e) {
                 throw nested("failed to decode collection field", name, e);
             } catch (ClassNotFoundException e) {
@@ -254,9 +254,20 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         // cumulative MAX_NESTING guard applies per element.
         if (store.isNestedArray(name)) {
             try {
+                // Thread the receiver's DECLARED array component type as the per-element
+                // pre-construction admission bound (security review R2). The WIRE component
+                // class name still drives array allocation; the declared component type gates
+                // which wire-named leaf each element may reconstruct. Unknown (no backing
+                // field / non-array) -> Object.class, preserving prior behaviour.
+                Class<?> declared = declaredFieldType(callerClass, name);
+                Class<?> expectedComponent =
+                        (declared != null && declared.isArray())
+                                ? declared.getComponentType()
+                                : Object.class;
                 return ObjectCodec.decodeNestedArray(
                         store.rawNestedArray(name),
                         store.nestedArrayComponentClassName(name),
+                        expectedComponent,
                         depth, decodeUnit, resolution);
             } catch (DerException e) {
                 throw nested("failed to decode nested @AtomicSerial[] field", name, e);
@@ -269,7 +280,17 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         // here in der.object so that der.getarg stays cycle-free.
         if (store.isNested(name)) {
             try {
-                return ObjectCodec.decodeNested(store.rawNested(name), depth, decodeUnit, resolution);
+                // Thread the receiver's DECLARED field type as the pre-construction admission
+                // bound (security review R2): a concrete/narrowly-typed field (e.g. an
+                // X500Principal) rejects a foreign wire-named @AtomicSerial/serializer BEFORE
+                // its ctor runs, while a legitimate @Serializer/Resolve substitution still
+                // decodes. Unknown (synthesized field / no backing Field) -> Object.class,
+                // preserving prior (untyped) behaviour -- a genuinely Object/broad-interface
+                // slot is the documented residual.
+                Class<?> declared = declaredFieldType(callerClass, name);
+                Class<?> expected = declared != null ? declared : Object.class;
+                return ObjectCodec.decodeNested(store.rawNested(name), expected,
+                                                depth, decodeUnit, resolution);
             } catch (DerException e) {
                 throw nested("failed to decode nested @AtomicSerial field", name, e);
             } catch (ClassNotFoundException e) {
@@ -303,11 +324,29 @@ public final class DerGetArg extends AtomicSerial.GetArg {
 
     /**
      * Best-effort resolution of the LOCAL declared Java type of {@code callerClass}'s field
-     * {@code name}, consulted ONLY by {@link ObjectCodec#decodeCollection(byte[], String, int,
-     * DeserializationCompletion, ResolutionContext, Class)} to choose which immutable wrapper
-     * INTERFACE shape (plain vs {@code SortedSet}/{@code SortedMap}) to hand to the receiving
-     * class's {@code check(GetArg)} for an {@code orderedset:}/{@code orderedmap:} field.
-     * STD-006 §3.8's {@code PRESERVE_ORDERED} discipline bundles {@code SortedSet}/{@code
+     * {@code name}. It is consulted for two purposes, both narrowing-only:
+     * <ol>
+     *   <li>by {@link ObjectCodec#decodeCollection(byte[], String, int,
+     *       DeserializationCompletion, ResolutionContext, Class)} to choose which immutable
+     *       wrapper INTERFACE shape (plain vs {@code SortedSet}/{@code SortedMap}) to hand the
+     *       receiving {@code check(GetArg)} for an {@code orderedset:}/{@code orderedmap:}
+     *       field; and</li>
+     *   <li>by {@link #lookup} as the receiving slot's declared type threaded into
+     *       {@link ObjectCodec#decodeNested(byte[], Class, int, DeserializationCompletion,
+     *       ResolutionContext)} / {@link ObjectCodec#decodeNestedArray(byte[], String, Class,
+     *       int, DeserializationCompletion, ResolutionContext)} so the pre-construction
+     *       admission gate can reject a foreign wire-named leaf in a concrete/narrowly-typed
+     *       nested field BEFORE its ctor runs (security review R2). A {@code null} return
+     *       (synthesized field / no backing {@code Field}) degrades to {@code Object.class} at
+     *       the caller -- the prior untyped behaviour, and the documented broad-slot residual.</li>
+     * </ol>
+     * As before, this never selects WHICH schema drives decoding (STD-006 §7.8 -- always the
+     * schema that travelled with the data); it only bounds/wraps the ALREADY-schema-selected
+     * decode. A disagreement with the wire degrades fail-secure (a type mismatch surfaced to
+     * the caller), never a data-integrity issue.
+     *
+     * <p>On purpose 1 specifically: STD-006 §3.8's {@code PRESERVE_ORDERED} discipline bundles
+     * {@code SortedSet}/{@code
      * NavigableSet} together with {@code LinkedHashSet}/{@code EnumSet} into the SAME wire token,
      * so the token alone cannot distinguish them (see {@code CollectionWireTypes#disciplineFor}).
      * This mirrors, on the decode side, the same {@code declaring.getDeclaredField(sf.getName())}
@@ -333,7 +372,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
      * optional, best-effort convenience fail under a caller-sensitive policy that would otherwise
      * be unrelated to whether this field decodes correctly.
      */
-    private static Class<?> declaredCollectionFieldType(Class<?> callerClass, String name) {
+    private static Class<?> declaredFieldType(Class<?> callerClass, String name) {
         try {
             return java.security.AccessController.doPrivileged(
                     (java.security.PrivilegedExceptionAction<Class<?>>)

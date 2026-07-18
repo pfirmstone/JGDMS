@@ -35,13 +35,24 @@ public class ActivationGroupIDImpl implements Serializable, ActivationGroupID {
     
     public static SerialForm [] serialForm(){
         return new SerialForm []{
-            new SerialForm("uid", UID.class),
+            new SerialForm("uidUnique", Integer.TYPE),
+            new SerialForm("uidTime", Long.TYPE),
+            new SerialForm("uidCount", Short.TYPE),
             new SerialForm("system", ActivationSystem.class)
         };
     }
     
     public static void serialize(PutArg arg, ActivationGroupIDImpl id) throws IOException{
-        arg.put("uid", id.uid);
+        // UID has no field accessors; round-trip through its public canonical form
+        // (int unique, long time, short count) so the parts travel as DER-native
+        // primitives -- deterministic and schema-transparent.
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(14);
+        id.uid.write(new java.io.DataOutputStream(bos));
+        java.io.DataInputStream din = new java.io.DataInputStream(
+                new java.io.ByteArrayInputStream(bos.toByteArray()));
+        arg.put("uidUnique", din.readInt());
+        arg.put("uidTime", din.readLong());
+        arg.put("uidCount", din.readShort());
         arg.put("system", id.system);
         arg.writeArgs();
     }
@@ -60,7 +71,9 @@ public class ActivationGroupIDImpl implements Serializable, ActivationGroupID {
     }
     
     public ActivationGroupIDImpl(GetArg arg) throws IOException, ClassNotFoundException{
-        this(Valid.notNull(arg.get("uid", null, UID.class), "uid cannot be null"),
+        this(uidFromParts(arg.get("uidUnique", 0),
+                          arg.get("uidTime", 0L),
+                          arg.get("uidCount", (short) 0)),
              Valid.notNull(arg.get("system", null, ActivationSystem.class),
                      "ActivationSystem cannot be null")
         );
@@ -69,6 +82,18 @@ public class ActivationGroupIDImpl implements Serializable, ActivationGroupID {
     private ActivationGroupIDImpl(UID uid, ActivationSystem system){
         this.system = system;
         this.uid = uid;
+    }
+
+    // Reconstruct a UID from its deterministic primitive parts via UID.read.
+    private static UID uidFromParts(int unique, long time, short count)
+            throws IOException {
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(14);
+        java.io.DataOutputStream dos = new java.io.DataOutputStream(bos);
+        dos.writeInt(unique);
+        dos.writeLong(time);
+        dos.writeShort(count);
+        return UID.read(new java.io.DataInputStream(
+                new java.io.ByteArrayInputStream(bos.toByteArray())));
     }
 
     @Override

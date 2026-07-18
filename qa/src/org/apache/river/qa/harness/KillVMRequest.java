@@ -20,6 +20,7 @@ package org.apache.river.qa.harness;
 
 import java.io.IOException;
 import net.jini.io.MarshalledInstance;
+import au.net.zeus.jgdms.der.marshal.DerMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -63,7 +64,7 @@ class KillVMRequest implements SlaveRequest {
      */
     public KillVMRequest(Object proxy) throws TestException {
 	try {
-	    marshalledProxy = new MarshalledInstance(proxy);
+	    marshalledProxy = new DerMarshalledInstance(proxy);
 	} catch (IOException e) {
 	    throw new TestException("Unexpected exception", e);
 	}

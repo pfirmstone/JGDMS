@@ -763,14 +763,42 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		   };
 
 		/*
-		 * The activatable object is created is in a doPrivileged
-		 * block to protect against user code which might have set
-		 * a global socket factory (in which case application code
-		 * would be on the stack).
+		 * The activatable object is created in a doPrivileged block to
+		 * protect against user code which might have set a global socket
+		 * factory (in which case application code would be on the stack).
+		 *
+		 * When inheritGroupSubject is set, the activation must run under
+		 * the group's login Subject so the activated service exports with
+		 * the group's credentials. net.jini.security.Security.doPrivileged
+		 * only preserves the *current* Subject, which on virtual threads is
+		 * not the group's login Subject; establish it explicitly via
+		 * Subject.callAs (Java 18+, reflectively as this module targets
+		 * Java 8), as the unexport path does.
 		 */
-		impl = (Remote) (inheritGroupSubject ?
-				 Security.doPrivileged(action) :
-				 AccessController.doPrivileged(action));
+		if (!inheritGroupSubject || login == null) {
+		    impl = (Remote) AccessController.doPrivileged(action);
+		} else {
+		    try {
+			impl = (Remote) SUBJECT_CALL_AS.invoke(
+			    null, login.getSubject(),
+			    (Callable<Object>) () -> AccessController.doPrivileged(action));
+		    } catch (IllegalAccessException iae) {
+			throw new ActivationException("unable to activate object", iae);
+		    } catch (InvocationTargetException ite) {
+			Throwable c = ite.getCause();
+			if (c instanceof java.util.concurrent.CompletionException
+				&& c.getCause() != null) {
+			    c = c.getCause();
+			}
+			if (c instanceof PrivilegedActionException) {
+			    throw ((PrivilegedActionException) c).getException();
+			}
+			if (c instanceof Exception) {
+			    throw (Exception) c;
+			}
+			throw new ActivationException("unable to activate object", c);
+		    }
+		}
 			
 	    } catch (PrivilegedActionException pae) {
 		throw pae.getException();

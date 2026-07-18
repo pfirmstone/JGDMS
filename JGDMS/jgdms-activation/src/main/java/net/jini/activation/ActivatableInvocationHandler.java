@@ -188,7 +188,7 @@ public final class ActivatableInvocationHandler
     
     public static SerialForm[] serialForm() {
 	return new SerialForm[] {
-	    new SerialForm("id", Object.class),
+	    new SerialForm("id", ActivationID.class),
 	    new SerialForm("uproxy", Remote.class),
 	    new SerialForm("clientConstraints", MethodConstraints.class)
 	};

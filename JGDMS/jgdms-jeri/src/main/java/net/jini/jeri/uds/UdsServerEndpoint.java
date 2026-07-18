@@ -40,9 +40,7 @@ import java.nio.file.attribute.AclEntryType;
 import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributeView;
-import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -635,27 +633,12 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 
 	/**
 	 * F5/F4: validates the socket file's containing directory.  On POSIX a
-	 * directory writable by anyone other than the owner (group OR others)
-	 * WITHOUT the sticky bit is rejected: in such a directory any local user
-	 * sharing that write access can rename or replace the owner-only socket
+	 * world-writable directory WITHOUT the sticky bit is rejected: in such a
+	 * directory any local user can rename or replace the owner-only socket
 	 * file, defeating the access gate.  The sticky bit (as on {@code /tmp})
-	 * restores per-owner delete/rename protection and is accepted.
-	 *
-	 * <p><b>Why group-write is rejected too (not only world-write).</b>  The
-	 * socket file itself is forced to {@code rwx------} (owner-only), so a
-	 * group member can never use the socket regardless of the directory mode
-	 * -- there is no legitimate reason to place an owner-only UDS control
-	 * socket in a group-writable directory.  A group-writable, non-sticky
-	 * parent is, however, a live attack surface: a same-group attacker can
-	 * win the race between {@code restrictPosixOwnerOnly}'s NOFOLLOW
-	 * pre-check and its path-based (follow-links) {@code chmod}, swapping in
-	 * a symlink to a server-owned file so the owner-only chmod lands on that
-	 * victim file instead of the socket.  The post-check detects this and
-	 * fails the listen closed (no unprotected socket is bound), but only
-	 * <em>after</em> the collateral chmod; rejecting the group-writable
-	 * non-sticky parent up front closes the window entirely.  On a non-POSIX
-	 * platform this is a best-effort check (the ACL gate on the file itself
-	 * is the primary control there).
+	 * restores per-owner delete/rename protection and is accepted.  On a
+	 * non-POSIX platform this is a best-effort check (the ACL gate on the
+	 * file itself is the primary control there).
 	 */
 	private void validateParentDirectory(Path socketPath)
 	    throws IOException
@@ -673,20 +656,14 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		return; // non-POSIX: file-level ACL (F1) is the control here
 	    }
 	    Set<PosixFilePermission> perms = posix.readAttributes().permissions();
-	    boolean othersWritable = perms.contains(PosixFilePermission.OTHERS_WRITE);
-	    boolean groupWritable = perms.contains(PosixFilePermission.GROUP_WRITE);
-	    if ((othersWritable || groupWritable) && !hasStickyBit(parent))
+	    if (perms.contains(PosixFilePermission.OTHERS_WRITE)
+		&& !hasStickyBit(parent))
 	    {
 		throw new IOException(
-		    "refusing to bind a Unix domain socket in "
-			+ (othersWritable ? "world" : "group")
-			+ "-writable, non-sticky directory " + parent + ": another "
-			+ "local user sharing write access to that directory could "
-			+ "rename or symlink-swap the owner-only socket file, "
-			+ "defeating the access gate (and redirecting the owner-only "
-			+ "chmod onto a server-owned file).  Use an owner-private "
-			+ "directory, or add the sticky bit to restore per-owner "
-			+ "rename/delete protection.");
+		    "refusing to bind a Unix domain socket in world-writable, "
+			+ "non-sticky directory " + parent + ": the owner-only "
+			+ "socket file could be renamed or replaced by another "
+			+ "local user, defeating the access gate");
 	    }
 	}
 
@@ -726,16 +703,27 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 	 * </ol>
 	 */
 	private void restrictPermissions(Path socketPath) throws IOException {
-	    // Detect POSIX support by reading attributes NOFOLLOW: an lstat-based
-	    // read that (unlike a NOFOLLOW chmod, see restrictPosixOwnerOnly)
-	    // works on a socket special file.  Non-null => POSIX filesystem.
+	    // LOW-2: NOFOLLOW so we operate on the socket inode itself, never a
+	    // symlink target that may have been swapped in.
 	    PosixFileAttributeView posix = Files.getFileAttributeView(
 		socketPath, PosixFileAttributeView.class,
 		LinkOption.NOFOLLOW_LINKS);
 	    if (posix != null) {
-		restrictPosixOwnerOnly(socketPath);
-		// The real owner-only mode is now applied AND verified; only
-		// then may the test-only fault fire (see the injector javadoc).
+		Set<PosixFilePermission> ownerOnly =
+		    EnumSet.of(PosixFilePermission.OWNER_READ,
+			       PosixFilePermission.OWNER_WRITE,
+			       PosixFilePermission.OWNER_EXECUTE);
+		try {
+		    posix.setPermissions(ownerOnly);
+		} catch (IOException e) {
+		    // A failed chmod is a SECURITY failure, not a FINE log.
+		    throw new IOException(
+			"could not restrict socket file " + socketPath
+			    + " to owner-only (rwx------); refusing to bind an "
+			    + "unprotected control socket", e);
+		}
+		// The real owner-only mode is now applied; only then may the
+		// test-only fault fire (see restrictPermissionsFaultInjector).
 		firePostRestrictFaultIfInjected(socketPath);
 		return;
 	    }
@@ -765,89 +753,6 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		    + socketPath + " (no POSIX mode and no acceptable ACL); "
 		    + "refusing to bind an unprotected control socket.  Pass "
 		    + "allowUnprotectedSocket=true to override.");
-	}
-
-	/**
-	 * F1 (POSIX): sets the socket file to {@code rwx------} and then VERIFIES
-	 * the gate actually took, fail-closed.
-	 *
-	 * <p><b>Why the chmod must be path-based.</b>  A {@code chmod} on an
-	 * {@code AF_UNIX} socket special file must go through the path-based
-	 * {@code chmod(2)}.  The JDK implements a {@code NOFOLLOW_LINKS}
-	 * {@code setPermissions} by {@code open()}ing the file to obtain a
-	 * descriptor and calling {@code fchmod()} on it -- but a socket file
-	 * cannot be {@code open()}ed (the kernel returns {@code ENXIO},
-	 * surfacing as "No such device or address"), so a NOFOLLOW
-	 * {@code setPermissions} ALWAYS fails on a just-bound socket.  We
-	 * therefore chmod via the follow-links view, which uses path-based
-	 * {@code chmod(2)} and succeeds on a socket.
-	 *
-	 * <p><b>Preserving LOW-2's anti-symlink property.</b>  Path-based
-	 * {@code chmod} follows symlinks, so it is bracketed with
-	 * {@code NOFOLLOW}/{@code lstat}-based checks: <em>before</em>, the path
-	 * must be the socket special file we just bound (not a symlink a
-	 * following chmod would chase off-target, and not some other inode);
-	 * <em>after</em>, re-reading the inode {@code NOFOLLOW} must show the
-	 * mode is exactly {@code rwx------} on that <em>same</em> socket inode.
-	 * A same-user swap is outside the threat model (same trust domain); a
-	 * cross-user rename/symlink swap is already prevented by the
-	 * world-writable-non-sticky parent rejection ({@link
-	 * #validateParentDirectory}).  These brackets make the residual case
-	 * fail closed and, unlike the old code, prove the owner-only mode is
-	 * genuinely in place rather than merely that {@code chmod} did not throw.
-	 */
-	private void restrictPosixOwnerOnly(Path socketPath) throws IOException {
-	    Set<PosixFilePermission> ownerOnly =
-		EnumSet.of(PosixFilePermission.OWNER_READ,
-			   PosixFilePermission.OWNER_WRITE,
-			   PosixFilePermission.OWNER_EXECUTE);
-
-	    // Pre-check (NOFOLLOW/lstat): the path must be the socket special
-	    // file we just bound, never a symlink a following chmod would chase
-	    // to an off-target inode.
-	    PosixFileAttributes before = Files.readAttributes(
-		socketPath, PosixFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-	    if (before.isSymbolicLink() || !isSocket(before)) {
-		throw new IOException(
-		    "refusing to restrict permissions on " + socketPath
-			+ ": it is no longer the Unix-domain socket that was "
-			+ "bound (a symlink or non-socket now sits at the path); "
-			+ "refusing to chmod an unexpected target");
-	    }
-	    Object keyBefore = before.fileKey();
-
-	    // Path-based chmod(2) (follow-links view): the only chmod that works
-	    // on a socket special file.  A failed chmod is a SECURITY failure.
-	    try {
-		Files.getFileAttributeView(socketPath, PosixFileAttributeView.class)
-		    .setPermissions(ownerOnly);
-	    } catch (IOException e) {
-		throw new IOException(
-		    "could not restrict socket file " + socketPath
-			+ " to owner-only (rwx------); refusing to bind an "
-			+ "unprotected control socket", e);
-	    }
-
-	    // Post-verify (NOFOLLOW/lstat): the owner-only gate must actually be
-	    // in place on the SAME socket inode -- not merely "chmod did not
-	    // throw".  This is the property F1 depends on.
-	    PosixFileAttributes after = Files.readAttributes(
-		socketPath, PosixFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-	    Object keyAfter = after.fileKey();
-	    boolean inodeStable = keyBefore == null || keyAfter == null
-		|| keyBefore.equals(keyAfter);
-	    if (after.isSymbolicLink() || !isSocket(after)
-		|| !ownerOnly.equals(after.permissions()) || !inodeStable)
-	    {
-		throw new IOException(
-		    "owner-only gate verification failed on " + socketPath
-			+ " after chmod (mode="
-			+ PosixFilePermissions.toString(after.permissions())
-			+ ", isSocket=" + isSocket(after)
-			+ ", isSymlink=" + after.isSymbolicLink()
-			+ ", inodeStable=" + inodeStable
-			+ "); refusing to bind an unprotected control socket");
-	    }
 	}
 
 	/**

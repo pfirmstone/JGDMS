@@ -37,6 +37,8 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.DeSerializationPermission;
 import org.apache.river.api.io.MarshalDelegate;
 import org.apache.river.api.io.MarshalDelegates;
+import org.apache.river.api.io.Resolve;
+import org.apache.river.api.io.Serializer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -505,6 +507,77 @@ public final class ObjectCodec {
     }
 
     /**
+     * Pre-construction decode-admission gate (security review R2 / STD-008 §16).
+     *
+     * <p>Decides whether the wire-named {@code constructClass} (the leaf resolved from the
+     * transmitted schema chain via the endpoint {@link ResolutionContext} -- never the
+     * thread-context loader) may be reconstructed into a slot whose <b>declared</b> type is
+     * {@code expectedSupertype}. This is evaluated <b>before</b> any {@code (GetArg)}
+     * constructor or {@code check(GetArg)} runs, so a hostile peer that names an arbitrary
+     * {@code @AtomicSerial} class in a concrete/narrowly-typed slot is failed closed
+     * <em>without</em> its constructor firing. The {@code DeSerializationPermission("ATOMIC")}
+     * gate is a no-op under SM-less / DirtyChai deployments, so this type check -- not that
+     * permission -- is what closes concrete-typed fields.
+     *
+     * <p>Admission (in order):
+     * <ol>
+     *   <li><b>Ordinary polymorphism</b> -- {@code expectedSupertype.isAssignableFrom(
+     *       constructClass)}: the wire leaf IS the declared type or a subtype. This also
+     *       admits every genuinely {@code Object}-typed or broad-interface-typed slot (where
+     *       {@code expectedSupertype} is {@code Object}/an interface the leaf implements),
+     *       which is the acknowledged <b>residual</b>: such slots are NOT closed by this gate
+     *       and still rely on the ATOMIC gate + {@code check(GetArg)} + decode bounds.</li>
+     *   <li><b>{@link Serializer @Serializer} substitution</b> -- the leaf is a serializer
+     *       standing in for its {@code replaceObType} {@code R} on the wire (the DER analogue
+     *       of {@code writeReplace}; e.g. declared {@code X500Principal} &larr; wire
+     *       {@code X500PrincipalSerializer}, {@code replaceObType = X500Principal}). Because
+     *       {@code X500Principal.isAssignableFrom(X500PrincipalSerializer)} is {@code false},
+     *       clause 1 alone would wrongly reject the legitimate substitution. Accept iff the
+     *       declared slot could legitimately hold an {@code R}, i.e.
+     *       {@code expectedSupertype.isAssignableFrom(R)} -- decided by the leaf's
+     *       <em>statically declared</em> {@code replaceObType}. This is what REJECTS the
+     *       attack: declared {@code X500Principal}, wire {@code ThrowableSerializer}
+     *       ({@code replaceObType = Throwable}) -&gt; {@code X500Principal.isAssignableFrom(
+     *       Throwable)} is {@code false} -&gt; rejected before {@code ThrowableSerializer}'s
+     *       reflective-construction ctor runs. A {@code @Serializer} leaf is decided SOLELY by
+     *       clauses 1/2 (it never falls through to clause 3), since its {@code replaceObType}
+     *       is exactly the type it is permitted to stand in for.</li>
+     *   <li><b>java.io {@link Resolve}/Replace serialization-proxy substitution</b> -- a leaf
+     *       that is NOT a {@code @Serializer} but implements {@link Resolve} (e.g.
+     *       {@code ConstrainableAID$State}, whose {@code readResolve()} rebuilds the original
+     *       {@code ActivationID}). Unlike a {@code @Serializer} there is no statically declared
+     *       target type, so the resolved runtime type is <b>not knowable before construction</b>;
+     *       the proxy is admitted here and the resolved value's type is enforced
+     *       <em>after</em> {@code readResolve()} by the caller's typed {@code get()/cast}.
+     *       <b>Residual:</b> any {@code Resolve}-implementing {@code @AtomicSerial} proxy
+     *       remains constructible in a narrowly-typed slot (its ctor runs); this is narrower
+     *       than the prior behaviour (every {@code @AtomicSerial} class was constructible in
+     *       any nested slot) and is bounded by the ATOMIC gate + {@code check(GetArg)}.</li>
+     * </ol>
+     *
+     * @param expectedSupertype the slot's declared type (never {@code null}; {@code Object.class}
+     *                          when no declared-type information is available -- clause 1 then
+     *                          always admits, exactly the pre-existing behaviour)
+     * @param constructClass    the wire-named leaf class resolved from the schema chain
+     * @return {@code true} iff {@code constructClass} may be reconstructed into the slot
+     */
+    private static boolean admissibleConstructClass(Class<?> expectedSupertype,
+                                                    Class<?> constructClass) {
+        // (1) Ordinary polymorphism / Object / broad-interface slot (residual).
+        if (expectedSupertype.isAssignableFrom(constructClass)) {
+            return true;
+        }
+        // (2) @Serializer substitution: decided by the STATICALLY declared replaceObType.
+        Serializer ser = constructClass.getAnnotation(Serializer.class);
+        if (ser != null) {
+            return expectedSupertype.isAssignableFrom(ser.replaceObType());
+        }
+        // (3) java.io Replace/Resolve serialization proxy: resolved type known only
+        //     post-construction; admitted, final type enforced by the caller's typed cast.
+        return Resolve.class.isAssignableFrom(constructClass);
+    }
+
+    /**
      * As {@link #decodeHierarchy(Class, SchemaChain.Result, byte[])}, threading a
      * decode-unit completion token into the top-level {@code DerGetArg} (and, via the
      * {@code DerGetArg}, into any nested decode) so that a decoded DGC live reference can
@@ -540,18 +613,16 @@ public final class ObjectCodec {
         String constructClassName = leafFirst.get(0).className();
         Class<?> constructClass = loadClass(constructClassName, resolution);
 
-        // Assignability check: the constructed type must be a subtype of expectedSupertype.
-        // When Bar extends Foo (Bar plain, Foo @AtomicSerial), constructClass = Foo,
-        // expectedSupertype = Bar.class -> Foo IS a supertype of Bar, but Bar is NOT a
-        // supertype of Foo. The correct check is: constructClass is assignable TO
-        // expectedSupertype, meaning expectedSupertype.isAssignableFrom(constructClass).
-        if (!expectedSupertype.isAssignableFrom(constructClass)) {
+        // Pre-construction admission gate (security review R2): the wire-named leaf must be
+        // admissible into a slot declared as expectedSupertype -- ordinary polymorphism, a
+        // @Serializer substitution for a compatible replaceObType, or a java.io Resolve proxy
+        // (see admissibleConstructClass). Fail closed BEFORE any (GetArg) ctor / check runs.
+        if (!admissibleConstructClass(expectedSupertype, constructClass)) {
             throw new DerException(
                     "ObjectCodec.decodeHierarchy: the chain's construct class '"
-                    + constructClassName + "' is not assignable to the expected supertype '"
-                    + expectedSupertype.getName() + "'. "
-                    + "This chain was not generated for a class related to "
-                    + expectedSupertype.getName() + ".");
+                    + constructClassName + "' is not admissible into a slot declared '"
+                    + expectedSupertype.getName() + "' (not a subtype, not a @Serializer for it, "
+                    + "and not a Resolve serialization proxy) -- fail-closed before construction.");
         }
 
         // Reverse for superclass-first wire order
@@ -1023,6 +1094,16 @@ public final class ObjectCodec {
                 }
                 yield DerWriter.writeUtf8String(s);
             }
+            case "java.lang.Class" -> {
+                // A Class travels as its name (UTF8String); the decode side resolves it
+                // through the endpoint-assigned ResolutionContext loader (never ambient).
+                if (!(value instanceof Class<?> c)) {
+                    throw new DerException("Expected Class for field '" + fieldName
+                            + "' (wireType " + wireType + ") but got "
+                            + (value == null ? "null" : value.getClass().getName()));
+                }
+                yield DerWriter.writeUtf8String(c.getName());
+            }
             case "byte[]", "[B" -> {
                 if (!(value instanceof byte[] b)) {
                     throw new DerException("Expected byte[] for field '" + fieldName
@@ -1206,6 +1287,11 @@ public final class ObjectCodec {
                 elemTlv = (elem == null)
                         ? new byte[]{0x05, 0x00}
                         : DerWriter.writeUtf8String((String) elem);
+            } else if (componentWT.equals("java.lang.Class")) {
+                // Class element: DER NULL if null, else UTF8String of the class name
+                elemTlv = (elem == null)
+                        ? new byte[]{0x05, 0x00}
+                        : DerWriter.writeUtf8String(((Class<?>) elem).getName());
             } else {
                 // Primitive or enum element: delegate to encodeValue.
                 // For enum elements the componentWT is "enum:<class>", which encodeEnum handles.
@@ -1612,7 +1698,37 @@ public final class ObjectCodec {
                                       DeserializationCompletion decodeUnit,
                                       ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
+        // No declared-type information at this call site (e.g. an Any-typed or collection
+        // element): admit at Object.class, preserving the pre-existing behaviour. Callers
+        // that DO know the slot's declared type use the typed overload below to tighten.
+        return decodeNested(nestedRecordBytes, Object.class, depth, decodeUnit, resolution);
+    }
+
+    /**
+     * Type-threading variant of {@link #decodeNested(byte[], int, DeserializationCompletion,
+     * ResolutionContext)}: {@code expectedSupertype} is the receiving slot's <b>declared</b>
+     * Java type (e.g. {@code callerClass.getDeclaredField(name).getType()} for a nested field,
+     * or the array component type), enforced by the pre-construction admission gate
+     * ({@link #admissibleConstructClass}) BEFORE the nested object's {@code (GetArg)} ctor /
+     * {@code check(GetArg)} runs. Pass {@code Object.class} when no declared type is known
+     * (preserving the untyped behaviour). Accounts for the {@code @Serializer}/{@code Resolve}
+     * substitution mechanisms so a legitimate substituted serializer (e.g.
+     * {@code X500PrincipalSerializer} for an {@code X500Principal} slot) still decodes, while a
+     * foreign {@code @AtomicSerial}/serializer named in a concrete slot is failed closed
+     * without constructing.
+     *
+     * @param nestedRecordBytes the raw bytes of the nested record TLV (SEQUENCE or NULL)
+     * @param expectedSupertype the receiving slot's declared type (never {@code null})
+     * @param depth             current nesting depth (for the DoS guard)
+     * @param decodeUnit        the per-decode-unit completion sink, or {@code null}
+     * @param resolution        the endpoint resolution context for class loading
+     */
+    public static Object decodeNested(byte[] nestedRecordBytes, Class<?> expectedSupertype,
+                                      int depth, DeserializationCompletion decodeUnit,
+                                      ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(nestedRecordBytes, "nestedRecordBytes");
+        Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         if (depth > MAX_NESTING) {
             throw new DerException(
                     "ObjectCodec.decodeNested: nesting depth " + depth
@@ -1659,9 +1775,13 @@ public final class ObjectCodec {
         byte[] leafDigest = records.get(0).schemaDigest();
         SchemaChain.Result chain = new SchemaChain.Result(records, leafDigest);
 
-        // The declared field type is Object (checked by caller via cast); the chain drives
-        // the actual runtime class. decodeHierarchy does assignability checking.
-        Object decoded = decodeHierarchy(Object.class, chain, payloadBytes, depth + 1, decodeUnit, resolution);
+        // Thread the receiving slot's DECLARED type into decodeHierarchy, which enforces the
+        // pre-construction admission gate (admissibleConstructClass) against the wire-named
+        // leaf BEFORE the nested (GetArg) ctor / check(GetArg) runs. A legitimate @Serializer
+        // (e.g. X500PrincipalSerializer for an X500Principal slot) or java.io Resolve proxy is
+        // admitted; a foreign @AtomicSerial named in a concrete slot is failed closed. For a
+        // genuinely Object/broad-interface slot expectedSupertype is broad (residual).
+        Object decoded = decodeHierarchy(expectedSupertype, chain, payloadBytes, depth + 1, decodeUnit, resolution);
         // DER replacement: if the decoded value is a serializer (implements Resolve),
         // rebuild the original object via readResolve(); otherwise pass it through.
         return au.net.zeus.jgdms.der.serial.DerReplacer.resolve(decoded);
@@ -1717,7 +1837,10 @@ public final class ObjectCodec {
                     "ObjectCodec.decodeProxy: trailing bytes after handler in [8] proxy content");
         }
         byte[] handlerTlv = Arrays.copyOfRange(content, start, end);
-        Object handler = decodeNested(handlerTlv, depth + 1, decodeUnit, resolution);
+        // The handler slot is known to require an InvocationHandler: thread that declared type
+        // so the pre-construction admission gate rejects a foreign leaf before its ctor runs
+        // (the post-decode instanceof check below remains as defence in depth).
+        Object handler = decodeNested(handlerTlv, InvocationHandler.class, depth + 1, decodeUnit, resolution);
         if (!(handler instanceof InvocationHandler)) {
             throw new DerException("ObjectCodec.decodeProxy: handler is not an InvocationHandler ("
                     + (handler == null ? "null" : handler.getClass().getName()) + ")");
@@ -1771,13 +1894,19 @@ public final class ObjectCodec {
         String constructClassName = leafFirst.get(0).className();
         Class<?> constructClass = loadClass(constructClassName, resolution);
 
-        if (!expectedSupertype.isAssignableFrom(constructClass)) {
+        // Pre-construction admission gate (security review R2): enforce the caller's declared
+        // (expectedSupertype) type against the wire-named leaf BEFORE any (GetArg) ctor /
+        // check(GetArg) runs. For a concrete/narrowly-typed nested field this closes the
+        // name-driven nested door (a hostile peer naming e.g. ThrowableSerializer in an
+        // X500Principal slot is rejected before its reflective-construction ctor fires); for a
+        // genuinely Object/broad-interface slot expectedSupertype is broad and clause 1 admits
+        // (documented residual). See admissibleConstructClass.
+        if (!admissibleConstructClass(expectedSupertype, constructClass)) {
             throw new DerException(
                     "ObjectCodec.decodeHierarchy: the chain's construct class '"
-                    + constructClassName + "' is not assignable to the expected supertype '"
-                    + expectedSupertype.getName() + "'. "
-                    + "This chain was not generated for a class related to "
-                    + expectedSupertype.getName() + ".");
+                    + constructClassName + "' is not admissible into a nested slot declared '"
+                    + expectedSupertype.getName() + "' (not a subtype, not a @Serializer for it, "
+                    + "and not a Resolve serialization proxy) -- fail-closed before construction.");
         }
 
         List<AtomicSerialSchemaRecord> rootFirst = new ArrayList<>(leafFirst);
@@ -1901,8 +2030,41 @@ public final class ObjectCodec {
                                             DeserializationCompletion decodeUnit,
                                             ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
+        // No declared component type known at this call site: admit each element at
+        // Object.class (pre-existing behaviour). Callers that know the receiving field's
+        // declared component type use the typed overload below to tighten per element.
+        return decodeNestedArray(rawBytes, componentClassName, Object.class, depth,
+                                 decodeUnit, resolution);
+    }
+
+    /**
+     * Type-threading variant of {@link #decodeNestedArray(byte[], String, int,
+     * DeserializationCompletion, ResolutionContext)}: {@code expectedComponentType} is the
+     * receiving array field's <b>declared</b> component type (e.g.
+     * {@code callerClass.getDeclaredField(name).getType().getComponentType()}), enforced by the
+     * per-element pre-construction admission gate. {@code componentClassName} (the wire
+     * component class) still governs the allocated array's runtime component type; the declared
+     * component type governs admission of each element's wire-named leaf. Pass
+     * {@code Object.class} when the declared component type is unknown.
+     *
+     * @param rawBytes             the raw TLV bytes (DER NULL or SEQUENCE)
+     * @param componentClassName   fully-qualified name of the WIRE component class (allocation)
+     * @param expectedComponentType the receiving field's declared component type (admission;
+     *                             never {@code null})
+     * @param depth                current nesting depth
+     * @param decodeUnit           the per-decode-unit completion sink, or {@code null}
+     * @param resolution           the endpoint resolution context
+     */
+    public static Object decodeNestedArray(byte[] rawBytes,
+                                            String componentClassName,
+                                            Class<?> expectedComponentType,
+                                            int depth,
+                                            DeserializationCompletion decodeUnit,
+                                            ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(rawBytes, "rawBytes");
         Objects.requireNonNull(componentClassName, "componentClassName");
+        Objects.requireNonNull(expectedComponentType, "expectedComponentType");
 
         if (rawBytes.length == 0) {
             throw new DerException("ObjectCodec.decodeNestedArray: empty bytes");
@@ -1947,9 +2109,11 @@ public final class ObjectCodec {
         Object result = Array.newInstance(componentClass, elementRaws.size());
 
         for (int i = 0; i < elementRaws.size(); i++) {
-            // Each element is decoded with the THREADED depth (not 0!).
+            // Each element is decoded with the THREADED depth (not 0!) and the receiving
+            // field's DECLARED component type as the admission bound (pre-construction gate).
             // This is the critical invariant for the cumulative depth guard.
-            Object element = decodeNested(elementRaws.get(i), depth, decodeUnit, resolution);
+            Object element = decodeNested(elementRaws.get(i), expectedComponentType, depth,
+                                          decodeUnit, resolution);
             Array.set(result, i, element); // null element is fine (nullable elements)
         }
 

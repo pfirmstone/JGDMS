@@ -21,6 +21,7 @@ package org.apache.river.qa.harness;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import net.jini.io.MarshalledInstance;
+import au.net.zeus.jgdms.der.marshal.DerMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -66,7 +67,7 @@ class AdminAccessorRequest implements SlaveRequest {
      */
     AdminAccessorRequest(String methodName, Object serviceRef) {
 	try {
-	    marshalledServiceRef = new MarshalledInstance(serviceRef);
+	    marshalledServiceRef = new DerMarshalledInstance(serviceRef);
 	} catch (IOException e) {
 	    throw new RuntimeException("Marshalling problem", e);
 	}

@@ -25,6 +25,7 @@ import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Maps {@code wireType} strings from {@code AtomicSerialFieldDef} to DER decode
@@ -170,6 +171,10 @@ final class WireTypes {
             }
 
             case "java.lang.String" -> reader.readUtf8String();
+
+            // A Class field: its name was written UTF8; resolve through the
+            // endpoint-assigned ResolutionContext loader (primitive-aware).
+            case "java.lang.Class" -> resolveClass(reader.readUtf8String(), res);
 
             case "byte[]", "[B" -> reader.readOctetString();
 
@@ -385,6 +390,13 @@ final class WireTypes {
             }
             return seq.readUtf8String();
         }
+        if (componentWT.equals("java.lang.Class")) {
+            if (peekIsNull(seq)) {
+                readNull(seq);
+                return null;
+            }
+            return resolveClass(seq.readUtf8String(), res);
+        }
         if (componentWT.startsWith("enum:")) {
             return decodeEnum(seq, componentWT, res);
         }
@@ -432,6 +444,9 @@ final class WireTypes {
             }
             case "java.lang.String" -> {
                 return elements.toArray(new String[0]);
+            }
+            case "java.lang.Class" -> {
+                return elements.toArray(new Class<?>[0]);
             }
             default -> {
                 // Enum array: "enum:<className>"
@@ -494,6 +509,30 @@ final class WireTypes {
      * @return the loaded class
      * @throws DerException if the class cannot be found
      */
+    /**
+     * The nine primitive (incl. {@code void}) pseudo-types, keyed by {@link Class#getName()}.
+     * These have no defining loader and are NOT resolvable by name via a ClassLoader, so a
+     * Class field carrying one is mapped directly rather than routed through the endpoint.
+     */
+    private static final Map<String, Class<?>> PRIMITIVE_CLASSES = Map.of(
+            "boolean", boolean.class, "byte", byte.class, "char", char.class,
+            "short", short.class, "int", int.class, "long", long.class,
+            "float", float.class, "double", double.class, "void", void.class);
+
+    /**
+     * Resolves a Class-field name. Primitive/void names map directly; every other name is
+     * resolved through the endpoint-assigned {@link ResolutionContext} loader (never ambient/
+     * thread-context) -- endpoints are assigned a ClassLoader and it governs stream class
+     * resolution.
+     */
+    private static Class<?> resolveClass(String className, ResolutionContext res) throws DerException {
+        Class<?> prim = PRIMITIVE_CLASSES.get(className);
+        if (prim != null) {
+            return prim;
+        }
+        return loadClass(className, res);
+    }
+
     private static Class<?> loadClass(String className, ResolutionContext res) throws DerException {
         try {
             // Endpoint-assigned resolution via ClassLoading -- NEVER the thread-context loader
@@ -524,7 +563,7 @@ final class WireTypes {
             case "byte[]", "[B",
                     "float", "java.lang.Float",
                     "double", "java.lang.Double" -> "OCTET STRING (0x04)";
-            case "java.lang.String" -> "UTF8String (0x0C)";
+            case "java.lang.String", "java.lang.Class" -> "UTF8String (0x0C)";
             default -> "unknown";
         };
     }
