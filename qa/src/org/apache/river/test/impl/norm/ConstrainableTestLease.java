@@ -19,11 +19,8 @@ package org.apache.river.test.impl.norm;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.security.proxytrust.ProxyTrust;
-import net.jini.security.proxytrust.ProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -60,41 +57,14 @@ public class ConstrainableTestLease extends TestLease implements RemoteMethodCon
     
     private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	LeaseBackEnd home = arg.get("home", null, LeaseBackEnd.class);
-	if (!(home instanceof RemoteMethodControl)) throw new 
+	if (!(home instanceof RemoteMethodControl)) throw new
 	    InvalidObjectException("LeaseBackEnd not an instance of RemoteMethodControl");
-	if (!(home instanceof ProxyTrust)) throw new InvalidObjectException(
-	    "LeaseBackEnd not an instance of ProxyTrust");
 	return arg;
     }
 
     // purposefully inherit doc comment from supertype
     public String toString() {
 	return "ConstrainableTestLease: " + super.toString();
-    }
-
-    protected class IteratorImpl implements ProxyTrustIterator {
-	private boolean hasNextFlag = true;
-	private ProxyTrust proxy;
-
-	IteratorImpl(ProxyTrust proxy) {
-	    this.proxy = proxy;
-	}
-
-	public boolean hasNext() {
-	    return hasNextFlag;
-	}
-
-	public Object next() throws RemoteException {
-	    hasNextFlag = false;
-	    return proxy;
-	}
-
-	public void setException(RemoteException e) {
-	}
-    }
-
-    protected ProxyTrustIterator getProxyTrustIterator() {
-	return new IteratorImpl(home);
     }
 
     public RemoteMethodControl setConstraints(MethodConstraints constraints) {

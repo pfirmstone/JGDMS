@@ -26,7 +26,6 @@ import java.rmi.RemoteException;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
-import java.io.Serializable;
 
 import org.apache.river.qa.harness.QAConfig;
 import java.rmi.server.ExportException;
@@ -34,8 +33,6 @@ import java.rmi.server.ExportException;
 import net.jini.export.Exporter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
-import net.jini.security.proxytrust.ServerProxyTrust;
-import net.jini.security.TrustVerifier;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.CodebaseAccessor;
 import net.jini.jeri.AtomicILFactory;
@@ -48,7 +45,7 @@ import org.apache.river.test.share.TestParticipantImpl;
 /**
  * Impl of the LeaseBackEnd remote interface for use by renewal service tests
  */
-public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust, CodebaseAccessor {
+public class LeaseBackEndImpl implements LeaseBackEnd, CodebaseAccessor {
     /** 
      * Map of <code>TestLease</code> ids to <code>LeaseOwners</code>
      */
@@ -290,19 +287,6 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust, Codebas
     @Override
     public byte[] getEncodedCerts() throws IOException {
 	return null;
-    }
-
-    private static class VerifierImpl implements TrustVerifier, Serializable {
-	public boolean isTrustedObject(Object obj, TrustVerifier.Context ctx)
-	    throws RemoteException
-	{
-	    return (obj instanceof OurAbstractLease
-		 || obj instanceof OurAbstractLeaseMap);
-	}
-    }
-
-    public TrustVerifier getProxyVerifier() {
-	return new VerifierImpl();
     }
 
 }
