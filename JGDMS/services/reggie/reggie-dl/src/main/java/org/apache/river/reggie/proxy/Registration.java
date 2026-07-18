@@ -187,7 +187,7 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
     {
 	server.addAttributes(lease.getServiceID(),
 			     lease.getReferentUuid(),
-			     EntryRep.toEntryRep(attrSets, true));
+			     EntryRep.toEntryRep(attrSets, true, Util.requiresDerFormat(this)));
     }
 
     // This method's javadoc is inherited from an interface of this class
@@ -195,10 +195,11 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
     public void modifyAttributes(Entry[] attrSetTmpls, Entry[] attrSets)
 	throws UnknownLeaseException, RemoteException
     {
+	boolean useDer = Util.requiresDerFormat(this);
 	server.modifyAttributes(lease.getServiceID(),
 				lease.getReferentUuid(),
-				EntryRep.toEntryRep(attrSetTmpls, false),
-				EntryRep.toEntryRep(attrSets, false));
+				EntryRep.toEntryRep(attrSetTmpls, false, useDer),
+				EntryRep.toEntryRep(attrSets, false, useDer));
     }
 
     // This method's javadoc is inherited from an interface of this class
@@ -208,7 +209,7 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
     {
 	server.setAttributes(lease.getServiceID(),
 			     lease.getReferentUuid(),
-			     EntryRep.toEntryRep(attrSets, true));
+			     EntryRep.toEntryRep(attrSets, true, Util.requiresDerFormat(this)));
     }
 
     // This method's javadoc is inherited from an interface of this class

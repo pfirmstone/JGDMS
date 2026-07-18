@@ -111,12 +111,20 @@ public class Template {
     /**
      * Converts a ServiceTemplate to a Template.  Any exception that results
      * is bundled up into a MarshalException.
+     *
+     * @param useDer whether the template's marshallable attribute-set fields
+     *     should be wrapped via DER instead of the legacy JOSS form; must
+     *     match the format used by the entries this template is matched
+     *     against (derived from the calling proxy's own constraints -- see
+     *     {@link Util#requiresDerFormat(Object)}), otherwise matching
+     *     silently fails due to {@code MarshalledWrapper.equals()}'s raw
+     *     byte comparison.
      */
-    public Template(ServiceTemplate tmpl) throws RemoteException {
+    public Template(ServiceTemplate tmpl, boolean useDer) throws RemoteException {
 	serviceID = tmpl.serviceID;
 	serviceTypes = ClassMapper.toServiceType(tmpl.serviceTypes);
 	attributeSetTemplates =
-	    EntryRep.toEntryRep(tmpl.attributeSetTemplates, false);
+	    EntryRep.toEntryRep(tmpl.attributeSetTemplates, false, useDer);
     }
     
     private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {

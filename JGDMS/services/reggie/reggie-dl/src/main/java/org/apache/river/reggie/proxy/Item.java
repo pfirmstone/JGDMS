@@ -25,13 +25,17 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteObject;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.Security;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicMarshalledInstance;
@@ -206,8 +210,18 @@ public final class Item implements Cloneable {
     /**
      * Converts a ServiceItem to an Item.  Any exception that results
      * is bundled up into a MarshalException.
+     *
+     * @param useDer if {@code true}, the service object and its attribute
+     *     set entries are marshalled via DER ({@code MarshalledInstance} +
+     *     {@code MarshallingFormat.ATOMIC_DER}); if {@code false}, the legacy
+     *     JOSS {@code AtomicMarshalledInstance} form is used (unchanged
+     *     pre-existing behavior). Callers derive this from the relevant
+     *     proxy/registration's own constraints -- see
+     *     {@link Util#requiresDerFormat(Object)} -- never as a JVM-global flag,
+     *     since {@code MarshalledWrapper.equals()}'s raw byte comparison means
+     *     mixing formats between two sides of a match silently breaks matching.
      */
-    public Item(ServiceItem item) throws RemoteException {
+    public Item(ServiceItem item, boolean useDer) throws RemoteException {
 	Object svc = item.service;
 	if (enableImplToStubReplacement && svc instanceof Remote) {
 	    try {
@@ -226,11 +240,15 @@ public final class Item implements Cloneable {
 	serviceType = stb.type;
 	codebase = stb.codebase;
 	try {
-	    service = new MarshalledWrapper(new AtomicMarshalledInstance(svc));
+	    MarshalledInstance mi = useDer
+		? new MarshalledInstance(svc, Collections.EMPTY_SET,
+		    new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null))
+		: new AtomicMarshalledInstance(svc);
+	    service = new MarshalledWrapper(mi);
 	} catch (IOException e) {
 	    throw new MarshalException("error marshalling arguments", e);
 	}
-	attributeSets = EntryRep.toEntryRep(item.attributeSets, true);
+	attributeSets = EntryRep.toEntryRep(item.attributeSets, true, useDer);
     }
     
     public Item(ServiceID serviceID, ServiceType serviceType, String codebase, MarshalledWrapper service, EntryRep[] attrSets, Proxy bootstrap)

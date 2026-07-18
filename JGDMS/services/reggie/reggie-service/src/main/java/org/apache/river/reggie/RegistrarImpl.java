@@ -393,6 +393,21 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private volatile int unicastPort;
     private int httpsUnicastPort;
     private boolean enableHttpsUnicast;
+    /**
+     * If true, this Reggie's own self-registered attributes (added via
+     * {@link #addLookupAttributes}/{@link #modifyLookupAttributes} and the
+     * initial self-registration in {@link #start()}) are marshalled via DER
+     * ({@code MarshallingFormat.ATOMIC_DER}) instead of the legacy JOSS
+     * {@code AtomicMarshalledInstance} form. Read once at startup from
+     * Configuration, mirroring {@link #enableHttpsUnicast}. Must match the
+     * format required by this Reggie's exported constraints (the same
+     * decision {@link org.apache.river.reggie.proxy.Util#requiresDerFormat}
+     * derives client-side from the exported server's constraints) -- entries
+     * registered by remote clients through this same exported Registrar
+     * already self-select consistently; this field only covers Reggie's own
+     * server-constructed self-item, which bypasses that client-side proxy path.
+     */
+    private boolean useDerForEntries;
     private Discovery httpsDiscovery;
     /** The groups we are a member of */
     private volatile String[] memberGroups; // accessed from DecodeRequestTask and Announce
@@ -564,6 +579,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         unicastPort = init.unicastPort;
 	httpsUnicastPort = init.httpsUnicastPort;
 	enableHttpsUnicast = init.enableHttpsUnicast;
+	useDerForEntries = init.useDerForEntries;
         lookupAttrs = init.lookupAttrs;
         discoer = init.discoer;
         listenerPreparer = init.listenerPreparer;
@@ -3760,7 +3776,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public void addLookupAttributes(Entry[] attrSets) throws RemoteException {
 	concurrentObj.writeLock();
 	try {
-	    EntryRep[] attrs = EntryRep.toEntryRep(attrSets, true);
+	    EntryRep[] attrs = EntryRep.toEntryRep(attrSets, true, useDerForEntries);
 	    addAttributesDo(myServiceID, myLeaseID, attrs);
 	    joiner.addAttributes(attrSets);
 	    lookupAttrs = joiner.getAttributes();
@@ -3779,8 +3795,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     {
 	concurrentObj.writeLock();
 	try {
-	    EntryRep[] tmpls = EntryRep.toEntryRep(attrSetTemplates, false);
-	    EntryRep[] attrs = EntryRep.toEntryRep(attrSets, false);
+	    EntryRep[] tmpls = EntryRep.toEntryRep(attrSetTemplates, false, useDerForEntries);
+	    EntryRep[] attrs = EntryRep.toEntryRep(attrSets, false, useDerForEntries);
 	    modifyAttributesDo(myServiceID, myLeaseID, tmpls, attrs);
 	    joiner.modifyAttributes(attrSetTemplates, attrSets, true);
 	    lookupAttrs = joiner.getAttributes();
@@ -5137,6 +5153,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 byte [] encodedCerts;
 	 private int httpsUnicastPort;
 	 boolean enableHttpsUnicast;
+	 boolean useDerForEntries;
 	 String codebase;
         
         
@@ -5240,8 +5257,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    this.httpsUnicastPort = Config.getIntEntry(
 		    config, COMPONENT, "httpsUnicastDiscoveryPort",
 		    443, 0, 0xFFFF);
-	    this.enableHttpsUnicast = config.getEntry(COMPONENT, 
-		    "enableHttpsUnicast" ,Boolean.class , Boolean.FALSE);	    
+	    this.enableHttpsUnicast = config.getEntry(COMPONENT,
+		    "enableHttpsUnicast" ,Boolean.class , Boolean.FALSE);
+	    this.useDerForEntries = config.getEntry(COMPONENT,
+		    "useDerForEntries", Boolean.class, Boolean.FALSE);
             if (initialLookupAttributes != null && 
                 initialLookupAttributes.length > 0)
             {
@@ -5449,7 +5468,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     /* register myself */
                     Item item = new Item(new ServiceItem(myServiceID,
                                                          proxy,
-                                                         lookupAttrs));
+                                                         lookupAttrs),
+                                          useDerForEntries);
                     SvcReg reg = new SvcReg(item, myLeaseID, Long.MAX_VALUE);
                     addService(reg);
                     if (log != null) {

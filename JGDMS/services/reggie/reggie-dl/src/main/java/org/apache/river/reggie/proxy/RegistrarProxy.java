@@ -147,7 +147,7 @@ public abstract class RegistrarProxy
 					long leaseDuration)
 	throws RemoteException
     {
-	Item item = new Item(srvItem);
+	Item item = new Item(srvItem, Util.requiresDerFormat(this));
 	if (item.getServiceID() != null) {
 	    Util.checkRegistrantServiceID(
 		    item.getServiceID(), logger, Level.WARNING);
@@ -158,7 +158,7 @@ public abstract class RegistrarProxy
     // Inherit javadoc
     @Override
     public Object lookup(ServiceTemplate tmpl) throws RemoteException {
-	MarshalledWrapper wrapper = server.lookup(new Template(tmpl));
+	MarshalledWrapper wrapper = server.lookup(new Template(tmpl, Util.requiresDerFormat(this)));
 	if (wrapper == null)
 	    return null;
 	try {
@@ -175,14 +175,14 @@ public abstract class RegistrarProxy
     public ServiceMatches lookup(ServiceTemplate tmpl, int maxMatches)
 	throws RemoteException
     {
-	return server.lookup(new Template(tmpl), maxMatches).get();
+	return server.lookup(new Template(tmpl, Util.requiresDerFormat(this)), maxMatches).get();
     }
-    
+
     @Override
     public Object [] lookUp(
 	    ServiceTemplate tmpl, int maxProxies) throws RemoteException
     {
-	Object [] proxys = server.lookUp(new Template(tmpl), maxProxies);
+	Object [] proxys = server.lookUp(new Template(tmpl, Util.requiresDerFormat(this)), maxProxies);
 	List result = new ArrayList(proxys.length);
 	for (int i = 0, l = proxys.length; i < l; i++){
 	    if(!(proxys[i] instanceof RemoteMethodControl)) continue;
@@ -204,10 +204,10 @@ public abstract class RegistrarProxy
 				    long leaseDuration)
 	throws RemoteException
     {
-	return server.notify(new Template(tmpl), transitions, listener,
+	return server.notify(new Template(tmpl, Util.requiresDerFormat(this)), transitions, listener,
 			     handback, leaseDuration);
     }
-    
+
     // Inherit javadoc
     @Override
     public EventRegistration notiFy(ServiceTemplate tmpl,
@@ -217,7 +217,7 @@ public abstract class RegistrarProxy
 				    long leaseDuration)
 	throws RemoteException
     {
-	return server.notiFy(new Template(tmpl), transitions, listener,
+	return server.notiFy(new Template(tmpl, Util.requiresDerFormat(this)), transitions, listener,
 			     handback, leaseDuration);
     }
 
@@ -227,7 +227,7 @@ public abstract class RegistrarProxy
 	throws RemoteException
     {
 	return EntryClassBase.toClass(
-				  server.getEntryClasses(new Template(tmpl)));
+				  server.getEntryClasses(new Template(tmpl, Util.requiresDerFormat(this))));
     }
 
     // Inherit javadoc
@@ -247,7 +247,7 @@ public abstract class RegistrarProxy
 	}
 	if (fidx < 0)
 	    throw new NoSuchFieldException(field);
-	Object[] values = server.getFieldValues(new Template(tmpl),
+	Object[] values = server.getFieldValues(new Template(tmpl, Util.requiresDerFormat(this)),
 						setIndex, fidx);
 	/* unmarshal each value, replacing with null on exception */
 	if (values != null && efields[fidx].marshal) {
@@ -286,7 +286,7 @@ public abstract class RegistrarProxy
 	throws RemoteException
     {
 	return ServiceTypeBase.toClass(
-				   server.getServiceTypes(new Template(tmpl),
+				   server.getServiceTypes(new Template(tmpl, Util.requiresDerFormat(this)),
 							  prefix));
     }
 
