@@ -78,3 +78,10 @@ floor to build on, not a finished, deployable policy.
 
 Any other value is treated as a fully-qualified custom `SecurityManager` class name, loaded via
 reflection.
+
+## Cross-reference
+
+Once you have raw recorded grants from a `polpAudit` run, the `jgdms-policy-condenser` skill
+covers the next step: consolidating/minimizing them with `PolicyCondenser` and deriving proxy
+`GrantPermission` ceilings and `PERMISSIONS.LIST` manifests with `ProxyPolicyGenerator`, via the
+`qa/build.xml` `policy-update` targets.
