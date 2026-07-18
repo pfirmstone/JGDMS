@@ -40,7 +40,9 @@ import java.nio.file.attribute.AclEntryType;
 import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -703,27 +705,16 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 	 * </ol>
 	 */
 	private void restrictPermissions(Path socketPath) throws IOException {
-	    // LOW-2: NOFOLLOW so we operate on the socket inode itself, never a
-	    // symlink target that may have been swapped in.
+	    // Detect POSIX support by reading attributes NOFOLLOW: an lstat-based
+	    // read that (unlike a NOFOLLOW chmod, see restrictPosixOwnerOnly)
+	    // works on a socket special file.  Non-null => POSIX filesystem.
 	    PosixFileAttributeView posix = Files.getFileAttributeView(
 		socketPath, PosixFileAttributeView.class,
 		LinkOption.NOFOLLOW_LINKS);
 	    if (posix != null) {
-		Set<PosixFilePermission> ownerOnly =
-		    EnumSet.of(PosixFilePermission.OWNER_READ,
-			       PosixFilePermission.OWNER_WRITE,
-			       PosixFilePermission.OWNER_EXECUTE);
-		try {
-		    posix.setPermissions(ownerOnly);
-		} catch (IOException e) {
-		    // A failed chmod is a SECURITY failure, not a FINE log.
-		    throw new IOException(
-			"could not restrict socket file " + socketPath
-			    + " to owner-only (rwx------); refusing to bind an "
-			    + "unprotected control socket", e);
-		}
-		// The real owner-only mode is now applied; only then may the
-		// test-only fault fire (see restrictPermissionsFaultInjector).
+		restrictPosixOwnerOnly(socketPath);
+		// The real owner-only mode is now applied AND verified; only
+		// then may the test-only fault fire (see the injector javadoc).
 		firePostRestrictFaultIfInjected(socketPath);
 		return;
 	    }
@@ -753,6 +744,89 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		    + socketPath + " (no POSIX mode and no acceptable ACL); "
 		    + "refusing to bind an unprotected control socket.  Pass "
 		    + "allowUnprotectedSocket=true to override.");
+	}
+
+	/**
+	 * F1 (POSIX): sets the socket file to {@code rwx------} and then VERIFIES
+	 * the gate actually took, fail-closed.
+	 *
+	 * <p><b>Why the chmod must be path-based.</b>  A {@code chmod} on an
+	 * {@code AF_UNIX} socket special file must go through the path-based
+	 * {@code chmod(2)}.  The JDK implements a {@code NOFOLLOW_LINKS}
+	 * {@code setPermissions} by {@code open()}ing the file to obtain a
+	 * descriptor and calling {@code fchmod()} on it -- but a socket file
+	 * cannot be {@code open()}ed (the kernel returns {@code ENXIO},
+	 * surfacing as "No such device or address"), so a NOFOLLOW
+	 * {@code setPermissions} ALWAYS fails on a just-bound socket.  We
+	 * therefore chmod via the follow-links view, which uses path-based
+	 * {@code chmod(2)} and succeeds on a socket.
+	 *
+	 * <p><b>Preserving LOW-2's anti-symlink property.</b>  Path-based
+	 * {@code chmod} follows symlinks, so it is bracketed with
+	 * {@code NOFOLLOW}/{@code lstat}-based checks: <em>before</em>, the path
+	 * must be the socket special file we just bound (not a symlink a
+	 * following chmod would chase off-target, and not some other inode);
+	 * <em>after</em>, re-reading the inode {@code NOFOLLOW} must show the
+	 * mode is exactly {@code rwx------} on that <em>same</em> socket inode.
+	 * A same-user swap is outside the threat model (same trust domain); a
+	 * cross-user rename/symlink swap is already prevented by the
+	 * world-writable-non-sticky parent rejection ({@link
+	 * #validateParentDirectory}).  These brackets make the residual case
+	 * fail closed and, unlike the old code, prove the owner-only mode is
+	 * genuinely in place rather than merely that {@code chmod} did not throw.
+	 */
+	private void restrictPosixOwnerOnly(Path socketPath) throws IOException {
+	    Set<PosixFilePermission> ownerOnly =
+		EnumSet.of(PosixFilePermission.OWNER_READ,
+			   PosixFilePermission.OWNER_WRITE,
+			   PosixFilePermission.OWNER_EXECUTE);
+
+	    // Pre-check (NOFOLLOW/lstat): the path must be the socket special
+	    // file we just bound, never a symlink a following chmod would chase
+	    // to an off-target inode.
+	    PosixFileAttributes before = Files.readAttributes(
+		socketPath, PosixFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+	    if (before.isSymbolicLink() || !isSocket(before)) {
+		throw new IOException(
+		    "refusing to restrict permissions on " + socketPath
+			+ ": it is no longer the Unix-domain socket that was "
+			+ "bound (a symlink or non-socket now sits at the path); "
+			+ "refusing to chmod an unexpected target");
+	    }
+	    Object keyBefore = before.fileKey();
+
+	    // Path-based chmod(2) (follow-links view): the only chmod that works
+	    // on a socket special file.  A failed chmod is a SECURITY failure.
+	    try {
+		Files.getFileAttributeView(socketPath, PosixFileAttributeView.class)
+		    .setPermissions(ownerOnly);
+	    } catch (IOException e) {
+		throw new IOException(
+		    "could not restrict socket file " + socketPath
+			+ " to owner-only (rwx------); refusing to bind an "
+			+ "unprotected control socket", e);
+	    }
+
+	    // Post-verify (NOFOLLOW/lstat): the owner-only gate must actually be
+	    // in place on the SAME socket inode -- not merely "chmod did not
+	    // throw".  This is the property F1 depends on.
+	    PosixFileAttributes after = Files.readAttributes(
+		socketPath, PosixFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+	    Object keyAfter = after.fileKey();
+	    boolean inodeStable = keyBefore == null || keyAfter == null
+		|| keyBefore.equals(keyAfter);
+	    if (after.isSymbolicLink() || !isSocket(after)
+		|| !ownerOnly.equals(after.permissions()) || !inodeStable)
+	    {
+		throw new IOException(
+		    "owner-only gate verification failed on " + socketPath
+			+ " after chmod (mode="
+			+ PosixFilePermissions.toString(after.permissions())
+			+ ", isSocket=" + isSocket(after)
+			+ ", isSymlink=" + after.isSymbolicLink()
+			+ ", inodeStable=" + inodeStable
+			+ "); refusing to bind an unprotected control socket");
+	    }
 	}
 
 	/**
