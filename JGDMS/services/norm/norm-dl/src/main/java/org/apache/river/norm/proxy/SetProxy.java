@@ -36,8 +36,6 @@ import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
 import net.jini.lease.LeaseRenewalSet;
 import net.jini.lease.LeaseUnmarshalException;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -565,14 +563,6 @@ public abstract class SetProxy extends AbstractProxy implements LeaseRenewalSet 
 	/** Returns the second server proxy. */
 	NormServer server2() {
 	    return server2;
-	}
-
-	/**
-	 * Returns a proxy trust iterator that supplies the server, for use by
-	 * ProxyTrustVerifier.
-	 */
-	private ProxyTrustIterator getProxyTrustIterator() {
-	    return new SingletonProxyTrustIterator(server);
 	}
     }
 }

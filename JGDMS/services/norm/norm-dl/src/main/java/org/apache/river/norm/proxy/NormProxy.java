@@ -27,8 +27,6 @@ import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.lease.LeaseRenewalService;
 import net.jini.lease.LeaseRenewalSet;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.Stateless;
@@ -130,13 +128,6 @@ public abstract class NormProxy extends AbstractProxy
 	/* inherit javadoc */
 	public MethodConstraints getConstraints() {
 	    return ((RemoteMethodControl) server).getConstraints();
-	}
-
-	/**
-	 * Returns a proxy trust iterator that yields this object's server.
-	 */
-	private ProxyTrustIterator getProxyTrustIterator() {
-	    return new SingletonProxyTrustIterator(server);
 	}
     }
 }
