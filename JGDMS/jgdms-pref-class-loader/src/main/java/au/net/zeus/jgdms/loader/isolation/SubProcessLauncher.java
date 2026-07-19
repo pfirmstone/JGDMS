@@ -16,6 +16,7 @@
 package au.net.zeus.jgdms.loader.isolation;
 
 import java.io.IOException;
+import java.nio.channels.ByteChannel;
 
 /**
  * Seam that actually spawns an isolated OS subprocess and stands up its
@@ -46,6 +47,36 @@ public interface SubProcessLauncher {
          *         {@code getSubProcessPolicyAdmin()} is fail-closed
          */
         SubProcessAdministrable adminSurface();
+
+        /**
+         * Opens a fresh, dedicated business/wire-handoff channel to this
+         * subprocess (task&nbsp;T4, {@link SubProcessWireHandoff}).  One
+         * channel is opened <em>per hosted-object handoff</em> -- it carries
+         * exactly one {@code REQUEST}/{@code REPLY} handoff exchange
+         * (see {@code SubProcessReconstructionServer}'s wire-framing spec)
+         * followed by that hosted object's business
+         * {@code INVOKE_REQUEST}/{@code INVOKE_REPLY} traffic for the
+         * lifetime of the resulting thin client-side stub.  Deliberately
+         * <strong>separate</strong> from {@link #adminSurface()}'s channel
+         * (S1 of the wiring SOW): a caller holding this channel proves
+         * nothing about admin authority, and vice versa.
+         *
+         * <p>Default implementation fails closed with
+         * {@link UnsupportedOperationException} until a real launcher
+         * supplies a live channel to the spawned subprocess (mirrors
+         * {@link UnsupportedSubProcessLauncher}); kept as a {@code default}
+         * method so existing {@link Spawned} test fakes that pre-date task
+         * T4 keep compiling unchanged.
+         *
+         * @return a freshly-opened, connected channel to the subprocess
+         * @throws IOException if the channel cannot be opened
+         */
+        default ByteChannel openWireChannel() throws IOException {
+            throw new UnsupportedOperationException(
+                "Subprocess wire-handoff channel is not yet operational:"
+                + " the real OS-process + Unix-Domain-Socket launcher is"
+                + " a follow-up to task T4 (SubProcessWireHandoff).");
+        }
 
         /** Terminates the subprocess and releases its resources. */
         void shutdown();
