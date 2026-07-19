@@ -50,7 +50,32 @@
             <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
-        
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          Test-only: provides the DER MarshalFactoryProvider (ServiceLoader
+          discovered by net.jini.io.MarshalledInstance) so that tests can
+          actually decode MarshallingFormat.ATOMIC_DER-tagged instances at
+          test-runtime, exercising the 221fe251c AtomicMarshalledInstance
+          ->DER write-site migration (EventReg's listener field in
+          RegistrarImpl.java). Not referenced by any compiled symbol in main
+          or test sources, purely a runtime SPI provider, so it does not
+          leak a release-25 API surface into this module's release 21
+          compile target; see the "der=JDK25-only" constraint (jgdms-der
+          itself requires release 25 to build). Same pattern as reggie-dl's
+          EntryRepDerFormatTest.
+        -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-der</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -59,6 +84,33 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <release>21</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Permit tests to touch SecurityManager-guarded APIs on JDK 17+
+                         (JEP 411); no SM is installed unless a test does so explicitly.
+                         Needed here because EventRegListenerDerRoundTripTest's
+                         @AtomicSerial-stream round trip reconstructs the listener's
+                         net.jini.io.MarshalledInstance via its GetArg constructor,
+                         which calls DeSerializationPermission("MARSHALL").checkGuard(null)
+                         (a no-op with no SecurityManager installed, but on a JDK build
+                         with SecurityManager support fully stripped, e.g. a vanilla
+                         distro OpenJDK 25, java.security.Permission.checkGuard's
+                         default implementation throws unconditionally instead of
+                         no-op'ing; run these tests under an SM-capable JDK, e.g. the
+                         DirtyChai build, per this repo's jgdms-platform pom convention,
+                         which uses the same argLine). -->
+                    <argLine>-Djava.security.manager=allow</argLine>
+                    <systemPropertyVariables>
+                        <!-- EventReg round-trip tests build real RegistrarImpl.EventReg
+                             records, whose serialization pulls in RMI codebase
+                             machinery. Use the default RMI class provider so the test
+                             JVM needs no preferred-class-loader SPI on its classpath;
+                             same pattern as outrigger-service's surefire config. -->
+                        <java.rmi.server.RMIClassLoaderSpi>default</java.rmi.server.RMIClassLoaderSpi>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>
@@ -79,7 +131,7 @@
                 <configuration>
                   <generateManifest>true</generateManifest>
                 </configuration>
-            </plugin> 
+            </plugin>
         </plugins>
     </build>
 
