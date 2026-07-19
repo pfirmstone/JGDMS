@@ -16,11 +16,10 @@
 package au.net.zeus.jgdms.loader.isolation;
 
 import java.rmi.RemoteException;
-import java.security.CodeSource;
 import java.security.Principal;
-import java.security.ProtectionDomain;
-import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.security.policy.DynamicPolicyProvider;
@@ -117,25 +116,93 @@ import org.apache.river.api.security.PermissionGrantBuilder;
  *       {@code SubProcessDynamicPolicy} &sect;2's "lease-scoped by default"
  *       decision, <em>true by construction</em> rather than by refusing
  *       whatever the caller didn't already do itself.</li>
+ *   <li><strong>Supersession of a prior grant to the same target (T4
+ *       adversarial-pass Finding&nbsp;1).</strong> Before this method
+ *       returns from a <em>successful</em> {@link
+ *       DynamicPolicyProvider#grant(PermissionGrant)} install, it scans this
+ *       backend's own small live-install index for any earlier grant it
+ *       itself installed whose unwrapped content is {@linkplain
+ *       PermissionGrant#impliesEquivalent(PermissionGrant) implies-equivalent}
+ *       to the one just installed &mdash; i.e. carries the identical
+ *       principal/digest/URI/certificate/classloader <em>selector</em>,
+ *       regardless of which {@code Permission}s either grant carries &mdash;
+ *       and calls {@link LeasedPermissionGrant#cancel()} on it. Cancellation
+ *       flips that grant's {@code isVoid()} synchronously, so a narrower
+ *       re-grant for the same target retires the earlier, broader one on the
+ *       very next {@code implies()} check: no waiting for {@code refresh()}
+ *       and no waiting out the earlier grant's own lease TTL, which is
+ *       exactly the gap the board's reproduction (grant a broad {@code
+ *       FilePermission("&lt;&lt;ALL FILES&gt;&gt;","read,write")} ceiling,
+ *       then grant a narrower {@code PropertyPermission} ceiling for the same
+ *       target, and watch the broad grant keep being enforced) exploited. The
+ *       new install is never touched by this scan (it cannot match itself,
+ *       having not yet been added to the index at scan time), and the scan
+ *       runs strictly <em>after</em> the install succeeds, so a {@code
+ *       grant()} call this backend's own {@code GrantPermission} ceiling
+ *       denies never has the side effect of tearing down a grant that
+ *       remains validly in force.</li>
  * </ol>
- * The existing {@code DynamicPolicyProvider.grant(PermissionGrant)} still
+ * <p><strong>What supersession deliberately does <em>not</em> do (residual
+ * scope, by design).</strong> It closes the <em>revocation</em> gap for a
+ * grant still live when its replacement arrives. It cannot, by itself, close
+ * a <em>replay</em> of a grant that has already gone void (expired or been
+ * cancelled) &mdash; once void, there is no live prior install left to find
+ * and cancel, so a byte-for-byte resend of old, already-expired grant bytes
+ * would satisfy this mechanism's "no matching live prior" case and be
+ * accepted as if it were new. This class has no freshness/generation signal
+ * available to it &mdash; {@link #grant(PermissionGrant)}'s only input is the
+ * already-shaped {@link PermissionGrant}, which carries no verdict timestamp
+ * or sequence number. Closing that gap (T4 Finding&nbsp;2) is {@link
+ * SubProcessGrantOrchestrator}'s responsibility, at the one layer upstream of
+ * this class that still holds the {@code RegistryVerdict} the grant was
+ * derived from &mdash; see that class's javadoc for the anti-replay
+ * generation gate it applies <em>before</em> ever calling down into this
+ * class's {@link #grant(PermissionGrant)}. A caller that reaches this class
+ * directly, bypassing {@code SubProcessGrantOrchestrator} entirely, gets
+ * supersession (Finding&nbsp;1) but not anti-replay (Finding&nbsp;2) &mdash;
+ * this is not an oversight, it is the honest limit of what a bare {@code
+ * PermissionGrant} can prove about its own freshness; only the party that
+ * looks at a signed verdict can.
+ *
+ * <p>The existing {@code DynamicPolicyProvider.grant(PermissionGrant)} still
  * runs its own {@code GrantPermission} ceiling check against the calling
  * context on the stack at the moment this method executes (see {@code
  * RevocablePolicy#grant}); this class neither strengthens nor weakens that
  * check, it simply does not bypass it.
  *
- * <p><strong>{@link #refresh()} and {@link #getGrants()}.</strong> Both
- * delegate to the same local {@code DynamicPolicyProvider} &mdash; {@code
- * refresh()} to {@link DynamicPolicyProvider#refresh()} verbatim; {@code
- * getGrants()} to {@link DynamicPolicyProvider#getPermissionGrants(
- * ProtectionDomain)}, queried against a synthetic, codesource-and-loader-
- * free {@link ProtectionDomain} carrying only this backend's configured
- * {@code scopePrincipals} &mdash; the same principal-only-domain query shape
- * {@code LeasedDelegationTest} already exercises against a real {@code
- * DynamicPolicyProvider}. This returns the <em>actual</em> installed {@link
- * PermissionGrant} objects (including any still-live lease wrapper), never a
- * locally re-tracked copy: no parallel grant-tracking structure is
- * maintained by this class, by design.
+ * <p><strong>{@link #refresh()} and {@link #getGrants()}.</strong> {@code
+ * refresh()} delegates to {@link DynamicPolicyProvider#refresh()} verbatim
+ * (and additionally sweeps this backend's own live-install index of any now-
+ * void entries, purely to bound its size &mdash; {@code refresh()}'s own
+ * void-grant sweep of {@code policy} is unaffected either way).
+ *
+ * <p>{@code getGrants()} (T4 adversarial-pass Finding&nbsp;2's "secondary
+ * compounding gap") no longer queries {@link
+ * DynamicPolicyProvider#getPermissionGrants(ProtectionDomain)} against a
+ * synthetic, codesource-and-loader-free {@link java.security.ProtectionDomain}.
+ * That query shape is structurally blind to any grant this backend installs
+ * with a non-{@code PRINCIPAL} context: {@code DigestGrant}/{@code URIGrant}/
+ * {@code CertificateGrant}/{@code ClassLoaderGrant} all require their own
+ * selector (a {@code DigestCodeSource}, a matching URL, certificates, a live
+ * {@code ClassLoader}) to be present on the queried domain before {@code
+ * implies(ProtectionDomain)} can return {@code true} &mdash; a codesource-free
+ * domain can never satisfy any of them, so a live, actively-enforced {@code
+ * DigestGrant} (exactly {@link SubProcessGrantOrchestrator}'s own grant
+ * shape) was silently reported as absent: an operator auditing "did my grant
+ * take effect" got a false all-clear for the one grant shape T3 actually
+ * produces. {@code getGrants()} instead returns this backend's own
+ * live-install index, filtered to {@link PermissionGrant#isVoid() !isVoid()}:
+ * the exact {@link PermissionGrant} object instances {@link
+ * #grant(PermissionGrant)} itself passed to {@code policy.grant(...)}, so
+ * {@code isVoid()}/lease-expiry is always evaluated fresh against the real,
+ * live object &mdash; this is an <em>index of identity</em>, not a stale
+ * snapshot copy of state: nothing about a tracked entry's liveness is cached
+ * or memoized independently of the object it indexes. The index only ever
+ * contains what this backend itself verbatim-installed (see {@link
+ * #grant(PermissionGrant)}), so {@code getGrants()}'s audit surface now
+ * matches enforcement exactly, for every grant shape this backend accepts,
+ * not only the {@code PRINCIPAL}-context one the old query shape happened to
+ * see.
  *
  * @since 3.1.1
  */
@@ -155,6 +222,46 @@ final class SubProcessLocalPolicyAdmin implements PolicyAdmin {
     private final DynamicPolicyProvider policy;
     private final Principal[] scopePrincipals;
     private final long defaultLeaseTtlMillis;
+
+    /**
+     * This backend's own live-install index (T4 adversarial-pass Finding&nbsp;1
+     * / Finding&nbsp;2's audit-blindness fix): every grant this backend has
+     * itself successfully installed into {@link #policy}, paired with the
+     * unwrapped, principal-rebound content template used to test
+     * "same target" via {@link PermissionGrant#impliesEquivalent(PermissionGrant)}.
+     * A {@link CopyOnWriteArrayList} because reads ({@link #getGrants()}) are
+     * far more frequent than writes ({@link #grant(PermissionGrant)}), reads
+     * must never block on a write in progress, and the list is expected to
+     * stay small (one entry per distinct target this backend has ever been
+     * asked to grant to, minus whatever {@link #grant(PermissionGrant)} and
+     * {@link #refresh()} opportunistically sweep). Mutations (the
+     * find-prior-and-cancel-then-add sequence in {@link #grant(PermissionGrant)})
+     * are additionally serialized under {@link #installLock} so a same-target
+     * race between two concurrent {@code grant()} calls resolves
+     * deterministically rather than leaving two live "winners".
+     */
+    private final List<TrackedGrant> tracked = new CopyOnWriteArrayList<TrackedGrant>();
+
+    /** Serializes the mutating part of {@link #grant(PermissionGrant)}; see {@link #tracked}. */
+    private final Object installLock = new Object();
+
+    /**
+     * One entry in {@link #tracked}: the exact, live {@link LeasedPermissionGrant}
+     * (or {@link OneShotLeasedPermissionGrant}) instance {@link
+     * #grant(PermissionGrant)} passed to {@link #policy}, paired with the
+     * unwrapped content template (no lease, permissions included) used only
+     * for the {@code impliesEquivalent} "same target" test &mdash; never
+     * re-installed, never mutated.
+     */
+    private static final class TrackedGrant {
+        final PermissionGrant contentTemplate;
+        final LeasedPermissionGrant installed;
+
+        TrackedGrant(PermissionGrant contentTemplate, LeasedPermissionGrant installed) {
+            this.contentTemplate = contentTemplate;
+            this.installed = installed;
+        }
+    }
 
     /**
      * Convenience constructor using {@link #DEFAULT_LEASE_TTL_MILLIS}.
@@ -229,7 +336,10 @@ final class SubProcessLocalPolicyAdmin implements PolicyAdmin {
      * verbatim, principal-scope always rebound to {@code scopePrincipals},
      * always lease-wrapped (the caller's own lease if it supplied one,
      * otherwise a freshly-minted local one). See class docs for the full
-     * rationale.
+     * rationale, including the T4 adversarial-pass Finding&nbsp;1 supersession
+     * this method now performs and its documented residual scope
+     * (replay/freshness is {@link SubProcessGrantOrchestrator}'s job, not
+     * this method's).
      *
      * @throws NullPointerException if {@code grant} is null
      * @throws SecurityException if the underlying {@code
@@ -256,15 +366,41 @@ final class SubProcessLocalPolicyAdmin implements PolicyAdmin {
                 .principals(scopePrincipals)
                 .build();
 
-        PermissionGrant install = oneShot
+        LeasedPermissionGrant install = oneShot
                 ? new OneShotLeasedPermissionGrant(rebound, lease)
                 : new LeasedPermissionGrant(rebound, lease);
 
-        // Verbatim install of the rebound, lease-wrapped grant.
-        // DynamicPolicyProvider.grant(PermissionGrant) still runs its own
-        // GrantPermission ceiling check against the current calling context;
-        // that check is neither strengthened nor weakened here.
-        policy.grant(install);
+        synchronized (installLock) {
+            // Verbatim install of the rebound, lease-wrapped grant.
+            // DynamicPolicyProvider.grant(PermissionGrant) still runs its own
+            // GrantPermission ceiling check against the current calling
+            // context; that check is neither strengthened nor weakened here.
+            // This must happen BEFORE any supersession below: if the ceiling
+            // check denies this install, nothing below may run either --
+            // a rejected regrant attempt must never have the side effect of
+            // tearing down a DIFFERENT grant that remains validly in force.
+            policy.grant(install);
+
+            // T4 adversarial-pass Finding 1: supersede any prior LIVE grant
+            // this backend itself installed for the exact same target.
+            // impliesEquivalent ignores permission content and compares only
+            // the imply-logic selector, so this correctly matches "same
+            // target, possibly re-verdicted permissions" regardless of
+            // whether the new ceiling is broader or narrower than the old
+            // one. Cancellation is synchronous (LeasedPermissionGrant#cancel())
+            // so the very next implies() check no longer sees the superseded
+            // grant -- no refresh() call and no lease-TTL wait required.
+            for (TrackedGrant t : tracked) {
+                if (!t.installed.isVoid()
+                        && t.contentTemplate.impliesEquivalent(rebound)) {
+                    t.installed.cancel();
+                }
+            }
+            // Bound growth of the index: drop entries already void (superseded
+            // just above, naturally lease-expired, or externally cancelled).
+            tracked.removeIf(SubProcessLocalPolicyAdmin::isVoidTrackedGrant);
+            tracked.add(new TrackedGrant(rebound, install));
+        }
     }
 
     private Lease mintLocalLease() {
@@ -276,32 +412,50 @@ final class SubProcessLocalPolicyAdmin implements PolicyAdmin {
      * Reloads / recomputes the effective subprocess policy by delegating to
      * the local {@code DynamicPolicyProvider}'s own {@code refresh()}
      * verbatim (also sweeps any now-void &mdash; e.g. lease-expired &mdash;
-     * dynamic grants, per {@code DynamicPolicyProvider#refresh}).
+     * dynamic grants, per {@code DynamicPolicyProvider#refresh}). Also
+     * opportunistically sweeps this backend's own {@link #tracked} index of
+     * any now-void entries, purely to bound the index's size over a
+     * long-running subprocess's lifetime; {@link #getGrants()} already
+     * filters live-vs-void on every call regardless, so this sweep changes no
+     * observable behaviour, only memory footprint.
      */
     @Override
     public void refresh() throws RemoteException {
         policy.refresh();
+        tracked.removeIf(SubProcessLocalPolicyAdmin::isVoidTrackedGrant);
+    }
+
+    /** Removal predicate: a tracked entry whose installed grant has gone void. */
+    private static boolean isVoidTrackedGrant(TrackedGrant t) {
+        return t.installed.isVoid();
     }
 
     /**
-     * Returns the grants currently in force for this backend's configured
-     * {@code scopePrincipals}, read live from the local {@code
-     * DynamicPolicyProvider} &mdash; never from a locally-tracked copy. A
-     * grant whose lease has expired reports {@link PermissionGrant#isVoid()}
-     * (transitively, {@link LeasedPermissionGrant#isVoid()}) as {@code true}
-     * and is excluded from the underlying policy's own live "in force"
-     * evaluation the next time a permission check or {@link #refresh()}
-     * sweeps it.
+     * Returns the grants this backend has itself installed and which remain
+     * live, read from this backend's own {@link #tracked} index (T4
+     * adversarial-pass Finding&nbsp;2's audit-blindness fix &mdash; see class
+     * docs for why the previous codesource-free {@code
+     * DynamicPolicyProvider.getPermissionGrants(ProtectionDomain)} query shape
+     * could never see a {@code DigestGrant}/{@code URIGrant}/{@code
+     * CertificateGrant}/{@code ClassLoaderGrant}). The returned array elements
+     * are the exact live {@link PermissionGrant} instances installed into the
+     * local {@code DynamicPolicyProvider} &mdash; {@link
+     * PermissionGrant#isVoid()} (transitively, lease expiry or explicit
+     * {@link LeasedPermissionGrant#cancel()}) is evaluated fresh at the moment
+     * of this call, not cached, so this method can never report a grant as
+     * live after it has actually gone void (or vice versa).
      *
      * @return a fresh, defensive-copy snapshot; never null, possibly empty
      */
     @Override
     public PermissionGrant[] getGrants() throws RemoteException {
-        ProtectionDomain scopeDomain = new ProtectionDomain(
-                new CodeSource(null, (Certificate[]) null),
-                null, null, scopePrincipals);
-        List<PermissionGrant> grants = policy.getPermissionGrants(scopeDomain);
-        return grants.toArray(new PermissionGrant[grants.size()]);
+        List<PermissionGrant> live = new ArrayList<PermissionGrant>(tracked.size());
+        for (TrackedGrant t : tracked) {
+            if (!t.installed.isVoid()) {
+                live.add(t.installed);
+            }
+        }
+        return live.toArray(new PermissionGrant[live.size()]);
     }
 
     /**

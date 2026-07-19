@@ -15,6 +15,7 @@
  */
 package au.net.zeus.jgdms.loader.isolation;
 
+import java.io.FilePermission;
 import java.lang.reflect.Constructor;
 import java.rmi.RemoteException;
 import java.security.CodeSource;
@@ -28,6 +29,7 @@ import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.PropertyPermission;
 import java.util.Set;
 import javax.security.auth.Subject;
 import net.jini.core.lease.Lease;
@@ -160,6 +162,19 @@ public class SubProcessLocalPolicyAdminTest {
                 .principals(new Principal[]{p})
                 .permissions(new Permission[]{perm})
                 .context(PermissionGrantBuilder.PRINCIPAL)
+                .build();
+    }
+
+    /**
+     * Builds a grant exactly the way {@code SubProcessGrantOrchestrator}
+     * builds one (DIGEST context, no principals, no lease wrapper) for a
+     * given digest and permission set.
+     */
+    private static PermissionGrant digestGrant(byte[] digestBytes, Permission... perms) {
+        return PermissionGrantBuilder.newBuilder()
+                .context(PermissionGrantBuilder.DIGEST)
+                .digest("SHA-256", digestBytes)
+                .permissions(perms)
                 .build();
     }
 
@@ -565,5 +580,198 @@ public class SubProcessLocalPolicyAdminTest {
             sm.gating = false;
             if (previous != null) System.setSecurityManager(previous);
         }
+    }
+
+    // ==================================================================
+    // Probe 6 (2026-07-20 T4 adversarial-pass Finding 1 + audit-blindness):
+    // supersession-by-target and the getGrants() audit-surface fix.
+    // ==================================================================
+
+    /**
+     * <strong>Finding 1 reproduction / closure.</strong> Before this fix: a
+     * board reviewer proved a broad {@code FilePermission("&lt;&lt;ALL
+     * FILES&gt;&gt;","read,write")} ceiling, once granted, remained fully
+     * enforced even after a narrower {@code PropertyPermission} ceiling was
+     * granted for the exact same target+contentHash (simulating a re-verdict)
+     * -- surviving an explicit {@link PolicyAdmin#refresh()} and only
+     * expiring on its own, independent lease TTL. This test grants both,
+     * calls {@code refresh()} exactly as the board's repro did, and asserts
+     * the broad grant is gone from the live/audit surface <em>immediately</em>
+     * -- not "eventually, after its own TTL".
+     */
+    @Test
+    public void grant_narrowerRegrant_supersedesPriorBroadGrant_sameDigestTarget()
+            throws Exception {
+        DynamicPolicyProvider policy = newPolicy();
+        SubProcessLocalPolicyAdmin backend =
+                new SubProcessLocalPolicyAdmin(policy, new Principal[]{hosted});
+        Caller caller = new Caller();
+        caller.subject = subjectWith(admin);
+        SubProcessPolicyAdmin front =
+                new SubProcessPolicyAdmin(admin, backend, caller);
+        PolicyAdmin pa = front.getSubProcessPolicyAdmin();
+
+        byte[] digest = new byte[32];
+        Arrays.fill(digest, (byte) 0xAA);
+
+        Permission broad = new FilePermission("<<ALL FILES>>", "read,write");
+        Permission narrow = new PropertyPermission("java.version", "read");
+
+        // verdict #1: broad ceiling, long TTL.
+        TestLease broadLease = new TestLease(System.currentTimeMillis() + 60_000L);
+        pa.grant(new LeasedPermissionGrant(digestGrant(digest, broad), broadLease));
+        assertTrue("broad grant is live immediately after install",
+                anyGrantCarries(pa.getGrants(), broad));
+
+        // verdict #2: narrower ceiling, SAME target (same digest), independent
+        // (also long) TTL -- simulating a re-verdict, not merely waiting out
+        // the first grant's own expiry.
+        TestLease narrowLease = new TestLease(System.currentTimeMillis() + 60_000L);
+        pa.grant(new LeasedPermissionGrant(digestGrant(digest, narrow), narrowLease));
+
+        // The board's own repro explicitly called refresh() and observed the
+        // broad grant was untouched by it; assert the same call here.
+        pa.refresh();
+
+        PermissionGrant[] after = pa.getGrants();
+        assertFalse("the narrower re-grant for the same target must have"
+                + " superseded/cancelled the broad grant immediately -- not"
+                + " merely leave it to expire on its own independent lease TTL",
+                anyGrantCarries(after, broad));
+        assertTrue("the narrower grant must be the one now in force",
+                anyGrantCarries(after, narrow));
+    }
+
+    /**
+     * A grant for a genuinely <em>different</em> target (different digest)
+     * must never be superseded by an unrelated grant -- supersession is
+     * scoped to {@code impliesEquivalent}, which compares the selector
+     * (principals/digest/URI/...), not merely "some other grant arrived".
+     */
+    @Test
+    public void grant_differentDigestTargets_bothRemainLiveSimultaneously()
+            throws Exception {
+        DynamicPolicyProvider policy = newPolicy();
+        SubProcessLocalPolicyAdmin backend =
+                new SubProcessLocalPolicyAdmin(policy, new Principal[]{hosted});
+        Caller caller = new Caller();
+        caller.subject = subjectWith(admin);
+        SubProcessPolicyAdmin front =
+                new SubProcessPolicyAdmin(admin, backend, caller);
+        PolicyAdmin pa = front.getSubProcessPolicyAdmin();
+
+        byte[] digestA = new byte[32];
+        Arrays.fill(digestA, (byte) 0xAA);
+        byte[] digestB = new byte[32];
+        Arrays.fill(digestB, (byte) 0xBB);
+
+        Permission permA = new RuntimePermission("isolation.targetA");
+        Permission permB = new RuntimePermission("isolation.targetB");
+
+        TestLease leaseA = new TestLease(System.currentTimeMillis() + 60_000L);
+        TestLease leaseB = new TestLease(System.currentTimeMillis() + 60_000L);
+        pa.grant(new LeasedPermissionGrant(digestGrant(digestA, permA), leaseA));
+        pa.grant(new LeasedPermissionGrant(digestGrant(digestB, permB), leaseB));
+
+        PermissionGrant[] grants = pa.getGrants();
+        assertTrue("target A's grant must remain live: unrelated target must"
+                + " never falsely supersede it", anyGrantCarries(grants, permA));
+        assertTrue("target B's grant must remain live: unrelated target must"
+                + " never falsely supersede it", anyGrantCarries(grants, permB));
+    }
+
+    /**
+     * A {@code grant()} call this backend's own {@code GrantPermission}
+     * ceiling denies must have NO side effect on a different, still-valid
+     * grant to the SAME target -- i.e. supersession only runs after the
+     * new install actually succeeds, never before/regardless.
+     */
+    @Test
+    public void grant_deniedRegrant_toSameTarget_doesNotSupersedePriorValidGrant()
+            throws Exception {
+        DynamicPolicyProvider policy = newPolicy();
+        SubProcessLocalPolicyAdmin backend =
+                new SubProcessLocalPolicyAdmin(policy, new Principal[]{hosted});
+        Caller caller = new Caller();
+        caller.subject = subjectWith(admin);
+        SubProcessPolicyAdmin front =
+                new SubProcessPolicyAdmin(admin, backend, caller);
+        PolicyAdmin pa = front.getSubProcessPolicyAdmin();
+
+        byte[] digest = new byte[32];
+        Arrays.fill(digest, (byte) 0xCC);
+        Permission inCeiling = new RuntimePermission("isolation.regrant.ceilingOk");
+        Permission overCeiling = new RuntimePermission("isolation.regrant.ceilingExceeded");
+        GrantPermission callerCeiling = new GrantPermission(new Permission[]{inCeiling});
+
+        CeilingSecurityManager sm = new CeilingSecurityManager(callerCeiling);
+        SecurityManager previous = System.getSecurityManager();
+        try {
+            System.setSecurityManager(sm);
+        } catch (UnsupportedOperationException noAllowFlag) {
+            Assume.assumeNoException("needs -Djava.security.manager=allow", noAllowFlag);
+            return;
+        }
+        try {
+            sm.gating = true;
+            pa.grant(digestGrant(digest, inCeiling)); // bare: auto-lease-wrapped
+            assertTrue(anyGrantCarries(pa.getGrants(), inCeiling));
+
+            try {
+                // SAME target (same digest), but exceeds the caller's own
+                // GrantPermission ceiling -- must be refused.
+                pa.grant(digestGrant(digest, overCeiling));
+                fail("expected the existing GrantPermission ceiling to deny this install");
+            } catch (SecurityException expected) {
+                // correct
+            }
+
+            assertTrue("a regrant attempt to the SAME target that was itself"
+                    + " REJECTED must not have superseded/cancelled the prior,"
+                    + " still-valid grant for that target",
+                    anyGrantCarries(pa.getGrants(), inCeiling));
+        } finally {
+            sm.gating = false;
+            if (previous != null) System.setSecurityManager(previous);
+        }
+    }
+
+    /**
+     * <strong>Finding 2's "secondary compounding gap" reproduction /
+     * closure.</strong> Before this fix: {@code getGrants()} queried a
+     * codesource-free synthetic domain, which a {@code DigestGrant} (the
+     * shape {@code SubProcessGrantOrchestrator} actually produces) can never
+     * satisfy -- {@code getGrants()} silently reported this class of live,
+     * actively-enforced grant as NOT present, a false all-clear for an
+     * operator checking whether their grant took effect. After this fix,
+     * {@code getGrants()} reads this backend's own live-install index
+     * directly, independent of domain-implies matching.
+     */
+    @Test
+    public void getGrants_reportsLiveDigestScopedGrant_auditBlindnessFixed()
+            throws Exception {
+        DynamicPolicyProvider policy = newPolicy();
+        SubProcessLocalPolicyAdmin backend =
+                new SubProcessLocalPolicyAdmin(policy, new Principal[]{hosted});
+        Caller caller = new Caller();
+        caller.subject = subjectWith(admin);
+        SubProcessPolicyAdmin front =
+                new SubProcessPolicyAdmin(admin, backend, caller);
+        PolicyAdmin pa = front.getSubProcessPolicyAdmin();
+
+        byte[] digest = new byte[32];
+        Arrays.fill(digest, (byte) 0xDD);
+        Permission perm = new RuntimePermission("isolation.auditBlindnessProbe");
+
+        assertFalse("not installed yet", anyGrantCarries(pa.getGrants(), perm));
+
+        TestLease lease = new TestLease(System.currentTimeMillis() + 60_000L);
+        pa.grant(new LeasedPermissionGrant(digestGrant(digest, perm), lease));
+
+        PermissionGrant[] grants = pa.getGrants();
+        assertTrue("a live DIGEST-scoped grant -- T3's own actual grant shape"
+                + " -- must be visible on the audit surface, not silently"
+                + " reported as absent",
+                anyGrantCarries(grants, perm));
     }
 }

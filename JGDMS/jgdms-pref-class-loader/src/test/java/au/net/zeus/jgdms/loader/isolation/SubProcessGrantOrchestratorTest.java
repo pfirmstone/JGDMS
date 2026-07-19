@@ -63,10 +63,14 @@ public class SubProcessGrantOrchestratorTest {
             "1122334455667788990011223344556677889900112233445566778899aabb";
 
     private static RegistryVerdict verdict(VerdictType t) {
+        return verdictAt(t, 1L);
+    }
+
+    private static RegistryVerdict verdictAt(VerdictType t, long timestamp) {
         try {
             return new RegistryVerdict(
                     new Uri[]{ new Uri("http://example.com/foo-dl.jar") },
-                    t, 1L, new byte[]{ 1 });
+                    t, timestamp, new byte[]{ 1 });
         } catch (Exception e) {
             throw new AssertionError(e);
         }
@@ -444,5 +448,201 @@ public class SubProcessGrantOrchestratorTest {
         assertNotEquals("grants scoped to different content hashes must not"
                 + " be treated as the same grant",
                 recording.grants.get(0), recording.grants.get(1));
+    }
+
+    // ------------------------------------- anti-replay / freshness gate
+    // (2026-07-20 T4 adversarial-pass Finding 2)
+
+    /**
+     * <strong>Finding 2 reproduction / closure.</strong> A board reviewer
+     * proved that resubmitting a byte-for-byte identical {@code
+     * applyVerdictCeiling} call -- same target, same verdict, same
+     * contentHash -- silently reinstated a ceiling after it had already,
+     * correctly, expired. This test doesn't need a real lease/TTL to prove
+     * the point: it proves the narrower, sufficient claim that the SAME
+     * verdict object (hence the same signed timestamp) applied twice to the
+     * SAME (targetKey, contentHash) pair is refused the second time --
+     * exactly what stops a resend of old, already-processed verdict bytes
+     * from ever reaching {@link PolicyAdmin#grant} again.
+     */
+    @Test
+    public void replayedIdenticalVerdict_sameTargetAndHash_refusedSecondTime()
+            throws Exception {
+        SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
+        IsolationPoolingKey target = key("spiffe://example/workload/target");
+        RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
+        registry.register(target, new FixedSubProcessAdministrable(recording));
+        SubProcessGrantOrchestrator orchestrator =
+                new SubProcessGrantOrchestrator(registry);
+
+        GrantPermission caller =
+                new GrantPermission(new PropertyPermission("java.version", "read"));
+        Permission[] declared = new Permission[]{
+            new PropertyPermission("java.version", "read") };
+        RegistryVerdict v = verdictAt(VerdictType.SAFE, 1_000L);
+
+        // First application: genuinely new (no prior generation recorded for
+        // this target+hash) -- must succeed.
+        orchestrator.applyVerdictCeiling(target, v, HASH, declared, caller, false);
+        assertEquals(1, recording.grants.size());
+
+        // Byte-for-byte identical resubmission (same verdict object, same
+        // timestamp, same target, same contentHash): must be refused, fail
+        // closed, and must never reach PolicyAdmin.grant a second time.
+        try {
+            orchestrator.applyVerdictCeiling(target, v, HASH, declared, caller, false);
+            fail("a replayed/identical verdict re-application must be refused");
+        } catch (SecurityException expected) {
+            // correct: fail-closed anti-replay guard.
+        }
+        assertEquals("the replayed call must never have reached PolicyAdmin.grant",
+                1, recording.grants.size());
+    }
+
+    /**
+     * A genuinely fresher re-verdict (a strictly later signed timestamp) for
+     * the exact same target+contentHash pair must be accepted, not confused
+     * with a replay -- this is the "re-verdict" case Finding 1's supersession
+     * fix (at T1) depends on actually being able to reach {@code
+     * PolicyAdmin.grant} in the first place.
+     */
+    @Test
+    public void freshRVerdict_laterTimestamp_sameTargetAndHash_isAccepted()
+            throws Exception {
+        SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
+        IsolationPoolingKey target = key("spiffe://example/workload/target");
+        RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
+        registry.register(target, new FixedSubProcessAdministrable(recording));
+        SubProcessGrantOrchestrator orchestrator =
+                new SubProcessGrantOrchestrator(registry);
+
+        GrantPermission caller =
+                new GrantPermission(new PropertyPermission("java.version", "read"));
+        Permission[] declared = new Permission[]{
+            new PropertyPermission("java.version", "read") };
+
+        orchestrator.applyVerdictCeiling(
+                target, verdictAt(VerdictType.SAFE, 1_000L), HASH, declared, caller, false);
+        // Strictly later timestamp: a genuine re-verdict, not a replay.
+        orchestrator.applyVerdictCeiling(
+                target, verdictAt(VerdictType.SAFE, 2_000L), HASH, declared, caller, false);
+
+        assertEquals("a strictly-fresher re-verdict for the same target+hash"
+                + " must be accepted, not treated as a replay",
+                2, recording.grants.size());
+    }
+
+    /**
+     * An older (or equal) timestamp for the same target+hash must be refused
+     * even when it did NOT arrive from a literal byte-for-byte resend of a
+     * previous call's arguments -- staleness, not merely object identity, is
+     * the guard.
+     */
+    @Test(expected = SecurityException.class)
+    public void staleVerdict_earlierTimestamp_sameTargetAndHash_isRefused()
+            throws Exception {
+        SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
+        IsolationPoolingKey target = key("spiffe://example/workload/target");
+        RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
+        registry.register(target, new FixedSubProcessAdministrable(recording));
+        SubProcessGrantOrchestrator orchestrator =
+                new SubProcessGrantOrchestrator(registry);
+
+        GrantPermission caller =
+                new GrantPermission(new PropertyPermission("java.version", "read"));
+        Permission[] declared = new Permission[]{
+            new PropertyPermission("java.version", "read") };
+
+        orchestrator.applyVerdictCeiling(
+                target, verdictAt(VerdictType.SAFE, 5_000L), HASH, declared, caller, false);
+        // An OLDER timestamp than what's already been applied: refused.
+        orchestrator.applyVerdictCeiling(
+                target, verdictAt(VerdictType.SAFE, 4_000L), HASH, declared, caller, false);
+    }
+
+    /**
+     * A first-time application for a given target+contentHash pair must
+     * never be rejected merely because SOME other (target, contentHash) pair
+     * already has a recorded generation -- the freshness gate is scoped
+     * exactly to the pair, not global. Also confirms two DIFFERENT targets
+     * legitimately applying the identical verdict (identical timestamp) to
+     * two different subprocesses -- a plausible "same JAR pooled twice" case
+     * -- never falsely contend with one another.
+     */
+    @Test
+    public void firstTimeGrant_neverRejected_evenAfterUnrelatedPairRecorded()
+            throws Exception {
+        SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
+        IsolationPoolingKey targetA = key("spiffe://example/workload/a");
+        IsolationPoolingKey targetB = key("spiffe://example/workload/b");
+        RecordingPolicyAdmin recordingA = new RecordingPolicyAdmin();
+        RecordingPolicyAdmin recordingB = new RecordingPolicyAdmin();
+        registry.register(targetA, new FixedSubProcessAdministrable(recordingA));
+        registry.register(targetB, new FixedSubProcessAdministrable(recordingB));
+        SubProcessGrantOrchestrator orchestrator =
+                new SubProcessGrantOrchestrator(registry);
+
+        GrantPermission caller =
+                new GrantPermission(new PropertyPermission("java.version", "read"));
+        Permission[] declared = new Permission[]{
+            new PropertyPermission("java.version", "read") };
+        RegistryVerdict sameVerdict = verdictAt(VerdictType.SAFE, 42L);
+
+        // Record a generation for (targetA, HASH).
+        orchestrator.applyVerdictCeiling(targetA, sameVerdict, HASH, declared, caller, false);
+        assertEquals(1, recordingA.grants.size());
+
+        // A DIFFERENT target, same verdict/timestamp, same contentHash: this
+        // is target B's OWN first-time application, not a replay against B.
+        orchestrator.applyVerdictCeiling(targetB, sameVerdict, HASH, declared, caller, false);
+        assertEquals("a different target's first-time application must never"
+                + " be rejected because of an unrelated target's recorded"
+                + " generation", 1, recordingB.grants.size());
+
+        // Likewise, the SAME target but a DIFFERENT contentHash: target A's
+        // own first-time application for that other JAR.
+        orchestrator.applyVerdictCeiling(targetA, sameVerdict, OTHER_HASH, declared, caller, false);
+        assertEquals("a different contentHash on the SAME target must never"
+                + " be rejected because of an unrelated contentHash's"
+                + " recorded generation", 2, recordingA.grants.size());
+    }
+
+    /**
+     * A call refused further downstream (here: an unregistered target) must
+     * NOT consume the freshness slot -- a legitimate retry of the identical
+     * verdict, once the precondition is fixed, must still succeed.
+     */
+    @Test
+    public void refusedAttempt_neverConsumesFreshnessSlot_legitimateRetrySucceeds()
+            throws Exception {
+        SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
+        IsolationPoolingKey target = key("spiffe://example/workload/target");
+        SubProcessGrantOrchestrator orchestrator =
+                new SubProcessGrantOrchestrator(registry);
+
+        GrantPermission caller =
+                new GrantPermission(new PropertyPermission("java.version", "read"));
+        Permission[] declared = new Permission[]{
+            new PropertyPermission("java.version", "read") };
+        RegistryVerdict v = verdictAt(VerdictType.SAFE, 7L);
+
+        // First attempt: target not registered yet -- fails closed, upstream
+        // of the freshness gate's own downstream effects.
+        try {
+            orchestrator.applyVerdictCeiling(target, v, HASH, declared, caller, false);
+            fail("expected IllegalStateException: target not yet registered");
+        } catch (IllegalStateException expected) {
+            // correct
+        }
+
+        // Now register the target and retry with the SAME verdict object --
+        // must succeed: the earlier failed attempt must not have consumed
+        // the freshness slot for (target, HASH).
+        RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
+        registry.register(target, new FixedSubProcessAdministrable(recording));
+        orchestrator.applyVerdictCeiling(target, v, HASH, declared, caller, false);
+        assertEquals("a legitimate retry of the same verdict after an upstream"
+                + " failure must not be mistaken for a replay",
+                1, recording.grants.size());
     }
 }
