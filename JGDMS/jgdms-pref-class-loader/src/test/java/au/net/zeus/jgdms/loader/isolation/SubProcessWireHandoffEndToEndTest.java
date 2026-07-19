@@ -129,12 +129,30 @@ public class SubProcessWireHandoffEndToEndTest {
     }
 
     /** The exact Finding-1 shape: an {@code Externalizable} with an empty body. */
+    /**
+     * Deliberately stateful (2026-07-20 board review, silent-field-loss
+     * finding): {@code readExternal} reads a reference-typed field back via
+     * {@code ObjectInput.readObject()} -- the exact shape that silently
+     * dropped its field, reporting success, before the two platform-layer
+     * fixes (see {@code ObjOutputStream}/{@code AtomicMarshalInputStream}
+     * commit history). A field-less probe (as this class originally was)
+     * cannot detect that failure mode at all -- it has nothing to lose.
+     */
     public static final class ExternalizableProbe implements Externalizable {
+        String tag;
         public ExternalizableProbe() { }
-        @Override public void writeExternal(ObjectOutput out) { }
-        @Override public void readExternal(ObjectInput in) { }
-        @Override public boolean equals(Object o) { return o instanceof ExternalizableProbe; }
-        @Override public int hashCode() { return 1; }
+        public ExternalizableProbe(String tag) { this.tag = tag; }
+        @Override public void writeExternal(ObjectOutput out) throws IOException {
+            out.writeObject(tag);
+        }
+        @Override public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+            this.tag = (String) in.readObject();
+        }
+        @Override public boolean equals(Object o) {
+            return o instanceof ExternalizableProbe
+                    && java.util.Objects.equals(tag, ((ExternalizableProbe) o).tag);
+        }
+        @Override public int hashCode() { return java.util.Objects.hashCode(tag); }
     }
 
     /** Same-named decoy in a different package: must NOT be rejected. */
@@ -310,38 +328,51 @@ public class SubProcessWireHandoffEndToEndTest {
     // -------------------------------------------- 2026-07-20 board review fixes
 
     /**
-     * Finding 1 (confirmed by 2 board seats), full-stack proof, driven
-     * through the REAL server ({@code SubProcessReconstructionServer
-     * .dispatchInvoke} decoding {@code args}) exactly the direction the
-     * board exercised directly against {@code WireHandoffCodec}.
+     * Finding 1 (confirmed by 2 board seats) AND the follow-on silent-
+     * field-loss finding, full-stack proof, driven through the REAL server
+     * ({@code SubProcessReconstructionServer.dispatchInvoke} decoding
+     * {@code args}) exactly the direction the board exercised directly
+     * against {@code WireHandoffCodec}.
      *
-     * <p><strong>What the platform-layer fix (item 3) actually closes, and
-     * what it does not -- verified here, not assumed:</strong> the null
-     * guard on {@code AtomicMarshalInputStream.readNewArray}'s {@code
-     * StreamCorruptedException} branch (jgdms-platform,
-     * {@code exceptions != null && !exceptions.isEmpty()}) closes exactly
-     * the {@code NullPointerException} the board reported -- confirmed:
-     * before the fix this call threw an uncaught {@code NullPointerException}
-     * ("Cannot invoke java.util.List.isEmpty() because exceptions is null");
-     * after it, the same input throws a clean {@code
-     * StreamCorruptedException} ("unexpected end of block data") instead.
-     * <strong>It does not make the array decode succeed</strong> -- the
-     * underlying cause (an {@code Externalizable} element's block-data mode
-     * leaving the shared stream desynchronised for the following element)
-     * is a separate, deeper bug this minimal, board-scoped fix does not
-     * touch. This is exactly why {@code WireHandoffCodec} encodes every
-     * field in its own independent sub-stream (see that class's javadoc) --
-     * that design choice is what actually protects the wire-handoff
-     * envelope's own top-level fields; a single field that is ITSELF an
-     * array containing a non-last {@code Externalizable} element (this
-     * test's shape -- {@code args}/results are exactly such single fields)
-     * is not something per-field stream isolation can help with, since the
-     * corruption is internal to that one field's own recursive decode.
-     * Flagged in this task's report as a residual, separate from Finding 1
-     * as scoped by the board.
+     * <p><strong>Full history, verified at each stage, not assumed:</strong>
+     * <ol>
+     *   <li>Original board finding: a 2-element array with a non-last
+     *       {@code Externalizable} element threw an uncaught {@code
+     *       NullPointerException} ("Cannot invoke java.util.List.isEmpty()
+     *       because exceptions is null") in {@code AtomicMarshalInputStream
+     *       .readNewArray}.</li>
+     *   <li>After the null-guard fix (first platform commit): the same
+     *       input instead threw a <em>clean</em> {@code
+     *       StreamCorruptedException} ("unexpected end of block data") --
+     *       the crash was gone, but the array still did not decode.</li>
+     *   <li>Chasing that {@code StreamCorruptedException} (this round)
+     *       found the actual root cause, two compounding bugs: (a) {@code
+     *       ObjOutputStream.writeNewClassDesc} only set the {@code
+     *       SC_EXTERNALIZABLE} class-descriptor flag for
+     *       {@code @AtomicExternal}-annotated classes, not for plain
+     *       {@code java.io.Externalizable} ones -- even though {@code
+     *       writeNewObject} unconditionally calls {@code writeExternal()}
+     *       on any {@code Externalizable} regardless of that annotation, so
+     *       real data was written under a classDesc that falsely claimed
+     *       "not externalizable, zero fields" -- silently discarded on
+     *       read, no exception, the exact
+     *       silent-field-loss shape reported separately. (b) Once (a) was
+     *       fixed, a second, previously-latent bug surfaced: {@code
+     *       AtomicMarshalInputStream.readyPrimitiveData} unconditionally
+     *       consumed the next tag expecting a {@code TC_BLOCKDATA}/{@code
+     *       TC_BLOCKDATALONG}/{@code TC_RESET} marker, but {@code
+     *       ObjOutputStream.drain()} only emits one when primitive data was
+     *       actually buffered -- an {@code Externalizable} whose {@code
+     *       writeExternal} writes an object with no preceding primitive
+     *       write has no such marker, so the real first tag was silently
+     *       swallowed instead of reaching {@code readExternal}'s own read.</li>
+     *   <li>Both fixed (each its own minimal, isolated jgdms-platform
+     *       commit): this exact shape now round-trips <strong>correctly</strong>
+     *       -- verified below, not merely "fails cleanly."</li>
+     * </ol>
      */
     @Test(timeout = 20_000)
-    public void nonLastExternalizableArrayElement_failsCleanly_notWithRawNpe_throughFullStack()
+    public void nonLastExternalizableArrayElement_roundTripsCorrectly_throughFullStack()
             throws Exception {
         MarshalledInstance mi = new MarshalledInstance(new DeepEchoImpl());
         Object stub = wireHandoff.handoff(handle, newFakeBootstrapProxy(), mi,
@@ -349,26 +380,17 @@ public class SubProcessWireHandoffEndToEndTest {
                 Collections.emptyList());
         DeepEcho echo = (DeepEcho) stub;
 
-        Object[] arg = new Object[]{ new ExternalizableProbe(), "trailing string" };
-        try {
-            echo.echo(arg);
-            fail("this shape is not expected to round-trip successfully yet"
-                    + " (see javadoc: a separate, deeper stream-desync bug"
-                    + " beyond the board-scoped NPE fix) -- if this starts"
-                    + " passing, the deeper bug has been independently fixed"
-                    + " and this test should be upgraded to assert success");
-        } catch (RemoteException expected) {
-            // The load-bearing assertion: a clean, well-formed exception,
-            // never the raw "Cannot invoke ...List.isEmpty()... null" NPE
-            // message, and never an uncaught Throwable reaching this line.
-            assertFalse("must never surface the raw NullPointerException"
-                    + " message -- that was the exact board-reported crash: "
-                    + expected,
-                    expected.getMessage().contains("isEmpty() because"));
-        }
+        Object[] arg = new Object[]{ new ExternalizableProbe("carried-state"), "trailing string" };
+        Object result = echo.echo(arg);
 
-        // The connection/stub must remain usable afterwards.
-        assertEquals("hello", echo.echo("hello"));
+        Object[] resultArr = (Object[]) result;
+        assertEquals(2, resultArr.length);
+        assertTrue("non-last Externalizable element must decode correctly, not"
+                + " corrupt the stream for the following element",
+                resultArr[0] instanceof ExternalizableProbe);
+        assertEquals("Externalizable field must not be silently dropped",
+                "carried-state", ((ExternalizableProbe) resultArr[0]).tag);
+        assertEquals("trailing string", resultArr[1]);
     }
 
     /**
