@@ -588,6 +588,51 @@ public class SubProcessLocalPolicyAdminTest {
     // ==================================================================
 
     /**
+     * <strong>Finding 1, pure-enforcement variant.</strong> The DIGEST-scoped
+     * repro below ({@link #grant_narrowerRegrant_supersedesPriorBroadGrant_sameDigestTarget})
+     * exercises T3's actual grant shape, but its "before" failure is entangled
+     * with the audit-blindness gap (the old {@code getGrants()} couldn't see
+     * ANY digest grant, so it fails before even reaching the supersession
+     * question). This variant uses a {@code PRINCIPAL}-context grant instead
+     * -- a shape the old {@code getGrants()} query <em>could</em> already see
+     * -- and asserts via real {@link DynamicPolicyProvider#implies}
+     * enforcement, not just the audit surface, isolating the supersession
+     * mechanism itself from the audit-blindness fix.
+     */
+    @Test
+    public void grant_narrowerRegrant_supersedesPriorBroadGrant_principalTarget_realEnforcement()
+            throws Exception {
+        DynamicPolicyProvider policy = newPolicy();
+        SubProcessLocalPolicyAdmin backend =
+                new SubProcessLocalPolicyAdmin(policy, new Principal[]{hosted});
+        Caller caller = new Caller();
+        caller.subject = subjectWith(admin);
+        SubProcessPolicyAdmin front =
+                new SubProcessPolicyAdmin(admin, backend, caller);
+        PolicyAdmin pa = front.getSubProcessPolicyAdmin();
+
+        Permission broad = new FilePermission("<<ALL FILES>>", "read,write");
+        Permission narrow = new PropertyPermission("java.version", "read");
+
+        TestLease broadLease = new TestLease(System.currentTimeMillis() + 60_000L);
+        pa.grant(new LeasedPermissionGrant(principalGrant(hosted, broad), broadLease));
+        assertTrue("broad grant is actually enforced immediately after install",
+                policy.implies(domain(hosted), broad));
+
+        TestLease narrowLease = new TestLease(System.currentTimeMillis() + 60_000L);
+        pa.grant(new LeasedPermissionGrant(principalGrant(hosted, narrow), narrowLease));
+        pa.refresh();
+
+        assertFalse("BEFORE this fix: the broad grant remained fully enforced"
+                + " (surviving refresh()) until its own independent lease TTL"
+                + " -- AFTER this fix: superseded immediately, real enforcement"
+                + " via DynamicPolicyProvider.implies(), not merely the audit"
+                + " surface", policy.implies(domain(hosted), broad));
+        assertTrue("the narrower grant must be the one actually enforced",
+                policy.implies(domain(hosted), narrow));
+    }
+
+    /**
      * <strong>Finding 1 reproduction / closure.</strong> Before this fix: a
      * board reviewer proved a broad {@code FilePermission("&lt;&lt;ALL
      * FILES&gt;&gt;","read,write")} ceiling, once granted, remained fully
