@@ -90,11 +90,6 @@
             <artifactId>jgdms-discovery-providers</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-osgi-proxy-bundle-provider</artifactId>
-            <version>${project.version}</version>
-        </dependency>
     </dependencies>
 
     <build>

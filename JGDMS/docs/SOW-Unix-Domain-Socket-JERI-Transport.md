@@ -449,13 +449,17 @@ peer-authenticated yet.
    content (it comes from whatever served/marshalled the proxy) and must be treated accordingly — it may
    only ever be used to select which of the smart proxy's *own* business interfaces a given reading
    process exposes on its stub. It must **never** be a channel through which a privileged/administrative
-   interface gets bundled onto a stub — most concretely, `SubProcessDynamicPolicy`
-   (`SOW-SubProcessDynamicPolicy.md` §2) must never be added to a stub's interface set because a name
-   resembling it appeared in this field; that interface is added only by the client's own local
-   orchestration logic deciding it is the legitimate owning/administering party, entirely independent of
-   wire content. Worth an explicit adversarial check at T3 design time (of whichever task ends up owning
-   this): can a crafted interface-name list cause a stub to be built with more than its intended business
-   interfaces.
+   interface gets bundled onto a stub — most concretely, `SubProcessAdministrable`
+   (`SOW-SubProcessDynamicPolicy.md` §2, refined 2026-07-18 to this dedicated interface name — see that
+   SOW for the full mechanism) must never be added to a stub's interface set because a name resembling it
+   appeared in this field; that interface is added only by the client's own local orchestration logic
+   deciding it is the legitimate owning/administering party, entirely independent of wire content. **This
+   exclusion is construction-time hygiene, not the enforcement boundary** — the actual authority proof is
+   `SubProcessAdministrable.getSubProcessPolicyAdmin()`'s returned `PolicyAdmin` proxy failing closed to
+   any caller that cannot authenticate as the orchestrating admin principal, so even a crafted name list
+   that somehow got the interface bundled in anyway would still get nothing usable from it. Worth an
+   explicit adversarial check at T3 design time (of whichever task ends up owning this): can a crafted
+   interface-name list cause a stub to be built with more than its intended business interfaces.
    **Wire-schema/back-compat discipline applies for real here, not just as a formality.** This project has
    a live `japicmp` + serial-schema CI gate (memory: `jgdms-api-compat-tooling`) specifically to catch
    incompatible `@AtomicSerial` wire-form changes; adding a third field to `ProxySerializer.serialForm()`
@@ -473,34 +477,52 @@ peer-authenticated yet.
    local delegate stub, over its *own* UDS connection to the same per-principal subprocess, using whatever
    interfaces its ServiceAPI defines. Multiple distinct local stubs, with different interface sets, can
    legitimately point at the same subprocess-hosted object — each built independently by whichever process
-   did the matching for its own purposes. **Direct consequence for `SubProcessDynamicPolicy` (point 6
-   below / `SOW-SubProcessDynamicPolicy.md`): that interface must only be bundled onto the stub held by
-   the orchestrating party entitled to administer the subprocess's policy — never onto a stub handed to a
-   downstream ServiceAPI consumer, third-party or otherwise. When a proxy is serialized/exposed to a
-   ServiceAPI-consumer's subprocess or JVM, the `SubProcessDynamicPolicy`-shaped interface must not be
+   did the matching for its own purposes. **Direct consequence for `SubProcessAdministrable` (point 6
+   below / `SOW-SubProcessDynamicPolicy.md` §2, refined 2026-07-18): that interface must only be bundled
+   onto the stub held by the orchestrating party entitled to administer the subprocess's policy — never
+   onto a stub handed to a downstream ServiceAPI consumer, third-party or otherwise. When a proxy is
+   serialized/exposed to a ServiceAPI-consumer's subprocess or JVM, `SubProcessAdministrable` must not be
    included in that stub's interface set at all** — that consumer's stub should carry only its own
-   business interfaces, built independently as in (iii) above. See `SOW-SubProcessDynamicPolicy.md` §2 for
-   where this is now captured as an explicit design constraint.
+   business interfaces, built independently as in (iii) above. **As with the security note in (ii): this
+   is construction-time hygiene, not the sole enforcement mechanism.** Even a downstream consumer's stub
+   built (maliciously or by bug) with `SubProcessAdministrable` bundled in gains nothing usable from it —
+   `getSubProcessPolicyAdmin()`'s returned `PolicyAdmin` proxy authenticates the caller as the
+   orchestrating admin principal via its own `MethodConstraints`, independent of which stub or channel the
+   call arrived over. Channel/construction-time exclusion narrows casual reach; admin-principal
+   authentication is what actually holds the line. See `SOW-SubProcessDynamicPolicy.md` §2 for the full
+   mechanism, its residual-hazard note, and `SOW-Smart-Proxy-Isolation-Wiring.md` T2's third layer
+   (reject-on-load if a hosted proxy's own resolved interface closure declares `SubProcessAdministrable`/
+   `PolicyAdmin` — a defense-in-depth backstop for this same boundary, owned by that SOW not this one).
 4. **Increment 2 stays on the roadmap, reframed, not blocking.** SO_PEERCRED/SPIFFE-SVID peer
    authentication remains the right next increment — for anti-impersonation on the channel and for
    honestly claiming `Confidentiality.YES` — but per point 0 above it is not a precondition for the
    side-channel-defeating property this decision is about.
-5. **CRITICAL, independently double-confirmed finding, unrelated to the ClassLoader-keying question in
-   point 1: `jgdms-osgi-proxy-bundle-provider`'s `ProxyBundleProvider` (a second, OSGi-wired
-   `ProxyCodebaseSpi` implementation, `:70` onward) has zero references anywhere in the file to
-   `VerdictRegistry`/`checkVerdictForJar`/`DownloadPermission`/`BootstrapPermission`/`DigestGrant`** — it
-   does only cert/integrity verification, then `bc.installBundle(...)`. It predates the SCAP/BAE
-   verdict-gate mechanism entirely and would **completely bypass** it if ever selected (it activates via
-   OSGi's `osgi.serviceloader` capability/extender, not the plain `ServiceLoader` lookup
-   `PreferredProxyCodebaseProvider` wins today — so it is dormant, not currently reachable, in a
-   non-OSGi deployment). `jgdms-osgi-proxy-bundle-provider` **is a live module in the build** (`pom.xml`
-   module list, confirmed), not dead/excluded code. This is a live landmine, independent of the UDS
-   routing decision: **do not enable OSGi bundle wiring for proxy codebase resolution until this is
-   either fixed (add the same verdict gate) or the module is removed/quarantined.** Flagging this here
-   because it surfaced during this SOW's investigation, not because it's this SOW's task to fix — it
-   deserves its own task, at least as high a priority as `SOW-BAE-Timing-Sidechannel-Denial.md`'s T1
-   (the `AttachPermission`/JMX policy audit), for the same reason: it's a silent, complete bypass of an
-   audit gate the rest of this session's work has been building and hardening.
+5. **Re-verified 2026-07-18, downgraded: `ProxyBundleProvider` has no verdict-gate references, but is not
+   currently reachable through this codebase's own provider-selection logic.** `jgdms-osgi-proxy-bundle-
+   provider`'s `ProxyBundleProvider` (a second `ProxyCodebaseSpi` implementation) genuinely has zero
+   references to `VerdictRegistry`/`checkVerdictForJar`/`DownloadPermission`/`BootstrapPermission`/
+   `DigestGrant` — that part of the original finding holds. But a follow-up code-level check found the
+   selection mechanism doesn't work the way the original note assumed:
+   - `Service.providers()` (`jgdms-platform/.../resource/Service.java`) does consult the OSGi service
+     registry (via `OSGiServiceIterator`) in addition to a classpath `META-INF/services` scan — that much
+     is real, JGDMS-authored bridging, confirmed in code.
+   - But **nothing anywhere in this repo calls `BundleContext.registerService(...)`** for either
+     `ProxyBundleProvider` or `PreferredProxyCodebaseProvider` — grep confirms zero hits repo-wide — so
+     the registry arm can never yield either candidate, regardless of ranking.
+   - `ProxyBundleProvider` also lacks the `META-INF/services/net.jini.loader.ProxyCodebaseSpi` file that a
+     real OSGi Service Loader Mediator extender (e.g. Aries SPI Fly) would need in order to register it —
+     it only carries the bnd `@Capability`/`@Requirement` manifest headers, which are necessary but not
+     sufficient on their own.
+   - Net effect: as currently packaged, `ProxyBundleProvider` is not discoverable through
+     `Service.providers()` in any topology examined — not because `PreferredProxyCodebaseProvider` wins a
+     priority contest, but because `ProxyBundleProvider` was never actually wired to be found at all.
+   - **Made inert 2026-07-18 (Peter's decision):** `jgdms-osgi-proxy-bundle-provider` removed from the
+     root reactor `pom.xml` `<modules>` list, and its dependency declarations removed from `dist/pom.xml`
+     and `services/reggie/reggie-service-subsystem/pom.xml`. It is no longer compiled or packaged into any
+     build artifact — source retained on disk (matching `SOW-AtomicSerial-Delegate-Marshalling.md`'s
+     "failed/dead module... retained, not to be used" framing) but nothing pulls it into the reactor
+     anymore, so the "one missing `META-INF/services` file away from live" risk noted above is now moot
+     unless someone re-adds the module to the build.
 6. **How the isolated process's own `SecurityManager`/policy gets bootstrapped and updated — investigated
    (dedicated agent pass, 2026-07-17), and this is a real, separately-scoped gap in point 3's wiring
    task, not something to assume away.** Directly relevant to

@@ -18,16 +18,23 @@
   cross-process-policy-delivery gap, with `BasicProxyPreparer`/`Security.grant()` ruled out as a fit
   (it only ever mutates the *calling* JVM's own installed policy, never a separate child process's) —
   so `SubProcessDynamicPolicy` is now understood to serve **both** tenant types, not client-side-only.
-  What's **not yet reconciled**: §2 below describes the transport as "an additional interface on the
-  client's own local delegate dynamic proxy stub" — that framing assumes a client *holding a proxy* to
-  a remote object, which fits the smart-proxy case but not obviously the filter case (a service holds a
-  handle to *its own spawned filter sidecar*, not a downloaded proxy over a business interface). Whether
-  the filter tenant reuses the same "ride an existing per-tenant channel" shape with the service's own
-  sidecar-handle standing in for the client's stub, or needs a materially different transport, is real,
-  unresolved design work — flagged here rather than assumed away. Expected to be minimal in practice:
-  STD-009 §8.4's "zero ambient authority" means the filter's own grant is expected to be near-empty, so
-  getting this exactly right matters less operationally than it does for the smart-proxy case, but the
-  mechanism should still be designed once, correctly, for both tenants rather than forked.
+  What's **not yet reconciled**: §2 below (updated 2026-07-18 to the `SubProcessAdministrable`/
+  `PolicyAdmin` shape — see that section) still describes the accessor as living on "the client's own
+  local delegate dynamic proxy stub," which assumes a client *holding a proxy* to a remote object — fits
+  the smart-proxy case but not obviously the filter case (a service holds a handle to *its own spawned
+  filter sidecar*, not a downloaded proxy over a business interface). The new accessor-plus-separately-
+  authenticated-admin-proxy shape is plausibly *easier* to generalize than the superseded "bundled onto
+  the same stub, riding the business-call InvocationHandler" framing was — an `Administrable`-pattern
+  accessor doesn't inherently require "a proxy to a remote business object" the way routing through the
+  same `InvocationHandler` did, so a filter-owning service could plausibly implement
+  `SubProcessAdministrable` on whatever handle/object it already uses to track its own spawned sidecar.
+  That is a plausibility argument, not a design decision — whether the filter tenant reuses this shape
+  with the service's own sidecar-handle standing in for the client's stub, or needs something materially
+  different, is still real, unresolved design work, flagged here rather than assumed away. Expected to be
+  minimal in practice: STD-009 §8.4's "zero ambient authority" means the filter's own grant is expected to
+  be near-empty, so getting this exactly right matters less operationally than it does for the
+  smart-proxy case, but the mechanism should still be designed once, correctly, for both tenants rather
+  than forked.
 
 ---
 
@@ -53,57 +60,90 @@ This SOW builds both, plus the namespace relocation §12 point 6 decided as a pr
 
 ## 2. Design shape (as decided so far — some of this is still open, see §5)
 
-- **Refined transport decision (Peter, 2026-07-17), superseding the "separate remote service" framing
-  below: `SubProcessDynamicPolicy` is one of the interfaces implemented by the *local delegate dynamic
-  proxy* itself** — the same client-side `java.lang.reflect.Proxy` stub (§ the UDS SOW's "local
-  interfaces suffice" decision) that already forwards the smart proxy's own business-interface calls
-  over UDS to the isolated subprocess. It is **not** a second, standalone JERI-remote service with its
-  own distinct wire protocol and endpoint. `Proxy.newProxyInstance` already supports one dynamic proxy
-  instance implementing multiple interfaces simultaneously — the client's per-proxy stub gets built with
-  the smart proxy's own remote interface(s) *plus* a `SubProcessDynamicPolicy`-shaped interface, and
-  calls to *either* route through the exact same `InvocationHandler`/UDS-forwarding machinery
-  (`AtomicDerInvocationHandler` or its extension) already being built for ordinary calls. This
-  eliminates the need for a second wire protocol, a second endpoint registration inside the subprocess,
-  and — see below — most of open question 2's authentication problem.
-  **A second, equally important benefit (Peter, 2026-07-17): this removes an entire class of "which
-  proxy does this grant target" ambiguity by construction.** A subprocess can host multiple proxy
-  objects pooled from the same principal (§ the UDS SOW's point 1); if `SubProcessDynamicPolicy` were a
-  standalone service, every grant-application call would need an explicit parameter identifying *which*
-  hosted object it applies to — precisely the kind of "is this identifier correctly bound/keyed" problem
-  that recurred repeatedly across this whole investigation (the `Key` class's endpoint-vs-principal
-  mixup, the routing-key corrections). Riding the *same* per-proxy stub/channel that is already
-  correctly, structurally scoped to exactly one proxy object removes the need for such a parameter at
-  all — the channel itself *is* the target identification, not a value that could be spoofed, mismatched,
-  or applied to the wrong hosted object.
-  **This directly simplifies the caller-authentication requirement below**: the authorized caller is
-  simply whichever trusted client-side code legitimately holds a reference to *that specific proxy's*
-  local delegate stub — an ordinary Java object-reference/encapsulation boundary within the client's own
-  trusted code, governed by whatever already controls who gets handed that stub, not a new remote
-  identity/authentication scheme to design from scratch. The untrusted smart proxy code itself, running
-  entirely inside the subprocess, never has access to *its own* client-side stub object at all (that
-  object lives in a different process's heap) — it cannot reach this interface through normal means.
-- **Caveat this refinement does *not* eliminate, and needs to stay explicit at T3's design time: on the
-  *subprocess* side, the object that answers policy-management calls must not be the same object as the
-  smart-proxy business object itself**, even though both may be reached over the same UDS
-  connection/transport-layer plumbing from the client's single stub. If the subprocess multiplexes
-  ordinary business calls and policy-management calls onto literally the same exported object, there is
-  a real risk of conflating "the untrusted proxy's own business logic" with "the subprocess's own
-  trusted management surface" — e.g. if the smart proxy class itself were made to implement (accidentally
-  or via a crafted class) the `SubProcessDynamicPolicy` interface shape, dispatch could route a
-  policy-management call to attacker-controlled code, or attacker code could otherwise interfere with
-  it. The subprocess-side implementation must dispatch policy-management calls to its own,
-  separate, trusted hosting/management object — never to (or through) the smart proxy instance being
-  hosted, regardless of what interfaces the client-side stub happens to expose as one bundle.
+- **Superseded 2026-07-18 (Peter, refined further while reviewing `SOW-Smart-Proxy-Isolation-
+  Wiring.md`'s T2): the "additional interface bundled onto the local delegate stub, riding the exact
+  same `InvocationHandler`/UDS-forwarding as business calls" framing below (kept struck-through-in-spirit
+  for design history) is replaced by a dedicated, separately-authenticated admin surface —
+  `SubProcessAdministrable`.** This is the authoritative shape; see `SOW-Smart-Proxy-Isolation-
+  Wiring.md` §2 (finding S1) and its T2 acceptance criteria for the fully-worked version this section
+  now mirrors. Summary:
+  - The client's per-proxy local delegate stub additionally implements a new, dedicated
+    `SubProcessAdministrable` interface (`au.net.zeus.jgdms.*` — never `org.apache.river.api.security`,
+    per the UDS SOW §12 point 6 namespace rule), whose accessor `getSubProcessPolicyAdmin()` follows the
+    same pattern as `net.jini.admin.Administrable.getAdmin()` — an accessor returning a *separate* admin
+    proxy — but is a **deliberately parallel, non-colliding interface**, not a reuse of `Administrable`
+    itself. Reason: the hosted smart proxy / backend service may *already* legitimately implement
+    `Administrable` for its own purposes (`JoinAdmin`/`DestroyAdmin`/`StorageLocationAdmin`, forwarded
+    through to the backend) — reusing `getAdmin()` for subprocess-policy administration would collide
+    with and potentially clobber a surface an operator still legitimately needs. The two admin surfaces
+    (backend-service admin via `Administrable.getAdmin()`; local-subprocess-policy admin via
+    `SubProcessAdministrable.getSubProcessPolicyAdmin()`) coexist as two orthogonal authorities, never
+    conflated.
+  - `getSubProcessPolicyAdmin()` returns a **separate `PolicyAdmin` proxy**, to a separately-exported
+    subprocess-side trusted management object, carrying its **own, stricter `MethodConstraints`**
+    (client authentication as the orchestrating admin principal, `Integrity.YES`). **This is the actual
+    enforcement boundary** — admin authority is proven by authentication on the `PolicyAdmin` proxy's
+    own endpoint, not by which interfaces the business stub happens to expose. This directly closes the
+    gap the original framing below left open: that framing's "the authorized caller is simply whichever
+    trusted client-side code legitimately holds a reference to that specific proxy's local delegate
+    stub — an ordinary Java object-reference/encapsulation boundary... not a new remote
+    identity/authentication scheme to design from scratch" was a **convention about who is expected to
+    hold the reference, not an enforced mechanism** — declaration-is-the-signal (Board Guidance G4): a
+    malicious or buggy client can build its own stub with the interface bundled in regardless of
+    convention, and the subprocess sees only a UDS call, never the client's declared interface set. The
+    `SubProcessAdministrable`/`PolicyAdmin` split fixes this by requiring genuine authentication as the
+    admin principal on the returned proxy's own endpoint — not by trusting stub construction discipline
+    alone.
+  - **Residual hazard, must fail closed:** `getSubProcessPolicyAdmin()` and every `PolicyAdmin` operation
+    must reject (return nothing usable / throw) any caller that cannot authenticate as the orchestrating
+    admin principal — a mere business-stub holder calling the accessor must get nothing usable.
+    Construction-time interface exclusion (the bulleted item below, retained) is hygiene that reduces
+    reach; runtime admin authentication is what actually enforces. They are complementary layers, not
+    alternatives — do not let either substitute for the other.
+  - **A third, defense-in-depth layer belongs to `SOW-Smart-Proxy-Isolation-Wiring.md` T2, not this
+    SOW's scope, but is load-bearing for this mechanism's soundness and is cross-noted here:** the
+    subprocess must refuse to host any smart proxy whose own *resolved* interface closure includes
+    `SubProcessAdministrable`/`PolicyAdmin` (checked on type identity, never a wire-name match) — no
+    legitimate business proxy declares the subprocess's own management interface, so one that does is a
+    TOCTOU/dispatch-confusion escalation attempt. Rejection is the *only* fail-closed option here (not a
+    preference over "stripping" the interface): unlike the client-side delegate stub, which is a
+    dynamically-constructed `java.lang.reflect.Proxy` that legitimately exposes a chosen interface
+    subset, the hosted smart proxy is an ordinary concrete class whose implemented-interfaces closure is
+    fixed at compile time by whoever wrote it — there is no way to reduce it at runtime, so hosting the
+    object at all means hosting exactly the class it is.
+  - **The "which proxy does this grant target" benefit is retained**, just re-derived over the new
+    shape: a subprocess can host multiple proxy objects pooled from the same principal (UDS SOW §12
+    point 1); riding the per-proxy stub's accessor to reach the target subprocess's own `PolicyAdmin`
+    means the channel (which specific stub's `getSubProcessPolicyAdmin()` you called) still identifies
+    *which* subprocess/management-object you're talking to — no separate spoofable target-id parameter
+    is needed — but *authority to act on it* is no longer "whichever channel you reached," it is
+    "whichever channel you reached, **and** whether you can authenticate as the admin principal on the
+    proxy it returned." Channel narrows the target; authentication proves the authority. Both are now
+    required, where the original framing below relied on the channel alone for both.
+- **Superseded framing (2026-07-17, kept for design-history record, do not implement as written):**
+  ~~`SubProcessDynamicPolicy` is one of the interfaces implemented by the local delegate dynamic proxy
+  stub itself, calls routing through the exact same `InvocationHandler`/UDS-forwarding machinery as
+  ordinary business calls, with the authorized caller being simply whichever trusted client-side code
+  holds the stub reference.~~ This was superseded because it conflated "which channel reached the
+  subprocess" with "who is authorized to administer it" — the second question needs its own
+  authentication, not just object-reference encapsulation on the client side, which is a client-side
+  discipline the subprocess has no way to verify.
+- **Caveat retained unchanged: on the *subprocess* side, the object that answers policy-management calls
+  must not be the same object as the smart-proxy business object itself**, even though both may be
+  reachable via plumbing associated with the same client stub. If the subprocess multiplexes ordinary
+  business calls and policy-management calls onto literally the same exported object, there is a real
+  risk of conflating "the untrusted proxy's own business logic" with "the subprocess's own trusted
+  management surface." The subprocess-side implementation must dispatch policy-management calls to its
+  own, separate, trusted hosting/management object — the `PolicyAdmin` target above — never to (or
+  through) the smart proxy instance being hosted.
 - **The caller is still a more-trusted party than the subprocess's own bootstrap/hosting code for
-  *deciding* the grant** — even with the transport simplification above, the subprocess-side handler
-  should not itself decide *what* to grant (that's T2's job, computed elsewhere and carried in the
-  call), only apply an already-computed instruction after confirming its own caller-side authenticity
-  checks (see the caveat above) — this framing from the original design still holds, just over the
-  simplified transport.
+  *deciding* the grant** — the subprocess-side handler should not itself decide *what* to grant (that's
+  T2's job, computed elsewhere and carried in the call), only apply an already-computed instruction after
+  the `PolicyAdmin` proxy's own authentication check passes.
 - **Grants should be lease-scoped by default**, using the existing `LeasedPermissionGrant`/
   `LeasedDelegation` machinery, so a stale or misbehaving proxy's ceiling can expire or be explicitly
   revoked without a hard subprocess kill.
-- **Only the orchestrating party's stub gets the `SubProcessDynamicPolicy` interface bundled in — decided
+- **Only the orchestrating party's stub gets `SubProcessAdministrable` bundled in — decided
   (Peter, 2026-07-17), following directly from the UDS SOW §12 point 3(iii) finding that the local
   delegate stub is a per-consumer-JVM construct, not a single universal stub.** A subprocess-hosted proxy
   can legitimately be reached by more than one local delegate stub in more than one process — e.g. the
@@ -111,14 +151,12 @@ This SOW builds both, plus the namespace relocation §12 point 6 decided as a pr
   separate downstream process consuming the same proxy through its own "ServiceAPI" (possibly
   third-party-defined). Each such stub is built independently, using only the interfaces relevant to
   whoever built it. **When a proxy is serialized/exposed to a ServiceAPI-consumer's process, the stub
-  built there must not include the `SubProcessDynamicPolicy`-shaped interface at all** — only the stub
-  held by the party that actually spawned/owns the subprocess (or is otherwise explicitly entrusted with
-  administering it) should ever be constructed with it bundled in. This is not an access-control check to
-  add at call time; it is a construction-time decision about which interface set a given stub is built
-  with in the first place — consistent with §2's core "the channel itself is the target identification"
-  property above, extended one level further: which *interfaces a given channel's stub exposes* is itself
-  part of that channel's identity and must not default to "everything available," only to what the
-  building process is entitled to and needs.
+  built there must not include `SubProcessAdministrable` at all** — only the stub held by the party that
+  actually spawned/owns the subprocess (or is otherwise explicitly entrusted with administering it)
+  should ever be constructed with it bundled in. **This is construction-time hygiene, not the enforcement
+  boundary** — per the residual-hazard note above, a stub built without the interface reduces casual
+  reach, but the actual authority proof is the `PolicyAdmin` proxy's own admin-principal authentication,
+  which holds even if this construction-time discipline is ever violated (maliciously or by bug).
 
 ---
 
@@ -148,7 +186,7 @@ repeatedly in this session's BAE work; hold it to the same standard.
 |------|-------------|------------------------------|--------|---------|
 | **T1** · Namespace relocation | Move `org.apache.river.api.security.RemotePolicyProvider` to replace the dead stub at `au.net.zeus.jgdms.api.policy.RemotePolicyProvider` (`jgdms-platform/.../RemotePolicyProvider.java:28-35`, currently `UnsupportedOperationException`); re-point all callers of the legacy copy; no parallel copy left behind. Low-risk, mechanical, but touches a real API surface — confirm no external callers outside this repo before deleting the legacy class outright (deprecate-then-remove if any are found). | general-purpose · **MEDIUM** | single reviewer | none — can start immediately |
 | **T2** · Verdict-to-permission-set function | Build the missing `f(RegistryVerdict, contentHash, [declared needs from META-INF/PERMISSIONS.LIST]) → Permission[]` — a runtime-callable analogue of what `ProxyPolicyGenerator` does offline. Needs an explicit mapping policy, not just plumbing: SAFE → ceiling from declared needs (bounded by whatever `GrantPermission` the caller itself holds — never exceed that, regardless of verdict); INCONCLUSIVE → narrower ceiling, gated analogously to the existing `INCONCLUSIVEPermit` concept (`PreferredProxyCodebaseProvider.java:1550-1564`); DANGEROUS is already refused upstream (out of scope here — this function is never called for a DANGEROUS verdict). This is a **security policy decision**, not just code — the actual mapping needs explicit sign-off, not just implementation review. | general-purpose · **XHIGH** (establishes the actual authority ceiling logic for every isolated subprocess going forward) | **parallel board** (2–3 adversarial) — specifically probe: can a crafted `META-INF/PERMISSIONS.LIST` or a boundary-case verdict cause this function to compute a broader ceiling than intended | none; can run in parallel with T1 |
-| **T3** · `SubProcessDynamicPolicy` interface + subprocess-side handler | **Revised shape (§2): an additional interface implemented by the client-side local delegate dynamic proxy stub itself** (not a standalone remote service) — the "apply this grant" operation rides the same `InvocationHandler`/UDS-forwarding path already built for the smart proxy's own business calls. On the subprocess side, must: (a) dispatch policy-management calls to the subprocess's own, *separate*, trusted hosting/management object — **never** to or through the hosted smart proxy instance itself, even though both are reached over the same UDS connection (§2's caveat — this is the one thing the transport simplification does *not* solve for free); (b) apply the grant verbatim via the subprocess's own local `DynamicPolicyProvider`/`LeasedDelegation`, performing no independent judgment about *what* to grant; (c) confirm the incoming call is genuinely from the client's own trusted stub-holding code, not something the hosted smart proxy engineered access to. | general-purpose · **XHIGH** (novel security-critical mechanism; same class of risk as BAE's T2/T5 from the companion SOW) | **parallel board**, adversarial-probing mandate — build-and-run real probes attempting to reach the policy-management path from the subprocess's own untrusted smart-proxy code (e.g. via a crafted class shape, or by exploiting object-dispatch confusion between the two interfaces on one exported endpoint), not just design review | T1 (transport relocation may still inform wire conventions), T2 (needs a grant to apply — can stub during development) |
+| **T3** · `SubProcessAdministrable`/`PolicyAdmin` interface + subprocess-side handler | **Revised shape (§2, superseded 2026-07-18): a dedicated `SubProcessAdministrable` interface on the client-side local delegate stub, whose `getSubProcessPolicyAdmin()` accessor returns a separate, independently-authenticated `PolicyAdmin` proxy** (not a standalone JERI-remote service with its own wire protocol; not a bundled interface routing "apply this grant" through the same handler as business calls). On the subprocess side, must: (a) export the `PolicyAdmin` target as the subprocess's own, *separate*, trusted hosting/management object — **never** the hosted smart proxy instance itself; (b) gate every `PolicyAdmin` operation (and the `getSubProcessPolicyAdmin()` accessor itself) with `MethodConstraints` requiring client authentication as the orchestrating admin principal, **failing closed** (nothing usable returned) to any caller that cannot so authenticate — this is the actual enforcement mechanism, not the interface-bundling discipline; (c) apply the grant verbatim via the subprocess's own local `DynamicPolicyProvider`/`LeasedDelegation`, performing no independent judgment about *what* to grant. **Cross-SOW note:** the reject-on-load TOCTOU check (refuse to host a smart proxy whose own resolved interface closure declares `SubProcessAdministrable`/`PolicyAdmin`) is `SOW-Smart-Proxy-Isolation-Wiring.md` T2's task, not this task's — but T3 here must not be considered complete/adversarially-cleared independent of that check landing, since it's a defense-in-depth layer for the same authority boundary. | general-purpose · **XHIGH** (novel security-critical mechanism; same class of risk as BAE's T2/T5 from the companion SOW) | **parallel board**, adversarial-probing mandate — build-and-run real probes: can a caller reach `PolicyAdmin` operations without authenticating as the admin principal; does `getSubProcessPolicyAdmin()` ever return a usable proxy to an unauthenticated/wrongly-authenticated caller; does the subprocess ever conflate the `PolicyAdmin` target with the hosted business object | T1 (namespace relocation may still inform wire conventions), T2 (needs a grant to apply — can stub during development) |
 | **T4** · Caller-side wiring | The orchestrating logic that, once a verdict is known for a smart proxy about to run in a given subprocess, computes the grant (T2) and pushes it via `SubProcessDynamicPolicy` (T3) to that specific subprocess. Integrates with whatever spawns/tracks isolated subprocesses (UDS SOW §12 point 3's own task) — this task cannot fully land until that exists, but the caller-side logic itself can be built and tested against a stub subprocess. | general-purpose · **HIGH** | single reviewer + integration test against T3 | T2, T3; full integration blocked on UDS SOW §12 point 3's subprocess-spawning wiring |
 | **T5** · Adversarial test pass | Dedicated adversarial probing of the whole T2→T3→T4 chain as a system, not just each piece in isolation — e.g. can the hosted smart proxy itself, given only its own (deliberately narrow) permissions, ever reach or influence `SubProcessDynamicPolicy`'s endpoint; can a grant be replayed or applied to the wrong subprocess; does a lease-scoped grant actually expire/revoke correctly under `LeasedPermissionGrant`'s existing semantics. Same standing brief as this session's BAE adversarial rounds: build and run real probes against the actual implementation, don't accept "the design reads sound." | general-purpose · **XHIGH** | **parallel board** | T3, T4 substantially implemented |
 | **T6** · Documentation | Update `SOW-Unix-Domain-Socket-JERI-Transport.md` §12 point 6 to describe the finished mechanism accurately (currently describes the *plan*); note in `SOW-BAE-Timing-Sidechannel-Denial.md` §1b that SM/POLP's permission ceiling inside the isolated subprocess is now concretely sourced from this mechanism, not just asserted to exist. | general-purpose · **MEDIUM** | single reviewer | T1–T5 substantially landed (should describe reality, not aspiration) |
@@ -185,15 +223,16 @@ repeatedly in this session's BAE work; hold it to the same standard.
    `RemotePolicyService`'s whole-set-replace shape at all — it rides the client's own per-proxy local
    delegate stub as an additional implemented interface. Kept here struck-through-in-spirit as a record
    of the earlier framing this superseded, for anyone auditing the design history.
-2. **Substantially narrowed by §2's transport refinement, not fully closed**: the client-side half of
-   "who is authorized to call this" is now just "whoever legitimately holds the client-side stub" — an
-   ordinary object-reference boundary, not a new identity scheme. What's still open is the
-   **subprocess-side** half: which specific object inside the subprocess is authorized to *answer* the
-   policy-management calls (T3's caveat — must be a separate, trusted hosting/management object, never
-   the smart proxy instance itself) — and how that object authenticates that an incoming call over the
-   shared UDS connection is genuinely the policy-management interface being invoked by trusted
-   client-side code, not the ordinary business interface, or a confused/crafted dispatch. Worth a
-   concrete design pass at T3's start, not assumed solved by the transport simplification alone.
+2. **Resolved 2026-07-18 by §2's `SubProcessAdministrable`/`PolicyAdmin` refinement — kept here, struck-
+   through-in-spirit, as a record of what the transport-only refinement (2026-07-17) left open.** The
+   original narrowing ("whoever legitimately holds the client-side stub" as an object-reference boundary)
+   was itself identified as a convention, not an enforced mechanism (Board Guidance G4) — it gave no
+   answer for how the *subprocess* verifies an incoming call is genuinely from trusted client-side code
+   rather than the hosted proxy or a maliciously-constructed stub. The `PolicyAdmin` proxy's own
+   `MethodConstraints`-based admin-principal authentication now answers this directly: the subprocess
+   never trusts "which interface the caller declared," only whether the caller can authenticate as the
+   orchestrating admin principal on that specific proxy's endpoint. See §2 for the full mechanism and its
+   residual-hazard note.
 3. **Does a subprocess ever need its grant *updated* after initial application** (e.g. a verdict changes
    because the `VerdictRegistry` revises it, or a lease needs renewing before expiry) — or is this
    strictly a one-shot "grant once at spawn/first-load time" mechanism? If updates are needed, T3's API

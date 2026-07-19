@@ -162,14 +162,28 @@ format) before becoming more than an idea.
   delivers a grant into an already-running, separately-spawned child process.
 - Two-part build: (1) relocate the real, working `RemotePolicyProvider` implementation out of the
   deprecating `org.apache.river.api.security` shared namespace into `au.zeus`, replacing a dead stub
-  already sitting there; (2) build `SubProcessDynamicPolicy` itself — decided (§2 of that doc) to be an
-  **additional interface on the client's own per-proxy local delegate stub**, not a second wire protocol,
-  which also resolves the "which hosted object does this grant target" ambiguity by construction (the
-  channel *is* the target identity). Carries an explicit, load-bearing caveat: the subprocess-side
-  dispatch target for policy-management calls must be a separate, trusted object, never the hosted smart
-  proxy itself — and (added this session) this interface must only ever be bundled onto the
-  orchestrating/owning party's stub, never onto a downstream ServiceAPI consumer's independently-built
-  stub, and never derived from data carried on the wire.
+  already sitting there; (2) build `SubProcessDynamicPolicy` itself — **refined 2026-07-18, superseding
+  the original "additional interface bundled onto the stub, channel-is-the-target-identity-alone" shape**
+  (§2 of that doc, kept struck-through-in-spirit for design history): the client's per-proxy local
+  delegate stub implements a dedicated `SubProcessAdministrable` interface whose `getSubProcessPolicyAdmin()`
+  accessor (same pattern as `net.jini.admin.Administrable.getAdmin()`, deliberately a parallel interface
+  so it never collides with a backend service's own legitimate `Administrable`) returns a **separate,
+  independently-authenticated `PolicyAdmin` proxy** gated by its own stricter `MethodConstraints`
+  (client authentication as the orchestrating admin principal). This closes a gap the original framing
+  left open: "whoever holds the stub reference" was a construction-time convention, not an enforced
+  mechanism (Board Guidance G4) — a malicious client could build its own stub with the interface
+  regardless. Authority is now proven by authentication on the `PolicyAdmin` proxy's own endpoint, not by
+  the business stub's declared interface set; the channel still narrows *which* subprocess is targeted
+  (no spoofable target-id parameter needed), but no longer substitutes for authentication. Carries the
+  same load-bearing caveat as before: the subprocess-side dispatch target for policy-management calls
+  must be a separate, trusted object, never the hosted smart proxy itself — and `SubProcessAdministrable`
+  must only ever be bundled onto the orchestrating/owning party's stub (construction-time hygiene, not
+  the enforcement boundary), never onto a downstream ServiceAPI consumer's independently-built stub. A
+  third, defense-in-depth layer (`SOW-Smart-Proxy-Isolation-Wiring.md` T2's scope, cross-noted in both
+  docs): the subprocess refuses to host any smart proxy whose own resolved interface closure declares
+  `SubProcessAdministrable`/`PolicyAdmin` — rejection is the only fail-closed option there, since a
+  compiled class's implemented-interfaces set can't be reduced at runtime the way a dynamically-built
+  delegate stub's can.
 - Its T2 (verdict → permission-set function) and T3 (the interface + subprocess-side handler) are
   flagged as the two tasks to guard hardest — genuine security-policy decisions and a novel
   authority-granting mechanism respectively, in the same risk class as prior adversarially-probed BAE
@@ -199,6 +213,29 @@ format) before becoming more than an idea.
   revised downward (T4 HIGH→MEDIUM, T9 MEDIUM→LOW) or reframed (T3/T5) once the rescoping landed — read
   §1b before treating the original task table at face value.
 
+### 2.5 `SOW-Smart-Proxy-Isolation-Wiring.md` — making the routing real (added 2026-07-18)
+
+- The task breakdown §4 gap 2 called for and previously lacked: the "make routing real" wiring that all
+  four documents above reference as a dependency but none itself scoped as a task table. Turns UDS SOW
+  §12 point 3's design-level decisions into buildable, agent/effort/risk-assigned tasks: the routing
+  branch at `PreferredProxyCodebaseProvider.resolve()` (T1), per-remote-SPIFFE-principal subprocess
+  spawning/pooling/tracking/teardown (T2), the `ProxySerializer` interface-name field that realizes
+  STD-009 §6.4's "interface stripping" concretely (T3), the byte/framing-level `MarshalledInstance`
+  handoff (T4), and the interface-distribution mechanism as an explicit open design sub-task (T5).
+- **Absorbs gaps 4, 5, and 6** from §4 below (interface-distribution mechanism, wire-protocol handoff
+  mechanics, STD-009 "interface stripping" not built) — all three flagged there as likely folding into
+  this SOW rather than becoming their own documents; they are folded in as T5, T4, T3 respectively.
+- **Bakes four board-review findings in as task-level requirements, not deferred to review** (the
+  "outcome-vs-mechanism" discipline, Board Guidance G2): the policy-grant-push authority binding
+  (convention → enforced spawn-time-connection binding, G4, in T2); the concentrated
+  object-reconstruction door keeping every existing gate inside the subprocess plus decode-size bounds
+  (§2.2 reflex, in T3/T4); the three-independent-axes statement for the client↔subprocess channel (in
+  T4); and DGC-**acknowledgment-processed** (not connection-close) teardown semantics (§2.3 war story,
+  in T2).
+- Explicitly states the shape of the subprocess registry/handle `SubProcessDynamicPolicy`'s T4 must
+  target a grant against (§4 of that SOW), so T4 is no longer blocked on guessing.
+- **Status:** DRAFT task breakdown, no implementation started; no production code written or modified.
+
 ---
 
 ## 3. Cross-cutting decisions that show up in more than one document
@@ -224,35 +261,45 @@ Quick pointers, so a specific decision doesn't have to be re-found by re-reading
 These surfaced during the investigation behind the four documents above but don't yet have a task table
 of their own. Listed here so they don't quietly disappear between documents:
 
-1. **OSGi `ProxyBundleProvider` verdict-gate bypass** (UDS SOW §12 point 5) — a second, live,
-   OSGi-wired `ProxyCodebaseSpi` implementation with zero references to `VerdictRegistry`/
-   `checkVerdictForJar`/any download-gating mechanism. Dormant in a non-OSGi deployment today, but a
-   live module in the build. Flagged as needing remediation at least as high a priority as the BAE SOW's
-   T1. **No SOW owns this yet.**
-2. **§12 point 3's own wiring task breakdown** — referenced repeatedly across all four documents as a
-   dependency (`SubProcessDynamicPolicy` SOW's T4, the BAE SOW's T7 gate, this overview's §1 closing
-   caveat) but never itself broken into a task table with agent/effort assignments the way the other
-   four documents are. This is the actual "make routing real" work — insertion at
+1. **CLOSED 2026-07-18 — OSGi `ProxyBundleProvider` verdict-gate bypass.** (UDS SOW §12 point 5) Re-
+   verified against the actual `Service.providers()`/`OSGiServiceIterator` selection code first (the
+   class still has zero references to `VerdictRegistry`/`checkVerdictForJar`, but was already not
+   discoverable through any code path in this codebase — nothing registers either it or
+   `PreferredProxyCodebaseProvider` into the OSGi service registry, and it lacks the `META-INF/services`
+   file a real Service Loader Mediator extender would need). Peter then had `jgdms-osgi-proxy-bundle-
+   provider` removed from the root reactor `pom.xml` `<modules>` list and from the `dist`/reggie-ESA-
+   subsystem dependency lists — it is no longer compiled or packaged at all. Source retained on disk,
+   nothing pulls it into the build. Slot kept (not deleted) so cross-references to "gap 1" elsewhere in
+   this doc set stay valid; there is no remaining open item here.
+2. **SCOPED 2026-07-18 — `SOW-Smart-Proxy-Isolation-Wiring.md` (see §2.5 above).** §12 point 3's own
+   wiring task breakdown — referenced repeatedly across all four documents as a dependency
+   (`SubProcessDynamicPolicy` SOW's T4, the BAE SOW's T7 gate, this overview's §1 closing caveat) but
+   previously never itself broken into a task table with agent/effort assignments the way the other four
+   documents are — now exists. The actual "make routing real" work (insertion at
    `PreferredProxyCodebaseProvider.resolve()`, subprocess spawning/tracking, the `ProxySerializer` field
-   addition from §12 point 3(ii). **Candidate next SOW to write, and probably the most concretely
-   actionable one of everything listed here.**
+   addition from §12 point 3(ii)) is broken into tasks T1–T6 there, with the four board-review findings
+   baked in as task-level requirements. That SOW also absorbs gaps 4, 5, and 6 below. Slot kept (not
+   renumbered) so any cross-reference to "gap 2" stays valid; DRAFT task breakdown, not yet built.
 3. **QA implications** (UDS SOW §12 point 8) — Peter's initial assessment is "mostly invisible," but
    explicitly flagged as needing dedicated investigation once points 3/6/7 have something concrete to
    investigate against, not assumed true by design alone.
-4. **Interface-distribution mechanism source** — §12 point 3(ii)/(iii) establishes *how* a consuming
-   process determines which interfaces it already has locally, but not *how those interface jars reach
-   the consuming process's classpath in the first place* (trusted shared API jar vs. some other
-   distribution path) — noted as still open in earlier working notes, not yet picked up in any of the
-   four documents above.
-5. **Wire-protocol handoff mechanics** — the exact bytes/framing of "client forwards a raw
+4. **ABSORBED 2026-07-18 into `SOW-Smart-Proxy-Isolation-Wiring.md` T5 (see §2.5/gap 2 above).**
+   Interface-distribution mechanism source — §12 point 3(ii)/(iii) establishes *how* a consuming process
+   determines which interfaces it already has locally, but not *how those interface jars reach the
+   consuming process's classpath in the first place* (trusted shared API jar vs. some other distribution
+   path). Still genuinely open — T5 scopes it as an explicit design question rather than resolving it —
+   but it now has an owning task instead of floating unattached.
+5. **ABSORBED 2026-07-18 into `SOW-Smart-Proxy-Isolation-Wiring.md` T4 (see §2.5/gap 2 above).**
+   Wire-protocol handoff mechanics — the exact bytes/framing of "client forwards a raw
    `MarshalledInstance` to the subprocess over UDS, subprocess replies with enough to build a stub" is
-   described at the mechanism level (§12 point 3(i)) but not specified at the wire-protocol level.
-   Likely belongs inside gap 2's future SOW rather than as its own document.
-6. **STD-009 §6.4 "interface stripping" is not built** — the runtime resolves a dynamic proxy's
-   interfaces all-or-nothing today (confirmed twice, independently, from STD-009's original 2026-07-03
-   design pass and this session's fresh code investigation). §12 point 3(ii)'s `ProxySerializer` field
-   design is a candidate concrete realization, but building it is unstarted, unscoped work — likely
-   folds into gap 2's future SOW rather than becoming its own document.
+   now specified there, including the reconstruction-gate and three-axes requirements baked in from
+   board-review guidance. DRAFT, not yet built.
+6. **ABSORBED 2026-07-18 into `SOW-Smart-Proxy-Isolation-Wiring.md` T3 (see §2.5/gap 2 above).**
+   STD-009 §6.4 "interface stripping" is not built — the runtime resolves a dynamic proxy's interfaces
+   all-or-nothing today (confirmed twice, independently, from STD-009's original 2026-07-03 design pass
+   and this session's fresh code investigation). §12 point 3(ii)'s `ProxySerializer` field design is now
+   scoped as T3 there, with decode-bounds and privileged-interface-exclusion requirements attached.
+   DRAFT, not yet built.
 7. **Filter-sidecar CPU-affinity — RESOLVED (Peter, 2026-07-17), not yet built.** Filter workers for
    different, mutually-untrusting clients/queries MUST run on separate physical CPU cores sharing no
    L1/L2 cache — the same requirement as the smart-proxy sidecar (UDS SOW §8/§12 point 2), not a
