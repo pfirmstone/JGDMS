@@ -74,7 +74,6 @@
     <module>jgdms-lib</module>
     <module>jgdms-lib-dl</module>
     <module>jgdms-ui-factory</module>
-    <module>jgdms-osgi-proxy-bundle-provider</module>
     <module>jini-2.1-compat</module>
     <module>services/outrigger</module>
     <module>services/reggie</module>
@@ -98,6 +97,9 @@
     <module>browser</module>
     <module>extra</module>
     <!--CVE-2015-6420 vulnerable <module>velocity-config</module>-->
+    <!-- Compatibility gates (T2/T3, docs/SOW-Compat-Gate-CI-Enforcement.md): must
+         be the LAST module so it builds after everything else (see compat-gate/pom.xml). -->
+    <module>compat-gate</module>
   </modules>
 
   <scm>

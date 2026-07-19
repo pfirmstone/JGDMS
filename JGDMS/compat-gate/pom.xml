@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+~ Copyright (C) 2026 the original author or authors.
+~
+~ Licensed under the Apache License, Version 2.0 (the "License");
+~ you may not use this file except in compliance with the License.
+~ You may obtain a copy of the License at
+~
+~ http://www.apache.org/licenses/LICENSE-2.0
+~
+~ Unless required by applicable law or agreed to in writing, software
+~ distributed under the License is distributed on an "AS IS" BASIS,
+~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+~ See the License for the specific language governing permissions and
+~ limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>au.net.zeus</groupId>
+        <artifactId>jgdms</artifactId>
+        <version>4.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>au.net.zeus.jgdms</groupId>
+    <artifactId>compat-gate</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Module :: Compatibility Gate</name>
+    <description>
+        Binds the repo's two existing compatibility gates (check-api-compat.sh,
+        check-serial-schema.sh) to the Maven verify phase. See
+        docs/SOW-Compat-Gate-CI-Enforcement.md (tasks T2/T3). This module has no
+        sources of its own: it exists (a) to give the gate executions a place to
+        bind that runs strictly after every other reactor module (it is declared
+        as the LAST &lt;module&gt; in the root pom, and the dependencies below
+        pull in the in-scope artifacts so the reactor sorter cannot schedule it
+        earlier), and (b) to hold the properties that parameterize the gates
+        (previous-release baseline version, trunk-baseline tag) so a future
+        release rolls the baseline forward via a property edit here, not a
+        change to the shell scripts.
+    </description>
+
+    <properties>
+        <!--
+          T3: the released version check-api-compat.sh diffs the current build
+          against. Was hardcoded "3.1.0" in the script; now sourced from this
+          property (passed to the script as the RELEASE_BASELINE env var below)
+          so cutting a new release only means bumping this one line, not editing
+          shell-script internals. Convention: always the most recently *released*
+          (non-SNAPSHOT) version, updated as part of the release process.
+        -->
+        <jgdms.previous-release.version>3.1.0</jgdms.previous-release.version>
+        <!--
+          T3 dual-baseline: a git tag anchored to a later trunk state than the
+          release baseline above, used to catch API surface that appeared and
+          was later reverted between releases (invisible to a release-only diff;
+          see docs/SOW-Compat-Gate-CI-Enforcement.md sec 2.2, the
+          MapSerializer case). No release/RC tag exists between 3.1.0 and HEAD,
+          so this is pinned to the existing baseline/pre-ai-agents tag rather
+          than a new snapshot-provisioning mechanism.
+        -->
+        <jgdms.trunk-baseline.tag>baseline/pre-ai-agents</jgdms.trunk-baseline.tag>
+        <!--
+          Offline/disconnected-build opt-out for the network-dependent
+          api-compat gate (japicmp + baseline jars from Maven Central, plus a
+          one-time local build of the trunk-baseline tag). Set
+          -Djgdms.apicompat.skip=true to skip this execution entirely. The
+          serial-schema gate is fully offline and is NOT gated by this flag;
+          it always runs.
+        -->
+        <jgdms.apicompat.skip>false</jgdms.apicompat.skip>
+    </properties>
+
+    <!--
+      Reactor-ordering glue, not a real build dependency: this module has no
+      sources, but declaring these makes the Maven reactor sorter schedule this
+      module strictly after the in-scope artifacts, so their target/ jars exist
+      before check-api-compat.sh runs. Combined with this module being the last
+      <module> entry in the root pom (empirically confirmed: modules with no
+      dependency edges build in declared order), this module runs last overall,
+      which is also what check-serial-schema.sh needs (it scans every module's
+      target/classes).
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-platform</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-collections</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-lib</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-lib-dl</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-jeri</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-activation</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-discovery-providers</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-url-integrity</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- serial-schema-tracker's compiled tool classes are on the check-serial-schema.sh classpath -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms.tools</groupId>
+            <artifactId>serial-schema-tracker</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              T2: serial-schema gate. Fully offline (local golden file only),
+              so it binds unconditionally; not behind the profile/opt-out
+              below, and not skippable via jgdms.apicompat.skip.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <id>serial-schema-gate</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>${maven.multiModuleProjectDirectory}/check-serial-schema.sh</executable>
+                            <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+          T2: api-compat gate, active by default. Two documented opt-outs for
+          offline/disconnected builds:
+            - fine-grained: -Djgdms.apicompat.skip=true (skips just this
+              execution; the serial-schema gate above still runs)
+            - coarse: -P '!api-compat-gate' (disables the whole profile)
+          Either way, this NEVER fails a build on a network outage: an
+          unreachable baseline is a warn-and-skip inside check-api-compat.sh
+          (per-artifact release baseline, and the whole trunk-baseline build),
+          not a build failure. It only fails verify on a genuinely detected,
+          unclassified public-API break.
+        -->
+        <profile>
+            <id>api-compat-gate</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.1</version>
+                        <executions>
+                            <execution>
+                                <id>api-compat-gate</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${jgdms.apicompat.skip}</skip>
+                                    <executable>${maven.multiModuleProjectDirectory}/check-api-compat.sh</executable>
+                                    <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+                                    <environmentVariables>
+                                        <RELEASE_BASELINE>${jgdms.previous-release.version}</RELEASE_BASELINE>
+                                        <TRUNK_BASELINE_TAG>${jgdms.trunk-baseline.tag}</TRUNK_BASELINE_TAG>
+                                    </environmentVariables>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

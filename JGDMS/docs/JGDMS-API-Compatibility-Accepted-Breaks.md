@@ -27,9 +27,19 @@ Deliberate JGDMS-wide removal of Java-Serialization coupling (target version 4.0
 or 5.0.0, TBD). The gate must **not** fail on these; they are tracked on the serial
 axis by the schema-tracker.
 - **Match:** `REMOVED INTERFACE: java.io.Serializable`; `serialVersionUID` removed/changed;
-  private serialized-field type/`serialPersistentFields` changes.
+  private serialized-field type/`serialPersistentFields` changes; named entries below for
+  removed `PutField`/`GetField`-based helpers that don't match the generic text patterns.
 - **Seen:** `MarshalledInstance`, `AtomicSerial$GetArg`/`$Factory`/`$ReadObject`,
   `org.apache.river.jeri.internal.runtime.DgcClient`, the `*Serializer` `serialVersionUID` drops.
+- **2026-07-19** — `org.apache.river.api.io.ArrayClassNotFoundException`: the static
+  `putArgs(ObjectOutputStream.PutField, ArrayClassNotFoundException)` helper was removed.
+  Surfaced by the new `baseline/pre-ai-agents` trunk-baseline diff (T3,
+  docs/SOW-Compat-Gate-CI-Enforcement.md) — invisible against the 3.1.0 baseline, since
+  this class postdates 3.1.0 entirely. Same Serializable-removal program as the rest of
+  this category (a `PutField`-based `writeObject` helper going away as the class moves
+  off `java.io.Serializable`), just a plain "REMOVED METHOD" japicmp shape rather than
+  a "not serializable"/"field removed" one; named explicitly in `classify_breaks.py`
+  rather than widening the generic text match.
 
 ### B — `java.rmi.activation` removal *(JDK-forced)*
 OpenJDK removed `java.rmi.activation.*` (deprecated JDK 15, removed JDK 17+), forcing

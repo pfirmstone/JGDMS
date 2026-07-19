@@ -45,7 +45,16 @@ for b in blocks:
     elif fq.endswith('DelegationAbsoluteTime'):
         cat = 'benign'
     elif ('REMOVED INTERFACE: java.io.Serializable' in body or '(not serializable)' in body
+          or '(Serializable removed)' in body
           or 'serialVersionUID' in body or '(field removed)' in body or '(type of field' in body):
+        cat = 'A serial'
+    elif fq.endswith('ArrayClassNotFoundException'):
+        # Named ledger entry (not a generic pattern): the trunk-baseline diff
+        # (T3) surfaced removal of the PutField-based putArgs(...) helper,
+        # part of the same Serializable-removal program as the rest of
+        # category A, just not matching its generic text patterns (no
+        # "not serializable"/"field removed" wording for a plain method
+        # removal). See docs/JGDMS-API-Compatibility-Accepted-Breaks.md.
         cat = 'A serial'
     else:
         cat = 'UNCLASSIFIED'
