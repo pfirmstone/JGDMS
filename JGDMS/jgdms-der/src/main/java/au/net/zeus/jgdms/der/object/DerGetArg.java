@@ -25,6 +25,10 @@ import org.apache.river.api.io.AtomicSerial;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -238,11 +242,18 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         // @AtomicSerial / nested-collection elements share the cumulative MAX_NESTING guard.
         if (store.isCollection(name)) {
             try {
+                // Recover the DECLARED element type(s) from the field's generic signature and
+                // thread them into the per-element pre-construction admission gate (security
+                // review R2 F1): a Collection<Concrete>/Map<K,V> element rejects a foreign
+                // wire-named serializer before its ctor runs. Recovery fails OPEN to Object.class
+                // (prior behaviour) -- never a spurious rejection of a legitimate element.
+                Class<?>[] elem = declaredElementTypes(callerClass, name);
                 return ObjectCodec.decodeCollection(
                         store.rawCollection(name),
                         store.collectionWireType(name),
                         depth, decodeUnit, resolution,
-                        declaredFieldType(callerClass, name));
+                        declaredFieldType(callerClass, name),
+                        elem[0], elem[1]);
             } catch (DerException e) {
                 throw nested("failed to decode collection field", name, e);
             } catch (ClassNotFoundException e) {
@@ -382,6 +393,83 @@ public final class DerGetArg extends AtomicSerial.GetArg {
             // SecurityException, ...) simply means the plain, non-sorted wrapper shape is used.
             return null;
         }
+    }
+
+    /**
+     * Recovers the receiving collection/map field's DECLARED element type(s) from its generic
+     * signature, for the per-element pre-construction admission gate (security review R2 F1).
+     * Returns a 2-element array {@code [keyType, valueType]}:
+     * <ul>
+     *   <li>a {@code Map} field {@code M<K,V>} &rarr; {@code [rawClassOf(K), rawClassOf(V)]}
+     *       (KEY elements gated at {@code [0]}, VALUE elements at {@code [1]});</li>
+     *   <li>a {@code Collection}/{@code Iterable} field {@code C<E>} &rarr;
+     *       {@code [Object.class, rawClassOf(E)]} (elements gated at {@code [1]});</li>
+     *   <li>a raw {@code Set}/{@code Map} (no type args), an unparameterized field, or any
+     *       reflective failure &rarr; {@code [Object.class, Object.class]} (unchanged residual).</li>
+     * </ul>
+     *
+     * <p><b>Fail-open.</b> This is a narrowing-only, best-effort recovery: it NEVER throws and
+     * NEVER returns a type that could spuriously reject a legitimate element -- any uncertainty
+     * (raw type, wildcard, type variable, nested-generic inner type, missing/renamed field,
+     * {@code SecurityException}) degrades to {@code Object.class}, which the gate always admits
+     * (clause 1). Reading a {@code Field}'s generic type is metadata-only (no {@code setAccessible}
+     * / value access); run privileged only so an optional convenience does not fail under a
+     * caller-sensitive policy unrelated to whether the field decodes.
+     */
+    private static Class<?>[] declaredElementTypes(Class<?> callerClass, String name) {
+        Class<?>[] residual = { Object.class, Object.class };
+        try {
+            return java.security.AccessController.doPrivileged(
+                    (java.security.PrivilegedExceptionAction<Class<?>[]>) () -> {
+                        Field f = callerClass.getDeclaredField(name);
+                        Type generic = f.getGenericType();
+                        if (!(generic instanceof ParameterizedType pt)) {
+                            return residual; // raw Set/Map or non-generic field
+                        }
+                        Type[] args = pt.getActualTypeArguments();
+                        Class<?> raw = f.getType();
+                        if (Map.class.isAssignableFrom(raw) && args.length == 2) {
+                            return new Class<?>[] { rawClassOf(args[0]), rawClassOf(args[1]) };
+                        }
+                        // Collection / Iterable single-arg element (Set<E>, List<E>, ...).
+                        if (Iterable.class.isAssignableFrom(raw) && args.length == 1) {
+                            return new Class<?>[] { Object.class, rawClassOf(args[0]) };
+                        }
+                        return residual;
+                    });
+        } catch (Exception e) {
+            return residual;
+        }
+    }
+
+    /**
+     * The raw erasure {@link Class} of a generic {@link Type} for the F1 element-admission gate,
+     * fail-open to {@code Object.class}:
+     * <ul>
+     *   <li>a {@code Class} (e.g. {@code X500Principal}, {@code InvocationConstraint}) &rarr; itself;</li>
+     *   <li>a {@code ParameterizedType} (nested generic, e.g. {@code List<X>}) &rarr; its RAW type
+     *       erasure ({@code List.class}) -- the inner element stays an {@code Object.class} residual
+     *       (chosen flat scope);</li>
+     *   <li>a wildcard {@code ? extends B} &rarr; the raw class of {@code B} (its upper bound);
+     *       a bare {@code ?} or {@code ? super X} has upper bound {@code Object} &rarr;
+     *       {@code Object.class};</li>
+     *   <li>a type variable or generic array &rarr; {@code Object.class}.</li>
+     * </ul>
+     */
+    private static Class<?> rawClassOf(Type t) {
+        if (t instanceof Class<?> c) {
+            return c;
+        }
+        if (t instanceof ParameterizedType pt) {
+            Type raw = pt.getRawType();
+            return raw instanceof Class<?> rc ? rc : Object.class;
+        }
+        if (t instanceof WildcardType w) {
+            Type[] upper = w.getUpperBounds();
+            // ? extends B -> B; bare ? and ? super X both have upper bound Object -> Object.class.
+            return upper.length == 1 ? rawClassOf(upper[0]) : Object.class;
+        }
+        return Object.class; // TypeVariable, GenericArrayType, or anything unexpected
     }
 
     // =========================================================================

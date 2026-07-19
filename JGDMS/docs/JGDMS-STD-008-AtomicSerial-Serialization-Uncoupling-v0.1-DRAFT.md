@@ -1011,6 +1011,60 @@ fields**, encoded as a **value-tree** (no cycles, no shared back-references — 
 - **check-before-construction preserved.** Nested decode goes through `decodeHierarchy`, so
   the nested object's `check(GetArg)` runs and it is fully validated+constructed before being
   handed to the outer object's `GetArg` (consistent with @AtomicSerial copy semantics).
+- **Decode-admission: thread the declared type, enforce BEFORE construction (NORMATIVE;
+  security review R2, 2026-07-18).** The declared field type in the first bullet
+  (`decodeHierarchy(declaredFieldType, …)`) is **not optional** and is not merely the outer
+  cast: the receiver's declared type — obtained at the `DerGetArg` layer via
+  `callerClass.getDeclaredField(name).getType()` (array component type for `@AtomicSerial[]`),
+  threaded into `ObjectCodec.decodeNested(bytes, expectedSupertype, …)` — MUST be enforced by
+  `ObjectCodec.admissibleConstructClass(expectedSupertype, leaf)` **before any `(GetArg)`
+  constructor or `check(GetArg)` runs**. Enforcing it only via the caller's post-construction
+  cast is a defect: a hostile peer can name any `@AtomicSerial` class (e.g. `ThrowableSerializer`,
+  which reflectively constructs an attacker-named `Throwable` subclass in its ctor) in a slot
+  the graph expects to be concrete, and its ctor fires before the cast catches the mismatch —
+  and the `DeSerializationPermission("ATOMIC")` gate is a no-op without a SecurityManager.
+  The pre-construction admission rule (accounts for the two substitution mechanisms):
+  > **ACCEPT** iff `expectedSupertype.isAssignableFrom(leaf)` (ordinary polymorphism; also any
+  > genuinely `Object`/broad-interface slot) **OR** (`leaf` bears `@Serializer(replaceObType=R)`
+  > **AND** `expectedSupertype.isAssignableFrom(R)`) (legitimate DER serializer substitution —
+  > e.g. declared `X500Principal` ← wire `X500PrincipalSerializer`, since
+  > `X500Principal.isAssignableFrom(X500PrincipalSerializer)` is *false* a naive check would
+  > wrongly reject it) **OR** (`leaf` is not `@Serializer` but implements java.io `Resolve`)
+  > (serialization-proxy substitution whose resolved type is unknowable pre-construction).
+  > Otherwise **fail closed** (`DerException`) without constructing.
+  A `@Serializer` leaf is decided solely by clauses 1/2 (never the `Resolve` clause), so a
+  serializer's own `Resolve`-ness cannot re-admit it into an incompatible slot.
+- **Collection / map elements (F1, 2026-07-19).** The same gate applies to collection and map
+  elements: the receiver recovers the DECLARED element type(s) from the field's generic
+  signature (`getGenericType()`) — a `Collection<E>` field gates elements at the raw class of
+  `E`; a `Map<K,V>` gates keys at `K` and values at `V` — and threads them into
+  `decodeElementValue`'s `@AtomicSerial` branch. Recovery is **fail-open**: any uncertainty
+  degrades to `Object.class` (never a spurious rejection). So a concrete `Set<X500Principal>` /
+  `Map<String,X500Principal>` closes its elements exactly as a scalar field does.
+- **Residual (NOT universal closure — precise scope after F1; R2 MUST-FIX disclosure).** The gate
+  closes concrete/narrowly-typed scalar fields, array components, and **flat** generic
+  collection/map elements (`C<Concrete>` / `Map<K,V>`). It does **NOT** close, and these remain
+  gated only by the ATOMIC permission (SM-dependent) + `check(GetArg)` + §4.5 bounds:
+  1. genuinely `Object`-typed or broad-interface-typed slots (`expectedSupertype` is broad, so
+     clause 1 always admits);
+  2. **raw** or **wildcard** (`?`, `? super X`) / **type-variable** collection & map elements
+     (recovery yields `Object.class`);
+  3. **nested-generic INNER** elements — a `Set<List<Concrete>>` gates the OUTER element at the
+     erasure `List`, but the inner `Concrete` stays an `Object.class` residual (chosen flat scope);
+  4. clause-3 `Resolve` serialization proxies in a narrow slot (ctor runs; bounded by the
+     post-`readResolve()` typed cast, which prevents a wrong-typed value from populating the slot).
+  Do **not** claim collections are fully closed. The registry (STD-006 §7.6.1) is NOT consulted
+  on decode and is NOT the admission boundary.
+- **Clause-3 `Resolve` proxies — threat model (R2-F2).** The clause-3 set reachable on the
+  platform is small and reviewed (pinned by a tripwire test, `ClauseThreeResolveProxyTest`, which
+  fails if a new `@AtomicSerial`+`Resolve`-not-`@Serializer` class appears): immutable constraint
+  constants (`Integrity`, `ServerAuthentication`), an immutable `Uuid` subtype
+  (`UuidFactory$Impl`, `readResolve()` returns `this`), and **`DerProxySerializer`** — the one
+  class with an ACTIVE `readResolve()` (it rebuilds a bootstrap `CodebaseAccessor` proxy and calls
+  `provider.resolve()`). `DerProxySerializer` is **not newly reachable** (it is the DER analogue of
+  the existing JOSS `ProxySerializer` carrier) and is bounded at runtime by the codebase-download
+  grant + integrity check in its `readResolve()`; admitting it into a wrong-typed slot is
+  additionally bounded by the post-resolve cast.
 
 ### 16.3 Touch list / tests
 

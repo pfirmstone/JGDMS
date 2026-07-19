@@ -27,6 +27,41 @@ Adopt **Option 1's mechanism** (registry + `@AtomicSerial` serializers), **reduc
 
 ---
 
+## 3.1 Post-approval amendment (2026-07-18) — decode-admission true fix + framing correction
+
+The two re-reviews of the implemented WI-1…WI-6 raised **one blocking security finding** on the *decode* path (R2) and a **framing correction** (R1+R2). Both are implemented in the same working tree as this SOW, ahead of commit. This section is normative and supersedes any conflicting wording below.
+
+### 3.1(a) The registry is NOT a decode-admission boundary (framing correction — supersedes the WI-2 "admission boundary" gloss)
+
+The implemented WI-2 note (and the memory ledger's "registry is the admission boundary since the ATOMIC gate is a no-op under no-SM") **overstated** the registry's role. Verified against the code:
+
+- **Decode never consults the registry.** `DerReplacer.resolve` (decode) only honours the java.io `Resolve` interface; the nested-record path `ObjectCodec.decodeNested → decodeHierarchy` reconstructs **whatever `@AtomicSerial` leaf the transmitted schema chain names**, registered or not. `serializerFor`/`isRegistered` run **only** on encode (`replace`) and schema-generation.
+- Therefore the registry is an **encode-substitution + schema-generation-determinism control**, *not* a decode gate.
+
+**Corrected statement of decode admission (post-fix), for a nested field:**
+> declared-type assignability gate (§3.1(b), `ObjectCodec.admissibleConstructClass`, pre-construction) **+** `DeSerializationPermission("ATOMIC")` (SM-dependent; no-op under DirtyChai/no-SM) **+** each class's `check(GetArg)` **+** decode depth/size bounds.
+
+WI-2's closure of the registry remains valuable and stays — but for its **true** reasons: (i) `isRegistered` feeds `schemaDigest` (an open set diverges the wire form across deployments), and (ii) it bounds which serializer the sender will *encode*. It does **not** gate what a peer may reconstruct.
+
+### 3.1(b) BLOCKING (R2) — thread the declared type into `decodeNested`; enforce assignability before construction *(implemented)*
+
+**Hole (verified):** `ObjectCodec.decodeNested` reconstructed a nested `@AtomicSerial` field against `expectedSupertype = Object.class`; the declared field type known at the `DerGetArg.get(name, T)` call site was **not** threaded down, so the type mismatch was only caught by the caller's cast **after** the `(GetArg)` ctor + `check(GetArg)` ran. A hostile peer could name any `@AtomicSerial` class (e.g. `ThrowableSerializer`, which reflectively constructs an attacker-named `Throwable` subclass) in a slot the graph expects to be, e.g., `X500Principal`, and its ctor fired before the mismatch was caught. The ATOMIC gate is a no-op without an SM, so it did not save the no-SM deployment.
+
+**Fix (implemented):** the receiver's declared type is threaded from `DerGetArg.lookup` (via `callerClass.getDeclaredField(name).getType()`, and the array component type for `@AtomicSerial[]`) into a new typed `ObjectCodec.decodeNested(bytes, expectedSupertype, …)` / `decodeNestedArray(…, expectedComponentType, …)` overload and enforced by `admissibleConstructClass(expectedSupertype, leaf)` **before** any `(GetArg)` ctor / `check`:
+
+> **ACCEPT** iff `expectedSupertype.isAssignableFrom(leaf)` (ordinary polymorphism / `Object`/broad-interface slot) **OR** (`leaf` bears `@Serializer(replaceObType = R)` **AND** `expectedSupertype.isAssignableFrom(R)`) (legitimate serializer substitution) **OR** (`leaf` is not `@Serializer` but implements java.io `Resolve`) (serialization-proxy substitution whose resolved type is unknowable pre-construction). Otherwise **fail closed** (`DerException`) without constructing.
+
+- Verified against the attack: declared `X500Principal`, wire `ThrowableSerializer` (`replaceObType = Throwable`) → `X500Principal.isAssignableFrom(Throwable)` false → **rejected before ctor**. A `@Serializer` leaf is decided solely by clauses 1/2 (never falls through to the `Resolve` clause), so `ThrowableSerializer`'s own `Resolve`-ness cannot re-admit it.
+- Legitimate `X500PrincipalSerializer` substitution and legitimate polymorphic subtypes still decode (regression-tested; full jgdms-der suite green at 566).
+- **Element-type extension (F1, 2026-07-19):** the gate is also threaded into **collection and map elements**. The receiver recovers the declared element type(s) from the field's generic signature (`getGenericType()`) — a `Collection<E>` gates elements at raw `E`; a `Map<K,V>` gates keys at `K`, values at `V` — fail-open to `Object.class`. So a concrete `Set<X500Principal>` / `Map<String,X500Principal>` closes its elements exactly as a scalar field does (the reggie `MethodConstraints` shape). Verified: a hostile `ThrowableSerializer`/foreign serializer element in `Set<X500Principal>` and in a `Map` key and value is rejected before its ctor runs.
+- **Scope honesty (R2 blocked the prior over-claim; precise residual after F1):** this closes **concrete/narrowly-typed** scalar fields, array components, and **flat** generic collection/map elements (`C<Concrete>` / `Map<K,V>`). It does **NOT** close (still gated only by the ATOMIC gate (SM-dependent) + `check(GetArg)` + bounds): (i) genuinely `Object`-typed / broad-interface-typed slots; (ii) **raw** or **wildcard** (`?`, `? super X`) / type-variable collection & map elements; (iii) **nested-generic INNER** elements (`Set<List<Concrete>>` gates the outer element at the erasure `List`, inner `Concrete` stays residual); (iv) clause-3 `Resolve` proxies in a narrow slot (ctor runs; bounded by the post-`readResolve` typed cast — a wrong-typed resolved value cannot populate the slot). **Do not claim collections are fully closed.** All four are **documented residuals**, not universal closure.
+
+### 3.1(c) OPEN design question for the re-reviewers (NOT built)
+
+Should decode additionally **require the substituted serializer to be in the closed production registry** (not merely bear `@Serializer`)? That would re-establish a decode-time registry role and further narrow clause 2, but would make decode **registry-dependent** (today decode is registry-independent and name-driven). Recommendation: **leave out of this change**; the assignability gate already rejects the concrete-slot attack, and coupling decode to the registry is a larger design shift (and a new availability dependency) deserving its own review. Flagged for the board.
+
+---
+
 ## 4. IN SCOPE — work items
 
 ### WI-1 — Harden `DerReplacer.serializerFor` to a deterministic rule *(BLOCKING; R1 §1/§2, R2 MUST-FIX 1)*
@@ -42,10 +77,12 @@ Replace the "first `isAssignableFrom` wins over a `LinkedHashMap`" fallback with
 **Note (no DoS):** `serializerFor` runs only at encode/schema-gen over the sender's own trusted outbound graph; decode is name-driven via `DerReplacer.resolve` and never calls `serializerFor`. Fail-closed's only availability effect is a misconfigured registry failing loudly at first export — the correct fail-secure outcome.
 
 ### WI-2 — Close the registry to a spec-pinned, platform-controlled set *(BLOCKING; R2 MUST-FIX 3, R1 Guard B)*
+> **Framing correction (see §3.1(a)):** close the registry for its true reasons — `isRegistered`→`schemaDigest` determinism and bounding *encode* substitution. The registry is **not** a decode-admission boundary; do not justify WI-2 as "the admission control in no-SM deployments" (that is §3.1(b)'s declared-type gate + ATOMIC + `check`).
+
 The registered set is **part of the wire contract**: `isRegistered` feeds `SchemaGenerator`. For a **polymorphic (interface/abstract) slot** the top-level token is `@AtomicSerial` regardless of registration, but a classpath-dependent set makes the **wire form of the substituted value** a function of deployment classpath (deployment A names serializer `S` in the embedded schema-chain/payload; B names the native class) → breaks Entry byte-matching (asn1-der §7.7.2) and signatures **over the value**. For a **concrete-typed field**, registration flips schema-gen between `@AtomicSerial` and a hard throw (encode-vs-fail). Either way an open set lets an unaudited third-party jar contribute a reconstruction/gadget door.
 
-- Load the production set from a **platform-controlled resource only** (not an open `getResources()` merge of every classpath `der-serializers`), **or** formally declare in STD-006/008 that the registered set is wire-affecting and additions are a **versioned schema change requiring board review + digest coordination**.
-- **Guard (R1 Guard B):** adding an **interface-keyed** serializer is explicitly a wire-compat/determinism change (it can make deployment A substitute where B encodes natively = two wire forms for one value). Document this gate.
+- Load the production set from a **platform-controlled resource only** (not an open `getResources()` merge of every classpath `der-serializers`), **and** formally declare the governance rule in the STD — now written as **STD-006 §7.6.1** (registered set is wire-affecting → `schemaDigest`; additions are a **versioned schema change requiring board review + digest coordination**; interface-keyed additions are a breaking wire change; flat-classpath shadowing residual documented). Code/resource citations now point to §7.6.1; the decode-admission rule is **STD-008 §16.2**.
+- **Guard (R1 Guard B):** adding an **interface-keyed** serializer is explicitly a wire-compat/determinism change (it can make deployment A substitute where B encodes natively = two wire forms for one value). Documented in STD-006 §7.6.1(3).
 
 **Acceptance:** two nodes on the same JGDMS version produce identical `schemaDigest` for the same value regardless of extra classpath jars; adding a serializer is a reviewed, versioned change.
 
@@ -78,7 +115,10 @@ Create the platform-controlled production `META-INF/jgdms/der-serializers` regis
 
 These are **not** needed for the reggie blocker and each carries an unresolved defect. Do **not** register any of them here.
 
-### D-1 — `ThrowableSerializer` *(BLOCKED; R2 §1 "the finding", R1 §3)*
+### D-1 — `ThrowableSerializer` *(ACTIVE-BLOCKED; R2 §1 "the finding", R1 §3)*
+
+> **Re-classification (2026-07-18): "deferred by non-registration" → ACTIVE-BLOCKED.** The prior status implied the registry not listing `ThrowableSerializer` kept it out of reach. **It does not.** Per §3.1(a), decode is **registry-independent**: a hostile peer can name `ThrowableSerializer` (or any `@AtomicSerial` serializer) directly in the transmitted schema chain and the codec will reconstruct it **regardless of the registry**. What now bounds it is §3.1(b)'s declared-type gate — which **closes it for a concrete/narrowly-typed slot** (a scalar/array/`C<Concrete>`/`Map<K,V>` element, e.g. `X500Principal`: `X500Principal.isAssignableFrom(Throwable)` is false → rejected before ctor) but **leaves it decode-reachable for the §3.1(b) residual slots** — genuinely `Object`-typed / broad-interface-typed slots, and raw/wildcard/nested-generic-inner collection & map elements. So `ThrowableSerializer` remains an **active, un-eliminated decode hazard for polymorphic slots**, not a dormant one gated by non-registration. It stays BLOCKED from admission and additionally must be treated as reachable when reasoning about broad slots until eligibility (below) is met. **Data-loss dormancy of the `perm` branch:** the `AccessControlException`→`arg.get("perm", …)` CVE-2024-47197 path is presently inert **only** because `ThrowableSerializer.serialForm()` omits the `perm` field (the DER path silently drops it) — an *accident of the SOW's own ordering hazard*, **not** a gate. Do not treat that as protection.
+
 - `init()` reflectively constructs an **attacker-named `Throwable` subclass** (`clazz.getConstructors().newInstance(message, cause)`), narrowed only by `isAssignableFrom(Throwable)` + public-ctor + endpoint-loader visibility. This reconstruction runs **outside** `checkAtomicDeSerializationPermitted` — the `DeSerializationPermission("ATOMIC")` gate does **not** cover the named subclass (and is a no-op in SM-less deployments). Runs the subclass ctor + `<clinit>`.
 - The `AccessControlException` branch does `arg.get("perm", Permission.class)` — **arbitrary `Permission` reconstruction from the stream**, re-opening the exact path that got `PermissionSerializer` deleted for **CVE-2024-47197**.
 - Also: recursive `cause`/`suppressed` (fenced three ways — `MAX_NESTING=16` depth, `MAX_COLLECTION=65536` `suppressed[]` breadth, `DerInputLimits` 16 MiB byte cap — so DoS is bounded, but attacker-driven); stack traces are environment-derived → **not value-stable** (unfit for Entry-matching/signing); and `serialForm()` **omits the `perm` field** that `check()` reads (silent data loss on the DER path).

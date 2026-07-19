@@ -552,7 +552,14 @@ public final class ObjectCodec {
      *       <b>Residual:</b> any {@code Resolve}-implementing {@code @AtomicSerial} proxy
      *       remains constructible in a narrowly-typed slot (its ctor runs); this is narrower
      *       than the prior behaviour (every {@code @AtomicSerial} class was constructible in
-     *       any nested slot) and is bounded by the ATOMIC gate + {@code check(GetArg)}.</li>
+     *       any nested slot) and is bounded by the ATOMIC gate + {@code check(GetArg)}, AND by
+     *       the post-{@code readResolve()} typed cast (a clause-3 value that resolves to the
+     *       wrong type cannot populate the slot). The clause-3 set reachable on the platform is
+     *       small and reviewed (a tripwire pins it -- {@code ClauseThreeResolveProxyTest}):
+     *       immutable constraint/UUID constants, and {@link DerProxySerializer} -- the one with
+     *       an ACTIVE {@code readResolve()} (it rebuilds a bootstrap {@code CodebaseAccessor}
+     *       proxy), itself bounded by the codebase-download grant + integrity check and not
+     *       newly reachable (STD-008 §16.2).</li>
      * </ol>
      *
      * @param expectedSupertype the slot's declared type (never {@code null}; {@code Object.class}
@@ -2199,8 +2206,46 @@ public final class ObjectCodec {
                                           ResolutionContext resolution,
                                           Class<?> declaredType)
             throws DerException, IOException, ClassNotFoundException {
+        // No recovered element types (e.g. an Any-typed or nested-generic-inner collection):
+        // gate each element at Object.class -- the pre-existing behaviour. Callers that DO
+        // recover the declared element type(s) from the field's generic signature use the typed
+        // overload below to tighten the per-element admission gate (F1).
+        return decodeCollection(rawBytes, wireType, depth, decodeUnit, resolution, declaredType,
+                                Object.class, Object.class);
+    }
+
+    /**
+     * As {@link #decodeCollection(byte[], String, int, DeserializationCompletion,
+     * ResolutionContext, Class)}, additionally taking the receiving field's DECLARED element
+     * types recovered from its generic signature (security review R2 F1), threaded into each
+     * element's pre-construction admission gate:
+     * <ul>
+     *   <li>for a {@code Collection}/{@code Iterable} field {@code C<E>}: {@code expectedValueType}
+     *       is the raw class of {@code E}; {@code expectedKeyType} is ignored;</li>
+     *   <li>for a {@code Map} field {@code M<K,V>}: {@code expectedKeyType} = raw class of
+     *       {@code K}, {@code expectedValueType} = raw class of {@code V}.</li>
+     * </ul>
+     * Both are {@code Object.class} when the element type is unknown/raw/wildcard/type-variable
+     * or a nested-generic inner element (the documented residual). A concrete {@code C<Concrete>}
+     * or {@code Map<K,V>} thereby rejects a foreign wire-named serializer element before its ctor
+     * runs, while a declared interface element (e.g. {@code Set<InvocationConstraint>}) still
+     * admits concrete impls via clause 1 and a {@code Set<X500Principal>} still admits
+     * {@code X500PrincipalSerializer} via clause 2.
+     *
+     * @param expectedKeyType   map KEY declared type (admission bound), or {@code Object.class}
+     * @param expectedValueType collection ELEMENT / map VALUE declared type, or {@code Object.class}
+     */
+    public static Object decodeCollection(byte[] rawBytes, String wireType, int depth,
+                                          DeserializationCompletion decodeUnit,
+                                          ResolutionContext resolution,
+                                          Class<?> declaredType,
+                                          Class<?> expectedKeyType,
+                                          Class<?> expectedValueType)
+            throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(rawBytes, "rawBytes");
         Objects.requireNonNull(wireType, "wireType");
+        Objects.requireNonNull(expectedKeyType, "expectedKeyType");
+        Objects.requireNonNull(expectedValueType, "expectedValueType");
         // Depth-bound DoS guard (STD-008 sec.16.2), symmetric with decodeNested/decodeHierarchy:
         // a nested-collection element (list:list:.../set:set:.../map: whose value is a collection)
         // recurses through decodeElementValue at depth+1, so an attacker-controlled collection
@@ -2238,9 +2283,11 @@ public final class ObjectCodec {
         }
 
         if (CollectionWireTypes.isMap(wireType)) {
-            return decodeMap(body, wireType, canonicalise, depth, decodeUnit, resolution, declaredType);
+            return decodeMap(body, wireType, canonicalise, depth, decodeUnit, resolution,
+                             declaredType, expectedKeyType, expectedValueType);
         }
-        return decodeSetOrList(body, wireType, canonicalise, depth, decodeUnit, resolution, declaredType);
+        return decodeSetOrList(body, wireType, canonicalise, depth, decodeUnit, resolution,
+                               declaredType, expectedValueType);
     }
 
     /**
@@ -2271,7 +2318,8 @@ public final class ObjectCodec {
      */
     private static Object decodeSetOrList(DerReader body, String wireType, boolean canonicalise,
                                           int depth, DeserializationCompletion decodeUnit,
-                                          ResolutionContext resolution, Class<?> declaredType)
+                                          ResolutionContext resolution, Class<?> declaredType,
+                                          Class<?> expectedElementType)
             throws DerException, IOException, ClassNotFoundException {
         String elemWT = CollectionWireTypes.elementWireType(wireType);
         boolean setKind = CollectionWireTypes.isSetKind(wireType);   // set: / orderedset: -> Set
@@ -2288,7 +2336,8 @@ public final class ObjectCodec {
                         + "maxCollection (" + MAX_COLLECTION + ", §4.5) for field '" + wireType + "'");
             }
             int start = body.position();
-            Object element = decodeElementValue(body, elemWT, depth, decodeUnit, resolution);
+            Object element = decodeElementValue(body, elemWT, depth, decodeUnit, resolution,
+                                                expectedElementType);
             int end = body.position();
             if (canonicalise) {
                 byte[] enc = body.slice(start, end);
@@ -2347,7 +2396,8 @@ public final class ObjectCodec {
      */
     private static Object decodeMap(DerReader body, String wireType, boolean canonicalise,
                                     int depth, DeserializationCompletion decodeUnit,
-                                    ResolutionContext resolution, Class<?> declaredType)
+                                    ResolutionContext resolution, Class<?> declaredType,
+                                    Class<?> expectedKeyType, Class<?> expectedValueType)
             throws DerException, IOException, ClassNotFoundException {
         String[] kv = CollectionWireTypes.mapKeyValueWireTypes(wireType);
         String keyWT = kv[0];
@@ -2366,9 +2416,11 @@ public final class ObjectCodec {
             // Each entry is a SEQUENCE{key,value} (0x30) regardless of the outer SET/SEQUENCE tag.
             DerReader entry = body.readSequence();
             int keyStart = entry.position();
-            Object key = decodeElementValue(entry, keyWT, depth, decodeUnit, resolution);
+            Object key = decodeElementValue(entry, keyWT, depth, decodeUnit, resolution,
+                                            expectedKeyType);
             int keyEnd = entry.position();
-            Object val = decodeElementValue(entry, valWT, depth, decodeUnit, resolution);
+            Object val = decodeElementValue(entry, valWT, depth, decodeUnit, resolution,
+                                            expectedValueType);
             if (entry.hasMore()) {
                 throw new DerException("ObjectCodec.decodeCollection: map entry SEQUENCE has "
                         + "more than {key,value} (wireType " + wireType + ")");
@@ -2420,16 +2472,23 @@ public final class ObjectCodec {
      * types are decoded by the package-private {@link DerFieldStore#decodeScalarElement}
      * bridge; {@code @AtomicSerial} and nested-collection types are decoded here so the
      * nesting depth is threaded. The reader advances past the element TLV.
+     *
+     * @param expectedElementType the receiving field's DECLARED element (or map key/value) type,
+     *        recovered from its generic signature, threaded into the {@code @AtomicSerial}
+     *        element's pre-construction admission gate (security review R2 F1). {@code Object.class}
+     *        for a raw/wildcard/type-variable element or a nested-generic inner element (residual).
      */
     private static Object decodeElementValue(DerReader reader, String elemWT, int depth,
                                              DeserializationCompletion decodeUnit,
-                                             ResolutionContext resolution)
+                                             ResolutionContext resolution,
+                                             Class<?> expectedElementType)
             throws DerException, IOException, ClassNotFoundException {
         if ("@AtomicSerial".equals(elemWT)) {
             // Read the element's complete TLV (nested record SEQUENCE or DER NULL), then decode
-            // it with the threaded depth so the cumulative MAX_NESTING guard applies.
+            // it with the threaded depth so the cumulative MAX_NESTING guard applies AND the
+            // declared element type bounds the pre-construction admission gate (F1).
             byte[] elemTlv = readOneTlv(reader);
-            return decodeNested(elemTlv, depth, decodeUnit, resolution);
+            return decodeNested(elemTlv, expectedElementType, depth, decodeUnit, resolution);
         }
         if (CollectionWireTypes.isCollection(elemWT)) {
             // A nested collection element (a set: of set:, a map: value that is a set:, ...):
@@ -2438,6 +2497,8 @@ public final class ObjectCodec {
             // Recurse at depth + 1 so each nested-collection level consumes one unit of the
             // MAX_NESTING budget (symmetric with the @AtomicSerial decodeNested->decodeHierarchy
             // depth+1 step); decodeCollection's entry check rejects the over-deep level fail-secure.
+            // The INNER element type is NOT recovered (nested-generic residual, chosen flat scope):
+            // recurse with unknown element types (Object.class) -- see the F1 residual note.
             byte[] elemTlv = readOneTlv(reader);
             return decodeCollection(elemTlv, elemWT, depth + 1, decodeUnit, resolution);
         }

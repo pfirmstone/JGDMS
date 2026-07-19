@@ -53,17 +53,30 @@ import org.apache.river.api.io.Serializer;
  * reimplementing them. Because such a serializer is itself {@code @AtomicSerial}, the
  * DER value-tree encodes it natively once substituted.
  *
- * <p><b>The registered set is a CLOSED part of the wire contract (WI-2).</b> It is
- * loaded from a <em>single platform-controlled resource</em> that travels in
- * jgdms-der's own module/jar (see {@link #load()}), <b>not</b> merged over every
- * {@value #SERIALIZER_LIST_RESOURCE} on the application classpath. The registry --
- * not the {@code DeSerializationPermission("ATOMIC")} gate (which is a no-op under
- * SM-less / DirtyChai deployments) -- is the admission boundary for which non-native
- * types may be reconstructed from a stream, and {@link #isRegistered} feeds the
- * {@code SchemaGenerator} (so an open set would make the wire {@code schemaDigest} a
- * function of deployment classpath). Adding a serializer -- especially an
- * <em>interface-keyed</em> one -- is a versioned, board-reviewed schema change
- * (STD-006/008).
+ * <p><b>What the registry is -- and is NOT (security review R2 correction).</b> The
+ * registered set is an <b>encode-substitution + schema-generation determinism control</b>:
+ * it governs which non-{@code @AtomicSerial} value the <em>sender</em> substitutes on encode
+ * ({@link #replace}) and which declared field types the {@code SchemaGenerator} admits
+ * ({@link #isRegistered}). It is a CLOSED part of the wire contract (WI-2) -- loaded from a
+ * <em>single platform-controlled resource</em> that travels in jgdms-der's own module/jar
+ * (see {@link #load()}), <b>not</b> merged over every {@value #SERIALIZER_LIST_RESOURCE} on
+ * the application classpath -- precisely because {@link #isRegistered} feeds the
+ * {@code SchemaGenerator} (so an open set would make the wire {@code schemaDigest} a function
+ * of deployment classpath). Adding a serializer -- especially an <em>interface-keyed</em> one
+ * -- is a versioned, board-reviewed schema change (governance clause: <b>STD-006 §7.6.1</b>;
+ * decode-admission: STD-008 §16.2).
+ *
+ * <p><b>The registry is NOT a decode-admission boundary.</b> On decode the codec does
+ * <em>not</em> consult this registry at all: {@link #resolve} simply honours the java.io
+ * {@code Resolve} interface ({@code readResolve()}), and the nested-record path
+ * ({@code ObjectCodec.decodeNested} &rarr; {@code decodeHierarchy}) reconstructs whatever
+ * {@code @AtomicSerial} leaf the transmitted schema chain names, whether or not it is
+ * registered here. Decode admission for a nested field is therefore enforced <b>elsewhere</b>:
+ * the caller's <em>declared-type assignability gate</em>
+ * ({@code ObjectCodec.admissibleConstructClass}, run before construction), the
+ * {@code DeSerializationPermission("ATOMIC")} gate (a no-op under SM-less / DirtyChai
+ * deployments), each class's {@code check(GetArg)}, and the decode depth/size bounds. Do not
+ * rely on this registry to gate what a peer may reconstruct.
  *
  * <p><b>Deterministic selection (WI-1).</b> {@link #serializerFor} resolves a target
  * type by <em>exact-match &rarr; unique most-specific assignable &rarr; fail-closed</em>
@@ -122,10 +135,12 @@ public final class DerReplacer {
      * on the whole application classpath). The registered set is part of the wire
      * contract ({@link #isRegistered} &rarr; {@code SchemaGenerator} &rarr;
      * {@code schemaDigest}); an open merge would let an arbitrary third-party classpath
-     * jar contribute a reconstruction/gadget serializer or shift the {@code schemaDigest}
-     * of a value across deployments. Because the {@code ATOMIC} permission gate is inert
-     * under SM-less / DirtyChai deployments, this registry -- not a permission check --
-     * is the admission control.
+     * jar contribute an encode/schema serializer or shift the {@code schemaDigest}
+     * of a value across deployments. (Closure here bounds ENCODE substitution and the
+     * schema-affecting set; it is NOT the decode-admission boundary -- see the class
+     * Javadoc: decode reconstructs any schema-named {@code @AtomicSerial} leaf regardless
+     * of this registry, gated by {@code ObjectCodec.admissibleConstructClass} + the ATOMIC
+     * gate + {@code check(GetArg)}.)
      *
      * <p><b>Residual (for reviewers).</b> {@code getResourceAsStream} returns the FIRST
      * resource of this name on the defining loader's search path. In a proper
@@ -134,7 +149,8 @@ public final class DerReplacer {
      * classpath order could shadow it. This is strictly narrower than the previous
      * {@code getResources()} union (which admitted EVERY copy); fully closing the
      * residual requires module encapsulation (do not export/open the resource) or a
-     * signed-jar check, tracked as a governance note in STD-006/008.
+     * signed-jar check, documented as the flat-classpath shadowing residual in
+     * STD-006 §7.6.1(4).
      */
     private static Map<Class<?>, Class<?>> load() {
         Map<Class<?>, Class<?>> m = new LinkedHashMap<>();

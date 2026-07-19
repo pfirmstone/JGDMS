@@ -2115,6 +2115,62 @@ The bound numbers themselves (`maxStackFrames`=2048, `maxCauseDepth`=64, §4.5; 
   see the `Throwable` note above). Only the §4.5 bound *numbers*
   (`maxStackFrames`/`maxCauseDepth`/`maxCollection`) remain to confirm (open item 21).
 
+### 7.6.1 Registered DER `@Serializer` set — wire-affecting, governed, NOT a decode gate (NORMATIVE)
+
+The runtime DER codec implements §7.6 substitution through a **registry** of
+`@AtomicSerial` + `@Serializer(replaceObType = X)` classes
+(`au.net.zeus.jgdms.der.serial.DerReplacer`), loaded from the single
+platform-controlled resource `META-INF/jgdms/der-serializers` that ships in
+jgdms-der's own module/jar. This clause is the normative home for the governance rule
+the code and SOW cite (previously cited but unwritten); cite it as **STD-006 §7.6.1**.
+
+1. **The registered set is wire-affecting.** `DerReplacer.isRegistered(declaredType)`
+   feeds `SchemaGenerator`: for a field whose declared type is a registered
+   `replaceObType`, the generated schema admits the field as a nested `@AtomicSerial`
+   and the substituted serializer's class participates in the transmitted schema chain
+   and thus in the `schemaDigest` (§4.3, §7.8). **The set of registered serializers is
+   therefore part of the wire contract**, on the same footing as a field-type change.
+
+2. **Additions are a versioned, board-reviewed schema change with digest coordination.**
+   Adding (or removing) a serializer changes which values encode as a substitution vs.
+   fail schema-generation, and changes the `schemaDigest` of any value that transitively
+   contains the affected type. An addition MUST be treated as a **versioned schema
+   change**: reviewed by the board, released as a coordinated version bump, and rolled
+   out so interoperating nodes share the same registered set (a value's `schemaDigest`,
+   and hence Entry byte-matching §7.7.2 and signatures over the value, must be identical
+   across nodes of the same JGDMS version regardless of extra classpath jars).
+
+3. **An interface-keyed serializer is explicitly a wire-compatibility change.** A
+   serializer whose `replaceObType` is an **interface or abstract type** (rather than a
+   concrete final leaf like `X500Principal`) can cause deployment A to *substitute* where
+   deployment B *encodes the concrete class natively* — two wire forms for one value, the
+   determinism defect §0/§3.8 exists to prevent (and the ambiguity source for the WI-1
+   most-specific selection rule). Registering an interface-keyed serializer is a
+   **breaking wire change** and requires explicit board sign-off beyond an ordinary
+   concrete-leaf addition.
+
+4. **Flat-classpath shadowing residual (deployment note).** The registry is read via
+   `Class.getResourceAsStream` on the codec's own defining loader — deliberately **not**
+   a `ClassLoader.getResources()` merge — so in a proper per-jar / modular deployment
+   only jgdms-der's own copy is authoritative. In a **flat / fat classpath**, a
+   `META-INF/jgdms/der-serializers` appearing earlier in classpath order can shadow it.
+   This is strictly narrower than an open merge (which would admit *every* copy); fully
+   closing it requires module encapsulation (do not export/open the resource) or a
+   signed-jar check. Deployments that must guarantee the registered set SHOULD run
+   jgdms-der as an encapsulated module.
+
+5. **The registry is NOT a decode-admission boundary (security review R2).** Decode does
+   **not** consult this registry: the nested-record path reconstructs whatever
+   `@AtomicSerial` leaf the transmitted schema chain names, registered or not, and
+   `DerReplacer.resolve` only honours the java.io `Resolve` interface. Decode admission
+   for a nested field is enforced by the **declared-type assignability gate**
+   (`ObjectCodec.admissibleConstructClass`, run before construction — see STD-008
+   §16 decode-admission) **+** `DeSerializationPermission("ATOMIC")` (SM-dependent; inert
+   under DirtyChai / no-SM) **+** each class's `check(GetArg)` **+** decode depth/size
+   bounds (§4.5). Do **not** rely on registry membership to bound what a peer may
+   reconstruct; a genuinely `Object`/broad-interface-typed slot is a documented residual
+   still governed only by the ATOMIC gate + `check(GetArg)`.
+
 ### 7.7 Jini Discovery/Registration Wire Types
 
 These types enable a ServiceRegistrar to be implemented in any language — including

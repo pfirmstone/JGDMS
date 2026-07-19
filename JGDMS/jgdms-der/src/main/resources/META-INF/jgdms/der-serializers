@@ -1,12 +1,18 @@
-# JGDMS DER @Serializer registry -- PLATFORM-CONTROLLED, wire-contract (STD-006/008).
+# JGDMS DER @Serializer registry -- PLATFORM-CONTROLLED, wire-contract (STD-006 §7.6.1).
 #
 # This is the SINGLE closed set of @Serializer(replaceObType=...) classes the DER
 # codec (au.net.zeus.jgdms.der.serial.DerReplacer) will substitute for a
-# non-@AtomicSerial value on the wire. It is read from jgdms-der's OWN jar only
-# (Class.getResourceAsStream, not a classpath getResources() merge): the registered
-# set is part of the wire contract (it feeds SchemaGenerator -> schemaDigest and is
-# the admission boundary in SM-less deployments), so an addition -- especially an
-# interface-keyed serializer -- is a versioned schema change requiring board review.
+# non-@AtomicSerial value ON ENCODE, and admit as a nested field ON SCHEMA GENERATION.
+# It is read from jgdms-der's OWN jar only (Class.getResourceAsStream, not a classpath
+# getResources() merge) because the registered set is part of the wire contract: it
+# feeds SchemaGenerator -> schemaDigest, so an addition -- especially an interface-keyed
+# serializer -- is a versioned schema change requiring board review (STD-006 §7.6.1).
+#
+# NOTE (security review R2): this registry is an ENCODE-substitution + schema-generation
+# determinism control. It is NOT a decode-admission boundary -- decode reconstructs any
+# @AtomicSerial leaf the transmitted schema names regardless of this list; decode
+# admission is enforced by ObjectCodec.admissibleConstructClass (declared-type gate) +
+# the DeSerializationPermission("ATOMIC") gate + check(GetArg) + decode bounds.
 #
 # Each entry MUST be an @AtomicSerial + @Serializer class (DerReplacer refuses to
 # register a non-@AtomicSerial one). One class name per line; '#' and blank lines
