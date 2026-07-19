@@ -93,13 +93,24 @@ public class RemoteEventTest {
     /**
      * java.io serialization is disabled on RemoteEvent (readObject/writeObject
      * throw); the wire form is @AtomicSerial. Round-trip via the atomic engine.
+     *
+     * <p>{@code handback} (the deprecated {@code java.rmi.MarshalledObject} field, superseded by
+     * {@code miHandback: MarshalledInstance}) was removed from {@code RemoteEvent.serialForm()}/
+     * {@code serialize()} -- it is no longer part of the wire contract for ANY {@code
+     * @AtomicSerial} marshalling format (this "atomic"/JOSS-successor path included, not just
+     * DER), so {@code getRegistrationObject()} on a round-tripped instance now returns {@code
+     * null} regardless of what was supplied to the deprecated constructor. This is the accepted,
+     * intended consequence of a {@code @Deprecated(forRemoval = true)} field leaving the wire
+     * form; the deprecated in-memory constructor/field/accessor remain for source compatibility.
      */
     @Test
     @SuppressWarnings("deprecation")
     public void testSerialization() throws Exception {
 	System.out.println("test serialization");
 	RemoteEvent result = new AtomicMarshalledInstance(e).get(false, RemoteEvent.class);
-	assertEquals(m, result.getRegistrationObject());
+	assertNull("handback is no longer part of the wire form (deprecated, superseded by "
+		+ "miHandback); it must not silently resurrect a stale value on round trip",
+		result.getRegistrationObject());
 	assertEquals(source, result.getSource());
 	assertEquals(10L, result.getID());
 	assertEquals(25L, result.getSequenceNumber());

@@ -18,23 +18,28 @@ review-focus notes are in the implementing agent's final report; summarized here
   wrapping a `[8]` proxy record) — all through the real `SchemaGenerator`/`ObjectCodec`/
   `DerFieldStore`/`DerGetArg` pipeline, byte-identically deterministic, and adversarial/malformed
   `Any` field TLVs (reserved tag, form mismatch, malformed `[20]` body, >`MAX_NESTING` chain) are
-  all rejected loudly, never silently. 61 jgdms-der test classes / 497 tests green (DirtyChai
-  SM-capable JDK).
-- **CRITICAL, must-read-before-relying-on-item-2/6: `RemoteEvent` still cannot be fully DER
-  round-tripped today**, even with this fix, because of a SEPARATE, independent, pre-existing,
-  deliberately-deferred field — `handback: java.rmi.MarshalledObject.class` — that
-  `SchemaGenerator` has always rejected (`MarshalledObject` is not in the active
-  `jgdms-der/.../META-INF/jgdms/der-serializers` registry: "DEFERRED (unresolved security/
-  canonicality defects)"). This was masked by `source` throwing FIRST in `serialForm()` field
-  order; the SOW's own source-reading investigation never reached the second blocker. It affects
-  every `RemoteEvent` subclass (including all "4 known-good production" ones) and mercury's
-  `EventWriter.write()`/`PersistentEventLog.add()` (which wraps the event in an `ATOMIC_DER`
-  `MarshalledInstance`, hitting the identical wall). Fixing it is explicitly OUT of this SOW's
-  scope — it composes with this SOW's own already-tracked "`MarshalledInstance` wire-controlled
-  `payloadFormat` downgrade" HIGH follow-up item below, not a new decision to make unilaterally.
-  Pinned by a regression test (`RemoteEventAnySourceFieldTest.
-  schemaGenerateChain_stillFailsOnUnrelatedHandbackField_documentedGap`) so it stays visible and
-  is trivially detectable if/when it's independently resolved.
+  all rejected loudly, never silently.
+- **The `handback` blocker (found and RESOLVED during implementation).** Immediately after the
+  `source` fix, a SEPARATE, independent, pre-existing blocker was found empirically:
+  `RemoteEvent` also declared `handback: java.rmi.MarshalledObject.class`, a type
+  `SchemaGenerator` has never supported (`MarshalledObject` is deliberately not in the active
+  `jgdms-der/.../META-INF/jgdms/der-serializers` registry). This was masked because `source`
+  threw FIRST in `serialForm()` field order, so the SOW's own source-reading investigation never
+  reached it; it meant `RemoteEvent` (and every subclass, and mercury's `EventWriter.write()`)
+  STILL could not be schema-generated end-to-end even after the `source` fix landed. **Resolved
+  by removing `handback` from `RemoteEvent.serialForm()`/`serialize()`** (it was already
+  `@Deprecated`, superseded by `miHandback: MarshalledInstance`; the deprecated field/accessors/
+  deprecated constructor remain for source compatibility, and `check(GetArg)`/the `(GetArg)`
+  constructor still read it by name for dual-read compatibility with OLD wire data that carries
+  it in its own transmitted schema — STD-006 §7.8). With both blockers gone, the real,
+  fully-automatic `SchemaGenerator.generateChain(RemoteEvent.class)` path — and mercury's real
+  `EventWriter.write()`/`EventReader.read()` — now succeed end-to-end. One real, pre-existing,
+  independent regression surfaced by this removal was found and fixed in the same pass: the
+  deprecated `getRegistrationObject()`/`handback` accessor no longer survives an `@AtomicSerial`
+  round trip via ANY marshalling format (not just DER) — `jgdms-url-integrity`'s
+  `RemoteEventTest.testSerialization` asserted the opposite and has been updated to the new,
+  intended contract (accepted consequence of a `@Deprecated(forRemoval = true)` field leaving the
+  wire form, not a bug).
 - **A second, real, independent bug was found and fixed while implementing the Layer-2 narrowing
   pattern**: `ConstrainableRegistrarEvent.check(GetArg)` (reggie) read `arg.get("source", null)`
   directly from its own (pre-`super`) static method — the exact `GetArg` cross-namespace trap this
@@ -51,16 +56,19 @@ review-focus notes are in the implementing agent's final report; summarized here
   12-site list. Also: the doc's claim "zero `Object[].class` serial fields exist on trunk today"
   is incorrect (4 exist) but immaterial — the chosen patch location (`deriveFieldWireType`, not
   `toWireType(Class,...)`) is unaffected either way, exactly as the doc's own reasoning predicts.
-- **Test coverage is uneven by design, not oversight**: build-verified (new tests, green) for the
-  core mechanism (`jgdms-der`), `RemoteEvent` itself, `ConstrainableRegistrarEvent` (reggie-dl),
-  and `ExpirationWarningEvent`/`BasicRenewalFailureEvent` (jgdms-lib-dl). The remaining blast-radius
-  sites (`RegistrarImpl.EventReg.handback`, norm's `EventType.handback`, mercury-dl's
-  `RemoteEventData.cookie`, `ConsistentMapEntry`, `AbstractSmartProxy.server`) and mercury's
-  `EventWriter`/`EventReader` integration were reviewed per memo §8.2 (findings recorded in the
-  final report) but not given NEW build-verified tests in this pass, given the effort cost of
-  standing up test infrastructure in modules that currently have none, weighed against the
-  already-demonstrated-and-blocked-by-`handback` state of any real end-to-end mercury test. See
-  the final report for the complete per-site disposition.
+- **Test coverage**: build-verified (new tests, green) for the core mechanism (`jgdms-der`,
+  including a full real-chain round trip for `RemoteEvent` itself), `ConstrainableRegistrarEvent`
+  (reggie-dl), `ExpirationWarningEvent`/`BasicRenewalFailureEvent` (jgdms-lib-dl), and mercury's
+  real `EventWriter`/`EventReader` end-to-end (scalar source, locally-resolvable `@AtomicSerial`
+  source, and a deliberately-unresolvable source that fails loudly with a
+  `ClassNotFoundException`). Confirmed via full schema-chain generation (not build-verified with
+  dedicated round-trip tests) for `ConstrainableOutriggerAvailabilityEvent`, `RemoteDiscoveryEvent`,
+  `PolicyUpdateEvent`, and the remaining blast-radius sites (`RegistrarEvent.serviceItem`,
+  `RegistrarImpl.EventReg.handback`, norm's `EventType.handback`, mercury-dl's
+  `RemoteEventData.cookie`, `MapSerializer`, `EventRegistration`, `ServiceItem`,
+  `ConsistentMapEntry`, `AbstractSmartProxy.server`) — all 12 sites' `SchemaGenerator.generate`
+  output was directly inspected and confirmed correct. See the final report for the complete
+  per-site disposition and the exact schema outputs observed.
 
 ## Problem
 

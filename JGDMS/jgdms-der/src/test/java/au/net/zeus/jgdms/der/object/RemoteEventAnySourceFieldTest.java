@@ -22,8 +22,7 @@ import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.object.fixtures.Foo;
 import au.net.zeus.jgdms.der.object.fixtures.Greeter;
 import au.net.zeus.jgdms.der.object.fixtures.GreeterHandler;
-import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
-import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
+import au.net.zeus.jgdms.der.schema.SchemaChain;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
@@ -45,63 +44,34 @@ import static org.junit.jupiter.api.Assertions.*;
  * before this change, {@code SchemaGenerator} hard-rejected that at schema-generation time for
  * EVERY {@code RemoteEvent} (and every subclass), regardless of what value {@code source} held.
  *
- * <h2>IMPORTANT deviation from the SOW's premise -- read before editing this file</h2>
- * <p><b>{@code SchemaGenerator.generateChain(RemoteEvent.class)} (the real, fully-automatic
- * production path) still throws {@link au.net.zeus.jgdms.der.DerException} today</b> -- not on
- * {@code source} (fixed by this change) but on the SEPARATE, independent {@code handback} field
- * (declared {@code java.rmi.MarshalledObject.class}). This was NOT surfaced by the SOW's source
- * reading because {@code SchemaGenerator}'s per-class field loop throws on the FIRST unsupported
- * field it reaches, and {@code source} (index 0) always threw first, masking {@code handback}
- * (index 3) entirely. {@code MarshalledObject} is DELIBERATELY not in the active DER serializer
- * registry (see {@code jgdms-der/src/main/resources/META-INF/jgdms/der-serializers}: "Throwable,
- * Properties, and MarshalledObject are DEFERRED (unresolved security/canonicality defects)") --
- * {@code org.apache.river.api.io.MarshalledObjectSerializer} exists but composes the SAME
- * {@code MarshalledInstance} wire-controlled-{@code payloadFormat} downgrade hazard this SOW's own
- * "Finding 3" / follow-up item already tracks as a separate HIGH-severity item. Flipping that
- * registry is a versioned-schema, board-review decision (per the registry file's own comment) --
- * explicitly out of THIS SOW's scope, not a call this test suite makes unilaterally.
- *
- * <p>Consequence: {@code RemoteEvent} (and every subclass) still cannot be schema-generated
- * end-to-end via {@link SchemaGenerator#generateChain(Class)} today. These tests instead use an
- * EXPLICIT schema covering {@code RemoteEvent}'s real {@code source}/{@code eventID}/{@code
- * seqNum}/{@code miHandback} fields (the exact wire-type tokens {@code SchemaGenerator} produces
- * for each, via {@link SchemaGenerator#ANY} and {@link SchemaGenerator#toWireType(Class, Class)})
- * while omitting the independently-blocked {@code handback} field, so the {@code source} fix can
- * be verified end-to-end against the REAL {@code RemoteEvent} class (real {@code serialize()}/
- * {@code check()}/{@code (GetArg)} constructor) without being masked by the unrelated blocker. See
- * this agent's final report for the full analysis; the {@code handback}/{@code MarshalledObject}
- * gap is reported as a separate finding, not fixed here.
+ * <h2>History -- read before assuming the real chain path always worked</h2>
+ * <p>Immediately after this fix landed, a SECOND, independent, pre-existing blocker was found
+ * empirically: {@code RemoteEvent} also declared {@code handback: java.rmi.MarshalledObject.class}
+ * -- a type {@code SchemaGenerator} has never supported ({@code MarshalledObject} is deliberately
+ * not in the active DER serializer registry, {@code jgdms-der/src/main/resources/META-INF/jgdms/
+ * der-serializers}: "DEFERRED (unresolved security/canonicality defects)", since a serializer for
+ * it would compose the {@code MarshalledInstance} wire-controlled-{@code payloadFormat} downgrade
+ * hazard this SOW's own "Finding 3" tracks separately). This was masked while {@code source}
+ * (index 0 in {@code serialForm()}) threw first. {@code handback} has since been removed from
+ * {@code RemoteEvent.serialForm()}/{@code serialize()} (it was already {@code @Deprecated} and
+ * superseded by {@code miHandback: MarshalledInstance}; the deprecated field/accessors/constructor
+ * remain for API compatibility, and {@code check(GetArg)}/the {@code (GetArg)} constructor still
+ * read it by name for dual-read compatibility with OLD wire data that DOES carry it in its own
+ * transmitted schema -- STD-006 §7.8, decode always uses the schema that travelled with the data).
+ * With that field gone from the CURRENT serial form, the real, fully-automatic
+ * {@link SchemaGenerator#generateChain(Class)} path now succeeds end-to-end, so these tests use it
+ * directly (no more explicit-schema workaround).
  */
 class RemoteEventAnySourceFieldTest {
 
-    /**
-     * The schema {@code SchemaGenerator} would produce for {@code RemoteEvent} if not for the
-     * independent {@code handback: MarshalledObject.class} blocker documented in the class
-     * Javadoc above -- built field-by-field from the SAME wire-type derivation
-     * {@code SchemaGenerator} uses ({@link SchemaGenerator#ANY} for {@code source} post-fix;
-     * {@link SchemaGenerator#toWireType(Class, Class)} for the scalar/{@code @AtomicSerial}
-     * fields), omitting only {@code handback}.
-     */
-    private static AtomicSerialSchemaRecord remoteEventSchema() throws Exception {
-        return new AtomicSerialSchemaRecord(
-                RemoteEvent.class.getName(), (byte[]) null,
-                List.of(
-                        new AtomicSerialFieldDef("source", SchemaGenerator.ANY),
-                        new AtomicSerialFieldDef("eventID",
-                                SchemaGenerator.toWireType(long.class, RemoteEvent.class)),
-                        new AtomicSerialFieldDef("seqNum",
-                                SchemaGenerator.toWireType(long.class, RemoteEvent.class)),
-                        new AtomicSerialFieldDef("miHandback",
-                                SchemaGenerator.toWireType(MarshalledInstance.class, RemoteEvent.class))
-                ));
-    }
-
     private static byte[] encode(RemoteEvent in) throws Exception {
-        return ObjectCodec.encode(in, RemoteEvent.class, remoteEventSchema());
+        SchemaChain.Result chain = SchemaGenerator.generateChain(RemoteEvent.class);
+        return ObjectCodec.encodeHierarchy(in, chain);
     }
 
     private static RemoteEvent decode(byte[] bytes) throws Exception {
-        return ObjectCodec.decode(RemoteEvent.class, remoteEventSchema(), bytes);
+        SchemaChain.Result chain = SchemaGenerator.generateChain(RemoteEvent.class);
+        return ObjectCodec.decodeHierarchy(RemoteEvent.class, chain, bytes);
     }
 
     private static RemoteEvent roundTrip(RemoteEvent in) throws Exception {
@@ -116,22 +86,19 @@ class RemoteEventAnySourceFieldTest {
     }
 
     // =========================================================================
-    // The independent handback:MarshalledObject blocker, pinned so a future fix to THAT is
-    // visible here (this test must be revisited, not silently left stale, if it ever starts
-    // passing -- at which point the real generateChain-based round trip should replace this
-    // explicit-schema workaround).
+    // Confirms the (formerly two-part) schema-generation blocker is now fully resolved via the
+    // REAL, fully-automatic path -- not just the source-specific mechanism in isolation.
     // =========================================================================
 
     @Test
-    void schemaGenerateChain_stillFailsOnUnrelatedHandbackField_documentedGap() {
-        au.net.zeus.jgdms.der.DerException ex = assertThrows(au.net.zeus.jgdms.der.DerException.class,
-                () -> SchemaGenerator.generateChain(RemoteEvent.class),
-                "if this stops throwing, the handback/MarshalledObject blocker has been "
-                + "independently resolved -- replace this workaround schema with real "
-                + "generateChain(RemoteEvent.class) throughout this file");
-        assertTrue(ex.getMessage() != null && ex.getMessage().contains("MarshalledObject"),
-                "the failure must be the handback field (MarshalledObject), not source "
-                + "(source is fixed by this SOW); got: " + ex.getMessage());
+    void schemaGenerateChain_nowSucceeds_forRemoteEvent() {
+        // The ORIGINAL bug (source: Object.class) is fixed by this SOW; the SEPARATE handback:
+        // MarshalledObject.class blocker found while implementing it has since been resolved by
+        // removing handback from serialForm()/serialize() (see class Javadoc). Both together mean
+        // the real production schema-generation path now succeeds unconditionally.
+        assertDoesNotThrow(() -> SchemaGenerator.generateChain(RemoteEvent.class),
+                "RemoteEvent's schema must now generate without error via the real, "
+                + "fully-automatic generateChain path");
     }
 
     @Test
@@ -142,7 +109,7 @@ class RemoteEventAnySourceFieldTest {
         // fields to array:any. So the PUBLIC toWireType(Object.class,...) must still hard-reject,
         // exactly as before this SOW; only the field-derivation entry point (exercised via the
         // real SchemaGenerator.generate/generateChain path in AnyFieldPositionConformanceTest and
-        // the schemaGenerator_objectTypedField_resolvesToAny assertion there) sees the new rule.
+        // this file) sees the new rule.
         assertThrows(au.net.zeus.jgdms.der.DerException.class,
                 () -> SchemaGenerator.toWireType(Object.class, RemoteEvent.class),
                 "toWireType(Class,...) must still reject raw Object.class directly; only "
@@ -203,16 +170,19 @@ class RemoteEventAnySourceFieldTest {
     }
 
     @Test
-    void roundTrip_otherFields_unaffected() throws Exception {
-        RemoteEvent in = new RemoteEvent(42, 111L, 222L, (MarshalledInstance) null);
+    void roundTrip_otherFieldsAndMiHandback_unaffected() throws Exception {
+        MarshalledInstance mi = new MarshalledInstance("a-handback-payload");
+        RemoteEvent in = new RemoteEvent(42, 111L, 222L, mi);
         RemoteEvent out = roundTrip(in);
         assertEquals(111L, out.getID());
         assertEquals(222L, out.getSequenceNumber());
+        assertNotNull(out.getRegistrationInstance(), "miHandback must still round-trip");
+        assertEquals("a-handback-payload", out.getRegistrationInstance().get(false));
     }
 
     // =========================================================================
     // Item 5: determinism -- two independently-constructed, .equals() RemoteEvents produce
-    // byte-identical source field TLVs.
+    // byte-identical source field TLVs (and, now, byte-identical whole-record encodings).
     // =========================================================================
 
     @Test
@@ -301,7 +271,9 @@ class RemoteEventAnySourceFieldTest {
 
     // -------------------------------------------------------------------------
     // Helpers: build a valid encoding, then splice a crafted TLV in place of the source field's
-    // TLV (field index 0 in remoteEventSchema() order) inside RemoteEvent's private SEQUENCE.
+    // TLV (field index 0 in serialForm() order) inside RemoteEvent's private SEQUENCE, which is
+    // itself wrapped in the (single-class) hierarchy SEQUENCE that encodeHierarchy/decodeHierarchy
+    // produce/expect.
     // -------------------------------------------------------------------------
 
     private static byte[] validEncoding() throws Exception {
@@ -309,27 +281,31 @@ class RemoteEventAnySourceFieldTest {
         return encode(in);
     }
 
-    /**
-     * Replaces the first field TLV (the {@code source} field, index 0 in {@link
-     * #remoteEventSchema()} order) of the private SEQUENCE with {@code replacement}, leaving
-     * every other field TLV untouched. Parses every field TLV explicitly (rather than assuming
-     * fixed offsets) so this stays correct regardless of the other fields' encoded lengths.
-     */
-    private static byte[] replaceSourceFieldTlv(byte[] recordBytes, byte[] replacement)
+    private static byte[] replaceSourceFieldTlv(byte[] hierarchyBytes, byte[] replacement)
             throws Exception {
-        au.net.zeus.jgdms.der.DerReader outer = new au.net.zeus.jgdms.der.DerReader(recordBytes);
-        au.net.zeus.jgdms.der.DerReader seq = outer.readSequence();
-        java.util.List<byte[]> fieldTlvs = new java.util.ArrayList<>();
+        au.net.zeus.jgdms.der.DerReader outer = new au.net.zeus.jgdms.der.DerReader(hierarchyBytes);
+        au.net.zeus.jgdms.der.DerReader hierarchySeq = outer.readSequence();
+        // RemoteEvent is a single-class chain (no @AtomicSerial ancestors): the hierarchy SEQUENCE
+        // wraps exactly one per-class SEQUENCE (RemoteEvent's own).
+        au.net.zeus.jgdms.der.DerReader.TlvHeader classHdr = hierarchySeq.readTlvHeader();
+        byte[] classContent = hierarchySeq.readRawContent(classHdr.contentLength());
+
+        // Inside the per-class SEQUENCE content, parse every field TLV explicitly (rather than
+        // assuming fixed offsets) and replace the first (source, index 0).
+        au.net.zeus.jgdms.der.DerReader fields = new au.net.zeus.jgdms.der.DerReader(classContent);
+        List<byte[]> fieldTlvs = new java.util.ArrayList<>();
         boolean first = true;
-        while (seq.hasMore()) {
-            int fStart = seq.position();
-            au.net.zeus.jgdms.der.DerReader.TlvHeader h = seq.readTlvHeader();
-            seq.readRawContent(h.contentLength());
-            int fEnd = seq.position();
-            fieldTlvs.add(first ? replacement : seq.slice(fStart, fEnd));
+        while (fields.hasMore()) {
+            int fStart = fields.position();
+            au.net.zeus.jgdms.der.DerReader.TlvHeader h = fields.readTlvHeader();
+            fields.readRawContent(h.contentLength());
+            int fEnd = fields.position();
+            fieldTlvs.add(first ? replacement : fields.slice(fStart, fEnd));
             first = false;
         }
-        return DerWriter.writeSequence(fieldTlvs);
+
+        byte[] newClassSeq = DerWriter.writeSequence(fieldTlvs);
+        return DerWriter.writeSequence(List.of(newClassSeq));
     }
 
     private static boolean messageChainContains(Throwable t, String needle) {

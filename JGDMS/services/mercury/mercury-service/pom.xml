@@ -45,6 +45,35 @@
             <artifactId>jgdms-lib</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          Test-only: provides the DER MarshalFactoryProvider (ServiceLoader-discovered by
+          net.jini.io.MarshalledInstance) so that tests can actually encode/decode
+          MarshallingFormat.ATOMIC_DER-tagged instances at test-runtime, exactly the format
+          EventWriter.write() uses. Mirrors reggie-dl's equivalent test-scope dependency.
+        -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-der</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          Test-only: provides the java.rmi.server.RMIClassLoaderSpi ServiceLoader provider
+          (net.jini.loader.pref.PreferredClassProvider) so java.io object-stream marshalling
+          (annotateClass) does not fail with a ServiceConfigurationError at test-runtime.
+        -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-pref-class-loader</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
