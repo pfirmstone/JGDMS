@@ -1,10 +1,15 @@
 # Scope of Work — Remaining DER-migration / ProxyTrust-removal follow-ups
 
-*Draft SOW — 2026-07-18. Residual items from the 2026-07-17/18 DER-migration and ProxyTrust-removal
-session (task tracker #14–#28, trunk currently at `426776c82`). Six independent items, no
-cross-dependencies except where noted. Each should go through the same discipline as the work that
-produced this list: isolated `git worktree`, fresh agent to implement, a separately-dispatched
-agent for adversarial review before merge — do not merge any of these to trunk without review.*
+*Draft SOW — 2026-07-18, updated 2026-07-19. Residual items from the 2026-07-17/18
+DER-migration and ProxyTrust-removal session (task tracker #14–#28). Originally six
+independent items; as of 2026-07-19, item 1 (task #16) is PARKED and item 3 (task #20) is
+DONE — see their entries below for outcome/detail. **Four items remain open**: item 2
+(blocked on Peter's decision, not an agent task on its own), item 4 (test coverage gap,
+not started), item 5 (test KDC, explicitly low priority), item 6 (ProxyTrust Stage 2,
+largest, not started). No cross-dependencies among the open items except where noted. Each
+should go through the same discipline as the work that produced this list: isolated
+`git worktree`, fresh agent to implement, a separately-dispatched agent for adversarial
+review before merge — do not merge any of these to trunk without review.*
 
 ## Items
 
