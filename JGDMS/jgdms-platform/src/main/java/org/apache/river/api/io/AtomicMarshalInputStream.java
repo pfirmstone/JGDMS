@@ -561,6 +561,21 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 		if (tc >= 0 && (tc < TC_BASE || tc > TC_MAX)) {
 		    throw new StreamCorruptedException("invalid type code: " + tc);
 		}
+		// Board review 2026-07-20 (Externalizable field-loss finding,
+		// stage 2): a class carrying SC_BLOCK_DATA does NOT guarantee
+		// the writer emitted a leading TC_BLOCKDATA/TC_BLOCKDATALONG/
+		// TC_RESET marker here -- ObjOutputStream.drain() only writes
+		// one when primitive data was actually buffered during
+		// writeExternal(); an Externalizable class whose
+		// writeExternal's first call is an object write
+		// (out.writeObject(...)), with no preceding primitive write,
+		// goes straight to that object's own tag with no block-data
+		// marker at all. Silently consuming (and discarding) that tag
+		// here -- the previous behaviour -- desynchronised the
+		// stream: readExternal()'s own first read then saw the wrong
+		// next byte and failed. Push a non-block-data, in-range tag
+		// back so it is available, unconsumed, to whatever reads next.
+		pushbackTC(tc);
 	}
     }
 

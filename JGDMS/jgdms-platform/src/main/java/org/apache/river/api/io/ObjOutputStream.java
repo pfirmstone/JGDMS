@@ -1554,7 +1554,30 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
         } else {
             classInfo.fields = new ObjectStreamField [0];
         }
-        if (theClass.isAnnotationPresent(AtomicExternal.class)){
+        // Board review 2026-07-20 (T4 wire-handoff, Externalizable field-loss
+        // finding): this check must recognise ANY java.io.Externalizable
+        // class, not only @AtomicExternal-annotated ones -- writeNewObject()
+        // (below, "boolean externalizable = Externalizable.class
+        // .isAssignableFrom(theClass);") already calls writeExternal() and
+        // writes real instance data for any plain Externalizable class,
+        // regardless of the annotation. Before this fix, that data was
+        // written but the class descriptor's own flags byte was left at 0
+        // (neither SC_SERIALIZABLE nor SC_EXTERNALIZABLE) for a
+        // non-@AtomicExternal Externalizable class -- a self-inconsistent
+        // stream: on read, AtomicMarshalInputStream.wasExternalizable()
+        // faithfully reports what the flags byte says (false), so the
+        // reader takes the field-table (readHierarchy) path instead of
+        // calling readExternal(), finds zero declared fields (matching the
+        // equally-wrong classInfo.fields = new ObjectStreamField[0] a few
+        // lines above), and silently leaves the real written data
+        // unconsumed -- no exception, object constructed via its no-arg
+        // constructor with every field at its default value, decode
+        // reported as fully successful. Confirmed via a minimal repro
+        // (see AtomicMarshalInputStreamExternalizableFieldLossTest) and a
+        // byte-level dump of the actual encoded stream (flags=0x00) before
+        // this fix.
+        if (theClass.isAnnotationPresent(AtomicExternal.class)
+                || Externalizable.class.isAssignableFrom(theClass)){
             classInfo.externalizable = true;
         }
         if (theClass.isEnum())
