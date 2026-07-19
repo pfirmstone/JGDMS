@@ -1103,6 +1103,74 @@ deterministic, no cycles, fail-secure, `@AtomicSerial`-restricted for object ele
   `"enum:<className>"` schema marker via the same `loadClass` helper used elsewhere
   (`Thread.currentThread().getContextClassLoader()`); cached per stream is OPTIONAL.
 
+#### 17.1.1 Enum in a polymorphic (`@AtomicSerial` / interface / abstract) slot
+
+The §17.1 form above applies when the receiving field is **declared** an enum type
+(the schema marker `"enum:<className>"` fixes the class, so only the constant name
+travels). A different case arises when an enum value occupies a **polymorphic** slot —
+a field, array element, or collection element whose **declared** type is an interface or
+abstract class (`SchemaGenerator.toWireType` emits the `"@AtomicSerial"` polymorphic
+marker for it, exactly as for a nested `@AtomicSerial` value). The motivating real graph:
+`net.jini.core.constraint.AtomicInputValidation` is a `public enum implements
+InvocationConstraint`, and `InvocationConstraints.reqs` / `.prefs` are declared
+`InvocationConstraint[]`. A Java enum cannot be `@AtomicSerial` (and migrating it to a
+class is a binary-API break), so it has no `@AtomicSerial` class in its hierarchy and
+cannot be encoded as an `@AtomicSerial` hierarchy leaf.
+
+- **Per-value discriminator, not a schema change.** The declared-type token stays the
+  polymorphic `"@AtomicSerial"` marker — **no schemaDigest change** for existing graphs.
+  Which concrete leaf a polymorphic slot holds is already a per-VALUE wire fact (the
+  nested `@AtomicSerial` path carries the concrete class chain per value); the enum case
+  adds a per-VALUE **context tag** that says "this element is an enum leaf, not an
+  `@AtomicSerial` hierarchy leaf."
+- **Wire.** The value is encoded as a `[7]` CTX_ENUM constructed TLV (`CONTEXT 7`),
+  content = `UTF8String(declaringClassName) ++ UTF8String(constantName)` — **byte-identical
+  to the object-stream layer's bare-enum form** (sec.15.2 `[7]`), so both layers share one
+  wire discriminator. `Enum.getDeclaringClass()` is used (not `getClass()`), so a constant
+  with a body names its declaring enum type, not the anonymous constant-body subclass. This
+  is distinct from §17.1: the concrete enum **class** must travel here because the declared
+  type is polymorphic (it does not in §17.1, where the schema already fixes the class).
+- **Decode (endpoint-loader resolution).** `decodeNested` recognises the `[7]` tag and
+  routes to `decodeEnumLeaf`: the enum class is resolved through the **endpoint-assigned
+  `ResolutionContext.loadClass`** — NEVER the thread-context loader or
+  `latestUserDefinedLoader` (Warres discipline, as for the rest of the codec) — then
+  `Enum.valueOf(enumClass, constantName)`.
+- **Decode-admission (assignable-to-declared-type, fail-closed BEFORE resolution).** The
+  resolved enum class MUST be admissible into the receiving slot's declared type, enforced
+  by `ObjectCodec.admissibleConstructClass(expectedSupertype, enumClass)` — for an inert
+  enum this reduces to clause 1 (`expectedSupertype.isAssignableFrom(enumClass)`); an enum
+  is neither a `@Serializer` nor a `Resolve` proxy, so clauses 2/3 never fire. This runs
+  **before** the constant is resolved, so a hostile peer cannot name an arbitrary enum into
+  e.g. an `InvocationConstraint` slot. An unknown constant name fails closed (`DerException`);
+  the enum is otherwise attacker-inert (singleton, no reachable constructor).
+- **Determinism / canonicality.** Encoding by name is canonical (one encoding per constant),
+  byte-stable, and composes with the collection SET-OF octet ordering: a
+  `Set<InvocationConstraint>` mixing enum and `@AtomicSerial`-class constraints sorts
+  deterministically by element encoding (the `[7]` tag and the `SEQUENCE` tag sort by their
+  differing leading octets). An array preserves index order. `decode → encode` reproduces
+  the exact bytes.
+
+**Threat model — the broad-slot residual (R2).** In a **typed** polymorphic slot (a concrete
+interface/abstract element or field type, e.g. `InvocationConstraint`) the admission gate is
+tight: only enums assignable to that declared type are admitted, and the check runs BEFORE the
+enum class is resolved to a constant — so `Enum.valueOf` (and therefore the named enum's
+`<clinit>`) never runs on the reject path. In a genuinely `Object`-typed / `Any` / broadest-
+interface slot, `expectedSupertype` is `Object.class`, so clause 1 admits **any** endpoint-local
+enum type, and decoding it WILL run that enum's `<clinit>`. This is the **documented broad-slot
+residual**, identical in kind to the pre-existing `@AtomicSerial` "construct any endpoint-local
+`@AtomicSerial` class named in an `Object`/`Any` slot" residual (see the `Any` CHOICE and the
+"registry is not a decode-admission boundary" note, STD-006 §7.6): a broad slot is bounded only
+by the class being **locally resolvable** plus (SM-dependent) `DeSerializationPermission`, not by
+the transmitted name. Scope it accurately: an enum is an **inert canonical singleton** — no
+attacker-reachable constructor, no attacker-set fields, a closed author-defined constant set — so
+this is a **bounded widening of the existing broad-slot residual to inert values, strictly weaker
+than the already-admitted construct-any-local-`@AtomicSerial`-class surface. It is NOT a new
+construction or gadget surface.** The only new side effect a broad-slot enum leaf can cause is
+running an endpoint-local enum type's `<clinit>`; a class-init side effect from a locally present
+type is the same exposure the `@AtomicSerial` broad-slot residual already carries. Typed slots
+(array component, collection element, concrete-interface field) remain fully gated and are the
+common case; `Object`/`Any` slots should continue to be treated as the residual they are.
+
 ### 17.2 Arrays
 
 A unified wire shape regardless of element type: **the array is a DER SEQUENCE containing

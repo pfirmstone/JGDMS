@@ -829,7 +829,17 @@ schema/encoder MUST NOT admit:
    — never an arbitrary graph. (An interface/abstract-typed field is not a raw
    `Object`: it is a polymorphic `@AtomicSerial` slot whose concrete class
    self-identifies via the schema digest, already covered by the
-   `AtomicSerialObject` category.)
+   `AtomicSerialObject` category. **Enum exception:** a Java `enum` that
+   implements a marshalled interface — e.g. `AtomicInputValidation implements
+   InvocationConstraint` — cannot be `@AtomicSerial` (and migrating it to a class
+   is a binary break), yet is a legitimate closed, inert, canonical value. In a
+   polymorphic slot such a value carries a per-VALUE `[7]` CTX_ENUM discriminator
+   [`UTF8String(declaringClassName) ++ UTF8String(constantName)`, name-canonical,
+   the same wire form as the object-stream bare-enum `[7]`], distinguishing an
+   "enum leaf" from an `@AtomicSerial` hierarchy leaf. This is a per-value wire
+   fact, **not** a schema-token/schemaDigest change; decode resolves via the
+   endpoint loader and gates the enum class by declared-type assignability. See
+   STD-008 §17.1.1.)
 2. **Arbitrary `Serializable`.** "Any object with a class descriptor" is exactly
    what this standard refuses: it serialises the implementation, defeats
    cross-language consumption and value-equality, and is a gadget surface. Only

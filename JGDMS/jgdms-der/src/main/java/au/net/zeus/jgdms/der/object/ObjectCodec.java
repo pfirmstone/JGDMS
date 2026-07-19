@@ -183,6 +183,17 @@ public final class ObjectCodec {
     private static final Tag CTX_PROXY = new Tag(Tag.CLASS_CONTEXT, true, 8);
 
     /**
+     * {@code [7]} context-constructed tag: an {@code Enum} constant sitting in a polymorphic
+     * ({@code @AtomicSerial} / interface / abstract) slot, encoded self-describingly as
+     * {@code UTF8String(declaringClassName) ++ UTF8String(constantName)} -- the per-value
+     * discriminator that tells {@code decodeNested} "this polymorphic element is an enum leaf,
+     * not an {@code @AtomicSerial} hierarchy leaf." Identical tag and content layout to the
+     * object-stream {@code CTX_ENUM} (STD-008 sec.15.2 [7]) so the two layers share one wire
+     * discriminator. See {@link #encodeNested} / {@link #decodeEnumLeaf}, STD-008 sec.17.1.
+     */
+    private static final Tag CTX_ENUM = new Tag(Tag.CLASS_CONTEXT, true, 7);
+
+    /**
      * Per-class {@code DeSerializationPermission("ATOMIC")} gate (STD-008): before
      * any {@code @AtomicSerial (GetArg)} constructor runs, every class in the
      * hierarchy whose constructor will execute must have
@@ -1576,6 +1587,28 @@ public final class ObjectCodec {
             return encodeProxy(value, fieldName, depth);
         }
 
+        // A polymorphic @AtomicSerial slot may legitimately hold an ENUM constant -- e.g.
+        // net.jini.core.constraint.AtomicInputValidation (a public enum implements
+        // InvocationConstraint) inside an InvocationConstraint[] / Set<InvocationConstraint>.
+        // An enum implementing a marshalled interface is NOT itself @AtomicSerial (a Java enum
+        // cannot be, and migrating enum->class is a binary-API break the japicmp gate flags), so
+        // it has no @AtomicSerial class in its hierarchy and would fall through to the hard
+        // rejection below. Encode it self-describingly as the shared [7] CTX_ENUM leaf --
+        // UTF8String(declaringClassName) ++ UTF8String(constantName), byte-identical to the
+        // object-stream layer's bare-enum path -- so decodeNested distinguishes an "enum leaf"
+        // from an "@AtomicSerial hierarchy leaf" by the context tag (the per-value discriminator,
+        // exactly as the [8] CTX_PROXY path carries a runtime shape distinct from the declared
+        // slot type). Encoding by NAME is canonical (one encoding per constant), byte-stable, and
+        // composes with the SET-OF octet sort. The concrete enum class is admission-gated against
+        // the declared slot type at decode (decodeEnumLeaf), so an attacker cannot name an
+        // arbitrary enum into a constraint slot. NOTE: this is distinct from a field DECLARED as
+        // an enum type (wireType "enum:<class>", encodeEnum), where the class is already fixed by
+        // the schema and only the constant name travels -- here the declared type is polymorphic,
+        // so the concrete enum class MUST travel, mirroring the nested @AtomicSerial class chain.
+        if (value instanceof Enum<?> ev) {
+            return encodeEnumLeaf(ev);
+        }
+
         // S3.10 wire-visibility: a value whose runtime class is not itself @AtomicSerial but
         // which extends an @AtomicSerial class is encoded as that @AtomicSerial superclass (its
         // subclass-only state is not wire-visible) -- exactly as the top-level decodeHierarchy
@@ -1653,6 +1686,93 @@ public final class ObjectCodec {
         // ResolutionContext and DGC decode-unit threading of the nested-field path.
         content.writeBytes(encodeNested(h, fieldName + ".proxyHandler", depth + 1));
         return DerWriter.writeTlv(CTX_PROXY, content.toByteArray());
+    }
+
+    /**
+     * Encodes an {@code Enum} constant that occupies a polymorphic ({@code @AtomicSerial} /
+     * interface / abstract) slot as a {@code [7]} CTX_ENUM leaf:
+     * {@code UTF8String(declaringClassName) ++ UTF8String(constantName)}. Byte-identical to the
+     * object-stream layer's bare-enum form (STD-008 sec.15.2 [7]) so the two layers share the
+     * discriminator. Uses {@link Enum#getDeclaringClass()} -- NOT {@code getClass()} -- so a
+     * constant with a body (e.g. {@code Op.ADD -> Op$1}) names its declaring enum type, not the
+     * anonymous constant-body subclass. Encoding by name is canonical (one encoding per constant),
+     * so a {@code Set} of enums octet-sorts deterministically and re-encodes byte-for-byte.
+     *
+     * @param ev the enum constant value (non-null; caller has verified {@code value instanceof Enum})
+     * @return the {@code [7]} CTX_ENUM TLV bytes
+     */
+    private static byte[] encodeEnumLeaf(Enum<?> ev) throws DerException {
+        byte[] clsName = DerWriter.writeUtf8String(ev.getDeclaringClass().getName());
+        byte[] name    = DerWriter.writeUtf8String(ev.name());
+        byte[] content = new byte[clsName.length + name.length];
+        System.arraycopy(clsName, 0, content, 0, clsName.length);
+        System.arraycopy(name, 0, content, clsName.length, name.length);
+        return DerWriter.writeTlv(CTX_ENUM, content);
+    }
+
+    /**
+     * Decodes a {@code [7]} CTX_ENUM leaf produced by {@link #encodeEnumLeaf} for an enum sitting
+     * in a polymorphic slot, resolving the concrete enum class through the endpoint-assigned
+     * {@link ResolutionContext} (NEVER the thread-context loader -- Warres) and reconstructing the
+     * constant via {@link Enum#valueOf}.
+     *
+     * <p><b>Decode-admission (security review R2):</b> the wire-named enum class MUST be admissible
+     * into the receiving slot's DECLARED type ({@code expectedSupertype}) BEFORE the constant is
+     * resolved. For an inert enum this reduces to {@link #admissibleConstructClass} clause 1
+     * ({@code expectedSupertype.isAssignableFrom(enumClass)}) -- an enum is neither a
+     * {@code @Serializer} nor a {@code Resolve} proxy, so clauses 2/3 never fire -- which stops a
+     * hostile peer from naming an arbitrary enum into e.g. an {@code InvocationConstraint} slot.
+     * An unknown constant name fails closed (the enum is otherwise attacker-inert: singleton, no
+     * reachable constructor).
+     *
+     * @param enumTlv           the raw {@code [7]} CTX_ENUM TLV bytes
+     * @param expectedSupertype the receiving slot's declared type (never {@code null})
+     * @param resolution        the endpoint resolution context for class loading
+     * @return the reconstructed enum constant
+     */
+    private static Object decodeEnumLeaf(byte[] enumTlv, Class<?> expectedSupertype,
+                                         ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
+        DerReader r = new DerReader(enumTlv);
+        DerReader.TlvHeader hdr = r.readTlvHeader();
+        if (!CTX_ENUM.equals(hdr.tag())) {
+            throw new DerException("ObjectCodec.decodeEnumLeaf: expected [7] CTX_ENUM, got " + hdr.tag());
+        }
+        byte[] content = r.readRawContent(hdr.contentLength());
+        if (r.hasMore()) {
+            throw new DerException("ObjectCodec.decodeEnumLeaf: trailing bytes after [7] enum TLV");
+        }
+        DerReader er = new DerReader(content);
+        String className = er.readUtf8String();
+        String constant  = er.readUtf8String();
+        if (er.hasMore()) {
+            throw new DerException("ObjectCodec.decodeEnumLeaf: trailing bytes in [7] enum content");
+        }
+        // Endpoint-assigned resolution (NEVER the thread-context loader -- Warres).
+        Class<?> enumClass = loadClass(className, resolution);
+        if (!enumClass.isEnum()) {
+            throw new DerException("ObjectCodec.decodeEnumLeaf: [7] enum class '" + className
+                    + "' is not an enum");
+        }
+        // Pre-resolution admission gate: fail closed BEFORE resolving the constant if the named
+        // enum class is not admissible into the declared slot type (clause 1 assignability).
+        if (!admissibleConstructClass(expectedSupertype, enumClass)) {
+            throw new DerException("ObjectCodec.decodeEnumLeaf: enum class '" + className
+                    + "' is not admissible into a slot declared '" + expectedSupertype.getName()
+                    + "' (not assignable) -- fail-closed before resolution.");
+        }
+        try {
+            return enumValueOf(enumClass, constant);
+        } catch (IllegalArgumentException e) {
+            throw new DerException("ObjectCodec.decodeEnumLeaf: unknown enum constant '" + constant
+                    + "' in " + className, e);
+        }
+    }
+
+    /** Resolves an enum constant by declaring-class + name (raw-type bridge for {@link Enum#valueOf}). */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Object enumValueOf(Class<?> enumClass, String name) {
+        return Enum.valueOf((Class<? extends Enum>) enumClass, name);
     }
 
     /** The nearest class in {@code c}'s hierarchy annotated {@code @AtomicSerial}, or null if none. */
@@ -1755,6 +1875,13 @@ public final class ObjectCodec {
         // [8] CTX_PROXY -> a nested java.lang.reflect.Proxy field value (see encodeProxy).
         if (CTX_PROXY.equals(new DerReader(nestedRecordBytes).peekTag())) {
             return decodeProxy(nestedRecordBytes, depth, decodeUnit, resolution);
+        }
+        // [7] CTX_ENUM -> an enum constant sitting in this polymorphic slot (see encodeNested's
+        // enum branch). Resolved and admission-gated against the declared slot type in
+        // decodeEnumLeaf (fail-closed BEFORE resolution if the named enum class is not assignable
+        // to expectedSupertype; fail-closed on an unknown constant name).
+        if (CTX_ENUM.equals(new DerReader(nestedRecordBytes).peekTag())) {
+            return decodeEnumLeaf(nestedRecordBytes, expectedSupertype, resolution);
         }
         // SEQUENCE { OCTET STRING(schemaChainBytes), OCTET STRING(payloadBytes) }
         DerReader outer = new DerReader(nestedRecordBytes);
