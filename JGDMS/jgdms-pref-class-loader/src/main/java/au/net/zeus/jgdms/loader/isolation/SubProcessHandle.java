@@ -15,6 +15,8 @@
  */
 package au.net.zeus.jgdms.loader.isolation;
 
+import java.io.IOException;
+import java.nio.channels.ByteChannel;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
@@ -153,6 +155,24 @@ public final class SubProcessHandle {
     /** @return this subprocess's fail-closed administrative surface. */
     public SubProcessAdministrable adminSurface() {
         return spawned.adminSurface();
+    }
+
+    /**
+     * Opens a fresh, dedicated wire-handoff channel to this subprocess
+     * (task&nbsp;T4).  See {@link SubProcessLauncher.Spawned#openWireChannel()}
+     * for the channel's scope and lifetime.  Deliberately does not reuse
+     * {@link #adminSurface()}'s channel (S1).
+     *
+     * @return a freshly-opened, connected channel to the subprocess
+     * @throws IOException if the channel cannot be opened, or if this
+     *         subprocess has already been torn down
+     */
+    public ByteChannel openWireChannel() throws IOException {
+        if (!isAlive()) {
+            throw new IOException(
+                "subprocess for " + key + " already torn down");
+        }
+        return spawned.openWireChannel();
     }
 
     /** @return {@code true} until the subprocess has been torn down. */

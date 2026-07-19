@@ -561,6 +561,21 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 		if (tc >= 0 && (tc < TC_BASE || tc > TC_MAX)) {
 		    throw new StreamCorruptedException("invalid type code: " + tc);
 		}
+		// Board review 2026-07-20 (Externalizable field-loss finding,
+		// stage 2): a class carrying SC_BLOCK_DATA does NOT guarantee
+		// the writer emitted a leading TC_BLOCKDATA/TC_BLOCKDATALONG/
+		// TC_RESET marker here -- ObjOutputStream.drain() only writes
+		// one when primitive data was actually buffered during
+		// writeExternal(); an Externalizable class whose
+		// writeExternal's first call is an object write
+		// (out.writeObject(...)), with no preceding primitive write,
+		// goes straight to that object's own tag with no block-data
+		// marker at all. Silently consuming (and discarding) that tag
+		// here -- the previous behaviour -- desynchronised the
+		// stream: readExternal()'s own first read then saw the wrong
+		// next byte and failed. Push a non-block-data, in-range tag
+		// back so it is available, unconsumed, to whatever reads next.
+		pushbackTC(tc);
 	}
     }
 
@@ -2036,7 +2051,17 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 		    try {
 			objectArray[i] = readObject(false, discard, componentType);
 		    } catch (StreamCorruptedException e){
-			if (!exceptions.isEmpty()) break;
+			// Board review 2026-07-20 (T4 wire-handoff Finding 1):
+			// exceptions is only assigned in the ClassNotFoundException
+			// branch below; a StreamCorruptedException on an EARLIER
+			// element (before any ClassNotFoundException has been seen)
+			// hit this branch with exceptions still null, throwing an
+			// unguarded NullPointerException instead of the intended
+			// StreamCorruptedException. Null-guard restores the
+			// original intent: only swallow-and-break when we already
+			// have collected ClassNotFoundExceptions to report instead;
+			// otherwise propagate the real cause.
+			if (exceptions != null && !exceptions.isEmpty()) break;
 			throw e;
 		    } catch (ClassNotFoundException e){
 			if (indexes == null){
