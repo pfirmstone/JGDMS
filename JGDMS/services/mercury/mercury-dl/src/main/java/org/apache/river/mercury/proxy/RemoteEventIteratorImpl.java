@@ -28,8 +28,6 @@ import net.jini.event.RemoteEventIterator;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 
 import org.apache.river.proxy.ThrowThis;
 
