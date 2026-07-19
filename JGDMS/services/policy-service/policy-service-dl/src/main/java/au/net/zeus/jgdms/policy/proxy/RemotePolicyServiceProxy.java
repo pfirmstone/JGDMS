@@ -28,7 +28,7 @@ import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.Stateless;
-import org.apache.river.api.security.RemotePolicyService;
+import au.net.zeus.jgdms.api.policy.RemotePolicyService;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 
 /**

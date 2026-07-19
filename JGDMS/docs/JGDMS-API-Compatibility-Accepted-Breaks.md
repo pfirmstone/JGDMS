@@ -55,6 +55,22 @@ migration to `net.jini.activation.arg.*`.
 - `net.jini.core.discovery.LookupLocator.scheme()` made `final` — 2021, PR #103.
 - `WakeupManager$ThreadDesc.getGroup()` removed — virtual-thread migration.
 
+### F — Legacy-namespace relocation (`org.apache.river.api.security` → `au.net.zeus.jgdms.api.policy`)
+`jgdms-platform` is progressively emptying the shared/legacy `org.apache.river.api.security`
+package (standard-JDK-compatible, Apache River heritage) toward removal or DirtyChai-only
+content. New/actively-developed classes are relocated to the `au.net.zeus.jgdms` namespace
+instead of being added to or left in the legacy package.
+- **Match:** `REMOVED CLASS/INTERFACE: org.apache.river.api.security.RemotePolicyProvider`;
+  `REMOVED INTERFACE: org.apache.river.api.security.RemotePolicyService` (both re-appear,
+  unchanged in shape, as `au.net.zeus.jgdms.api.policy.{RemotePolicyProvider,RemotePolicyService}`).
+- **Seen:** 2026-07 — `RemotePolicyProvider`/`RemotePolicyService` pair moved together (the
+  provider's javadoc references the service and vice versa); all `services/policy-service`
+  callers re-pointed to the new package. Serial axis: `PolicyEventLease.server`'s declared
+  field type changed package (`serial-schema.golden` updated) — `@AtomicSerial` retype is
+  informative-only per `check-serial-schema.sh`, not a gate failure; wire compatibility is
+  unaffected because the interface itself is never serialized, only concrete proxy
+  implementations of it are.
+
 ### Benign (flagged by japicmp, not a real break)
 - `DelegationAbsoluteTime` "field removed" = `private static SoftReference formatterRef`
   (impl detail; public serial form intact).

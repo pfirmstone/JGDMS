@@ -15,7 +15,7 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.security.RemotePolicyService;
+import au.net.zeus.jgdms.api.policy.RemotePolicyService;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

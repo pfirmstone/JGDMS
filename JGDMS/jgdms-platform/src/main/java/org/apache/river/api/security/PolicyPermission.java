@@ -22,7 +22,7 @@ import java.security.BasicPermission;
 
 /**
  * <p>A "remote" or "REMOTE" PolicyPermission allows updating a
- * remote policy service (see RemotePolicyService). </p>
+ * remote policy service (see {@code au.net.zeus.jgdms.api.policy.RemotePolicyService}). </p>
  * 
  * @author Peter Firmstone
  * @since 3.0.0

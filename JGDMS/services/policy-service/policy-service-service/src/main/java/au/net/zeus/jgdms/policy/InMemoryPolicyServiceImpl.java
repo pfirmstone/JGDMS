@@ -46,7 +46,7 @@ import net.jini.security.GrantPermission;
 import org.apache.river.api.security.DefaultPolicyParser;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PolicyPermission;
-import org.apache.river.api.security.RemotePolicyService;
+import au.net.zeus.jgdms.api.policy.RemotePolicyService;
 import org.apache.river.constants.ThrowableConstants;
 
 /**
@@ -445,7 +445,7 @@ public class InMemoryPolicyServiceImpl {
     /**
      * Returns the parsed {@link PermissionGrant}s currently stored by this
      * service.  Intended for use by a co-located {@link
-     * org.apache.river.api.security.RemotePolicyProvider} that wraps this
+     * au.net.zeus.jgdms.api.policy.RemotePolicyProvider} that wraps this
      * service.
      *
      * @return defensive copy of the current parsed grants; never {@code null}

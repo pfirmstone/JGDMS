@@ -28,17 +28,17 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 /**
  * Remote event delivered to a {@link net.jini.core.event.RemoteEventListener}
  * registered via
- * {@link org.apache.river.api.security.RemotePolicyService#registerForPolicyUpdates}
+ * {@link au.net.zeus.jgdms.api.policy.RemotePolicyService#registerForPolicyUpdates}
  * when the djinn-wide policy grants are replaced.
  *
  * <p>This event is a <em>notification only</em>: it carries no grant payload.
  * Clients should call
- * {@link org.apache.river.api.security.RemotePolicyService#getCurrentGrants}
+ * {@link au.net.zeus.jgdms.api.policy.RemotePolicyService#getCurrentGrants}
  * on receipt to obtain the authoritative new grant set.  This pull-on-notification
  * model ensures clients always see a consistent snapshot, even if multiple
  * {@code replace()} calls arrive in quick succession.
  *
- * @see org.apache.river.api.security.RemotePolicyService#registerForPolicyUpdates
+ * @see au.net.zeus.jgdms.api.policy.RemotePolicyService#registerForPolicyUpdates
  * @since 3.1.1
  */
 @AtomicSerial

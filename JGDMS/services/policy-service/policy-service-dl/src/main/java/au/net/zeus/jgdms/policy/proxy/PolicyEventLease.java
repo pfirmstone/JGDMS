@@ -35,7 +35,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
-import org.apache.river.api.security.RemotePolicyService;
+import au.net.zeus.jgdms.api.policy.RemotePolicyService;
 import org.apache.river.lease.AbstractLease;
 import org.apache.river.lease.AbstractLeaseMap;
 

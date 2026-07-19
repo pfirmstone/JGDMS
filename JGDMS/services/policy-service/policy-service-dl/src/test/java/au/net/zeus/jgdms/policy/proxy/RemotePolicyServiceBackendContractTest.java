@@ -25,7 +25,7 @@ import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import org.apache.river.admin.DestroyAdmin;
-import org.apache.river.api.security.RemotePolicyService;
+import au.net.zeus.jgdms.api.policy.RemotePolicyService;
 import org.junit.Test;
 import static org.junit.Assert.*;
 

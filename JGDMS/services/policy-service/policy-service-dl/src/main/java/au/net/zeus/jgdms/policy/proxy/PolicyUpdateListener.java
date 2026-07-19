@@ -41,8 +41,8 @@ import net.jini.lease.LeaseRenewalEvent;
 import net.jini.lease.LeaseRenewalManager;
 import org.apache.river.api.security.DefaultPolicyParser;
 import org.apache.river.api.security.PermissionGrant;
-import org.apache.river.api.security.RemotePolicyProvider;
-import org.apache.river.api.security.RemotePolicyService;
+import au.net.zeus.jgdms.api.policy.RemotePolicyProvider;
+import au.net.zeus.jgdms.api.policy.RemotePolicyService;
 
 /**
  * Client-side {@link RemoteEventListener} that subscribes to policy-grant

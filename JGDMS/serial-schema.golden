@@ -13,7 +13,7 @@ ATOMIC au.net.zeus.jgdms.hello.proxy.HelloServiceProxy  -  |
 ATOMIC au.net.zeus.jgdms.hello.proxy.HelloServiceProxy$ConstrainableHelloServiceProxy  -  | 
 ATOMIC au.net.zeus.jgdms.jfr.proxy.JfrTelemetryServiceProxy  -  | 
 ATOMIC au.net.zeus.jgdms.jfr.proxy.JfrTelemetryServiceProxy$ConstrainableJfrTelemetryServiceProxy  -  | 
-ATOMIC au.net.zeus.jgdms.policy.proxy.PolicyEventLease  -  | server:org.apache.river.api.security.RemotePolicyService, leaseId:net.jini.id.Uuid
+ATOMIC au.net.zeus.jgdms.policy.proxy.PolicyEventLease  -  | server:au.net.zeus.jgdms.api.policy.RemotePolicyService, leaseId:net.jini.id.Uuid
 ATOMIC au.net.zeus.jgdms.policy.proxy.PolicyUpdateEvent  -  | 
 ATOMIC au.net.zeus.jgdms.policy.proxy.RemotePolicyServiceProxy  -  | 
 ATOMIC au.net.zeus.jgdms.policy.proxy.RemotePolicyServiceProxy$ConstrainableRemotePolicyServiceProxy  -  | 
@@ -121,7 +121,7 @@ ATOMIC org.apache.river.api.io.MapSerializer  -  | entrySet:[Lorg.apache.river.a
 ATOMIC org.apache.river.api.io.MapSerializer$Ent  -  | key:java.lang.Object, value:java.lang.Object, keyClass:java.lang.Class, valueClass:java.lang.Class
 ATOMIC org.apache.river.api.io.MarshalledObjectSerializer  -  | instance:net.jini.io.MarshalledInstance
 ATOMIC org.apache.river.api.io.PropertiesSerializer  -  | m:org.apache.river.api.io.MapSerializer
-ATOMIC org.apache.river.api.io.ProxySerializer  -  | bootstrapProxy:net.jini.export.CodebaseAccessor, serviceProxy:net.jini.io.MarshalledInstance, proxyInterfaces:[Ljava.lang.String;
+ATOMIC org.apache.river.api.io.ProxySerializer  -  | bootstrapProxy:net.jini.export.CodebaseAccessor, serviceProxy:net.jini.io.MarshalledInstance
 ATOMIC org.apache.river.api.io.SetSerializer  -  | content:[Ljava.lang.Object;, comparator:java.util.Comparator
 ATOMIC org.apache.river.api.io.StackTraceElementSerializer  -  | declaringClass:java.lang.String, methodName:java.lang.String, fileName:java.lang.String, lineNumber:int
 ATOMIC org.apache.river.api.io.ThrowableSerializer  -  | clazz:java.lang.Class, message:java.lang.String, cause:java.lang.Throwable, stack:[Ljava.lang.StackTraceElement;, suppressed:[Ljava.lang.Throwable;, classname:java.lang.String, length:int, eof:boolean

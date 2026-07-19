@@ -35,7 +35,7 @@ import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.api.security.RemotePolicyService;
+import au.net.zeus.jgdms.api.policy.RemotePolicyService;
 import org.apache.river.start.lifecycle.LifeCycle;
 
 /**
