@@ -431,12 +431,15 @@ about from the code shape (G13).
 
 ---
 
-## 10. 2026-07-20 adversarial board review: two findings and their fixes
+## 10. 2026-07-20 adversarial board review: three review rounds
 
-A 3-seat adversarial board reviewed commit `967a59799` and returned BLOCK,
-entirely on the two findings below (the core reconstruction-gate property --
-§4, §8 above -- was independently confirmed sound by all three seats and is
-unchanged by this section).
+A 3-seat adversarial board reviewed commit `967a59799` and returned BLOCK
+across two review rounds (Findings 1-2 below), then a third round -- while
+specifically probing `DecodeDepthGuard`'s own self-flagged blind spot for a
+live crash -- found something more serious: silent wrong data, not a crash
+(the silent-field-loss finding, below Finding 2). The core reconstruction-
+gate property (§4, §8 above) was independently confirmed sound by all three
+seats across all rounds and is unchanged by this section.
 
 ### Finding 1 -- the per-field-independent-stream design did not cover array-typed fields
 
@@ -456,21 +459,18 @@ empirically false for this field shape; corrected in that javadoc directly
 
 **Fixes landed:**
 
-1. **Root cause (jgdms-platform, separate minimal commit):**
+1. **Root cause, stage 1 (jgdms-platform, separate minimal commit):**
    `AtomicMarshalInputStream.java:2030-2039` -- the `StreamCorruptedException`
    catch branch dereferenced `exceptions.isEmpty()` unconditionally, but
    `exceptions` is only assigned in the sibling `ClassNotFoundException`
    branch. Null-guarded: `if (exceptions != null && !exceptions.isEmpty())
-   break;`. **What this does and does not close, verified, not assumed:**
-   before the fix, a non-last `Externalizable` array element threw an
-   uncaught `NullPointerException`. After the fix, the *identical* input
-   throws a clean `StreamCorruptedException` ("unexpected end of block
-   data") instead -- the crash is gone, but the array still does not decode
-   successfully. The underlying cause (an `Externalizable` element's
-   block-data mode leaving the shared stream desynchronised for whatever
-   follows it) is a **separate, deeper bug this minimal, board-scoped fix
-   does not touch** -- flagged here for whoever owns
-   `AtomicMarshalInputStream` next, not assumed fixed.
+   break;`. At the time this landed, it closed the crash (uncaught
+   `NullPointerException` &rarr; clean `StreamCorruptedException`) but not
+   the underlying stream desynchronisation -- see the silent-field-loss
+   finding below, which traced that desync to its actual root cause and
+   closed it fully. **Current, final state:** this exact shape (a non-last
+   `Externalizable` array element) now round-trips correctly end to end,
+   field value intact -- not merely "fails cleanly."
 2. **Client-side containment (`SubProcessWireHandoffImpl
    .ForwardingInvocationHandler.invoke`):** `decodeInvokeReplyResult` and
    `decodeInvokeReplyException` are now wrapped in `catch (Throwable t)`
@@ -479,7 +479,9 @@ empirically false for this field shape; corrected in that javadoc directly
    primary blocker). A decode failure now always synthesises a clean
    `RemoteException`/`RuntimeException` via the same `synthesizeException`
    path used for ordinary reported business exceptions, category
-   `DECODE_FAILURE`.
+   `DECODE_FAILURE`. Kept regardless of stage-1's later full resolution --
+   this is a correct, load-bearing defence for any *other* decode failure
+   shape, known or not yet found.
 3. **Server-side symmetry (`SubProcessReconstructionServer`):** the three
    `catch (Exception e)` sites guarding attacker-controlled decode
    (`reconstruct`'s `decodeRequest` call, `dispatchInvoke`'s
@@ -488,12 +490,12 @@ empirically false for this field shape; corrected in that javadoc directly
    `StackOverflowError` (an `Error`, not caught by `Exception`) is
    contained the same way an ordinary decode `Exception` already was.
 
-**Verified current behaviour** (not "fixed," stated precisely):
-`SubProcessWireHandoffEndToEndTest#nonLastExternalizableArrayElement_failsCleanly_notWithRawNpe_throughFullStack`
-asserts the call now fails with a clean `RemoteException` that never
-contains the raw NPE message, and that the connection/stub remains usable
-for a subsequent call afterwards. It does **not** assert the array
-round-trips successfully, because it does not.
+**Verified current behaviour:**
+`SubProcessWireHandoffEndToEndTest#nonLastExternalizableArrayElement_roundTripsCorrectly_throughFullStack`
+asserts the call now succeeds, with the `Externalizable` element's own
+carried field intact on the far side -- upgraded from an earlier, more
+conservative "fails cleanly" assertion once the silent-field-loss
+investigation (below) found and fixed the actual root cause.
 
 ### Finding 2 -- unbounded decode-recursion depth (new, more severe)
 
@@ -565,6 +567,73 @@ would take) and
 `SubProcessWireHandoffEndToEndTest#deepNestedReply_rejectedCleanly_clientNeverCrashes_throughFullStack`
 (the full client/subprocess round trip, real `target.invoke()` building the
 deep structure, real dispatch).
+
+### Finding 3 (third review round) -- silent Externalizable field loss, not a crash
+
+While specifically probing whether `DecodeDepthGuard`'s own self-documented
+proxy/`Externalizable` blind spot could still let a live crash through, one
+seat found something worse: in the exact configuration `WireHandoffCodec`
+uses (`AtomicMarshalInputStream.create(..., readAnnotations=false)`),
+decoding a plain `Externalizable` object whose `readExternal()` reads a
+reference-typed field via `ObjectInput.readObject()` **silently succeeded
+with the field dropped** -- no exception, `readExternal()` never entered,
+the object constructed via its no-arg constructor with the field at its
+default value. The same class round-trips correctly through vanilla
+`java.io.ObjectOutputStream`/`ObjectInputStream`, confirming this is
+specific to this codec's `readAnnotations=false` path. `MarshalledInstance`
+(`@AtomicSerial`) and `CodebaseAccessor`/`bootstrapProxy` (a dynamic
+`Proxy`) go through entirely different decode branches and are unaffected
+-- this was a business-call-channel reliability/correctness bug, never a
+reconstruction-gate bypass.
+
+**Root cause, confirmed by direct instrumentation and byte-level stream
+dumps at each stage (not assumed), two compounding bugs:**
+
+1. `ObjOutputStream.writeNewClassDesc` only set the class descriptor's
+   `SC_EXTERNALIZABLE` flag for `@AtomicExternal`-annotated classes, even
+   though the sibling method that actually decides whether to call
+   `writeExternal()` (`writeNewObject`) checks plain `Externalizable.class
+   .isAssignableFrom(theClass)`, with no annotation requirement. Real
+   instance data was written under a class descriptor whose flags byte
+   falsely claimed "not serializable, not externalizable, zero declared
+   fields" (confirmed: `flags=0x00` in a byte-level dump of the actual
+   encoded stream). On read, `AtomicMarshalInputStream` faithfully believed
+   the wrong flags, took the field-table path instead of calling
+   `readExternal`, found zero declared fields, and silently left the real
+   written data on the wire unread. **Fixed:** also recognise plain
+   `Externalizable`, matching `writeNewObject`'s own check and matching
+   `AtomicMarshalInputStream`'s own read-side support for plain
+   `Externalizable` (gated by `DeSerializationPermission("EXTERNALIZABLE")`,
+   which never required the annotation either) -- three-way consistency
+   restored.
+2. Fixing (1) exposed a second, previously-latent bug:
+   `AtomicMarshalInputStream.readyPrimitiveData` unconditionally consumed
+   the next stream tag, assuming it was always a `TC_BLOCKDATA`/`TC_BLOCKDATALONG`/
+   `TC_RESET` marker -- but `ObjOutputStream.drain()` only emits one of
+   those when primitive data was actually buffered during `writeExternal`.
+   An `Externalizable` class whose `writeExternal`'s *first* call is an
+   object write (no preceding primitive write -- an entirely ordinary
+   pattern) has no such marker; the real first tag was being silently
+   swallowed here instead of reaching `readExternal`'s own read,
+   desynchronising the stream position for everything that followed.
+   **Fixed:** push the tag back (this class's own existing `pushbackTC`
+   mechanism, already used elsewhere) instead of discarding it, so it is
+   available, unconsumed, to whatever reads next.
+
+**This also fully closed Finding 1's own deeper residual** (§ above): the
+"stream desync when an `Externalizable` isn't the last array element" case
+that the stage-1 fix could only report cleanly, not resolve, now round-trips
+correctly -- the two bugs were the same underlying mechanism, reached via a
+different entry point.
+
+**Verified:** `ExternalizableFieldLossRegressionTest` (jgdms-platform;
+object-only-write shape cross-checked against vanilla `java.io` as ground
+truth, primitive-then-object regression guard, null/array-field boundary
+cases, a field-less negative control, and the board's original array-shape
+repro re-asserted with a *stateful* probe -- a field-less probe cannot
+detect this failure mode at all, since it has nothing to lose) and the
+upgraded `SubProcessWireHandoffEndToEndTest
+#nonLastExternalizableArrayElement_roundTripsCorrectly_throughFullStack`.
 
 ---
 

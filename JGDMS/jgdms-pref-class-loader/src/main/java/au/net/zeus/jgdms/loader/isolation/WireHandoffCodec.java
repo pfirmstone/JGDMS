@@ -73,19 +73,26 @@ import org.apache.river.api.io.AtomicMarshalOutputStream;
  * with each other; it does nothing for a <em>single</em> field whose own
  * value is itself a multi-element reference array -- exactly the shape of
  * {@code INVOKE_REQUEST.args} and {@code INVOKE_REPLY_RESULT}. The actual
- * fixes: (1) the root-cause null-guard landed directly in {@code
- * AtomicMarshalInputStream} (a separate, minimal jgdms-platform commit --
- * closes the {@code NullPointerException}, not the underlying stream-desync
- * itself: after the fix, this exact shape fails with a clean {@code
- * StreamCorruptedException} rather than round-tripping successfully or
- * crashing -- see {@code SubProcessWireHandoffEndToEndTest
- * #nonLastExternalizableArrayElement_failsCleanly_notWithRawNpe_throughFullStack}
- * for the verified, current behaviour); (2) {@link DecodeDepthGuard}, a
- * genuinely independent depth-nesting pre-check (unrelated to this specific
- * defect, added for Finding 2); (3) every {@code unmarshalOneField} caller
- * now wraps the call in {@code catch(Throwable)} and synthesises a clean
- * exception, so whatever this decoder's residual failure modes are, they
- * never propagate raw into calling application code.
+ * fixes: (1) a null-guard landed directly in {@code AtomicMarshalInputStream}
+ * (a separate, minimal jgdms-platform commit) closed the {@code
+ * NullPointerException} itself, but not yet the underlying stream
+ * desynchronisation -- that remained a separate, deeper bug at the time;
+ * (2) a follow-on investigation (third board review round, triggered by
+ * probing {@link DecodeDepthGuard}'s own documented {@code Externalizable}
+ * blind spot) found and fixed that deeper bug's actual root cause -- two
+ * compounding issues in {@code ObjOutputStream}/{@code
+ * AtomicMarshalInputStream}'s handling of plain (non-{@code @AtomicExternal})
+ * {@code Externalizable} classes, see the class-level javadoc history in
+ * those classes and {@code SOW-T4-Wire-Handoff-Protocol.md} section 10 --
+ * after which this exact shape round-trips <strong>correctly</strong>,
+ * verified by {@code SubProcessWireHandoffEndToEndTest
+ * #nonLastExternalizableArrayElement_roundTripsCorrectly_throughFullStack};
+ * (3) {@link DecodeDepthGuard}, a genuinely independent depth-nesting
+ * pre-check (unrelated to this specific defect, added for Finding 2); (4)
+ * every {@code unmarshalOneField} caller wraps the call in {@code
+ * catch(Throwable)} and synthesises a clean exception regardless, so
+ * whatever this decoder's residual failure modes are (known or not yet
+ * found), they never propagate raw into calling application code.
  *
  * <p>Each field's length prefix is validated against
  * {@link WireFraming#MAX_PAYLOAD_LEN} before allocation, the same
