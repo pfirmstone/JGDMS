@@ -2036,7 +2036,17 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 		    try {
 			objectArray[i] = readObject(false, discard, componentType);
 		    } catch (StreamCorruptedException e){
-			if (!exceptions.isEmpty()) break;
+			// Board review 2026-07-20 (T4 wire-handoff Finding 1):
+			// exceptions is only assigned in the ClassNotFoundException
+			// branch below; a StreamCorruptedException on an EARLIER
+			// element (before any ClassNotFoundException has been seen)
+			// hit this branch with exceptions still null, throwing an
+			// unguarded NullPointerException instead of the intended
+			// StreamCorruptedException. Null-guard restores the
+			// original intent: only swallow-and-break when we already
+			// have collected ClassNotFoundExceptions to report instead;
+			// otherwise propagate the real cause.
+			if (exceptions != null && !exceptions.isEmpty()) break;
 			throw e;
 		    } catch (ClassNotFoundException e){
 			if (indexes == null){
