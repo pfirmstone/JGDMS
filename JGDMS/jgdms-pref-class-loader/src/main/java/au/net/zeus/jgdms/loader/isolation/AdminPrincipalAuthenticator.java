@@ -40,8 +40,43 @@ import javax.security.auth.Subject;
  * i.e. the identity the caller is authenticated and executing as. In the live
  * transport (task&nbsp;T4) the stricter endpoint {@code MethodConstraints}
  * additionally enforce this at the wire before dispatch ever reaches here;
- * this gate is the in-process floor that holds even if a proxy reference is
- * captured and re-invoked.
+ * this gate is intended as the in-process floor that holds even if a proxy
+ * reference is captured and re-invoked.
+ *
+ * <h2>Why that claim requires an installed {@code SecurityManager}
+ * (2026-07-20 board finding, fixed)</h2>
+ * Name-matching against {@code Subject.current()}'s principals is, by
+ * itself, <strong>not</strong> proof of authenticated identity: any code
+ * running in this JVM can execute
+ * {@code new Subject(true, Set.of(forgedAdminPrincipal), Set.of(), Set.of())}
+ * and bind it as the ambient subject via {@code Subject.doAs}/
+ * {@code Subject.callAs} &mdash; construction and binding are both
+ * unprivileged operations. The <em>only</em> thing that makes that binding
+ * require authority is the JDK's own {@code AuthPermission("callAs")/AuthPermission("doAs")}
+ * check inside {@code Subject.doAs}/{@code callAs} &mdash; and the JDK
+ * performs that check <strong>only when a {@link SecurityManager} is
+ * installed</strong>; with none installed it is skipped entirely, so any
+ * hosted/business code (e.g. inside {@code SubProcessReconstructionServer
+ * #dispatchInvoke}, which does not itself wrap hosted-method execution in a
+ * {@code doAs} boundary) can forge the ambient {@code Subject} at will and
+ * this gate would otherwise trust it verbatim. This is exactly the same
+ * "NO-OP without an installed SecurityManager" shape as
+ * {@code DeSerializationPermission("ATOMIC")} elsewhere in JGDMS &mdash; the
+ * difference is that class's javadoc did not previously say so.
+ *
+ * <p><strong>Fix:</strong> {@link #isAdmin()} and {@link #requireAdmin} both
+ * check {@link System#getSecurityManager()} first and refuse
+ * <em>every</em> caller &mdash; including a genuinely authenticated admin
+ * &mdash; when no {@code SecurityManager} is installed, rather than trust an
+ * ambient {@code Subject} this class has no way to verify was legitimately
+ * bound. This turns the previous silent bypass into a loud, safe failure:
+ * the "holds even if a reference is captured and re-invoked" guarantee is
+ * now actually true whenever a {@code SecurityManager} is installed with a
+ * policy that does not grant {@code AuthPermission("callAs")/AuthPermission("doAs")} to
+ * untrusted/hosted code (the fail-closed default for any protection domain
+ * that isn't explicitly granted it) &mdash; and when no such
+ * {@code SecurityManager} is present, the gate no longer pretends to enforce
+ * a guarantee it cannot back.
  *
  * @since 3.1.1
  */
@@ -126,10 +161,19 @@ public final class AdminPrincipalAuthenticator {
     }
 
     /**
-     * @return {@code true} iff the current caller is authenticated as the
-     *         orchestrating admin principal.
+     * @return {@code true} iff a {@link SecurityManager} is installed AND
+     *         the current caller is authenticated as the orchestrating admin
+     *         principal. Always {@code false} when no {@code SecurityManager}
+     *         is installed &mdash; see the class javadoc: without one, the
+     *         ambient {@link Subject} this method reads cannot be trusted to
+     *         be genuinely authenticated rather than forged in-process, so
+     *         every caller is refused rather than any being trusted on an
+     *         unverifiable basis.
      */
     public boolean isAdmin() {
+        if (!securityManagerInstalled()) {
+            return false;
+        }
         Subject s = callerIdentity.current();
         if (s == null) return false;
         Set<Principal> principals = s.getPrincipals();
@@ -148,14 +192,49 @@ public final class AdminPrincipalAuthenticator {
      *
      * @param operation short description of the guarded operation, for the
      *        exception message
-     * @throws SecurityException if the current caller is not the admin
+     * @throws SecurityException if no {@link SecurityManager} is installed
+     *         (this class cannot verify the ambient {@link Subject} it would
+     *         read is genuine rather than forged; see the class javadoc), or
+     *         if the current caller is not the admin
      */
     public void requireAdmin(String operation) {
+        if (!securityManagerInstalled()) {
+            throw new SecurityException(
+                "Refused: no SecurityManager is installed in this JVM ("
+                + operation + " denied, fail-closed). Subject-name matching"
+                + " alone is not proof of identity: without an installed"
+                + " SecurityManager enforcing AuthPermission(\"doAs\"), any"
+                + " code in this JVM can construct new Subject(true,"
+                + " {forged admin principal}, ...) and bind it via"
+                + " Subject.doAs/Subject.callAs with no permission check at"
+                + " all, defeating the principal-name match this gate"
+                + " otherwise performs. This gate cannot distinguish that"
+                + " forged Subject from a genuinely authenticated one, so it"
+                + " refuses EVERY caller -- including a genuine admin --"
+                + " rather than silently trust an unverifiable Subject."
+                + " Install a SecurityManager, with a policy that does not"
+                + " grant AuthPermission(\"doAs\") to untrusted/hosted"
+                + " business-proxy code, to restore admin functionality.");
+        }
         if (!isAdmin()) {
             throw new SecurityException(
                 "Refused: caller is not authenticated as the orchestrating"
                 + " admin principal; " + operation + " denied (fail-closed)."
                 + " Interface declaration is not authority; authentication is.");
         }
+    }
+
+    /**
+     * @return {@code true} iff a {@link SecurityManager} is currently
+     *         installed. This is the same idiom used throughout JGDMS (e.g.
+     *         {@code PreferredClassProvider},
+     *         {@code PreferredProxyCodebaseProvider}) to detect whether the
+     *         JDK will actually enforce permission checks -- in particular,
+     *         whether {@code Subject.doAs}/{@code callAs} will enforce
+     *         {@code AuthPermission("callAs")/AuthPermission("doAs")} against the calling code before
+     *         allowing it to rebind the ambient {@link Subject}.
+     */
+    private static boolean securityManagerInstalled() {
+        return System.getSecurityManager() != null;
     }
 }

@@ -37,7 +37,9 @@ import net.jini.security.policy.DynamicPolicyProvider;
 import org.apache.river.api.security.LeasedPermissionGrant;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
+import org.junit.After;
 import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -176,6 +178,52 @@ public class SubProcessLocalPolicyAdminTest {
 
     private final Principal admin = name("spiffe://ctrl/admin");
     private final Principal hosted = name("spiffe://ctrl/hosted-proxy-owner");
+
+    // ==================================================================
+    // 2026-07-20 board finding fix: AdminPrincipalAuthenticator now requires
+    // an installed SecurityManager before it will trust ANY ambient Subject
+    // (see its class javadoc) -- without one it cannot tell a genuinely
+    // authenticated Subject from one forged in-process. Every test in this
+    // class exercises the authenticated-admin success path through the real
+    // T2 gate, so a permissive SecurityManager is installed for the
+    // duration of each test (restored afterwards); none of these tests are
+    // about the SecurityManager-presence check itself (that is covered by
+    // IsolationSecurityCriticalTest), so denying nothing keeps them focused
+    // on what they actually probe. grant_stillSurfacesInstallCeilingDenial
+    // below layers its own, stricter CeilingSecurityManager on top of this
+    // one for the portion of that test that needs it.
+    // ==================================================================
+
+    private SecurityManager previousSecurityManager;
+
+    @Before
+    public void installPermissiveSecurityManager() {
+        previousSecurityManager = System.getSecurityManager();
+        try {
+            System.setSecurityManager(new SecurityManager() {
+                @Override public void checkPermission(Permission perm) { }
+                @Override public void checkPermission(Permission perm, Object ctx) { }
+            });
+        } catch (UnsupportedOperationException noAllowFlag) {
+            Assume.assumeNoException(
+                    "needs -Djava.security.manager=allow", noAllowFlag);
+        }
+    }
+
+    @After
+    public void restoreSecurityManager() {
+        // Some JDKs (e.g. the DirtyChai build) refuse to revert an installed
+        // SecurityManager back to null once one has been set; only restore
+        // when there is something concrete to restore to.
+        if (previousSecurityManager == null) {
+            return;
+        }
+        try {
+            System.setSecurityManager(previousSecurityManager);
+        } catch (UnsupportedOperationException ignore) {
+            // Nothing was actually installed by @Before either, in this case.
+        }
+    }
 
     // ==================================================================
     // Probe 1: unreachable without the T2 authentication gate.

@@ -37,6 +37,7 @@ import javax.security.auth.Subject;
 import net.jini.security.GrantPermission;
 import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.PermissionGrant;
+import org.junit.Assume;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -372,45 +373,72 @@ public class SubProcessGrantOrchestratorTest {
     @Test
     public void realAdminGate_nonAdminCallerCannotBypass_viaOrchestrator()
             throws Exception {
-        Principal admin = principal("spiffe://ctrl/admin");
-        RecordingPolicyAdmin backing = new RecordingPolicyAdmin();
-        Caller caller = new Caller(); // unauthenticated: subject == null
-
-        SubProcessPolicyAdmin realAdminSurface =
-                new SubProcessPolicyAdmin(admin, backing, caller);
-
-        SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
-        IsolationPoolingKey target = key("spiffe://example/workload/target");
-        registry.register(target, realAdminSurface);
-
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
-
+        // 2026-07-20 board finding fix: AdminPrincipalAuthenticator now
+        // requires an installed SecurityManager before it will trust ANY
+        // ambient Subject -- without one it refuses even a genuinely
+        // authenticated admin (see IsolationSecurityCriticalTest for that
+        // dedicated coverage). This test is about the orchestrator adding no
+        // bypass of the real gate, not about the SecurityManager-presence
+        // check itself, so a permissive SecurityManager is installed for the
+        // duration of the test.
+        SecurityManager previous = System.getSecurityManager();
         try {
-            orchestrator.applyVerdictCeiling(
+            System.setSecurityManager(new SecurityManager() {
+                @Override public void checkPermission(Permission perm) { }
+                @Override public void checkPermission(Permission perm, Object ctx) { }
+            });
+        } catch (UnsupportedOperationException noAllowFlag) {
+            Assume.assumeNoException(
+                    "needs -Djava.security.manager=allow", noAllowFlag);
+            return;
+        }
+        try {
+            Principal admin = principal("spiffe://ctrl/admin");
+            RecordingPolicyAdmin backing = new RecordingPolicyAdmin();
+            Caller caller = new Caller(); // unauthenticated: subject == null
+
+            SubProcessPolicyAdmin realAdminSurface =
+                    new SubProcessPolicyAdmin(admin, backing, caller);
+
+            SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
+            IsolationPoolingKey target = key("spiffe://example/workload/target");
+            registry.register(target, realAdminSurface);
+
+            SubProcessGrantOrchestrator orchestrator =
+                    new SubProcessGrantOrchestrator(registry);
+
+            try {
+                orchestrator.applyVerdictCeiling(
+                        target, verdict(VerdictType.SAFE), HASH,
+                        new Permission[]{ new PropertyPermission("java.version", "read") },
+                        new GrantPermission(new PropertyPermission("java.version", "read")),
+                        false);
+                fail("an unauthenticated caller must be refused by the real T2"
+                        + " admin gate; the orchestrator must not bypass it");
+            } catch (SecurityException expected) {
+                // good: the real gate's own fail-closed check fired, unchanged.
+            }
+            assertEquals("no grant may reach the backing without authenticating"
+                    + " as the admin principal",
+                    0, backing.grants.size());
+
+            // Now authenticate as the real admin principal and confirm the same
+            // orchestrator call succeeds end-to-end through the real gate.
+            caller.subject = subjectWith(admin);
+            Permission[] returned = orchestrator.applyVerdictCeiling(
                     target, verdict(VerdictType.SAFE), HASH,
                     new Permission[]{ new PropertyPermission("java.version", "read") },
                     new GrantPermission(new PropertyPermission("java.version", "read")),
                     false);
-            fail("an unauthenticated caller must be refused by the real T2"
-                    + " admin gate; the orchestrator must not bypass it");
-        } catch (SecurityException expected) {
-            // good: the real gate's own fail-closed check fired, unchanged.
+            assertEquals(1, returned.length);
+            assertEquals(1, backing.grants.size());
+        } finally {
+            // Some JDKs (e.g. the DirtyChai build) refuse to revert an
+            // installed SecurityManager back to null once one has been set.
+            if (previous != null) {
+                System.setSecurityManager(previous);
+            }
         }
-        assertEquals("no grant may reach the backing without authenticating"
-                + " as the admin principal",
-                0, backing.grants.size());
-
-        // Now authenticate as the real admin principal and confirm the same
-        // orchestrator call succeeds end-to-end through the real gate.
-        caller.subject = subjectWith(admin);
-        Permission[] returned = orchestrator.applyVerdictCeiling(
-                target, verdict(VerdictType.SAFE), HASH,
-                new Permission[]{ new PropertyPermission("java.version", "read") },
-                new GrantPermission(new PropertyPermission("java.version", "read")),
-                false);
-        assertEquals(1, returned.length);
-        assertEquals(1, backing.grants.size());
     }
 
     // ---------------------------------------------------- digest scoping
