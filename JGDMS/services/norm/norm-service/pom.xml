@@ -51,7 +51,30 @@
             <artifactId>service-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
-		
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          Test-only: provides the DER MarshalFactoryProvider (ServiceLoader
+          discovered by net.jini.io.MarshalledInstance) so that tests can
+          actually decode MarshallingFormat.ATOMIC_DER-tagged instances at
+          test-runtime, exercising the same write sites converted from
+          AtomicMarshalledInstance (JOSS) to DER by commit 221fe251c
+          (ClientLeaseWrapper, EventType, JoinState). Not referenced by any
+          compiled symbol in main or test sources, purely a runtime SPI
+          provider (same pattern as reggie-dl's EntryRepDerFormatTest).
+        -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-der</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -72,7 +95,22 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin> 
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- DER-format round-trip tests build real MarshalledInstance
+                             payloads, whose marshalling machinery can consult
+                             RMIClassLoader for codebase annotations. Use the default
+                             RMI class provider so the test JVM needs no
+                             preferred-class-loader SPI on its classpath (same pattern
+                             as outrigger-service/EntryFieldIndexTest and
+                             reggie-dl/EntryRepDerFormatTest). -->
+                        <java.rmi.server.RMIClassLoaderSpi>default</java.rmi.server.RMIClassLoaderSpi>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
