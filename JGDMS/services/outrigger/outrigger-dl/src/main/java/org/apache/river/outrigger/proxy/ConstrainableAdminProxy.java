@@ -31,8 +31,6 @@ import net.jini.core.entry.Entry;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -257,15 +255,6 @@ public final class ConstrainableAdminProxy extends AdminProxy
 
     public MethodConstraints getConstraints() {
 	return methodConstraints;
-    }
-
-    /** 
-     * Returns a proxy trust iterator that is used in 
-     * <code>ProxyTrustVerifier</code> to retrieve this object's
-     * trust verifier.
-     */
-    private ProxyTrustIterator getProxyTrustIterator() {
-	return new SingletonProxyTrustIterator(admin);
     }
 
     /**

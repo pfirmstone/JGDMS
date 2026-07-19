@@ -23,8 +23,6 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.Stateless;
@@ -100,14 +98,5 @@ public final class ConstrainableParticipantProxy extends ParticipantProxy
 
     public MethodConstraints getConstraints() {
 	return ((RemoteMethodControl)space).getConstraints();
-    }
-    
-    /**
-     * Returns a proxy trust iterator that is used in
-     * <code>ProxyTrustVerifier</code> to retrieve this object's
-     * trust verifier.
-     */
-    private ProxyTrustIterator getProxyTrustIterator() {
-	return new SingletonProxyTrustIterator(space);
     }
 }

@@ -33,8 +33,6 @@ import net.jini.core.lease.Lease;
 import net.jini.core.transaction.Transaction;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import net.jini.space.JavaSpace;
 import net.jini.space.JavaSpace05;
 import org.apache.river.api.io.AtomicSerial;
@@ -285,15 +283,6 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 
     public MethodConstraints getConstraints() {
 	return methodConstraints;
-    }
-
-    /** 
-     * Returns a proxy trust iterator that is used in 
-     * <code>ProxyTrustVerifier</code> to retrieve this object's
-     * trust verifier.
-     */
-    private ProxyTrustIterator getProxyTrustIterator() {
-	return new SingletonProxyTrustIterator(space);
     }
 
     protected Lease constructLease(Uuid uuid, long expiration) {
