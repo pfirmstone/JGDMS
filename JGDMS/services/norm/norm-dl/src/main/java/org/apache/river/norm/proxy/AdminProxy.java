@@ -27,8 +27,6 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.Stateless;
@@ -180,13 +178,6 @@ public abstract class AdminProxy extends AbstractProxy implements JoinAdmin, Des
 	/* inherit javadoc */
 	public MethodConstraints getConstraints() {
 	    return ((RemoteMethodControl) server).getConstraints();
-	}
-
-	/**
-	 * Returns a proxy trust iterator that yields this object's server.
-	 */
-	private ProxyTrustIterator getProxyTrustIterator() {
-	    return new SingletonProxyTrustIterator(server);
 	}
     }
 }
