@@ -37,8 +37,6 @@ import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -289,14 +287,5 @@ public abstract class TxnMgrProxy implements TransactionManager, Administrable,
 
         /* Note that the superclass's hashCode method is OK as is. */
         /* Note that the superclass's equals method is OK as is. */
-
-        /**
-         * Returns a proxy trust iterator that is used in
-         * <code>ProxyTrustVerifier</code> to retrieve this object's
-         * trust verifier.
-         */
-        private ProxyTrustIterator getProxyTrustIterator() {
-            return new SingletonProxyTrustIterator(backend);
-        }//end getProxyTrustIterator
     }
 }
