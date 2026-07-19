@@ -35,7 +35,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * @author peter
  */
 @AtomicSerial
-public class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Serializable {
+class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Serializable {
     
     private static final long serialVersionUID = 1L;
     
