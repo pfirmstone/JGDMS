@@ -87,7 +87,7 @@ import org.apache.river.resource.ServiceConfigurationError;
  * (which every object in the graph can read); hence the narrow same-package channel.
  */
 @AtomicSerial
-public class DerProxySerializer implements Resolve {
+class DerProxySerializer implements Resolve {
 
     private static final String HANDLER       = "handler";
     private static final String SERVICE_PROXY = "serviceProxy";

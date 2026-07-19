@@ -19,13 +19,18 @@ package au.net.zeus.jgdms.der.object;
 
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import net.jini.export.DynamicProxyCodebaseAccessor;
+import net.jini.export.ProxyAccessor;
 
 /**
  * Shared read/write-side support for the bare {@code [8]} {@code java.lang.reflect.Proxy} wire
@@ -50,6 +55,32 @@ public final class ProxyWireSupport {
 
     private ProxyWireSupport() {
         throw new AssertionError("no instances");
+    }
+
+    /**
+     * Static-dispatch seam onto {@link DerProxySerializer#create(DynamicProxyCodebaseAccessor,
+     * ClassLoader, Collection)} for callers outside this package. {@link DerProxySerializer} is
+     * package-private (matching the shape of its JOSS counterpart, {@code
+     * org.apache.river.api.io.ProxySerializer}), so cross-package write seams ({@code
+     * DerObjectStreamCodec}, {@code DerMarshalInstanceOutput}) reach it through this forwarder
+     * rather than through a public class. Substitutes a downloadable {@code
+     * java.lang.reflect.Proxy}; returns {@code proxy} unchanged if not applicable.
+     */
+    public static Object substituteDownloadableProxy(DynamicProxyCodebaseAccessor proxy,
+            ClassLoader streamLoader, Collection<?> context) throws IOException {
+        return DerProxySerializer.create(proxy, streamLoader, context);
+    }
+
+    /**
+     * Static-dispatch seam onto {@link DerProxySerializer#create(ProxyAccessor, ClassLoader,
+     * Collection)} for callers outside this package -- see {@link
+     * #substituteDownloadableProxy(DynamicProxyCodebaseAccessor, ClassLoader, Collection)}.
+     * Substitutes a downloadable smart proxy ({@link ProxyAccessor}); returns {@code svc}
+     * unchanged if not applicable.
+     */
+    public static Object substituteDownloadableProxy(ProxyAccessor svc,
+            ClassLoader streamLoader, Collection<?> context) throws IOException {
+        return DerProxySerializer.create(svc, streamLoader, context);
     }
 
     /**
