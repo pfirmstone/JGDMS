@@ -67,6 +67,23 @@
             <version>1.7</version>
             <scope>test</scope>
         </dependency>
+        <!--
+          Test-only: provides the DER MarshalFactoryProvider (ServiceLoader
+          discovered by net.jini.io.MarshalledInstance) so that tests can
+          actually decode MarshallingFormat.ATOMIC_DER-tagged instances at
+          test-runtime (JoinStateManagerDerFormatTest,
+          StorableReferenceDerFormatTest, covering the outrigger write
+          sites from the AtomicMarshalledInstance to DER migration, commit
+          221fe251c). Not referenced by any compiled symbol in main or test
+          sources, purely a runtime SPI provider (same pattern as
+          reggie-dl's test-scope jgdms-der dependency).
+        -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-der</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
