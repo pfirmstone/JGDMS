@@ -105,14 +105,17 @@ false confidence.
 ### Sequencing
 
 - **Now, parallel:** **T1** (grant-application backend — independent), **T2** (wire handoff — independent,
-  the long pole given its risk class), **T5** (DerProxySerializer — fully independent of the rest).
-- **After T1:** **T3**'s stub-based build can start anytime, but its full integration test needs T1 real
-  and ideally T2 landed (for a genuine "verdict becomes known" trigger).
+  the long pole given its risk class), **T5** (DerProxySerializer — fully independent of the rest), and
+  **T3**'s stub-based build (against a stub `PolicyAdmin`/stub subprocess — independent of T1/T2 for this
+  part only).
+- **Before T3 can integrate for real:** its full integration test needs T1 landed (a real `PolicyAdmin`
+  target) and ideally T2 landed too (for a genuine "verdict becomes known" trigger, rather than a manually
+  injected one).
 - **After T1, T2, T3 substantially done:** **T4** — system-level adversarial pass, not just per-component
-  (matching this session's own precedent: the TOCTOU bug in T2(wiring) was found at exactly this kind of
-  pass, not in the component-level board review that preceded it — actually it *was* found at
-  component-level board review this time; the point stands regardless, a system-level pass looks for
-  different failure modes than a component-level one and both are warranted).
+  (a system-level pass looks for different failure modes than a component-level one — the TOCTOU bug in
+  T2(wiring) was actually caught at component-level board review, not a system-level pass, but that
+  doesn't make the system-level pass optional; both are warranted, and each catches classes of defect the
+  other can miss).
 - **After T1-T4:** **T6** (QA investigation — needs something concrete to run against).
 - **Last:** **T7**, once the above is real, not planned.
 
