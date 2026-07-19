@@ -435,6 +435,24 @@ public final class SchemaGenerator {
         // Only Collection/Map fields need the generic-signature rule. Everything else (scalars,
         // arrays, enums, nested @AtomicSerial, interface/abstract polymorphic slots) is unchanged.
         if (!Collection.class.isAssignableFrom(raw) && !Map.class.isAssignableFrom(raw)) {
+            // A field declared EXACTLY Object.class (e.g. RemoteEvent.source, inherited from
+            // java.util.EventObject) is intercepted HERE -- in the non-collection branch, BEFORE
+            // falling through to toWireType(Class,...) -- and routed to the closed-subset Any
+            // form (memo docs/der-type-model-and-element-rule.md §2.1/§3), the same total,
+            // rule-selected outcome ruleForElement() already gives a genuinely unresolvable
+            // collection ELEMENT type. This is deliberately NOT done inside toWireType(Class,...)
+            // itself: that method is also invoked recursively for array COMPONENT types (and
+            // independently for top-level array derivation, ObjectCodec.java) so patching it
+            // there would silently also flip any Object[]-typed serial field to "array:any",
+            // outside this change's reviewed scope. Every other concrete non-@AtomicSerial type
+            // remains hard-rejected by toWireType exactly as before -- the rule keys on the
+            // declaration the developer already wrote (G4); Object.class is the ONLY concrete
+            // class given this special-case treatment, because it is the ONLY concrete class
+            // that can never be schema-covered (every other concrete type either maps to a
+            // scalar wire-type or is hard-rejected on purpose).
+            if (raw == Object.class) {
+                return ANY;
+            }
             return toWireType(raw, declaring);
         }
         // Recover the declared generic Type of the backing field by name (memo §7 Option A).

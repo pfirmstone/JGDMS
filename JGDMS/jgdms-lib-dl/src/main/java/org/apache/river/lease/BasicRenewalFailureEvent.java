@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
+import net.jini.core.event.RemoteEvent;
 import net.jini.core.lease.Lease;
 import net.jini.io.MarshalledInstance;
 import net.jini.lease.LeaseRenewalSet;
@@ -75,20 +76,33 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
     }
 
     private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
-	MarshalledInstance marshalledThrowable = 
+	MarshalledInstance marshalledThrowable =
 		(MarshalledInstance) arg.get("marshalledThrowable", null);
-	MarshalledInstance marshalledLease = 
+	MarshalledInstance marshalledLease =
 		(MarshalledInstance) arg.get("marshalledLease", null);
 	if (marshalledThrowable == null && marshalledLease == null) throw
 		new NullPointerException("At least one field must be non null");
+	// Layer-2 narrowing pattern (RemoteEvent's class javadoc): defensively construct a plain
+	// RemoteEvent from arg (RenewalFailureEvent, this class's abstract ancestor, declares no
+	// (GetArg)-visible check of its own beyond super(arg)) and narrow ITS getSource() to this
+	// class's real expected source type. source is documented (constructor Javadoc below) as
+	// "the LeaseRenewalSet that generated the event".
+	RemoteEvent sup = new RemoteEvent(arg);
+	if (!(sup.getSource() instanceof LeaseRenewalSet))
+	    throw new java.io.InvalidObjectException("source must be a LeaseRenewalSet");
 	return arg;
     }
     
     public BasicRenewalFailureEvent(GetArg arg) throws IOException, ClassNotFoundException {
-	super(arg);
-	marshalledThrowable = 
+	// check(arg) was previously defined but never invoked -- a pre-existing, independent gap
+	// (found while adding the source-narrowing check above): the "at least one field must be
+	// non null" invariant never actually ran at decode time. Wired up here per the
+	// @AtomicSerial check-before-construction discipline, matching this codebase's established
+	// super(check(arg)) convention (e.g. OutriggerAvailabilityEvent, RegistrarEvent).
+	super(check(arg));
+	marshalledThrowable =
 		(MarshalledInstance) arg.get("marshalledThrowable", null);
-	marshalledLease = 
+	marshalledLease =
 		(MarshalledInstance) arg.get("marshalledLease", null);
 	verifyCodebaseIntegrity = MarshalledWrapper.integrityEnforced(arg);
     }
