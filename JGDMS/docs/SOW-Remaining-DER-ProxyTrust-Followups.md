@@ -8,23 +8,36 @@ agent for adversarial review before merge — do not merge any of these to trunk
 
 ## Items
 
-1. **Live `GETTING_STARTED.md` verification of tightened hello-world/archetype policies** *(task
-   #16, low effort, high value-for-effort).*
+1. ~~**Live `GETTING_STARTED.md` verification of tightened hello-world/archetype policies**~~
+   *(task #16, PARKED 2026-07-19 per Peter's call — hello-world is example-only, lower priority
+   than other work; not pursuing further live-round-trip effort here.)*
    Commit `9ac2fda97` (merged `b2dca4262`) replaced `AllPermission` grants to the Reggie `-dl` jar
-   in `hello-client.policy`, `hello-service.policy`, and the two archetype template policies with
-   the same minimal set `deploy/policy/host*.policy` already uses (`DeSerializationPermission
-   "ATOMIC"`/`"ENTRY"`, `RuntimePermission "accessClassInPackage.com.sun.proxy"`). Only verified
-   so far: the `.policy` files parse cleanly under DirtyChai's `PolicyFile` provider. **Never
-   verified live**: no automated policy-enforcement test exists for hello-world, so the only way to
-   confirm the narrowed grants are actually *sufficient* (not just well-formed) is a real walkthrough
-   — build the example under a DirtyChai JDK, start multicast discovery, run service + client, and
-   confirm the full round trip (discover → download Reggie proxy → invoke) completes with no
-   `SecurityException`. If it fails, identify and add back the missing permission narrowly (never
-   revert to `AllPermission`) by diffing against what `deploy/policy`'s production posture grants
-   that this path needs but the tightened example doesn't.
-   Scope: `GETTING_STARTED.md` walkthrough only, no code change unless the round trip actually fails.
-   See [[jgdms-hello-world-policy-tightening-unverified-live]] / [[jgdms-local-build-env]] /
-   [[dirtychai-build]] for environment setup.
+   with the same minimal set `deploy/policy/host*.policy` already uses. A live-verification pass
+   confirmed the tightened grant is genuinely insufficient for a live plain-TCP run (missing a
+   `SocketPermission` for the registrar's remote callback plus several infra permissions,
+   surfaced by `polpAudit`), but there's no production line to copy: production's socket grant
+   comes from authenticated `SpiffePrincipal` grants that don't exist in the unauthenticated
+   tutorial. Correct fix if this is revisited: regenerate the policy with `polpAudit` once a
+   round trip can actually complete — not a hand-added permission. **The round trip itself never
+   completed**, blocked by two bugs unrelated to policy or to hello-world specifically, surfaced
+   as a side effect and left unfixed here (out of this task's scope, flagged separately, not
+   confirmed as prioritized):
+   - `JoinManagerImpl.getConfig` (`jgdms-lib/.../discovery/JoinManagerImpl.java:2656-2657`,
+     verified directly against source) has a real De Morgan logic bug — `!(A) || B` where the
+     error message implies the intended check was `!(A || B)` — so it throws
+     `IllegalArgumentException("serviceProxy must be @AtomicSerial or an instance of
+     java.lang.reflect.Proxy")` for **every** `java.lang.reflect.Proxy`-shaped service
+     unconditionally, not just ones failing the stated requirement. Not hello-world-specific:
+     blocks registration for any Dynamic-shape service in the reactor. Worth its own look
+     independent of this task's fate.
+   - A client-side `ServiceDiscoveryManager` NPE ("proxy is null") during event registration,
+     unconfirmed whether it's the same root cause as the already-tracked
+     [[jgdms-discovery-notserializable-proxy]] or a distinct manifestation.
+   - Minor, genuinely example-only: tutorial configs use invalid `new T[0]` array-literal syntax
+     (should be `new T[]{}`), and the documented classpath is missing the
+     service-proxy-annotations jar.
+   No code committed; worktree left clean. See
+   [[jgdms-hello-world-policy-tightening-unverified-live]] for the full trace.
 
 2. **Decide the `BoomerangProxyHandler` / constrained `ProxyPreparer` regression risk** *(task #18,
    decision-then-maybe-fix, blocked on Peter's call, not an agent task on its own).*
