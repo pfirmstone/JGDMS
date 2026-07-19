@@ -721,6 +721,82 @@ constrained construct in this standard.
 > a grammar/language risk. Doesn't change the format recommendation; does change
 > what §11's eventual SOW needs to scope as its real first task.
 
+> **Verified 2026-07-20 (the data side of the restricted-filter decision: schema-visible
+> DER makes class-free filtering real — checked directly against trunk, not assumed).**
+> Prompted by the question "can a filter evaluate over serialized data *contents* without
+> classes — e.g. observe string and numeric field values": **yes, and the substrate is
+> already built.** STD-006 §2.3/§3.11's data-independence property ("the schema is the
+> key, not the class") is implemented, not aspirational: `MarshalledInstanceRecord`
+> (`jgdms-der`, `.../der/marshal/MarshalledInstanceRecord.java`) unconditionally embeds
+> `schemaBytes` — the Merkle-chained per-class `AtomicSerialSchemaRecord`, each carrying
+> an **ordered `wireName`/`wireType` field list** — beside `payloadBytes`, whose scalar
+> fields are **native DER primitives** (INTEGER for integrals, UTF8String for `String`,
+> strict-canonical IEEE-754 OCTET STRING for float/double; `ObjectCodec.encodeValue`,
+> `.../der/object/ObjectCodec.java:1066-1142`). And the class-free reader already
+> exists: `ObjectCodec.decodeToFieldMap` (`ObjectCodec.java:892`) decodes payload bytes
+> into a `className → (fieldName → value)` map using only the embedded schema — no
+> `Class.forName`, no constructor, no `check(GetArg)` — exercised by
+> `Std006ConformanceTest`. Direct consequences for this section's open items:
+>
+> - **A CEL evaluator needs no classes at the evaluation site.** It binds identifiers
+>   to the schema's field names and reads typed values from the projection; CEL's type
+>   set maps nearly 1:1 onto the §3.12 wire scalars. This holds identically for a
+>   non-JVM host — schema-driven DER projection is language-neutral by design (§2.3's
+>   "polyglot access" is this same mechanism), which is exactly the both-Rust-and-Java
+>   requirement behind the 2026-07-17 decision above.
+> - **Evidence toward the "does `FUNCTION` still need a codebase/separate stream"
+>   bullet above (still Peter's ratification, but the evidence now points one way):
+>   nothing downloads in either direction.** The filter is a DER-encoded expression
+>   riding the existing stream; the candidates are schema-bearing DER read without
+>   classes; the evaluator is platform code both ends already hold. The filter
+>   genuinely collapses into RULE-B1's ordinary-parameter world (§9.1).
+> - **No reconstruction surface at all.** The filter path reads scalar values out of
+>   validated TLVs and never reconstructs objects — no `DeSerializationPermission`
+>   gate crossed, no gadget surface, nothing left for the old RULE-F1/F3 bytecode
+>   mechanisms to police. Because `check(GetArg)` never runs in class-free decode,
+>   the filter's verdict is **pre-selection only**: the taking client still performs
+>   the full gated deserialization on anything it accepts, so filter false-positives
+>   cost bandwidth, never integrity. A candidate whose bytes fail canonical decode,
+>   or whose schema lacks a referenced field, MUST be **no-match, fail-closed**
+>   (CEL `has()` semantics cover benign schema evolution).
+> - **The projection reader MUST be the same fail-closed codec** — canonical-form
+>   rejection, `schemaDigest` verified against `schemaBytes` before use,
+>   `maxFields`/`maxCollection` bounds — never a second, lenient "peek at the
+>   strings" scanner (one-encoding-per-value, board guidance G1).
+>   `decodeToFieldMap` currently decodes *all* fields; a lazy projector that skips
+>   untouched fields via DER TLV lengths is a small optimization over the existing
+>   reader, not new architecture.
+> - **Matching-key decision needed:** a sender controls its own `schemaBytes`, so
+>   "which candidates does this filter apply to" needs a deliberate key —
+>   `className` string (coarse) vs `schemaDigest` (exact) — blast radius of a lying
+>   schema is confined to the sender's own entries either way, but the key choice is
+>   a real design decision, not a default.
+> - **Honesty note — data independence cuts both ways:** a schema-bearing entry is
+>   trivially readable by whoever holds the bytes (space/registrar operator, disk
+>   image). Under JOSS that took the class; under DER it takes nothing.
+>   Confidentiality of entry contents is a transport/storage-control property and
+>   should be stated as such, not left implied.
+> - **The hard dependency: class-free filtering only works over `ATOMIC_DER`-
+>   marshalled entries — and today neither first consumer produces them by
+>   default.** Outrigger's `EntryRep` has **no DER path at all** (plain JOSS-default
+>   `MarshalledInstance` construction, `outrigger-dl/.../proxy/EntryRep.java:338,406`);
+>   Reggie's exists but is config-gated **default-off** (`useDerForEntries`,
+>   `RegistrarImpl.java:5262`, per-relationship via `MarshallingFormat.ATOMIC_DER`
+>   constraint). This corrects §11's 2026-07-17 cost note — see the 2026-07-20
+>   correction there. Migration scoped as `SOW-Entry-ATOMIC-DER-Migration.md`; the
+>   evaluator primitive remains `SOW-CEL-Filter-Format.md`.
+
+> **RATIFIED 2026-07-20 (Peter): the 2026-07-17 format recommendation above is
+> adopted.** CEL grammar/semantics as the filter/transform language; self-written,
+> minimal, DER-native evaluators — not `cel-java`/`cel-rust` as dependencies.
+> Implementation started the same day per `SOW-CEL-Filter-Format.md`, T1 first
+> (grammar/semantics spec, as `JGDMS-STD-011-CEL-Filter-Expression-Format`). The
+> Rust evaluator (T4) is **deferred, not dropped**: Rust participation is planned,
+> sequenced behind a Rust JERI DER implementation, which itself follows the current
+> JERI-DER join-manager QA work (in flight 2026-07-20). T5's cross-language
+> conformance corpus is what keeps that deferral honest — the Rust evaluator
+> validates against it when it lands.
+
 ### 8.1 Wire form — `@AtomicSerial @Stateless` (RULE-F1)
 
 A filter **MUST** be `@AtomicSerial` (it crosses the wire; the atomic engine is the
@@ -1286,6 +1362,22 @@ bolt-on.
 >   than in Reggie (partial typed carve-out already exists). Whoever scopes §11 into
 >   a real task breakdown should treat that as the actual first-class task, not a
 >   rider on existing infrastructure the way this section currently implies.
+>
+> **Corrected again 2026-07-20 — the bullet above located the cost in the right
+> services but the wrong layer.** "New typed-field-projection matching-runtime work"
+> overstated what needs inventing: the typed-projection substrate **already exists on
+> trunk** in `jgdms-der` (`ObjectCodec.decodeToFieldMap` — class-free
+> `className → (fieldName → value)` decode driven by the schema embedded in every
+> `ATOMIC_DER` `MarshalledInstanceRecord`; see §8's 2026-07-20 verification note for
+> the full mechanism and evidence). Given `ATOMIC_DER` bytes, field names and typed
+> values (strings, numerics, collections) are recoverable with **no class and no
+> constructor**. The real gap is **format adoption by the entry paths**: Outrigger's
+> `EntryRep` marshals every field through the JOSS-default `MarshalledInstance`
+> constructor (no DER path exists), and Reggie's DER entry path exists but defaults
+> off (`useDerForEntries = false`). So the first-class task is the `ATOMIC_DER`
+> migration of entry marshalling (plus a lazy field projector and the matching-path
+> wiring), not the invention of typed field storage — scoped in
+> `SOW-Entry-ATOMIC-DER-Migration.md`.
 
 ---
 

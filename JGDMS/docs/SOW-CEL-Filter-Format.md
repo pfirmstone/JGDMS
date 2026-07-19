@@ -1,7 +1,12 @@
 # Scope of Work — CEL-shaped filter/predicate format for `@RemoteFunction` (`FUNCTION` form), DER-native
 
 - **Drafted:** 2026-07-17.
-- **Status:** DRAFT — task breakdown for review, no implementation started.
+- **Status:** IN PROGRESS (2026-07-20) — the format recommendation was **ratified by Peter**
+  (recorded in STD-009 §8); T1 started, deliverable
+  `JGDMS-STD-011-CEL-Filter-Expression-Format-v0.1-DRAFT.md`. **T4 (Rust evaluator) deferred,
+  not dropped**: sequenced behind a Rust JERI DER implementation, which follows the JERI-DER
+  join-manager QA work in flight 2026-07-20; T5's conformance corpus is the deferral's safety
+  net.
 - **Origin:** `JGDMS-STD-009-Service-RemoteFunction-Annotation-Model-v0.1-DRAFT.md` §8's 2026-07-17
   decision note (filters are not standard JVM bytecode; the same mechanism must serve both Rust and Java
   services) and the format-recommendation note that follows it (CEL grammar/semantics, custom
@@ -79,6 +84,13 @@ DER wire encoding, and two independently-written, spec-conformant evaluators (Ja
   typed today, everything is opaque `MarshalledInstance` bytes; Reggie: partial typed carve-out already
   exists for immutable attribute types). That is substantial, per-service, existing-code-touching
   engineering — scope it as its own follow-on SOW once this one's primitive exists, not folded in here.
+  *Update 2026-07-20:* that follow-on now exists — `SOW-Entry-ATOMIC-DER-Migration.md` — and it
+  **corrects this bullet's framing**: the typed-projection substrate already exists on trunk in
+  `jgdms-der` (class-free `ObjectCodec.decodeToFieldMap` over the schema embedded in every `ATOMIC_DER`
+  `MarshalledInstanceRecord`; STD-009 §8's 2026-07-20 note has the evidence), so the real per-service
+  work is `ATOMIC_DER` adoption by the entry-marshalling paths plus a lazy field projector and
+  matching-path wiring — not inventing typed field storage. That SOW also scopes the Outrigger
+  filter-integration design (the next bullet's deferred wiring) at Peter's request, 2026-07-20.
 - **Not building the Reggie/Outrigger integration wiring itself** (routing a matched-against-a-filter
   candidate through this new evaluator in each service's real matching path) — depends on both this SOW
   and the typed-field-projection follow-on above.
