@@ -17,8 +17,8 @@
 
 package au.net.zeus.jgdms.der.marshal;
 
-import au.net.zeus.jgdms.der.object.DerProxySerializer;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
+import au.net.zeus.jgdms.der.object.ProxyWireSupport;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
@@ -182,9 +182,9 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
         // DerProxySerializer (an @AtomicSerial record encoded via the schema-separated path).
         if (substitute) {
             if (obj instanceof DynamicProxyCodebaseAccessor dpca) {
-                obj = DerProxySerializer.create(dpca, streamLoader, context);
+                obj = ProxyWireSupport.substituteDownloadableProxy(dpca, streamLoader, context);
             } else if (obj instanceof ProxyAccessor pa) {
-                obj = DerProxySerializer.create(pa, streamLoader, context);
+                obj = ProxyWireSupport.substituteDownloadableProxy(pa, streamLoader, context);
             }
         }
 

@@ -24,7 +24,6 @@ import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.marshal.MarshalledInstanceCodec;
 import au.net.zeus.jgdms.der.marshal.MarshalledInstanceRecord;
-import au.net.zeus.jgdms.der.object.DerProxySerializer;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
 import au.net.zeus.jgdms.der.object.ProxyWireSupport;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
@@ -330,9 +329,9 @@ final class DerObjectStreamCodec {
         // ([8]) below. OFF by default (a bare serviceProxy inside a carrier must NOT re-substitute).
         if (substituteProxies && obj != null) {
             if (obj instanceof DynamicProxyCodebaseAccessor dpca) {
-                obj = DerProxySerializer.create(dpca, writeStreamLoader, writeContext);
+                obj = ProxyWireSupport.substituteDownloadableProxy(dpca, writeStreamLoader, writeContext);
             } else if (obj instanceof ProxyAccessor pa) {
-                obj = DerProxySerializer.create(pa, writeStreamLoader, writeContext);
+                obj = ProxyWireSupport.substituteDownloadableProxy(pa, writeStreamLoader, writeContext);
             }
         }
         if (obj == null) {
