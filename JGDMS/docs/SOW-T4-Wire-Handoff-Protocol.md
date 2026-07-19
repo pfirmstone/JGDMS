@@ -391,8 +391,9 @@ does not change the teardown decision").
 
 All probes below are automated tests in
 `jgdms-pref-class-loader/src/test/java/au/net/zeus/jgdms/loader/isolation/`
-(`WireFramingTest`, `SubProcessWireHandoffEndToEndTest`), run against the
-real implementation, not reasoned about from the code shape (G13).
+(`WireFramingTest`, `SubProcessWireHandoffEndToEndTest`,
+`DecodeDepthGuardTest`), run against the real implementation, not reasoned
+about from the code shape (G13).
 
 1. **A `MarshalledInstance` crafted to reconstruct outside the gate.**
    `handoff_hostedProxyImpersonatingAdminInterface_refused`: a business
@@ -401,20 +402,181 @@ real implementation, not reasoned about from the code shape (G13).
    `handoff_sameNamedDecoyInterface_notRejected` proves the guard is
    identity-based, not name-based (a same-named decoy interface in a
    different package is *not* rejected).
-2. **Oversized/deeply-nested payload rejected before allocation.**
+2. **Oversized payload (breadth) rejected before allocation.**
    `WireFramingTest` proves the frame-length ceiling check runs before
    `ByteBuffer.allocate`; `serve_hostileOversizedRequestFrame_rejectedNotHang`
    proves the same against the live dispatcher (a ~2 GiB declared length,
-   header-only, does not hang or crash the subprocess thread). Deep
-   collection/`Any` nesting recursion is inherited from
-   `AtomicMarshalInputStream`'s/DER's own existing bounds (pre-existing,
-   already flagged in Board Guidance G10/G12 as a residual on the
-   underlying codec, not newly introduced by this wire path).
-3. **Wrong-target / replay.** `handoff_wrongAssertedPoolingKey_refused`: a
+   header-only, does not hang or crash the subprocess thread).
+3. **Deeply-nested payload (depth) rejected before the real decode.** See
+   §10 (Finding 2) -- `DecodeDepthGuardTest` and
+   `SubProcessWireHandoffEndToEndTest#deepNestedReply_rejectedCleanly_...`.
+   **Corrected citation (2026-07-20 board review):** an earlier revision of
+   this document wrongly attributed a depth bound to
+   `AtomicMarshalInputStream`/`ObjOutputStream` via Board Guidance G10/G12.
+   G10/G12 describe the **DER** `Any`/collection codec's depth counter, a
+   different, unrelated code path. `AtomicMarshalInputStream`/
+   `ObjOutputStream` -- the codec this wire-handoff path actually uses --
+   has **no depth ceiling of its own at all** (confirmed by grep: zero
+   hits for any nesting-depth counter). This was a new, previously-
+   unreachable cross-process decode surface for attacker-shaped data, not
+   an already-accepted residual; §10 covers the fix.
+4. **Wrong-target / replay.** `handoff_wrongAssertedPoolingKey_refused`: a
    request asserting a different principal's pooling key is refused
    (`KEY_MISMATCH`) even though it arrives over a channel this subprocess's
    own launcher opened.
-4. **No subprocess-originated callback.**
+5. **No subprocess-originated callback.**
    `serve_neverOriginatesConnectionBackToClient`: exactly one connection is
    opened (by the client) and exactly one is accepted (by the subprocess)
    across a full successful handoff.
+
+---
+
+## 10. 2026-07-20 adversarial board review: two findings and their fixes
+
+A 3-seat adversarial board reviewed commit `967a59799` and returned BLOCK,
+entirely on the two findings below (the core reconstruction-gate property --
+§4, §8 above -- was independently confirmed sound by all three seats and is
+unchanged by this section).
+
+### Finding 1 -- the per-field-independent-stream design did not cover array-typed fields
+
+**What was claimed, and why it was wrong.** `WireHandoffCodec`'s per-field
+independent streams (§3) isolate separate top-level *fields* from sharing
+corrupted stream state with each other -- but `INVOKE_REQUEST.args`
+(`Object[]`) and `INVOKE_REPLY_RESULT` are themselves *single fields* whose
+own value can be a multi-element reference array. Two board seats called
+`encodeInvokeRequest`/`decodeInvokeRequest` and
+`encodeInvokeReplyResult`/`decodeInvokeReplyResult` directly with a
+2-element array containing a non-last `Externalizable` element and
+reproduced the exact `NullPointerException` from
+`AtomicMarshalInputStream.readNewArray:2039` in both directions. The
+`WireHandoffCodec` javadoc's "sidesteps the defect entirely" claim was
+empirically false for this field shape; corrected in that javadoc directly
+(see the class-level "Correction (2026-07-20 board review)" note).
+
+**Fixes landed:**
+
+1. **Root cause (jgdms-platform, separate minimal commit):**
+   `AtomicMarshalInputStream.java:2030-2039` -- the `StreamCorruptedException`
+   catch branch dereferenced `exceptions.isEmpty()` unconditionally, but
+   `exceptions` is only assigned in the sibling `ClassNotFoundException`
+   branch. Null-guarded: `if (exceptions != null && !exceptions.isEmpty())
+   break;`. **What this does and does not close, verified, not assumed:**
+   before the fix, a non-last `Externalizable` array element threw an
+   uncaught `NullPointerException`. After the fix, the *identical* input
+   throws a clean `StreamCorruptedException` ("unexpected end of block
+   data") instead -- the crash is gone, but the array still does not decode
+   successfully. The underlying cause (an `Externalizable` element's
+   block-data mode leaving the shared stream desynchronised for whatever
+   follows it) is a **separate, deeper bug this minimal, board-scoped fix
+   does not touch** -- flagged here for whoever owns
+   `AtomicMarshalInputStream` next, not assumed fixed.
+2. **Client-side containment (`SubProcessWireHandoffImpl
+   .ForwardingInvocationHandler.invoke`):** `decodeInvokeReplyResult` and
+   `decodeInvokeReplyException` are now wrapped in `catch (Throwable t)`
+   (previously: no exception handling at all around the client's decode of
+   bytes from the isolated, potentially-adversarial hosted proxy -- the
+   primary blocker). A decode failure now always synthesises a clean
+   `RemoteException`/`RuntimeException` via the same `synthesizeException`
+   path used for ordinary reported business exceptions, category
+   `DECODE_FAILURE`.
+3. **Server-side symmetry (`SubProcessReconstructionServer`):** the three
+   `catch (Exception e)` sites guarding attacker-controlled decode
+   (`reconstruct`'s `decodeRequest` call, `dispatchInvoke`'s
+   `decodeInvokeRequest` call, and `dispatchInvoke`'s `target.invoke`
+   +`encodeInvokeReplyResult` call) are now `catch (Throwable e)`, so a
+   `StackOverflowError` (an `Error`, not caught by `Exception`) is
+   contained the same way an ordinary decode `Exception` already was.
+
+**Verified current behaviour** (not "fixed," stated precisely):
+`SubProcessWireHandoffEndToEndTest#nonLastExternalizableArrayElement_failsCleanly_notWithRawNpe_throughFullStack`
+asserts the call now fails with a clean `RemoteException` that never
+contains the raw NPE message, and that the connection/stub remains usable
+for a subsequent call afterwards. It does **not** assert the array
+round-trips successfully, because it does not.
+
+### Finding 2 -- unbounded decode-recursion depth (new, more severe)
+
+`AtomicMarshalInputStream`/`ObjOutputStream` has no nesting-depth ceiling at
+all (§9 item 3). A ~20,000-deep nested single-element `Object[]` chain (a
+few hundred KB, trivially under `MAX_PAYLOAD_LEN`) drives a live
+`StackOverflowError` through the same zero-exception-handling path as
+Finding 1.
+
+**Fixes landed:**
+
+1. **`DecodeDepthGuard`** (new class): a best-effort, structure-aware
+   byte-level pre-scan, applied to every `WireHandoffCodec.unmarshalOneField`
+   call (i.e. every field of every message type, uniformly). It walks the
+   standard `java.io.ObjectStreamConstants` tag protocol by hand -- verified
+   empirically against this codec's own encoder output, not assumed --
+   counting recursive nesting (array elements, object fields via the
+   self-describing class-descriptor field table, class-hierarchy
+   superclass chains) and throws `DepthExceededException` (a clean,
+   O(`MAX_DEPTH`) rejection, `MAX_DEPTH = 64`) the moment a *confidently
+   parsed* structure exceeds the ceiling -- long before the real,
+   expensive/dangerous recursive decode would run.
+   - **Explicitly not a complete parser, and documented as such in its own
+     javadoc.** `Externalizable` content is only self-describing by
+     out-of-band convention between a class's own `writeExternal`/
+     `readExternal` (there is no grammar-level guarantee it is pure block
+     data), and dynamic-proxy class descriptors (`TC_PROXYCLASSDESC`) are
+     deliberately not modelled -- both to avoid any risk of this scanner
+     mis-parsing legitimate traffic (a legitimate `CodebaseAccessor` stub,
+     or a genuine business `Externalizable` argument) and silently
+     rejecting it, which would be a functional regression, not merely a
+     missed catch. When the scanner cannot fully account for a shape, it
+     returns silently, claiming no safety guarantee for that payload.
+   - **Encode-side asymmetry, stated explicitly.** The guard only applies
+     to decode. `ObjOutputStream.writeNewArray` has the identical
+     unbounded-recursion property as the reader, so a hosted business
+     object that itself returns a pathologically deep structure can still
+     drive a `StackOverflowError` **server-side, during encode** of the
+     reply. This is not unguarded, however: it happens inside
+     `SubProcessReconstructionServer.dispatchInvoke`'s own
+     `catch(Throwable)` (Finding 1 fix item 3 above), so it is still
+     turned into a clean `INVOKE_REPLY_EXCEPTION` naming
+     `StackOverflowError`, which the client resynthesises as a
+     `RemoteException` exactly like any other reported business exception.
+     The end-to-end safety property (client application code never sees a
+     raw `Throwable`) holds either way; only the *attribution* differs
+     (client-side `DECODE_FAILURE` vs. a server-reported
+     `StackOverflowError`), and
+     `SubProcessWireHandoffEndToEndTest#deepNestedReply_rejectedCleanly_clientNeverCrashes_throughFullStack`
+     accepts either rather than assuming one. An encode-side depth guard is
+     a reasonable follow-up, not built here -- flagged rather than silently
+     assumed unnecessary.
+2. **Test payloads are hand-crafted bytes, not round-tripped through the
+   real encoder.** Building a ~20,000-deep object graph and marshalling it
+   via the real, equally-recursive `AtomicMarshalOutputStream` throws
+   `StackOverflowError` **during test setup** on this environment's default
+   thread stack -- confirmed empirically, not assumed. `DecodeDepthGuardTest`
+   constructs the adversarial byte patterns directly (matching the standard
+   tag protocol, one-time verified against small real-encoder samples),
+   which is also the more faithful adversarial shape: a real attacker has
+   no reason to go through a conforming encoder either.
+
+**Verified:** `DecodeDepthGuardTest` (12 cases: shallow/at-ceiling/
+over-ceiling boundaries for both array- and object-field-based nesting,
+breadth-vs-depth non-confusion, primitive-array non-confusion,
+`Externalizable` non-false-positive, and the literal ~20,000-deep repro,
+each asserted to reject in well under the time a real recursive attempt
+would take) and
+`SubProcessWireHandoffEndToEndTest#deepNestedReply_rejectedCleanly_clientNeverCrashes_throughFullStack`
+(the full client/subprocess round trip, real `target.invoke()` building the
+deep structure, real dispatch).
+
+---
+
+## 11. Known issue for whoever builds the real subprocess launcher
+
+One board seat's own repro run hung because
+`org.apache.river.concurrent.ReferenceProcessor`'s non-daemon cleaner
+thread is spawned as a side effect of first using
+`AtomicMarshalOutputStream`/`AtomicMarshalInputStream`, preventing a bare
+JVM from exiting on its own. Pre-existing, out of scope for this task's
+fixes (`SubProcessLauncher`'s real OS-process/lifecycle implementation
+remains `UnsupportedSubProcessLauncher`, per §1) -- noted here so whoever
+builds the real launcher/subprocess lifecycle management accounts for it
+(e.g. an explicit shutdown hook or daemon-thread configuration for the
+subprocess's own JVM), rather than rediscovering it under time pressure.

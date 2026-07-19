@@ -104,6 +104,39 @@ public class SubProcessWireHandoffEndToEndTest {
         @Override public void readExternal(ObjectInput in) { }
     }
 
+    /**
+     * 2026-07-20 board-review fixtures (Findings 1 &amp; 2): a business
+     * interface whose methods deliberately exercise the two adversarial
+     * decode surfaces the board found -- an argument/result array with a
+     * non-last {@code Externalizable} element (Finding 1), and a
+     * server-generated, arbitrarily-deep nested-array reply (Finding 2).
+     */
+    public interface DeepEcho {
+        Object echo(Object value) throws RemoteException;
+        Object deepChain(int depth) throws RemoteException;
+    }
+
+    public static final class DeepEchoImpl implements DeepEcho, Externalizable {
+        public DeepEchoImpl() { }
+        @Override public Object echo(Object value) { return value; }
+        @Override public Object deepChain(int depth) {
+            Object cur = null;
+            for (int i = 0; i < depth; i++) cur = new Object[]{ cur };
+            return cur;
+        }
+        @Override public void writeExternal(ObjectOutput out) { }
+        @Override public void readExternal(ObjectInput in) { }
+    }
+
+    /** The exact Finding-1 shape: an {@code Externalizable} with an empty body. */
+    public static final class ExternalizableProbe implements Externalizable {
+        public ExternalizableProbe() { }
+        @Override public void writeExternal(ObjectOutput out) { }
+        @Override public void readExternal(ObjectInput in) { }
+        @Override public boolean equals(Object o) { return o instanceof ExternalizableProbe; }
+        @Override public int hashCode() { return 1; }
+    }
+
     /** Same-named decoy in a different package: must NOT be rejected. */
     public static final class DecoyAdminImpersonatingImpl
             implements Greeter,
@@ -272,6 +305,132 @@ public class SubProcessWireHandoffEndToEndTest {
 
         assertEquals("exactly one wire-handoff connection for one handoff",
                 1, spawned.channelsOpened.get());
+    }
+
+    // -------------------------------------------- 2026-07-20 board review fixes
+
+    /**
+     * Finding 1 (confirmed by 2 board seats), full-stack proof, driven
+     * through the REAL server ({@code SubProcessReconstructionServer
+     * .dispatchInvoke} decoding {@code args}) exactly the direction the
+     * board exercised directly against {@code WireHandoffCodec}.
+     *
+     * <p><strong>What the platform-layer fix (item 3) actually closes, and
+     * what it does not -- verified here, not assumed:</strong> the null
+     * guard on {@code AtomicMarshalInputStream.readNewArray}'s {@code
+     * StreamCorruptedException} branch (jgdms-platform,
+     * {@code exceptions != null && !exceptions.isEmpty()}) closes exactly
+     * the {@code NullPointerException} the board reported -- confirmed:
+     * before the fix this call threw an uncaught {@code NullPointerException}
+     * ("Cannot invoke java.util.List.isEmpty() because exceptions is null");
+     * after it, the same input throws a clean {@code
+     * StreamCorruptedException} ("unexpected end of block data") instead.
+     * <strong>It does not make the array decode succeed</strong> -- the
+     * underlying cause (an {@code Externalizable} element's block-data mode
+     * leaving the shared stream desynchronised for the following element)
+     * is a separate, deeper bug this minimal, board-scoped fix does not
+     * touch. This is exactly why {@code WireHandoffCodec} encodes every
+     * field in its own independent sub-stream (see that class's javadoc) --
+     * that design choice is what actually protects the wire-handoff
+     * envelope's own top-level fields; a single field that is ITSELF an
+     * array containing a non-last {@code Externalizable} element (this
+     * test's shape -- {@code args}/results are exactly such single fields)
+     * is not something per-field stream isolation can help with, since the
+     * corruption is internal to that one field's own recursive decode.
+     * Flagged in this task's report as a residual, separate from Finding 1
+     * as scoped by the board.
+     */
+    @Test(timeout = 20_000)
+    public void nonLastExternalizableArrayElement_failsCleanly_notWithRawNpe_throughFullStack()
+            throws Exception {
+        MarshalledInstance mi = new MarshalledInstance(new DeepEchoImpl());
+        Object stub = wireHandoff.handoff(handle, newFakeBootstrapProxy(), mi,
+                new URL[0], "", getClass().getClassLoader(), null,
+                Collections.emptyList());
+        DeepEcho echo = (DeepEcho) stub;
+
+        Object[] arg = new Object[]{ new ExternalizableProbe(), "trailing string" };
+        try {
+            echo.echo(arg);
+            fail("this shape is not expected to round-trip successfully yet"
+                    + " (see javadoc: a separate, deeper stream-desync bug"
+                    + " beyond the board-scoped NPE fix) -- if this starts"
+                    + " passing, the deeper bug has been independently fixed"
+                    + " and this test should be upgraded to assert success");
+        } catch (RemoteException expected) {
+            // The load-bearing assertion: a clean, well-formed exception,
+            // never the raw "Cannot invoke ...List.isEmpty()... null" NPE
+            // message, and never an uncaught Throwable reaching this line.
+            assertFalse("must never surface the raw NullPointerException"
+                    + " message -- that was the exact board-reported crash: "
+                    + expected,
+                    expected.getMessage().contains("isEmpty() because"));
+        }
+
+        // The connection/stub must remain usable afterwards.
+        assertEquals("hello", echo.echo("hello"));
+    }
+
+    /**
+     * Finding 2 (StackOverflowError via unbounded decode-recursion depth),
+     * full-stack proof: the SERVER genuinely builds and returns a
+     * ~20,000-deep nested-array structure as a real business method's
+     * return value (via {@code target.invoke()} +
+     * {@code WireHandoffCodec.encodeInvokeReplyResult} -- the real
+     * dispatch path, not a hand-crafted frame), and the CLIENT call must
+     * complete with a clean {@link RemoteException}, never a live {@code
+     * StackOverflowError} escaping into this test's own call stack (the
+     * exact failure mode the board demonstrated against {@code
+     * decodeInvokeReplyResult} called directly).
+     *
+     * <p><strong>Where the failure is actually attributed, and why that's
+     * still safe:</strong> {@link DecodeDepthGuard} only guards the
+     * <em>decode</em> direction (attacker/peer-controlled bytes); it is
+     * deliberately not applied on encode (the server serialising its own,
+     * already-{@code HostedProxyGuard}-cleared business object's return
+     * value is not the same trust boundary). {@code
+     * ObjOutputStream.writeNewArray} has the identical unbounded-recursion
+     * property as the reader, so encoding this reply itself throws a real
+     * {@code StackOverflowError} <em>server-side</em>, inside {@code
+     * SubProcessReconstructionServer.dispatchInvoke}'s own {@code
+     * catch(Throwable)} (this task's Finding-1-adjacent hardening) --
+     * turned into a clean {@code INVOKE_REPLY_EXCEPTION} naming {@code
+     * StackOverflowError}, which the client resynthesises as a {@link
+     * RemoteException} exactly like any other reported business exception.
+     * The end-to-end safety property (client app code never sees a raw
+     * {@code Throwable}) holds either way; this test accepts both
+     * attributions rather than assuming a specific one, and separately
+     * documents the encode-side asymmetry here and in {@code
+     * SOW-T4-Wire-Handoff-Protocol.md} rather than silently relying on it.
+     */
+    @Test(timeout = 20_000)
+    public void deepNestedReply_rejectedCleanly_clientNeverCrashes_throughFullStack()
+            throws Exception {
+        MarshalledInstance mi = new MarshalledInstance(new DeepEchoImpl());
+        Object stub = wireHandoff.handoff(handle, newFakeBootstrapProxy(), mi,
+                new URL[0], "", getClass().getClassLoader(), null,
+                Collections.emptyList());
+        DeepEcho echo = (DeepEcho) stub;
+
+        long start = System.nanoTime();
+        try {
+            echo.deepChain(20_000);
+            fail("expected a clean exception, not a silently-accepted deep result"
+                    + " (and certainly not a live StackOverflowError)");
+        } catch (RemoteException expected) {
+            assertTrue("must be attributed to either the client-side decode guard"
+                    + " or a clean server-side StackOverflowError report: " + expected,
+                    expected.getMessage().contains("DECODE_FAILURE")
+                    || expected.getMessage().contains("StackOverflowError"));
+        }
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+        assertTrue("must complete quickly either way -- took " + elapsedMs + "ms",
+                elapsedMs < 5_000);
+
+        // The connection/stub must remain usable afterwards -- a decode
+        // failure on one call must not corrupt or hang the shared channel
+        // for subsequent calls.
+        assertEquals("hello, world", ((DeepEcho) stub).echo("hello, world"));
     }
 
     @Test(timeout = 20_000)

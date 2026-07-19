@@ -55,17 +55,37 @@ import org.apache.river.api.io.AtomicMarshalOutputStream;
  * style here: adversarial testing while building this codec found a real,
  * reproducible defect in {@code AtomicMarshalInputStream.readNewArray} --
  * an {@code Externalizable} array element that is <em>not</em> the last
- * element in a reference array corrupts the shared stream's block-data
- * state, and the resulting {@code StreamCorruptedException} hits a
+ * element in a reference array corrupted the shared stream's block-data
+ * state, and the resulting {@code StreamCorruptedException} hit a
  * pre-existing null-{@code exceptions}-list bug in that method's own
  * catch block (a {@code NullPointerException} instead of a clean decode
- * error). Per-field independent streams avoid ever exercising that shape
- * (no field's decode is ever "followed by another element still to read in
- * the same stream/array"), sidestepping the defect entirely rather than
- * depending on a fix to already-landed, security-critical decode machinery
- * this task does not own. <strong>Flagged for the board and for a
- * follow-up bug report against {@code AtomicMarshalInputStream}</strong> --
- * see this task's final report.
+ * error).
+ *
+ * <p><strong>Correction (2026-07-20 board review): per-field independent
+ * streams do NOT "sidestep the defect entirely."</strong> An earlier
+ * revision of this javadoc claimed that; it was wrong, and two board seats
+ * independently disproved it by calling {@link #encodeInvokeRequest}/
+ * {@link #decodeInvokeRequest} and {@link #encodeInvokeReplyResult}/
+ * {@link #decodeInvokeReplyResult} directly with a 2-element array
+ * containing a non-last {@code Externalizable} element and reproducing the
+ * exact {@code NullPointerException}. Per-field isolation only protects
+ * <em>distinct top-level fields</em> from sharing corrupted stream state
+ * with each other; it does nothing for a <em>single</em> field whose own
+ * value is itself a multi-element reference array -- exactly the shape of
+ * {@code INVOKE_REQUEST.args} and {@code INVOKE_REPLY_RESULT}. The actual
+ * fixes: (1) the root-cause null-guard landed directly in {@code
+ * AtomicMarshalInputStream} (a separate, minimal jgdms-platform commit --
+ * closes the {@code NullPointerException}, not the underlying stream-desync
+ * itself: after the fix, this exact shape fails with a clean {@code
+ * StreamCorruptedException} rather than round-tripping successfully or
+ * crashing -- see {@code SubProcessWireHandoffEndToEndTest
+ * #nonLastExternalizableArrayElement_failsCleanly_notWithRawNpe_throughFullStack}
+ * for the verified, current behaviour); (2) {@link DecodeDepthGuard}, a
+ * genuinely independent depth-nesting pre-check (unrelated to this specific
+ * defect, added for Finding 2); (3) every {@code unmarshalOneField} caller
+ * now wraps the call in {@code catch(Throwable)} and synthesises a clean
+ * exception, so whatever this decoder's residual failure modes are, they
+ * never propagate raw into calling application code.
  *
  * <p>Each field's length prefix is validated against
  * {@link WireFraming#MAX_PAYLOAD_LEN} before allocation, the same
@@ -134,6 +154,18 @@ final class WireHandoffCodec {
 
     private static Object unmarshalOneField(byte[] bytes, ClassLoader loader)
             throws IOException, ClassNotFoundException {
+        // Board-required (2026-07-20 review): AtomicMarshalInputStream has no
+        // recursion-depth ceiling of its own (unlike the DER Any/collection
+        // codec) -- a deeply-nested-but-narrow payload (e.g. a chain of
+        // single-element Object[] wrappers) drives a live
+        // StackOverflowError deep in its recursive readObject/readNewArray/
+        // readNewObject call chain, well within MAX_PAYLOAD_LEN. Reject a
+        // confidently-parsed excessive-depth structure BEFORE attempting the
+        // real, expensive/dangerous recursive decode. See DecodeDepthGuard's
+        // class javadoc for exactly what this check does and does not cover
+        // -- it is deliberately best-effort, not the sole safety boundary;
+        // callers must still handle Throwable around unmarshalOneField.
+        DecodeDepthGuard.bestEffortCheck(bytes);
         ObjectInputStream in = AtomicMarshalInputStream.create(
                 new ByteArrayInputStream(bytes), loader, false, null, null, false);
         return in.readObject();

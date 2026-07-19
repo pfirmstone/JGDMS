@@ -185,7 +185,16 @@ final class SubProcessReconstructionServer {
         } catch (EOFException eof) {
             // Peer closed before completing a handoff; nothing to reply to.
             return;
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // catch(Throwable), not Exception (2026-07-20 board review):
+            // this decodes a REQUEST whose fields (serviceProxy,
+            // bootstrapProxy, ...) are still-marshalled bytes from a
+            // client-controlled channel; an excessively-nested field could
+            // in principle drive a StackOverflowError (an Error, not an
+            // Exception) if it ever slipped past DecodeDepthGuard's
+            // best-effort pre-check. Must never crash this connection's
+            // handler thread silently/uncleanly -- always reply with a
+            // clean, bounded error instead.
             logger.log(Level.SEVERE,
                     "Unexpected failure reconstructing wire-handoff request",
                     e);
@@ -257,7 +266,11 @@ final class SubProcessReconstructionServer {
         WireHandoffCodec.DecodedRequest req;
         try {
             req = WireHandoffCodec.decodeRequest(requestPayload, trustedLoader);
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // catch(Throwable): DecodeDepthGuard's pre-check is best-effort
+            // (see its javadoc), so a StackOverflowError remains a possible
+            // outcome of the real decode for a shape it does not model --
+            // must still be turned into a clean, bounded refusal.
             throw new RejectedHandoffException("MALFORMED_REQUEST",
                     "Could not decode wire-handoff request envelope.", e);
         }
@@ -396,9 +409,15 @@ final class SubProcessReconstructionServer {
         try {
             inv = WireHandoffCodec.decodeInvokeRequest(
                     payload, hosted.getClass().getClassLoader());
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // catch(Throwable), not Exception (2026-07-20 board review): args
+            // are client-controlled bytes; DecodeDepthGuard's pre-check is
+            // best-effort (see its javadoc), so a StackOverflowError remains
+            // a possible outcome for a shape it does not model and must
+            // still be turned into a clean, bounded reply, never crash this
+            // connection's handler thread.
             writeInvokeException(channel, IllegalArgumentException.class.getName(),
-                    "Could not decode invocation request.");
+                    "Could not decode invocation request: " + safeMessage(e));
             return;
         }
         Method target = findAllowedMethod(allowedMethods, inv.methodName,
@@ -422,7 +441,12 @@ final class SubProcessReconstructionServer {
             Throwable cause = ite.getCause() == null ? ite : ite.getCause();
             writeInvokeException(channel, cause.getClass().getName(),
                     safeMessage(cause));
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // catch(Throwable): reflection unwraps a checked/unchecked
+            // Exception into InvocationTargetException above, but an Error
+            // thrown by the hosted method (or, e.g., an IOException writing
+            // the reply frame) propagates directly here -- must not crash
+            // this connection's handler thread uncleanly.
             writeInvokeException(channel, e.getClass().getName(), safeMessage(e));
         }
     }

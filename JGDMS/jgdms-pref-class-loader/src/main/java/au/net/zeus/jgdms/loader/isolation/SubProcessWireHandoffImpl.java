@@ -341,15 +341,42 @@ public final class SubProcessWireHandoffImpl implements SubProcessWireHandoff {
             }
 
             if (reply.type == WireFraming.Type.INVOKE_REPLY_RESULT) {
-                return WireHandoffCodec.decodeInvokeReplyResult(reply.payload, parent);
+                // Board-required (2026-07-20 review): this decodes bytes
+                // that came from the isolated, potentially-adversarial
+                // hosted proxy -- exactly the actor this whole architecture
+                // exists to contain. A decode failure here (including a
+                // StackOverflowError from an excessively-nested reply that
+                // slipped past DecodeDepthGuard's best-effort pre-check --
+                // see that class's javadoc for what it does and does not
+                // cover) must never propagate as a raw, uncontrolled
+                // Throwable straight through this dynamic proxy into
+                // arbitrary calling application code. catch(Throwable), not
+                // Exception: a StackOverflowError is an Error.
+                try {
+                    return WireHandoffCodec.decodeInvokeReplyResult(reply.payload, parent);
+                } catch (Throwable t) {
+                    throw synthesizeException(method, "DECODE_FAILURE",
+                            "Could not decode subprocess invoke reply: " + safeMessage(t));
+                }
             }
             if (reply.type == WireFraming.Type.INVOKE_REPLY_EXCEPTION) {
-                WireHandoffCodec.DecodedReplyError err =
-                        WireHandoffCodec.decodeInvokeReplyException(reply.payload, parent);
+                WireHandoffCodec.DecodedReplyError err;
+                try {
+                    err = WireHandoffCodec.decodeInvokeReplyException(reply.payload, parent);
+                } catch (Throwable t) {
+                    throw synthesizeException(method, "DECODE_FAILURE",
+                            "Could not decode subprocess invoke-exception reply: "
+                            + safeMessage(t));
+                }
                 throw synthesizeException(method, err.category, err.message);
             }
             throw new IOException(
                     "Unexpected invoke-reply frame type: " + reply.type);
+        }
+
+        private static String safeMessage(Throwable t) {
+            String m = t.getMessage();
+            return m == null ? t.getClass().getName() : m;
         }
 
         /**
