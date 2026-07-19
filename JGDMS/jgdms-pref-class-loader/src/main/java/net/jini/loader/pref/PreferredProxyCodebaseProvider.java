@@ -154,6 +154,41 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     static final String JAR_READ_TIMEOUT_MS_PROPERTY = "jgdms.proxy.jarReadTimeoutMs";
     static final int DEFAULT_JAR_READ_TIMEOUT_MS = 30_000;
 
+    /**
+     * System property that globally enables the smart-proxy OS-process
+     * isolation routing branch in {@link #resolve}.  <strong>Defaults to
+     * {@code false} (off).</strong>
+     *
+     * <p><strong>This is a rollout on/off switch, not a per-proxy trust-tier
+     * signal.</strong>  The isolation architecture is <em>unconditional</em>
+     * for every downloaded smart proxy; this single global flag exists only
+     * so that the routing insertion point (task&nbsp;T1) can be merged before
+     * the subprocess-spawn machinery (T2) and the Unix-Domain-Socket wire
+     * handoff (T4) exist.  When off, {@code resolve()} behaves exactly as it
+     * did before T1.  When on, every smart-proxy resolution is routed to the
+     * {@link SmartProxyIsolationRouter}; a fail-closed refusal is raised if no
+     * authenticated server principal is available, and (until T2/T4 land) the
+     * default router raises {@link UnsupportedOperationException}.  This flag
+     * must never be repurposed to classify which proxies do or do not require
+     * isolation -- the design explicitly ruled out any such per-proxy signal.
+     *
+     * <p>The property is read live on each {@code resolve()} call (see
+     * {@link #isolationRoutingEnabled()}) so the switch can be flipped at
+     * deployment time without reloading this class.
+     */
+    static final String SMART_PROXY_ISOLATION_ENABLED_PROPERTY =
+            "net.jini.loader.pref.smartProxyIsolation.enabled";
+
+    /**
+     * The pluggable isolation router invoked by {@link #resolve} when the
+     * {@value #SMART_PROXY_ISOLATION_ENABLED_PROPERTY} flag is on.  Defaults to
+     * a placeholder that raises {@link UnsupportedOperationException}; task T2
+     * installs the real implementation via
+     * {@link #setIsolationRouter(SmartProxyIsolationRouter)}.
+     */
+    private static volatile SmartProxyIsolationRouter isolationRouter =
+            new UnsupportedIsolationRouter();
+
     private static volatile long verdictRetryBaseDelayMs = DEFAULT_VERDICT_RETRY_BASE_DELAY_MS;
 
     /**
@@ -1702,6 +1737,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         } else {
             serverPrincipals = null;
         }
+
         Key loaderKey = new Key(
                             Proxy.getInvocationHandler(bootstrapProxy),
                             Arrays.asList(codebases), null
@@ -1718,6 +1754,88 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
              */
             loader = parent;
         }
+
+        // ----------------------------------------------------------------
+        // T1 -- Smart-proxy OS-process isolation routing branch.
+        //
+        // ROLLOUT SWITCH, *NOT* A PER-PROXY TRUST-TIER SIGNAL.  The
+        // architecture makes OS-process isolation UNCONDITIONAL for every
+        // *downloaded* smart proxy: eventually every proxy whose bytecode
+        // this process would otherwise fetch and classload runs instead in
+        // an isolated subprocess pooled one-per-remote-SPIFFE-principal.
+        // The system property below is a single GLOBAL on/off switch that
+        // exists ONLY so this task (T1, the routing insertion point) can
+        // merge before the subprocess-spawn machinery (T2) and the
+        // Unix-Domain-Socket wire-protocol handoff (T4) are built.  It must
+        // NOT be read -- now or ever -- as a "which proxies need isolation"
+        // classifier: the design explicitly closed and ruled out any such
+        // per-proxy trust-tier signal.  When off, resolve() behaves exactly
+        // as it did before T1 (100% unchanged legacy path); when on, the
+        // branch below intercepts and no in-process download/classload runs.
+        //
+        // PLACEMENT (deliberate): this branch sits AFTER the two "already
+        // local, first-party" fast paths above and BEFORE the CACHE lookup
+        // and the new-loader-creation block below.  It only runs when both
+        // of those fast paths missed (loader == null), because those two
+        // cases are outside the isolation threat model (protecting a client
+        // from *other* parties' mobile code):
+        //
+        //   * SERVICES_EXP hit -- keyed by (handler, codebase) and populated
+        //     only by record(...) when THIS process itself exported the
+        //     remote object.  A hit means "this very process authored/holds
+        //     this object": first-party code, not another party's downloaded
+        //     mobile bytecode.  Isolating it would be incorrect overreach.
+        //
+        //   * self-unmarshal-via-parent (loader == parent) -- the proxy is
+        //     already resolvable by the parent (stream) loader; also already
+        //     local, not a fresh download.
+        //
+        // By contrast the CACHE consulted below holds loaders created only
+        // INSIDE the new-loader block, i.e. AFTER a real remote download +
+        // classload + verdict-check succeeded on an EARLIER resolve() call.
+        // Handing a warm CACHE entry back once isolation is active would
+        // silently leave previously-downloaded remote smart-proxy bytecode
+        // resident in the client process -- exactly the residual the
+        // architecture must eliminate.  So isolation MUST intercept before
+        // the CACHE lookup, never after it.
+        //
+        // Routing key = serverPrincipals -- the identity the TLS peer
+        // *proved* during the handshake (derived above from ServerSubject),
+        // NOT the object/export-identity Key used for the in-process
+        // ClassLoader cache below.  Isolation pools one subprocess per remote
+        // SPIFFE principal, not per proxy object, so the Key class is
+        // deliberately never consulted on this path.
+        if (loader == null && isolationRoutingEnabled()) {
+            // Fail closed: isolation cannot pool by principal if we could
+            // not establish who the TLS peer proved itself to be.  Refuse
+            // rather than silently falling through to the legacy in-process
+            // path.  This branch runs BEFORE the CACHE lookup and the new-
+            // loader-creation block, so neither the refusal below nor the
+            // router hand-off can leave a partially-constructed loader cached
+            // in CACHE on ANY code path (normal return or exception).  The
+            // SERVICES_EXP / self-unmarshal fast paths above have already
+            // been given precedence (loader is still null to reach here).
+            if (serverPrincipals == null || serverPrincipals.length == 0) {
+                throw new IOException(
+                    "Smart-proxy isolation is enabled ("
+                    + SMART_PROXY_ISOLATION_ENABLED_PROPERTY
+                    + "=true) but no authenticated server principal could be"
+                    + " derived from the TLS ServerSubject; refusing to resolve"
+                    + " this codebase in-process (fail-closed). Codebase: " + path);
+            }
+            // Hand off to the isolation router.  Until T2/T4 land, the
+            // default router throws UnsupportedOperationException; for a real
+            // smart proxy that is the expected, correct outcome while the
+            // flag is on and the isolation pipeline is not yet built.
+            // TODO(T2/T4): the default router is a placeholder.  T2 supplies
+            // the subprocess spawn/pool/track implementation and T4 the
+            // Unix-Domain-Socket wire-protocol handoff; the real router is
+            // installed via setIsolationRouter(SmartProxyIsolationRouter).
+            return isolationRouter.route(
+                    serverPrincipals, bootstrapProxy, serviceProxy,
+                    codebase, path, parent, verifier, context);
+        }
+
         if (loader == null){
             loaderKey = new Key(
                                 Proxy.getInvocationHandler(bootstrapProxy),
@@ -2134,7 +2252,130 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
     
     /**
-     * 
+     * Returns {@code true} if the smart-proxy OS-process isolation routing
+     * branch is currently enabled.  Reads
+     * {@value #SMART_PROXY_ISOLATION_ENABLED_PROPERTY} live on every call so
+     * the rollout switch can be flipped without reloading this class.
+     *
+     * <p>Fails safe to {@code false} (off) if the property cannot be read
+     * (for example when a {@code SecurityManager} denies the read).  Off is
+     * the safe default: it preserves the pre-T1 legacy behaviour.
+     */
+    static boolean isolationRoutingEnabled() {
+        try {
+            return Boolean.getBoolean(SMART_PROXY_ISOLATION_ENABLED_PROPERTY);
+        } catch (SecurityException se) {
+            logger.log(Level.FINE,
+                    "Unable to read {0}; smart-proxy isolation routing"
+                    + " defaulting to off (legacy in-process path).",
+                    SMART_PROXY_ISOLATION_ENABLED_PROPERTY);
+            return false;
+        }
+    }
+
+    /**
+     * Installs the {@link SmartProxyIsolationRouter} that {@link #resolve}
+     * routes to when isolation is enabled.  This is the extension seam for
+     * task&nbsp;T2 (subprocess spawn / pool / track) and T4 (Unix-Domain-Socket
+     * wire-protocol handoff): those tasks supply the real router here.
+     *
+     * @param router the router to install (must not be {@code null})
+     * @throws NullPointerException if {@code router} is {@code null}
+     */
+    static void setIsolationRouter(SmartProxyIsolationRouter router) {
+        if (router == null) throw new NullPointerException(
+                "isolation router cannot be null");
+        isolationRouter = router;
+    }
+
+    /** Returns the currently-installed {@link SmartProxyIsolationRouter}. */
+    static SmartProxyIsolationRouter getIsolationRouter() {
+        return isolationRouter;
+    }
+
+    /**
+     * Extension seam for the smart-proxy OS-process isolation pipeline.  When
+     * the {@value #SMART_PROXY_ISOLATION_ENABLED_PROPERTY} flag is on and an
+     * authenticated remote principal has been established, {@link #resolve}
+     * hands the resolution off to this router instead of running the legacy
+     * in-process classload / deserialize pipeline.
+     *
+     * <p>The implementation is responsible for the whole isolation handoff:
+     * obtaining (spawning or reusing from a per-principal pool) the isolated
+     * subprocess for {@code serverPrincipals} (T2), driving the codebase load
+     * and proxy unmarshalling inside that subprocess over the wire protocol
+     * (T4), and returning the thin client-side {@code java.lang.reflect.Proxy}
+     * stub (already carrying any required method constraints) that
+     * {@code resolve} returns directly to its caller.
+     *
+     * <p>No real implementation exists yet: T2 and T4 are separate, not-yet-
+     * dispatched tasks.  Until they land, the installed router is
+     * {@link UnsupportedIsolationRouter}, which throws.
+     */
+    interface SmartProxyIsolationRouter {
+        /**
+         * Routes a smart-proxy resolution to the isolation subsystem.
+         *
+         * @param serverPrincipals the TLS-authenticated remote principal(s)
+         *        that the subprocess pool is keyed on; never {@code null} or
+         *        empty (the caller fails closed before reaching this method)
+         * @param bootstrapProxy   the codebase accessor for the remote service
+         * @param serviceProxy     the marshalled service proxy to unmarshal
+         *        inside the isolated subprocess
+         * @param codebase         the resolved codebase URLs
+         * @param path             the codebase annotation string
+         * @param parent           the parent (stream) class loader
+         * @param verifier         the integrity verifier class loader
+         * @param context          the unmarshalling stream context collection
+         * @return the thin client-side stub to hand back from {@code resolve}
+         * @throws IOException            on communication / handoff failure
+         * @throws ClassNotFoundException if a required class cannot be resolved
+         */
+        Object route(Principal[] serverPrincipals,
+                     CodebaseAccessor bootstrapProxy,
+                     MarshalledInstance serviceProxy,
+                     URL[] codebase,
+                     String path,
+                     ClassLoader parent,
+                     ClassLoader verifier,
+                     Collection context)
+                throws IOException, ClassNotFoundException;
+    }
+
+    /**
+     * Default placeholder {@link SmartProxyIsolationRouter} used until the
+     * subprocess-spawn (T2) and wire-protocol-handoff (T4) tasks land.  Every
+     * call throws {@link UnsupportedOperationException}: with the isolation
+     * flag on and a real smart proxy to resolve, this is the expected outcome
+     * for now -- the flag exists so T1 can merge safely, not so isolation can
+     * actually run before T2/T4 exist.
+     */
+    static final class UnsupportedIsolationRouter
+            implements SmartProxyIsolationRouter {
+        @Override
+        public Object route(Principal[] serverPrincipals,
+                            CodebaseAccessor bootstrapProxy,
+                            MarshalledInstance serviceProxy,
+                            URL[] codebase,
+                            String path,
+                            ClassLoader parent,
+                            ClassLoader verifier,
+                            Collection context) {
+            // TODO(T2/T4): replace this placeholder with the real router.
+            // T2 = subprocess spawn/pool/track; T4 = UDS wire-protocol handoff.
+            throw new UnsupportedOperationException(
+                "Smart-proxy OS-process isolation is enabled but not yet"
+                + " operational: this is a placeholder pending task T2"
+                + " (subprocess spawn/pool/track) and task T4 (Unix-Domain-"
+                + "Socket wire-protocol handoff).  Install a real router via"
+                + " PreferredProxyCodebaseProvider.setIsolationRouter(...), or"
+                + " disable routing by unsetting "
+                + SMART_PROXY_ISOLATION_ENABLED_PROPERTY + ". Codebase: " + path);
+        }
+    }
+
+    /**
+     *
      */
     private static class Key {
 	private final InvocationHandler handler;
