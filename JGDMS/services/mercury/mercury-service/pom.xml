@@ -45,6 +45,44 @@
             <artifactId>jgdms-lib</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          Test-only: provides the DER MarshalFactoryProvider (ServiceLoader
+          discovered by net.jini.io.MarshalledInstance) so that tests can
+          actually encode/decode MarshallingFormat.ATOMIC_DER-tagged
+          instances at test-runtime, exercising the same
+          AtomicMarshalledInstance->DER write sites this module's main
+          sources use (EventID, EventWriter, MailboxImpl,
+          ServiceRegistration). Not referenced by any compiled symbol in
+          main or test sources, purely a runtime SPI provider; jgdms-der
+          itself requires a JDK 25+ runtime (release 25), so tests that pull
+          it in must run under such a JVM (same requirement as jgdms-der's
+          own test suite).
+
+          Two tests additionally exercise the legacy JOSS
+          org.apache.river.api.io.AtomicMarshalledInstance path
+          (EventIDDerFormatTest#atomicSerialPathRoundTripsSourceViaNestedDer,
+          EventWriterDerFormatTest#legacyJossEncodedEventStillDecodesViaEventReader),
+          which performs a SerializablePermission subclass check via
+          Permission.checkGuard/AccessController.doPrivileged; on a vanilla
+          (SecurityManager-removed, JEP 486) JDK 24 or newer, e.g. this machine's
+          default java-25-openjdk, that throws "SecurityException: checking
+          permissions is not supported". Run the test phase with a
+          SecurityManager-capable JDK (e.g. DirtyChai's build/*/images/jdk as
+          JAVA_HOME) and -Djava.security.manager=allow to exercise those two
+          tests; every other test in this module runs fine on a vanilla JDK.
+        -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-der</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -65,7 +103,27 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin> 
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
+                    <!--
+                      net.jini.io.MarshalledInstance's JOSS/annotateClass path
+                      touches java.rmi.server.RMIClassLoader, which eagerly
+                      ServiceLoader-discovers an RMIClassLoaderSpi at class-init
+                      time; the test classpath can pull in a
+                      META-INF/services entry for
+                      net.jini.loader.pref.PreferredClassProvider without the
+                      jgdms-pref-class-loader jar itself being present, which
+                      fails the whole provider lookup. The JDK default
+                      provider is sufficient for these in-JVM unit tests (same
+                      pattern as reggie-dl, policy-service-dl, hello-world-api).
+                    -->
+                    <argLine>-Djava.rmi.server.RMIClassLoaderSpi=default</argLine>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
