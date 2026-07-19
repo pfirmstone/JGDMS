@@ -15,6 +15,7 @@
  */
 package au.net.zeus.jgdms.loader.isolation;
 
+import java.lang.reflect.Constructor;
 import java.rmi.RemoteException;
 import java.security.CodeSource;
 import java.security.Permission;
@@ -49,7 +50,8 @@ import static org.junit.Assert.*;
  * AdminPrincipalAuthenticator}) exactly as it will be in production &mdash;
  * never testing the backend in isolation from the gate it sits behind.
  *
- * <p>Mirrors the self-test probes the SOW specifies:
+ * <p>Mirrors the self-test probes the SOW specifies, plus the 2026-07-20
+ * adversarial board's findings against the first version of this class:
  * <ul>
  *   <li>the real grant-application path is unreachable without the T2
  *       authentication gate ({@link #unauthenticated_neverReachesBacking}
@@ -59,7 +61,23 @@ import static org.junit.Assert.*;
  *       #leaseScopedGrant_actuallyExpires_endToEnd});</li>
  *   <li>{@code refresh()}/{@code getGrants()} cannot leak grant state to an
  *       unauthenticated or de-authenticated caller ({@link
- *       #getGrants_reGates_capturedProxyCannotReadAfterDeauth}).</li>
+ *       #getGrants_reGates_capturedProxyCannotReadAfterDeauth});</li>
+ *   <li><strong>Finding 2 closure:</strong> a grant with an empty/absent
+ *       principal array (which {@code PrincipalGrant.implies(Principal[])}
+ *       treats as "implies everything") is always rebound to this backend's
+ *       own {@code scopePrincipals}, never installed as a universal grant
+ *       ({@link #grant_emptyPrincipalArray_reboundToScope_notUniversal},
+ *       {@link #grant_nullPrincipalArray_reboundToScope_notUniversal});</li>
+ *   <li><strong>Finding 3 closure:</strong> a grant built exactly the way
+ *       {@code SubProcessGrantOrchestrator} (T3) actually builds one
+ *       (DIGEST-context, no principals, no lease wrapper) is accepted, not
+ *       refused, and once rebound actually applies to the real
+ *       digest-scoped, principal-scoped hosted-proxy domain it was computed
+ *       for ({@link #grant_t3StyleDigestGrant_isAcceptedAndAppliesOnceRebound});</li>
+ *   <li>a bare, unleased grant is accepted and auto-wrapped in a
+ *       purely-local dead-man-switch lease with a configurable default TTL,
+ *       which itself actually expires ({@link
+ *       #grant_bareUnleasedGrant_isAutoLeaseWrapped_thenExpires}).</li>
  * </ul>
  */
 public class SubProcessLocalPolicyAdminTest {
@@ -143,6 +161,17 @@ public class SubProcessLocalPolicyAdminTest {
                 .permissions(new Permission[]{perm})
                 .context(PermissionGrantBuilder.PRINCIPAL)
                 .build();
+    }
+
+    private static byte[] hexToBytes(String hex) {
+        int len = hex.length();
+        byte[] result = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            int hi = Character.digit(hex.charAt(i), 16);
+            int lo = Character.digit(hex.charAt(i + 1), 16);
+            result[i / 2] = (byte) ((hi << 4) + lo);
+        }
+        return result;
     }
 
     private final Principal admin = name("spiffe://ctrl/admin");
@@ -229,8 +258,42 @@ public class SubProcessLocalPolicyAdminTest {
                 anyGrantCarries(after, delegated));
     }
 
+    // ==================================================================
+    // Probe 2b (2026-07-20 board finding 2 + 3 closure): grant() no longer
+    // refuses on shape mismatch -- it OWNS rebinding (always to
+    // scopePrincipals) and lease-wrapping (reuse caller's lease, or mint a
+    // local one) unconditionally, true by construction rather than by
+    // refusing whatever the caller didn't already do itself.
+    // ==================================================================
+
     @Test
-    public void grant_refusesNonLeasedGrant_structuralFailClosed() throws Exception {
+    public void grant_bareUnleasedGrant_isAutoLeaseWrapped_thenExpires() throws Exception {
+        DynamicPolicyProvider policy = newPolicy();
+        long shortTtlMillis = 300L;
+        SubProcessLocalPolicyAdmin backend =
+                new SubProcessLocalPolicyAdmin(policy, new Principal[]{hosted}, shortTtlMillis);
+        Caller caller = new Caller();
+        caller.subject = subjectWith(admin);
+        SubProcessPolicyAdmin front =
+                new SubProcessPolicyAdmin(admin, backend, caller);
+        PolicyAdmin pa = front.getSubProcessPolicyAdmin();
+
+        Permission delegated = new RuntimePermission("isolation.autoLeaseProbe");
+        PermissionGrant bare = principalGrant(hosted, delegated); // caller did NOT lease it
+
+        pa.grant(bare); // must succeed: T1 mints its own local dead-man lease now
+
+        assertTrue("auto-lease-wrapped grant is in force immediately",
+                policy.implies(domain(hosted), delegated));
+
+        Thread.sleep(shortTtlMillis + 400L);
+
+        assertFalse("must expire per the backend's own default-TTL dead-man switch",
+                policy.implies(domain(hosted), delegated));
+    }
+
+    @Test
+    public void grant_emptyPrincipalArray_reboundToScope_notUniversal() throws Exception {
         DynamicPolicyProvider policy = newPolicy();
         SubProcessLocalPolicyAdmin backend =
                 new SubProcessLocalPolicyAdmin(policy, new Principal[]{hosted});
@@ -240,16 +303,133 @@ public class SubProcessLocalPolicyAdminTest {
                 new SubProcessPolicyAdmin(admin, backend, caller);
         PolicyAdmin pa = front.getSubProcessPolicyAdmin();
 
-        Permission delegated = new RuntimePermission("isolation.bareProbe");
-        PermissionGrant bare = principalGrant(hosted, delegated); // NOT leased
+        Permission perm = new RuntimePermission("isolation.emptyPrincipalEscalationProbe");
+        // Exact adversarial shape from the board's Finding 2: PRINCIPAL
+        // context with an EMPTY Principal[] array -- PrincipalGrant.implies
+        // (Principal[]) treats an empty required-set as always-satisfied,
+        // i.e. "implies every protection domain" -- wrapped in a real
+        // LeasedPermissionGrant so the (now-removed) lease-shape-only gate
+        // would have let it straight through unmodified.
+        PermissionGrant universalAttempt = PermissionGrantBuilder.newBuilder()
+                .context(PermissionGrantBuilder.PRINCIPAL)
+                .principals(new Principal[0])
+                .permissions(new Permission[]{perm})
+                .build();
+        TestLease lease = new TestLease(System.currentTimeMillis() + 60_000L);
+        pa.grant(new LeasedPermissionGrant(universalAttempt, lease));
 
+        Principal unrelated = name("spiffe://ctrl/totally-unrelated");
+        assertFalse("must be rebound to scopePrincipals, never installed as universal",
+                policy.implies(domain(unrelated), perm));
+        assertTrue("must apply to this backend's own configured scope",
+                policy.implies(domain(hosted), perm));
+    }
+
+    @Test
+    public void grant_nullPrincipalArray_reboundToScope_notUniversal() throws Exception {
+        DynamicPolicyProvider policy = newPolicy();
+        SubProcessLocalPolicyAdmin backend =
+                new SubProcessLocalPolicyAdmin(policy, new Principal[]{hosted});
+        Caller caller = new Caller();
+        caller.subject = subjectWith(admin);
+        SubProcessPolicyAdmin front =
+                new SubProcessPolicyAdmin(admin, backend, caller);
+        PolicyAdmin pa = front.getSubProcessPolicyAdmin();
+
+        Permission perm = new RuntimePermission("isolation.nullPrincipalEscalationProbe");
+        // .principals(...) never called at all -- the builder's internal
+        // field stays null, which PrincipalGrant treats identically to an
+        // empty array (Collections.emptySet()). This is T3's own actual
+        // shape (see grant_t3StyleDigestGrant_isAcceptedAndAppliesOnceRebound
+        // below), reduced to the PRINCIPAL context for a directly-observable
+        // implies() probe.
+        PermissionGrant universalAttempt = PermissionGrantBuilder.newBuilder()
+                .context(PermissionGrantBuilder.PRINCIPAL)
+                .permissions(new Permission[]{perm})
+                .build();
+        pa.grant(universalAttempt); // bare AND unscoped
+
+        Principal unrelated = name("spiffe://ctrl/totally-unrelated-2");
+        assertFalse("must be rebound to scopePrincipals, never installed as universal",
+                policy.implies(domain(unrelated), perm));
+        assertTrue("must apply to this backend's own configured scope",
+                policy.implies(domain(hosted), perm));
+    }
+
+    /**
+     * Finding 3 regression test: promoted from the board's own
+     * cross-check probe ({@code T1T3IntegrationMismatchTest}, built during
+     * the 2026-07-20 review to prove the original refusal-based {@code
+     * grant()} rejected every grant {@code SubProcessGrantOrchestrator} (T3,
+     * {@code jgdms-pref-class-loader/.../SubProcessGrantOrchestrator.java})
+     * actually builds). Reproduces T3's exact construction --
+     * {@code PermissionGrantBuilder.DIGEST} context, digest + permissions,
+     * <em>no</em> {@code .principals(...)} call, <em>no</em> lease wrapper --
+     * and now asserts the opposite: T1 accepts it, and once rebound the
+     * grant actually applies to the real digest-scoped, principal-scoped
+     * domain it was computed for (not merely "doesn't throw").
+     */
+    @Test
+    public void grant_t3StyleDigestGrant_isAcceptedAndAppliesOnceRebound() throws Exception {
+        DynamicPolicyProvider policy = newPolicy();
+        SubProcessLocalPolicyAdmin backend =
+                new SubProcessLocalPolicyAdmin(policy, new Principal[]{hosted});
+        Caller caller = new Caller();
+        caller.subject = subjectWith(admin);
+        SubProcessPolicyAdmin front =
+                new SubProcessPolicyAdmin(admin, backend, caller);
+        PolicyAdmin pa = front.getSubProcessPolicyAdmin();
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 32; i++) sb.append("aa");
+        byte[] digestBytes = hexToBytes(sb.toString()); // fake 32-byte SHA-256
+        Permission t3Perm = new RuntimePermission("isolation.t3ceilingProbe");
+
+        // Exactly SubProcessGrantOrchestrator.applyVerdictCeiling's grant
+        // construction: DIGEST context, digest + permissions, no principals,
+        // no lease.
+        PermissionGrant t3Grant = PermissionGrantBuilder.newBuilder()
+                .context(PermissionGrantBuilder.DIGEST)
+                .digest("SHA-256", digestBytes)
+                .permissions(new Permission[]{t3Perm})
+                .build();
+
+        // Must NOT throw: T1 must accept T3's exact, currently-merged grant
+        // shape (Finding 3).
+        pa.grant(t3Grant);
+
+        // Stronger end-to-end proof, skipped gracefully off DirtyChai (where
+        // java.security.DigestCodeSource doesn't exist): once rebound to
+        // scopePrincipals and installed, the grant actually applies to a
+        // real DigestCodeSource-backed domain carrying those principals --
+        // directly rebutting SubProcessGrantOrchestrator's own javadoc
+        // caveat that a scope mismatch could leave the pushed grant
+        // "silently implying nothing" for the hosted proxy's actual domain.
+        Class<?> digestCodeSourceClass;
         try {
-            pa.grant(bare);
-            fail("a bare, non-lease-scoped grant must be refused (fail-closed)");
-        } catch (SecurityException expected) { /* good */ }
+            digestCodeSourceClass = Class.forName("java.security.DigestCodeSource");
+        } catch (ClassNotFoundException notOnThisJdk) {
+            Assume.assumeNoException(
+                    "DigestCodeSource only available on DirtyChai", notOnThisJdk);
+            return;
+        }
+        Constructor<?> ctor = digestCodeSourceClass.getConstructor(
+                String.class, Certificate[].class, String.class, byte[].class);
+        Object digestCodeSource = ctor.newInstance(
+                "file:/probe.jar", null, "SHA-256", digestBytes);
 
-        assertFalse("refused grant must not have been installed",
-                policy.implies(domain(hosted), delegated));
+        ProtectionDomain hostedProxyDomain = new ProtectionDomain(
+                (CodeSource) digestCodeSource, null, null, new Principal[]{hosted});
+        assertTrue("T3's digest-scoped grant, once rebound by T1, must actually"
+                + " apply to the real hosted-proxy domain it was computed for",
+                policy.implies(hostedProxyDomain, t3Perm));
+
+        ProtectionDomain unrelatedDomain = new ProtectionDomain(
+                (CodeSource) digestCodeSource, null, null,
+                new Principal[]{name("spiffe://ctrl/someone-else")});
+        assertFalse("must not apply to an unrelated principal's domain"
+                + " (rebinding, not universal-implies)",
+                policy.implies(unrelatedDomain, t3Perm));
     }
 
     // ==================================================================
