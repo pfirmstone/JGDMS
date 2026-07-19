@@ -150,6 +150,56 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
     // These two settings are to prevent DOS attacks.
     private static final long MAX_COMBINED_ARRAY_LEN = Integer.MAX_VALUE - 8;
     private static final int MAX_OBJECT_CACHE = 65664;
+
+    /**
+     * Coarse per-array structural ceiling on the element count of a single
+     * <em>reference</em> (Object[]) array, applied <em>before</em> the array is
+     * allocated. This is a decode-time denial-of-service guard: the existing
+     * {@link #MAX_COMBINED_ARRAY_LEN} budget caps total combined array length
+     * across the whole object graph, but on its own it lets a single
+     * wire-declared length (e.g. 300,000,000) commit a huge allocation before a
+     * single element has been read and validated.
+     * <p>
+     * A reference array cannot be built incrementally: its identity is
+     * registered in the back-reference handle table before its elements are
+     * read (so a cyclic element may legally point back at the array being
+     * filled), and a Java array cannot be resized in place. For reference
+     * arrays the up-front allocation is therefore unavoidable, and this coarse
+     * ceiling is the protection: a wire-declared count above it is rejected
+     * before any allocation, exactly as {@link #readNewProxyClassDesc} rejects
+     * an excessive proxy-interface count.
+     * <p>
+     * Primitive-component arrays and raw byte/UTF buffers do <em>not</em> use
+     * this ceiling: they are read incrementally in bounded chunks (see
+     * {@link #readPrimitiveArrayChunked} / {@link #readBytesChunked}) so a
+     * truncated payload fails fast at the truncation point and allocation never
+     * exceeds roughly twice the bytes actually delivered on the wire. That
+     * self-limiting read is amplification-proof regardless of the declared
+     * length, so a tight per-array ceiling is unnecessary there and would only
+     * risk false-positives on legitimately large primitive/String payloads.
+     * <p>
+     * Value: 2^20 = 1,048,576. Evidence for the bound: a survey of the JGDMS
+     * lookup/registration services (reggie {@code RegistrarImpl}, fiddler
+     * {@code FiddlerImpl}, mahalo) shows every marshalled reference array
+     * ({@code Entry[]}, {@code EntryRep[]}, {@code Object[]}, {@code Uuid[]},
+     * {@code ServiceRegistrar[]}) sized from a live collection/registration
+     * count -- attribute sets, registration IDs, lease batches -- realistically
+     * in the thousands, with no literal or unbounded large sizes. 2^20 leaves
+     * roughly three orders of magnitude of headroom over realistic traffic
+     * while capping a single reference-array allocation at ~8 MB (64-bit refs),
+     * negligible memory pressure and far below {@link #MAX_COMBINED_ARRAY_LEN}.
+     * NOTE: this value is a security-relevant choice flagged for explicit
+     * maintainer sign-off before merge.
+     */
+    private static final int MAX_ARRAY_LEN = 1 << 20; // 1,048,576
+
+    /**
+     * Chunk size, in elements, for the incremental/bounded-chunk reads used by
+     * {@link #readPrimitiveArrayChunked} and {@link #readBytesChunked}. Buffers
+     * start at (or below) this size and grow by doubling, capped at the declared
+     * length, so transient allocation stays within ~2x the data actually read.
+     */
+    private static final int READ_CHUNK = 1 << 12; // 4096
     
     private static final Class [] EMPTY_CONSTRUCTOR_PARAM_TYPES = new Class[0];
     
@@ -745,9 +795,12 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 	    } catch (IOException e){} // Ignore
 	    throw new IOException("Attempt to excessively long array of raw bytes");
 	}
-        byte[] result = new byte[length];
 	arrayLenAllowedRemain = arrayLenAllowedRemain - length;
-        input.readFully(result);
+	// Read incrementally in bounded chunks rather than committing a
+	// wire-declared byte[length] up front: a truncated payload then fails
+	// fast at the truncation point (EOFException) instead of forcing a large
+	// allocation before any byte is delivered.
+        byte[] result = readBytesChunked(input, length);
         return result;
     }
 
@@ -1924,58 +1977,52 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
 	arrayLenAllowedRemain = arrayLenAllowedRemain - size;
         Class<?> arrayClass = classDesc.forClass();
         Class<?> componentType = arrayClass.getComponentType();
-        Object result = Array.newInstance(componentType, size);
-
-        registerObjectRead(result, newHandle, unshared);
+        Object result;
 
         // Now we have code duplication just because Java is typed. We have to
         // read N elements and assign to array positions, but we must typecast
         // the array first, and also call different methods depending on the
         // elements.
         if (componentType.isPrimitive()) {
-            if (componentType == Integer.TYPE) {
-                int[] intArray = (int[]) result;
-                for (int i = 0; i < size; i++) {
-                    intArray[i] = input.readInt();
-                }
-            } else if (componentType == Byte.TYPE) {
-                byte[] byteArray = (byte[]) result;
-                input.readFully(byteArray, 0, size);
-            } else if (componentType == Character.TYPE) {
-                char[] charArray = (char[]) result;
-                for (int i = 0; i < size; i++) {
-                    charArray[i] = input.readChar();
-                }
-            } else if (componentType == Short.TYPE) {
-                short[] shortArray = (short[]) result;
-                for (int i = 0; i < size; i++) {
-                    shortArray[i] = input.readShort();
-                }
-            } else if (componentType == Boolean.TYPE) {
-                boolean[] booleanArray = (boolean[]) result;
-                for (int i = 0; i < size; i++) {
-                    booleanArray[i] = input.readBoolean();
-                }
-            } else if (componentType == Long.TYPE) {
-                long[] longArray = (long[]) result;
-                for (int i = 0; i < size; i++) {
-                    longArray[i] = input.readLong();
-                }
-            } else if (componentType == Float.TYPE) {
-                float[] floatArray = (float[]) result;
-                for (int i = 0; i < size; i++) {
-                    floatArray[i] = input.readFloat();
-                }
-            } else if (componentType == Double.TYPE) {
-                double[] doubleArray = (double[]) result;
-                for (int i = 0; i < size; i++) {
-                    doubleArray[i] = input.readDouble();
-                }
+            // Primitive component: build incrementally in bounded chunks so a
+            // wire-declared size is never committed as an allocation before the
+            // payload is delivered. A truncated payload fails fast (EOFException)
+            // at the truncation point, and allocation stays within ~2x the data
+            // actually read -- amplification-proof regardless of the declared
+            // size, so no per-array ceiling is needed here. No cyclic element can
+            // point back at a primitive array, so the array's identity is
+            // registered after it has been fully built.
+            if (componentType == Integer.TYPE
+                    || componentType == Byte.TYPE
+                    || componentType == Character.TYPE
+                    || componentType == Short.TYPE
+                    || componentType == Boolean.TYPE
+                    || componentType == Long.TYPE
+                    || componentType == Float.TYPE
+                    || componentType == Double.TYPE) {
+                result = readPrimitiveArrayChunked(componentType, size, input);
+                registerObjectRead(result, newHandle, unshared);
             } else {
                 throw new ClassNotFoundException(Messages.getString(
                         "luni.C2", classDesc.getName())); //$NON-NLS-1$
             }
         } else {
+            // Reference component: a cyclic element may back-reference this
+            // array, so its identity must be registered in the handle table
+            // BEFORE any element is read, which forces up-front allocation that
+            // cannot be built incrementally. The coarse per-array ceiling is the
+            // decode-time DoS protection here -- reject an excessive declared
+            // count before allocating, in the style of readNewProxyClassDesc.
+            if (size > MAX_ARRAY_LEN) {
+                try {
+                    close();
+                } catch (IOException e){} // Ignore
+                throw new IOException(
+                    "Smells like a denial of service attack, invalid or excessive array length: "
+                    + size);
+            }
+            result = Array.newInstance(componentType, size);
+            registerObjectRead(result, newHandle, unshared);
 	    try {
 		// Array of Objects
 		Object[] objectArray = (Object[]) result;
@@ -2024,7 +2071,107 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
             result = resolveObject(result);
             registerObjectRead(result, newHandle, false);
         }
-	
+
+        return result;
+    }
+
+    /**
+     * Reads {@code length} raw bytes from {@code in} incrementally, in bounded
+     * chunks, growing the backing buffer by doubling (capped at {@code length})
+     * rather than allocating {@code byte[length]} up front. A truncated stream
+     * causes {@link DataInput#readFully} to throw {@link EOFException} at the
+     * truncation point, so a hostile wire-declared length can never force a
+     * large allocation before the corresponding bytes have actually been
+     * delivered: transient allocation stays within roughly twice the bytes read.
+     * <p>
+     * This is a decode-time denial-of-service guard; callers still enforce the
+     * cross-graph {@link #MAX_COMBINED_ARRAY_LEN} budget on {@code length}
+     * before calling.
+     *
+     * @param in     source to read from.
+     * @param length number of bytes to read; must be {@code >= 0}.
+     * @return a {@code byte[]} of exactly {@code length} bytes.
+     * @throws IOException if {@code length < 0}, or an I/O error / EOF occurs.
+     */
+    private static byte[] readBytesChunked(DataInput in, int length) throws IOException {
+        if (length < 0) throw new IOException("Negative array length: " + length);
+        if (length == 0) return new byte[0];
+        int cap = Math.min(length, READ_CHUNK);
+        byte[] buf = new byte[cap];
+        int read = 0;
+        while (read < length) {
+            if (read == cap) {
+                cap = (int) Math.min((long) length, (long) cap * 2);
+                buf = Arrays.copyOf(buf, cap);
+            }
+            int step = cap - read; // fill to current capacity
+            in.readFully(buf, read, step);
+            read += step;
+        }
+        return buf;
+    }
+
+    /**
+     * Reads a primitive-component array of {@code size} elements from
+     * {@code in} incrementally, in bounded chunks, growing the backing array by
+     * doubling (capped at {@code size}) rather than committing
+     * {@code Array.newInstance(componentType, size)} up front. A truncated
+     * stream throws {@link EOFException} at the truncation point, so a hostile
+     * wire-declared {@code size} can never force a large allocation before the
+     * corresponding elements have actually been delivered: transient allocation
+     * stays within roughly twice the elements read. No cyclic element can refer
+     * back to a primitive array, so the identity of the returned array need not
+     * be registered until it is fully built.
+     *
+     * @param componentType the primitive component type (must be primitive).
+     * @param size          number of elements to read; must be {@code >= 0}.
+     * @param in            source to read from.
+     * @return the fully-populated primitive array of length {@code size}.
+     * @throws IOException if an I/O error / EOF occurs, or {@code size < 0}.
+     */
+    private static Object readPrimitiveArrayChunked(Class<?> componentType, int size,
+            DataInput in) throws IOException {
+        if (size < 0) throw new IOException("Negative array length: " + size);
+        if (componentType == Byte.TYPE) {
+            return readBytesChunked(in, size);
+        }
+        int cap = Math.min(size, READ_CHUNK);
+        Object result = Array.newInstance(componentType, cap);
+        int read = 0;
+        while (read < size) {
+            if (read == cap) {
+                cap = (int) Math.min((long) size, (long) cap * 2);
+                Object grown = Array.newInstance(componentType, cap);
+                System.arraycopy(result, 0, grown, 0, read);
+                result = grown;
+            }
+            if (componentType == Integer.TYPE) {
+                int[] a = (int[]) result;
+                for (int i = read; i < cap; i++) a[i] = in.readInt();
+            } else if (componentType == Character.TYPE) {
+                char[] a = (char[]) result;
+                for (int i = read; i < cap; i++) a[i] = in.readChar();
+            } else if (componentType == Short.TYPE) {
+                short[] a = (short[]) result;
+                for (int i = read; i < cap; i++) a[i] = in.readShort();
+            } else if (componentType == Boolean.TYPE) {
+                boolean[] a = (boolean[]) result;
+                for (int i = read; i < cap; i++) a[i] = in.readBoolean();
+            } else if (componentType == Long.TYPE) {
+                long[] a = (long[]) result;
+                for (int i = read; i < cap; i++) a[i] = in.readLong();
+            } else if (componentType == Float.TYPE) {
+                float[] a = (float[]) result;
+                for (int i = read; i < cap; i++) a[i] = in.readFloat();
+            } else if (componentType == Double.TYPE) {
+                double[] a = (double[]) result;
+                for (int i = read; i < cap; i++) a[i] = in.readDouble();
+            } else {
+                throw new IOException("Not a supported primitive component type: "
+                    + componentType);
+            }
+            read = cap;
+        }
         return result;
     }
 
@@ -2865,9 +3012,14 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
     }
     
     private static String decodeUTF(int len, DataInput in) throws IOException {
-        byte[] buf = new byte[len];
+        // Read the raw UTF bytes incrementally in bounded chunks first, so a
+        // truncated payload fails fast (EOFException) at the truncation point
+        // instead of committing byte[len] AND char[len] up front. Only once all
+        // len bytes have actually been delivered do we allocate the char[]
+        // output buffer -- at that point the length is proven by the wire, so
+        // there is no amplification and no per-array ceiling is required.
+        byte[] buf = readBytesChunked(in, len);
         char[] out = new char[len];
-        in.readFully(buf, 0, len);
 
         return convertUTF8WithBuf(buf, out, 0, len);
     }
