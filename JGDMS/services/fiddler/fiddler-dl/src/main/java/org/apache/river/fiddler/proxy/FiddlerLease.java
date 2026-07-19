@@ -29,8 +29,6 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -714,14 +712,6 @@ public abstract class FiddlerLease extends AbstractLease
         public MethodConstraints getConstraints() {
             return methodConstraints;
         }//end getConstraints
-
-        /** Returns a proxy trust iterator that is used in 
-         *  <code>ProxyTrustVerifier</code> to retrieve this object's
-         *  trust verifier.
-         */
-        private ProxyTrustIterator getProxyTrustIterator() {
-	    return new SingletonProxyTrustIterator(server);
-        }//end getProxyTrustIterator
 
         public void setExpiration(long expiration) {
             synchronized (this) {
