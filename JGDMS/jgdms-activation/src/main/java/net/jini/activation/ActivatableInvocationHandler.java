@@ -39,7 +39,6 @@ import java.rmi.ServerException;
 import java.rmi.UnknownHostException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -52,7 +51,6 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.security.Security;
-import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
@@ -172,20 +170,6 @@ public final class ActivatableInvocationHandler
      */
     private final MethodConstraints clientConstraints;
 
-    /*
-     * The getProxyTrustIterator method object.
-     */
-    private static final Method getPtiMethod;
-
-    static {
-	try {
-	    getPtiMethod = ActivatableInvocationHandler.class.
-		getDeclaredMethod("getProxyTrustIterator", new Class[0]);
-	} catch (NoSuchMethodException nsme) {
-	    throw new AssertionError(nsme);
-	}
-    }
-    
     public static SerialForm[] serialForm() {
 	return new SerialForm[] {
 	    new SerialForm("id", ActivationID.class),
@@ -861,156 +845,6 @@ public final class ActivatableInvocationHandler
 	}
     }
     
-    /**
-     * Returns a proxy trust iterator for an activatable object that is
-     * suitable for use by {@link
-     * net.jini.security.proxytrust.ProxyTrustVerifier}.
-     *
-     * <p>The iterator produces the current underlying proxy on each
-     * iteration.  The iterator produces up to three elements, but after
-     * the first element, iteration terminates unless the exception set by
-     * a call to {@link ProxyTrustIterator#setException setException} on
-     * the previous iteration is an instance of {@link ConnectException},
-     * {@link ConnectIOException}, {@link NoSuchObjectException}, or {@link
-     * UnknownHostException}.
-     *
-     * <p>On each iteration, if the current underlying proxy is
-     * <code>null</code> or the same as the underlying proxy produced by
-     * the previous iteration:
-     *
-     * <p>A new proxy is obtained by invoking the {@link
-     * ActivationID#activate activate} method on the activation identifier,
-     * passing <code>false</code> as the argument.  That method must return
-     * an instance of a dynamic {@link Proxy} class, with an invocation
-     * handler that is an instance of this class, containing the same
-     * activation identifier.  If this activation
-     * throws one of the following exceptions, the exception is thrown
-     * by the <code>next</code> method of the iterator and the iteration
-     * terminates:
-     *
-     * <blockquote>If the proxy returned by the <code>activate</code> call
-     * does not meet the criteria listed above, then an {@link
-     * ActivateFailedException} is thrown.  If the <code>activate</code>
-     * call throws {@link RemoteException}, then {@link ConnectIOException}
-     * is thrown with the <code>RemoteException</code> as the cause.  If
-     * the <code>activate</code> call throws {@link UnknownHostException},
-     * then {@link NoSuchObjectException} is thrown with the
-     * <code>UnknownHostException</code> as the cause.  Finally, if the
-     * <code>activate</code> call throws {@link ActivationException}, then
-     * {@link ActivateFailedException} is thrown with the
-     * <code>ActivationException</code> as the cause.
-     * </blockquote>
-     *
-     * <p>If a valid, new proxy is returned by the <code>activate</code>
-     * call, the underlying proxy of the new proxy is obtained from the new
-     * proxy's activatable invocation handler.  If the obtained underlying
-     * proxy implements <code>RemoteMethodControl</code>, this invocation
-     * handler's underlying proxy is set to a copy of the obtained
-     * underlying proxy with the client constraints of this instance.
-     * Otherwise, this invocation handler's underlying proxy is set to the
-     * obtained underlying proxy.
-     *
-     * <p>On the first call to the activation identifier's
-     * <code>activate</code> method, <code>false</code> is passed as an
-     * argument; on subsequent calls <code>true</code> will be passed, if
-     * passing <code>false</code> returned the same underlying proxy as
-     * before (when compared using the <code>equals</code> method) or if
-     * the exception passed to <code>setException</code> is an instance of
-     * <code>NonExistantObjectException</code>. If an activation attempt results
-     * in an exception, that exception is thrown by the <code>next</code>
-     * method of the iterator and iteration terminates.
-     *
-     * @return a proxy trust iterator suitable for use by
-     * <code>ProxyTrustVerifier</code>
-     **/
-    protected ProxyTrustIterator getProxyTrustIterator() {
-	return new ProxyTrustIterator() {
-	    private int retries = MAX_RETRIES + 1;
-	    private boolean force = false;
-	    private Remote currProxy = null;
-	    private Exception fail = null;
-	    private RemoteException ex = null;
-	    private boolean advance = true;
-
-            @Override
-	    public synchronized boolean hasNext() {
-		if (advance) {
-		    advance = false;
-		    if (--retries < 0) {
-		    } else if (retries == MAX_RETRIES ||
-			       ex instanceof NoSuchObjectException ||
-			       ex instanceof ConnectException ||
-			       ex instanceof UnknownHostException ||
-			       ex instanceof ConnectIOException)
-		    {
-			try {
-			    synchronized
-				(ActivatableInvocationHandler.this)
-			    {
-				if (uproxy == null || uproxy.equals(currProxy))
-				{
-				    activate(force, null, getPtiMethod);
-				    if (uproxy.equals(currProxy) &&
-					ex instanceof NoSuchObjectException &&
-					!force)
-				    {
-					activate(true, null, getPtiMethod);
-				    }
-				    force = true;
-				} else {
-				    force = false;
-				}
-				currProxy = uproxy;
-			    }
-			} catch (Exception e) {
-			    fail = e;
-			    retries = 0;
-			}
-		    } else {
-			retries = -1;
-			if (!(ex == null ||
-			      ex instanceof MarshalException ||
-			      ex instanceof ServerException ||
-			      ex instanceof ServerError))
-			{
-			    synchronized (ActivatableInvocationHandler.this) {
-				if (currProxy.equals(uproxy)) {
-				    uproxy = null;
-				}
-			    }
-			}
-		    }
-		}
-		return retries >= 0;
-	    }
-
-            @Override
-	    public synchronized Object next() throws RemoteException {
-		if (!hasNext()) {
-		    throw new NoSuchElementException();
-		}
-		advance = true;
-		if (fail == null) {
-		    return currProxy;
-		} else if (fail instanceof RemoteException) {
-		    throw (RemoteException) fail;
-		} else {
-		    throw (RuntimeException) fail;
-		}
-	    }
-
-            @Override
-	    public synchronized void setException(RemoteException e) {
-		if (e == null) {
-		    throw new NullPointerException("exception is null");
-		} else if (retries > MAX_RETRIES || !advance || fail != null) {
-		    throw new IllegalStateException();
-		}
-		ex = e;
-	    }
-	};
-    }
-
     /**
      * Returns <code>true</code> if the specified object (which is not
      * yet known to be trusted) is equivalent in trust, content, and

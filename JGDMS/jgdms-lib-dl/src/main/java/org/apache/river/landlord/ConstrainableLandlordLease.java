@@ -27,8 +27,6 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.id.ReferentUuid;
 import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -296,16 +294,7 @@ final public class ConstrainableLandlordLease extends LandlordLease
 	return methodConstraints;
     }
 
-    /** 
-     * Returns a proxy trust iterator that is used in 
-     * <code>ProxyTrustVerifier</code> to retrieve this object's
-     * trust verifier.
-     */
-    private ProxyTrustIterator getProxyTrustIterator() {
-	return new SingletonProxyTrustIterator(landlord());
-    }
-
-    private void readObject(ObjectInputStream s)  
+    private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException
     {
 	s.defaultReadObject();
