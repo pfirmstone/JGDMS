@@ -44,6 +44,7 @@ import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Resolve;
 import org.apache.river.resource.Service;
+import org.apache.river.resource.ServiceConfigurationError;
 
 /**
  * DER-path counterpart of {@code org.apache.river.api.io.ProxySerializer}.
@@ -211,10 +212,33 @@ public class DerProxySerializer implements Resolve {
      * to {@code ProxySerializer.getProvider}, but reached from the downloadable module.
      */
     private static ProxyCodebaseSpi getProvider(final ClassLoader loader) {
-        ProxyCodebaseSpi result = AccessController.doPrivileged((PrivilegedAction<ProxyCodebaseSpi>) () -> {
-            Iterator<ProxyCodebaseSpi> it = Service.providers(ProxyCodebaseSpi.class, loader);
-            return it.hasNext() ? it.next() : null;
-        });
+        final ProxyCodebaseSpi result;
+        try {
+            result = AccessController.doPrivileged((PrivilegedAction<ProxyCodebaseSpi>) () -> {
+                Iterator<ProxyCodebaseSpi> it = Service.providers(ProxyCodebaseSpi.class, loader);
+                // FAIL-LOUD: the no-op fallback below is intended ONLY for a genuinely empty
+                // iterator (no provider declared). A provider that IS declared in
+                // META-INF/services but cannot be loaded/instantiated makes hasNext() true and
+                // next() throw ServiceConfigurationError; that error is deliberately allowed to
+                // propagate. Catching it and returning the no-op provider would marshal a smart
+                // proxy WITHOUT codebase substitution -- a silent capability downgrade, worse
+                // than failing closed.
+                return it.hasNext() ? it.next() : null;
+            });
+        } catch (ServiceConfigurationError e) {
+            // Preserve fail-closed; enrich the diagnostic so a real misconfiguration is
+            // unambiguous -- name the SPI, the loader actually used for the lookup, and (via the
+            // wrapped cause) the offending provider. Do NOT downgrade to the no-op provider.
+            ServiceConfigurationError wrapped = new ServiceConfigurationError(
+                    "DER proxy substitution: a " + ProxyCodebaseSpi.class.getName()
+                    + " provider is declared in META-INF/services but could not be loaded or"
+                    + " instantiated using loader [" + describeLoader(loader) + "]. Refusing to"
+                    + " fall back to the no-substitution provider (that would silently drop"
+                    + " codebase substitution and downgrade the proxy's capability). Cause: "
+                    + e.getMessage());
+            wrapped.initCause(e);
+            throw wrapped;
+        }
         if (result != null) return result;
         return new ProxyCodebaseSpi() {
             @Override
@@ -228,6 +252,21 @@ public class DerProxySerializer implements Resolve {
                 return false;
             }
         };
+    }
+
+    /**
+     * Renders a class loader for a diagnostic message. Names {@code null} explicitly as the
+     * system-class-loader lookup (per the {@link Service} null-loader contract) so the message is
+     * unambiguous about which loader failed to load the declared provider.
+     */
+    private static String describeLoader(final ClassLoader loader) {
+        if (loader == null) {
+            return "null (system class loader per Service null-loader contract)";
+        }
+        return AccessController.doPrivileged((PrivilegedAction<String>) () -> {
+            String cls = loader.getClass().getName();
+            return cls + "@" + Integer.toHexString(System.identityHashCode(loader));
+        });
     }
 
     /** Loader used to rebuild the bootstrap proxy; falls back to this class's loader (has the bootstrap interfaces). */

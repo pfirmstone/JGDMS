@@ -314,12 +314,22 @@ public final class Service {
 	    }
 	    String cn = nextName;
 	    nextName = null;
+	    // Symmetry with hasNext(): when loader == null, hasNext() scanned
+	    // ClassLoader.getSystemResources(...) (the system class loader), so the
+	    // class must be resolved against the system class loader too -- NOT the
+	    // bootstrap loader (which LoadClass.forName(cn, true, null) would use,
+	    // and which cannot see a provider declared on the system/application
+	    // classpath, yielding a spurious "Provider ... not found"
+	    // ServiceConfigurationError). This restores the documented contract:
+	    // "the system class loader (or, failing that the bootstrap class loader)".
+	    ClassLoader effectiveLoader =
+		(loader != null) ? loader : ClassLoader.getSystemClassLoader();
 	    try {
-		Class<S> c = LoadClass.forName(cn, true, loader);
+		Class<S> c = LoadClass.forName(cn, true, effectiveLoader);
 		if (!service.isAssignableFrom(c)) {
                     log.log(Level.SEVERE,
                         "service classloader is {0}, provider loader is {1}",
-                        new Object[]{service.getClass().getClassLoader(), loader}
+                        new Object[]{service.getClass().getClassLoader(), effectiveLoader}
                     );
 		    fail(service, "Provider " + cn + " is of incorrect type");
 		}
@@ -396,8 +406,12 @@ public final class Service {
      *         The class loader to be used to load provider-configuration files
      *         and instantiate provider classes, or <tt>null</tt> if the system
      *         class loader (or, failing that the bootstrap class loader) is to
-     *         be used
-     * 
+     *         be used. When {@code null}, both the configuration-file scan and
+     *         the provider-class resolution use {@link
+     *         ClassLoader#getSystemClassLoader()} (symmetric): a provider on the
+     *         application classpath resolves rather than failing to load against
+     *         the bootstrap loader.
+     *
      * @return An <tt>Iterator</tt> that yields provider objects for the given
      *         service, in instantiation order.  The iterator will throw a
      *         <tt>ServiceConfigurationError</tt> if a provider-configuration

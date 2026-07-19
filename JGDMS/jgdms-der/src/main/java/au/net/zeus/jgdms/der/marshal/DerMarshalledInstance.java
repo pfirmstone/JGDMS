@@ -20,6 +20,8 @@ package au.net.zeus.jgdms.der.marshal;
 import net.jini.io.MarshalledInstance;
 
 import java.io.IOException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -105,7 +107,7 @@ public final class DerMarshalledInstance extends MarshalledInstance {
      * @throws NullPointerException if {@code context} is {@code null}
      */
     public DerMarshalledInstance(Object obj, Collection context) throws IOException {
-        super(obj, context, new DerMarshalFactory());
+        super(obj, context, new DerMarshalFactory(true, getLoader(obj)));
     }
 
     /**
@@ -126,7 +128,26 @@ public final class DerMarshalledInstance extends MarshalledInstance {
      * @throws NullPointerException if {@code context} is {@code null}
      */
     public DerMarshalledInstance(Object obj, Collection context, boolean substitute) throws IOException {
-        super(obj, context, new DerMarshalFactory(substitute));
+        super(obj, context, new DerMarshalFactory(substitute, getLoader(obj)));
+    }
+
+    /**
+     * The marshalled object's own defining class loader, obtained privileged -- the loader threaded
+     * as the marshal-stream loader for the encode-side {@code ProxyCodebaseSpi} lookup. This mirrors
+     * exactly the JOSS {@code AtomicMarshalledInstance.getLoader(accessor)} provenance
+     * ({@code accessor.getClass().getClassLoader()} under {@code doPrivileged}); it is the object's
+     * defining loader, <strong>never</strong> {@code Thread.currentThread().getContextClassLoader()}
+     * (the Warres ambient-resolution failure). Computed here, before {@code super(...)}, so the loader
+     * reaches the {@link DerMarshalFactory} exactly as JOSS computes it before its own {@code super}.
+     *
+     * @param o the object being marshalled; {@code null} yields {@code null}
+     * @return {@code o.getClass().getClassLoader()}, or {@code null} if {@code o} is {@code null}
+     *         or bootstrap-defined
+     */
+    private static ClassLoader getLoader(final Object o) {
+        if (o == null) return null;
+        return AccessController.doPrivileged(
+                (PrivilegedAction<ClassLoader>) () -> o.getClass().getClassLoader());
     }
 
     // -------------------------------------------------------------------------

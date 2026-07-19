@@ -75,24 +75,41 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
      * carrier's own {@code serviceProxy}). See {@link DerMarshalledInstance#DerMarshalledInstance(Object, Collection, boolean)}.
      */
     private final boolean substitute;
+    /**
+     * The marshalling stream's context loader, threaded from the
+     * {@link DerMarshalledInstance} construction site as the marshalled object's own defining
+     * class loader (see {@code DerMarshalledInstance.getLoader}, which mirrors the JOSS
+     * {@code AtomicMarshalledInstance.getLoader(accessor)} provenance). It gates
+     * {@code DerProxySerializer.create(...)}'s {@code ProxyCodebaseSpi} lookup and
+     * {@code substitute()} check -- i.e. it is the {@code streamLoader} the sibling
+     * {@code DerObjectStreamCodec} holds as {@code writeStreamLoader}.
+     *
+     * <p><strong>Never the thread-context class loader</strong> (the Warres ambient-resolution
+     * failure): stream class resolution must be governed by the endpoint/object-assigned loader,
+     * not the ambient TCCL. May be {@code null} only when the marshalled object is {@code null}
+     * or bootstrap-defined; a {@code null} value is handled fail-symmetric by
+     * {@link org.apache.river.resource.Service} (system loader, not bootstrap).
+     */
+    private final ClassLoader streamLoader;
 
     // Stashed after writeObject -- reported via the widened MarshalInstanceOutput methods.
     private byte[] schemaBytes;
     private byte[] schemaDigest;
 
     /**
-     * Constructs a new substituting output wrapping {@code objOut}.
+     * Constructs a new substituting output wrapping {@code objOut}, with no stream loader.
      *
      * @param objOut  the stream to write the payload bytes to (must not be null)
      * @param context the serialization context collection (may be empty, must not be null)
      */
     public DerMarshalInstanceOutput(OutputStream objOut, Collection context) {
-        this(objOut, context, true);
+        this(objOut, context, true, null);
     }
 
     /**
      * Constructs a new output wrapping {@code objOut}, selecting whether a downloadable
-     * top-level proxy is substituted with a {@code DerProxySerializer} carrier.
+     * top-level proxy is substituted with a {@code DerProxySerializer} carrier, with no
+     * stream loader.
      *
      * @param objOut     the stream to write the payload bytes to (must not be null)
      * @param context    the serialization context collection (may be empty, must not be null)
@@ -100,9 +117,29 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
      *                   to store it bare (the carrier inner case)
      */
     public DerMarshalInstanceOutput(OutputStream objOut, Collection context, boolean substitute) {
-        this.objOut     = Objects.requireNonNull(objOut,  "objOut");
-        this.context    = Objects.requireNonNull(context, "context");
-        this.substitute = substitute;
+        this(objOut, context, substitute, null);
+    }
+
+    /**
+     * Constructs a new output wrapping {@code objOut}, selecting whether a downloadable
+     * top-level proxy is substituted with a {@code DerProxySerializer} carrier, and threading
+     * the marshalling stream's context loader used for the {@code ProxyCodebaseSpi} lookup.
+     *
+     * @param objOut       the stream to write the payload bytes to (must not be null)
+     * @param context      the serialization context collection (may be empty, must not be null)
+     * @param substitute   {@code true} to substitute a downloadable top-level proxy; {@code false}
+     *                     to store it bare (the carrier inner case)
+     * @param streamLoader the marshalling stream's context loader (the marshalled object's own
+     *                     defining loader), used to gate the {@code ProxyCodebaseSpi} lookup and
+     *                     {@code substitute()} check; may be {@code null}. NEVER the thread-context
+     *                     loader (the Warres ambient-resolution failure).
+     */
+    public DerMarshalInstanceOutput(OutputStream objOut, Collection context, boolean substitute,
+                                    ClassLoader streamLoader) {
+        this.objOut       = Objects.requireNonNull(objOut,  "objOut");
+        this.context      = Objects.requireNonNull(context, "context");
+        this.substitute   = substitute;
+        this.streamLoader = streamLoader;
     }
 
     // -------------------------------------------------------------------------
@@ -145,9 +182,9 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
         // DerProxySerializer (an @AtomicSerial record encoded via the schema-separated path).
         if (substitute) {
             if (obj instanceof DynamicProxyCodebaseAccessor dpca) {
-                obj = DerProxySerializer.create(dpca, null, context);
+                obj = DerProxySerializer.create(dpca, streamLoader, context);
             } else if (obj instanceof ProxyAccessor pa) {
-                obj = DerProxySerializer.create(pa, null, context);
+                obj = DerProxySerializer.create(pa, streamLoader, context);
             }
         }
 
@@ -248,6 +285,11 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
     @Override
     public String getPayloadFormat() {
         return MarshalledInstanceRecord.PAYLOAD_FORMAT;
+    }
+
+    /** The threaded marshal-stream loader (package-private, for tests): asserts it is not null-by-default. */
+    ClassLoader streamLoader() {
+        return streamLoader;
     }
 
     @Override

@@ -73,14 +73,38 @@ public final class DerMarshalFactory implements MarshalFactory {
      */
     private final boolean substitute;
 
-    /** No-arg constructor (substituting); this factory is otherwise stateless. */
+    /**
+     * The marshalling stream's context loader (the marshalled object's own defining loader),
+     * threaded from the {@link DerMarshalledInstance} construction site to the
+     * {@link DerMarshalInstanceOutput} so the encode-side {@code ProxyCodebaseSpi} lookup and
+     * {@code substitute()} check run against a real loader rather than {@code null}. This mirrors
+     * the JOSS {@code AtomicMarshalFactoryInstance.defaultOutLoader} (sourced from
+     * {@code AtomicMarshalledInstance.getLoader(accessor)}). {@code null} for the decode-only
+     * factory produced by {@link DerMarshalFactoryProvider}. NEVER the thread-context loader.
+     */
+    private final ClassLoader defaultOutLoader;
+
+    /** No-arg constructor (substituting, no loader -- decode path); this factory is otherwise stateless. */
     public DerMarshalFactory() {
-        this(true);
+        this(true, null);
     }
 
-    /** Constructor selecting whether to substitute a downloadable top-level proxy on encode. */
+    /** Constructor selecting whether to substitute a downloadable top-level proxy on encode (no loader). */
     public DerMarshalFactory(boolean substitute) {
+        this(substitute, null);
+    }
+
+    /**
+     * Constructor selecting substitution and threading the marshal-stream loader used for the
+     * encode-side {@code ProxyCodebaseSpi} lookup.
+     *
+     * @param substitute       {@code true} to substitute a downloadable top-level proxy on encode
+     * @param defaultOutLoader the marshalling stream's context loader (the object's own defining
+     *                         loader); may be {@code null}. NEVER the thread-context loader.
+     */
+    public DerMarshalFactory(boolean substitute, ClassLoader defaultOutLoader) {
         this.substitute = substitute;
+        this.defaultOutLoader = defaultOutLoader;
     }
 
     /**
@@ -99,7 +123,7 @@ public final class DerMarshalFactory implements MarshalFactory {
                                                      OutputStream locOut,
                                                      Collection   context)
             throws IOException {
-        return new DerMarshalInstanceOutput(objOut, context, substitute);
+        return new DerMarshalInstanceOutput(objOut, context, substitute, defaultOutLoader);
     }
 
     /**
