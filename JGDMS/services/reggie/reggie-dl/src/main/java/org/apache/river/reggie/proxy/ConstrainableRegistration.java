@@ -21,8 +21,6 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -104,13 +102,5 @@ public final class ConstrainableRegistration
     @Override
     public MethodConstraints getConstraints() {
 	return constraints;
-    }
-
-    /**
-     * Returns iterator used by ProxyTrustVerifier to retrieve a trust verifier
-     * for this object.
-     */
-    private ProxyTrustIterator getProxyTrustIterator() {
-	return new SingletonProxyTrustIterator(server);
     }
 }

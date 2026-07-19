@@ -27,8 +27,6 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -172,13 +170,5 @@ public final class ConstrainableEventLease
     // javadoc inherited from RemoteMethodControl.getConstraints
     public MethodConstraints getConstraints() {
 	return constraints;
-    }
-
-    /**
-     * Returns iterator used by ProxyTrustVerifier to retrieve a trust verifier
-     * for this object.
-     */
-    private ProxyTrustIterator getProxyTrustIterator() {
-	return new SingletonProxyTrustIterator(server);
     }
 }
