@@ -21,8 +21,6 @@ import java.io.IOException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.transaction.server.TransactionManager;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -72,13 +70,5 @@ final class TesterTransactionManagerConstrainableProxy
     // javadoc inherited from RemoteMethodControl.getConstraints
     public MethodConstraints getConstraints() {
 	return constraints;
-    }
-
-    /**
-     * Returns iterator used by ProxyTrustVerifier to retrieve a trust verifier
-     * for this object.
-     */
-    private ProxyTrustIterator getProxyTrustIterator() {
-	return new SingletonProxyTrustIterator(server);
     }
 }

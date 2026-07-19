@@ -26,8 +26,6 @@ import java.util.Iterator;
 import java.util.HashMap;
 import java.util.ConcurrentModificationException;
 
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.export.ProxyAccessor;
@@ -163,31 +161,6 @@ class TestLeaseMap extends OurAbstractLeaseMap
     @Override
     public Object getProxy() {
 	return home;
-    }
-
-    protected class IteratorImpl implements ProxyTrustIterator {
-	private boolean hasNextFlag = true;
-	private ProxyTrust proxy;
-
-	IteratorImpl(ProxyTrust proxy) {
-	    this.proxy = proxy;
-	}
-
-	public boolean hasNext() {
-	    return hasNextFlag;
-	}
-
-	public Object next() throws RemoteException {
-	    hasNextFlag = false;
-	    return proxy;
-	}
-
-	public void setException(RemoteException e) {
-	}
-    }
-
-    protected ProxyTrustIterator getProxyTrustIterator() {
-	return new IteratorImpl(home);
     }
 
     public RemoteMethodControl setConstraints(MethodConstraints constraints) {

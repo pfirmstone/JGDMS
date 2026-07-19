@@ -23,7 +23,6 @@ import java.rmi.RemoteException;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lease.UnknownLeaseException;
-import net.jini.security.proxytrust.ProxyTrust;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -33,7 +32,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * Interface that grators of test leases implement so the test lease proxy
  * objects can communicate back to the grantor
  */
-public interface LeaseBackEnd extends Remote, ProxyTrust {
+public interface LeaseBackEnd extends Remote {
     /**
      * Called by the lease when its <code>renew</code> method is called.
      *
