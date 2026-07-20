@@ -1654,13 +1654,21 @@ public final class ObjectCodec {
      */
     private static byte[] encodeProxy(Object proxy, String fieldName, int depth)
             throws DerException {
-        // If proxy's live handler is a BoomerangProxyHandler (this node itself decoded proxy from
+        // If proxy's live handler RETAINS a raw [8] wire form (this node itself decoded proxy from
         // a [8] item that dropped >=1 interface it couldn't resolve locally -- see decodeProxy
-        // below), re-emit the RETAINED ORIGINAL wire bytes verbatim, byte-for-byte, rather than
+        // below), re-emit those RETAINED ORIGINAL wire bytes verbatim, byte-for-byte, rather than
         // re-deriving fresh bytes from proxy.getClass().getInterfaces() (which only shows the
         // narrowed runtime set this node built, and would also forfeit the sender's
-        // @AtomicSerial-validated integrity guarantee -- see BoomerangProxyHandler). Otherwise --
-        // the common case, nothing was ever dropped -- behaviour is unchanged: encode fresh.
+        // @AtomicSerial-validated integrity guarantee -- see RawWireFormRetaining). This raw-bytes
+        // branch runs FIRST and returns before any normal handler re-serialization below (which
+        // would drop the handler's transient rawForm). Otherwise -- the common case, nothing was
+        // ever dropped -- behaviour is unchanged: encode fresh.
+        //
+        // SCOPE (fence-scope boundary): the retention guarantee holds on this bare-[8] proxy encode
+        // path. As on the object-stream write site (DerObjectStreamCodec, bare-proxy branch), a
+        // proxy re-homed via the (default-off) smart-proxy codebase substitution is diverted to the
+        // [1] carrier path and does NOT retain -- fidelity loss only, never a self-check/authz
+        // change. See RawWireFormRetaining's javadoc and STD-009 sec.6.4.
         byte[] retained = ProxyWireSupport.wireContentForBoomerang(proxy);
         if (retained != null) {
             return DerWriter.writeTlv(CTX_PROXY, retained);
@@ -1982,11 +1990,11 @@ public final class ObjectCodec {
         // Endpoint-assigned TOLERANT resolution of the proxy class (the raw loader stays inside
         // the ResolutionContext): resolves each interface name independently rather than failing
         // the whole item when a single name doesn't resolve locally. Names that don't resolve are
-        // dropped (and logged); the proxy still builds over the resolvable subset, wrapped in a
-        // BoomerangProxyHandler that retains the full original wire bytes so a later re-forward of
-        // this proxy doesn't silently lose the dropped interfaces -- and re-emits those bytes
-        // byte-for-byte rather than re-deriving them (see ProxyWireSupport / BoomerangProxyHandler
-        // and the write side above).
+        // dropped (and logged); the proxy still builds over the resolvable subset, with a handler
+        // that retains the full original wire bytes (via RawWireFormRetaining) so a later
+        // re-forward of this proxy doesn't silently lose the dropped interfaces -- and re-emits
+        // those bytes byte-for-byte rather than re-deriving them (see ProxyWireSupport /
+        // RawWireFormRetaining and the write side above).
         ProxyWireSupport.Resolved resolved = ProxyWireSupport.resolveTolerant(names, resolution);
         // DeSerializationPermission("PROXY") gate runs on the RESOLVED (narrowed) interfaces
         // actually being instantiated, not the full original names.

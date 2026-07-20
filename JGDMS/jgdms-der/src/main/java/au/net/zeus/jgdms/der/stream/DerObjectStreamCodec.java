@@ -81,7 +81,7 @@ import java.util.Set;
  * Interface names in a [8] item are resolved TOLERANTLY: a name that fails to resolve locally is
  * dropped rather than failing the whole item, provided at least one interface still resolves --
  * see {@link au.net.zeus.jgdms.der.object.ProxyWireSupport} and
- * {@link au.net.zeus.jgdms.der.object.BoomerangProxyHandler}, which also preserve the full
+ * {@link au.net.zeus.jgdms.der.object.RawWireFormRetaining}, which also preserve the full
  * original wire bytes for a byte-for-byte-faithful later re-forward of a narrowed proxy.)
  *
  * <h2>No handle table -- pure value-tree, deterministic (STD-008 sec.15.3)</h2>
@@ -381,13 +381,27 @@ final class DerObjectStreamCodec {
         // reconstructed via Proxy.newProxyInstance. No ProxySerializer/bootstrap/codebase -- the
         // interfaces + handler must be locally resolvable on the receiver (sec.15.2).
         //
-        // If obj's live handler is a BoomerangProxyHandler (this node itself decoded obj from a
+        // If obj's live handler RETAINS a raw [8] wire form (this node itself decoded obj from a
         // [8] item that dropped >=1 interface it couldn't resolve locally -- see readObject
-        // below), re-emit the RETAINED ORIGINAL wire bytes verbatim, byte-for-byte, rather than
+        // below), re-emit those RETAINED ORIGINAL wire bytes verbatim, byte-for-byte, rather than
         // re-deriving fresh bytes from obj.getClass().getInterfaces() (which only shows the
         // narrowed runtime set this node built, and would also forfeit the sender's
-        // @AtomicSerial-validated integrity guarantee -- see BoomerangProxyHandler). Otherwise --
-        // the common case, nothing was ever dropped -- behaviour is unchanged: encode fresh.
+        // @AtomicSerial-validated integrity guarantee -- see RawWireFormRetaining). This raw-bytes
+        // branch runs FIRST and returns before the normal handler re-serialization below (which
+        // would drop the handler's transient rawForm). Otherwise -- the common case, nothing was
+        // ever dropped -- behaviour is unchanged: encode fresh.
+        //
+        // SCOPE OF THE RETENTION GUARANTEE (fence-scope boundary): this bare-[8] proxy encode path
+        // is where retained-bytes verbatim re-emission holds. It does NOT cover a proxy diverted
+        // EARLIER by the smart-proxy substitution branch above (the substituteProxies block, ~30
+        // lines up), which is OFF by default: if that (default-off) path re-homes a proxy as a
+        // downloadable DerProxySerializer/[1] carrier before reaching here, any rawForm it carried
+        // is not relayed and that hop re-derives non-verbatim. That is intentional -- such a proxy
+        // is being deliberately re-homed as a codebase proxy, where byte-for-byte relay of the
+        // original bare-[8] form is not the intended behaviour -- and near-unreachable (a
+        // bare-[8]-decoded proxy that is ALSO a substitutable ProxyAccessor is a contradictory
+        // shape in normal operation). Impact is fidelity loss only, never a self-check bypass or
+        // authz change. See RawWireFormRetaining's javadoc and STD-009 sec.6.4.
         if (Proxy.isProxyClass(obj.getClass())) {
             byte[] retained = ProxyWireSupport.wireContentForBoomerang(obj);
             if (retained != null) {
@@ -768,11 +782,11 @@ final class DerObjectStreamCodec {
             // Endpoint-assigned TOLERANT resolution of the proxy class (NEVER the thread-context
             // loader -- Warres): resolves each interface name independently rather than failing
             // the whole item when a single name doesn't resolve locally. Names that don't resolve
-            // are dropped (and logged); the proxy still builds over the resolvable subset, wrapped
-            // in a BoomerangProxyHandler that retains the full original wire bytes so a later
-            // re-forward of this proxy doesn't silently lose the dropped interfaces -- and re-emits
-            // those bytes byte-for-byte rather than re-deriving them (see ProxyWireSupport /
-            // BoomerangProxyHandler and the write side above).
+            // are dropped (and logged); the proxy still builds over the resolvable subset, with a
+            // handler that retains the full original wire bytes (via RawWireFormRetaining) so a
+            // later re-forward of this proxy doesn't silently lose the dropped interfaces -- and
+            // re-emits those bytes byte-for-byte rather than re-deriving them (see ProxyWireSupport
+            // / RawWireFormRetaining and the write side above).
             ProxyWireSupport.Resolved resolved = ProxyWireSupport.resolveTolerant(names, resolution);
             // DeSerializationPermission("PROXY") gate before reconstruction -- DER counterpart of
             // AtomicMarshalInputStream.instantiateProxy's deSerializationPermitted(PROXY). No-op w/o SM.

@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.security.AccessController;
@@ -72,6 +73,31 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
 	super(other, clientConstraints);
 	this.useCodebaseAnnotations = other.useCodebaseAnnotations;
         this.compression = other.compression;
+    }
+
+    /**
+     * Retaining copy constructor: carries {@code other}'s full state plus the retained original
+     * {@code [8]} wire form. Mirrors {@link BasicInvocationHandler#BasicInvocationHandler(
+     * BasicInvocationHandler, byte[])} so a decoded {@code AtomicInvocationHandler} stays Atomic
+     * (its concrete type and {@code useCodebaseAnnotations}/{@code compression} are preserved) on
+     * re-wrap. See {@link #withRawForm(byte[])}.
+     */
+    public AtomicInvocationHandler(AtomicInvocationHandler other, byte[] rawForm) {
+	super(other, rawForm);
+	this.useCodebaseAnnotations = other.useCodebaseAnnotations;
+        this.compression = other.compression;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Overridden so a decoded {@code AtomicInvocationHandler} is re-wrapped as an
+     * {@code AtomicInvocationHandler} (preserving its concrete type and Atomic-specific state),
+     * never downgraded to a base {@link BasicInvocationHandler}.
+     */
+    @Override
+    public InvocationHandler withRawForm(byte[] rawForm) {
+	return new AtomicInvocationHandler(this, rawForm);
     }
 
     public AtomicInvocationHandler(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {

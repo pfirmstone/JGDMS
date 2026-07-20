@@ -36,8 +36,8 @@ import net.jini.export.ProxyAccessor;
  * Shared read/write-side support for the bare {@code [8]} {@code java.lang.reflect.Proxy} wire
  * item (STD-008 sec.15.2), used by BOTH {@code au.net.zeus.jgdms.der.stream.DerObjectStreamCodec}
  * (top-level object-stream items) and {@link ObjectCodec} (nested {@code @AtomicSerial} record
- * fields) so the tolerant per-name resolution and {@link BoomerangProxyHandler} wrap/unwrap logic
- * exists in exactly one place instead of being duplicated across the two independent {@code [8]}
+ * fields) so the tolerant per-name resolution and {@link RawWireFormRetaining raw-wire-form
+ * retention} logic exists in exactly one place instead of being duplicated across the two independent {@code [8]}
  * implementations.
  */
 public final class ProxyWireSupport {
@@ -164,42 +164,66 @@ public final class ProxyWireSupport {
     }
 
     /**
-     * Wraps {@code decodedHandler} in a {@link BoomerangProxyHandler} carrying the FULL original
-     * {@code [8]} TLV content bytes {@code originalWireBytes} this hop received.
+     * Returns the {@link InvocationHandler} to install on the interface-narrowed proxy for this
+     * hop: {@code decodedHandler} itself, re-derived (immutably) to carry the FULL original
+     * {@code [8]} TLV content bytes {@code originalWireBytes} this hop received, IF the decoded
+     * handler {@linkplain RawWireFormRetaining supports raw-wire-form retention} (all JERI handlers
+     * do); otherwise {@code decodedHandler} unchanged.
      *
-     * <p>No idempotency handling is needed here (an earlier design wrapped-if-not-already-wrapped
-     * to avoid a later hop's own view overwriting an earlier hop's retained state): with
-     * byte-for-byte retention there is no multi-hop "whose list wins" question to reconcile in
-     * the first place. Every hop either forwards its OWN verbatim retained bytes (via
-     * {@link #wireContentForBoomerang}, checked before this method is ever reached again for the
-     * same object) or, if it never dropped anything, encodes fresh bytes from its own live proxy
-     * state -- there is nothing to merge or preserve-across across hops, so this always wraps
-     * unconditionally.
+     * <p>Retention is carried by the handler ITSELF, not a wrapper: {@code
+     * Proxy.getInvocationHandler(narrowedProxy)} therefore returns the real handler, so JERI's
+     * load-bearing {@code Proxy.getInvocationHandler(proxy) != this} self-check (in {@code
+     * createMarshalInputStream}/{@code setConstraints}) passes naturally with nothing in the way.
+     *
+     * <p>No idempotency handling is needed (an earlier design wrapped-if-not-already-wrapped to
+     * avoid a later hop's own view overwriting an earlier hop's retained state): with byte-for-byte
+     * retention there is no multi-hop "whose list wins" question to reconcile. Every hop either
+     * forwards its OWN verbatim retained bytes (via {@link #wireContentForBoomerang}, checked
+     * before this method is ever reached again for the same object) or, if it never dropped
+     * anything, encodes fresh bytes from its own live proxy state.
+     *
+     * <p><strong>Non-retaining fallback.</strong> If {@code decodedHandler} does not implement
+     * {@link RawWireFormRetaining} (a non-JERI handler -- JERI's {@code BasicInvocationHandler}
+     * and all its subclasses do implement it), the narrowed proxy is still built and fully usable
+     * for its resolved interfaces, but raw-wire-form retention is unavailable for it: a later
+     * re-forward would re-derive fresh bytes from the narrowed live proxy, silently losing the
+     * dropped interfaces -- exactly as if that handler had never resolved. This is the documented
+     * limit of the mechanism for handlers outside the JERI hierarchy.
      *
      * <p>Callers should invoke this ONLY when at least one interface was dropped at this hop
      * ({@code Resolved.droppedNames.length > 0}); the nothing-dropped case should use
-     * {@code decodedHandler} directly, unwrapped -- zero overhead, zero behaviour change.
+     * {@code decodedHandler} directly -- zero overhead, zero behaviour change.
      *
      * @param decodedHandler    the real handler just decoded off the wire for this hop
      * @param originalWireBytes this hop's own wire-received {@code [8]} TLV content bytes (the
      *                          full content this hop received, before its own filtering)
      */
     public static InvocationHandler wrapForDrop(InvocationHandler decodedHandler, byte[] originalWireBytes) {
-        return new BoomerangProxyHandler(decodedHandler, originalWireBytes);
+        if (decodedHandler instanceof RawWireFormRetaining r) {
+            return r.withRawForm(originalWireBytes);
+        }
+        return decodedHandler;
     }
 
     /**
      * The exact {@code [8]} TLV content bytes to re-emit verbatim for a live proxy
-     * {@code proxyObj}, or {@code null} if {@code proxyObj}'s current handler is not a
-     * {@link BoomerangProxyHandler} (the common, nothing-ever-dropped case) -- in which case the
-     * caller must build fresh content from {@code proxyObj.getClass().getInterfaces()} and the
-     * live handler, exactly as before this fix.
+     * {@code proxyObj}, or {@code null} if {@code proxyObj}'s current handler does not
+     * {@linkplain RawWireFormRetaining retain a raw wire form} (the common, nothing-ever-dropped
+     * case, and any non-JERI handler) -- in which case the caller must build fresh content from
+     * {@code proxyObj.getClass().getInterfaces()} and the live handler, exactly as before this fix.
      *
-     * <p>Byte-for-byte re-emission, not name-based re-derivation: see
-     * {@link BoomerangProxyHandler}.
+     * <p>Byte-for-byte re-emission, not name-based re-derivation: see {@link RawWireFormRetaining}.
+     *
+     * <p><strong>Write-ordering invariant.</strong> Both {@code [8]} write sites
+     * ({@code DerObjectStreamCodec} bare-proxy branch and {@code ObjectCodec.encodeProxy}) consult
+     * this method FIRST and, on a non-{@code null} result, re-emit those bytes verbatim and return
+     * BEFORE reaching the normal handler re-serialization. This ordering is what makes it safe for
+     * the retaining handler to be an ordinary {@code @AtomicSerial} handler whose {@code rawForm}
+     * is {@code transient} (and thus would be dropped by a normal re-serialization): the raw-bytes
+     * relay strictly precedes -- and pre-empts -- that fall-through encode.
      */
     public static byte[] wireContentForBoomerang(Object proxyObj) {
         InvocationHandler live = Proxy.getInvocationHandler(proxyObj);
-        return live instanceof BoomerangProxyHandler bph ? bph.originalWireBytes() : null;
+        return live instanceof RawWireFormRetaining r ? r.rawForm() : null;
     }
 }

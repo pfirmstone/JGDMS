@@ -18,6 +18,7 @@
 
 package net.jini.jeri;
 
+import au.net.zeus.jgdms.der.object.RawWireFormRetaining;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -154,7 +155,7 @@ import org.apache.river.logging.Levels;
  **/
 @AtomicSerial
 public class BasicInvocationHandler
-    implements InvocationHandler, TrustEquivalence, Serializable
+    implements InvocationHandler, TrustEquivalence, Serializable, RawWireFormRetaining
 {
     private static final long serialVersionUID = -783920361025791412L;
     
@@ -227,6 +228,20 @@ public class BasicInvocationHandler
      * @serial
      **/
     private final MethodConstraints serverConstraints;
+
+    /**
+     * Retained original {@code [8]} {@code java.lang.reflect.Proxy} wire bytes this handler was
+     * decoded from, for verbatim re-emission on a later re-forward of an interface-narrowed proxy,
+     * or {@code null} (the common case). See {@link RawWireFormRetaining}.
+     *
+     * <p>{@code transient}: a decode-local relay hint, NEVER part of the wire form -- a retaining
+     * handler serializes byte-identically to an otherwise-equal non-retaining one, and the
+     * write/re-forward path relays these bytes verbatim (via {@code
+     * ProxyWireSupport.wireContentForBoomerang}) strictly BEFORE any normal handler re-serialization
+     * (which would drop this transient field). {@code final}: immutable once constructed; a new
+     * value is carried only by constructing a new handler (see {@link #withRawForm(byte[])}).
+     **/
+    private final transient byte[] rawForm;
 
     /*
      * The method constraint cache maps remote methods to their
@@ -345,6 +360,7 @@ public class BasicInvocationHandler
 	this.oe = oe;
 	this.clientConstraints = clientConstraints;
 	this.serverConstraints = serverConstraints;
+	this.rawForm = null;
     }
 
     private static boolean check(ObjectEndpoint oe){
@@ -404,6 +420,54 @@ public class BasicInvocationHandler
 	this.oe = other.oe;
 	this.clientConstraints = clientConstraints;
 	this.serverConstraints = other.serverConstraints;
+	// A constraint change produces a distinct proxy that is no longer the verbatim decoded
+	// object, so the retained wire form does not carry over -- see withRawForm(byte[]).
+	this.rawForm = null;
+    }
+
+    /**
+     * Creates a new <code>BasicInvocationHandler</code> with the same
+     * <code>ObjectEndpoint</code>, client constraints and server constraints
+     * as {@code other}, additionally carrying (a defensive copy of)
+     * {@code rawForm} as its retained original {@code [8]} wire form.
+     *
+     * <p>This constructor implements the {@link RawWireFormRetaining}
+     * capability (see {@link #withRawForm(byte[])}); the retained bytes are a
+     * transient, decode-local relay hint and never affect this handler's wire
+     * form, {@code equals}/{@code hashCode}, or behaviour.
+     *
+     * @param	other the handler to obtain all wire-visible state from
+     * @param	rawForm the retained original {@code [8]} wire bytes, or
+     *		<code>null</code> to carry none (defensively copied)
+     *
+     * @throws	NullPointerException if <code>other</code> is <code>null</code>
+     **/
+    public BasicInvocationHandler(BasicInvocationHandler other, byte[] rawForm)
+    {
+	this.oe = other.oe;
+	this.clientConstraints = other.clientConstraints;
+	this.serverConstraints = other.serverConstraints;
+	this.rawForm = (rawForm == null ? null : rawForm.clone());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p><code>BasicInvocationHandler</code> returns a new
+     * <code>BasicInvocationHandler</code> equal in every wire-visible respect
+     * to this one, additionally carrying (a defensive copy of)
+     * <code>rawForm</code>. Subclasses override this to preserve their own
+     * concrete type and any additional final state.
+     **/
+    @Override
+    public InvocationHandler withRawForm(byte[] rawForm) {
+	return new BasicInvocationHandler(this, rawForm);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public byte[] rawForm() {
+	return rawForm == null ? null : rawForm.clone();
     }
 
     /**

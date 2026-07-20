@@ -498,6 +498,41 @@ on demand.
 > interface-name field proposed above should be unified with `BoomerangProxyHandler`'s
 > now-real byte-retention mechanism rather than inventing a parallel one — flagged for
 > whoever picks up that task, not a redesign performed in this verification pass.
+>
+> **SUPERSEDED 2026-07-20 (immutable-C) — the wrapper is gone; retention is now a handler
+> capability.** `BoomerangProxyHandler` has been **removed**. It was a decode-local wrapper, and
+> `Proxy.getInvocationHandler(narrowedProxy)` therefore returned the *wrapper* rather than the real
+> JERI handler — which tripped JERI's load-bearing `Proxy.getInvocationHandler(proxy) != this`
+> self-check (`AtomicInvocationHandler`/`BasicInvocationHandler.createMarshalInputStream`,
+> `setConstraints`) on the very first live call through any boomerang-narrowed proxy
+> (`IllegalArgumentException: not proxy for this`, observed on activatable reggie decode). The
+> replacement carries the retained raw `[8]` bytes on the **JERI handler itself, immutably**: the
+> new `au.net.zeus.jgdms.der.object.RawWireFormRetaining` interface (a `withRawForm(byte[])` /
+> `byte[] rawForm()` capability, `jgdms-der`) is implemented by `BasicInvocationHandler` and its
+> subclasses via a `final transient byte[] rawForm` + copy constructors, so the handler installed
+> on the narrowed proxy **is** the real handler and the self-check passes with nothing in the way.
+> `ProxyWireSupport.wrapForDrop` now returns `handler.withRawForm(bytes)` (or the handler unchanged
+> for a non-retaining handler) instead of constructing a wrapper; `wireContentForBoomerang` now
+> recognises `handler instanceof RawWireFormRetaining && rawForm() != null`. The byte-for-byte
+> re-forward behaviour, the write-path ordering (retained bytes consulted **first**), and the
+> "nothing dropped → encode fresh" fast path are **unchanged**; the security self-check is neither
+> weakened nor removed (proven by regression + wrong-proxy tests). `rawForm` is `transient` and
+> absent from every handler's `serialForm()`, so a retaining handler serializes byte-identically to
+> a non-retaining one (japicmp + serial-schema gates: PASS, additive-only).
+>
+> **Two scope boundaries of the retention guarantee (documented, non-blocking).**
+> (1) *Best-effort, not universal.* Retention holds for handlers implementing `RawWireFormRetaining`
+> — all JERI handlers do; a non-JERI `InvocationHandler` on the `[8]` path still builds a usable
+> narrowed proxy but re-derives (non-verbatim) on re-forward, exactly as ALL handlers did pre-fix.
+> (2) *Bare-`[8]` encode path only.* The guarantee covers the bare-`[8]` proxy encode path
+> (`DerObjectStreamCodec` bare-proxy branch, `ObjectCodec.encodeProxy`), whose write sites consult
+> `wireContentForBoomerang` before any fresh encode. It does **not** cover a proxy re-homed via the
+> smart-proxy codebase-substitution branch (`DerObjectStreamCodec`'s `substituteProxies`, **OFF by
+> default**), which runs earlier in the write path and diverts a substitutable proxy to the
+> downloadable-carrier (`[1]`) path before the retention fence — that hop does not relay the
+> retained form. Where reachable this is an intentional re-homing (verbatim relay of the original
+> bare-`[8]` form is not the goal there) and the shape is near-unreachable in normal operation;
+> impact is fidelity loss only, never a self-check bypass or authorization change.
 
 ### 6.5 Downloadable artifacts, module structure, and client reach
 

@@ -20,7 +20,7 @@ package au.net.zeus.jgdms.der.stream;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
-import au.net.zeus.jgdms.der.object.BoomerangProxyHandler;
+import au.net.zeus.jgdms.der.object.RawWireFormRetaining;
 import org.apache.river.api.io.AtomicSerial;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -44,13 +44,15 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tolerant per-name resolution and {@link BoomerangProxyHandler} wrap/re-forward behaviour for the
- * top-level object-stream bare {@code [8]} {@code java.lang.reflect.Proxy} item (STD-008
- * sec.15.2), the {@code DerObjectStreamCodec.readObject}/{@code writeObject} half of the fix.
+ * Tolerant per-name resolution and {@link RawWireFormRetaining raw-wire-form retention}
+ * re-forward behaviour for the top-level object-stream bare {@code [8]}
+ * {@code java.lang.reflect.Proxy} item (STD-008 sec.15.2), the
+ * {@code DerObjectStreamCodec.readObject}/{@code writeObject} half of the fix.
  *
  * <p>Uses the same "endpoint {@code ClassLoader} overrides {@code loadClass(name, resolve)}"
  * technique as {@code DerProxyMarshalledInstanceTest.resolvesAgainstEndpointLoaderNotThreadContext},
@@ -66,9 +68,15 @@ class DerObjectStreamBoomerangProxyTest {
     interface Greeter { String greet(); }
     interface Marker  { String mark(); }
 
-    /** A minimal @AtomicSerial InvocationHandler whose answer must survive the round-trip. */
+    /**
+     * A minimal @AtomicSerial InvocationHandler whose answer must survive the round-trip. Also
+     * implements {@link RawWireFormRetaining} (as the real JERI handlers do) so it can retain the
+     * original wire bytes for a re-forward -- der cannot depend on jeri, so this stands in for a
+     * JERI handler. {@code rawForm} is transient and absent from {@link #serialForm()}, so a
+     * retaining instance serializes byte-identically to an otherwise-equal non-retaining one.
+     */
     @AtomicSerial
-    public static final class AnswerHandler implements InvocationHandler {
+    public static final class AnswerHandler implements InvocationHandler, RawWireFormRetaining {
         public static AtomicSerial.SerialForm[] serialForm() {
             return new AtomicSerial.SerialForm[]{ new AtomicSerial.SerialForm("answer", String.class) };
         }
@@ -77,9 +85,22 @@ class DerObjectStreamBoomerangProxyTest {
             arg.writeArgs();
         }
         private final String answer;
-        public AnswerHandler(String answer) { this.answer = answer; }
+        private final transient byte[] rawForm;
+        public AnswerHandler(String answer) { this(answer, null); }
+        private AnswerHandler(String answer, byte[] rawForm) {
+            this.answer = answer;
+            this.rawForm = (rawForm == null ? null : rawForm.clone());
+        }
         public AnswerHandler(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-            this.answer = (String) arg.get("answer", null);
+            this((String) arg.get("answer", null), null);
+        }
+        @Override
+        public InvocationHandler withRawForm(byte[] rawForm) {
+            return new AnswerHandler(answer, rawForm);
+        }
+        @Override
+        public byte[] rawForm() {
+            return rawForm == null ? null : rawForm.clone();
         }
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) {
@@ -164,7 +185,7 @@ class DerObjectStreamBoomerangProxyTest {
 
     /**
      * As {@link #rawInterfaceNames(byte[])}, but parses [8] TLV CONTENT bytes directly (no outer
-     * tag+length header) -- the shape {@link BoomerangProxyHandler#originalWireBytes()} returns.
+     * tag+length header) -- the shape {@link RawWireFormRetaining#rawForm()} returns.
      */
     private static String[] rawInterfaceNamesFromContent(byte[] content) throws DerException {
         DerReader pr = new DerReader(content);
@@ -220,12 +241,16 @@ class DerObjectStreamBoomerangProxyTest {
         assertEquals("hi", ((Greeter) back).greet(), "the real handler must still work for the resolved interface");
 
         InvocationHandler h = Proxy.getInvocationHandler(back);
-        assertTrue(h instanceof BoomerangProxyHandler, "a drop must wrap the handler");
-        BoomerangProxyHandler bph = (BoomerangProxyHandler) h;
+        // No wrapper: the real handler IS installed on the narrowed proxy (so JERI's
+        // getInvocationHandler(proxy) != this self-check would pass), and it retains the raw bytes.
+        assertTrue(h instanceof AnswerHandler, "the real handler must be installed directly, no wrapper");
+        assertTrue(h instanceof RawWireFormRetaining, "a drop must make the handler retain the raw wire form");
+        byte[] retained = ((RawWireFormRetaining) h).rawForm();
+        assertNotNull(retained, "a dropped-interface decode must retain the original wire bytes");
         assertArrayEquals(
                 new String[]{ Greeter.class.getName(), Marker.class.getName() },
-                rawInterfaceNamesFromContent(bph.originalWireBytes()),
-                "the wrapper must retain the FULL original wire-declared interface list, byte-for-byte");
+                rawInterfaceNamesFromContent(retained),
+                "the handler must retain the FULL original wire-declared interface list, byte-for-byte");
 
         boolean logged = captured.stream().anyMatch(r ->
                 r.getLevel() == Level.WARNING
@@ -247,7 +272,7 @@ class DerObjectStreamBoomerangProxyTest {
                 "a proxy with ZERO resolvable interfaces must still fail fast, not silently build an empty proxy");
     }
 
-    /** Nothing missing: zero behaviour change -- plain handler, no wrapper. */
+    /** Nothing missing: zero behaviour change -- plain handler, no retained wire form. */
     @Test
     void nothingMissing_noWrapper_plainHandler() throws Exception {
         Proxy g = newProxy(new Class<?>[]{ Greeter.class, Marker.class }, new AnswerHandler("hi"));
@@ -256,18 +281,18 @@ class DerObjectStreamBoomerangProxyTest {
         Object back = read(bytes, getClass().getClassLoader());
         assertTrue(back instanceof Greeter && back instanceof Marker);
         InvocationHandler h = Proxy.getInvocationHandler(back);
-        assertFalse(h instanceof BoomerangProxyHandler,
-                "when nothing is dropped, the real handler must be used directly, unwrapped");
         assertTrue(h instanceof AnswerHandler, "the plain real handler class must round-trip unmodified");
+        assertNull(((RawWireFormRetaining) h).rawForm(),
+                "when nothing is dropped, the handler retains no raw wire form (fresh encode on re-forward)");
     }
 
     /**
      * THE CORE LANDMINE-FIX TEST: two-hop forwarding. Hop 1 decodes with Marker missing (Greeter
-     * resolves) -- this builds a BoomerangProxyHandler-wrapped proxy. Hop 1 then re-encodes
-     * (forwards) that proxy. The re-encoded wire bytes must list the ORIGINAL full interface set
-     * (Greeter AND Marker), not just the narrowed set, AND must be byte-identical to the original
-     * sender's bytes (not merely structurally equivalent) -- this must fail if the write-side fix
-     * (ProxyWireSupport.wireContentForBoomerang) is reverted to a naive
+     * resolves) -- this builds a narrowed proxy whose real handler retains the original wire form.
+     * Hop 1 then re-encodes (forwards) that proxy. The re-encoded wire bytes must list the ORIGINAL
+     * full interface set (Greeter AND Marker), not just the narrowed set, AND must be byte-identical
+     * to the original sender's bytes (not merely structurally equivalent) -- this must fail if the
+     * write-side fix (ProxyWireSupport.wireContentForBoomerang) is reverted to a naive
      * {@code obj.getClass().getInterfaces()} reflection or to re-deriving fresh bytes from parsed
      * state instead of relaying the retained bytes verbatim.
      */
@@ -281,8 +306,10 @@ class DerObjectStreamBoomerangProxyTest {
         Object atHop1 = read(wireFromSender, hop1Loader);
         assertTrue(atHop1 instanceof Greeter);
         assertFalse(atHop1 instanceof Marker);
-        assertTrue(Proxy.getInvocationHandler(atHop1) instanceof BoomerangProxyHandler,
-                "hop1 must have built a BoomerangProxyHandler-wrapped (narrowed) proxy");
+        InvocationHandler hop1Handler = Proxy.getInvocationHandler(atHop1);
+        assertTrue(hop1Handler instanceof AnswerHandler, "hop1's narrowed proxy must carry the real handler, no wrapper");
+        assertNotNull(((RawWireFormRetaining) hop1Handler).rawForm(),
+                "hop1 must have retained the original wire form on the narrowed proxy's handler");
 
         // Hop 1 forwards (re-encodes) the narrowed proxy it holds.
         byte[] wireForwardedByHop1 = write(atHop1);
@@ -299,7 +326,7 @@ class DerObjectStreamBoomerangProxyTest {
         // original sender's bytes, not merely structurally/semantically equivalent -- a freshly
         // re-derived encoding (even one listing the same names in the same order) would be this
         // node's OWN new encoding, forfeiting the sender's @AtomicSerial-validated integrity
-        // guarantee that byte-for-byte relay preserves. See BoomerangProxyHandler.
+        // guarantee that byte-for-byte relay preserves. See RawWireFormRetaining.
         assertArrayEquals(wireFromSender, wireForwardedByHop1,
                 "forwarded wire bytes must be byte-identical to the original sender's bytes, not a fresh re-encoding");
 

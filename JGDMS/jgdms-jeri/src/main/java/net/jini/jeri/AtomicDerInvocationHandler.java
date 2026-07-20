@@ -23,6 +23,7 @@ import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Collection;
@@ -121,6 +122,31 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
                                 DerInputLimits limits) {
         super(other, other.getClientConstraints());
         this.limits = java.util.Objects.requireNonNull(limits, "limits");
+    }
+
+    /**
+     * Retaining copy constructor: carries {@code other}'s full state (including the client's own
+     * {@link DerInputLimits}) plus the retained original {@code [8]} wire form. This is the DER
+     * {@code [8]} decode path's handler, so preserving both the concrete {@code
+     * AtomicDerInvocationHandler} type and {@code limits} here is what keeps a re-forwarded,
+     * interface-narrowed DER proxy fully functional. See {@link #withRawForm(byte[])}.
+     */
+    public AtomicDerInvocationHandler(AtomicDerInvocationHandler other, byte[] rawForm) {
+        super(other, rawForm);
+        this.limits = other.limits;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Overridden so a decoded {@code AtomicDerInvocationHandler} is re-wrapped as an
+     * {@code AtomicDerInvocationHandler} (preserving its concrete type and the client's chosen
+     * {@code DerInputLimits}), never downgraded to a base {@link BasicInvocationHandler}. This is
+     * the handler class that actually travels on the DER {@code [8]} proxy path.
+     */
+    @Override
+    public InvocationHandler withRawForm(byte[] rawForm) {
+        return new AtomicDerInvocationHandler(this, rawForm);
     }
 
     /**

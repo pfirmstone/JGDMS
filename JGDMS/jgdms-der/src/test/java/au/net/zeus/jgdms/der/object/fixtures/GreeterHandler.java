@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.object.fixtures;
 
+import au.net.zeus.jgdms.der.object.RawWireFormRetaining;
 import org.apache.river.api.io.AtomicSerial;
 
 import java.io.IOException;
@@ -30,9 +31,16 @@ import java.util.Objects;
  * dynamic {@code java.lang.reflect.Proxy}. This mirrors a real JERI proxy whose handler (e.g.
  * {@code BasicInvocationHandler}) is {@code @AtomicSerial}: the proxy class itself carries no
  * serializable state, so the handler is what travels on the DER wire (interface names + handler).
+ *
+ * <p>Also implements {@link RawWireFormRetaining} exactly as the real JERI handlers do -- the
+ * {@code jgdms-der} test module cannot depend on {@code jgdms-jeri} (jeri depends on der, not the
+ * reverse), so this fixture stands in for a JERI handler to exercise the raw-wire-form retention
+ * that a re-forward of an interface-narrowed proxy relies on. {@code rawForm} is {@code transient}
+ * and absent from {@link #serialForm()}, so a retaining instance serializes byte-identically to an
+ * otherwise-equal non-retaining one.
  */
 @AtomicSerial
-public final class GreeterHandler implements InvocationHandler {
+public final class GreeterHandler implements InvocationHandler, RawWireFormRetaining {
 
     public static AtomicSerial.SerialForm[] serialForm() {
         return new AtomicSerial.SerialForm[] {
@@ -46,13 +54,30 @@ public final class GreeterHandler implements InvocationHandler {
     }
 
     private final String greeting;
+    /** Retained original [8] wire bytes, or null; transient and absent from serialForm. */
+    private final transient byte[] rawForm;
 
     public GreeterHandler(String greeting) {
+        this(greeting, null);
+    }
+
+    private GreeterHandler(String greeting, byte[] rawForm) {
         this.greeting = Objects.requireNonNull(greeting, "greeting");
+        this.rawForm = (rawForm == null ? null : rawForm.clone());
     }
 
     public GreeterHandler(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
         this((String) check(arg).get("greeting", null));
+    }
+
+    @Override
+    public InvocationHandler withRawForm(byte[] rawForm) {
+        return new GreeterHandler(greeting, rawForm);
+    }
+
+    @Override
+    public byte[] rawForm() {
+        return rawForm == null ? null : rawForm.clone();
     }
 
     public static AtomicSerial.GetArg check(AtomicSerial.GetArg arg)
