@@ -17,12 +17,14 @@ package au.net.zeus.jgdms.loader.isolation;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
+import java.security.Permission;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import javax.security.auth.AuthPermission;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import net.jini.core.constraint.ClientMinPrincipal;
@@ -31,6 +33,7 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import org.apache.river.api.security.PermissionGrant;
+import org.junit.Assume;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -248,43 +251,121 @@ public class IsolationSecurityCriticalTest {
 
     private final Principal admin = name("spiffe://ctrl/admin");
 
-    @Test
-    public void unauthenticatedCaller_getAdminFailsClosed() {
-        Caller caller = new Caller();       // subject == null
-        SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
-                admin, new TrustedPolicyBacking(), caller);
+    // ==================================================================
+    // SecurityManager test scaffolding (2026-07-20 board finding fix):
+    // AdminPrincipalAuthenticator now requires an installed SecurityManager
+    // before it will trust ANY ambient Subject (see its class javadoc). Tests
+    // that exercise the legitimate "caller IS the admin" success path must
+    // install one; tests that specifically probe the no-SM fail-closed
+    // behaviour install none (the JVM default).
+    // ==================================================================
+
+    /** Allows everything: used where the test only needs SM presence. */
+    private static final class AllowAllSecurityManager extends SecurityManager {
+        @Override public void checkPermission(Permission perm) { }
+        @Override public void checkPermission(Permission perm, Object ctx) { }
+    }
+
+    /**
+     * Denies Subject-rebinding permissions only ({@code AuthPermission}
+     * {@code ("callAs")} -- what {@code Subject.callAs}, the JDK&nbsp;18+ API
+     * this codebase actually binds through, checks -- and
+     * {@code AuthPermission("doAs")}, checked by the deprecated
+     * {@code Subject.doAs(Subject, PrivilegedAction)} overload), everything
+     * else allowed. Models a deployment where hosted/business code was never
+     * granted the authority to rebind the ambient {@link Subject}.
+     */
+    private static final class DenySubjectRebindSecurityManager extends SecurityManager {
+        @Override public void checkPermission(Permission perm) {
+            if (perm instanceof AuthPermission
+                    && ("callAs".equals(perm.getName()) || "doAs".equals(perm.getName()))) {
+                throw new SecurityException(
+                        "AuthPermission(\"" + perm.getName() + "\") denied by policy (test SM)");
+            }
+        }
+        @Override public void checkPermission(Permission perm, Object ctx) {
+            checkPermission(perm);
+        }
+    }
+
+    /**
+     * Installs {@code sm} for the duration of {@code body}, restoring
+     * whatever was previously installed afterwards. Skips (via
+     * {@link Assume}) on a JDK where {@code setSecurityManager} is
+     * unsupported without {@code -Djava.security.manager=allow} -- mirrors
+     * the existing pattern in {@code SubProcessLocalPolicyAdminTest}.
+     */
+    private static void withSecurityManager(SecurityManager sm, RunnableEx body)
+            throws Exception {
+        SecurityManager previous = System.getSecurityManager();
         try {
-            s.getSubProcessPolicyAdmin();
-            fail("unauthenticated caller must not receive a usable admin proxy");
-        } catch (SecurityException expected) { /* good */ }
-        catch (RemoteException e) { fail("unexpected: " + e); }
+            System.setSecurityManager(sm);
+        } catch (UnsupportedOperationException noAllowFlag) {
+            Assume.assumeNoException(
+                    "needs -Djava.security.manager=allow", noAllowFlag);
+            return;
+        }
+        try {
+            body.run();
+        } finally {
+            // Some JDKs (e.g. the DirtyChai build) refuse to revert an
+            // installed SecurityManager back to null once one has been set;
+            // only restore when there is something concrete to restore to
+            // (mirrors the existing pattern in
+            // SubProcessLocalPolicyAdminTest.grant_stillSurfacesInstallCeilingDenial).
+            if (previous != null) {
+                System.setSecurityManager(previous);
+            }
+        }
+    }
+
+    private interface RunnableEx {
+        void run() throws Exception;
     }
 
     @Test
-    public void wronglyAuthenticatedCaller_getAdminFailsClosed() {
-        Caller caller = new Caller();
-        caller.subject = subjectWith(name("spiffe://ctrl/not-admin"));
-        SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
-                admin, new TrustedPolicyBacking(), caller);
-        try {
-            s.getSubProcessPolicyAdmin();
-            fail("wrong principal must not receive a usable admin proxy");
-        } catch (SecurityException expected) { /* good */ }
-        catch (RemoteException e) { fail("unexpected: " + e); }
+    public void unauthenticatedCaller_getAdminFailsClosed() throws Exception {
+        withSecurityManager(new AllowAllSecurityManager(), () -> {
+            Caller caller = new Caller();       // subject == null
+            SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
+                    admin, new TrustedPolicyBacking(), caller);
+            try {
+                s.getSubProcessPolicyAdmin();
+                fail("unauthenticated caller must not receive a usable admin proxy");
+            } catch (SecurityException expected) { /* good */ }
+            catch (RemoteException e) { fail("unexpected: " + e); }
+        });
+    }
+
+    @Test
+    public void wronglyAuthenticatedCaller_getAdminFailsClosed() throws Exception {
+        withSecurityManager(new AllowAllSecurityManager(), () -> {
+            Caller caller = new Caller();
+            caller.subject = subjectWith(name("spiffe://ctrl/not-admin"));
+            SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
+                    admin, new TrustedPolicyBacking(), caller);
+            try {
+                s.getSubProcessPolicyAdmin();
+                fail("wrong principal must not receive a usable admin proxy");
+            } catch (SecurityException expected) { /* good */ }
+            catch (RemoteException e) { fail("unexpected: " + e); }
+        });
     }
 
     @Test
     public void adminCaller_getsUsableProxy_operationsDispatch() throws Exception {
-        Caller caller = new Caller();
-        caller.subject = subjectWith(admin);
-        TrustedPolicyBacking backing = new TrustedPolicyBacking();
-        SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
+        withSecurityManager(new AllowAllSecurityManager(), () -> {
+            Caller caller = new Caller();
+            caller.subject = subjectWith(admin);
+            TrustedPolicyBacking backing = new TrustedPolicyBacking();
+            SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
 
-        PolicyAdmin pa = s.getSubProcessPolicyAdmin();
-        assertNotNull(pa);
-        pa.grant(null);
-        assertEquals("admin op must dispatch to the trusted backing object",
-                1, backing.grantCalls);
+            PolicyAdmin pa = s.getSubProcessPolicyAdmin();
+            assertNotNull(pa);
+            pa.grant(null);
+            assertEquals("admin op must dispatch to the trusted backing object",
+                    1, backing.grantCalls);
+        });
     }
 
     @Test
@@ -293,58 +374,311 @@ public class IsolationSecurityCriticalTest {
         // An admin obtains the proxy, then the caller identity drops to a
         // non-admin (e.g. the reference leaks / is replayed by another party).
         // Every subsequent operation must re-check and fail closed.
-        Caller caller = new Caller();
-        caller.subject = subjectWith(admin);
-        TrustedPolicyBacking backing = new TrustedPolicyBacking();
-        SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
+        withSecurityManager(new AllowAllSecurityManager(), () -> {
+            Caller caller = new Caller();
+            caller.subject = subjectWith(admin);
+            TrustedPolicyBacking backing = new TrustedPolicyBacking();
+            SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
 
-        PolicyAdmin pa = s.getSubProcessPolicyAdmin();     // captured while admin
-        caller.subject = subjectWith(name("spiffe://ctrl/attacker"));
-        try {
-            pa.grant(null);
-            fail("captured proxy must re-gate and refuse a non-admin caller");
-        } catch (SecurityException expected) { /* good */ }
-        assertEquals("no operation must have reached the backing object",
-                0, backing.grantCalls);
+            PolicyAdmin pa = s.getSubProcessPolicyAdmin();     // captured while admin
+            caller.subject = subjectWith(name("spiffe://ctrl/attacker"));
+            try {
+                pa.grant(null);
+                fail("captured proxy must re-gate and refuse a non-admin caller");
+            } catch (SecurityException expected) { /* good */ }
+            assertEquals("no operation must have reached the backing object",
+                    0, backing.grantCalls);
+        });
     }
 
     @Test
     public void adminProxyCarriesStricterConstraints_integrityAndAdminPrincipal()
             throws Exception {
-        Caller caller = new Caller();
-        caller.subject = subjectWith(admin);
-        SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
-                admin, new TrustedPolicyBacking(), caller);
+        withSecurityManager(new AllowAllSecurityManager(), () -> {
+            Caller caller = new Caller();
+            caller.subject = subjectWith(admin);
+            SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
+                    admin, new TrustedPolicyBacking(), caller);
 
-        PolicyAdmin pa = s.getSubProcessPolicyAdmin();
-        assertTrue("admin proxy must be a RemoteMethodControl",
-                pa instanceof RemoteMethodControl);
-        MethodConstraints mc = ((RemoteMethodControl) pa).getConstraints();
-        assertNotNull(mc);
-        InvocationConstraints ic = mc.getConstraints(
-                PolicyAdmin.class.getMethod("grant", PermissionGrant.class));
-        assertTrue("must require Integrity.YES",
-                ic.requirements().contains(Integrity.YES));
-        assertTrue("must require the admin principal via ClientMinPrincipal",
-                ic.requirements().contains(new ClientMinPrincipal(admin)));
+            PolicyAdmin pa = s.getSubProcessPolicyAdmin();
+            assertTrue("admin proxy must be a RemoteMethodControl",
+                    pa instanceof RemoteMethodControl);
+            MethodConstraints mc = ((RemoteMethodControl) pa).getConstraints();
+            assertNotNull(mc);
+            InvocationConstraints ic = mc.getConstraints(
+                    PolicyAdmin.class.getMethod("grant", PermissionGrant.class));
+            assertTrue("must require Integrity.YES",
+                    ic.requirements().contains(Integrity.YES));
+            assertTrue("must require the admin principal via ClientMinPrincipal",
+                    ic.requirements().contains(new ClientMinPrincipal(admin)));
+        });
     }
 
     @Test
     public void constraintsCannotBeWeakenedByClient() throws Exception {
+        withSecurityManager(new AllowAllSecurityManager(), () -> {
+            Caller caller = new Caller();
+            caller.subject = subjectWith(admin);
+            SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
+                    admin, new TrustedPolicyBacking(), caller);
+            RemoteMethodControl pa = (RemoteMethodControl) s.getSubProcessPolicyAdmin();
+            // Attempt to relax constraints to empty; the fixed admin floor must hold.
+            RemoteMethodControl weakened = pa.setConstraints(
+                    new net.jini.constraint.BasicMethodConstraints(
+                            InvocationConstraints.EMPTY));
+            MethodConstraints mc = weakened.getConstraints();
+            InvocationConstraints ic = mc.getConstraints(
+                    PolicyAdmin.class.getMethod("refresh"));
+            assertTrue("setConstraints must not weaken below the admin floor",
+                    ic.requirements().contains(Integrity.YES));
+        });
+    }
+
+    // ==================================================================
+    // (#3, S1, 2026-07-20 board finding) Fail-closed without a
+    // SecurityManager, and blocking the forged-Subject exploit.
+    // ==================================================================
+
+    /**
+     * The core regression for the board finding: with NO SecurityManager
+     * installed -- today's default state for, e.g., the subprocess dispatch
+     * thread in {@code SubProcessReconstructionServer#dispatchInvoke} --
+     * {@link AdminPrincipalAuthenticator} must refuse EVERY caller, including
+     * one whose {@link Subject} genuinely (not via any forgery) carries the
+     * admin principal. Without an installed SecurityManager this class has
+     * no way to tell a genuine binding from a forged one, so it must not
+     * trust either.
+     */
+    @Test
+    public void noSecurityManagerInstalled_refusesEvenAGenuineAdminSubject() {
+        // Surefire reuses one JVM across this whole module by default, and
+        // some JDKs (e.g. the DirtyChai build) refuse to revert an installed
+        // SecurityManager back to null once one has been set -- so an
+        // earlier test in this shared JVM may have permanently left one
+        // installed. Skip rather than force a fragile run-order dependency;
+        // the "no SecurityManager installed at all" scenario (today's actual
+        // default deployment state) is independently, authoritatively
+        // reproduced in a pristine JVM as part of this fix's verification.
+        Assume.assumeTrue("skipped: a SecurityManager is already installed in"
+                + " this (possibly shared/reused) test JVM by an earlier test",
+                System.getSecurityManager() == null);
         Caller caller = new Caller();
-        caller.subject = subjectWith(admin);
-        SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
-                admin, new TrustedPolicyBacking(), caller);
-        RemoteMethodControl pa = (RemoteMethodControl) s.getSubProcessPolicyAdmin();
-        // Attempt to relax constraints to empty; the fixed admin floor must hold.
-        RemoteMethodControl weakened = pa.setConstraints(
-                new net.jini.constraint.BasicMethodConstraints(
-                        InvocationConstraints.EMPTY));
-        MethodConstraints mc = weakened.getConstraints();
-        InvocationConstraints ic = mc.getConstraints(
-                PolicyAdmin.class.getMethod("refresh"));
-        assertTrue("setConstraints must not weaken below the admin floor",
-                ic.requirements().contains(Integrity.YES));
+        caller.subject = subjectWith(admin);   // genuinely the admin principal
+        TrustedPolicyBacking backing = new TrustedPolicyBacking();
+        SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
+        try {
+            s.getSubProcessPolicyAdmin();
+            fail("must refuse even a genuine admin Subject when no"
+                    + " SecurityManager is installed (fail-closed on an"
+                    + " unverifiable ambient Subject)");
+        } catch (SecurityException expected) {
+            assertTrue("exception must explain the SecurityManager is missing",
+                    expected.getMessage().contains("SecurityManager"));
+        } catch (RemoteException e) {
+            fail("unexpected: " + e);
+        }
+        assertEquals(0, backing.grantCalls);
+    }
+
+    /**
+     * Reproduces the T4 board finding's exploit shape end-to-end through the
+     * REAL production wiring -- {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT}
+     * (not the injectable test stub) and {@code Subject.callAs} (JDK&nbsp;18+,
+     * exactly what a hosted business object's own method body would use) --
+     * with a {@link SecurityManager} installed whose policy denies
+     * {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")} to the
+     * calling code, exactly as a least-privilege policy would for
+     * hosted/business protection domains. The forged {@link Subject} must
+     * never even successfully bind: {@code Subject.callAs} itself throws
+     * before {@link AdminPrincipalAuthenticator} is ever reached.
+     */
+    @Test
+    public void forgedSubjectViaCallAs_blockedBeforeReachingTheGate_whenSMDeniesRebind()
+            throws Exception {
+        withSecurityManager(new DenySubjectRebindSecurityManager(), () -> {
+            TrustedPolicyBacking backing = new TrustedPolicyBacking();
+            final SubProcessPolicyAdmin realAdminSurface = new SubProcessPolicyAdmin(
+                    admin, backing, AdminPrincipalAuthenticator.CURRENT_SUBJECT);
+
+            Subject forged = subjectWith(admin); // attacker-forged, names the admin
+            try {
+                Object outcome = callAs(forged, new Callable<Object>() {
+                    public Object call() {
+                        try {
+                            PolicyAdmin pa = realAdminSurface.getSubProcessPolicyAdmin();
+                            pa.grant(null);
+                            return "SHOULD NOT REACH HERE";
+                        } catch (Exception e) {
+                            return e;
+                        }
+                    }
+                });
+                if (outcome == SKIP) return;   // callAs unavailable on this JDK
+                fail("expected Subject.callAs itself to throw (its own"
+                        + " AuthPermission(\"callAs\") check denied by the"
+                        + " test SM) before the forged Subject ever bound;"
+                        + " instead the call completed with: " + outcome);
+            } catch (java.lang.reflect.InvocationTargetException expected) {
+                // Subject.callAs's own permission check fires before the
+                // lambda body (and therefore AdminPrincipalAuthenticator)
+                // ever runs -- the forged Subject never even binds.
+                Throwable cause = expected.getCause();
+                assertTrue("expected a SecurityException from the denied"
+                        + " AuthPermission, got: " + cause,
+                        cause instanceof SecurityException);
+            }
+            assertEquals("the hosted backing must never have been reached",
+                    0, backing.grantCalls);
+        });
+    }
+
+    /**
+     * 2026-07-20 two-seat board re-review finding #1 (both seats found this
+     * independently): {@link AdminPrincipalAuthenticator}'s fix checks only
+     * "is <em>some</em> SecurityManager installed" -- that is NECESSARY but
+     * NOT SUFFICIENT. A {@code SecurityManager} whose policy is permissive
+     * (grants everything, including to hosted/business code) satisfies the
+     * check while enforcing nothing: {@code Subject.callAs} performs its
+     * {@code AuthPermission("callAs")} check against that permissive
+     * instance, which allows it, so the forged {@link Subject} binds exactly
+     * as it would with no {@code SecurityManager} at all, and the exploit
+     * succeeds through the real production wiring. This is a PERMANENT
+     * regression documenting a known, board-confirmed boundary of this
+     * class's guarantee (see the class javadoc's "NECESSARY, not
+     * SUFFICIENT" section) -- it intentionally asserts the attack
+     * SUCCEEDS, so a future reader sees the limitation is known and covered,
+     * not silently reintroduced or newly discovered by adversarial probing.
+     */
+    @Test
+    public void permissiveSecurityManager_stillLetsTheForgeryThrough()
+            throws Exception {
+        withSecurityManager(new AllowAllSecurityManager(), () -> {
+            TrustedPolicyBacking backing = new TrustedPolicyBacking();
+            final SubProcessPolicyAdmin realAdminSurface = new SubProcessPolicyAdmin(
+                    admin, backing, AdminPrincipalAuthenticator.CURRENT_SUBJECT);
+
+            Subject forged = subjectWith(admin); // attacker-forged, names the admin
+            Object outcome = callAs(forged, new Callable<Object>() {
+                public Object call() {
+                    try {
+                        PolicyAdmin pa = realAdminSurface.getSubProcessPolicyAdmin();
+                        pa.grant(null);
+                        return "FORGED SUBJECT REACHED grant()";
+                    } catch (Exception e) {
+                        return e;
+                    }
+                }
+            });
+            if (outcome == SKIP) return;   // callAs unavailable on this JDK
+
+            assertEquals("a merely-installed-but-permissive SecurityManager"
+                    + " does not stop the forgery -- this is the documented"
+                    + " boundary of the fix, not a regression to be fixed"
+                    + " here; closing it requires the DEPLOYED POLICY to"
+                    + " deny AuthPermission(\"callAs\")/(\"doAs\") to hosted"
+                    + " code, which this test's SecurityManager deliberately"
+                    + " does not, to demonstrate exactly that gap",
+                    "FORGED SUBJECT REACHED grant()", outcome);
+            assertEquals("the forged caller's grant(null) DID reach the"
+                    + " trusted backing under a permissive-but-installed SM",
+                    1, backing.grantCalls);
+        });
+    }
+
+    /**
+     * 2026-07-20 two-seat board re-review finding #2: even a
+     * {@code SecurityManager} whose policy correctly denies
+     * {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")} (this
+     * test reuses {@link DenySubjectRebindSecurityManager}, the same double
+     * that proves the defence works in
+     * {@link #forgedSubjectViaCallAs_blockedBeforeReachingTheGate_whenSMDeniesRebind})
+     * is defeated if that policy does not <em>also</em> deny
+     * {@code RuntimePermission("setSecurityManager")}: hosted/business code
+     * can simply replace the installed {@code SecurityManager} with a
+     * permissive one of its own construction, then replay the forgery
+     * against the new installation. {@code DenySubjectRebindSecurityManager}
+     * does not override {@code RuntimePermission("setSecurityManager")}
+     * handling (it only intercepts the two {@code AuthPermission} checks),
+     * so {@code System.setSecurityManager} succeeds here exactly as it would
+     * for genuinely hosted code under an AuthPermission-only-denying policy
+     * -- reproducing the second board seat's exact probe. PERMANENT
+     * regression: documents this specific, board-confirmed boundary of the
+     * fix (see the class javadoc's "NECESSARY, not SUFFICIENT" section) so
+     * a future reader sees it is known and covered.
+     */
+    @Test
+    public void hostedCodeReplacingTheSecurityManager_defeatsAnAuthPermissionOnlyPolicy_unlessSetSecurityManagerIsAlsoDenied()
+            throws Exception {
+        withSecurityManager(new DenySubjectRebindSecurityManager(), () -> {
+            // "Hosted/business code" (this test body, standing in for it)
+            // replaces the restrictive SecurityManager with a permissive one
+            // of its own -- succeeds because RuntimePermission
+            // ("setSecurityManager") was never denied by the SM being
+            // replaced.
+            System.setSecurityManager(new AllowAllSecurityManager());
+
+            TrustedPolicyBacking backing = new TrustedPolicyBacking();
+            final SubProcessPolicyAdmin realAdminSurface = new SubProcessPolicyAdmin(
+                    admin, backing, AdminPrincipalAuthenticator.CURRENT_SUBJECT);
+
+            Subject forged = subjectWith(admin);
+            Object outcome = callAs(forged, new Callable<Object>() {
+                public Object call() {
+                    try {
+                        PolicyAdmin pa = realAdminSurface.getSubProcessPolicyAdmin();
+                        pa.grant(null);
+                        return "FORGED SUBJECT REACHED grant() AFTER REPLACING THE SM";
+                    } catch (Exception e) {
+                        return e;
+                    }
+                }
+            });
+            if (outcome == SKIP) return;   // callAs unavailable on this JDK
+
+            assertEquals("replacing the SecurityManager (permitted because"
+                    + " RuntimePermission(\"setSecurityManager\") was not"
+                    + " denied) let the forgery through despite the ORIGINAL"
+                    + " SM correctly denying AuthPermission(\"callAs\")/"
+                    + "(\"doAs\") -- this is the documented boundary of the"
+                    + " fix: the deployed policy must deny"
+                    + " RuntimePermission(\"setSecurityManager\") to hosted"
+                    + " code too, or an AuthPermission-only policy provides"
+                    + " no real protection",
+                    "FORGED SUBJECT REACHED grant() AFTER REPLACING THE SM",
+                    outcome);
+            assertEquals(1, backing.grantCalls);
+        });
+    }
+
+    /**
+     * Same forged-Subject shape, but proves the SECOND, independent line of
+     * defence: even in a hypothetical where {@code Subject.callAs} succeeded
+     * in binding the forged Subject (e.g. a misconfigured policy that DOES
+     * grant {@code AuthPermission("callAs")} to hosted code), the admin gate
+     * itself still requires the caller to be the real admin principal -- the
+     * fix does not rest solely on the JDK-level permission check.
+     * (Uses the injectable {@link Caller} stub to model "forged Subject
+     * successfully bound", since binding one for real requires the
+     * permission this test is deliberately NOT about.)
+     */
+    @Test
+    public void evenIfRebindingSucceeded_wrongCallerStillRefused_underSM()
+            throws Exception {
+        withSecurityManager(new AllowAllSecurityManager(), () -> {
+            Caller caller = new Caller();
+            TrustedPolicyBacking backing = new TrustedPolicyBacking();
+            SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
+
+            // Not the admin -- even though "binding" (setting caller.subject)
+            // trivially "succeeded" here, the gate must still refuse.
+            caller.subject = subjectWith(name("spiffe://ctrl/attacker"));
+            try {
+                s.getSubProcessPolicyAdmin();
+                fail("wrong principal must be refused even when a SecurityManager"
+                        + " is installed and Subject-rebinding itself succeeded");
+            } catch (SecurityException expected) { /* good */ }
+            assertEquals(0, backing.grantCalls);
+        });
     }
 
     /**
@@ -369,37 +703,45 @@ public class IsolationSecurityCriticalTest {
     @Test
     public void realCurrentSubjectPath_enforcesAdmin() throws Exception {
         // Exercise the DEFAULT mechanism (Subject.current()), not just the
-        // injected identity, on the real runtime path.
-        final SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
-                admin, new TrustedPolicyBacking(),
-                AdminPrincipalAuthenticator.CURRENT_SUBJECT);
+        // injected identity, on the real runtime path. A SecurityManager is
+        // installed throughout (AllowAll: this test is not about the
+        // callAs/doAs permission check itself, which is covered separately
+        // by forgedSubjectViaCallAs_blockedBeforeReachingTheGate_whenSMDeniesRebind)
+        // so the "admin subject in context -> succeeds" branch actually
+        // exercises the identity-matching logic rather than failing closed
+        // for the unrelated reason of no SecurityManager being installed.
+        withSecurityManager(new AllowAllSecurityManager(), () -> {
+            final SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
+                    admin, new TrustedPolicyBacking(),
+                    AdminPrincipalAuthenticator.CURRENT_SUBJECT);
 
-        // No current Subject -> fail closed.
-        try {
-            s.getSubProcessPolicyAdmin();
-            fail("no ambient Subject must fail closed");
-        } catch (SecurityException expected) { /* good */ }
+            // No current Subject -> fail closed.
+            try {
+                s.getSubProcessPolicyAdmin();
+                fail("no ambient Subject must fail closed");
+            } catch (SecurityException expected) { /* good */ }
 
-        // Running as the admin subject -> succeeds.
-        Object ok = callAs(subjectWith(admin), new Callable<Object>() {
-            public Object call() {
-                try { return s.getSubProcessPolicyAdmin(); }
-                catch (Exception e) { return e; }
-            }
+            // Running as the admin subject -> succeeds.
+            Object ok = callAs(subjectWith(admin), new Callable<Object>() {
+                public Object call() {
+                    try { return s.getSubProcessPolicyAdmin(); }
+                    catch (Exception e) { return e; }
+                }
+            });
+            if (ok == SKIP) return;   // callAs unavailable on this JDK
+            assertTrue("admin subject in context must obtain the proxy: " + ok,
+                    ok instanceof PolicyAdmin);
+
+            // Running as a non-admin subject -> fail closed.
+            Object bad = callAs(subjectWith(name("spiffe://ctrl/x")),
+                    new Callable<Object>() {
+                public Object call() {
+                    try { return s.getSubProcessPolicyAdmin(); }
+                    catch (Exception e) { return e; }
+                }
+            });
+            assertTrue("non-admin subject in context must fail closed",
+                    bad instanceof SecurityException);
         });
-        if (ok == SKIP) return;   // callAs unavailable on this JDK
-        assertTrue("admin subject in context must obtain the proxy: " + ok,
-                ok instanceof PolicyAdmin);
-
-        // Running as a non-admin subject -> fail closed.
-        Object bad = callAs(subjectWith(name("spiffe://ctrl/x")),
-                new Callable<Object>() {
-            public Object call() {
-                try { return s.getSubProcessPolicyAdmin(); }
-                catch (Exception e) { return e; }
-            }
-        });
-        assertTrue("non-admin subject in context must fail closed",
-                bad instanceof SecurityException);
     }
 }
