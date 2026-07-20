@@ -115,11 +115,14 @@ format) before becoming more than an idea.
   of client/subprocess split — where unmarshalling happens, how the client determines which interfaces
   to build its stub with (including the new `ProxySerializer` interface field), and the
   per-consumer-JVM/third-party-ServiceAPI stub pattern (point 3); Increment 2 relevance (point 4); the
-  **critical, still-unremediated finding** that the OSGi `ProxyBundleProvider` completely bypasses the
-  SCAP/BAE verdict gate (point 5); the dynamic-policy gap investigation and the two decisions it produced
-  — namespace relocation and `SubProcessDynamicPolicy` (point 6); subprocess lifecycle via DGC (point 7);
-  QA implications, flagged not investigated (point 8).
-- **Status:** design decisions recorded; wiring (point 3) not built.
+  finding that the OSGi `ProxyBundleProvider` completely bypasses the SCAP/BAE verdict gate — **CLOSED
+  2026-07-18**, see §4 gap 1 below, not still-open as an earlier draft of this bullet said (point 5); the
+  dynamic-policy gap investigation and the two decisions it produced — namespace relocation and
+  `SubProcessDynamicPolicy` (point 6); subprocess lifecycle via DGC (point 7); QA implications — **LANDED
+  2026-07-20**, see §4 gap 3 below, not merely flagged (point 8).
+- **Status (updated 2026-07-20):** design decisions recorded at §12; the wiring (point 3) is now built —
+  see `SOW-Smart-Proxy-Isolation-Wiring.md`'s own status header and this document's §1 status update
+  above. This bullet previously said "not built"; corrected so this section doesn't contradict §1.
 
 ### 2.2 `SOW-UDS-JERI-Increment-2-Peer-Authentication.md` — peer authentication
 
