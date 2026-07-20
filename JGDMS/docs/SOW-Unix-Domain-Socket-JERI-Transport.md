@@ -323,7 +323,24 @@ peer-authenticated yet.
 2. **CPU/core-affinity, per §8 above.** Mandatory routing without disjoint physical-core pinning closes
    the Flush+Reload/Evict+Reload class and leaves Prime+Probe open. Both are needed for the claim to be
    complete.
-3. **The actual wiring is unimplemented — candidate insertion point identified (2026-07-17).** Per the
+3. **Implementation-status correction (2026-07-20): the wiring below describes what was true when this
+   point was drafted (2026-07-17) — it is now built.** `SOW-Smart-Proxy-Isolation-Wiring.md` T1
+   (routing insertion), T2 (subprocess spawn/pool/track, including the `SubProcessAdministrable`/
+   `PolicyAdmin` authentication scaffold), and T3 (`ProxySerializer` interface-name field) landed
+   2026-07-19; T4 (the wire-protocol handoff mechanics described in this point's own prose below) landed
+   2026-07-20 after two board-review rounds found and fixed real defects — see
+   `SOW-T4-Wire-Handoff-Protocol.md` for the byte/framing-level built state, which supersedes this
+   point's own prose as the authoritative reference for T4. **What remains true of this point's original
+   "unimplemented" framing, narrowly:** the underlying transport this whole design assumes is still the
+   plain `java.nio.channels.ByteChannel` framing T4 built directly (not literally a
+   `UdsServerEndpoint`/`UdsEndpoint` pair from §1-§11 above — that choice was made and documented in
+   `SOW-T4-Wire-Handoff-Protocol.md` §6, "why not reuse JERI/UDS directly"), and **`SubProcessLauncher`'s
+   real OS-process `fork`/`exec` implementation remains `UnsupportedSubProcessLauncher`** — confirmed by
+   multiple board reviewers across the T2 and T4 work — so the mechanism this point describes is real,
+   tested, and board-reviewed, but not yet backed by a real spawned OS process in any running deployment.
+   **Original point text below, kept for design-history record — read as "this is what was planned,"
+   now realized as described except where the correction above says otherwise:**
+   **The actual wiring is unimplemented — candidate insertion point identified (2026-07-17).** Per the
    status correction above, nothing today constructs a `UdsServerEndpoint`/`UdsEndpoint` pair for any
    real service. **`net.jini.loader.pref.PreferredProxyCodebaseProvider.resolve(CodebaseAccessor,
    MarshalledInstance, ClassLoader, ClassLoader, Collection)`** (the `ProxyCodebaseSpi` implementation,

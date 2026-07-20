@@ -638,12 +638,15 @@ against that. See `AdminPrincipalAuthenticator`'s class javadoc, section
 "NECESSARY, not SUFFICIENT", for the full reasoning and the adversarial
 reproductions in `IsolationSecurityCriticalTest`.
 
-**Known pre-existing gap, not specific to SPIFFE/SPIRE deployment:** several
-`qa/harness/policy/defaultspiffe*.policy` files currently grant unconditional
-`AllPermission`/`AuthPermission "*"` to every protection domain, which does
-not satisfy this prerequisite — being tracked and corrected separately (see
-the existing "no `AllPermission` scaffolding" convention). Do not treat those
-QA policy files as a template for a production policy while this is open.
+**CLOSED 2026-07-20 (was: known pre-existing gap, not specific to SPIFFE/SPIRE deployment).** The 7
+`qa/harness/policy/defaultspiffe*.policy` files (mahalo, outrigger, reggie, fiddler, group, mercury,
+norm) that previously granted unconditional `AllPermission`/`AuthPermission "*"` to every protection
+domain — which did not satisfy this prerequisite — have had those unqualified grants removed and
+replaced with a narrow least-privilege baseline (commits `edb5ff072`/`5b9b31147`, merged `265d10aca`).
+A static regression-guard script, `qa/harness/policy/check-spiffe-policy-no-broad-grants.sh`, was added
+so this cannot silently regress. **Still do not treat those QA policy files as a production-policy
+template** — they are QA bring-up configuration, narrowed to satisfy this specific prerequisite, not
+independently reviewed as a minimal production baseline for any other purpose.
 
 ---
 

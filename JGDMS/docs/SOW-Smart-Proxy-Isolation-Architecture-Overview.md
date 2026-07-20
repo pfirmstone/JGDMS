@@ -9,7 +9,11 @@
   "Companions" line, a "§12 point N" reference buried in prose). There was no single place to start
   reading to get the whole shape. This is that place.
 - **No production code was written or modified in producing this document, or any of the four it
-  indexes.** All four remain DRAFT/design-captured; see each for its own task-level status.
+  indexes.** **Status update (2026-07-20): three of the four (`SOW-Unix-Domain-Socket-JERI-
+  Transport.md`'s §12 wiring, `SOW-Smart-Proxy-Isolation-Wiring.md`, `SOW-SubProcessDynamicPolicy.md`)
+  are now substantially LANDED, not DRAFT/design-captured — see §1's status update below and each
+  document's own header for specifics; only `SOW-BAE-Timing-Sidechannel-Denial.md`'s own T1-T9 status is
+  unaudited by this documentation-closeout pass (its T7 gate specifically is addressed, see §2.4).**
 
 ---
 
@@ -37,10 +41,20 @@ original framing) are moving to **mandatory, unconditional process isolation**:
 - Subprocess lifecycle reuses JERI's existing DGC (dirty-set/lease) machinery rather than inventing new
   liveness tracking — a subprocess is spawned on first need and torn down once nothing holds a live
   reference to anything it hosts.
-- All of the above is a **decision on record, not yet a deployed guarantee** — the actual wiring
-  (where routing is inserted, how a subprocess is spawned/tracked, how a grant is pushed into one) is
-  identified but not yet built. Don't let public-facing language describe this as already true of a
-  running deployment.
+- **Status update (2026-07-20): the wiring is now built, board-reviewed, and adversarially tested — it
+  is still not a deployed guarantee, for a different, narrower reason than "not yet built."** Where
+  routing is inserted (`PreferredProxyCodebaseProvider.resolve()`), how a subprocess is spawned/pooled/
+  torn down, how a grant is pushed into one, and the byte-level wire handoff that reconstructs a proxy
+  inside the isolated process are all real, tested code — see `SOW-Smart-Proxy-Isolation-Wiring.md`,
+  `SOW-SubProcessDynamicPolicy.md`, and `SOW-T4-Wire-Handoff-Protocol.md` for the built state, each
+  confirmed by direct code reading and, for the security-critical pieces, by board review that found and
+  fixed real defects (not merely "the design reads sound"). **What keeps this from being a deployed
+  guarantee today:** `SubProcessLauncher`'s real OS-process spawning remains `UnsupportedSubProcessLauncher`
+  (confirmed by multiple board reviewers), and a repo-wide grep finds zero production code anywhere that
+  constructs the new grant-application/orchestration classes — the mechanism exists and has been proven
+  sound, but nothing in production wires it into a running service yet. Don't let public-facing language
+  round either of these facts up to "deployed," or down to "not yet built" — both are now wrong; see
+  `SOW-Smart-Proxy-Isolation-Remaining-Work.md` §"Open items carried forward" for the precise account.
 
 ---
 
@@ -188,8 +202,15 @@ format) before becoming more than an idea.
   flagged as the two tasks to guard hardest — genuine security-policy decisions and a novel
   authority-granting mechanism respectively, in the same risk class as prior adversarially-probed BAE
   work.
-- **Status:** DRAFT task breakdown, no implementation started. T4 has a real external dependency on
-  §12 point 3's own (still-unscoped) subprocess-spawning wiring task.
+- **Status (updated 2026-07-20): LANDED, T1-T5.** T1/T2 landed 2026-07-19; T3 parts (a)/(b) also landed
+  2026-07-19 (as `SOW-Smart-Proxy-Isolation-Wiring.md` T2), part (c) — the real grant-application
+  backend — landed 2026-07-20; T4 (caller-side wiring) landed 2026-07-20, clean, single-reviewer; T5
+  (system-level adversarial pass) landed 2026-07-20 and was not clean — it found and closed a real
+  grant-revocation gap and a real replay-protection gap, plus, while probing this SOW's authentication
+  boundary, a confused-deputy bypass in the *pre-existing* `AdminPrincipalAuthenticator` (outside this
+  SOW's own scope, fixed anyway). T4's real external dependency (§12 point 3's subprocess-spawning
+  wiring) resolved when `SOW-Smart-Proxy-Isolation-Wiring.md`'s own T1-T4 landed. See
+  `SOW-SubProcessDynamicPolicy.md`'s own status header for the authoritative account.
 - **Scope generalized 2026-07-17:** researching how STD-009's server-side **filter** sidecar (a different
   tenant, §8) gets permission to load/run turned up the same gap this SOW closes, with `ProxyPreparer`/
   `BasicProxyPreparer.grant()` ruled out as a fit (it only ever mutates the *calling* JVM's own policy).
@@ -234,7 +255,12 @@ format) before becoming more than an idea.
   in T2).
 - Explicitly states the shape of the subprocess registry/handle `SubProcessDynamicPolicy`'s T4 must
   target a grant against (§4 of that SOW), so T4 is no longer blocked on guessing.
-- **Status:** DRAFT task breakdown, no implementation started; no production code written or modified.
+- **Status (updated 2026-07-20): LANDED, T1-T5.** T1/T2/T3 landed 2026-07-19; T4 landed 2026-07-20 after
+  two board-review rounds found and fixed real defects (decode-recursion depth, silent `Externalizable`
+  field-loss); T5 was resolved as a design decision at drafting, no code required. T6 (this SOW's own
+  closeout row) is what this documentation pass is executing. Not yet true: any production caller, or a
+  real `SubProcessLauncher` — see `SOW-Smart-Proxy-Isolation-Remaining-Work.md` §"Open items carried
+  forward."
 
 ---
 
@@ -271,35 +297,43 @@ of their own. Listed here so they don't quietly disappear between documents:
    subsystem dependency lists — it is no longer compiled or packaged at all. Source retained on disk,
    nothing pulls it into the build. Slot kept (not deleted) so cross-references to "gap 1" elsewhere in
    this doc set stay valid; there is no remaining open item here.
-2. **SCOPED 2026-07-18 — `SOW-Smart-Proxy-Isolation-Wiring.md` (see §2.5 above).** §12 point 3's own
-   wiring task breakdown — referenced repeatedly across all four documents as a dependency
-   (`SubProcessDynamicPolicy` SOW's T4, the BAE SOW's T7 gate, this overview's §1 closing caveat) but
-   previously never itself broken into a task table with agent/effort assignments the way the other four
-   documents are — now exists. The actual "make routing real" work (insertion at
-   `PreferredProxyCodebaseProvider.resolve()`, subprocess spawning/tracking, the `ProxySerializer` field
-   addition from §12 point 3(ii)) is broken into tasks T1–T6 there, with the four board-review findings
-   baked in as task-level requirements. That SOW also absorbs gaps 4, 5, and 6 below. Slot kept (not
-   renumbered) so any cross-reference to "gap 2" stays valid; DRAFT task breakdown, not yet built.
-3. **QA implications** (UDS SOW §12 point 8) — Peter's initial assessment is "mostly invisible," but
-   explicitly flagged as needing dedicated investigation once points 3/6/7 have something concrete to
-   investigate against, not assumed true by design alone.
-4. **ABSORBED 2026-07-18 into `SOW-Smart-Proxy-Isolation-Wiring.md` T5 (see §2.5/gap 2 above).**
-   Interface-distribution mechanism source — §12 point 3(ii)/(iii) establishes *how* a consuming process
-   determines which interfaces it already has locally, but not *how those interface jars reach the
-   consuming process's classpath in the first place* (trusted shared API jar vs. some other distribution
-   path). Still genuinely open — T5 scopes it as an explicit design question rather than resolving it —
-   but it now has an owning task instead of floating unattached.
-5. **ABSORBED 2026-07-18 into `SOW-Smart-Proxy-Isolation-Wiring.md` T4 (see §2.5/gap 2 above).**
-   Wire-protocol handoff mechanics — the exact bytes/framing of "client forwards a raw
+2. **SCOPED 2026-07-18, LANDED 2026-07-20 — `SOW-Smart-Proxy-Isolation-Wiring.md` (see §2.5 above).**
+   §12 point 3's own wiring task breakdown — referenced repeatedly across all four documents as a
+   dependency (`SubProcessDynamicPolicy` SOW's T4, the BAE SOW's T7 gate, this overview's §1 closing
+   caveat) but previously never itself broken into a task table with agent/effort assignments the way the
+   other four documents are — now exists, and its T1-T4 (routing insertion, subprocess pooling, the
+   `ProxySerializer` field, the wire-protocol handoff) are built, board-reviewed, and adversarially
+   tested. That SOW also absorbs gaps 4, 5, and 6 below, all now landed with it. Slot kept (not
+   renumbered) so any cross-reference to "gap 2" stays valid. **What is not landed:** the real
+   OS-process launcher (`SubProcessLauncher`, still `UnsupportedSubProcessLauncher`) and any production
+   caller of the new machinery — see `SOW-Smart-Proxy-Isolation-Remaining-Work.md` §"Open items carried
+   forward."
+3. **LANDED 2026-07-20 — QA implications** (UDS SOW §12 point 8, `SOW-Smart-Proxy-Isolation-Remaining-
+   Work.md` T6). Peter's initial "mostly invisible" assessment confirmed for this session's own new
+   machinery: the isolation routing branch is gated behind a system property unset everywhere in the QA
+   harness, and a repo-wide grep finds zero QA references to the new classes. **One narrower lead
+   remained open as of this writing** — whether the T2 wire-handoff platform-level fix (silent
+   `Externalizable` field-loss, commit `8f3874a9b`) affects existing QA test correctness via
+   `qa/.../FakeArgument.java`, which shares the same bug shape; being chased separately, see the
+   remaining-work SOW's T6 row for status.
+4. **ABSORBED 2026-07-18 into `SOW-Smart-Proxy-Isolation-Wiring.md` T5 (see §2.5/gap 2 above), RESOLVED
+   at drafting, no code needed.** Interface-distribution mechanism source — §12 point 3(ii)/(iii)
+   establishes *how* a consuming process determines which interfaces it already has locally, but not
+   *how those interface jars reach the consuming process's classpath in the first place*. T5 resolved
+   this to a recommendation (ordinary Maven `-api` dependency for known consumers, deploy-time
+   provisioning for the generic case) that required no implementation — the one residual (version/API
+   skew) is tracked, not blocking.
+5. **ABSORBED 2026-07-18 into `SOW-Smart-Proxy-Isolation-Wiring.md` T4, LANDED 2026-07-20 (see §2.5/gap
+   2 above).** Wire-protocol handoff mechanics — the exact bytes/framing of "client forwards a raw
    `MarshalledInstance` to the subprocess over UDS, subprocess replies with enough to build a stub" is
-   now specified there, including the reconstruction-gate and three-axes requirements baked in from
-   board-review guidance. DRAFT, not yet built.
-6. **ABSORBED 2026-07-18 into `SOW-Smart-Proxy-Isolation-Wiring.md` T3 (see §2.5/gap 2 above).**
-   STD-009 §6.4 "interface stripping" is not built — the runtime resolves a dynamic proxy's interfaces
-   all-or-nothing today (confirmed twice, independently, from STD-009's original 2026-07-03 design pass
-   and this session's fresh code investigation). §12 point 3(ii)'s `ProxySerializer` field design is now
-   scoped as T3 there, with decode-bounds and privileged-interface-exclusion requirements attached.
-   DRAFT, not yet built.
+   built, with two board-review rounds finding and fixing real defects beyond what was originally
+   specified (decode-recursion depth, silent `Externalizable` field-loss) — see
+   `SOW-T4-Wire-Handoff-Protocol.md` for the authoritative built-state account.
+6. **ABSORBED 2026-07-18 into `SOW-Smart-Proxy-Isolation-Wiring.md` T3, LANDED 2026-07-19 (see §2.5/gap
+   2 above).** STD-009 §6.4 "interface stripping" — the runtime previously resolved a dynamic proxy's
+   interfaces all-or-nothing (confirmed twice, independently, from STD-009's original 2026-07-03 design
+   pass and this session's fresh code investigation). §12 point 3(ii)'s `ProxySerializer` field is now
+   built and board-reviewed, with decode-bounds and privileged-interface-exclusion requirements enforced.
 7. **Filter-sidecar CPU-affinity — RESOLVED (Peter, 2026-07-17), not yet built.** Filter workers for
    different, mutually-untrusting clients/queries MUST run on separate physical CPU cores sharing no
    L1/L2 cache — the same requirement as the smart-proxy sidecar (UDS SOW §8/§12 point 2), not a
