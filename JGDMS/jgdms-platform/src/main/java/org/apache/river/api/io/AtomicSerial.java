@@ -452,6 +452,42 @@ public @interface AtomicSerial {
 	}
 
 	/**
+	 * Returns a value INJECTED into this {@code GetArg} by trusted decode code, or
+	 * {@code null} if no value is injected under {@code name} (the default for every
+	 * {@code GetArg} implementation, and the value returned by this base class).
+	 *
+	 * <p>The injection channel is <b>disjoint from the wire</b>: injected values live in a
+	 * SEPARATE map populated ONLY by trusted decode code (never auto-filled from ambient
+	 * context, and NEVER from the serialized field data). It is the counterpart to the typed
+	 * {@link #get(String, Object) get} accessors, which read the positional wire fields carried
+	 * in the object's serialized form. A hostile peer that transmits a schema declaring a real
+	 * wire field whose name happens to collide with an injection key cannot influence
+	 * {@code getInjected}: that field lands in the wire-field store read by {@code get}, which
+	 * this method never consults. Consequently {@code getInjected} carries no wire-settable data
+	 * and cannot be an attacker byte-injection or gadget vector.
+	 *
+	 * <p>This is the generic capability by which the framework hands an {@code @AtomicSerial}
+	 * class's {@code (GetArg)} constructor a decode-context value the class could not otherwise
+	 * obtain from its own serialized fields (for example, the enclosing {@code [8]}
+	 * {@code java.lang.reflect.Proxy} wire bytes handed to a JERI invocation handler so an
+	 * interface-narrowed proxy can be re-forwarded verbatim). It is neither serialized nor part
+	 * of any schema/digest.
+	 *
+	 * <p>Unlike the {@code get} accessors, {@code getInjected} performs no {@code @AtomicSerial}
+	 * caller-class dispatch and no memoization: it is a plain lookup on the injected map keyed by
+	 * {@code name} alone. It is intentionally non-{@code final} so the two concrete
+	 * {@code GetArg} implementations (the DER and object-stream decoders) can back it with the
+	 * map they were constructed with; every other implementation inherits this {@code null}
+	 * default.
+	 *
+	 * @param name the injection key
+	 * @return the injected value, or {@code null} if none is injected under {@code name}
+	 */
+	public Object getInjected(String name) {
+	    return null;
+	}
+
+	/**
 	 * Get the value of the named boolean field from the persistent field.
 	 * @param name  the name of the field
 	 * @param val   the default value to use if {@code name} does not have a value

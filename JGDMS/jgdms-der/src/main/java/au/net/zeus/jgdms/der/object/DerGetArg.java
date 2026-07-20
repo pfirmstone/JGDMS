@@ -115,6 +115,24 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     private final ResolutionContext resolution;
 
     /**
+     * Values INJECTED into this top-level {@code GetArg} by trusted decode code
+     * ({@link ObjectCodec#decodeProxy}), keyed by a well-known injection key such as
+     * {@link RawWireFormRetaining#RAW_FORM_KEY}. Read ONLY through {@link #getInjected(String)};
+     * NEVER through the wire-field {@link #lookup(Class, String) lookup}/{@code get} path -- the
+     * two channels are strictly disjoint (DC-1 WIRE-DISJOINT). This map is populated purely from
+     * the receiver's local decode intent (never from the transmitted schema/data, never
+     * auto-filled from ambient context -- DC-2 Model A), and is threaded to the ONE target frame
+     * only: every nested {@code DerGetArg} built during this object's field decode is constructed
+     * with an EMPTY injected map (DC-3 SCOPED), so an injected value never propagates into a
+     * nested-object decode frame. Never {@code null} ({@link Collections#emptyMap()} when nothing
+     * is injected -- the common case).
+     */
+    private final Map<String, Object> injected;
+
+    /** Empty injected map shared by every non-injecting {@code DerGetArg} (DC-3: nested frames). */
+    static final Map<String, Object> NO_INJECTION = Collections.emptyMap();
+
+    /**
      * Constructs a {@code DerGetArg} at nesting depth 0 (top-level decode).
      *
      * @param storeMap ordered map of class -> DerFieldStore (must not be {@code null};
@@ -168,6 +186,25 @@ public final class DerGetArg extends AtomicSerial.GetArg {
     DerGetArg(Map<Class<?>, DerFieldStore> storeMap, int depth,
               DeserializationCompletion decodeUnit,
               ResolutionContext resolution) {
+        this(storeMap, depth, decodeUnit, resolution, NO_INJECTION);
+    }
+
+    /**
+     * Canonical constructor additionally carrying the trusted decode-code {@code injected} map
+     * (see {@link #injected}). Package-private: only {@link ObjectCodec} threads it in, and only
+     * into the ONE target frame -- nested frames use {@link #NO_INJECTION}.
+     *
+     * @param storeMap   ordered map of class -> DerFieldStore (must not be null/empty)
+     * @param depth      the nesting depth of the object being constructed
+     * @param decodeUnit the per-decode-unit completion sink, or {@code null}
+     * @param resolution the endpoint-assigned resolution context (must not be {@code null})
+     * @param injected   the trusted-decoder-populated injection map (must not be {@code null};
+     *                   {@link #NO_INJECTION} when nothing is injected)
+     */
+    DerGetArg(Map<Class<?>, DerFieldStore> storeMap, int depth,
+              DeserializationCompletion decodeUnit,
+              ResolutionContext resolution,
+              Map<String, Object> injected) {
         super(); // As of Inc2 step 6 the protected GetArg() constructor is a no-op
                  // (the SerializablePermission "enableSubclassImplementation" /
                  // Check.check() guard was dropped: idempotency of the final memoizing
@@ -183,6 +220,7 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         this.depth = depth;
         this.decodeUnit = decodeUnit;
         this.resolution = Objects.requireNonNull(resolution, "resolution");
+        this.injected = Objects.requireNonNull(injected, "injected");
     }
 
     /**
@@ -324,6 +362,22 @@ public final class DerGetArg extends AtomicSerial.GetArg {
      */
     protected boolean isDefaulted(Class<?> callerClass, String name) throws IOException {
         return store(callerClass).defaulted(name);
+    }
+
+    /**
+     * Returns a value injected by trusted decode code, or {@code null} if none.
+     *
+     * <p><b>DC-1 (WIRE-DISJOINT).</b> This reads ONLY the {@link #injected} map, which is
+     * populated exclusively by {@link ObjectCodec#decodeProxy} from the receiver's local decode
+     * intent -- NEVER the positional wire {@link DerFieldStore} consulted by {@link #lookup}. A
+     * hostile peer that transmits a schema declaring a real wire field named identically to an
+     * injection key has that field land in the {@code DerFieldStore} (reachable only via
+     * {@code get}) and IGNORED here: {@code getInjected} never consults {@code storeMap}. The
+     * transmitted schema/data can therefore neither populate nor influence what this returns.
+     */
+    @Override
+    public Object getInjected(String name) {
+        return injected.get(name);
     }
 
     private static InvalidObjectException nested(String what, String name, Throwable cause) {

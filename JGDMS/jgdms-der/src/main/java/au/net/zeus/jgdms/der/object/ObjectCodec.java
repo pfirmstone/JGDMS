@@ -620,9 +620,74 @@ public final class ObjectCodec {
                                          DeserializationCompletion decodeUnit,
                                          ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
+        // Non-injecting entry point: nothing is injected into the top-level GetArg.
+        return decodeHierarchy(expectedSupertype, chain, hierarchyPayload, decodeUnit, resolution,
+                               DerGetArg.NO_INJECTION);
+    }
+
+    /**
+     * As {@link #decodeHierarchy(Class, SchemaChain.Result, byte[], DeserializationCompletion,
+     * ResolutionContext)}, additionally handing the top-level {@code DerGetArg} the enclosing
+     * {@code [8]} proxy's original TLV content bytes so a narrowed proxy's {@link
+     * RawWireFormRetaining} handler {@code (GetArg)} constructor can capture them (read via
+     * {@link AtomicSerial.GetArg#getInjected(String)} under {@link RawWireFormRetaining#RAW_FORM_KEY}).
+     *
+     * <p>This is the sole PUBLIC (cross-package) trigger of the injection channel, used by the
+     * object-stream {@code [8]} proxy decode ({@code DerObjectStreamCodec}). Its parameter is a
+     * typed {@code byte[]} -- NOT an arbitrary key/value map -- so the auditable answer to "who may
+     * inject what" is bounded by the type: only the {@code rawForm} bytes, only under
+     * {@link RawWireFormRetaining#RAW_FORM_KEY} (the key is applied INTERNALLY, never chosen by the
+     * caller). The value reaches the handler's TOP frame only (DC-3 -- nested-field decodes recurse
+     * through the non-injecting {@code decodeNested}); it is a LOCAL trusted-caller channel populated
+     * ONLY from the receiver's decode intent (DC-1/DC-2), never from the transmitted schema/data.
+     *
+     * @param injectedRawForm the enclosing {@code [8]} TLV content bytes to inject, or {@code null}
+     *                        to inject nothing (the common, nothing-narrowed case)
+     */
+    public static <T> T decodeHierarchy(Class<T> expectedSupertype,
+                                         SchemaChain.Result chain,
+                                         byte[] hierarchyPayload,
+                                         DeserializationCompletion decodeUnit,
+                                         ResolutionContext resolution,
+                                         byte[] injectedRawForm)
+            throws DerException, IOException, ClassNotFoundException {
+        return decodeHierarchy(expectedSupertype, chain, hierarchyPayload, decodeUnit, resolution,
+                               rawFormInjection(injectedRawForm));
+    }
+
+    /**
+     * Builds the internal injection map from {@code rawForm}: {@link DerGetArg#NO_INJECTION} when
+     * {@code null}, else a single-entry immutable map keyed on {@link RawWireFormRetaining#RAW_FORM_KEY}.
+     * The SOLE place the injection key is applied -- der.object-private, so no caller (public or
+     * cross-package) chooses the key or supplies an arbitrary map.
+     */
+    private static Map<String, Object> rawFormInjection(byte[] rawForm) {
+        return rawForm == null
+                ? DerGetArg.NO_INJECTION
+                : Collections.singletonMap(RawWireFormRetaining.RAW_FORM_KEY, (Object) rawForm);
+    }
+
+    /**
+     * Package-private map-threading core: as the public {@code byte[]}-injecting {@link
+     * #decodeHierarchy(Class, SchemaChain.Result, byte[], DeserializationCompletion,
+     * ResolutionContext, byte[])}, but takes the already-built (der.object-private) injection map so
+     * the non-injecting public entry can pass {@link DerGetArg#NO_INJECTION} directly. NOT public --
+     * the arbitrary-map surface is confined to trusted der.object code (see {@link #rawFormInjection}).
+     *
+     * @param injected the trusted-decoder injection map (must not be {@code null};
+     *                 {@link DerGetArg#NO_INJECTION} when nothing is injected)
+     */
+    static <T> T decodeHierarchy(Class<T> expectedSupertype,
+                                 SchemaChain.Result chain,
+                                 byte[] hierarchyPayload,
+                                 DeserializationCompletion decodeUnit,
+                                 ResolutionContext resolution,
+                                 Map<String, Object> injected)
+            throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         Objects.requireNonNull(chain, "chain");
         Objects.requireNonNull(hierarchyPayload, "hierarchyPayload");
+        Objects.requireNonNull(injected, "injected");
 
         // chain.chain() is leaf-first; the first entry is the lowest @AtomicSerial class.
         // This may differ from expectedSupertype when a non-@AtomicSerial subclass was
@@ -681,8 +746,10 @@ public final class ObjectCodec {
             }
         }
 
-        // Assemble the multi-entry DerGetArg (superclass-first insertion order)
-        DerGetArg arg = new DerGetArg(storeMap, 0, decodeUnit, resolution);
+        // Assemble the multi-entry DerGetArg (superclass-first insertion order). DC-3: the
+        // injected map (if any) applies to this TOP frame only; nested-field decodes recurse
+        // through the non-injecting decodeNested and see DerGetArg.NO_INJECTION.
+        DerGetArg arg = new DerGetArg(storeMap, 0, decodeUnit, resolution, injected);
 
         // Per-class DeSerializationPermission("ATOMIC") gate: every @AtomicSerial
         // class in the hierarchy whose (GetArg) constructor will run must be permitted.
@@ -1862,6 +1929,27 @@ public final class ObjectCodec {
                                       int depth, DeserializationCompletion decodeUnit,
                                       ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
+        // Non-injecting entry point (all callers except the proxy-handler decode): nested frames
+        // NEVER carry an injected value (DC-3).
+        return decodeNested(nestedRecordBytes, expectedSupertype, depth, decodeUnit, resolution,
+                            DerGetArg.NO_INJECTION);
+    }
+
+    /**
+     * Injecting core of {@link #decodeNested(byte[], Class, int, DeserializationCompletion,
+     * ResolutionContext)}: threads {@code injected} into the top-level {@code DerGetArg} of the
+     * decoded {@code @AtomicSerial} record so its {@code (GetArg)} constructor can read a
+     * trusted decode-context value via {@link AtomicSerial.GetArg#getInjected(String)}. Used ONLY
+     * by {@link #decodeProxy} to hand a narrowed proxy's handler its original {@code [8]} wire
+     * bytes. {@code injected} is applied to the record's TOP frame only -- its own nested-field
+     * decodes recurse through the non-injecting {@link #decodeNested(byte[], Class, int,
+     * DeserializationCompletion, ResolutionContext)} above (DC-3). For a {@code [8]}/enum leaf in
+     * this slot {@code injected} is irrelevant and not threaded.
+     */
+    static Object decodeNested(byte[] nestedRecordBytes, Class<?> expectedSupertype,
+                               int depth, DeserializationCompletion decodeUnit,
+                               ResolutionContext resolution, Map<String, Object> injected)
+            throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(nestedRecordBytes, "nestedRecordBytes");
         Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         if (depth > MAX_NESTING) {
@@ -1923,7 +2011,7 @@ public final class ObjectCodec {
         // (e.g. X500PrincipalSerializer for an X500Principal slot) or java.io Resolve proxy is
         // admitted; a foreign @AtomicSerial named in a concrete slot is failed closed. For a
         // genuinely Object/broad-interface slot expectedSupertype is broad (residual).
-        Object decoded = decodeHierarchy(expectedSupertype, chain, payloadBytes, depth + 1, decodeUnit, resolution);
+        Object decoded = decodeHierarchy(expectedSupertype, chain, payloadBytes, depth + 1, decodeUnit, resolution, injected);
         // DER replacement: if the decoded value is a serializer (implements Resolve),
         // rebuild the original object via readResolve(); otherwise pass it through.
         return au.net.zeus.jgdms.der.serial.DerReplacer.resolve(decoded);
@@ -1979,33 +2067,38 @@ public final class ObjectCodec {
                     "ObjectCodec.decodeProxy: trailing bytes after handler in [8] proxy content");
         }
         byte[] handlerTlv = Arrays.copyOfRange(content, start, end);
-        // The handler slot is known to require an InvocationHandler: thread that declared type
-        // so the pre-construction admission gate rejects a foreign leaf before its ctor runs
-        // (the post-decode instanceof check below remains as defence in depth).
-        Object handler = decodeNested(handlerTlv, InvocationHandler.class, depth + 1, decodeUnit, resolution);
-        if (!(handler instanceof InvocationHandler)) {
-            throw new DerException("ObjectCodec.decodeProxy: handler is not an InvocationHandler ("
-                    + (handler == null ? "null" : handler.getClass().getName()) + ")");
-        }
         // Endpoint-assigned TOLERANT resolution of the proxy class (the raw loader stays inside
         // the ResolutionContext): resolves each interface name independently rather than failing
         // the whole item when a single name doesn't resolve locally. Names that don't resolve are
-        // dropped (and logged); the proxy still builds over the resolvable subset, with a handler
-        // that retains the full original wire bytes (via RawWireFormRetaining) so a later
-        // re-forward of this proxy doesn't silently lose the dropped interfaces -- and re-emits
-        // those bytes byte-for-byte rather than re-deriving them (see ProxyWireSupport /
-        // RawWireFormRetaining and the write side above).
+        // dropped (and logged); the proxy still builds over the resolvable subset. Resolved FIRST
+        // (before decoding the handler) so we know whether narrowing occurred, hence whether to
+        // hand the handler its original [8] bytes for verbatim re-forward.
         ProxyWireSupport.Resolved resolved = ProxyWireSupport.resolveTolerant(names, resolution);
         // DeSerializationPermission("PROXY") gate runs on the RESOLVED (narrowed) interfaces
         // actually being instantiated, not the full original names.
         checkProxyDeSerializationPermitted(resolved.interfaces);
-        InvocationHandler realHandler = (InvocationHandler) handler;
-        InvocationHandler toUse = resolved.droppedNames.length == 0
-                ? realHandler
-                : ProxyWireSupport.wrapForDrop(realHandler, content);
+        // If (and only if) narrowing occurred, INJECT the FULL original [8] content bytes into the
+        // handler's top-level GetArg (DC-1/DC-2: a LOCAL, trusted-decoder value keyed on the
+        // receiver's own decode intent, disjoint from the wire field store). The handler's
+        // (GetArg) ctor reads it via getInjected(RAW_FORM_KEY) into its transient rawForm, so a
+        // later re-forward of this narrowed proxy re-emits the sender's verbatim bytes rather than
+        // re-deriving them from the narrowed live proxy (see RawWireFormRetaining and the write
+        // side). Nothing dropped -> no injection (the common case re-encodes fresh, unchanged).
+        // rawFormInjection() is the single der.object-private site that applies RAW_FORM_KEY.
+        Map<String, Object> injected =
+                rawFormInjection(resolved.droppedNames.length == 0 ? null : content);
+        // The handler slot is known to require an InvocationHandler: thread that declared type
+        // so the pre-construction admission gate rejects a foreign leaf before its ctor runs
+        // (the post-decode instanceof check below remains as defence in depth).
+        Object handler = decodeNested(handlerTlv, InvocationHandler.class, depth + 1, decodeUnit,
+                                      resolution, injected);
+        if (!(handler instanceof InvocationHandler)) {
+            throw new DerException("ObjectCodec.decodeProxy: handler is not an InvocationHandler ("
+                    + (handler == null ? "null" : handler.getClass().getName()) + ")");
+        }
         try {
             return Proxy.newProxyInstance(
-                    resolved.proxyClass.getClassLoader(), resolved.interfaces, toUse);
+                    resolved.proxyClass.getClassLoader(), resolved.interfaces, (InvocationHandler) handler);
         } catch (IllegalArgumentException e) {
             throw new DerException("ObjectCodec.decodeProxy: proxy reconstruction failed", e);
         }
@@ -2021,7 +2114,8 @@ public final class ObjectCodec {
                                           byte[] hierarchyPayload,
                                           int depth,
                                           DeserializationCompletion decodeUnit,
-                                          ResolutionContext resolution)
+                                          ResolutionContext resolution,
+                                          Map<String, Object> injected)
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(expectedSupertype, "expectedSupertype");
         Objects.requireNonNull(chain, "chain");
@@ -2077,7 +2171,11 @@ public final class ObjectCodec {
             }
         }
 
-        DerGetArg arg = new DerGetArg(storeMap, depth, decodeUnit, resolution);
+        // DC-3 (SCOPED): the injected map is applied to THIS (the target handler's top-level)
+        // GetArg only. The (GetArg) ctor's own arg.get(...) calls decode nested fields through
+        // DerGetArg.lookup -> ObjectCodec.decodeNested (the non-injecting signature), which
+        // passes DerGetArg.NO_INJECTION, so an injected value never reaches a nested frame.
+        DerGetArg arg = new DerGetArg(storeMap, depth, decodeUnit, resolution, injected);
 
         // Per-class DeSerializationPermission("ATOMIC") gate (nested decode path too).
         checkAtomicDeSerializationPermitted(storeMap.keySet());

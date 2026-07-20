@@ -45,8 +45,10 @@ import java.lang.reflect.InvocationHandler;
  *
  * <h2>Scope of the retention guarantee (what it does and does not cover)</h2>
  * <p><strong>Best-effort, not universal -- non-JERI handlers.</strong>
- * {@link ProxyWireSupport#wrapForDrop} retains only for a decoded handler that implements this
- * interface. Every JERI handler ({@code BasicInvocationHandler} and its subclasses
+ * Retention applies only to a decoded handler that implements this interface (the {@code [8]}
+ * decoder injects {@link #RAW_FORM_KEY} for the target handler regardless, but only a handler
+ * whose {@code (GetArg)} constructor reads it captures the bytes). Every JERI handler
+ * ({@code BasicInvocationHandler} and its subclasses
  * {@code AtomicInvocationHandler}/{@code AtomicDerInvocationHandler}) does. A non-JERI
  * {@code InvocationHandler} on the {@code [8]} path is still built into a usable narrowed proxy,
  * but carries no retained form: a later re-forward silently re-derives from the narrowed live
@@ -68,28 +70,39 @@ import java.lang.reflect.InvocationHandler;
  * substitutable {@code ProxyAccessor}) is near-unreachable in normal operation. Impact is fidelity
  * loss only -- never a self-check bypass, gadget, or authorization change.
  *
- * <h2>Immutability</h2>
- * <p>{@link #withRawForm(byte[])} MUST return a new, independent handler carrying a defensive copy
- * of {@code rawForm}; it must not mutate the receiver. The retained bytes are a transient concern
- * (a decode-local relay hint) and MUST NOT participate in the handler's serial form, {@code
- * equals}/{@code hashCode}, or wire-visible state -- a retaining handler must serialize identically
- * to an otherwise-equal non-retaining one.
+ * <h2>How the bytes are captured (deserialization-time injection, not a copy constructor)</h2>
+ * <p>The retained bytes are captured when the handler is <em>deserialized</em>, through the generic
+ * {@link org.apache.river.api.io.AtomicSerial.GetArg#getInjected(String) GetArg injection channel}:
+ * when the {@code [8]} decode narrows a proxy's interface set, the decoder injects the FULL original
+ * {@code [8]} TLV content bytes into the ONE target handler's top-level {@code GetArg} under
+ * {@link #RAW_FORM_KEY}, and the handler's {@code (GetArg)} constructor reads them via
+ * {@code arg.getInjected(RAW_FORM_KEY)}. There is no post-decode copy constructor and no
+ * {@code withRawForm} re-wrap: the handler installed on the narrowed proxy IS the decoded handler
+ * (so JERI's {@code Proxy.getInvocationHandler(proxy) != this} self-check passes naturally), and the
+ * retained bytes are immutable {@code final} state set once at construction.
+ *
+ * <h2>Immutability / wire-neutrality</h2>
+ * <p>The retained bytes are a transient concern (a decode-local relay hint) and MUST NOT participate
+ * in the handler's serial form, {@code equals}/{@code hashCode}, or wire-visible state -- a retaining
+ * handler must serialize identically to an otherwise-equal non-retaining one. The bytes are
+ * {@code transient} (excluded from the object stream) AND absent from {@code serialForm()} (excluded
+ * from the DER schema and its digest), so the retention feature is byte-for-byte wire-neutral with
+ * ZERO schema/digest change.
  *
  * @since 4.0
  */
 public interface RawWireFormRetaining {
 
     /**
-     * Returns a new, independent {@link InvocationHandler} equal in every wire-visible respect to
-     * this one, additionally carrying (a defensive copy of) {@code rawForm} as its retained
-     * original {@code [8]} wire form. Implementations MUST preserve their concrete type so a
-     * decoded handler is not silently downgraded to a base type on re-wrap.
-     *
-     * @param rawForm the FULL {@code [8]} TLV content bytes received off the wire (not including
-     *                the outer tag+length header); may be {@code null} to carry none
-     * @return an immutable copy of this handler carrying {@code rawForm}
+     * Well-known key under which the {@code [8]} proxy decoder injects the FULL original {@code [8]}
+     * TLV content bytes into the target handler's top-level
+     * {@link org.apache.river.api.io.AtomicSerial.GetArg}, and under which a retaining handler's
+     * {@code (GetArg)} constructor reads them via
+     * {@link org.apache.river.api.io.AtomicSerial.GetArg#getInjected(String)}. Shared by the der
+     * decode code (which PUTs) and the JERI handler (which GETs). This is the sole coupling point
+     * of the retention mechanism; neither side hardcodes the other by class name.
      */
-    InvocationHandler withRawForm(byte[] rawForm);
+    String RAW_FORM_KEY = "au.net.zeus.jgdms.der.object.RawWireFormRetaining.rawForm";
 
     /**
      * Returns (a defensive copy of) the retained original {@code [8]} wire form, or {@code null}

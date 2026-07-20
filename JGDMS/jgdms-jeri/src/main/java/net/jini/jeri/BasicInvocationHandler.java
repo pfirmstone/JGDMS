@@ -234,12 +234,15 @@ public class BasicInvocationHandler
      * decoded from, for verbatim re-emission on a later re-forward of an interface-narrowed proxy,
      * or {@code null} (the common case). See {@link RawWireFormRetaining}.
      *
-     * <p>{@code transient}: a decode-local relay hint, NEVER part of the wire form -- a retaining
-     * handler serializes byte-identically to an otherwise-equal non-retaining one, and the
+     * <p>{@code transient}: a decode-local relay hint, NEVER part of the wire form -- and, being
+     * absent from {@link #serialForm()}, also absent from the DER schema/digest -- so a retaining
+     * handler serializes byte-identically to an otherwise-equal non-retaining one. The
      * write/re-forward path relays these bytes verbatim (via {@code
      * ProxyWireSupport.wireContentForBoomerang}) strictly BEFORE any normal handler re-serialization
-     * (which would drop this transient field). {@code final}: immutable once constructed; a new
-     * value is carried only by constructing a new handler (see {@link #withRawForm(byte[])}).
+     * (which would drop this transient field). {@code final}: immutable once constructed; captured
+     * exactly once by the {@code (GetArg)} constructor from the deserialization-time injection
+     * channel ({@link GetArg#getInjected(String)} under {@link RawWireFormRetaining#RAW_FORM_KEY}) --
+     * there is no copy constructor and no mutator.
      **/
     private final transient byte[] rawForm;
 
@@ -350,17 +353,18 @@ public class BasicInvocationHandler
     public BasicInvocationHandler(ObjectEndpoint oe,
 				  MethodConstraints serverConstraints)
     {
-	this(check(oe), oe, null, serverConstraints);
+	this(check(oe), oe, null, serverConstraints, null);
 	}
 
     private BasicInvocationHandler(boolean check, ObjectEndpoint oe,
 	    MethodConstraints clientConstraints,
-	    MethodConstraints serverConstraints)
+	    MethodConstraints serverConstraints,
+	    byte[] rawForm)
     {
 	this.oe = oe;
 	this.clientConstraints = clientConstraints;
 	this.serverConstraints = serverConstraints;
-	this.rawForm = null;
+	this.rawForm = rawForm;
     }
 
     private static boolean check(ObjectEndpoint oe){
@@ -388,8 +392,25 @@ public class BasicInvocationHandler
 	this(check(arg),
 	    (ObjectEndpoint) arg.get("oe", null),
 	    (MethodConstraints) arg.get("clientConstraints", null),
-	    (MethodConstraints) arg.get("serverConstraints", null)
+	    (MethodConstraints) arg.get("serverConstraints", null),
+	    rawFormFrom(arg)
 	);
+    }
+
+    /**
+     * Captures this handler's retained {@code [8]} wire form from the deserialization-time
+     * injection channel: when an interface-narrowed {@code [8]} proxy is being decoded, the der
+     * codec injects the FULL original {@code [8]} TLV content bytes under
+     * {@link RawWireFormRetaining#RAW_FORM_KEY}; otherwise nothing is injected and this returns
+     * {@code null} (the common case). This is the SINGLE construction path for {@code rawForm} --
+     * there is no copy constructor. The injected value is read via
+     * {@link GetArg#getInjected(String)}, which is disjoint from the wire field store (a hostile
+     * peer transmitting a real {@code rawForm} wire field cannot influence it); a defensive copy
+     * is taken so the retained bytes are independent of the decoder's array.
+     */
+    private static byte[] rawFormFrom(GetArg arg) {
+	Object injected = arg.getInjected(RawWireFormRetaining.RAW_FORM_KEY);
+	return (injected instanceof byte[]) ? ((byte[]) injected).clone() : null;
     }
 
     /**
@@ -421,47 +442,8 @@ public class BasicInvocationHandler
 	this.clientConstraints = clientConstraints;
 	this.serverConstraints = other.serverConstraints;
 	// A constraint change produces a distinct proxy that is no longer the verbatim decoded
-	// object, so the retained wire form does not carry over -- see withRawForm(byte[]).
+	// object, so the retained wire form does not carry over.
 	this.rawForm = null;
-    }
-
-    /**
-     * Creates a new <code>BasicInvocationHandler</code> with the same
-     * <code>ObjectEndpoint</code>, client constraints and server constraints
-     * as {@code other}, additionally carrying (a defensive copy of)
-     * {@code rawForm} as its retained original {@code [8]} wire form.
-     *
-     * <p>This constructor implements the {@link RawWireFormRetaining}
-     * capability (see {@link #withRawForm(byte[])}); the retained bytes are a
-     * transient, decode-local relay hint and never affect this handler's wire
-     * form, {@code equals}/{@code hashCode}, or behaviour.
-     *
-     * @param	other the handler to obtain all wire-visible state from
-     * @param	rawForm the retained original {@code [8]} wire bytes, or
-     *		<code>null</code> to carry none (defensively copied)
-     *
-     * @throws	NullPointerException if <code>other</code> is <code>null</code>
-     **/
-    public BasicInvocationHandler(BasicInvocationHandler other, byte[] rawForm)
-    {
-	this.oe = other.oe;
-	this.clientConstraints = other.clientConstraints;
-	this.serverConstraints = other.serverConstraints;
-	this.rawForm = (rawForm == null ? null : rawForm.clone());
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * <p><code>BasicInvocationHandler</code> returns a new
-     * <code>BasicInvocationHandler</code> equal in every wire-visible respect
-     * to this one, additionally carrying (a defensive copy of)
-     * <code>rawForm</code>. Subclasses override this to preserve their own
-     * concrete type and any additional final state.
-     **/
-    @Override
-    public InvocationHandler withRawForm(byte[] rawForm) {
-	return new BasicInvocationHandler(this, rawForm);
     }
 
     /** {@inheritDoc} */

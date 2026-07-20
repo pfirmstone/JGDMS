@@ -92,11 +92,10 @@ class DerObjectStreamBoomerangProxyTest {
             this.rawForm = (rawForm == null ? null : rawForm.clone());
         }
         public AnswerHandler(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-            this((String) arg.get("answer", null), null);
-        }
-        @Override
-        public InvocationHandler withRawForm(byte[] rawForm) {
-            return new AnswerHandler(answer, rawForm);
+            // Capture the decode-injected [8] raw form via the GetArg injection channel (DC-1:
+            // disjoint from the wire "answer" field), exactly as the real JERI handlers do.
+            this((String) arg.get("answer", null),
+                 arg.getInjected(RawWireFormRetaining.RAW_FORM_KEY) instanceof byte[] b ? b : null);
         }
         @Override
         public byte[] rawForm() {

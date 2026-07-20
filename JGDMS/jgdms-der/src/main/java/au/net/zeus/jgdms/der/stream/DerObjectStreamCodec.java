@@ -26,6 +26,7 @@ import au.net.zeus.jgdms.der.marshal.MarshalledInstanceCodec;
 import au.net.zeus.jgdms.der.marshal.MarshalledInstanceRecord;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
 import au.net.zeus.jgdms.der.object.ProxyWireSupport;
+import au.net.zeus.jgdms.der.object.RawWireFormRetaining;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
 import java.util.Arrays;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
@@ -1002,7 +1003,7 @@ final class DerObjectStreamCodec {
             DerReader pr = new DerReader(content);
             int count;
             String[] names;
-            Object handler;
+            byte[] handlerRec;
             try {
                 count = pr.readInteger().intValueExact();
                 if (count <= 0 || count > ProxyWireSupport.MAX_PROXY_INTERFACES) {
@@ -1017,7 +1018,11 @@ final class DerObjectStreamCodec {
                 if (!CTX_ATOMIC.equals(hh.tag())) {
                     throw new IOException("readObject: [8] proxy handler must be a [1] @AtomicSerial item");
                 }
-                handler = decodeAtomicRecord(pr.readRawContent(hh.contentLength()));
+                // Capture the handler's [1] @AtomicSerial record bytes but DEFER its decode until
+                // after tolerant interface resolution -- we must know whether narrowing occurred
+                // before decoding the handler, so we can inject the original [8] bytes into its
+                // GetArg (see below).
+                handlerRec = pr.readRawContent(hh.contentLength());
                 if (pr.hasMore()) {
                     throw new IOException("readObject: trailing bytes in [8] proxy item");
                 }
@@ -1026,30 +1031,34 @@ final class DerObjectStreamCodec {
             } catch (DerException e) {
                 throw new IOException("readObject: malformed [8] proxy item", e);
             }
-            if (!(handler instanceof InvocationHandler)) {
-                throw new IOException("readObject: [8] proxy handler is not an InvocationHandler ("
-                        + (handler == null ? "null" : handler.getClass().getName()) + ")");
-            }
             // Endpoint-assigned TOLERANT resolution of the proxy class (NEVER the thread-context
             // loader -- Warres): resolves each interface name independently rather than failing
             // the whole item when a single name doesn't resolve locally. Names that don't resolve
-            // are dropped (and logged); the proxy still builds over the resolvable subset, with a
-            // handler that retains the full original wire bytes (via RawWireFormRetaining) so a
-            // later re-forward of this proxy doesn't silently lose the dropped interfaces -- and
-            // re-emits those bytes byte-for-byte rather than re-deriving them (see ProxyWireSupport
-            // / RawWireFormRetaining and the write side above).
+            // are dropped (and logged); the proxy still builds over the resolvable subset.
             ProxyWireSupport.Resolved resolved = ProxyWireSupport.resolveTolerant(names, resolution);
             // DeSerializationPermission("PROXY") gate before reconstruction -- DER counterpart of
             // AtomicMarshalInputStream.instantiateProxy's deSerializationPermitted(PROXY). No-op w/o SM.
             // Runs against the RESOLVED (narrowed) interface set actually being instantiated, not
             // the full original names -- that's what's actually being granted a live proxy.
             checkProxyDeSerializationPermitted(resolved.interfaces);
-            InvocationHandler realHandler = (InvocationHandler) handler;
-            InvocationHandler toUse = resolved.droppedNames.length == 0
-                    ? realHandler
-                    : ProxyWireSupport.wrapForDrop(realHandler, content);
+            // If (and only if) narrowing occurred, INJECT the FULL original [8] content bytes into
+            // the handler's top-level GetArg (DC-1/DC-2: a LOCAL, trusted-decoder value keyed on
+            // the receiver's own decode intent, disjoint from the wire field store). A retaining
+            // handler ((GetArg) ctor reads getInjected(RAW_FORM_KEY)) then re-emits those bytes
+            // verbatim on a later re-forward rather than re-deriving them from the narrowed live
+            // proxy -- and the retention is carried by the real handler itself, so
+            // Proxy.getInvocationHandler(narrowedProxy) is that handler and JERI's self-check
+            // passes with no wrapper. Nothing dropped -> no injection (common case re-encodes fresh).
+            // Pass the raw bytes (typed byte[]); RAW_FORM_KEY is applied internally by ObjectCodec.
+            byte[] injectedRawForm = resolved.droppedNames.length == 0 ? null : content;
+            Object handler = decodeAtomicRecord(handlerRec, injectedRawForm);
+            if (!(handler instanceof InvocationHandler)) {
+                throw new IOException("readObject: [8] proxy handler is not an InvocationHandler ("
+                        + (handler == null ? "null" : handler.getClass().getName()) + ")");
+            }
             try {
-                return Proxy.newProxyInstance(resolved.proxyClass.getClassLoader(), resolved.interfaces, toUse);
+                return Proxy.newProxyInstance(resolved.proxyClass.getClassLoader(),
+                        resolved.interfaces, (InvocationHandler) handler);
             } catch (IllegalArgumentException e) {
                 throw new IOException("readObject: [8] proxy reconstruction failed", e);
             }
@@ -1171,6 +1180,47 @@ final class DerObjectStreamCodec {
         Class<?> leafClass = resolution.loadClass(leafClassName);
         try {
             return MarshalledInstanceCodec.decodeMarshalledInstance(rec, leafClass, decodeUnit, resolution).object();
+        } catch (DerException e) {
+            throw new IOException("readObject: decode failed for " + leafClassName, e);
+        }
+    }
+
+    /**
+     * As {@link #decodeAtomicRecord(byte[])}, additionally injecting {@code injectedRawForm} into
+     * the decoded object's top-level {@code GetArg} (read via
+     * {@link org.apache.river.api.io.AtomicSerial.GetArg#getInjected(String)} under
+     * {@link RawWireFormRetaining#RAW_FORM_KEY}, which the callee applies internally). Used ONLY for
+     * the {@code [8]} proxy handler so a narrowed proxy's handler receives its original {@code [8]}
+     * wire bytes. Decodes via the typed-parameter public {@link ObjectCodec#decodeHierarchy(Class,
+     * au.net.zeus.jgdms.der.schema.SchemaChain.Result, byte[],
+     * net.jini.io.context.DeserializationCompletion, au.net.zeus.jgdms.der.getarg.ResolutionContext,
+     * byte[])} directly (the embedded schema always drives decode, S7.8), mirroring
+     * {@link MarshalledInstanceCodec#decodeMarshalledInstance} minus the schema-digest classification
+     * that this proxy path discards.
+     *
+     * @param injectedRawForm the enclosing {@code [8]} TLV content bytes to inject, or {@code null}
+     *                        to inject nothing (no narrowing at this hop)
+     */
+    private Object decodeAtomicRecord(byte[] recBytes, byte[] injectedRawForm)
+            throws IOException, ClassNotFoundException {
+        if (injectedRawForm == null) {
+            // No narrowing -> no injection: identical to the plain path.
+            return decodeAtomicRecord(recBytes);
+        }
+        MarshalledInstanceRecord rec;
+        SchemaChain.Result chain;
+        try {
+            rec = MarshalledInstanceRecord.decode(recBytes);
+            chain = rec.decodeSchemaChainAsResult();
+        } catch (DerException e) {
+            throw new IOException("readObject: malformed MarshalledInstanceRecord", e);
+        }
+        String leafClassName = chain.chain().get(0).className();
+        // Endpoint-assigned resolution (NEVER the thread-context loader -- Warres).
+        Class<?> leafClass = resolution.loadClass(leafClassName);
+        try {
+            return ObjectCodec.decodeHierarchy(leafClass, chain, rec.payloadBytes(),
+                    decodeUnit, resolution, injectedRawForm);
         } catch (DerException e) {
             throw new IOException("readObject: decode failed for " + leafClassName, e);
         }

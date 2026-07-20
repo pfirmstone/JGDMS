@@ -37,7 +37,10 @@ import java.util.Objects;
  * reverse), so this fixture stands in for a JERI handler to exercise the raw-wire-form retention
  * that a re-forward of an interface-narrowed proxy relies on. {@code rawForm} is {@code transient}
  * and absent from {@link #serialForm()}, so a retaining instance serializes byte-identically to an
- * otherwise-equal non-retaining one.
+ * otherwise-equal non-retaining one. It is captured at deserialization time from the framework's
+ * {@link AtomicSerial.GetArg#getInjected(String) GetArg injection channel} (under
+ * {@link RawWireFormRetaining#RAW_FORM_KEY}) -- there is no copy constructor and no {@code
+ * withRawForm}, exactly as the real JERI handlers.
  */
 @AtomicSerial
 public final class GreeterHandler implements InvocationHandler, RawWireFormRetaining {
@@ -67,12 +70,14 @@ public final class GreeterHandler implements InvocationHandler, RawWireFormRetai
     }
 
     public GreeterHandler(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-        this((String) check(arg).get("greeting", null));
+        this((String) check(arg).get("greeting", null),
+             injectedRawForm(arg));
     }
 
-    @Override
-    public InvocationHandler withRawForm(byte[] rawForm) {
-        return new GreeterHandler(greeting, rawForm);
+    /** Captures the decode-injected [8] raw form (DC-1: disjoint from the wire field store). */
+    private static byte[] injectedRawForm(AtomicSerial.GetArg arg) {
+        Object injected = arg.getInjected(RawWireFormRetaining.RAW_FORM_KEY);
+        return (injected instanceof byte[]) ? ((byte[]) injected).clone() : null;
     }
 
     @Override
