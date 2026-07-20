@@ -834,13 +834,20 @@ absence of a function here is a decision, not an oversight:
 | 14 | `atan(x: double) → double` | inverse tangent | *finite-only* | **correctly rounded** |
 | 15 | `atan2(y: double, x: double) → double` | two-argument arctangent | *finite-only* (either argument non-finite ⇒ `DOMAIN`); zero/zero and signed-zero cases follow IEEE-754 `atan2` exactly (`atan2(±0, +x)` = ±0, `atan2(±0, −x)` = ±π, etc.) | **correctly rounded** |
 
-**Wire identity (normative).** The `#` column above **is** the pinned wire
-function-registry identity referenced by `CALL` nodes (§11.1) and enforced by
-T6's allowlist (§12.2): each row is one wire id, and a row with multiple
-signatures — e.g. row 8's `min`/`max` over `int` and over `double` — is a
-**single** wire id that dispatches on operand type at evaluation, exactly as
-§11.1's arithmetic node kinds (`ADD`/`SUB`/`MUL`/etc.) each span `int` and
-`double` under one node tag.
+**Wire identity (normative — corrected per Appendix B board review,
+2026-07-20).** The rows above define registry **membership** (the ratified
+closed function set); they are **not** themselves the wire ids. This
+paragraph's original "each row is one wire id" rule was internally
+inconsistent with its own table — row 8 bundles `min` and `max` (two distinct
+operations that operand-type dispatch cannot distinguish) and rows 12–14 group
+several unrelated functions for presentation — as flagged by T2 and confirmed
+by its board review. The pinned wire function-registry identity referenced by
+`CALL` nodes (§11.1) and enforced by T6's allowlist (§12.2) is **Appendix B
+§B.8.3's table: one wire id per (function name × operand-type signature)** —
+generalizing the pattern rows 6/7 (`abs` per numeric type) already used — with
+ids 22–24 covering `contains`/`startsWith`/`endsWith`, which this table
+declares members but never numbered. Membership here; id assignment in
+Appendix B.
 
 **Implementation trap (normative warning): native narrowing casts for `int(x:
 double)`.** Java's `(long) x` cast and Rust's `x as i64` on a `double`
@@ -1266,8 +1273,8 @@ verification; dynamic evaluation enforces identical rules regardless (§6).
    registry function id, an arity violation, or any structural violation of
    §11.1 MUST be a hard decode error — never skipped, defaulted, or tolerated
    (STD-006 §3.12 fence 3's discipline applied to expression nodes). Registry
-   function ids are the §7.2 `#` column values (a multi-signature row such as
-   row 8's `min`/`max` is one wire id dispatching on operand type, §7.2) —
+   function ids are Appendix B §B.8.3's pinned table — one id per (function
+   name × operand-type signature), see §7.2's corrected wire-identity note —
    never a name string resolved dynamically.
 3. **Ceilings.** T2 MUST enforce `maxExprNodes`/`maxExprDepth`/
    `maxSelectorSteps` (and the encoded size implied by them) at decode, before
