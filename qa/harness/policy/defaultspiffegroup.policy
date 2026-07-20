@@ -187,6 +187,7 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test
 // further via the jrt:/principal-scoped grants above; hosted/business-side
 // code gets nothing beyond this.
 grant {
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";

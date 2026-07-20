@@ -214,6 +214,15 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test
 // implies setSecurityManager. Java policy is default-deny, so removing these
 // unqualified grants is what makes them denied; no explicit deny rule needed.
 // Only the narrow, least-privilege perms below are granted to every domain.
+// The removed scaffold also granted SecurityPermission/NetPermission/
+// ReflectPermission/SocketPermission wildcards and DirtyChai's native/
+// class-loading guards -- no narrow replacement for those has been derived
+// yet. If enabling a live SecurityManager for this config surfaces an
+// AccessControlException for one of those, use polpAudit to derive the
+// real, narrowly-scoped grant for the specific trusted codebase that needs
+// it -- do not restore the wildcard. Mirrors the convention already used in
+// defaultsecuremahalo.policy ("Emptied for clean cross-platform polpAudit
+// regeneration").
 // Trusted service jars/threads get anything further via the jrt:/principal
 // -scoped grants above; hosted/business-side code gets nothing beyond this.
 grant {
