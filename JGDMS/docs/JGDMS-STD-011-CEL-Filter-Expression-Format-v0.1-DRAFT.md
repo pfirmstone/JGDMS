@@ -9,10 +9,9 @@
 > CEL expression (subset), and with three flagged exceptions every pinned
 > behaviour is one CEL itself permits (refinement). Throughout: "DETERMINISTIC
 > CEL" is this format's proper name; bare "CEL" continues to mean the upstream
-> Common Expression Language. *(Spelling note for ratification: proposed in
-> discussion as "DETERMINISTIC CELL" — recorded here as CEL on the assumption
-> that was a typo; if the CELL wordplay — a small, sealed, bounded cell — was
-> intended, only this note and the title change.)*
+> Common Expression Language. *(Spelling confirmed by Peter, 2026-07-20: the
+> "CELL" form in the original proposal was a typo; the name is DETERMINISTIC
+> CEL.)*
 
 **Status:** Draft (T1 deliverable of `SOW-CEL-Filter-Format.md`); board-reviewed 2026-07-20, fix list applied this revision — see editorial note below
 **Version:** 0.1-DRAFT
