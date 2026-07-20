@@ -107,7 +107,6 @@ public class RemoteEvent extends java.util.EventObject {
             new SerialForm("source", Object.class),
 	    new SerialForm("eventID", long.class),
 	    new SerialForm("seqNum", long.class),
-	    new SerialForm("handback", MarshalledObject.class),
 	    new SerialForm("miHandback", MarshalledInstance.class)
         };
     }
@@ -116,7 +115,6 @@ public class RemoteEvent extends java.util.EventObject {
         arg.put("source", r.source);
         arg.put("eventID", r.eventID);
         arg.put("seqNum", r.seqNum);
-        arg.put("handback", r.handback);
         arg.put("miHandback", r.miHandback);
         arg.writeArgs();
     }
@@ -156,7 +154,7 @@ public class RemoteEvent extends java.util.EventObject {
 	arg.get("eventID", 0L);
 	long seqNum = arg.get("seqNum", -1L);
 	if (seqNum < 0) throw new InvalidObjectException("seqNum may have overflowed, less than zero");
-	arg.get("handback", null, MarshalledObject.class); // Type check
+	arg.get("handback", null, MarshalledObject.class); // Type check, remains for earlier serial form.
 	try{
 	    arg.get("miHandback", null, MarshalledInstance.class); // Type check
 	} catch (IllegalArgumentException ex){} // Ignore, earlier version.

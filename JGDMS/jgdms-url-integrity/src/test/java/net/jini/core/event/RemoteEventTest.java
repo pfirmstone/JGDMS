@@ -99,7 +99,8 @@ public class RemoteEventTest {
     public void testSerialization() throws Exception {
 	System.out.println("test serialization");
 	RemoteEvent result = new AtomicMarshalledInstance(e).get(false, RemoteEvent.class);
-	assertEquals(m, result.getRegistrationObject());
+        // No longer serialises JOSS.
+	assertEquals(null, result.getRegistrationObject());
 	assertEquals(source, result.getSource());
 	assertEquals(10L, result.getID());
 	assertEquals(25L, result.getSequenceNumber());
