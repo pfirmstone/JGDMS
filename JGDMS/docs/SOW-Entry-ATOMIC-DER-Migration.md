@@ -282,13 +282,27 @@ Every match in every path funnels through **`EntryRep.matches(EntryRep)`**
    (`SchemaGenerator.toWireType` — the exact failure `SOW-RemoteEvent-Source-DER-Encoding.md`
    root-caused). An entry class with non-DER-encodable field values must fail marshalling
    **loudly at write time** under `ATOMIC_DER` — never silently fall back per-field to JOSS
-   (per-field format mixing would recreate §2.3's hazard inside a single entry). **Not
-   hypothetical:** a 2026-07-20 sample of the platform's own shipped `jgdms-lib-dl` `Entry` types
-   found 4/26 failing DER-encodability today — `RemoteMatch.aRI` (a bare `Remote`-typed field),
-   `PayloadEntry.payload`, `Status.severity`, `ServiceTypes.serviceType` (two of the four in
-   `net.jini.lookup.entry`) — meaning §3.6's fail-loudly rule breaks real platform types out of
-   the box, not just test fixtures. A1 must include an explicit survey-and-fix pass over the
-   platform's own `Entry` classes as in-scope work, not assume a clean starting point.
+   (per-field format mixing would recreate §2.3's hazard inside a single entry). **Blast radius,
+   full survey (2026-07-20, supersedes the earlier 4/26 estimate).** An exhaustive pass over
+   every `net.jini.core.entry.Entry` implementer in the repo found **exactly two shipped fields
+   that fail today**, both in `net.jini.lookup.entry`: `Status.severity` (typed `StatusType`, a
+   plain non-`@AtomicSerial` `Serializable` value class) and `UIDescriptor.factory` (typed
+   `java.rmi.MarshalledObject`, which the DER serializer registry deliberately DEFERS for
+   unresolved security/canonicality reasons). The earlier estimate's other named cases were
+   wrong and are corrected: `ServiceTypes.serviceType` (`Class`-typed) is **encodable** — `Class`
+   became a supported wire type in commit `415e81570`, 2026-07-18; `RemoteMatch.aRI` and
+   `PayloadEntry.payload` are **QA-test fixtures, not shipped**, and neither statically fails (a
+   `Remote`/interface field is a polymorphic `@AtomicSerial` slot, a value-dependent runtime
+   check; `PayloadEntry.payload`'s type is deliberately `@AtomicSerial`). **Per-case fix sizing:**
+   `Status.severity` is an **A1 mechanical fix** — retrofit `@AtomicSerial` onto `StatusType`
+   (a closed three-instance value class, no independent persisted form, `Status`'s public field
+   type unchanged). `UIDescriptor.factory` is a **compatibility-gated decision, not mechanical**:
+   either resolve the platform-wide `MarshalledObject` DER deferral (a larger unit with its own
+   security review) or narrow the shipped public field type to a DER-safe carrier
+   (e.g. `MarshalledInstance`) — a serialized-form-committed break A1 must flag, not silently
+   attempt. So A1's Entry-fix scope is one mechanical retrofit plus one flagged decision, not a
+   broad survey-and-repair — but the survey step stays in scope so the two known cases don't
+   surprise the migration, and so any Entry types added since are re-checked.
 7. **Read-path union shim ruled out.** A tempting alternative — match JOSS-vs-JOSS and DER-vs-DER
    separately per query and union the results — is rejected: it adds nothing over today's
    same-format matching (§2.3), since bridging JOSS↔DER at the value level still needs either
@@ -311,7 +325,7 @@ space-wide format epoch (A1×A2 joint).
 
 | Task | Deliverable |
 |------|-------------|
-| **A1** · Outrigger DER marshal path + format selection | Constraints-aware marshalling in `EntryRep` (both the reflection path `:338` and the `@SerialEntry` path `:406`), per-relationship format derivation mirroring Reggie's `Util.requiresDerFormat`, and the loud-failure rule for non-DER-encodable field values (§3.6). Includes the proxy-side template path (`SpaceProxy2.repFor`) so template and entry are produced under the same negotiated format — the §2.3 board precedent made normative. **Additional marshal sites in scope** (missing from earlier drafts): Outrigger `SpaceProxy2.java:549,699` (handbacks), `AvailabilityRegistrationWatcher.java:406`, `EventRegistrationWatcher.java:207`; Reggie `Item.java:243-246`, `EventReg.serialize`/`writeObject`. Most materially, `RegistrarImpl.marshalAttributes` (`:4447-4456`) and `marshalLocators` (`:4492-4501`) are both JOSS-only today and both called from inside `takeSnapshot` (`:6368-6369`) — the persistence path §2.3 already cites — so they belong in A2/A4's mixed-snapshot recovery analysis, not silently assumed covered by A3's config flip. **Also in scope:** a survey-and-fix pass over shipped `jgdms-lib-dl` `Entry` types for DER-encodability (§3.6) — a 2026-07-20 sample found 4/26 failing today. |
+| **A1** · Outrigger DER marshal path + format selection | Constraints-aware marshalling in `EntryRep` (both the reflection path `:338` and the `@SerialEntry` path `:406`), per-relationship format derivation mirroring Reggie's `Util.requiresDerFormat`, and the loud-failure rule for non-DER-encodable field values (§3.6). Includes the proxy-side template path (`SpaceProxy2.repFor`) so template and entry are produced under the same negotiated format — the §2.3 board precedent made normative. **Additional marshal sites in scope** (missing from earlier drafts): Outrigger `SpaceProxy2.java:549,699` (handbacks), `AvailabilityRegistrationWatcher.java:406`, `EventRegistrationWatcher.java:207`; Reggie `Item.java:243-246`, `EventReg.serialize`/`writeObject`. Most materially, `RegistrarImpl.marshalAttributes` (`:4447-4456`) and `marshalLocators` (`:4492-4501`) are both JOSS-only today and both called from inside `takeSnapshot` (`:6368-6369`) — the persistence path §2.3 already cites — so they belong in A2/A4's mixed-snapshot recovery analysis, not silently assumed covered by A3's config flip. **Also in scope:** the DER-encodability fix for the two shipped failing fields the full survey found (§3.6) — `Status.severity` (mechanical `@AtomicSerial` retrofit on `StatusType`) and `UIDescriptor.factory` (`MarshalledObject`, a flagged compatibility-gated decision, not a mechanical fix). |
 | **A2** · Coexistence & migration choreography | The strategy decision (§3.5) per service, including: recovery behavior over a mixed snaplogstore/snapshot, drain-window visibility semantics documented for operators, `useDerForEntries` documentation (currently undocumented outside code), and the flip plan for Reggie's default. **Strategy (a) — lease-expiry drain — is unsound for indefinitely-renewed leases (§3.5) and must not be selected as written**: A2 must pick an explicit forced-re-registration trigger or one of strategies (b)/(c), and must state how the registrar's own `Long.MAX_VALUE`-leased self-registration is handled. Decision doc + config/recovery changes, board-reviewed. |
 | **A3** · Reggie client-side rollout (re-scoped from "default flip") | Flip `useDerForEntries` default per A2's plan; align `Util.requiresDerFormat` docs; release-note the operational sequence. **Scope correction:** `useDerForEntries` governs only the registrar's own self-attributes/self-registration marshalling — an ordinary client's service-registration attribute format is decided entirely client-side by the deployed proxy's method constraints (`Util.requiresDerFormat`, invoked only client-side in `RegistrarProxy.java`/`Registration.java`). Flipping the server default does **not** move the entry-matching hazard (§2.3) for real client registrations; the actual lever is client-side constraint/jar rollout, which A3 must scope alongside the config flip. Ties to open question §9.2 (per-relationship format negotiation vs. a space-wide format epoch) — the client-side lever is what makes that choice consequential. No longer purely mechanical once this is accounted for. |
 | **A4** · Cross-format regression + persistence tests | Extend the `EntryRepDerFormatTest` pattern to Outrigger (matching, `EntryFieldIndex` bucketing, `hasMatch`/`ContinuingQuery`/watcher paths); mixed-store recovery tests for both services; adversarial probe: same logical value, both formats, assert the *documented* (not accidental) behavior on every path. Recovery tests must also cover the additional marshal sites named in A1 (handbacks, watcher registration paths, and Reggie's `marshalAttributes`/`marshalLocators` inside `takeSnapshot`) with a mixed-format snapshot exercising each, not just the primary entry-field path. |
