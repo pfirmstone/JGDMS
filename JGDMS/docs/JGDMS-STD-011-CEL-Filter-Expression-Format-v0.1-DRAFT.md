@@ -1349,18 +1349,23 @@ Every `CALL`'s function id and every method reference resolves within §7.2/§6.
 pinned registry **as of this standard's version**. A wire-supplied identifier
 outside it — including a plausible-looking future function — is a hard reject,
 never a warning, never a dynamic lookup (SOW T6's mandate: never a
-wire-supplied/dynamic function name). This re-check is redundant with T2's own
-decode-time allowlist enforcement (§11.3 item 2) by design — belt and braces,
-open per the SOW §5.3 redundancy decision, the same annotation §12.3 carries
-for the ceiling re-checks below.
+wire-supplied/dynamic function name). **Resolved per SOW §5.3 (T6
+implementation ruling, 2026-07-20): genuinely redundant** — the reference
+verifier does **not** re-implement this check; its only API surface is wire
+bytes, so every AST it holds already passed T2's decode-time allowlist
+enforcement (§11.3 item 2). The ruling is contingent on that byte-only
+surface: an AST-accepting verify entry point would re-open this decision.
+§12.3's ceiling annotation is resolved the same way.
 
 ### 12.3 Ceilings and cost
 
-`maxExprNodes`, `maxExprDepth`, `maxSelectorSteps` (redundant with T2's
-decode-time check by design — belt and braces pending the SOW §5.3 redundancy
-decision), and `C(E) ≤ maxExprCost` per §10. The computed `C(E)` SHOULD be
-retained with the registered expression for diagnostics and for §10.5's
-optional runtime meter.
+`maxExprNodes`, `maxExprDepth`, `maxSelectorSteps` (**resolved per SOW §5.3,
+T6 implementation ruling 2026-07-20: genuinely redundant** — not
+re-implemented by the verifier, which only ever holds decode-produced ASTs;
+only `C(E) ≤ maxExprCost` is additive here, being a post-decode computed
+quantity T2 never enforces), and `C(E) ≤ maxExprCost` per §10. The computed
+`C(E)` SHOULD be retained with the registered expression for diagnostics and
+for §10.5's optional runtime meter.
 
 ### 12.4 Type checking — static where schema known, dynamic always **[recommended resolution of the SOW's decide-point]**
 
