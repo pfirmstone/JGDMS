@@ -1,0 +1,3118 @@
+[
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(0.0) [zero+], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/sin-hard-zero+",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-0.0) [zero-], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/sin-hard-zero-",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(1.0) [one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3feaed548f090cee"
+    },
+    "id": "eval-transcendental/sin-hard-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-1.0) [neg-one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfeaed548f090cee"
+    },
+    "id": "eval-transcendental/sin-hard-neg-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208bff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(0.5) [half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fdeaee8744b05f0"
+    },
+    "id": "eval-transcendental/sin-hard-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82083fe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-0.5) [neg-half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfdeaee8744b05f0"
+    },
+    "id": "eval-transcendental/sin-hard-neg-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208bfe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(1.5707963267948966) [pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff0000000000000"
+    },
+    "id": "eval-transcendental/sin-hard-pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82083ff921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(3.141592653589793) [pi-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ca1a62633145c07"
+    },
+    "id": "eval-transcendental/sin-hard-pi-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208400921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(4.71238898038469) [3pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff0000000000000"
+    },
+    "id": "eval-transcendental/sin-hard-3pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82084012d97c7f3321d2"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(6.283185307179586) [2pi-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbcb1a62633145c07"
+    },
+    "id": "eval-transcendental/sin-hard-2pi-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208401921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-1.5707963267948966) [neg-pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff0000000000000"
+    },
+    "id": "eval-transcendental/sin-hard-neg-pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208bff921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(1e+300) [huge-1e300], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfea2c16b010e385"
+    },
+    "id": "eval-transcendental/sin-hard-huge-1e300",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82087e37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-1e+300) [huge-neg-1e300], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fea2c16b010e385"
+    },
+    "id": "eval-transcendental/sin-hard-huge-neg-1e300",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208fe37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(1.7976931348623157e+308) [largest-finite], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3f7452fc98b34e97"
+    },
+    "id": "eval-transcendental/sin-hard-largest-finite",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82087fefffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-1.7976931348623157e+308) [neg-largest-finite], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbf7452fc98b34e97"
+    },
+    "id": "eval-transcendental/sin-hard-neg-largest-finite",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208ffefffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(2.2250738585072014e-308) [smallest-normal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0010000000000000"
+    },
+    "id": "eval-transcendental/sin-hard-smallest-normal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82080010000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(5e-324) [smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000001"
+    },
+    "id": "eval-transcendental/sin-hard-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82080000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-5e-324) [neg-smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x8000000000000001"
+    },
+    "id": "eval-transcendental/sin-hard-neg-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82088000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(2.225073858507201e-308) [largest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x000fffffffffffff"
+    },
+    "id": "eval-transcendental/sin-hard-largest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208000fffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(0.0) [zero+], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff0000000000000"
+    },
+    "id": "eval-transcendental/cos-hard-zero+",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-0.0) [zero-], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff0000000000000"
+    },
+    "id": "eval-transcendental/cos-hard-zero-",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(1.0) [one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe14a280fb5068c"
+    },
+    "id": "eval-transcendental/cos-hard-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-1.0) [neg-one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe14a280fb5068c"
+    },
+    "id": "eval-transcendental/cos-hard-neg-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208bff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(0.5) [half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fec1528065b7d50"
+    },
+    "id": "eval-transcendental/cos-hard-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82083fe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-0.5) [neg-half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fec1528065b7d50"
+    },
+    "id": "eval-transcendental/cos-hard-neg-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208bfe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(1.5707963267948966) [pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3c91a62633145c07"
+    },
+    "id": "eval-transcendental/cos-hard-pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82083ff921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(3.141592653589793) [pi-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff0000000000000"
+    },
+    "id": "eval-transcendental/cos-hard-pi-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208400921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(4.71238898038469) [3pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbcaa79394c9e8a0a"
+    },
+    "id": "eval-transcendental/cos-hard-3pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82084012d97c7f3321d2"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(6.283185307179586) [2pi-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff0000000000000"
+    },
+    "id": "eval-transcendental/cos-hard-2pi-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208401921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-1.5707963267948966) [neg-pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3c91a62633145c07"
+    },
+    "id": "eval-transcendental/cos-hard-neg-pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208bff921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(1e+300) [huge-1e300], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe2699022adc4c1"
+    },
+    "id": "eval-transcendental/cos-hard-huge-1e300",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82087e37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-1e+300) [huge-neg-1e300], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe2699022adc4c1"
+    },
+    "id": "eval-transcendental/cos-hard-huge-neg-1e300",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208fe37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(1.7976931348623157e+308) [largest-finite], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfefffe62ecfab75"
+    },
+    "id": "eval-transcendental/cos-hard-largest-finite",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82087fefffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-1.7976931348623157e+308) [neg-largest-finite], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfefffe62ecfab75"
+    },
+    "id": "eval-transcendental/cos-hard-neg-largest-finite",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208ffefffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(2.2250738585072014e-308) [smallest-normal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff0000000000000"
+    },
+    "id": "eval-transcendental/cos-hard-smallest-normal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82080010000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(5e-324) [smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff0000000000000"
+    },
+    "id": "eval-transcendental/cos-hard-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82080000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-5e-324) [neg-smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff0000000000000"
+    },
+    "id": "eval-transcendental/cos-hard-neg-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82088000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(2.225073858507201e-308) [largest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff0000000000000"
+    },
+    "id": "eval-transcendental/cos-hard-largest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208000fffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(0.0) [zero+], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/tan-hard-zero+",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-0.0) [zero-], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/tan-hard-zero-",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(1.0) [one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff8eb245cbee3a6"
+    },
+    "id": "eval-transcendental/tan-hard-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-1.0) [neg-one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff8eb245cbee3a6"
+    },
+    "id": "eval-transcendental/tan-hard-neg-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208bff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(0.5) [half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe17b4f5bf3474a"
+    },
+    "id": "eval-transcendental/tan-hard-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82083fe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-0.5) [neg-half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe17b4f5bf3474a"
+    },
+    "id": "eval-transcendental/tan-hard-neg-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208bfe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(1.5707963267948966) [pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x434d02967c31cdb5"
+    },
+    "id": "eval-transcendental/tan-hard-pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82083ff921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(3.141592653589793) [pi-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbca1a62633145c07"
+    },
+    "id": "eval-transcendental/tan-hard-pi-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208400921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(4.71238898038469) [3pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x4333570efd768923"
+    },
+    "id": "eval-transcendental/tan-hard-3pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82084012d97c7f3321d2"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(6.283185307179586) [2pi-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbcb1a62633145c07"
+    },
+    "id": "eval-transcendental/tan-hard-2pi-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208401921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-1.5707963267948966) [neg-pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xc34d02967c31cdb5"
+    },
+    "id": "eval-transcendental/tan-hard-neg-pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208bff921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(1e+300) [huge-1e300], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff6be411f37ac77"
+    },
+    "id": "eval-transcendental/tan-hard-huge-1e300",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82087e37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-1e+300) [huge-neg-1e300], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff6be411f37ac77"
+    },
+    "id": "eval-transcendental/tan-hard-huge-neg-1e300",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208fe37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(1.7976931348623157e+308) [largest-finite], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbf74530cfe729484"
+    },
+    "id": "eval-transcendental/tan-hard-largest-finite",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82087fefffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-1.7976931348623157e+308) [neg-largest-finite], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3f74530cfe729484"
+    },
+    "id": "eval-transcendental/tan-hard-neg-largest-finite",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208ffefffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(2.2250738585072014e-308) [smallest-normal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0010000000000000"
+    },
+    "id": "eval-transcendental/tan-hard-smallest-normal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82080010000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(5e-324) [smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000001"
+    },
+    "id": "eval-transcendental/tan-hard-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82080000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-5e-324) [neg-smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x8000000000000001"
+    },
+    "id": "eval-transcendental/tan-hard-neg-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82088000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(2.225073858507201e-308) [largest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x000fffffffffffff"
+    },
+    "id": "eval-transcendental/tan-hard-largest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208000fffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(0.0) [zero+], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/asin-hard-zero+",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a82080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(-0.0) [zero-], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/asin-hard-zero-",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a82088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(1.0) [one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/asin-hard-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a82083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(-1.0) [neg-one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff921fb54442d18"
+    },
+    "id": "eval-transcendental/asin-hard-neg-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a8208bff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(0.5) [half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe0c152382d7366"
+    },
+    "id": "eval-transcendental/asin-hard-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a82083fe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(-0.5) [neg-half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe0c152382d7366"
+    },
+    "id": "eval-transcendental/asin-hard-neg-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a8208bfe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(2.2250738585072014e-308) [smallest-normal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0010000000000000"
+    },
+    "id": "eval-transcendental/asin-hard-smallest-normal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a82080010000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(5e-324) [smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000001"
+    },
+    "id": "eval-transcendental/asin-hard-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a82080000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(-5e-324) [neg-smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x8000000000000001"
+    },
+    "id": "eval-transcendental/asin-hard-neg-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a82088000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(2.225073858507201e-308) [largest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x000fffffffffffff"
+    },
+    "id": "eval-transcendental/asin-hard-largest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a8208000fffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(0.0) [zero+], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/acos-hard-zero+",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(-0.0) [zero-], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/acos-hard-zero-",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(1.0) [one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/acos-hard-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(-1.0) [neg-one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x400921fb54442d18"
+    },
+    "id": "eval-transcendental/acos-hard-neg-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a8208bff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(0.5) [half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff0c152382d7366"
+    },
+    "id": "eval-transcendental/acos-hard-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82083fe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(-0.5) [neg-half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x4000c152382d7366"
+    },
+    "id": "eval-transcendental/acos-hard-neg-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a8208bfe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(2.2250738585072014e-308) [smallest-normal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/acos-hard-smallest-normal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82080010000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(5e-324) [smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/acos-hard-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82080000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(-5e-324) [neg-smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/acos-hard-neg-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82088000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(2.225073858507201e-308) [largest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/acos-hard-largest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a8208000fffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(0.0) [zero+], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/atan-hard-zero+",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(-0.0) [zero-], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/atan-hard-zero-",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(1.0) [one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(-1.0) [neg-one], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-neg-one",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208bff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(0.5) [half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fddac670561bb4f"
+    },
+    "id": "eval-transcendental/atan-hard-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82083fe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(-0.5) [neg-half], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfddac670561bb4f"
+    },
+    "id": "eval-transcendental/atan-hard-neg-half",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208bfe0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(1.5707963267948966) [pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff00fe987ed02ff"
+    },
+    "id": "eval-transcendental/atan-hard-pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82083ff921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(3.141592653589793) [pi-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff433b8a322ddd3"
+    },
+    "id": "eval-transcendental/atan-hard-pi-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208400921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(4.71238898038469) [3pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff5c97d37d98aa4"
+    },
+    "id": "eval-transcendental/atan-hard-3pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82084012d97c7f3321d2"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(6.283185307179586) [2pi-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff69b8154baf42e"
+    },
+    "id": "eval-transcendental/atan-hard-2pi-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208401921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(-1.5707963267948966) [neg-pi/2-nearest], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff00fe987ed02ff"
+    },
+    "id": "eval-transcendental/atan-hard-neg-pi/2-nearest",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208bff921fb54442d18"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(1e+300) [huge-1e300], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-huge-1e300",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82087e37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(-1e+300) [huge-neg-1e300], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-huge-neg-1e300",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208fe37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(1.7976931348623157e+308) [largest-finite], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-largest-finite",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82087fefffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(-1.7976931348623157e+308) [neg-largest-finite], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-neg-largest-finite",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208ffefffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(2.2250738585072014e-308) [smallest-normal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0010000000000000"
+    },
+    "id": "eval-transcendental/atan-hard-smallest-normal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82080010000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(5e-324) [smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000001"
+    },
+    "id": "eval-transcendental/atan-hard-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82080000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(-5e-324) [neg-smallest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x8000000000000001"
+    },
+    "id": "eval-transcendental/atan-hard-neg-smallest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82088000000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(2.225073858507201e-308) [largest-subnormal], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x000fffffffffffff"
+    },
+    "id": "eval-transcendental/atan-hard-largest-subnormal",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208000fffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-711242.6556363238), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fef4195d3a9f3d8"
+    },
+    "id": "eval-transcendental/sin-random-00",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208c125b4954faf9072"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(954363.5151385234), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfec21e8aa6ef045"
+    },
+    "id": "eval-transcendental/sin-random-01",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208412d1ff707c03c8e"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-390379.4623708908), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fecdba95302d63a"
+    },
+    "id": "eval-transcendental/sin-random-02",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208c117d3add977c13a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-408719.5844413423), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3feff62b73a367c0"
+    },
+    "id": "eval-transcendental/sin-random-03",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208c118f23e5677ca8e"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(442904.13551490544), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe589f6d2d2dba9"
+    },
+    "id": "eval-transcendental/sin-random-04",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208411b08608ac46b5c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(186799.63524076226), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe05812dfc1cc57"
+    },
+    "id": "eval-transcendental/sin-random-05",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82084106cd7d14f91bd8"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-831348.5695294618), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfefd80975cbcee0"
+    },
+    "id": "eval-transcendental/sin-random-06",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208c1295ee923995d99"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-52265.98972100031), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe44d2941d161b7"
+    },
+    "id": "eval-transcendental/sin-random-07",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208c0e9853fabcb6010"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-579572.5451089316), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3feb7fca2434388d"
+    },
+    "id": "eval-transcendental/sin-random-08",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208c121afe917188494"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-810955.0033221852), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbf90b3f5bd712656"
+    },
+    "id": "eval-transcendental/sin-random-09",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208c128bf9601b3720a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-695790.5281687605), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfefff68427bbd8a"
+    },
+    "id": "eval-transcendental/cos-random-00",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208c1253bdd0e6c22c2"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-335310.9166845094), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe8a38c38198e16"
+    },
+    "id": "eval-transcendental/cos-random-01",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208c114773baaaf5812"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-991311.902211512), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fd7ca620edfceba"
+    },
+    "id": "eval-transcendental/cos-random-02",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208c12e409fcdeeaad4"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(340067.36513385363), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfea23c482d4720b"
+    },
+    "id": "eval-transcendental/cos-random-03",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82084114c18d75e5a620"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-490651.5160771065), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe81ecc07e2bf0a"
+    },
+    "id": "eval-transcendental/cos-random-04",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208c11df26e1076845b"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-454898.5832857868), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe41b78f1165065"
+    },
+    "id": "eval-transcendental/cos-random-05",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208c11bc3ca5548de8a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-234121.7495210328), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe55aa674cd3c92"
+    },
+    "id": "eval-transcendental/cos-random-06",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208c10c944dff04e21c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(938816.0668630148), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fc9cd8bf0c7839f"
+    },
+    "id": "eval-transcendental/cos-random-07",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208412ca680223bde7c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(949981.7194944497), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfcd1a166666af65"
+    },
+    "id": "eval-transcendental/cos-random-08",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208412cfdbb70619396"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-904355.7249897734), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfd9ce58a65a7f12"
+    },
+    "id": "eval-transcendental/cos-random-09",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208c12b99477331dc0d"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(45892.866234213696), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe0b0a98d44317c"
+    },
+    "id": "eval-transcendental/tan-random-00",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a820840e6689bb830d050"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-139069.34893641726), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe021c4f517591c"
+    },
+    "id": "eval-transcendental/tan-random-01",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208c100f9eaca9f2d24"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(928225.8737656262), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x4026de15e4718514"
+    },
+    "id": "eval-transcendental/tan-random-02",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208412c53c3bf5e354a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(505742.5905712554), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfdc8c6c7d9991db"
+    },
+    "id": "eval-transcendental/tan-random-03",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208411ede3a5cbeb610"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-22832.891378416563), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fca7bec9f72d1aa"
+    },
+    "id": "eval-transcendental/tan-random-04",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208c0d64c390c580ee0"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-555225.8247187838), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fdbeabd4bd901d6"
+    },
+    "id": "eval-transcendental/tan-random-05",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208c120f1b3a6418a5a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-2387.5547025537817), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fac8e22310bedbc"
+    },
+    "id": "eval-transcendental/tan-random-06",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208c0a2a71c01f91f00"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(787074.2383361349), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xc03c59c15bfb0ef6"
+    },
+    "id": "eval-transcendental/tan-random-07",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208412805047a0731a2"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-268982.0338884641), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x4000eb468aa8ec04"
+    },
+    "id": "eval-transcendental/tan-random-08",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208c1106ad822b3a854"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(833628.1592997725), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fd166daa2d47ac4"
+    },
+    "id": "eval-transcendental/tan-random-09",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208412970b8518fbd62"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(0.33205477182227017), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fd5a9acb180a9e7"
+    },
+    "id": "eval-transcendental/asin-random-00",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a82083fd54062a85d45ec"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(-0.2652017014685706), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfd12dae2c833549"
+    },
+    "id": "eval-transcendental/asin-random-01",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a8208bfd0f9108ea9ab10"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(-0.7072324755020349), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe92370262cd4ff"
+    },
+    "id": "eval-transcendental/asin-random-02",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a8208bfe6a1a6001e695c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(-0.6821311093812812), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe805839ac51c25"
+    },
+    "id": "eval-transcendental/asin-random-03",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a8208bfe5d4049ecc0ec2"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(-0.7886497920157878), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfed135502ab8f5e"
+    },
+    "id": "eval-transcendental/asin-random-04",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a8208bfe93c9e7d168f72"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(0.22958917331637507), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff56d1ede6f68b4"
+    },
+    "id": "eval-transcendental/acos-random-00",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82083fcd632d93746ab8"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(0.5279634449617963), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff03bc8901fc624"
+    },
+    "id": "eval-transcendental/acos-random-01",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82083fe0e5139833056a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(0.47836419139746966), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff126ef0ea91b7e"
+    },
+    "id": "eval-transcendental/acos-random-02",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82083fde9d84d7684ba4"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(-0.2737828455932354), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ffd91e695add8d1"
+    },
+    "id": "eval-transcendental/acos-random-03",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a8208bfd185a87c01d744"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(0.04553860721494307), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff867641e83a1b5"
+    },
+    "id": "eval-transcendental/acos-random-04",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a82083fa750d619631ba0"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(-395766.56581506727), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff921f8adffc9ed"
+    },
+    "id": "eval-transcendental/atan-random-00",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208c11827da43650666"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(358466.7084458589), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921f8676c3f0c"
+    },
+    "id": "eval-transcendental/atan-random-01",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82084115e10ad572d4cc"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(960060.7014849975), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fa3ca9e9f1"
+    },
+    "id": "eval-transcendental/atan-random-02",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208412d4c7967290aa6"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(213254.30616084184), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921f6698241f9"
+    },
+    "id": "eval-transcendental/atan-random-03",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208410a083273047498"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(739019.4585970736), correctly rounded; pseudorandom input, seed pinned in this module's build_all() (reproducible).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921f9e908ce10"
+    },
+    "id": "eval-transcendental/atan-random-04",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a820841268d96eacd3c52"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [+0,+x] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/atan2-zero-+0,+x",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208000000000000000082083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [-0,+x] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x8000000000000000"
+    },
+    "id": "eval-transcendental/atan2-zero--0,+x",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208800000000000000082083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [+0,-x] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x400921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-zero-+0,-x",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba190201153014820800000000000000008208bff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [-0,-x] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xc00921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-zero--0,-x",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba190201153014820880000000000000008208bff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [+y,+0] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-zero-+y,+0",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba19020115301482083ff000000000000082080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [-y,+0] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-zero--y,+0",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208bff000000000000082080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [+y,-0] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-zero-+y,-0",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba19020115301482083ff000000000000082088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [-y,-0] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-zero--y,-0",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208bff000000000000082088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [+0,+0] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval-transcendental/atan2-zero-+0,+0",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208000000000000000082080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [-0,+0] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x8000000000000000"
+    },
+    "id": "eval-transcendental/atan2-zero--0,+0",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208800000000000000082080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [+0,-0] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x400921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-zero-+0,-0",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208000000000000000082088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2 IEEE-754 zero/quadrant boundary case [-0,-0] (Sec 7.2 row 15).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xc00921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-zero--0,-0",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208800000000000000082088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(1e+300, 1e+300) [huge-both], correctly rounded.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-hard-huge-both",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba19020115301482087e37e43c8800759c82087e37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(1e+300, 1.0) [huge-y-small-x], correctly rounded.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-hard-huge-y-small-x",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba19020115301482087e37e43c8800759c82083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(1.0, 1e+300) [small-y-huge-x], correctly rounded.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x01a56e1fc2f8f359"
+    },
+    "id": "eval-transcendental/atan2-hard-small-y-huge-x",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba19020115301482083ff000000000000082087e37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(1.0, 1.0) [equal-magnitude-45deg], correctly rounded.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe921fb54442d18"
+    },
+    "id": "eval-transcendental/atan2-hard-equal-magnitude-45deg",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba19020115301482083ff000000000000082083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(-1.0, -1.0) [third-quadrant], correctly rounded.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xc002d97c7f3321d2"
+    },
+    "id": "eval-transcendental/atan2-hard-third-quadrant",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208bff00000000000008208bff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(5e-324, 1e-323) [subnormal-both], correctly rounded.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fddac670561bb4f"
+    },
+    "id": "eval-transcendental/atan2-hard-subnormal-both",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208000000000000000182080000000000000002"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(834533.986556693, -657731.1196415075), correctly rounded; pseudorandom, seed pinned.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x4001e7f75558557e"
+    },
+    "id": "eval-transcendental/atan2-random-00",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208412977cbf91df5788208c12412863d41a6d4"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(-721595.7809867321, 234757.1095159091), correctly rounded; pseudorandom, seed pinned.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff419a9e4e0abae"
+    },
+    "id": "eval-transcendental/atan2-random-01",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208c12605778fdd7e328208410ca828e049e080"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(-224917.01904855098, -863290.2547945292), correctly rounded; pseudorandom, seed pinned.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xc0071802af2dd9d7"
+    },
+    "id": "eval-transcendental/atan2-random-02",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208c10b74a82702ed3c8208c12a587482746db4"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(-752987.5573273415, 711545.1698143629), correctly rounded; pseudorandom, seed pinned.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfea09bb548ecdd6"
+    },
+    "id": "eval-transcendental/atan2-random-03",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba1902011530148208c126fab71d5a026282084125b6f256f1e87e"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan2(144606.84079436283, 976123.3848554448), correctly rounded; pseudorandom, seed pinned.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fc2d354c54c1274"
+    },
+    "id": "eval-transcendental/atan2-random-04",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30200201018000ba19020115301482084101a6f6b9f265188208412dc9f6c50bc5da"
+  }
+]

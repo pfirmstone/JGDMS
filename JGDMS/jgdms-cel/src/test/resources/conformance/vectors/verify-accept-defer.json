@@ -1,0 +1,74 @@
+[
+  {
+    "category": "verify-accept-defer",
+    "description": "No governing schema supplied at all -- every field reference defers to UNKNOWN.",
+    "expected": {
+      "outcome": "accept"
+    },
+    "id": "verify-accept-defer/no-schema-at-all",
+    "provenance": "spec",
+    "schema": null,
+    "wireHex": "30110201018000b10aa7053003800178810100"
+  },
+  {
+    "category": "verify-accept-defer",
+    "description": "Schema declares field 'x' present but its wire type is unresolved (an 'Any'-shaped field).",
+    "expected": {
+      "outcome": "accept"
+    },
+    "id": "verify-accept-defer/unresolved-any-type-field",
+    "provenance": "spec",
+    "schema": {
+      "fields": {},
+      "namespaceChain": [
+        "com.example.C"
+      ],
+      "unresolvedTypeFields": {
+        "com.example.C": [
+          "x"
+        ]
+      }
+    },
+    "wireHex": "30110201018000b10aa7053003800178810100"
+  },
+  {
+    "category": "verify-accept-defer",
+    "description": "Schema present but does not declare the referenced field 'x' at all -- defers (schema may evolve), never rejects.",
+    "expected": {
+      "outcome": "accept"
+    },
+    "id": "verify-accept-defer/field-absent-from-schema-snapshot",
+    "provenance": "spec",
+    "schema": {
+      "fields": {
+        "com.example.C": {
+          "y": "INT"
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "wireHex": "30110201018000b10aa7053003800178810100"
+  },
+  {
+    "category": "verify-accept-defer",
+    "description": "Field 'obj' is statically typed OBJECT but no concrete nested schema is available (polymorphic field) -- the remainder of the chain ('leaf') defers.",
+    "expected": {
+      "outcome": "accept"
+    },
+    "id": "verify-accept-defer/nested-selector-no-concrete-nested-schema",
+    "provenance": "spec",
+    "schema": {
+      "fields": {
+        "com.example.C": {
+          "obj": "OBJECT"
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "wireHex": "30190201018000b112a70d300b80036f626a80046c656166810100"
+  }
+]

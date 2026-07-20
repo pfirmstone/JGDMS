@@ -1,0 +1,3243 @@
+[
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'&&' matrix cell L=true, R=true (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/and-matrix-true-true",
+    "provenance": "spec",
+    "wireHex": "300d0201018000ab068001ff8001ff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'&&' matrix cell L=true, R=false (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/and-matrix-true-false",
+    "provenance": "spec",
+    "wireHex": "300d0201018000ab068001ff800100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'&&' matrix cell L=true, R=err (STD-011 Sec 6.4 table).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/and-matrix-true-err",
+    "provenance": "spec",
+    "wireHex": "30170201018000ab108001ffa70b300980076d697373696e67"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'&&' matrix cell L=false, R=true (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/and-matrix-false-true",
+    "provenance": "spec",
+    "wireHex": "300d0201018000ab068001008001ff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'&&' matrix cell L=false, R=false (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/and-matrix-false-false",
+    "provenance": "spec",
+    "wireHex": "300d0201018000ab06800100800100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'&&' matrix cell L=false, R=err (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/and-matrix-false-err",
+    "provenance": "spec",
+    "wireHex": "30170201018000ab10800100a70b300980076d697373696e67"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'&&' matrix cell L=err, R=true (STD-011 Sec 6.4 table).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/and-matrix-err-true",
+    "provenance": "spec",
+    "wireHex": "30170201018000ab10a70b300980076d697373696e678001ff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'&&' matrix cell L=err, R=false (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/and-matrix-err-false",
+    "provenance": "spec",
+    "wireHex": "30170201018000ab10a70b300980076d697373696e67800100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'&&' matrix cell L=err, R=err (STD-011 Sec 6.4 table).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/and-matrix-err-err",
+    "provenance": "spec",
+    "wireHex": "30210201018000ab1aa70b300980076d697373696e67a70b300980076d697373696e67"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'||' matrix cell L=true, R=true (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/or-matrix-true-true",
+    "provenance": "spec",
+    "wireHex": "300d0201018000ac068001ff8001ff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'||' matrix cell L=true, R=false (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/or-matrix-true-false",
+    "provenance": "spec",
+    "wireHex": "300d0201018000ac068001ff800100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'||' matrix cell L=true, R=err (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/or-matrix-true-err",
+    "provenance": "spec",
+    "wireHex": "30170201018000ac108001ffa70b300980076d697373696e67"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'||' matrix cell L=false, R=true (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/or-matrix-false-true",
+    "provenance": "spec",
+    "wireHex": "300d0201018000ac068001008001ff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'||' matrix cell L=false, R=false (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/or-matrix-false-false",
+    "provenance": "spec",
+    "wireHex": "300d0201018000ac06800100800100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'||' matrix cell L=false, R=err (STD-011 Sec 6.4 table).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/or-matrix-false-err",
+    "provenance": "spec",
+    "wireHex": "30170201018000ac10800100a70b300980076d697373696e67"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'||' matrix cell L=err, R=true (STD-011 Sec 6.4 table).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/or-matrix-err-true",
+    "provenance": "spec",
+    "wireHex": "30170201018000ac10a70b300980076d697373696e678001ff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'||' matrix cell L=err, R=false (STD-011 Sec 6.4 table).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/or-matrix-err-false",
+    "provenance": "spec",
+    "wireHex": "30170201018000ac10a70b300980076d697373696e67800100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'||' matrix cell L=err, R=err (STD-011 Sec 6.4 table).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/or-matrix-err-err",
+    "provenance": "spec",
+    "wireHex": "30210201018000ac1aa70b300980076d697373696e67a70b300980076d697373696e67"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'&&' with L=ABSENT_FIELD, R=DIVISION_BY_ZERO (both error): result MUST be L's error (Sec 6.4 pinned identity).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/and-left-error-identity",
+    "provenance": "spec",
+    "wireHex": "301c0201018000ab15a70b300980076d697373696e67b606810101810100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "'||' with L=ABSENT_FIELD, R=DIVISION_BY_ZERO (both error): result MUST be L's error (Sec 6.4 pinned identity).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/or-left-error-identity",
+    "provenance": "spec",
+    "wireHex": "301c0201018000ac15a70b300980076d697373696e67b606810101810100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "Literal folding of -9223372036854775808 (int64 min).",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "-9223372036854775808"
+    },
+    "id": "eval/int-literal-fold-long-min",
+    "provenance": "spec",
+    "wireHex": "300f020101800081088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "(-2^63) / (-1) MUST be OVERFLOW (pinned, Sec 4.3.1), not wraparound.",
+    "expected": {
+      "code": "OVERFLOW",
+      "outcome": "error"
+    },
+    "id": "eval/int-div-long-min-by-neg1",
+    "provenance": "spec",
+    "wireHex": "30140201018000b60d810880000000000000008101ff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "(-2^63) % (-1) MUST be OVERFLOW (pinned for cross-language alignment; mathematically 0).",
+    "expected": {
+      "code": "OVERFLOW",
+      "outcome": "error"
+    },
+    "id": "eval/int-mod-long-min-by-neg1",
+    "provenance": "spec",
+    "wireHex": "30140201018000b70d810880000000000000008101ff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "Unary '-' on -2^63 MUST be OVERFLOW.",
+    "expected": {
+      "code": "OVERFLOW",
+      "outcome": "error"
+    },
+    "id": "eval/int-negate-long-min",
+    "provenance": "spec",
+    "wireHex": "30110201018000aa0a81088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "int64 max + 1 MUST be OVERFLOW.",
+    "expected": {
+      "code": "OVERFLOW",
+      "outcome": "error"
+    },
+    "id": "eval/int-add-overflow",
+    "provenance": "spec",
+    "wireHex": "30140201018000b30d81087fffffffffffffff810101"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "int64 min - 1 MUST be OVERFLOW.",
+    "expected": {
+      "code": "OVERFLOW",
+      "outcome": "error"
+    },
+    "id": "eval/int-sub-overflow",
+    "provenance": "spec",
+    "wireHex": "30140201018000b40d81088000000000000000810101"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "int64 min * -1 MUST be OVERFLOW.",
+    "expected": {
+      "code": "OVERFLOW",
+      "outcome": "error"
+    },
+    "id": "eval/int-mul-overflow",
+    "provenance": "spec",
+    "wireHex": "30140201018000b50d810880000000000000008101ff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "5 / 0 MUST be DIVISION_BY_ZERO.",
+    "expected": {
+      "code": "DIVISION_BY_ZERO",
+      "outcome": "error"
+    },
+    "id": "eval/int-div-by-zero",
+    "provenance": "spec",
+    "wireHex": "300d0201018000b606810105810100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "5 % 0 MUST be DIVISION_BY_ZERO.",
+    "expected": {
+      "code": "DIVISION_BY_ZERO",
+      "outcome": "error"
+    },
+    "id": "eval/int-mod-by-zero",
+    "provenance": "spec",
+    "wireHex": "300d0201018000b706810105810100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "7 / 2 = 3 (truncation toward zero).",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "3"
+    },
+    "id": "eval/int-div-truncates-toward-zero-positive",
+    "provenance": "spec",
+    "wireHex": "300d0201018000b606810107810102"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "-7 / 2 = -3 (truncation toward zero, not floor -4).",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "-3"
+    },
+    "id": "eval/int-div-truncates-toward-zero-negative",
+    "provenance": "spec",
+    "wireHex": "300d0201018000b6068101f9810102"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "-7 % 2 = -1 (sign follows the dividend).",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "-1"
+    },
+    "id": "eval/int-mod-sign-follows-dividend",
+    "provenance": "spec",
+    "wireHex": "300d0201018000b7068101f9810102"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "9007199254740993 > 9007199254740992.0 MUST be true (Sec 4.3.3, spec-pinned example).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/int-double-killer-9007199254740993",
+    "provenance": "spec",
+    "wireHex": "301a0201018000b11381072000000000000182084340000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "9223372036854775807 < 9223372036854775808.0 MUST be true (Sec 4.3.3, spec-pinned example).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/int-double-killer-long-max-vs-2pow63",
+    "provenance": "spec",
+    "wireHex": "301b0201018000af1481087fffffffffffffff820843e0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "9223372036854775807 == 9223372036854775808.0 MUST be false (i is strictly less; mechanical consequence of Sec 4.3.3's algorithm).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/int-double-long-max-not-equal-2pow63",
+    "provenance": "spec",
+    "wireHex": "301b0201018000ad1481087fffffffffffffff820843e0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "-9223372036854775808 >= -9223372036854775808.0 MUST be true (exact equality at the boundary).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/int-double-long-min-equal-neg-2pow63",
+    "provenance": "spec",
+    "wireHex": "301b0201018000b214810880000000000000008208c3e0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "int64 min > the nearest double below -2^63 (Sec 4.3.3's 'd < -2^63: i is always larger' branch).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/int-double-below-neg-2pow63",
+    "provenance": "spec",
+    "wireHex": "301b0201018000b114810880000000000000008208c3e0000000000001"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "x": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000001"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "Reading a candidate double field carrying non-canonical NaN bit pattern 0x7FF0000000000001 MUST canonicalize to 0x7FF8000000000000 (Sec 4.3.4).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x7ff8000000000000"
+    },
+    "id": "eval/nan-canonicalization-field-read",
+    "provenance": "spec",
+    "wireHex": "300c0201018000a7053003800178"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "0.0 / 0.0 = NaN, canonicalized to 0x7FF8000000000000.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x7ff8000000000000"
+    },
+    "id": "eval/nan-canonicalization-via-arithmetic",
+    "provenance": "spec",
+    "wireHex": "301b0201018000b6148208000000000000000082080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "x": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000001"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "NaN < 1.0 MUST be false (every ordered comparison with NaN is false).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/nan-ordering-lt-false",
+    "provenance": "spec",
+    "wireHex": "30180201018000af11a705300380017882083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "x": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000001"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "NaN == NaN MUST be false.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/nan-equality-false",
+    "provenance": "spec",
+    "wireHex": "30150201018000ad0ea7053003800178a7053003800178"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "x": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000001"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "NaN != NaN MUST be true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/nan-inequality-true",
+    "provenance": "spec",
+    "wireHex": "30150201018000ae0ea7053003800178a7053003800178"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "-0.0 == 0.0 MUST be true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/signed-zero-equal",
+    "provenance": "spec",
+    "wireHex": "301b0201018000ad148208800000000000000082080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "-0.0 < 0.0 MUST be false.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/signed-zero-not-less",
+    "provenance": "spec",
+    "wireHex": "301b0201018000af148208800000000000000082080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "1.0 / -0.0 = -Infinity (sign preserved through arithmetic).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xfff0000000000000"
+    },
+    "id": "eval/signed-zero-division-negative-infinity",
+    "provenance": "spec",
+    "wireHex": "301b0201018000b61482083ff000000000000082088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "min(-0.0, 0.0) = -0.0 (Sec 7.2 row 8, pinned).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x8000000000000000"
+    },
+    "id": "eval/signed-zero-min-double",
+    "provenance": "spec",
+    "wireHex": "30200201018000ba1902010930148208800000000000000082080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "max(-0.0, 0.0) = +0.0 (Sec 7.2 row 8, pinned).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval/signed-zero-max-double",
+    "provenance": "spec",
+    "wireHex": "30200201018000ba1902010b30148208800000000000000082080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "Unary '-' on +0.0 yields -0.0 (IEEE unary minus flips the sign bit).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x8000000000000000"
+    },
+    "id": "eval/signed-zero-negate-preserves-magnitude",
+    "provenance": "spec",
+    "wireHex": "30110201018000aa0a82080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sqrt(-0.0) = -0.0, not DOMAIN (-0.0 < 0.0 is false, Sec 7.2 row 9).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x8000000000000000"
+    },
+    "id": "eval/signed-zero-sqrt-negative-zero",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f02010c300a82088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "U+FFFF < U+10000 by code point -- Java String.compareTo (UTF-16 code unit order) would wrongly say the opposite, since U+10000's leading surrogate 0xD800 < 0xFFFF numerically (Sec 4.4's named implementation trap).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/codepoint-order-bmp-lt-supplementary",
+    "provenance": "spec",
+    "wireHex": "30120201018000af0b8303efbfbf8304f0908080"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "U+10000 > U+FFFF by code point (converse of the previous vector).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/codepoint-order-supplementary-gt-bmp",
+    "provenance": "spec",
+    "wireHex": "30120201018000b10b8304f09080808303efbfbf"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "U+FFFF != U+10000.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/codepoint-order-not-equal",
+    "provenance": "spec",
+    "wireHex": "30120201018000ae0b8303efbfbf8304f0908080"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "has(a): present, non-null -> true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/has-present-nonnull",
+    "provenance": "spec",
+    "wireHex": "300e0201018000a80730053003800161"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "a: present, non-null -> the value.",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "5"
+    },
+    "id": "eval/fieldref-present-nonnull",
+    "provenance": "spec",
+    "wireHex": "300c0201018000a7053003800161"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "has(b): present, null -> false (Sec 4.6 case 2 / Sec 6.8).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/has-present-null",
+    "provenance": "spec",
+    "wireHex": "300e0201018000a80730053003800162"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "b: present, null -> null_t value, not an error.",
+    "expected": {
+      "outcome": "value",
+      "type": "NULL"
+    },
+    "id": "eval/fieldref-present-null",
+    "provenance": "spec",
+    "wireHex": "300c0201018000a7053003800162"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "has(c): no declaring namespace -> false.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/has-absent",
+    "provenance": "spec",
+    "wireHex": "300e0201018000a80730053003800163"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "c: no declaring namespace -> ABSENT_FIELD.",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/fieldref-absent",
+    "provenance": "spec",
+    "wireHex": "300c0201018000a7053003800163"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "has(d): declared by both Sub and Base -> AMBIGUOUS_FIELD (unconditional, Sec 8.2).",
+    "expected": {
+      "code": "AMBIGUOUS_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/has-ambiguous",
+    "provenance": "spec",
+    "wireHex": "300e0201018000a80730053003800164"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "d: declared by both Sub and Base -> AMBIGUOUS_FIELD.",
+    "expected": {
+      "code": "AMBIGUOUS_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/fieldref-ambiguous",
+    "provenance": "spec",
+    "wireHex": "300c0201018000a7053003800164"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "has(p.x): intermediate step 'p' absent -> false.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/has-intermediate-absent",
+    "provenance": "spec",
+    "wireHex": "30110201018000a80a30083006800170800178"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "p.x: intermediate step 'p' absent -> ABSENT_FIELD (Sec 8.4).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/fieldref-intermediate-absent",
+    "provenance": "spec",
+    "wireHex": "300f0201018000a7083006800170800178"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "has(b.x): intermediate step 'b' is null -> false.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/has-intermediate-null",
+    "provenance": "spec",
+    "wireHex": "30110201018000a80a30083006800162800178"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "b.x: intermediate step 'b' is null -> ABSENT_FIELD (Sec 8.4).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/fieldref-intermediate-null",
+    "provenance": "spec",
+    "wireHex": "300f0201018000a7083006800162800178"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "has(r.x): intermediate step 'r' resolves to int, not object -> TYPE_MISMATCH.",
+    "expected": {
+      "code": "TYPE_MISMATCH",
+      "outcome": "error"
+    },
+    "id": "eval/has-intermediate-nonobject",
+    "provenance": "spec",
+    "wireHex": "30110201018000a80a30083006800172800178"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "r.x: intermediate step 'r' resolves to int, not object -> TYPE_MISMATCH.",
+    "expected": {
+      "code": "TYPE_MISMATCH",
+      "outcome": "error"
+    },
+    "id": "eval/fieldref-intermediate-nonobject",
+    "provenance": "spec",
+    "wireHex": "300f0201018000a7083006800172800178"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "has(obj.leaf): real nested object, leaf present -> true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/has-nested-object-success",
+    "provenance": "spec",
+    "wireHex": "30160201018000a80f300d300b80036f626a80046c656166"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "obj.leaf: real nested object, leaf present -> the value.",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "42"
+    },
+    "id": "eval/fieldref-nested-object-success",
+    "provenance": "spec",
+    "wireHex": "30140201018000a70d300b80036f626a80046c656166"
+  },
+  {
+    "candidate": {
+      "undecodable": true
+    },
+    "category": "eval",
+    "description": "has(anything): whole candidate undecodable -> CANDIDATE_UNDECODABLE (Sec 8.1 item 2).",
+    "expected": {
+      "code": "CANDIDATE_UNDECODABLE",
+      "outcome": "error"
+    },
+    "id": "eval/has-candidate-undecodable",
+    "provenance": "spec",
+    "wireHex": "300e0201018000a80730053003800161"
+  },
+  {
+    "candidate": {
+      "undecodable": true
+    },
+    "category": "eval",
+    "description": "a: whole candidate undecodable -> CANDIDATE_UNDECODABLE.",
+    "expected": {
+      "code": "CANDIDATE_UNDECODABLE",
+      "outcome": "error"
+    },
+    "id": "eval/fieldref-candidate-undecodable",
+    "provenance": "spec",
+    "wireHex": "300c0201018000a7053003800161"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "field(com.example.Base, d) reads Base's own 'd' directly, bypassing the Sub/Base ambiguity an unqualified reference would hit (Sec 8.3).",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "1"
+    },
+    "id": "eval/qualified-resolution-bypasses-ambiguity",
+    "provenance": "spec",
+    "wireHex": "30200201018000a7193017a1150c10636f6d2e6578616d706c652e426173650c0164"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "field(com.example.NotInChain, d): named class absent from the candidate's chain -> ABSENT_FIELD (Sec 8.3).",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/qualified-resolution-class-not-in-chain",
+    "provenance": "spec",
+    "wireHex": "30260201018000a71f301da11b0c16636f6d2e6578616d706c652e4e6f74496e436861696e0c0164"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.Base": {
+          "d": {
+            "type": "INT",
+            "value": "1"
+          }
+        },
+        "com.example.Sub": {
+          "a": {
+            "type": "INT",
+            "value": "5"
+          },
+          "b": {
+            "type": "NULL"
+          },
+          "d": {
+            "type": "INT",
+            "value": "2"
+          },
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          },
+          "r": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.Sub",
+        "com.example.Base"
+      ]
+    },
+    "category": "eval",
+    "description": "field(com.example.Base, zzz): field not declared in that class's namespace -> ABSENT_FIELD.",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/qualified-resolution-field-not-in-namespace",
+    "provenance": "spec",
+    "wireHex": "30220201018000a71b3019a1170c10636f6d2e6578616d706c652e426173650c037a7a7a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "radians(180.0) = 180.0 * C_DEG2RAD, the pinned single-multiply form (Sec 7.3).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x400921fb54442d18"
+    },
+    "id": "eval/radians-180",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f02010d300a82084066800000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "radians(90.0) = 90.0 * C_DEG2RAD.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval/radians-90",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f02010d300a82084056800000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "radians(-90.0) = -90.0 * C_DEG2RAD.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff921fb54442d18"
+    },
+    "id": "eval/radians-negative-90",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f02010d300a8208c056800000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "degrees(1.0) = 1.0 * C_RAD2DEG.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x404ca5dc1a63c1f8"
+    },
+    "id": "eval/degrees-one-radian",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f02010e300a82083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "degrees(0.0) = 0.0 (0.0 * C_RAD2DEG preserves sign).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x0000000000000000"
+    },
+    "id": "eval/degrees-zero-preserves-sign",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f02010e300a82080000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "int(NaN) MUST be DOMAIN (candidate-sourced NaN, not a wire literal).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-int-of-double-nan",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f020104300aa708300680046e616e76"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "int(1e19) MUST be OVERFLOW (magnitude exceeds int64 range).",
+    "expected": {
+      "code": "OVERFLOW",
+      "outcome": "error"
+    },
+    "id": "eval/domain-int-of-double-overflow",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f020104300a820843e158e460913d00"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "int(3.9) = 3 (truncate toward zero).",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "3"
+    },
+    "id": "eval/domain-int-of-double-truncate-positive",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f020104300a8208400f333333333333"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "int(-3.9) = -3 (truncate toward zero).",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "-3"
+    },
+    "id": "eval/domain-int-of-double-truncate-negative",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f020104300a8208c00f333333333333"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "double(int64 max) rounds to nearest binary64, round-to-nearest-even (Sec 7.2 row 5, IEEE-guaranteed identical on any conformant platform).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x43e0000000000000"
+    },
+    "id": "eval/domain-double-of-int-long-max",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f020105300a81087fffffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "abs(int64 min) MUST be OVERFLOW.",
+    "expected": {
+      "code": "OVERFLOW",
+      "outcome": "error"
+    },
+    "id": "eval/domain-abs-int-overflow",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f020106300a81088000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "abs(NaN) stays NaN, canonicalized at the result boundary regardless of input payload.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x7ff8000000000000"
+    },
+    "id": "eval/domain-abs-double-nan-canonicalized",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f020107300aa708300680046e616e76"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "min(3, 5) = 3.",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "3"
+    },
+    "id": "eval/domain-min-int",
+    "provenance": "spec",
+    "wireHex": "30120201018000ba0b0201083006810103810105"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "max(3, 5) = 5.",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "5"
+    },
+    "id": "eval/domain-max-int",
+    "provenance": "spec",
+    "wireHex": "30120201018000ba0b02010a3006810103810105"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "min(NaN, 1.0) MUST be DOMAIN.",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-min-double-nan",
+    "provenance": "spec",
+    "wireHex": "30200201018000ba190201093014a708300680046e616e7682083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "max(NaN, 1.0) MUST be DOMAIN.",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-max-double-nan",
+    "provenance": "spec",
+    "wireHex": "30200201018000ba1902010b3014a708300680046e616e7682083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sqrt(-1.0) MUST be DOMAIN (finite negative).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-sqrt-negative",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f02010c300a8208bff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sqrt(4.0) = 2.0 (IEEE-mandated correct rounding, bit-exact for free).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x4000000000000000"
+    },
+    "id": "eval/domain-sqrt-four",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f02010c300a82084010000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "radians(NaN) MUST be DOMAIN (finite-only).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-radians-nan",
+    "provenance": "spec",
+    "wireHex": "30160201018000ba0f02010d300aa708300680046e616e76"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "degrees(+Inf) MUST be DOMAIN (finite-only).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-degrees-posinf",
+    "provenance": "spec",
+    "wireHex": "30180201018000ba1102010e300ca70a30088006706f73696e66"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "asin(1.5) MUST be DOMAIN (|x|>1). Gated: Evaluator's SIN/COS/TAN/ASIN/ACOS/ATAN dispatch fetches MathProvider.get() eagerly (a bound method reference) before the domain check runs, so this needs a provider installed even though the result itself never depends on correct rounding (see this file's NOTE above).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-asin-out-of-range",
+    "provenance": "spec",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020112300a82083ff8000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "acos(-1.5) MUST be DOMAIN. Gated -- see this file's NOTE above (eager MathProvider.get()).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-acos-out-of-range",
+    "provenance": "spec",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020113300a8208bff8000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "atan(NaN) MUST be DOMAIN. Gated -- see this file's NOTE above (eager MathProvider.get()).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-atan-nan",
+    "provenance": "spec",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300aa708300680046e616e76"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "atan2(NaN, 1.0) MUST be DOMAIN -- finite check precedes any MathProvider call (callAtan2 checks Double.isFinite on plain CelValues before ever calling mathProvider.get(), unlike the six single-argument transcendentals -- NOT gated).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-atan2-nan",
+    "provenance": "spec",
+    "wireHex": "30200201018000ba190201153014a708300680046e616e7682083ff0000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "sin(+Inf) MUST be DOMAIN. Gated -- see this file's NOTE above (eager MathProvider.get()).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-sin-posinf",
+    "provenance": "spec",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30180201018000ba1102010f300ca70a30088006706f73696e66"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "size() of a supplementary-plane string counts code points (1), not UTF-16 units (2).",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "1"
+    },
+    "id": "eval/size-string-codepoints-not-utf16-units",
+    "provenance": "spec",
+    "wireHex": "30120201018000ba0b02010130068304f0908080"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "size(b\"\") = 0.",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "0"
+    },
+    "id": "eval/size-bytes-empty",
+    "provenance": "spec",
+    "wireHex": "300e0201018000ba0702010230028400"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "xs": {
+            "elementType": "INT",
+            "elements": [],
+            "type": "LIST"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "size() of an empty projected list = 0 (G11 degenerate input).",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "0"
+    },
+    "id": "eval/size-list-empty-field",
+    "provenance": "spec",
+    "wireHex": "30140201018000ba0d0201033008a706300480027873"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "\"hello\".contains(\"\") MUST be true (every string contains the empty string, G11).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/contains-empty-needle",
+    "provenance": "spec",
+    "wireHex": "30150201018000ba0e0201163009830568656c6c6f8300"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "\"\".startsWith(\"\") MUST be true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/startswith-empty-both",
+    "provenance": "spec",
+    "wireHex": "30100201018000ba09020117300483008300"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "\"x\".endsWith(\"\") MUST be true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/endswith-empty-needle",
+    "provenance": "spec",
+    "wireHex": "30110201018000ba0a02011830058301788300"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "3 in [1,2,3] MUST be true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/in-literal-list-match",
+    "provenance": "spec",
+    "wireHex": "30150201018000b80e810103a009810101810102810103"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "9 in [1,2,3] MUST be false.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/in-literal-list-no-match",
+    "provenance": "spec",
+    "wireHex": "30150201018000b80e810109a009810101810102810103"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "xs": {
+            "elementType": "INT",
+            "elements": [],
+            "type": "LIST"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "Membership in an empty projected list MUST be false (G11).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/in-field-list-empty",
+    "provenance": "spec",
+    "wireHex": "30120201018000b80b810103a106300480027873"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "notalist": {
+            "type": "INT",
+            "value": "5"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "'in' with a non-list right operand MUST be TYPE_MISMATCH.",
+    "expected": {
+      "code": "TYPE_MISMATCH",
+      "outcome": "error"
+    },
+    "id": "eval/in-field-list-not-a-list",
+    "provenance": "spec",
+    "wireHex": "30180201018000b811810103a10c300a80086e6f74616c697374"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "If the needle itself errors, 'in' MUST yield that error.",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/in-needle-error-propagates",
+    "provenance": "spec",
+    "wireHex": "30190201018000b812a70b300980076d697373696e67a003810101"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "5 in [\"a\", 5]: the first comparison (string vs int) is TYPE_MISMATCH but the second matches -- a later match absorbs an earlier error (Sec 6.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/in-later-match-absorbs-earlier-error",
+    "provenance": "spec",
+    "wireHex": "30120201018000b80b810105a006830161810105"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "5 in [\"a\", 9]: no match found; the first (leftmost) comparison error is reported.",
+    "expected": {
+      "code": "TYPE_MISMATCH",
+      "outcome": "error"
+    },
+    "id": "eval/in-no-match-first-error-reported",
+    "provenance": "spec",
+    "wireHex": "30120201018000b80b810105a006830161810109"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "true ? 1 : (1/0): the else branch's DIVISION_BY_ZERO is never evaluated.",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "1"
+    },
+    "id": "eval/cond-true-branch-untaken-error-not-propagated",
+    "provenance": "spec",
+    "wireHex": "30150201018000b90e8001ff810101b606810101810100"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "false ? (1/0) : 2: the then branch's DIVISION_BY_ZERO is never evaluated.",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "2"
+    },
+    "id": "eval/cond-false-branch-untaken-error-not-propagated",
+    "provenance": "spec",
+    "wireHex": "30150201018000b90e800100b606810101810100810102"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "An erroring condition propagates without evaluating either branch.",
+    "expected": {
+      "code": "ABSENT_FIELD",
+      "outcome": "error"
+    },
+    "id": "eval/cond-condition-error-propagates",
+    "provenance": "spec",
+    "wireHex": "301a0201018000b913a70b300980076d697373696e67810101810102"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "A non-bool condition MUST be TYPE_MISMATCH.",
+    "expected": {
+      "code": "TYPE_MISMATCH",
+      "outcome": "error"
+    },
+    "id": "eval/cond-non-bool-condition",
+    "provenance": "spec",
+    "wireHex": "30100201018000b909810101810101810102"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "\"\" == \"\" MUST be true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/empty-string-equality",
+    "provenance": "spec",
+    "wireHex": "300b0201018000ad0483008300"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "size(\"\") = 0.",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "0"
+    },
+    "id": "eval/empty-string-size",
+    "provenance": "spec",
+    "wireHex": "300e0201018000ba0702010130028300"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "Transform context (declared result type double): radians(180.0) = 180.0 * C_DEG2RAD, identical pinned single-multiply computation as eval/radians-180 (Sec 7.3), now wrapped in EvaluationContext.transform instead of .predicate to exercise the transform envelope end-to-end.",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x400921fb54442d18"
+    },
+    "id": "eval/transform-context-scalar-double-radians-180",
+    "provenance": "spec",
+    "wireHex": "3019020101a103800102ba0f02010d300a82084066800000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "Transform context (declared result type int): 7 / 2 = 3 (truncation toward zero, Sec 4.3.1), transform-wrapped.",
+    "expected": {
+      "outcome": "value",
+      "type": "INT",
+      "value": "3"
+    },
+    "id": "eval/transform-context-scalar-int-div-truncate",
+    "provenance": "spec",
+    "wireHex": "3010020101a103800101b606810107810102"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "Transform context (declared result type bool): 5 > 3 = true, transform-wrapped.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/transform-context-scalar-bool-comparison",
+    "provenance": "spec",
+    "wireHex": "3010020101a103800100b106810105810103"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "Transform context (declared result type int) whose root expression itself errors: int64 max + 1 MUST still be OVERFLOW -- the declared result type is consistent with the root's statically-inferred type (int), but evaluation still errors at runtime, exactly as it would under a predicate envelope.",
+    "expected": {
+      "code": "OVERFLOW",
+      "outcome": "error"
+    },
+    "id": "eval/transform-context-error-overflow",
+    "provenance": "spec",
+    "wireHex": "3017020101a103800101b30d81087fffffffffffffff810101"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "Transform context (declared result type list<double>): the list literal [1.0, 2.0] evaluates to a ListV(DOUBLE, [1.0, 2.0]) -- Evaluator.evalListLit is a public, exercised evaluation path (Sec 4.7/Sec 5.3.2), so this is not the 'no list-producing construct exists yet' case; each element is the exact IEEE-754 bit pattern per Sec 2.1, never a JSON number.",
+    "expected": {
+      "elementType": "DOUBLE",
+      "elements": [
+        "0x3ff0000000000000",
+        "0x4000000000000000"
+      ],
+      "outcome": "value",
+      "type": "LIST"
+    },
+    "id": "eval/transform-context-list-double",
+    "provenance": "spec",
+    "wireHex": "301e020101a103820102a61482083ff000000000000082084000000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "obj": {
+            "projection": {
+              "fields": {
+                "com.example.Leaf": {
+                  "leaf": {
+                    "type": "INT",
+                    "value": "42"
+                  }
+                }
+              },
+              "namespaceChain": [
+                "com.example.Leaf"
+              ]
+            },
+            "type": "OBJECT"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "Transform context (declared result type object): the root expression is a plain field reference to a nested-object-typed field ('obj'), so the evaluated result itself is an ObjectV -- CORPUS-FORMAT.md Sec 3.5's OBJECT expected shape reuses Sec 2.3's own 'projection' convention directly.",
+    "expected": {
+      "outcome": "value",
+      "projection": {
+        "fields": {
+          "com.example.Leaf": {
+            "leaf": {
+              "type": "INT",
+              "value": "42"
+            }
+          }
+        },
+        "namespaceChain": [
+          "com.example.Leaf"
+        ]
+      },
+      "type": "OBJECT"
+    },
+    "id": "eval/transform-context-object-nested",
+    "provenance": "spec",
+    "wireHex": "3010020101a1028300a707300580036f626a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "b'\\x01' < b'\\x02' MUST be true (basic unsigned octet ordering, Sec 4.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/bytes-lt-basic",
+    "provenance": "spec",
+    "wireHex": "300d0201018000af06840101840102"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "b'\\x02' <= b'\\x02' MUST be true (equal operands).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/bytes-le-equal",
+    "provenance": "spec",
+    "wireHex": "300d0201018000b006840102840102"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "b'\\x80' > b'\\x7f' MUST be true under Sec 4.5's unsigned octet ordering (0x80=128 > 0x7f=127 unsigned) -- a signed-byte comparator (0x80 as Java byte -128 < 0x7f as 127) would wrongly say false. This is the named Sec 4.5 implementation trap.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/bytes-gt-high-bit-unsigned-trap",
+    "provenance": "spec",
+    "wireHex": "300d0201018000b10684018084017f"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "b'\\xff' == b'\\xff' MUST be true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/bytes-eq-equal",
+    "provenance": "spec",
+    "wireHex": "300d0201018000ad068401ff8401ff"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "b'\\x01' != b'\\x02' MUST be true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/bytes-ne-different",
+    "provenance": "spec",
+    "wireHex": "300d0201018000ae06840101840102"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "b'\\xaa' < b'\\xaa\\x00' MUST be true: equal shared prefix, the shorter string is less (Sec 4.5's length tiebreak, Evaluator.compareUnsignedBytes' final Integer.compare(a.length, b.length)).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/bytes-lt-prefix-length-tiebreak",
+    "provenance": "spec",
+    "wireHex": "300e0201018000af078401aa8402aa00"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "neginf": {
+            "type": "DOUBLE",
+            "value": "0xfff0000000000000"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "+Inf > 1e300 MUST be true (IEEE-total ordering; field-sourced +Inf compared against a finite wire literal, since a literal +Inf cannot exist on the wire).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/inf-gt-finite-large",
+    "provenance": "spec",
+    "wireHex": "301d0201018000b116a70a30088006706f73696e6682087e37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "neginf": {
+            "type": "DOUBLE",
+            "value": "0xfff0000000000000"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "-Inf < -1.7976931348623157e+308 (the largest-magnitude finite double) MUST be true.",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/inf-lt-neg-largest-finite",
+    "provenance": "spec",
+    "wireHex": "301d0201018000af16a70a300880066e6567696e668208ffefffffffffffff"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "neginf": {
+            "type": "DOUBLE",
+            "value": "0xfff0000000000000"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "+Inf == +Inf MUST be true (both field-sourced; IEEE total equality treats same-signed infinities as equal, unlike NaN).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": true
+    },
+    "id": "eval/inf-eq-self",
+    "provenance": "spec",
+    "wireHex": "301f0201018000ad18a70a30088006706f73696e66a70a30088006706f73696e66"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "neginf": {
+            "type": "DOUBLE",
+            "value": "0xfff0000000000000"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "-Inf < -Inf MUST be false (an infinity is never strictly less than itself).",
+    "expected": {
+      "outcome": "value",
+      "type": "BOOL",
+      "value": false
+    },
+    "id": "eval/inf-lt-self-false",
+    "provenance": "spec",
+    "wireHex": "301f0201018000af18a70a300880066e6567696e66a70a300880066e6567696e66"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "cos(+Inf) MUST be DOMAIN. Gated -- see this file's NOTE above (eager MathProvider.get()).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-cos-posinf",
+    "provenance": "spec",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30180201018000ba11020110300ca70a30088006706f73696e66"
+  },
+  {
+    "candidate": {
+      "fields": {
+        "com.example.C": {
+          "nanv": {
+            "type": "DOUBLE",
+            "value": "0x7ff8000000000001"
+          },
+          "posinf": {
+            "type": "DOUBLE",
+            "value": "0x7ff0000000000000"
+          }
+        }
+      },
+      "namespaceChain": [
+        "com.example.C"
+      ]
+    },
+    "category": "eval",
+    "description": "tan(+Inf) MUST be DOMAIN. Gated -- see this file's NOTE above (eager MathProvider.get()).",
+    "expected": {
+      "code": "DOMAIN",
+      "outcome": "error"
+    },
+    "id": "eval/domain-tan-posinf",
+    "provenance": "spec",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30180201018000ba11020111300ca70a30088006706f73696e66"
+  }
+]
