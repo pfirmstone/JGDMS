@@ -2386,16 +2386,13 @@
       "namespaceChain": []
     },
     "category": "eval",
-    "description": "asin(1.5) MUST be DOMAIN (|x|>1). Gated: Evaluator's SIN/COS/TAN/ASIN/ACOS/ATAN dispatch fetches MathProvider.get() eagerly (a bound method reference) before the domain check runs, so this needs a provider installed even though the result itself never depends on correct rounding (see this file's NOTE above).",
+    "description": "asin(1.5) MUST be DOMAIN (|x|>1). Un-gated: the evaluator now runs the domain/finite check on the CelValue BEFORE fetching MathProvider.get() (mirroring atan2), so this DOMAIN result needs no provider installed at all.",
     "expected": {
       "code": "DOMAIN",
       "outcome": "error"
     },
     "id": "eval/domain-asin-out-of-range",
     "provenance": "spec",
-    "requires": [
-      "conformant-transcendentals"
-    ],
     "wireHex": "30160201018000ba0f020112300a82083ff8000000000000"
   },
   {
@@ -2404,16 +2401,13 @@
       "namespaceChain": []
     },
     "category": "eval",
-    "description": "acos(-1.5) MUST be DOMAIN. Gated -- see this file's NOTE above (eager MathProvider.get()).",
+    "description": "acos(-1.5) MUST be DOMAIN. Un-gated: same domain-check-before-provider-fetch reordering as domain-asin-out-of-range.",
     "expected": {
       "code": "DOMAIN",
       "outcome": "error"
     },
     "id": "eval/domain-acos-out-of-range",
     "provenance": "spec",
-    "requires": [
-      "conformant-transcendentals"
-    ],
     "wireHex": "30160201018000ba0f020113300a8208bff8000000000000"
   },
   {
@@ -2435,16 +2429,13 @@
       ]
     },
     "category": "eval",
-    "description": "atan(NaN) MUST be DOMAIN. Gated -- see this file's NOTE above (eager MathProvider.get()).",
+    "description": "atan(NaN) MUST be DOMAIN. Un-gated: the finite check on the CelValue now runs before MathProvider.get() is consulted, so this needs no provider installed.",
     "expected": {
       "code": "DOMAIN",
       "outcome": "error"
     },
     "id": "eval/domain-atan-nan",
     "provenance": "spec",
-    "requires": [
-      "conformant-transcendentals"
-    ],
     "wireHex": "30160201018000ba0f020114300aa708300680046e616e76"
   },
   {
@@ -2494,16 +2485,13 @@
       ]
     },
     "category": "eval",
-    "description": "sin(+Inf) MUST be DOMAIN. Gated -- see this file's NOTE above (eager MathProvider.get()).",
+    "description": "sin(+Inf) MUST be DOMAIN. Un-gated: the finite check on the CelValue now runs before MathProvider.get() is consulted, so this needs no provider installed.",
     "expected": {
       "code": "DOMAIN",
       "outcome": "error"
     },
     "id": "eval/domain-sin-posinf",
     "provenance": "spec",
-    "requires": [
-      "conformant-transcendentals"
-    ],
     "wireHex": "30180201018000ba1102010f300ca70a30088006706f73696e66"
   },
   {
@@ -3197,16 +3185,13 @@
       ]
     },
     "category": "eval",
-    "description": "cos(+Inf) MUST be DOMAIN. Gated -- see this file's NOTE above (eager MathProvider.get()).",
+    "description": "cos(+Inf) MUST be DOMAIN. Un-gated: same reordering as domain-sin-posinf.",
     "expected": {
       "code": "DOMAIN",
       "outcome": "error"
     },
     "id": "eval/domain-cos-posinf",
     "provenance": "spec",
-    "requires": [
-      "conformant-transcendentals"
-    ],
     "wireHex": "30180201018000ba11020110300ca70a30088006706f73696e66"
   },
   {
@@ -3228,16 +3213,13 @@
       ]
     },
     "category": "eval",
-    "description": "tan(+Inf) MUST be DOMAIN. Gated -- see this file's NOTE above (eager MathProvider.get()).",
+    "description": "tan(+Inf) MUST be DOMAIN. Un-gated: same reordering as domain-sin-posinf.",
     "expected": {
       "code": "DOMAIN",
       "outcome": "error"
     },
     "id": "eval/domain-tan-posinf",
     "provenance": "spec",
-    "requires": [
-      "conformant-transcendentals"
-    ],
     "wireHex": "30180201018000ba11020111300ca70a30088006706f73696e66"
   }
 ]

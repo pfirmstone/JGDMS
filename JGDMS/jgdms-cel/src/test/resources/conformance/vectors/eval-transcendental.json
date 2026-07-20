@@ -5,14 +5,14 @@
       "namespaceChain": []
     },
     "category": "eval",
-    "description": "sin(0.0) [zero+], correctly rounded (STD-011 Sec 7.5).",
+    "description": "sin(0.0) [zero+]: sign-preserving exact case (STD-011 Sec 7.2 -- sin is odd, f(0)=0, so continuity pins f(-0.0)=-0.0). NOT routed through mpmath (mpf loses IEEE signed-zero sign -- see build_unary_vectors docstring); independently confirmed against Python's math module and Java's Math/StrictMath.",
     "expected": {
       "outcome": "value",
       "type": "DOUBLE",
       "value": "0x0000000000000000"
     },
     "id": "eval-transcendental/sin-hard-zero+",
-    "provenance": "oracle",
+    "provenance": "spec-sign-preserving-zero",
     "requires": [
       "conformant-transcendentals"
     ],
@@ -24,14 +24,14 @@
       "namespaceChain": []
     },
     "category": "eval",
-    "description": "sin(-0.0) [zero-], correctly rounded (STD-011 Sec 7.5).",
+    "description": "sin(-0.0) [zero-]: sign-preserving exact case (STD-011 Sec 7.2 -- sin is odd, f(0)=0, so continuity pins f(-0.0)=-0.0). NOT routed through mpmath (mpf loses IEEE signed-zero sign -- see build_unary_vectors docstring); independently confirmed against Python's math module and Java's Math/StrictMath.",
     "expected": {
       "outcome": "value",
       "type": "DOUBLE",
-      "value": "0x0000000000000000"
+      "value": "0x8000000000000000"
     },
     "id": "eval-transcendental/sin-hard-zero-",
-    "provenance": "oracle",
+    "provenance": "spec-sign-preserving-zero",
     "requires": [
       "conformant-transcendentals"
     ],
@@ -245,6 +245,120 @@
       "conformant-transcendentals"
     ],
     "wireHex": "30160201018000ba0f02010f300a8208fe37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(1000000000000000.0) [huge-1e15], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3feb76f88136ceba"
+    },
+    "id": "eval-transcendental/sin-hard-huge-1e15",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208430c6bf526340000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(1e+50) [huge-1e50], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfdec083ac81db28"
+    },
+    "id": "eval-transcendental/sin-hard-huge-1e50",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82084a511b0ec57e649a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(1e+100) [huge-1e100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfd85c5e5b929359"
+    },
+    "id": "eval-transcendental/sin-hard-huge-1e100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a820854b249ad2594c37d"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(1e+200) [huge-1e200], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe49b644938c64c"
+    },
+    "id": "eval-transcendental/sin-hard-huge-1e200",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82086974e718d7d7625a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(1.2676506002282294e+30) [huge-2pow100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfebe8ed97ac1f59"
+    },
+    "id": "eval-transcendental/sin-hard-huge-2pow100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a82084630000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "sin(-1.2676506002282294e+30) [huge-neg-2pow100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3febe8ed97ac1f59"
+    },
+    "id": "eval-transcendental/sin-hard-huge-neg-2pow100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f02010f300a8208c630000000000000"
   },
   {
     "candidate": {
@@ -613,6 +727,120 @@
       "namespaceChain": []
     },
     "category": "eval",
+    "description": "cos(1000000000000000.0) [huge-1e15], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe06c154609d33f"
+    },
+    "id": "eval-transcendental/cos-hard-huge-1e15",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208430c6bf526340000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(1e+50) [huge-1e50], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fec105714551003"
+    },
+    "id": "eval-transcendental/cos-hard-huge-1e50",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82084a511b0ec57e649a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(1e+100) [huge-1e100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fed9757496841f5"
+    },
+    "id": "eval-transcendental/cos-hard-huge-1e100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a820854b249ad2594c37d"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(1e+200) [huge-1e200], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fe87b4df51f679e"
+    },
+    "id": "eval-transcendental/cos-hard-huge-1e200",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82086974e718d7d7625a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(1.2676506002282294e+30) [huge-2pow100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fdf4eb3ff66e36d"
+    },
+    "id": "eval-transcendental/cos-hard-huge-2pow100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a82084630000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "cos(-1.2676506002282294e+30) [huge-neg-2pow100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3fdf4eb3ff66e36d"
+    },
+    "id": "eval-transcendental/cos-hard-huge-neg-2pow100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020110300a8208c630000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
     "description": "cos(1.7976931348623157e+308) [largest-finite], correctly rounded (STD-011 Sec 7.5).",
     "expected": {
       "outcome": "value",
@@ -727,14 +955,14 @@
       "namespaceChain": []
     },
     "category": "eval",
-    "description": "tan(0.0) [zero+], correctly rounded (STD-011 Sec 7.5).",
+    "description": "tan(0.0) [zero+]: sign-preserving exact case (STD-011 Sec 7.2 -- tan is odd, f(0)=0, so continuity pins f(-0.0)=-0.0). NOT routed through mpmath (mpf loses IEEE signed-zero sign -- see build_unary_vectors docstring); independently confirmed against Python's math module and Java's Math/StrictMath.",
     "expected": {
       "outcome": "value",
       "type": "DOUBLE",
       "value": "0x0000000000000000"
     },
     "id": "eval-transcendental/tan-hard-zero+",
-    "provenance": "oracle",
+    "provenance": "spec-sign-preserving-zero",
     "requires": [
       "conformant-transcendentals"
     ],
@@ -746,14 +974,14 @@
       "namespaceChain": []
     },
     "category": "eval",
-    "description": "tan(-0.0) [zero-], correctly rounded (STD-011 Sec 7.5).",
+    "description": "tan(-0.0) [zero-]: sign-preserving exact case (STD-011 Sec 7.2 -- tan is odd, f(0)=0, so continuity pins f(-0.0)=-0.0). NOT routed through mpmath (mpf loses IEEE signed-zero sign -- see build_unary_vectors docstring); independently confirmed against Python's math module and Java's Math/StrictMath.",
     "expected": {
       "outcome": "value",
       "type": "DOUBLE",
-      "value": "0x0000000000000000"
+      "value": "0x8000000000000000"
     },
     "id": "eval-transcendental/tan-hard-zero-",
-    "provenance": "oracle",
+    "provenance": "spec-sign-preserving-zero",
     "requires": [
       "conformant-transcendentals"
     ],
@@ -974,6 +1202,120 @@
       "namespaceChain": []
     },
     "category": "eval",
+    "description": "tan(1000000000000000.0) [huge-1e15], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbffac23600a95be4"
+    },
+    "id": "eval-transcendental/tan-hard-huge-1e15",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208430c6bf526340000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(1e+50) [huge-1e50], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfe1885916b6549d"
+    },
+    "id": "eval-transcendental/tan-hard-huge-1e50",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82084a511b0ec57e649a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(1e+100) [huge-1e100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfda5807d6f76f7d"
+    },
+    "id": "eval-transcendental/tan-hard-huge-1e100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a820854b249ad2594c37d"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(1e+200) [huge-1e200], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbfeaef7845d41e88"
+    },
+    "id": "eval-transcendental/tan-hard-huge-1e200",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82086974e718d7d7625a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(1.2676506002282294e+30) [huge-2pow100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbffc86fbfa8cecc3"
+    },
+    "id": "eval-transcendental/tan-hard-huge-2pow100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a82084630000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "tan(-1.2676506002282294e+30) [huge-neg-2pow100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ffc86fbfa8cecc3"
+    },
+    "id": "eval-transcendental/tan-hard-huge-neg-2pow100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020111300a8208c630000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
     "description": "tan(1.7976931348623157e+308) [largest-finite], correctly rounded (STD-011 Sec 7.5).",
     "expected": {
       "outcome": "value",
@@ -1088,14 +1430,14 @@
       "namespaceChain": []
     },
     "category": "eval",
-    "description": "asin(0.0) [zero+], correctly rounded (STD-011 Sec 7.5).",
+    "description": "asin(0.0) [zero+]: sign-preserving exact case (STD-011 Sec 7.2 -- asin is odd, f(0)=0, so continuity pins f(-0.0)=-0.0). NOT routed through mpmath (mpf loses IEEE signed-zero sign -- see build_unary_vectors docstring); independently confirmed against Python's math module and Java's Math/StrictMath.",
     "expected": {
       "outcome": "value",
       "type": "DOUBLE",
       "value": "0x0000000000000000"
     },
     "id": "eval-transcendental/asin-hard-zero+",
-    "provenance": "oracle",
+    "provenance": "spec-sign-preserving-zero",
     "requires": [
       "conformant-transcendentals"
     ],
@@ -1107,14 +1449,14 @@
       "namespaceChain": []
     },
     "category": "eval",
-    "description": "asin(-0.0) [zero-], correctly rounded (STD-011 Sec 7.5).",
+    "description": "asin(-0.0) [zero-]: sign-preserving exact case (STD-011 Sec 7.2 -- asin is odd, f(0)=0, so continuity pins f(-0.0)=-0.0). NOT routed through mpmath (mpf loses IEEE signed-zero sign -- see build_unary_vectors docstring); independently confirmed against Python's math module and Java's Math/StrictMath.",
     "expected": {
       "outcome": "value",
       "type": "DOUBLE",
-      "value": "0x0000000000000000"
+      "value": "0x8000000000000000"
     },
     "id": "eval-transcendental/asin-hard-zero-",
-    "provenance": "oracle",
+    "provenance": "spec-sign-preserving-zero",
     "requires": [
       "conformant-transcendentals"
     ],
@@ -1468,14 +1810,14 @@
       "namespaceChain": []
     },
     "category": "eval",
-    "description": "atan(0.0) [zero+], correctly rounded (STD-011 Sec 7.5).",
+    "description": "atan(0.0) [zero+]: sign-preserving exact case (STD-011 Sec 7.2 -- atan is odd, f(0)=0, so continuity pins f(-0.0)=-0.0). NOT routed through mpmath (mpf loses IEEE signed-zero sign -- see build_unary_vectors docstring); independently confirmed against Python's math module and Java's Math/StrictMath.",
     "expected": {
       "outcome": "value",
       "type": "DOUBLE",
       "value": "0x0000000000000000"
     },
     "id": "eval-transcendental/atan-hard-zero+",
-    "provenance": "oracle",
+    "provenance": "spec-sign-preserving-zero",
     "requires": [
       "conformant-transcendentals"
     ],
@@ -1487,14 +1829,14 @@
       "namespaceChain": []
     },
     "category": "eval",
-    "description": "atan(-0.0) [zero-], correctly rounded (STD-011 Sec 7.5).",
+    "description": "atan(-0.0) [zero-]: sign-preserving exact case (STD-011 Sec 7.2 -- atan is odd, f(0)=0, so continuity pins f(-0.0)=-0.0). NOT routed through mpmath (mpf loses IEEE signed-zero sign -- see build_unary_vectors docstring); independently confirmed against Python's math module and Java's Math/StrictMath.",
     "expected": {
       "outcome": "value",
       "type": "DOUBLE",
-      "value": "0x0000000000000000"
+      "value": "0x8000000000000000"
     },
     "id": "eval-transcendental/atan-hard-zero-",
-    "provenance": "oracle",
+    "provenance": "spec-sign-preserving-zero",
     "requires": [
       "conformant-transcendentals"
     ],
@@ -1708,6 +2050,120 @@
       "conformant-transcendentals"
     ],
     "wireHex": "30160201018000ba0f020114300a8208fe37e43c8800759c"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(1000000000000000.0) [huge-1e15], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d14"
+    },
+    "id": "eval-transcendental/atan-hard-huge-1e15",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208430c6bf526340000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(1e+50) [huge-1e50], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-huge-1e50",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82084a511b0ec57e649a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(1e+100) [huge-1e100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-huge-1e100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a820854b249ad2594c37d"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(1e+200) [huge-1e200], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-huge-1e200",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82086974e718d7d7625a"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(1.2676506002282294e+30) [huge-2pow100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0x3ff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-huge-2pow100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a82084630000000000000"
+  },
+  {
+    "candidate": {
+      "fields": {},
+      "namespaceChain": []
+    },
+    "category": "eval",
+    "description": "atan(-1.2676506002282294e+30) [huge-neg-2pow100], correctly rounded (STD-011 Sec 7.5).",
+    "expected": {
+      "outcome": "value",
+      "type": "DOUBLE",
+      "value": "0xbff921fb54442d18"
+    },
+    "id": "eval-transcendental/atan-hard-huge-neg-2pow100",
+    "provenance": "oracle",
+    "requires": [
+      "conformant-transcendentals"
+    ],
+    "wireHex": "30160201018000ba0f020114300a8208c630000000000000"
   },
   {
     "candidate": {

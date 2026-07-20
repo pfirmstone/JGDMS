@@ -23,12 +23,12 @@ import au.net.zeus.jgdms.cel.CelValue;
 import au.net.zeus.jgdms.cel.EvalOutcome;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
 import au.net.zeus.jgdms.cel.ast.ExprNode.SelectorStep;
+import au.net.zeus.jgdms.cel.math.CorrectlyRoundedMath;
 import au.net.zeus.jgdms.cel.math.MathProvider;
 import au.net.zeus.jgdms.cel.wire.FunctionRegistry;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.DoubleUnaryOperator;
 
 /**
  * Tree-walking, total evaluator over the JGDMS-STD-011 AST (§6-§9). Bounded
@@ -635,12 +635,12 @@ public final class Evaluator {
             case SQRT -> callSqrt(args.get(0));
             case RADIANS -> callRadians(args.get(0));
             case DEGREES -> callDegrees(args.get(0));
-            case SIN -> callTranscendental(args.get(0), mathProvider.get()::sin);
-            case COS -> callTranscendental(args.get(0), mathProvider.get()::cos);
-            case TAN -> callTranscendental(args.get(0), mathProvider.get()::tan);
-            case ASIN -> callAsinAcos(args.get(0), mathProvider.get()::asin);
-            case ACOS -> callAsinAcos(args.get(0), mathProvider.get()::acos);
-            case ATAN -> callTranscendental(args.get(0), mathProvider.get()::atan);
+            case SIN -> callTranscendental(args.get(0), UnaryTrigFn.SIN);
+            case COS -> callTranscendental(args.get(0), UnaryTrigFn.COS);
+            case TAN -> callTranscendental(args.get(0), UnaryTrigFn.TAN);
+            case ASIN -> callAsinAcos(args.get(0), InverseTrigFn.ASIN);
+            case ACOS -> callAsinAcos(args.get(0), InverseTrigFn.ACOS);
+            case ATAN -> callTranscendental(args.get(0), UnaryTrigFn.ATAN);
             case ATAN2 -> callAtan2(args.get(0), args.get(1));
             case CONTAINS -> callContains(args.get(0), args.get(1));
             case STARTS_WITH -> callStartsWith(args.get(0), args.get(1));
@@ -741,19 +741,54 @@ public final class Evaluator {
         return EvalOutcome.of(new CelValue.DoubleV(x * C_RAD2DEG)); // pinned single multiply, never Math.toDegrees
     }
 
-    private static EvalOutcome callTranscendental(CelValue v, DoubleUnaryOperator fn) {
+    private enum UnaryTrigFn { SIN, COS, TAN, ATAN }
+
+    private enum InverseTrigFn { ASIN, ACOS }
+
+    /**
+     * {@code sin}/{@code cos}/{@code tan}/{@code atan}: the CelValue's own
+     * finite-domain check (§7.2 row 12/14: finite-only) runs BEFORE {@link
+     * MathProvider#get()} is consulted, deliberately -- unlike a bound method
+     * reference (e.g. {@code mathProvider.get()::sin}), whose receiver
+     * expression is evaluated eagerly by the JVM at the point the reference
+     * is formed, fetching the provider before this method's domain check
+     * ever runs. That ordering made a DOMAIN-bound call (there is none for
+     * these four finite-only unary functions once TYPE_MISMATCH is excluded,
+     * but the analogous {@link #callAsinAcos} case genuinely has one) fail
+     * with {@code MathProvider.get()}'s {@code IllegalStateException} instead
+     * of returning {@code DOMAIN} when no provider is installed. Mirrors
+     * {@link #callAtan2}, which already got this ordering right.
+     */
+    private EvalOutcome callTranscendental(CelValue v, UnaryTrigFn fn) {
         if (!(v instanceof CelValue.DoubleV d)) return EvalOutcome.error(CelError.TYPE_MISMATCH);
         double x = d.value();
         if (!Double.isFinite(x)) return EvalOutcome.error(CelError.DOMAIN);
-        return EvalOutcome.of(new CelValue.DoubleV(fn.applyAsDouble(x)));
+        CorrectlyRoundedMath m = mathProvider.get();
+        double result = switch (fn) {
+            case SIN -> m.sin(x);
+            case COS -> m.cos(x);
+            case TAN -> m.tan(x);
+            case ATAN -> m.atan(x);
+        };
+        return EvalOutcome.of(new CelValue.DoubleV(result));
     }
 
-    private static EvalOutcome callAsinAcos(CelValue v, DoubleUnaryOperator fn) {
+    /**
+     * {@code asin}/{@code acos}: both the finite-domain check AND the
+     * {@code |x| > 1} range check (§7.2 row 13) run before {@link
+     * MathProvider#get()} is consulted -- see {@link #callTranscendental}'s
+     * javadoc for why this ordering matters. {@code asin(1.5)}/{@code
+     * acos(-1.5)} MUST yield {@code DOMAIN} even with no conformant provider
+     * installed at all.
+     */
+    private EvalOutcome callAsinAcos(CelValue v, InverseTrigFn fn) {
         if (!(v instanceof CelValue.DoubleV d)) return EvalOutcome.error(CelError.TYPE_MISMATCH);
         double x = d.value();
         if (!Double.isFinite(x)) return EvalOutcome.error(CelError.DOMAIN);
         if (Math.abs(x) > 1.0) return EvalOutcome.error(CelError.DOMAIN);
-        return EvalOutcome.of(new CelValue.DoubleV(fn.applyAsDouble(x)));
+        CorrectlyRoundedMath m = mathProvider.get();
+        double result = (fn == InverseTrigFn.ASIN) ? m.asin(x) : m.acos(x);
+        return EvalOutcome.of(new CelValue.DoubleV(result));
     }
 
     private EvalOutcome callAtan2(CelValue y, CelValue x) {

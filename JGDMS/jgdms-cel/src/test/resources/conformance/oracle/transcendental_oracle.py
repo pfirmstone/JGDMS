@@ -215,9 +215,22 @@ def vec(id_, description, function_name, arg_bits_list, expected_bits, provenanc
 # Vector construction
 # ============================================================================
 
-def build_unary_vectors(name, fn, domain_check=None):
+def build_unary_vectors(name, fn, domain_check=None, sign_preserving_zero=False):
     """`fn` is the mpmath unary function; `domain_check(x) -> bool` restricts
-    the pseudorandom sample to the function's actual domain (asin/acos)."""
+    the pseudorandom sample to the function's actual domain (asin/acos).
+
+    `sign_preserving_zero` (STD-011 T3-phase-2 correction): sin/tan/asin/atan
+    are each odd (f(-x) = -f(x)) with f(0) = 0, so continuity alone pins
+    f(-0.0) = -0.0 -- independently confirmed against Python's own `math`
+    module (libm), and both `java.lang.Math` and `java.lang.StrictMath` (all
+    three agree). mpmath's `mpf` type does NOT track IEEE signed zero at all
+    (`mpmath.mpf(-0.0)` silently becomes plain `mpf('0.0')`,
+    `mpmath.sign(mpmath.mpf(-0.0))` is `0.0`, and `float(mpmath.mpf(-0.0))`
+    is `+0.0`, not `-0.0`) -- so routing the "zero-" hard case through
+    `correctly_rounded()` for these functions previously emitted a silently
+    wrong (+0.0) expected value. `cos`/`acos` are NOT sign-preserving at
+    zero (`cos(+-0) = 1`, `acos(+-0) = pi/2` regardless of sign) and must
+    NOT set this flag."""
     out = []
     hard_doubles = {
         "zero+": 0.0,
@@ -233,6 +246,16 @@ def build_unary_vectors(name, fn, domain_check=None):
         "neg-pi/2-nearest": -bits_to_double(0x3FF921FB54442D18),
         "huge-1e300": 1e300,
         "huge-neg-1e300": -1e300,
+        # STD-011 T3-phase-2 addition: intermediate-magnitude reduction-stress points
+        # (argument reduction mod pi/2 against a huge-magnitude argument is the classic
+        # correctly-rounded-sin/cos/tan failure mode -- these exercise reduction at a
+        # spread of exponents, not just the single 1e300 extreme already above).
+        "huge-1e15": 1e15,
+        "huge-1e50": 1e50,
+        "huge-1e100": 1e100,
+        "huge-1e200": 1e200,
+        "huge-2pow100": 2.0 ** 100,
+        "huge-neg-2pow100": -(2.0 ** 100),
         "largest-finite": bits_to_double(0x7FEFFFFFFFFFFFFF),
         "neg-largest-finite": bits_to_double(0xFFEFFFFFFFFFFFFF),
         "smallest-normal": bits_to_double(0x0010000000000000),
@@ -242,6 +265,17 @@ def build_unary_vectors(name, fn, domain_check=None):
     }
     for label, x in hard_doubles.items():
         if domain_check is not None and not domain_check(x):
+            continue
+        if sign_preserving_zero and label in ("zero+", "zero-"):
+            out.append(vec(
+                f"{name}-hard-{label}",
+                f"{name}({x!r}) [{label}]: sign-preserving exact case (STD-011 Sec 7.2 -- "
+                f"{name} is odd, f(0)=0, so continuity pins f(-0.0)=-0.0). NOT routed through "
+                f"mpmath (mpf loses IEEE signed-zero sign -- see build_unary_vectors docstring); "
+                f"independently confirmed against Python's math module and Java's Math/StrictMath.",
+                name, [double_bits(x)], double_bits(x),
+                provenance="spec-sign-preserving-zero",
+            ))
             continue
         try:
             d = correctly_rounded(fn, x)
@@ -341,12 +375,12 @@ def build_all(seed=20260720):
     rng = random.Random(seed)
     out = []
 
-    out += build_unary_vectors("sin", mpmath.sin)
+    out += build_unary_vectors("sin", mpmath.sin, sign_preserving_zero=True)
     out += build_unary_vectors("cos", mpmath.cos)
-    out += build_unary_vectors("tan", mpmath.tan)
-    out += build_unary_vectors("asin", mpmath.asin, domain_check=lambda x: abs(x) <= 1.0)
+    out += build_unary_vectors("tan", mpmath.tan, sign_preserving_zero=True)
+    out += build_unary_vectors("asin", mpmath.asin, domain_check=lambda x: abs(x) <= 1.0, sign_preserving_zero=True)
     out += build_unary_vectors("acos", mpmath.acos, domain_check=lambda x: abs(x) <= 1.0)
-    out += build_unary_vectors("atan", mpmath.atan)
+    out += build_unary_vectors("atan", mpmath.atan, sign_preserving_zero=True)
 
     out += build_random_vectors("sin", mpmath.sin, rng, 10, lambda r: r.uniform(-1e6, 1e6))
     out += build_random_vectors("cos", mpmath.cos, rng, 10, lambda r: r.uniform(-1e6, 1e6))

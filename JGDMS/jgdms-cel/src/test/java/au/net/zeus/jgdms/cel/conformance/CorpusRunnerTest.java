@@ -24,6 +24,7 @@ import au.net.zeus.jgdms.cel.ast.ExprNode;
 import au.net.zeus.jgdms.cel.eval.CandidateProjection;
 import au.net.zeus.jgdms.cel.eval.Evaluator;
 import au.net.zeus.jgdms.cel.math.MathProvider;
+import au.net.zeus.jgdms.cel.math.MathProviders;
 import au.net.zeus.jgdms.cel.verifier.CelVerifier;
 import au.net.zeus.jgdms.cel.verifier.VerificationResult;
 import au.net.zeus.jgdms.cel.wire.CelDecodeException;
@@ -258,15 +259,14 @@ class CorpusRunnerTest {
     }
 
     /**
-     * The T3-phase-2 extension point: once a genuinely correctly-rounded
-     * {@code CorrectlyRoundedMath} implementation exists (STD-011 Sec 7.5),
-     * install it here via {@link MathProvider#conformant}. Until then this
-     * always returns empty, and every {@code conformant-transcendentals}
-     * vector is skipped loudly (never silently passed, never silently
-     * dropped) per this class's own report line above.
+     * The T3-phase-2 extension point: {@link MathProviders#correctlyRounded()}
+     * installs {@code CrMath}, the genuinely correctly-rounded {@code
+     * CorrectlyRoundedMath} implementation (STD-011 Sec 7.5) -- so every
+     * {@code conformant-transcendentals} vector now RUNS for real instead of
+     * being skipped.
      */
     private static Optional<MathProvider> conformantProviderIfAvailable() {
-        return Optional.empty();
+        return Optional.of(MathProviders.correctlyRounded());
     }
 
     @SuppressWarnings("unchecked")
