@@ -13,7 +13,7 @@
 > "CELL" form in the original proposal was a typo; the name is DETERMINISTIC
 > CEL.)*
 
-**Status:** Draft (T1 deliverable of `SOW-CEL-Filter-Format.md`); board-reviewed 2026-07-20, fix list applied this revision — see editorial note below
+**Status:** Draft (T1 deliverable of `SOW-CEL-Filter-Format.md`); board-reviewed 2026-07-20, fix list applied this revision — see editorial note below. **Ratified by Peter 2026-07-20:** the DETERMINISTIC CEL name (title note), the closed platform function registry (§7), and §7.5 option (a) — correctly-rounded transcendentals. Remaining open items are routed to B1/T2/T5/T6/T7 (§15).
 **Version:** 0.1-DRAFT
 **Date:** 2026-07-20
 **Author:** Peter Firmstone + Claude
@@ -787,9 +787,9 @@ instead.
 
 ---
 
-## 7. Platform Function Registry **[PROPOSED — requires Peter's ratification]**
+## 7. Platform Function Registry **[RATIFIED (Peter, 2026-07-20)]**
 
-### 7.1 Registry principles (NORMATIVE once ratified)
+### 7.1 Registry principles (NORMATIVE)
 
 - The registry is **closed and versioned with this standard**. An expression may
   call only functions listed here, by pinned registry identity (§11.3); T6 MUST
@@ -812,7 +812,8 @@ instead.
 
 Derived from the confirmed Survey-zoot use case (bearing/elevation/distance →
 vector components; `DESIGN-CorroborationFramework.md` §8 note) plus the minimal
-general-purpose complement. Candidate list for ratification — deliberately small;
+general-purpose complement. **This closed list was ratified as-is by Peter,
+2026-07-20** — deliberately small;
 absence of a function here is a decision, not an oversight:
 
 | # | Signature | Result | Domain / errors | Determinism class |
@@ -887,7 +888,7 @@ would return different vectors for the same observation and T5's "identical
 results" claim would be false at the last ulp — silently, exactly the divergence
 gap `SOW-CEL-Filter-Format.md` §2 warns CEL's own two implementations have.
 
-### 7.5 Decision **[PROPOSED — T5-load-bearing; requires Peter's ratification]**
+### 7.5 Decision **[RATIFIED (Peter, 2026-07-20): option (a) as recommended — T5-load-bearing]**
 
 Three options were required to be weighed (SOW T1 item 4):
 
@@ -908,7 +909,8 @@ Three options were required to be weighed (SOW T1 item 4):
   12–14). Rejected: it guts the ratified Survey-zoot use case — the confirmed
   reason transforms exist at all.
 
-**Recommendation: (a) — correct rounding is REQUIRED for `sin`, `cos`, `tan`,
+**RATIFIED (Peter, 2026-07-20), as recommended: (a) — correct rounding is
+REQUIRED for `sin`, `cos`, `tan`,
 `asin`, `acos`, `atan`, `atan2`.** Honest cost statement: this binds T3 and T4 to
 ship correctly-rounded implementations of seven functions. For Rust, the
 CORE-MATH project publishes correctly-rounded binary64 routines designed for
@@ -920,8 +922,10 @@ semantics to fdlibm bit-for-bit (`StrictMath` as oracle) — reproducible and
 cheap on the JVM, but it defines the language by reference to a specific C
 codebase rather than by mathematics, fails G9's "from the doc alone" test, and
 exports a 1990s approximation error into a greenfield cross-language spec
-forever. If Peter rejects (a), (b)-with-≤1-ulp is the fallback to ratify
-explicitly — with the G1 consequences above accepted in writing.
+forever. (The pre-ratification draft named (b)-with-≤1-ulp as the explicit
+fallback had (a) been rejected; with (a) ratified, that fallback is retired —
+any future move off correct rounding is a spec revision that must re-ratify
+§13.1 and accept the G1 consequences above in writing.)
 
 ---
 
@@ -1531,13 +1535,16 @@ double(sampleCount) * 86400000000000.0 > 0.0
 
 ## 15. Open Questions
 
-1. **[PROPOSED → Peter]** The platform function registry (§7.2) — the closed
-   list itself, and any additions the Reggie/Outrigger integration discovers it
-   needs (the STD-009 §11 vocabulary check found none, but B1 re-verifies).
-2. **[PROPOSED → Peter]** §7.5's correctly-rounded transcendental requirement —
-   including accepting its stated cost on T3 (a correctly-rounded 7-function
-   port for the JVM). The fallback (≤1 ulp tolerance) requires re-ratifying
-   §13.1 and accepting the G1 consequences in writing.
+1. **[RATIFIED (Peter, 2026-07-20)]** The platform function registry (§7.2) —
+   the closed 15-function list is ratified as proposed. What remains open is
+   only the pre-planned re-verification: any additions the Reggie/Outrigger
+   integration discovers it needs (the STD-009 §11 vocabulary check found none,
+   but B1 re-verifies) arrive as spec revisions per §7.1, never ad hoc.
+2. **[RATIFIED (Peter, 2026-07-20)]** §7.5's correctly-rounded transcendental
+   requirement — option (a) adopted as recommended, **including its stated cost
+   on T3** (a correctly-rounded 7-function port for the JVM; `StrictMath` does
+   not qualify), which T3's estimate MUST price in. The ≤1-ulp fallback is
+   retired (§7.5's closing note).
 3. **[OPEN → Outrigger integration SOW, B1]** Final name-resolution rule (§8.2's
    uniqueness-or-error is this standard's recommendation and default) and the
    filter-applicability key (§8.5: `className` vs `schemaDigest`).
