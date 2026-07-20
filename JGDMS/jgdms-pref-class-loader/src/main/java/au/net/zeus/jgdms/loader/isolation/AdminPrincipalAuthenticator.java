@@ -36,12 +36,17 @@ import javax.security.auth.Subject;
  *
  * <p>The "current caller identity" is obtained from an injectable
  * {@link CallerIdentity} so the gate is unit-testable without live TLS; the
- * default reads the {@link Subject} from the current access-control context,
- * i.e. the identity the caller is authenticated and executing as. In the live
- * transport (task&nbsp;T4) the stricter endpoint {@code MethodConstraints}
- * additionally enforce this at the wire before dispatch ever reaches here;
- * this gate is intended as the in-process floor that holds even if a proxy
- * reference is captured and re-invoked.
+ * default, {@link #CURRENT_SUBJECT}, resolves the ambient {@link Subject} in
+ * three tiers, most-specific first: the DirtyChai {@code Subject.processWorker()}
+ * ambient {@code WorkerSubject} minted by the SSLEngine/TLS+SPIFFE keystone
+ * for a TLS-authenticated remote caller; else {@code Subject.current()}
+ * (JDK&nbsp;18+), bound via {@code Subject.callAs}/{@code doAs}; else the
+ * legacy access-control-context read &mdash; see {@link #CURRENT_SUBJECT}'s
+ * own javadoc, and the "{@code processWorker()}" dated section below, for why
+ * all three are needed. In the live transport (task&nbsp;T4) the stricter
+ * endpoint {@code MethodConstraints} additionally enforce this at the wire
+ * before dispatch ever reaches here; this gate is intended as the in-process
+ * floor that holds even if a proxy reference is captured and re-invoked.
  *
  * <h2>Why that claim requires an installed {@code SecurityManager}
  * (2026-07-20 board finding, fixed)</h2>
@@ -102,8 +107,8 @@ import javax.security.auth.Subject;
  * domain that isn't explicitly granted them):
  * <ul>
  *   <li>{@code AuthPermission("callAs")} &mdash; checked by
- *       {@code Subject.callAs} (JDK&nbsp;18+, what {@link #CURRENT_SUBJECT}
- *       actually binds through);</li>
+ *       {@code Subject.callAs} (JDK&nbsp;18+, the second of the three tiers
+ *       {@link #CURRENT_SUBJECT} tries, via {@code Subject.current()});</li>
  *   <li>{@code AuthPermission("doAs")} &mdash; checked by the deprecated
  *       {@code Subject.doAs(Subject, PrivilegedAction)} overload;</li>
  *   <li>{@code RuntimePermission("setSecurityManager")} &mdash; without this
@@ -111,6 +116,12 @@ import javax.security.auth.Subject;
  *       {@code SecurityManager} and defeat the other two regardless of how
  *       correctly they are configured.</li>
  * </ul>
+ * <p>The first, highest-priority tier {@link #CURRENT_SUBJECT} tries &mdash;
+ * the DirtyChai {@code Subject.processWorker()} ambient {@code WorkerSubject}
+ * &mdash; is deliberately <strong>not</strong> in this list: it takes no
+ * caller-supplied {@link Subject} argument to bind (unlike {@code doAs}/
+ * {@code callAs}), so there is nothing for hosted/business code to forge by
+ * calling it; see the "{@code processWorker()}" dated section below.
  * This class has no way to verify any of this from inside the JVM (a
  * permissive {@code SecurityManager} object is indistinguishable from a
  * restrictive one by any check available here short of actually attempting
@@ -126,6 +137,40 @@ import javax.security.auth.Subject;
  * satisfy this precondition; this class's guarantee does not hold in those
  * deployments until that is corrected.
  *
+ * <h2>Missing the {@code processWorker()} tier meant a TLS/SPIFFE-only
+ * caller could never be recognised as admin (2026-07-21, fixed)</h2>
+ * {@link #CURRENT_SUBJECT} previously tried only {@code Subject.current()}
+ * (JDK&nbsp;18+) and then the legacy
+ * {@code Subject.getSubject(AccessControlContext)} path; it never called
+ * {@code Subject.processWorker()}. Both of the tiers it did try are
+ * structurally unable to observe the ambient {@code WorkerSubject} that this
+ * repo's SSLEngine/TLS+SPIFFE keystone mints for a TLS-authenticated remote
+ * caller: {@code net.jini.jeri.BasicInvocationDispatcher#invokeWithClientSubject}
+ * explicitly branches on {@code isAmbientWorkerSubject} and does
+ * <strong>not</strong> pass a {@code WorkerSubject} through
+ * {@code Subject.doAs}/{@code callAs} (so it never becomes visible to
+ * {@code Subject.current()}), and its principals are carried instead via the
+ * transmitted {@code AccessControlContext}/{@code ProtectionDomain}s rather
+ * than bound as the thread's ambient {@code Subject} the legacy
+ * {@code getSubject(AccessControlContext)} call would see (see
+ * {@code net.jini.jeri.ssl.Utilities}'s comment on {@code isAmbientWorkerSubject},
+ * immediately after {@code findWorkerSubject()}, on exactly why a
+ * {@code WorkerSubject} must never be captured via {@code doAs}/{@code callAs}).
+ * A caller authenticated purely by TLS/SPIFFE &mdash; with no separate JAAS
+ * login layered on top &mdash; was therefore invisible to this gate no
+ * matter what principals it carried.
+ *
+ * <p><strong>Fix:</strong> {@link #CURRENT_SUBJECT} now tries
+ * {@code Subject.processWorker()} (resolved reflectively, mirroring
+ * {@code net.jini.jeri.ssl.Utilities#spiffeWorkerSubject()}'s idiom exactly,
+ * since {@code jgdms-pref-class-loader} does not depend on {@code jgdms-jeri})
+ * <em>first</em>, falling back to {@code Subject.current()} and then the
+ * legacy access-control-context path for callers authenticated some other
+ * way. This tier needs no new entry in the three-{@code AuthPermission}
+ * deployment requirement above: {@code processWorker()} takes no
+ * caller-supplied {@link Subject} to bind, so there is no forgery surface for
+ * a policy to gate the way {@code doAs}/{@code callAs} must be gated.
+ *
  * @since 3.1.1
  */
 public final class AdminPrincipalAuthenticator {
@@ -137,6 +182,29 @@ public final class AdminPrincipalAuthenticator {
          *         or {@code null} if the caller is unauthenticated.
          */
         Subject current();
+    }
+
+    /**
+     * {@code Subject.processWorker()} on the DirtyChai JDK &mdash; the
+     * ambient, stamped-not-logged-in {@code WorkerSubject} that the
+     * SSLEngine/TLS+SPIFFE keystone mints for a TLS-authenticated remote
+     * caller (see {@code net.jini.jeri.ssl.Utilities#spiffeWorkerSubject()},
+     * the canonical instance of this exact lookup idiom, which this field and
+     * {@link #findProcessWorker()} mirror). Looked up reflectively so this
+     * class stays buildable on the vanilla build JDK, where the method is
+     * absent; {@code jgdms-pref-class-loader} does not depend on
+     * {@code jgdms-jeri}, so the lookup is duplicated locally rather than
+     * shared. {@code null} on a JDK too old/vanilla to provide it, in which
+     * case the {@link #CURRENT_METHOD} tier below is tried next.
+     */
+    private static final Method PROCESS_WORKER = findProcessWorker();
+
+    private static Method findProcessWorker() {
+        try {
+            return Subject.class.getMethod("processWorker");
+        } catch (NoSuchMethodException e) {
+            return null;
+        }
     }
 
     /**
@@ -158,17 +226,69 @@ public final class AdminPrincipalAuthenticator {
     }
 
     /**
-     * The current caller's authenticated {@link Subject}, read the same way
-     * the rest of JGDMS reads it: {@code Subject.current()} where available
-     * (bound via {@code Subject.callAs} / {@code Subject.doAs}), else the
-     * legacy {@code Subject.getSubject(AccessController.getContext())}.  On a
+     * The current caller's authenticated {@link Subject}, read in the same
+     * three-tier priority order the rest of JGDMS's SSLEngine/TLS+SPIFFE
+     * keystone uses:
+     * <ol>
+     *   <li>{@code Subject.processWorker()} (DirtyChai JDK only) &mdash; the
+     *       ambient {@code WorkerSubject} minted for a TLS-authenticated
+     *       remote caller. This identity is, by the {@code WorkerSubject}
+     *       contract, never bound via {@code Subject.doAs}/{@code callAs}
+     *       (see {@code net.jini.jeri.ssl.Utilities}'s comment on
+     *       {@code isAmbientWorkerSubject}, right after
+     *       {@code findWorkerSubject()}) and so is <strong>structurally
+     *       invisible</strong> to {@code Subject.current()} and to the
+     *       legacy {@code getSubject(AccessControlContext)} path below;
+     *       {@code Subject.processWorker()} is the only way to observe it;</li>
+     *   <li>else {@code Subject.current()} (JDK&nbsp;18+), bound via
+     *       {@code Subject.callAs}/{@code Subject.doAs} &mdash; the caller
+     *       authenticated some other way (e.g. a real JAAS login) that IS
+     *       captured that way;</li>
+     *   <li>else the legacy
+     *       {@code Subject.getSubject(AccessController.getContext())}.</li>
+     * </ol>
+     * Both reflective lookups resolve to {@code null} on a JDK lacking the
+     * corresponding method, in which case that tier is silently skipped. On a
      * modern JDK with the SecurityManager disabled the legacy call throws
      * {@link UnsupportedOperationException}; that is caught and treated as
-     * "no authenticated caller" (fail closed).
+     * "no authenticated caller" (fail closed) &mdash; unchanged from before.
+     *
+     * <h3>2026-07-21: added the {@code processWorker()} tier</h3>
+     * Before this change, {@code current()} tried only {@code Subject.current()}
+     * then the legacy {@code getSubject(ACC)} path &mdash; it never called
+     * {@code Subject.processWorker()}. That meant it could not see the
+     * ambient {@code WorkerSubject} the SSLEngine/TLS+SPIFFE keystone mints
+     * for a TLS-authenticated remote caller (see
+     * {@code net.jini.jeri.BasicInvocationDispatcher#invokeWithClientSubject},
+     * which explicitly branches on {@code isAmbientWorkerSubject} and does
+     * <em>not</em> pass a {@code WorkerSubject} through {@code Subject.doAs}/
+     * {@code callAs}, precisely because a {@code WorkerSubject} must never be
+     * captured that way): a caller authenticated purely by TLS/SPIFFE, with
+     * no JAAS login layered on top, was invisible to both of the tiers this
+     * class previously checked, and so could never be recognised as the
+     * admin regardless of its principals. Note that this new tier is
+     * <em>not</em> gated by {@code AuthPermission("callAs")}/
+     * {@code AuthPermission("doAs")} the way the tier below it is: unlike
+     * {@code doAs}/{@code callAs}, {@code processWorker()} takes no
+     * caller-supplied {@link Subject} argument to bind, so there is nothing
+     * for hosted/business code to forge by calling it &mdash; it only reads
+     * back whichever {@code WorkerSubject} the trusted transport
+     * infrastructure already established ambiently for the current execution
+     * context.
      */
     public static final CallerIdentity CURRENT_SUBJECT = new CallerIdentity() {
         @Override
         public Subject current() {
+            if (PROCESS_WORKER != null) {
+                try {
+                    Subject worker = (Subject) PROCESS_WORKER.invoke(new Subject());
+                    if (worker != null) {
+                        return worker;
+                    }
+                } catch (Exception ignored) {
+                    // Fall through to Subject.current() below.
+                }
+            }
             if (CURRENT_METHOD != null) {
                 try {
                     return (Subject) CURRENT_METHOD.invoke(null);
