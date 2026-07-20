@@ -19,6 +19,10 @@ import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.policy.VerdictPermissionMapper;
 import java.rmi.RemoteException;
 import java.security.Permission;
+import java.security.PublicKey;
+import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import net.jini.security.GrantPermission;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
@@ -93,6 +97,117 @@ import org.apache.river.api.security.PermissionGrantBuilder;
  * consistent with T1's "apply verbatim, no independent judgment" contract
  * cutting both ways: this class does not pre-empt that decision either.
  *
+ * <h2>Anti-replay / freshness gate (T4 adversarial-pass Finding&nbsp;2)</h2>
+ * A reviewer proved that resubmitting a byte-for-byte identical {@link
+ * #applyVerdictCeiling} call &mdash; same {@code targetKey}, same {@code
+ * verdict}, same {@code contentHash} &mdash; silently reinstates a ceiling
+ * that had already, correctly, expired: neither this class nor {@link
+ * PolicyAdmin}'s real backing had any freshness/nonce/sequence check on the
+ * grant-application call itself. {@link SubProcessLocalPolicyAdmin}'s own
+ * Finding&nbsp;1 fix (supersede a prior <em>live</em> grant to the same
+ * target) cannot close this by itself: once the earlier grant has already
+ * gone void, there is nothing left for supersession to find and cancel, so a
+ * replay of the expired bytes is indistinguishable, at that layer, from a
+ * genuinely new first-time grant.
+ *
+ * <p>This class is the only layer with a usable freshness signal:
+ * {@link RegistryVerdict#getTimestamp()} is part of the registry's own signed
+ * content. <strong>That is only a meaningful trust anchor if the signature
+ * has actually been verified</strong> &mdash; {@link RegistryVerdict}'s own
+ * {@code check(GetArg)} validates only structural well-formedness (non-empty
+ * URLs, a positive timestamp, non-empty signature bytes), never the
+ * cryptographic signature itself, and its public constructor lets any caller
+ * supply an arbitrary timestamp with arbitrary "signature" bytes. A board
+ * review (2026-07-20, second pass) proved this concretely: a forged {@code
+ * RegistryVerdict} built with a later timestamp and garbage signature bytes
+ * &mdash; no private key involved &mdash; sailed through an earlier version
+ * of this gate that trusted {@code getTimestamp()} without verifying it
+ * first. <strong>{@link #applyVerdictCeiling} therefore verifies {@code
+ * verdict}'s inline signature against this instance's own constructor-
+ * injected {@link #verdictRegistryPublicKey} as the unconditional first
+ * step, before any other field of {@code verdict} &mdash; including {@code
+ * getTimestamp()} &mdash; is read or trusted</strong> (mirrors {@code
+ * PreferredProxyCodebaseProvider.checkVerdictForJar}, the only other
+ * production call site of {@link RegistryVerdict#verifySignature}). Only
+ * once that holds is the "cannot advance the timestamp without the
+ * registry's private key" property actually true: a replayed verdict still
+ * carries the identical signed timestamp it always did, while a genuinely
+ * fresh re-verdict (a real re-analysis, issued later, genuinely re-signed by
+ * the registry) is signed with a strictly later timestamp, and a forged
+ * verdict with a fabricated later timestamp fails signature verification and
+ * never reaches the freshness comparison at all.
+ *
+ * <p>Once the signature is verified, {@link #applyVerdictCeiling} tracks, per
+ * exact {@code (targetKey, contentHash)} pair, the timestamp of the last
+ * verdict it has <em>successfully</em> applied, and refuses (fails closed,
+ * {@link SecurityException}) any call whose verdict timestamp is not
+ * <em>strictly greater</em> than that recorded value &mdash; before ever
+ * calling down into {@link PolicyAdmin#grant}, so a replay never reaches T1
+ * at all. A pair with no recorded generation yet (first-ever application, or
+ * a genuinely different target/contentHash) is always accepted: this is not
+ * a global monotonic clock, it is scoped exactly to the target+content pair
+ * {@code impliesEquivalent} scopes supersession to at T1, so two independent,
+ * concurrent first-time grants to different targets (or different JARs on the
+ * same target) never contend. The recorded generation is advanced only
+ * <em>after</em> {@link PolicyAdmin#grant} returns successfully &mdash; an
+ * attempt refused upstream (invalid signature, target not registered, caller
+ * not authenticated as the admin principal, {@code GrantPermission} ceiling
+ * denial, a {@code DANGEROUS} verdict) never consumes the freshness slot, so
+ * a legitimate retry of the very same verdict after a transient failure is
+ * not itself mistaken for a replay.
+ *
+ * <p><strong>What this gate does not claim to solve, by design:</strong> two
+ * genuinely concurrent calls carrying the identical verdict timestamp for the
+ * identical target+content pair can both pass the freshness check before
+ * either has recorded its generation (a narrow check-then-act race on the
+ * generation map). This is judged acceptable for the current, single
+ * orchestrating-controller call pattern this class is built for (verdict
+ * application is not a high-frequency path, and the realistic adversarial
+ * replay scenario this closes is sequential &mdash; captured bytes resent
+ * later &mdash; not a true concurrent race against the legitimate caller);
+ * see this class's javadoc note on {@link #lastAppliedGenerationMillis} for
+ * the residual-risk detail and the follow-on hardening (atomic
+ * reserve-then-commit) it would take to remove even that narrow window.
+ * Separately, the per-{@code (targetKey, contentHash)} generation map is
+ * unbounded for the lifetime of this instance &mdash; there is no hook here
+ * for reclaiming an entry when a subprocess is torn down and unregistered
+ * from {@link SubProcessAdminRegistry}; a bounded/LRU map or an
+ * unregistration callback is a reasonable, currently-unbuilt follow-on if
+ * this orchestrator is deployed as a long-lived singleton across many
+ * subprocess lifecycles.
+ *
+ * <h2>Why constructor-injected key, not a verified-verdict wrapper type</h2>
+ * Two shapes were considered for closing the "who verifies the signature"
+ * gap: (a) inject the registry's {@link PublicKey}/algorithm into this
+ * class's own constructor and call {@link RegistryVerdict#verifySignature}
+ * as the first thing {@link #applyVerdictCeiling} does; or (b) accept only a
+ * wrapper/marker type that can be constructed exclusively via a successful
+ * {@code verifySignature} call, so an unverified {@link RegistryVerdict}
+ * isn't even representable as an argument here. (a) was chosen: {@code
+ * PreferredProxyCodebaseProvider.checkVerdictForJar} &mdash; the only other
+ * production call site of {@code verifySignature} &mdash; already establishes
+ * the precedent of verifying inline at the point of use rather than via a
+ * wrapper type, and this class already follows a constructor-injection style
+ * for its other required collaborator (the {@link SubProcessAdminRegistry}),
+ * so adding the key/algorithm alongside it is consistent with this class's
+ * own shape rather than borrowing the static-mutable-field style
+ * {@code PreferredProxyCodebaseProvider} uses (that class predates this one
+ * and carries broader legacy constraints &mdash; multiple static entry
+ * points, a "key not configured yet during bootstrap" transient state this
+ * class has no need to support). A wrapper/marker type (b) would give a
+ * slightly stronger static guarantee (unverified data structurally
+ * unrepresentable at the call site, not just unconditionally checked at
+ * runtime) but would require either introducing a new public type into
+ * {@code au.net.zeus.jgdms.api.codebase} purely for this one caller or a
+ * private nested type that only this class's own callers could ever produce
+ * correctly anyway (since {@code verifySignature} already lives on {@code
+ * RegistryVerdict} itself) &mdash; the marginal safety gain did not seem to
+ * justify introducing new public API surface in a different module for a
+ * single call site. The key/algorithm are required (non-null,
+ * non-empty) at construction, not optionally configured later via a setter,
+ * so there is no window in this class's own lifecycle where an orchestrator
+ * exists but cannot verify a signature.
+ *
  * @since 3.1.1
  */
 public final class SubProcessGrantOrchestrator {
@@ -103,14 +218,86 @@ public final class SubProcessGrantOrchestrator {
     private final SubProcessAdminRegistry registry;
 
     /**
+     * The verdict registry's known-good public identity key, against which
+     * every {@link RegistryVerdict} passed to {@link #applyVerdictCeiling} is
+     * verified as the unconditional first step, before any other field
+     * (including {@link RegistryVerdict#getTimestamp()}) is read or trusted.
+     * See class javadoc "Anti-replay / freshness gate" and "Why
+     * constructor-injected key, not a verified-verdict wrapper type".
+     */
+    private final PublicKey verdictRegistryPublicKey;
+
+    /**
+     * The JCA signature-algorithm name (e.g. {@code "SHA256withRSA"}) used
+     * with {@link #verdictRegistryPublicKey} to verify a {@link
+     * RegistryVerdict}'s inline signature.
+     */
+    private final String verdictRegistrySigAlgorithm;
+
+    /**
+     * The last-applied verdict generation (signed {@link
+     * RegistryVerdict#getTimestamp()}) per exact {@code (targetKey,
+     * contentHash)} pair this orchestrator has successfully pushed a ceiling
+     * for &mdash; the anti-replay gate's only state. See the class javadoc
+     * "Anti-replay / freshness gate" section for the full rationale.
+     *
+     * <p><strong>Residual risk (documented for board scrutiny):</strong> the
+     * read-check (in {@link #applyVerdictCeiling}) and the write-update
+     * (after a successful {@link PolicyAdmin#grant}) are two separate
+     * operations on this map, not one atomic reserve-then-commit. Two truly
+     * concurrent calls carrying the same verdict for the same target+content
+     * pair could both observe "no conflicting generation yet" before either
+     * writes, and both proceed. Hardening this fully would mean reserving the
+     * generation atomically via {@link ConcurrentMap#compute} before
+     * resolving the target/calling {@link PolicyAdmin#grant}, and rolling the
+     * reservation back if that downstream call then fails &mdash; deliberately
+     * not built here, because the realistic threat this gate defends against
+     * (a captured, byte-identical verdict resent later, after the original
+     * had already expired) is sequential, not concurrent, and the current
+     * call pattern is a single orchestrating controller, not adversarial
+     * concurrent submission.
+     */
+    private final ConcurrentMap<VerdictGenerationKey, Long> lastAppliedGenerationMillis =
+            new ConcurrentHashMap<VerdictGenerationKey, Long>();
+
+    /**
      * @param registry the management-plane registry to resolve targets
      *        through; must not be {@code null}
+     * @param verdictRegistryPublicKey the verdict registry's known-good
+     *        public identity key; every {@link RegistryVerdict} passed to
+     *        {@link #applyVerdictCeiling} is verified against this key
+     *        before any of its fields are trusted; must not be {@code null}.
+     *        Required at construction, not optionally configurable later, so
+     *        there is no window in which an orchestrator exists but cannot
+     *        verify a signature.
+     * @param verdictRegistrySigAlgorithm the JCA standard signature-algorithm
+     *        name the registry uses to sign verdicts (e.g. {@code
+     *        "SHA256withRSA"}); must not be {@code null} or empty
+     * @throws NullPointerException if {@code registry} or {@code
+     *         verdictRegistryPublicKey} or {@code verdictRegistrySigAlgorithm}
+     *         is {@code null}
+     * @throws IllegalArgumentException if {@code verdictRegistrySigAlgorithm}
+     *         is empty (or all whitespace)
      */
-    public SubProcessGrantOrchestrator(SubProcessAdminRegistry registry) {
+    public SubProcessGrantOrchestrator(SubProcessAdminRegistry registry,
+                                        PublicKey verdictRegistryPublicKey,
+                                        String verdictRegistrySigAlgorithm) {
         if (registry == null) {
             throw new NullPointerException("registry");
         }
+        if (verdictRegistryPublicKey == null) {
+            throw new NullPointerException("verdictRegistryPublicKey");
+        }
+        if (verdictRegistrySigAlgorithm == null) {
+            throw new NullPointerException("verdictRegistrySigAlgorithm");
+        }
+        if (verdictRegistrySigAlgorithm.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                "verdictRegistrySigAlgorithm must not be empty");
+        }
         this.registry = registry;
+        this.verdictRegistryPublicKey = verdictRegistryPublicKey;
+        this.verdictRegistrySigAlgorithm = verdictRegistrySigAlgorithm.trim();
     }
 
     /**
@@ -119,6 +306,15 @@ public final class SubProcessGrantOrchestrator {
      *
      * <p>Steps, in order:
      * <ol>
+     *   <li>{@code verdict}'s inline signature is verified against this
+     *       instance's constructor-injected {@link #verdictRegistryPublicKey}
+     *       &mdash; the unconditional trust gate every other step, including
+     *       the anti-replay check, depends on; a forged or corrupted verdict
+     *       is refused here and never reaches any step below;</li>
+     *   <li>{@code verdict}'s signed timestamp is checked against the last
+     *       timestamp successfully applied for this exact {@code (targetKey,
+     *       contentHash)} pair &mdash; a stale or replayed (but genuinely
+     *       signed) verdict is refused here;</li>
      *   <li>{@link VerdictPermissionMapper#computeSubProcessCeiling} computes
      *       the ceiling &mdash; the only place any judgment about <em>what</em>
      *       to grant happens;</li>
@@ -135,9 +331,13 @@ public final class SubProcessGrantOrchestrator {
      *
      * @param targetKey the canonical pooling key of the subprocess to target;
      *        must not be {@code null}
-     * @param verdict the (already signature-verified) authoritative verdict;
-     *        see {@link VerdictPermissionMapper#computeSubProcessCeiling} for
-     *        its own preconditions
+     * @param verdict the authoritative verdict; its inline signature is
+     *        verified by this method itself (step 1 above) &mdash; it need
+     *        not have been pre-verified by the caller, and this method does
+     *        not trust a caller's claim that it was. See {@link
+     *        VerdictPermissionMapper#computeSubProcessCeiling} for that
+     *        method's own further preconditions, now genuinely satisfied by
+     *        this call chain
      * @param contentHash lower-case SHA-256 hex digest of the JAR the ceiling
      *        is being computed and grant-scoped for; must not be {@code null}
      *        or empty
@@ -153,16 +353,23 @@ public final class SubProcessGrantOrchestrator {
      * @return the computed ceiling that was pushed (never {@code null},
      *         possibly empty) &mdash; returned so a caller/test can assert on
      *         exactly what was granted without re-deriving it
-     * @throws NullPointerException if {@code targetKey} is {@code null}
+     * @throws NullPointerException if {@code targetKey} or {@code verdict} is
+     *         {@code null}
      * @throws IllegalStateException if no subprocess is registered under
      *         {@code targetKey} (fail closed: never silently no-ops, never
      *         guesses a different target)
      * @throws RemoteException if {@code getSubProcessPolicyAdmin()} or
      *         {@code grant()} fails at the transport layer
-     * @throws SecurityException if the resolved admin surface refuses this
-     *         caller (propagated unchanged from
+     * @throws SecurityException if {@code verdict}'s inline signature fails
+     *         to verify against {@link #verdictRegistryPublicKey} (fail-closed
+     *         forgery guard, checked before anything else), if the resolved
+     *         admin surface refuses this caller (propagated unchanged from
      *         {@link SubProcessAdministrable#getSubProcessPolicyAdmin()} /
-     *         {@link PolicyAdmin#grant})
+     *         {@link PolicyAdmin#grant}), or if {@code verdict}'s (now
+     *         verified) signed timestamp is not strictly newer than the last
+     *         verdict successfully applied for this exact {@code (targetKey,
+     *         contentHash)} pair (fail-closed anti-replay/staleness guard;
+     *         see class javadoc "Anti-replay / freshness gate")
      */
     public Permission[] applyVerdictCeiling(
             IsolationPoolingKey targetKey,
@@ -174,14 +381,61 @@ public final class SubProcessGrantOrchestrator {
         if (targetKey == null) {
             throw new NullPointerException("targetKey");
         }
+        if (verdict == null) {
+            throw new NullPointerException("verdict");
+        }
 
-        // (1) The only judgment about *what* to grant happens here, in the
+        // (0) STD-006 §7.4 SECURE BY DEFAULT (fail-closed), mirroring
+        // PreferredProxyCodebaseProvider.checkVerdictForJar's own pattern
+        // (the only other production call site of verifySignature): the
+        // forge-proof inline signature is the trust anchor for EVERY field
+        // this method reads off `verdict` below -- including getTimestamp(),
+        // which the anti-replay gate (step 1 below) treats as authoritative.
+        // A board review (2026-07-20, second pass) proved a forged verdict
+        // (fabricated later timestamp, garbage signature bytes, no private
+        // key) previously sailed straight through the freshness gate because
+        // nothing in this call chain ever verified the signature -- verify
+        // BEFORE trusting anything else about this object, so a forged
+        // verdict is refused here and never reaches step 1.
+        if (!verdict.verifySignature(verdictRegistryPublicKey, verdictRegistrySigAlgorithm)) {
+            throw new SecurityException(
+                "Refusing to apply verdict ceiling: RegistryVerdict inline"
+                + " signature verification FAILED for pooling key " + targetKey
+                + " / contentHash " + contentHash + " -- refusing a forged,"
+                + " substituted, or corrupted verdict (fail-closed).");
+        }
+
+        // (1) T4 adversarial-pass Finding 2: fail closed on a stale or
+        // replayed verdict application before ever resolving a target,
+        // computing a ceiling, or calling down into PolicyAdmin.grant -- a
+        // replay never reaches T1. verdict.getTimestamp() is now safe to
+        // trust: step (0) above already verified the inline signature it is
+        // part of. The check is read-only here; the map is advanced only
+        // after the grant actually succeeds (step 6 below), so a call
+        // refused further down (unregistered target, failed admin
+        // authentication, exceeded GrantPermission ceiling) never consumes
+        // the freshness slot.
+        VerdictGenerationKey genKey = new VerdictGenerationKey(targetKey, contentHash);
+        long candidateGeneration = verdict.getTimestamp();
+        Long priorGeneration = lastAppliedGenerationMillis.get(genKey);
+        if (priorGeneration != null && candidateGeneration <= priorGeneration) {
+            throw new SecurityException(
+                "Refusing to apply verdict ceiling: verdict timestamp "
+                + candidateGeneration + " is not strictly newer than the"
+                + " last-applied verdict timestamp " + priorGeneration
+                + " for pooling key " + targetKey + " / contentHash "
+                + contentHash + " -- refusing a stale or replayed verdict"
+                + " application (fail-closed; a genuinely fresh re-verdict is"
+                + " signed with a strictly later timestamp).");
+        }
+
+        // (2) The only judgment about *what* to grant happens here, in the
         // already-reviewed, already-tested mapper -- not in this class.
         Permission[] ceiling = VerdictPermissionMapper.computeSubProcessCeiling(
                 verdict, contentHash, declaredNeeds, callerGrantCeiling,
                 inconclusiveToleranceGranted);
 
-        // (2) Canonical-key-only resolution: no other path to a target in
+        // (3) Canonical-key-only resolution: no other path to a target in
         // this class.
         SubProcessAdministrable admin = registry.lookup(targetKey);
         if (admin == null) {
@@ -191,11 +445,11 @@ public final class SubProcessGrantOrchestrator {
                 + " guessing a different target).");
         }
 
-        // (3) Reached only via the fail-closed accessor; its own
+        // (4) Reached only via the fail-closed accessor; its own
         // admin-principal authentication is unchanged and unbypassed.
         PolicyAdmin policyAdmin = admin.getSubProcessPolicyAdmin();
 
-        // (4) Representational wrap only -- the permissions granted are
+        // (5) Representational wrap only -- the permissions granted are
         // exactly `ceiling`, unfiltered, digest-scoped to the same JAR the
         // ceiling was computed for.
         PermissionGrant grant = PermissionGrantBuilder.newBuilder()
@@ -205,6 +459,15 @@ public final class SubProcessGrantOrchestrator {
                 .build();
 
         policyAdmin.grant(grant);
+
+        // (6) Only a *successful* application advances the freshness
+        // generation; merge with max() as cheap, monotone protection against
+        // a lost-update race with another thread that concurrently applied a
+        // still-newer verdict for the same pair while this call was in
+        // flight (see the documented residual check-then-act race on
+        // lastAppliedGenerationMillis).
+        lastAppliedGenerationMillis.merge(
+                genKey, candidateGeneration, (a, b) -> a > b ? a : b);
         return ceiling;
     }
 
@@ -233,5 +496,48 @@ public final class SubProcessGrantOrchestrator {
             result[i / 2] = (byte) ((hi << 4) + lo);
         }
         return result;
+    }
+
+    /**
+     * The key {@link #lastAppliedGenerationMillis} is scoped by: the exact
+     * canonical pooling key together with the (case-insensitively compared)
+     * content hash. Matches the same granularity T1's own Finding&nbsp;1
+     * supersession is scoped to ({@code impliesEquivalent} over the
+     * principal-rebound, digest-scoped content template), so "same target"
+     * means the same thing at both layers of this one coherent mechanism.
+     */
+    private static final class VerdictGenerationKey {
+        private final IsolationPoolingKey targetKey;
+        private final String contentHashLower;
+
+        VerdictGenerationKey(IsolationPoolingKey targetKey, String contentHash) {
+            this.targetKey = targetKey;
+            this.contentHashLower =
+                    contentHash == null ? null : contentHash.toLowerCase(Locale.ROOT);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof VerdictGenerationKey)) return false;
+            VerdictGenerationKey k = (VerdictGenerationKey) o;
+            return targetKey.equals(k.targetKey)
+                    && (contentHashLower == null
+                            ? k.contentHashLower == null
+                            : contentHashLower.equals(k.contentHashLower));
+        }
+
+        @Override
+        public int hashCode() {
+            int h = targetKey.hashCode();
+            h = 31 * h + (contentHashLower != null ? contentHashLower.hashCode() : 0);
+            return h;
+        }
+
+        @Override
+        public String toString() {
+            return "VerdictGenerationKey{targetKey=" + targetKey
+                    + ", contentHash=" + contentHashLower + "}";
+        }
     }
 }
