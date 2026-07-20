@@ -62,6 +62,7 @@
     <module>jgdms-activation</module>
     <module>jgdms-platform</module>
     <module>jgdms-der</module>
+    <module>jgdms-cel</module>
     <module>jgdms-jeri</module>
     <module>jgdms-security-jwt</module>
     <module>jgdms-discovery-providers</module>

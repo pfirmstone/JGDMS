@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+~ Copyright (C) 2026 the original author or authors.
+~
+~ Licensed under the Apache License, Version 2.0 (the "License");
+~ you may not use this file except in compliance with the License.
+~ You may obtain a copy of the License at
+~
+~ http://www.apache.org/licenses/LICENSE-2.0
+~
+~ Unless required by applicable law or agreed to in writing, software
+~ distributed under the License is distributed on an "AS IS" BASIS,
+~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+~ See the License for the specific language governing permissions and
+~ limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>au.net.zeus</groupId>
+        <artifactId>jgdms</artifactId>
+        <version>4.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>au.net.zeus.jgdms</groupId>
+    <artifactId>jgdms-cel</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Module :: JGDMS DETERMINISTIC CEL Filter/Transform Evaluator</name>
+    <description>Java wire decoder and evaluator for DETERMINISTIC CEL, the
+        bounded, side-effect-free, non-Turing-complete filter/transform
+        expression language of JGDMS-STD-011. Decodes the JGDMS-STD-011
+        Appendix B DER wire encoding over jgdms-der's DerReader primitives,
+        computes the static cost bound, and evaluates expressions to a
+        value-or-error over the closed 8-error set. Trusted-computing-base
+        code: the sole safety boundary between adversary-authored wire input
+        and this JVM (T3 of SOW-CEL-Filter-Format.md).</description>
+
+    <properties>
+        <junit.jupiter.version>5.10.2</junit.jupiter.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-platform</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-der</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- jgdms-cel depends on jgdms-der, which requires JDK 25+ at
+                         runtime (java.lang.ScopedValue, finalised JEP 506); any
+                         JVM loading jgdms-cel already needs JDK 25, so targeting
+                         release 25 here matches the dependency rather than
+                         understating the module's real minimum runtime. -->
+                    <release>25</release>
+                    <debug>true</debug>
+                    <encoding>UTF-8</encoding>
+                    <meminitial>128m</meminitial>
+                    <maxmem>1024m</maxmem>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1133,6 +1133,17 @@ Let `S` = `maxScalarBytes` (§10.3), `K` = `maxCollection` (STD-006 §4.5),
 `len(lit)` = a literal's length in code points/octets. Costs in abstract units
 **[unit values PROPOSED — T6 pins the final table alongside `maxExprCost`]**:
 
+**Length unit (board finding, 2026-07-20).** Every string/bytes length term in
+this section — `len(lit)`, the `S`-bounded operand lengths, and any "needle
+bound" — is measured in **wire octets** (for a string, its UTF-8 encoded
+length; for bytes, its literal octet count). This is the language-neutral
+upper bound consistent with `S = maxScalarBytes` itself being an octet count,
+and it is what every conformant implementation — a Java evaluator scanning
+UTF-16 code units, a Rust evaluator scanning UTF-8 bytes — can each cheaply
+compute an accurate-or-conservative bound from. This closes the previously
+ambiguous "code points/octets" phrasing above: octets, not code points, is
+the pinned unit.
+
 | Node | Cost (in addition to children's) |
 |---|---|
 | literal, field reference (per selector step), `has` | 1 |
@@ -1145,6 +1156,16 @@ Let `S` = `maxScalarBytes` (§10.3), `K` = `maxCollection` (STD-006 §4.5),
 | list literal of n elements | n |
 | `sqrt`, `radians`, `degrees` | 4 |
 | `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2` | 32 |
+
+**Comparison-row tightening (board-ratified 2026-07-20).** A conformant
+static cost computation MAY tighten the `string`/`bytes` `==`/`!=`/ordering
+row's `1 + S` to `1 + min(S, known literal octet length)` when at least one
+operand is a literal of statically known length — this remains a sound upper
+bound because the comparison's actual work is bounded by the shorter
+operand (equality/lexicographic ordering on strings or byte arrays is
+`O(min(len))`, never `O(S)` once a shorter length is already known
+statically). The reference implementation applies this tightening; it is
+not merely tolerated, it is the ratified, expected behavior.
 
 `C(E)` = Σ over all AST nodes. Cost accounting is **syntactic**: a repeated
 subexpression is charged per occurrence (no CSE assumed; implementations MAY CSE
