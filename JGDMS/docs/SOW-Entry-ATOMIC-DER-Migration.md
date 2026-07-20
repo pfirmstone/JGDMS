@@ -49,7 +49,8 @@ Three things, sequenced:
   per-candidate decode; Part C is what makes function search *fast*, not merely possible.
 
 Reggie's *filter integration* (attribute predicates) is deliberately **not** here (§7): Part A
-covers Reggie's format flip only, so the substrate is ready when that integration is scoped.
+covers Reggie's format adoption only (born-DER default at instantiation, §3.5), so the substrate
+is ready when that integration is scoped.
 
 ---
 
@@ -106,6 +107,10 @@ covers Reggie's format flip only, so the substrate is ready when that integratio
   `snaplogstore/BaseObject.java:45-56`). Reggie: `takeSnapshot` persists `SvcReg`/`Item`
   attribute `EntryRep`s (`RegistrarImpl.java:6357-6387`). A mid-life format flip therefore
   creates a **mixed-format store** exhibiting the silent-mismatch failure against half of it.
+  *(This is exactly the failure the ratified born-immutable format now **prevents by
+  construction** — §3 item 5: format is fixed at instantiation and a mid-life flip is refused —
+  not managed. This section documents **why** mixing must be prevented; it is not a description of
+  a state any JGDMS 4.0.0+ store can enter.)*
 - **Server-side re-marshal of JOSS-encoded bytes is off the table by design.** Converting stored
   JOSS bytes to DER requires deserializing the entry — which the server must never do (STD-009
   §9.2's opaque-entry / confused-deputy discipline). Any migration strategy that says "the server
@@ -255,27 +260,35 @@ Every match in every path funnels through **`EntryRep.matches(EntryRep)`**
    keep doing their job; the predicate refines the survivors at the `matches` chokepoints. A
    pure-wildcard template with a filter is a legal full-scan query — cost containment is B4's
    problem, not a reason to forbid it.
-5. **Migration strategy decision is A2's deliverable, not presumed here.** The evidence (§2.3)
-   admits: (a) coordinated djinn-wide flip + **lease-expiry drain** of old-format entries —
-   **unsound as stated for indefinitely-renewed leases, see below**; (b) transitional
-   **dual-format marshalling** (client writes both encodings; matching uses whichever side pairs;
-   storage and wire cost roughly double during transition); (c) per-deployment cold-start
-   migration (drain/destroy stores at upgrade — brutal but honest for spaces used as transient
-   coordination). Server-side conversion is excluded (§2.3). A2 picks, per service, with Peter.
+5. **Migration strategy — RATIFIED (Peter, 2026-07-20): born-immutable per-deployment format;
+   no in-place migration of a running store.** A space/registrar's marshalling format is fixed at
+   **instantiation** and immutable for the life of that instance — a new (JGDMS 4.0.0+) space is
+   `ATOMIC_DER` from birth; existing JOSS deployments keep running **unchanged on prior JGDMS
+   versions** and are never migrated in place. A DER space registers **only** with a DER Reggie: a
+   DER djinn (DER Reggie + DER spaces + DER-capable clients) and a legacy JOSS djinn are distinct
+   deployments that do not mix. "Migration" is therefore **redeployment at the operator's pace**
+   (stand up new DER instances, retire old JOSS ones, whole-djinn), never an in-store format
+   conversion.
 
-   **Strategy (a) is unsound as written (HIGH, board finding).** Ordinary lease *renewal* never
-   re-marshals the entry: Outrigger's `OutriggerServerImpl.renew` (`:1895-1937`) only calls
-   `setExpiration` — a timestamp write (`EntryRep.java:991-993`) — and Reggie's
-   `renewServiceLeaseInt` (`:6037-6065`) only reschedules the lease, with `SvcReg.item` declared
-   `public final`. Re-marshal happens only via an explicit add/modify/setAttributes call, which
-   the idiomatic `JoinManager`/`LeaseRenewalManager` renewal pattern never makes — so an
-   indefinitely-renewed service's entries never age out under passive lease-expiry drain; they
-   simply never expire. The registrar's own self-registration is a concrete instance of this: it
-   uses a literal `Long.MAX_VALUE` lease that can never drain. Strategy (a), as "drain via lease
-   expiry," must therefore not be presumed to complete a migration. A2 must either drop (a) or
-   redefine it as requiring an **explicit forced-re-registration trigger** (an operator- or
-   client-initiated re-add/re-marshal, not passive aging), and must state how the registrar's own
-   `Long.MAX_VALUE`-leased self-registration is handled under whichever strategy is chosen.
+   **This decision dissolves, rather than solves, §2.3's mixed-store hazard.** Because a store is
+   never mixed — every entry, template, and persisted snapshot in a given space is that space's
+   single born format — the entire coexistence problem (dual-format marshalling, drain windows,
+   lease-drain convergence, mixed-snapshot recovery) **does not arise**. §2.3's analysis survives
+   only as the *justification* for immutability (why mixing must be prevented), not as machinery
+   to build. The three strategies the earlier draft weighed — lease-drain (also independently
+   unsound: renewal never re-marshals — `OutriggerServerImpl.renew`/`renewServiceLeaseInt` only
+   touch expiry, `SvcReg.item` is `final`, and the registrar's own `Long.MAX_VALUE` self-lease
+   never drains), transitional dual-format, cold-start — are all **withdrawn**; none is built.
+
+   **Mechanism (reuses existing plumbing).** The space's exported proxy advertises its format as a
+   `MarshallingFormat` requirement in its method constraints; every client of that space inherits
+   it, so templates (`SpaceProxy2.repFor`) and entries marshal uniformly in that one format — the
+   "space-wide epoch," fixed at birth. A format-mismatched client (e.g. a JOSS-only client reaching
+   a DER space) **fails loudly** via the existing `chooseMarshalFactory`
+   `UnsupportedConstraintException`, never a silent no-match. **Two guards A1/A2 must add:** (i) a
+   service MUST refuse any attempt to change format on an existing populated store (fail-closed —
+   immutability is enforced, not merely assumed); (ii) recovery reads a snapshot in the store's own
+   single format and MUST refuse a snapshot whose format contradicts the instance's configuration.
 6. **DER-encodability is a real adoption constraint A1 must surface, not paper over.** A JOSS
    `MarshalledInstance` accepts any `Serializable` field value; the DER path requires
    `@AtomicSerial`/scalar/substituted types and rejects raw `Object`-typed content
@@ -311,13 +324,15 @@ Every match in every path funnels through **`EntryRep.matches(EntryRep)`**
    per-relationship split once a store has many concurrent writers —
    `EntryRepDerFormatTest`'s own comment notes mixed-format is "the normal case mid-migration,
    since `JoinManager` registers with every discovered lookup service concurrently," which
-   reinforces the epoch side of open question §9.2.
+   reinforces the epoch decision now ratified (§3.5 / §9.2 resolved) — and which born-immutability
+   secures by construction: a store's clients all inherit its one born format, so no such
+   concurrent mix arises within a space.
 
 Open (recorded in §9, decided during the tasks): the client-facing filter API shape (B1);
 CEL field-name resolution against STD-006 §3.9's **per-class namespaces** across an entry
 hierarchy (B1); filter-applicability key — `className` vs `schemaDigest` (B1); write-path cost
-bounds (B4); whether Outrigger adopts Reggie's exact `requiresDerFormat` idiom or a simplified
-space-wide format epoch (A1×A2 joint).
+bounds (B4). *(The per-relationship-vs-space-wide-epoch question formerly listed here is now
+**resolved** — a space-wide epoch fixed at instantiation, §3.5 / §9.2.)*
 
 ---
 
@@ -325,10 +340,10 @@ space-wide format epoch (A1×A2 joint).
 
 | Task | Deliverable |
 |------|-------------|
-| **A1** · Outrigger DER marshal path + format selection | Constraints-aware marshalling in `EntryRep` (both the reflection path `:338` and the `@SerialEntry` path `:406`), per-relationship format derivation mirroring Reggie's `Util.requiresDerFormat`, and the loud-failure rule for non-DER-encodable field values (§3.6). Includes the proxy-side template path (`SpaceProxy2.repFor`) so template and entry are produced under the same negotiated format — the §2.3 board precedent made normative. **Additional marshal sites in scope** (missing from earlier drafts): Outrigger `SpaceProxy2.java:549,699` (handbacks), `AvailabilityRegistrationWatcher.java:406`, `EventRegistrationWatcher.java:207`; Reggie `Item.java:243-246`, `EventReg.serialize`/`writeObject`. Most materially, `RegistrarImpl.marshalAttributes` (`:4447-4456`) and `marshalLocators` (`:4492-4501`) are both JOSS-only today and both called from inside `takeSnapshot` (`:6368-6369`) — the persistence path §2.3 already cites — so they belong in A2/A4's mixed-snapshot recovery analysis, not silently assumed covered by A3's config flip. **Also in scope:** the DER-encodability fix for the two shipped failing fields the full survey found (§3.6) — `Status.severity` (mechanical `@AtomicSerial` retrofit on `StatusType`) and `UIDescriptor.factory` (`MarshalledObject`, a flagged compatibility-gated decision, not a mechanical fix). |
-| **A2** · Coexistence & migration choreography | The strategy decision (§3.5) per service, including: recovery behavior over a mixed snaplogstore/snapshot, drain-window visibility semantics documented for operators, `useDerForEntries` documentation (currently undocumented outside code), and the flip plan for Reggie's default. **Strategy (a) — lease-expiry drain — is unsound for indefinitely-renewed leases (§3.5) and must not be selected as written**: A2 must pick an explicit forced-re-registration trigger or one of strategies (b)/(c), and must state how the registrar's own `Long.MAX_VALUE`-leased self-registration is handled. Decision doc + config/recovery changes, board-reviewed. |
-| **A3** · Reggie client-side rollout (re-scoped from "default flip") | Flip `useDerForEntries` default per A2's plan; align `Util.requiresDerFormat` docs; release-note the operational sequence. **Scope correction:** `useDerForEntries` governs only the registrar's own self-attributes/self-registration marshalling — an ordinary client's service-registration attribute format is decided entirely client-side by the deployed proxy's method constraints (`Util.requiresDerFormat`, invoked only client-side in `RegistrarProxy.java`/`Registration.java`). Flipping the server default does **not** move the entry-matching hazard (§2.3) for real client registrations; the actual lever is client-side constraint/jar rollout, which A3 must scope alongside the config flip. Ties to open question §9.2 (per-relationship format negotiation vs. a space-wide format epoch) — the client-side lever is what makes that choice consequential. No longer purely mechanical once this is accounted for. |
-| **A4** · Cross-format regression + persistence tests | Extend the `EntryRepDerFormatTest` pattern to Outrigger (matching, `EntryFieldIndex` bucketing, `hasMatch`/`ContinuingQuery`/watcher paths); mixed-store recovery tests for both services; adversarial probe: same logical value, both formats, assert the *documented* (not accidental) behavior on every path. Recovery tests must also cover the additional marshal sites named in A1 (handbacks, watcher registration paths, and Reggie's `marshalAttributes`/`marshalLocators` inside `takeSnapshot`) with a mixed-format snapshot exercising each, not just the primary entry-field path. |
+| **A1** · Outrigger DER marshal path + format selection | Constraints-aware marshalling in `EntryRep` (both the reflection path `:338` and the `@SerialEntry` path `:406`) that marshals in **the space's own configured format** — advertised via the exported proxy's `MarshallingFormat` constraint and inherited uniformly by every client of that space (§3.5) — reusing the `MarshallingFormat`/`chooseMarshalFactory` plumbing; **no** per-relationship format derivation and **no** dual-format path. Includes the proxy-side template path (`SpaceProxy2.repFor`) so templates are produced in that **same single** born format as the entries they match. **Guard (i) in scope (§3.5):** the marshal path MUST refuse any attempt to change format on an existing populated store — immutability enforced, not assumed. Plus the loud-failure rule for non-DER-encodable field values (§3.6). **Additional marshal sites in scope** (missing from earlier drafts): Outrigger `SpaceProxy2.java:549,699` (handbacks), `AvailabilityRegistrationWatcher.java:406`, `EventRegistrationWatcher.java:207`; Reggie `Item.java:243-246`, `EventReg.serialize`/`writeObject`. Most materially, `RegistrarImpl.marshalAttributes` (`:4447-4456`) and `marshalLocators` (`:4492-4501`) are both JOSS-only today and both called from inside `takeSnapshot` (`:6368-6369`) — the persistence path §2.3 already cites — so they belong in A4's single-format recovery tests, not silently assumed covered by A3's config flip. **Also in scope:** the DER-encodability fix for the two shipped failing fields the full survey found (§3.6) — `Status.severity` (mechanical `@AtomicSerial` retrofit on `StatusType`) and `UIDescriptor.factory` (`MarshalledObject`, a flagged compatibility-gated decision, not a mechanical fix). |
+| **A2** · Born-immutable format design + guards | The format-at-instantiation config surface per service (format fixed at instantiation, immutable for the instance's life, §3.5); the exported-proxy `MarshallingFormat` constraint advertisement that makes that format the space-wide epoch every client inherits; the **two immutability guards** — (i) refuse an in-place format change on a populated store, (ii) refuse a snapshot on recovery whose format contradicts the instance's configuration; the **DER space registers only with a DER Reggie** deployment rule; and operator-facing guidance that "migration" = **redeployment** (stand up new DER instances, retire old JOSS ones — never an in-place flip). Plus `useDerForEntries` documentation (currently undocumented outside code). The withdrawn coexistence strategies (lease-drain, transitional dual-format, cold-start) and their unsoundness are recorded in §3 item 5 and are **not** built. Decision doc + config/recovery changes, board-reviewed. |
+| **A3** · Reggie born-DER default + client-reach | A new (JGDMS 4.0.0+) Reggie is configured `ATOMIC_DER` **at instantiation** — the new-deployment default is DER — **not** an in-place flip of a running registrar's `useDerForEntries`; the JOSS path remains only for running as, or interoperating with, prior-version djinns. **Scope correction (accurate, reframed):** `useDerForEntries` as a runtime knob governs only the registrar's own self-attributes/self-registration marshalling — an ordinary client's service-registration attribute format is decided entirely client-side by the deployed proxy's method constraints (`Util.requiresDerFormat`, invoked only client-side in `RegistrarProxy.java`/`Registration.java`) — but under born-immutability that format is set **at instantiation**, not flipped mid-life. **Client-reach caveat:** a DER Reggie serves only DER-capable clients; a JOSS-only client uses the prior-version djinn — the intended deployment boundary (§3.5), not a gap. Under born-immutability the lever is simply **which version you deploy**, not an in-place migration. Align `Util.requiresDerFormat` docs; release-note the operational sequence. Ties to §9.2 (now resolved: a space-wide format epoch fixed at instantiation). |
+| **A4** · Cross-format regression + persistence tests | Extend the `EntryRepDerFormatTest` pattern to Outrigger (matching, `EntryFieldIndex` bucketing, `hasMatch`/`ContinuingQuery`/watcher paths); **single-format** recovery tests for both services (a store is born-complete in one format, §3.5 — there is no mixed store to recover); **guard tests** asserting the two immutability guards fire — (i) a format-change attempt on a populated store is refused, (ii) a snapshot whose format contradicts the instance config is refused on recovery; adversarial probe: same logical value in both formats reaches a store, assert the *documented* fail-loud behavior — a format-mismatched client raises `UnsupportedConstraintException` via `chooseMarshalFactory`, never a silent no-match. Recovery tests must also cover the additional marshal sites named in A1 (handbacks, watcher registration paths, and Reggie's `marshalAttributes`/`marshalLocators` inside `takeSnapshot`) in the store's single born format, not just the primary entry-field path. |
 
 ## 5. Part B — Outrigger filter integration
 
@@ -498,14 +513,12 @@ settled design; mechanical work cheapest).
 B2 after B1; B3 gates on the CEL evaluator existing; B4/B5 close it out. **C4's equality half and
 C5 are early riders** (no filter dependency — C5 can land with Part A, C4-equality any time);
 C1 → C2/C3 follow Part A and inform B4's final calibration. Part A alone is independently
-valuable (canonical matching bytes, data independence for stored entries) and should not wait
-for Part B or C — **with a completion-dependency caveat**: that value is only *fully* realized
-once a store is homogeneously migrated to `ATOMIC_DER`, and given §3.5's lease-drain
-unsoundness finding, homogeneous migration may never complete for indefinitely-renewed services
-under a passive strategy. Landing Part A is still worth doing immediately; declaring its benefit
-*complete* depends on A2 actually closing that gap (an explicit forced-re-registration trigger or
-strategy (b)/(c), not passive lease-expiry drain). Part B without Part C is correct but slow —
-acceptable for first landing, not for the SOW's definition of done.
+valuable (canonical matching bytes, data independence for stored entries, filter-readiness) and
+should not wait for Part B or C. **Under born-immutability there is no incomplete-migration state
+within a store** (§3.5): a store is born-complete in its single format, so a DER-born space
+realizes Part A's value **immediately** — there is no homogeneity gap to close and no
+completion-dependency caveat. Part B without Part C is correct but slow — acceptable for first
+landing, not for the SOW's definition of done.
 
 ## 9. Open questions
 
@@ -513,12 +526,17 @@ acceptable for first landing, not for the SOW's definition of done.
    the CEL grammar meets the schema model with no precedent to copy. Candidate rules: leaf-first
    unqualified with reject-on-ambiguity; always-qualified (`ClassName.field`); or restrict
    predicates to the template's declared class's own namespace. Needs a worked example set.
-2. **Whether Outrigger adopts per-relationship format negotiation (Reggie's idiom) or a
-   space-wide format epoch** — per-relationship is more flexible but means one space serving
-   mixed-format writers indefinitely, which §2.3 shows is a matching-visibility partition;
-   an epoch is cruder but converges. A1×A2 joint decision.
-3. **Drain-window semantics** operators can live with (A2): how loudly to surface "old-format
-   entries are invisible to new-format templates" — metric, log, admin query?
+2. **[RESOLVED — Peter, 2026-07-20 A2 ratification] Per-relationship format negotiation vs. a
+   space-wide format epoch.** Resolved to a **space-wide epoch, fixed at instantiation and
+   immutable** (§3.5); per-relationship negotiation is rejected. Rationale: a space is a shared
+   store matched across principals, so format is a property of the store, not of any one
+   client↔server relationship.
+3. **[MOOT for Part A — resolved by elimination, 2026-07-20] Drain-window operator visibility.**
+   Under born-immutability there is no drain window and no "old-format entries invisible to
+   new-format templates" state within a store (§3.5), so the Part-A visibility question this
+   asked does not arise. Part B's separate fail-closed **filter**-observability requirement — a
+   signal distinguishing a fail-closed no-match from a genuine no-match — is unaffected by this
+   and stands on its own under B1 (§5).
 4. **Does B4 need admission control beyond static caps** (e.g. per-principal registered-filter
    budgets) once real workloads exist — revisit with deployment evidence, not guessed now.
 5. **C2's index-field selection policy:** index every scalar field, a configured subset, or
