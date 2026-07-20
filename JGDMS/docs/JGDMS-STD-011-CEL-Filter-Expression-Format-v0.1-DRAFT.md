@@ -483,6 +483,22 @@ parse the textual form to the same AST this section specifies, and text that doe
 not parse MUST be rejected (never partially accepted). Evaluators are not required
 to include a text parser; wire-form consumption alone is conformant.
 
+**Developer syntax is CEL syntax, one-directionally (informative but designed).**
+The textual form is deliberately a subset of CEL's own concrete syntax: every
+well-formed DETERMINISTIC CEL expression is character-for-character parseable by
+a CEL parser (the platform functions and the `field(...)` qualified accessor ride
+CEL's ordinary call syntax, as CEL extension functions would), so CEL editor
+tooling, syntax highlighting, documentation, and developer familiarity carry over
+unchanged. The converse does not hold: text a CEL developer might legally write
+can be **rejected** here — the §5.4 exclusions (macros, `matches()`, `[]`
+indexing, map literals, concatenating `+`, `u` suffixes, raw strings), chained
+relations (a parse error here, a type error in CEL), and the §5.3.1 constraints
+(literal-only `contains` needle, `field(...)` literal arguments). Every such
+rejection is loud, at parse or verification time — never a silently different
+runtime meaning. There is exactly **one** syntax; "DETERMINISTIC CEL syntax"
+never means new notation, only fewer accepted sentences and pinned semantics
+(Appendix A).
+
 ### 5.2 Lexical structure
 
 ```ebnf
