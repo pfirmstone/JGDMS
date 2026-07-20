@@ -613,6 +613,38 @@ permission javax.security.auth.AuthPermission "modifyPublicCredentials";
 permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
 ```
 
+### Hard prerequisite: smart-proxy-isolation admin authority (`AdminPrincipalAuthenticator`)
+
+Unlike the grants above (permissions the trusted `SpiffeCredentialManager` code
+itself needs), this is about permissions that must be **denied** to every
+hosted/business protection domain — i.e. what a least-privilege policy must
+*not* grant. `au.net.zeus.jgdms.loader.isolation.AdminPrincipalAuthenticator`
+(the in-process gate on the subprocess policy-admin surface used by smart-proxy
+isolation) authenticates the calling admin by matching a `Principal`'s
+canonical name against the ambient `Subject`. That match means nothing unless
+the deployed policy denies **all three** of the following to every
+hosted/business protection domain (2026-07-20 board finding):
+
+- `javax.security.auth.AuthPermission "callAs"`
+- `javax.security.auth.AuthPermission "doAs"`
+- `java.lang.RuntimePermission "setSecurityManager"`
+
+Any one of these left ungranted-but-not-explicitly-denied by an otherwise
+permissive/`AllPermission` policy defeats the gate: hosted code can forge a
+`Subject` naming the admin principal and bind it via `Subject.callAs`/`doAs`
+(the first two), or — if only those two are denied — simply install its own
+permissive `SecurityManager` first (the third) and then forge the `Subject`
+against that. See `AdminPrincipalAuthenticator`'s class javadoc, section
+"NECESSARY, not SUFFICIENT", for the full reasoning and the adversarial
+reproductions in `IsolationSecurityCriticalTest`.
+
+**Known pre-existing gap, not specific to SPIFFE/SPIRE deployment:** several
+`qa/harness/policy/defaultspiffe*.policy` files currently grant unconditional
+`AllPermission`/`AuthPermission "*"` to every protection domain, which does
+not satisfy this prerequisite — being tracked and corrected separately (see
+the existing "no `AllPermission` scaffolding" convention). Do not treat those
+QA policy files as a template for a production policy while this is open.
+
 ---
 
 ## Logging

@@ -69,14 +69,62 @@ import javax.security.auth.Subject;
  * <em>every</em> caller &mdash; including a genuinely authenticated admin
  * &mdash; when no {@code SecurityManager} is installed, rather than trust an
  * ambient {@code Subject} this class has no way to verify was legitimately
- * bound. This turns the previous silent bypass into a loud, safe failure:
- * the "holds even if a reference is captured and re-invoked" guarantee is
- * now actually true whenever a {@code SecurityManager} is installed with a
- * policy that does not grant {@code AuthPermission("callAs")/AuthPermission("doAs")} to
- * untrusted/hosted code (the fail-closed default for any protection domain
- * that isn't explicitly granted it) &mdash; and when no such
- * {@code SecurityManager} is present, the gate no longer pretends to enforce
- * a guarantee it cannot back.
+ * bound. This turns the previous silent bypass into a loud, safe failure.
+ *
+ * <h2>"A SecurityManager is installed" is NECESSARY, not SUFFICIENT
+ * (2026-07-20 two-seat board re-review, closed)</h2>
+ * A first version of this fix's javadoc stopped at "installed with a policy
+ * that does not grant {@code AuthPermission}" without naming every permission
+ * that policy must actually deny &mdash; both board seats independently
+ * proved that gap by adversarial probe. The check in {@link #isAdmin()} only
+ * tests "is <em>some</em> {@code SecurityManager} installed"; a
+ * <strong>permissive</strong> one (one whose policy grants everything,
+ * including to hosted/business code) satisfies that check while providing
+ * <strong>zero</strong> protection &mdash; the forged-{@code Subject} binding
+ * via {@code Subject.callAs}/{@code doAs} goes through unchallenged exactly
+ * as it does with no {@code SecurityManager} at all. Worse: even a
+ * {@code SecurityManager} whose policy correctly denies
+ * {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")} to hosted
+ * code is defeated if that same policy does not <em>also</em> deny
+ * {@code RuntimePermission("setSecurityManager")} &mdash; hosted code can
+ * simply call {@code System.setSecurityManager(new PermissiveSM())} to
+ * replace the restrictive installation with one of its own choosing, then
+ * replay the forged-{@code Subject} binding against the new, permissive one.
+ * Both attacks were reproduced end-to-end against this class's own fix and
+ * are now permanent regressions ({@code
+ * IsolationSecurityCriticalTest#permissiveSecurityManager_stillLetsTheForgeryThrough}
+ * and {@code
+ * #hostedCodeReplacingTheSecurityManager_defeatsAnAuthPermissionOnlyPolicy_unlessSetSecurityManagerIsAlsoDenied}).
+ *
+ * <p>The guarantee this class actually depends on is therefore that the
+ * deployed policy denies <strong>all three</strong> of the following to
+ * every hosted/business protection domain (the fail-closed default for any
+ * domain that isn't explicitly granted them):
+ * <ul>
+ *   <li>{@code AuthPermission("callAs")} &mdash; checked by
+ *       {@code Subject.callAs} (JDK&nbsp;18+, what {@link #CURRENT_SUBJECT}
+ *       actually binds through);</li>
+ *   <li>{@code AuthPermission("doAs")} &mdash; checked by the deprecated
+ *       {@code Subject.doAs(Subject, PrivilegedAction)} overload;</li>
+ *   <li>{@code RuntimePermission("setSecurityManager")} &mdash; without this
+ *       being denied too, hosted code can simply install its own permissive
+ *       {@code SecurityManager} and defeat the other two regardless of how
+ *       correctly they are configured.</li>
+ * </ul>
+ * This class has no way to verify any of this from inside the JVM (a
+ * permissive {@code SecurityManager} object is indistinguishable from a
+ * restrictive one by any check available here short of actually attempting
+ * the forgery); it is a deployment/policy prerequisite, not something this
+ * class enforces or can enforce. When no {@code SecurityManager} is present
+ * at all, the gate no longer pretends to enforce a guarantee it cannot back
+ * &mdash; but "a {@code SecurityManager} is present" is only the first of
+ * the three preconditions above, and is not, by itself, evidence the other
+ * two hold. <strong>Known pre-existing gap (not introduced by this fix,
+ * tracked separately):</strong> several {@code qa/harness/policy/defaultspiffe*.policy}
+ * files currently grant unconditional {@code AllPermission}/
+ * {@code AuthPermission("*")} to every protection domain, which does not
+ * satisfy this precondition; this class's guarantee does not hold in those
+ * deployments until that is corrected.
  *
  * @since 3.1.1
  */
@@ -168,7 +216,15 @@ public final class AdminPrincipalAuthenticator {
      *         ambient {@link Subject} this method reads cannot be trusted to
      *         be genuinely authenticated rather than forged in-process, so
      *         every caller is refused rather than any being trusted on an
-     *         unverifiable basis.
+     *         unverifiable basis. <strong>An installed {@code
+     *         SecurityManager} is necessary but not sufficient</strong> for
+     *         the identity match below to mean anything: this method cannot
+     *         verify the installed instance's policy actually denies
+     *         {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")}
+     *         and {@code RuntimePermission("setSecurityManager")} to
+     *         hosted/business code (see the class javadoc's "NECESSARY, not
+     *         SUFFICIENT" section) &mdash; that is a deployment prerequisite
+     *         this class cannot observe or enforce from inside the JVM.
      */
     public boolean isAdmin() {
         if (!securityManagerInstalled()) {
@@ -203,18 +259,24 @@ public final class AdminPrincipalAuthenticator {
                 "Refused: no SecurityManager is installed in this JVM ("
                 + operation + " denied, fail-closed). Subject-name matching"
                 + " alone is not proof of identity: without an installed"
-                + " SecurityManager enforcing AuthPermission(\"doAs\"), any"
-                + " code in this JVM can construct new Subject(true,"
-                + " {forged admin principal}, ...) and bind it via"
-                + " Subject.doAs/Subject.callAs with no permission check at"
-                + " all, defeating the principal-name match this gate"
-                + " otherwise performs. This gate cannot distinguish that"
-                + " forged Subject from a genuinely authenticated one, so it"
-                + " refuses EVERY caller -- including a genuine admin --"
-                + " rather than silently trust an unverifiable Subject."
-                + " Install a SecurityManager, with a policy that does not"
-                + " grant AuthPermission(\"doAs\") to untrusted/hosted"
-                + " business-proxy code, to restore admin functionality.");
+                + " SecurityManager enforcing AuthPermission(\"callAs\")/"
+                + " AuthPermission(\"doAs\"), any code in this JVM can"
+                + " construct new Subject(true, {forged admin principal},"
+                + " ...) and bind it via Subject.callAs/Subject.doAs with no"
+                + " permission check at all, defeating the principal-name"
+                + " match this gate otherwise performs. This gate cannot"
+                + " distinguish that forged Subject from a genuinely"
+                + " authenticated one, so it refuses EVERY caller --"
+                + " including a genuine admin -- rather than silently trust"
+                + " an unverifiable Subject. NOTE: installing a"
+                + " SecurityManager is NECESSARY but NOT SUFFICIENT -- its"
+                + " policy must ALSO deny AuthPermission(\"callAs\"),"
+                + " AuthPermission(\"doAs\"), AND"
+                + " RuntimePermission(\"setSecurityManager\") to"
+                + " untrusted/hosted business-proxy code (the last one so"
+                + " hosted code cannot simply install its own permissive"
+                + " SecurityManager and defeat the first two); see this"
+                + " class's javadoc for why all three are required.");
         }
         if (!isAdmin()) {
             throw new SecurityException(
@@ -231,8 +293,16 @@ public final class AdminPrincipalAuthenticator {
      *         {@code PreferredProxyCodebaseProvider}) to detect whether the
      *         JDK will actually enforce permission checks -- in particular,
      *         whether {@code Subject.doAs}/{@code callAs} will enforce
-     *         {@code AuthPermission("callAs")/AuthPermission("doAs")} against the calling code before
-     *         allowing it to rebind the ambient {@link Subject}.
+     *         {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")}
+     *         against the calling code before allowing it to rebind the
+     *         ambient {@link Subject}. <strong>This alone does not verify
+     *         the installed instance's policy actually denies those
+     *         permissions</strong> (a permissive {@code SecurityManager}
+     *         satisfies this check while enforcing nothing) <strong>nor that
+     *         {@code RuntimePermission("setSecurityManager")} is denied to
+     *         hosted code</strong> (without which hosted code can simply
+     *         install its own permissive replacement) &mdash; see the class
+     *         javadoc's "NECESSARY, not SUFFICIENT" section.
      */
     private static boolean securityManagerInstalled() {
         return System.getSecurityManager() != null;

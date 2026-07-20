@@ -533,6 +533,124 @@ public class IsolationSecurityCriticalTest {
     }
 
     /**
+     * 2026-07-20 two-seat board re-review finding #1 (both seats found this
+     * independently): {@link AdminPrincipalAuthenticator}'s fix checks only
+     * "is <em>some</em> SecurityManager installed" -- that is NECESSARY but
+     * NOT SUFFICIENT. A {@code SecurityManager} whose policy is permissive
+     * (grants everything, including to hosted/business code) satisfies the
+     * check while enforcing nothing: {@code Subject.callAs} performs its
+     * {@code AuthPermission("callAs")} check against that permissive
+     * instance, which allows it, so the forged {@link Subject} binds exactly
+     * as it would with no {@code SecurityManager} at all, and the exploit
+     * succeeds through the real production wiring. This is a PERMANENT
+     * regression documenting a known, board-confirmed boundary of this
+     * class's guarantee (see the class javadoc's "NECESSARY, not
+     * SUFFICIENT" section) -- it intentionally asserts the attack
+     * SUCCEEDS, so a future reader sees the limitation is known and covered,
+     * not silently reintroduced or newly discovered by adversarial probing.
+     */
+    @Test
+    public void permissiveSecurityManager_stillLetsTheForgeryThrough()
+            throws Exception {
+        withSecurityManager(new AllowAllSecurityManager(), () -> {
+            TrustedPolicyBacking backing = new TrustedPolicyBacking();
+            final SubProcessPolicyAdmin realAdminSurface = new SubProcessPolicyAdmin(
+                    admin, backing, AdminPrincipalAuthenticator.CURRENT_SUBJECT);
+
+            Subject forged = subjectWith(admin); // attacker-forged, names the admin
+            Object outcome = callAs(forged, new Callable<Object>() {
+                public Object call() {
+                    try {
+                        PolicyAdmin pa = realAdminSurface.getSubProcessPolicyAdmin();
+                        pa.grant(null);
+                        return "FORGED SUBJECT REACHED grant()";
+                    } catch (Exception e) {
+                        return e;
+                    }
+                }
+            });
+            if (outcome == SKIP) return;   // callAs unavailable on this JDK
+
+            assertEquals("a merely-installed-but-permissive SecurityManager"
+                    + " does not stop the forgery -- this is the documented"
+                    + " boundary of the fix, not a regression to be fixed"
+                    + " here; closing it requires the DEPLOYED POLICY to"
+                    + " deny AuthPermission(\"callAs\")/(\"doAs\") to hosted"
+                    + " code, which this test's SecurityManager deliberately"
+                    + " does not, to demonstrate exactly that gap",
+                    "FORGED SUBJECT REACHED grant()", outcome);
+            assertEquals("the forged caller's grant(null) DID reach the"
+                    + " trusted backing under a permissive-but-installed SM",
+                    1, backing.grantCalls);
+        });
+    }
+
+    /**
+     * 2026-07-20 two-seat board re-review finding #2: even a
+     * {@code SecurityManager} whose policy correctly denies
+     * {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")} (this
+     * test reuses {@link DenySubjectRebindSecurityManager}, the same double
+     * that proves the defence works in
+     * {@link #forgedSubjectViaCallAs_blockedBeforeReachingTheGate_whenSMDeniesRebind})
+     * is defeated if that policy does not <em>also</em> deny
+     * {@code RuntimePermission("setSecurityManager")}: hosted/business code
+     * can simply replace the installed {@code SecurityManager} with a
+     * permissive one of its own construction, then replay the forgery
+     * against the new installation. {@code DenySubjectRebindSecurityManager}
+     * does not override {@code RuntimePermission("setSecurityManager")}
+     * handling (it only intercepts the two {@code AuthPermission} checks),
+     * so {@code System.setSecurityManager} succeeds here exactly as it would
+     * for genuinely hosted code under an AuthPermission-only-denying policy
+     * -- reproducing the second board seat's exact probe. PERMANENT
+     * regression: documents this specific, board-confirmed boundary of the
+     * fix (see the class javadoc's "NECESSARY, not SUFFICIENT" section) so
+     * a future reader sees it is known and covered.
+     */
+    @Test
+    public void hostedCodeReplacingTheSecurityManager_defeatsAnAuthPermissionOnlyPolicy_unlessSetSecurityManagerIsAlsoDenied()
+            throws Exception {
+        withSecurityManager(new DenySubjectRebindSecurityManager(), () -> {
+            // "Hosted/business code" (this test body, standing in for it)
+            // replaces the restrictive SecurityManager with a permissive one
+            // of its own -- succeeds because RuntimePermission
+            // ("setSecurityManager") was never denied by the SM being
+            // replaced.
+            System.setSecurityManager(new AllowAllSecurityManager());
+
+            TrustedPolicyBacking backing = new TrustedPolicyBacking();
+            final SubProcessPolicyAdmin realAdminSurface = new SubProcessPolicyAdmin(
+                    admin, backing, AdminPrincipalAuthenticator.CURRENT_SUBJECT);
+
+            Subject forged = subjectWith(admin);
+            Object outcome = callAs(forged, new Callable<Object>() {
+                public Object call() {
+                    try {
+                        PolicyAdmin pa = realAdminSurface.getSubProcessPolicyAdmin();
+                        pa.grant(null);
+                        return "FORGED SUBJECT REACHED grant() AFTER REPLACING THE SM";
+                    } catch (Exception e) {
+                        return e;
+                    }
+                }
+            });
+            if (outcome == SKIP) return;   // callAs unavailable on this JDK
+
+            assertEquals("replacing the SecurityManager (permitted because"
+                    + " RuntimePermission(\"setSecurityManager\") was not"
+                    + " denied) let the forgery through despite the ORIGINAL"
+                    + " SM correctly denying AuthPermission(\"callAs\")/"
+                    + "(\"doAs\") -- this is the documented boundary of the"
+                    + " fix: the deployed policy must deny"
+                    + " RuntimePermission(\"setSecurityManager\") to hosted"
+                    + " code too, or an AuthPermission-only policy provides"
+                    + " no real protection",
+                    "FORGED SUBJECT REACHED grant() AFTER REPLACING THE SM",
+                    outcome);
+            assertEquals(1, backing.grantCalls);
+        });
+    }
+
+    /**
      * Same forged-Subject shape, but proves the SECOND, independent line of
      * defence: even in a hypothetical where {@code Subject.callAs} succeeded
      * in binding the forged Subject (e.g. a misconfigured policy that DOES
