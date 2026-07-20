@@ -91,6 +91,32 @@ import static org.junit.Assert.*;
  * new writes are currently broken, old persisted data already on disk would
  * still be readable.
  *
+ * <p><b>Merge-prep note (2026-07-20 board review of this branch):</b> trunk
+ * commits {@code eae74ce08} ("Route RemoteEvent.source ... through the
+ * STD-006 Any form") and {@code abf863fdf} ("Remove deprecated handback from
+ * RemoteEvent's wire form") landed a fix for exactly this regression --
+ * {@code docs/SOW-RemoteEvent-Source-DER-Encoding.md} documents the design,
+ * and {@code abf863fdf}'s own message reports 996 green tests including a
+ * new mercury {@code EventWriterReaderDerRoundTripTest}. <b>However, as of
+ * this review, trunk HEAD ({@code 474a323d2}, "docs: reconcile SOW A3 row
+ * ...", an unrelated Reggie/A3 commit) has reverted essentially all of that
+ * fix</b>: {@code RemoteEvent.serialForm()} is back to declaring
+ * {@code new SerialForm("source", Object.class)} *and* the
+ * {@code MarshalledObject}-typed {@code handback} field the second commit
+ * had removed, {@code SchemaGenerator}'s field-level {@code toWireType}
+ * still hard-rejects a bare {@code Object.class} field, and the mercury
+ * {@code EventWriterReaderDerRoundTripTest} file and the SOW doc are no
+ * longer present in trunk's committed tree (confirmed via
+ * {@code git show HEAD:<path>} against the shared trunk checkout, not
+ * inferred). This looks like an accidental revert bundled into an unrelated
+ * commit rather than a deliberate design reversal -- flagged separately for
+ * the codebase owner to investigate -- but it means {@code
+ * writeFailsBecauseRemoteEventSourceFieldIsUnsupportedByDer} below is
+ * <b>still accurate against trunk's actual current state</b> and must
+ * <b>not</b> be "fixed" to expect success without first re-confirming
+ * whether the Any-form fix is back on trunk (re-run the {@code git show}
+ * check above before touching this test during a future rebase/merge).
+ *
  * <p>Both tests require {@code jgdms-der} on the test runtime classpath
  * (declared test-scope in this module's pom.xml). The dual-read test
  * additionally requires a SecurityManager-capable JDK (e.g. DirtyChai) to
