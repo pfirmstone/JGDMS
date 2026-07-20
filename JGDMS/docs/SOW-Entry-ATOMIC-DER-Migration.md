@@ -268,7 +268,10 @@ Every match in every path funnels through **`EntryRep.matches(EntryRep)`**
    DER djinn (DER Reggie + DER spaces + DER-capable clients) and a legacy JOSS djinn are distinct
    deployments that do not mix. "Migration" is therefore **redeployment at the operator's pace**
    (stand up new DER instances, retire old JOSS ones, whole-djinn), never an in-store format
-   conversion.
+   conversion — or, if a durable space's persisted state must survive the upgrade, **offline
+   conversion via the sanctioned A5 bridge** (§4 A5), never a live in-store conversion and no
+   change to this section's redeployment default for every other case. Reggie needs no such
+   bridge at all — see §4 A5 for why.
 
    **This decision dissolves, rather than solves, §2.3's mixed-store hazard.** Because a store is
    never mixed — every entry, template, and persisted snapshot in a given space is that space's
@@ -289,6 +292,11 @@ Every match in every path funnels through **`EntryRep.matches(EntryRep)`**
    service MUST refuse any attempt to change format on an existing populated store (fail-closed —
    immutability is enforced, not merely assumed); (ii) recovery reads a snapshot in the store's own
    single format and MUST refuse a snapshot whose format contradicts the instance's configuration.
+   Guard (ii) refuses a JOSS snapshot at a born-DER instance **by design** — a live server must
+   never deserialize JOSS (§9.2) — and A5 (§4 A5) is the sanctioned **offline** bridge for a
+   durable Outrigger's persisted state that must survive an upgrade: complementary to this guard,
+   not in tension with it, since A5 runs entirely outside the guard's view and hands the new
+   instance only already-DER bytes that pass the guard cleanly.
 6. **DER-encodability is a real adoption constraint A1 must surface, not paper over.** A JOSS
    `MarshalledInstance` accepts any `Serializable` field value; the DER path requires
    `@AtomicSerial`/scalar/substituted types and rejects raw `Object`-typed content
@@ -344,6 +352,68 @@ bounds (B4). *(The per-relationship-vs-space-wide-epoch question formerly listed
 | **A2** · Born-immutable format design + guards | The format-at-instantiation config surface per service (format fixed at instantiation, immutable for the instance's life, §3.5); the exported-proxy `MarshallingFormat` constraint advertisement that makes that format the space-wide epoch every client inherits; the **two immutability guards** — (i) refuse an in-place format change on a populated store, (ii) refuse a snapshot on recovery whose format contradicts the instance's configuration; the **DER space registers only with a DER Reggie** deployment rule; and operator-facing guidance that "migration" = **redeployment** (stand up new DER instances, retire old JOSS ones — never an in-place flip). Plus `useDerForEntries` documentation (currently undocumented outside code). The withdrawn coexistence strategies (lease-drain, transitional dual-format, cold-start) and their unsoundness are recorded in §3 item 5 and are **not** built. Decision doc + config/recovery changes, board-reviewed. |
 | **A3** · Reggie born-DER default + client-reach | A new (JGDMS 4.0.0+) Reggie is configured `ATOMIC_DER` **at instantiation** — the new-deployment default is DER — **not** an in-place flip of a running registrar's `useDerForEntries`; the JOSS path remains only for running as, or interoperating with, prior-version djinns. **Scope correction (accurate, reframed):** `useDerForEntries` as a runtime knob governs only the registrar's own self-attributes/self-registration marshalling — an ordinary client's service-registration attribute format is decided entirely client-side by the deployed proxy's method constraints (`Util.requiresDerFormat`, invoked only client-side in `RegistrarProxy.java`/`Registration.java`) — but under born-immutability that format is set **at instantiation**, not flipped mid-life. **Client-reach caveat:** a DER Reggie serves only DER-capable clients; a JOSS-only client uses the prior-version djinn — the intended deployment boundary (§3.5), not a gap. Under born-immutability the lever is simply **which version you deploy**, not an in-place migration. Align `Util.requiresDerFormat` docs; release-note the operational sequence. Ties to §9.2 (now resolved: a space-wide format epoch fixed at instantiation). |
 | **A4** · Cross-format regression + persistence tests | Extend the `EntryRepDerFormatTest` pattern to Outrigger (matching, `EntryFieldIndex` bucketing, `hasMatch`/`ContinuingQuery`/watcher paths); **single-format** recovery tests for both services (a store is born-complete in one format, §3.5 — there is no mixed store to recover); **guard tests** asserting the two immutability guards fire — (i) a format-change attempt on a populated store is refused, (ii) a snapshot whose format contradicts the instance config is refused on recovery; adversarial probe: same logical value in both formats reaches a store, assert the *documented* fail-loud behavior — a format-mismatched client raises `UnsupportedConstraintException` via `chooseMarshalFactory`, never a silent no-match. Recovery tests must also cover the additional marshal sites named in A1 (handbacks, watcher registration paths, and Reggie's `marshalAttributes`/`marshalLocators` inside `takeSnapshot`) in the store's single born format, not just the primary entry-field path. |
+| **A5** · JOSS→DER snapshot migration utility **[SCOPED — build on demand, Peter 2026-07-20]** | **FOLLOW-ON, separable from A1–A4, not on the critical path.** A standalone, offline, operator-run tool that converts a durable Outrigger's persisted JOSS snaplogstore to DER, so a new born-DER instance can load it through the normal recovery path — passing guard (ii) (§3 item 5), since the produced snapshot's format already matches the new instance's configuration. The sanctioned bridge for the one case born-immutability otherwise strands: a **durable** Outrigger (a `JavaSpace` used as a persistent store) upgrading to DER, whose persisted JOSS state would otherwise be lost. Reggie needs no such tool — service registrations self-heal via `JoinManager` re-registration on re-discovery — and a durable space has no auto-rewrite analogue. Full design in the subsection immediately below. **Gated:** build only if durable-space use is a supported requirement; otherwise the documented upgrade path is cold-start + re-registration (§3 item 5) and A5 stays unbuilt. |
+
+### A5 — JOSS→DER snapshot migration utility (design, SCOPED — build on demand, Peter 2026-07-20)
+
+**What it is.** A standalone, offline, operator-run tool that converts a durable Outrigger's
+persisted JOSS snaplogstore to DER so a new born-DER instance can load it through the normal
+recovery path, passing guard (ii) (§3 item 5) cleanly, since the produced snapshot's format
+already matches the new instance's configuration. FOLLOW-ON, separable from A1–A4, **not on the
+critical path**; built only if durable-space use is a supported requirement (see "Gating" below).
+
+- **Why it exists at all.** Redeployment (§3 item 5's ratified migration strategy) costs Reggie
+  nothing: service registrations are soft state that self-heals via `JoinManager` re-registration
+  once a client rediscovers the new DER lookup service — no persisted registration needs to, or
+  does, survive a redeploy. A **durable** Outrigger — a `JavaSpace` run as a persistent store
+  rather than a transient one — has no such auto-rewrite analogue: its persisted JOSS entries are
+  the operator's data, and stand-up-new/retire-old redeployment as ratified would simply strand
+  it. A5 is the sanctioned bridge for that one case.
+- **Isolation is the whole point.** The one dangerous step — deserializing JOSS (runs the entry's
+  `readObject`, i.e. arbitrary code, and requires the entry classes on the classpath) — happens in
+  a SEPARATE PROCESS that never shares a JVM with the production DER Outrigger. The live server
+  never loads an entry class, never runs a foreign `readObject`, never sees a JOSS byte; it
+  ingests only the tool's DER output, validated via `@AtomicSerial` exactly like any client-written
+  DER entry. This keeps 100% of the deserialization surface out of the server — the §9.2
+  confused-deputy / class-availability exposure that makes live JOSS-loading and server-side
+  re-marshal forbidden (§2.3) is exactly what this isolation avoids reintroducing.
+- **Why it's correct — DER canonicity.** Outrigger matches by byte-comparing `MarshalledInstance`
+  payloads (§2.3), so a converted entry is only useful if its DER bytes are identical to what a
+  fresh DER client would produce for the same value. DER guarantees exactly that — one canonical
+  encoding per value — so deserialize-then-re-marshal-via-the-DER-codec yields the same bytes any
+  DER writer produces, and converted entries match new DER clients' templates. Canonical DER is
+  what makes JOSS→DER migration well-defined; JOSS (non-canonical, implementation-serialized)
+  never had this property. Note the asymmetry with Part C's schema-evolution story (§2.3, §9.6):
+  JOSS→DER is fundamentally class-requiring — no class-free path exists — unlike a DER→DER schema
+  transcription, which can go via `decodeToFieldMap`/`encodeValue` with no deserialization at all.
+- **The "can't convert" set equals the "can't store in DER" set.** An entry whose fields aren't
+  DER-encodable (e.g. `UIDescriptor.factory`'s `MarshalledObject`, §3 item 6) can't be converted —
+  but couldn't live in a DER space anyway, converted or not. The tool rejects/flags such entries
+  **up front**, before conversion starts, so the operator learns before committing to the
+  migration — never a silent drop.
+- **One-time class dependency.** This is the last time the entry classes are needed for this
+  data; once it's DER, future migrations are class-free (STD-006 §2.3). The conversion is the
+  final payment for permanent data-independence.
+- **Isolation strength is a spectrum — operator/implementer choice.** Minimum viable: a standalone
+  CLI running in the operator's own JVM — the entry classes being deserialized are the operator's
+  own deployed types, not untrusted downloaded code, so the meaningful boundary is process/
+  lifecycle separation from the production server, not sandboxing from the operator. Defense-in-
+  depth: run the deserialization step in a quarantined subprocess reusing the role-neutral
+  attested-worker/sidecar pattern from the smart-proxy-isolation work (STD-009 §8.6) —
+  architecturally the same "quarantine dangerous deserialization away from the server" shape,
+  cheap to reuse given it already exists, and likely overkill for operator-owned classes, but it
+  composes for free if chosen.
+- **Round-trip self-check.** For each converted entry, re-decode the DER output and assert
+  value-equality with the JOSS input — positive confidence the migration didn't silently corrupt
+  data, not merely an absence of exceptions.
+- **Operator flow.** In the old JOSS deployment: force a snapshot (collapse the operation log) and
+  shut down cleanly. Run the converter offline against the static snapshot, with the deployment's
+  entry jars on its classpath. Load the resulting DER snaplogstore into the new born-DER instance,
+  which then recovers it through the normal single-format recovery path (§3 item 5, guard (ii)) —
+  passing, since the tool's output already matches the new instance's configured format.
+- **Gating.** Build only if durable-space use is a supported requirement; otherwise the documented
+  upgrade path is cold-start + re-registration (§3 item 5) and A5 stays unbuilt, scoped-but-not-
+  built, per Peter's 2026-07-20 guidance: "we can scope it, and build it if there is demand."
 
 ## 5. Part B — Outrigger filter integration
 
