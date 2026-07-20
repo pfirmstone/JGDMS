@@ -2653,8 +2653,8 @@ public class JoinManagerImpl implements net.jini.lookup.JoinManagerSpi {
     {
         if (serviceProxy == null) throw new NullPointerException("proxy cannot be null");
         Class proxyClass = serviceProxy.getClass();
-	if(!(proxyClass.isAnnotationPresent(AtomicSerial.class) ||
-                Proxy.isProxyClass(proxyClass))) {
+	if(!(proxyClass.isAnnotationPresent(AtomicSerial.class)) ||
+                Proxy.isProxyClass(proxyClass)) {
             throw new IllegalArgumentException
                                        ("serviceProxy must be @AtomicSerial or an instance of java.lang.reflect.Proxy");
 	}//endif
