@@ -92,56 +92,6 @@ import org.apache.river.api.io.Valid;
  * validation. Because java.io deserialization invokes the superclass
  * {@code readObject} first, this also blocks JOSS reconstruction of every
  * subclass.
- * <p>
- * <b>{@code source} and the {@code Any} wire form.</b> {@code source} is inherited from
- * {@link java.util.EventObject} as a raw {@code Object} -- a decades-stable public contract
- * ("an Object representing the event source") with no narrower common type across real event
- * sources. On the wire it is routed through the STD-006 {@code Any} form (design memo
- * {@code docs/der-type-model-and-element-rule.md} §2.1/§3/§4): the same closed, self-describing,
- * context-tagged CHOICE already used for a genuinely unresolvable collection element type. A
- * scalar (e.g. {@code Integer}, {@code String}) travels via a direct scalar arm; an
- * {@code @AtomicSerial} object or a dynamic {@link java.lang.reflect.Proxy} over one travels
- * through the identical gated reconstruction path as any typed {@code @AtomicSerial} field --
- * {@code Any} is not a second admission door. Arbitrary {@code Serializable}/JOSS content is
- * unrepresentable inside {@code Any} by construction. This routing requires no change to this
- * class: {@link #serialForm()} keeps declaring {@code source} as {@code Object.class},
- * {@link #serialize} keeps putting it unchanged, and {@link #check(GetArg)} keeps its existing
- * {@code Valid.notNull} invariant.
- * <p>
- * <b>Layer-2 narrowing pattern for subclasses.</b> Because {@code source}'s wire form carries no
- * type commitment beyond the closed {@code Any} subset (memo §8.2), {@code RemoteEvent} itself
- * cannot narrow it further -- "any Object" genuinely is its contract. Almost every concrete
- * subclass, however, knows exactly what its own {@code source} really is (e.g. a lookup service's
- * own event names the lookup service itself as the source). The prescribed pattern for such a
- * subclass is to <b>defensively construct a plain {@code RemoteEvent} from the {@code GetArg}
- * inside its own static {@code check(GetArg)} method ({@code new RemoteEvent(arg)} --
- * validated, side-effect-free), call {@link #getSource()} on it, and type-check/narrow the
- * result to the subclass's specific expected type</b> -- rejecting with
- * {@link java.io.InvalidObjectException} on mismatch -- before the subclass's own constructor
- * proceeds. For example:
- * <pre>{@code
- * private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
- *     RemoteEvent base = new RemoteEvent(arg);
- *     Object source = base.getSource();
- *     if (!(source instanceof MyExpectedSourceType)) {
- *         throw new InvalidObjectException("source must be a MyExpectedSourceType");
- *     }
- *     return arg;
- * }
- * }</pre>
- * Constructing the base instance (rather than reading {@code arg.get("source", ...)} directly
- * from the subclass's own frame) also sidesteps a real {@code GetArg} class-namespace trap: a
- * pre-{@code super} {@code arg.get(...)} call from a subclass's static {@code check} method
- * resolves the CALLER'S OWN serial-field namespace (per {@code AtomicSerial.GetArg}'s per-caller
- * dispatch), not {@code RemoteEvent}'s -- so a direct {@code arg.get("source", null)} from a
- * subclass frame silently resolves to that subclass's own (typically empty) namespace and
- * returns the default, never the real source. {@code new RemoteEvent(arg)} reads {@code source}
- * from {@code RemoteEvent}'s own frame, correctly. This pattern applies specifically where a
- * <em>concrete</em> subclass narrows an <em>ancestor's</em> {@code Any}-resolved slot read from
- * outside that ancestor's own declaring frame -- it does NOT apply to a class narrowing its own
- * directly-declared field (an ordinary same-class {@code check(GetArg)} assertion is correct and
- * sufficient there; there is no cross-namespace risk to defend against when the read already
- * happens in the field's own declaring frame).
  *
  * @author Sun Microsystems, Inc.
  *
@@ -157,14 +107,16 @@ public class RemoteEvent extends java.util.EventObject {
             new SerialForm("source", Object.class),
 	    new SerialForm("eventID", long.class),
 	    new SerialForm("seqNum", long.class),
+	    new SerialForm("handback", MarshalledObject.class),
 	    new SerialForm("miHandback", MarshalledInstance.class)
         };
     }
-
+    
     public static void serialize(PutArg arg, RemoteEvent r) throws IOException{
         arg.put("source", r.source);
         arg.put("eventID", r.eventID);
         arg.put("seqNum", r.seqNum);
+        arg.put("handback", r.handback);
         arg.put("miHandback", r.miHandback);
         arg.writeArgs();
     }
@@ -204,7 +156,7 @@ public class RemoteEvent extends java.util.EventObject {
 	arg.get("eventID", 0L);
 	long seqNum = arg.get("seqNum", -1L);
 	if (seqNum < 0) throw new InvalidObjectException("seqNum may have overflowed, less than zero");
-	arg.get("handback", null, MarshalledObject.class); // Type check, remains for earlier serial form.
+	arg.get("handback", null, MarshalledObject.class); // Type check
 	try{
 	    arg.get("miHandback", null, MarshalledInstance.class); // Type check
 	} catch (IllegalArgumentException ex){} // Ignore, earlier version.

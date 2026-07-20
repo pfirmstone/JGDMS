@@ -39,20 +39,11 @@ import org.apache.river.api.io.AtomicSerial.Stateless;
 public class ExpirationWarningEvent extends RemoteEvent {
     private static final long serialVersionUID = -2020487536756927350L;
 
-    private static GetArg check(GetArg arg)
+    private static GetArg check(GetArg arg) 
 	    throws IOException, ClassNotFoundException {
-	// Layer-2 narrowing pattern (RemoteEvent's class javadoc): defensively construct a plain
-	// RemoteEvent from arg and narrow ITS getSource() to this class's real expected source
-	// type, rather than leaving the inherited Any-resolved slot unvalidated beyond
-	// RemoteEvent's own non-null check. source is documented (constructor Javadoc below) as
-	// "the LeaseRenewalSet that generated the event"; getRenewalSetLease() already casts it
-	// unconditionally, so validating the shape here converts that cast into a checked,
-	// fail-before-construction invariant instead of a use-time ClassCastException.
 	RemoteEvent sup = new RemoteEvent(arg);
 	if (sup.getID() != LeaseRenewalSet.EXPIRATION_WARNING_EVENT_ID)
 	    throw new InvalidObjectException("Illegal object state");
-	if (!(sup.getSource() instanceof LeaseRenewalSet))
-	    throw new InvalidObjectException("source must be a LeaseRenewalSet");
 	return arg;
     }
     

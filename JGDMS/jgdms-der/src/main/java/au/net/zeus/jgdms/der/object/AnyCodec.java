@@ -33,14 +33,11 @@ import net.jini.io.context.DeserializationCompletion;
  * The STD-006 self-describing {@code Any} element form: a context-tagged CHOICE over the
  * closed-subset categories (design memo {@code docs/der-type-model-and-element-rule.md} §4).
  *
- * <p>The {@code Any} form is the wire-type the element-derivation rule selects when — and only
- * when — a declared type is genuinely unresolvable: at collection-ELEMENT position, a collection
- * field's declared element type (a raw collection, {@code Set<?>}, {@code Set<Object>},
- * {@code Set<? super X>}, or a type-variable {@code Set<T>}; memo §3.4, edge cases E10–E14); and,
- * identically, at FIELD position, a serial field declared exactly {@code Object.class} (e.g.
- * {@code net.jini.core.event.RemoteEvent.source}, inherited from {@code java.util.EventObject} —
- * memo §2.1 exclusion 1, §3 "the rule is total"). It is NEVER the default and NEVER chosen for a
- * resolvable type.
+ * <p>The {@code Any} form is the element wire-type the element-derivation rule selects when — and
+ * only when — a collection field's declared element type is genuinely unresolvable (a raw
+ * collection, {@code Set<?>}, {@code Set<Object>}, {@code Set<? super X>}, or a type-variable
+ * {@code Set<T>}; memo §3.4, edge cases E10–E14). It is NEVER the default and NEVER chosen for a
+ * resolvable element type.
  *
  * <h2>CHOICE — the context tag IS the category discriminator (memo §4)</h2>
  * <p>There is no {@code SEQUENCE{tag,body}} wrapper and no {@code ENUMERATED} discriminator: the
@@ -305,41 +302,6 @@ final class AnyCodec {
                          DeserializationCompletion decodeUnit,
                          ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
-        // No declared-type information at this call site (a collection/map element -- an Any
-        // collection's elements are themselves Any by construction, memo §4.4 -- so there is no
-        // narrower receiving slot type to thread). Admits at Object.class, preserving prior
-        // behaviour; see the security-review R2 F1 hardening note on the typed overload below.
-        return decode(reader, Object.class, depth, decodeUnit, resolution);
-    }
-
-    /**
-     * Type-threading variant of {@link #decode(DerReader, int, DeserializationCompletion,
-     * ResolutionContext)}: {@code expectedSupertype} is the receiving slot's <b>declared</b> Java
-     * type (e.g. {@code callerClass.getDeclaredField(name).getType()} for an {@code Any}-resolved
-     * field), threaded into the {@code atomicSerialObject [20]} arm's reconstruction gate exactly
-     * as the typed nested-{@code @AtomicSerial} decode path already threads it (security review R2
-     * F1 -- {@code ObjectCodec#decodeNested(byte[], Class, int, DeserializationCompletion,
-     * ResolutionContext)}). Pass {@code Object.class} when no declared type is known.
-     *
-     * <p><b>Hardening, not a new gate.</b> For a genuinely {@code Object}-typed slot the admission
-     * gate is vacuous either way (identical to the residual the withdrawn {@code MarshalledInstance}
-     * wrap already had, and to every {@code Any} collection element on trunk today) -- this overload
-     * exists so the F1 gate stays uniform across every {@code decodeNested} entry point, not because
-     * an {@code Any} field is reachable through a different door than an {@code Any} element.
-     *
-     * @param reader             positioned at the start of the {@code AnyElement} TLV
-     * @param expectedSupertype  the receiving slot's declared type (never {@code null})
-     * @param depth              current nesting depth (for the {@link ObjectCodec#MAX_NESTING} guard)
-     * @param decodeUnit         the per-decode-unit completion sink, or {@code null}
-     * @param resolution         the endpoint resolution context
-     * @return the decoded element value (may be {@code null} for the DER NULL sentinel)
-     * @throws DerException if the context tag is unregistered/reserved/mismatched, the value is
-     *                      not canonical for its tag, or the depth bound is exceeded
-     */
-    static Object decode(DerReader reader, Class<?> expectedSupertype, int depth,
-                         DeserializationCompletion decodeUnit,
-                         ResolutionContext resolution)
-            throws DerException, IOException, ClassNotFoundException {
         Tag tag = reader.peekTag();
 
         // Null sentinel: DER NULL (universal 0x05) -> null element.
@@ -386,10 +348,7 @@ final class AnyCodec {
             int next = requireDepth(depth, "atomicSerialObject");
             // Fence (b): reconstruct through the SAME decodeNested path -- the ATOMIC gate, the
             // endpoint ResolutionContext, and each class's check(GetArg) all run identically.
-            // Threads expectedSupertype (Hardening note, class javadoc): vacuous for a genuine
-            // Object-typed slot, but keeps the F1 admission gate uniform across every
-            // decodeNested entry point.
-            return ObjectCodec.decodeNested(innerTlv, expectedSupertype, next, decodeUnit, resolution);
+            return ObjectCodec.decodeNested(innerTlv, next, decodeUnit, resolution);
         }
 
         // --- [30]/[31] EXPLICIT collections ---

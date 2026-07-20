@@ -18,7 +18,6 @@
 package au.net.zeus.jgdms.der.object;
 
 import au.net.zeus.jgdms.der.DerException;
-import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.getarg.DerFieldStore;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import net.jini.io.context.DeserializationCompletion;
@@ -307,26 +306,6 @@ public final class DerGetArg extends AtomicSerial.GetArg {
                 throw nested("failed to decode nested @AtomicSerial field", name, e);
             } catch (ClassNotFoundException e) {
                 throw nested("class not found decoding nested field", name, e);
-            }
-        }
-        // Any-resolved field (STD-006 memo §2.1/§3/§4 -- a serial field declared exactly
-        // Object.class, e.g. RemoteEvent.source): decode lazily. The store holds the raw
-        // AnyElement TLV bytes; AnyCodec.decode does the actual decode here in der.object
-        // (mirroring the nested-@AtomicSerial arm above) so that der.getarg stays cycle-free.
-        if (store.isAny(name)) {
-            try {
-                // Thread the receiver's DECLARED field type as the pre-construction admission
-                // bound (security review R2, Hardening note on AnyCodec.decode): vacuous for a
-                // genuine Object-typed slot, but keeps the F1 gate uniform with the nested-field
-                // path. Unknown (synthesized field / no backing Field) -> Object.class.
-                Class<?> declared = declaredFieldType(callerClass, name);
-                Class<?> expected = declared != null ? declared : Object.class;
-                return AnyCodec.decode(new DerReader(store.rawAny(name)), expected,
-                                       depth, decodeUnit, resolution);
-            } catch (DerException e) {
-                throw nested("failed to decode Any field", name, e);
-            } catch (ClassNotFoundException e) {
-                throw nested("class not found decoding Any field", name, e);
             }
         }
         // Plain field: ABSENT (decode-free) when absent/defaulted, else the decoded

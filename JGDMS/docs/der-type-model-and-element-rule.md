@@ -1,12 +1,10 @@
 # Design memo: the STD-006 (DER) closed-subset wire type model, the element-derivation RULE, and the self-describing "any" element form
 
-**Status:** the type MODEL, the element-derivation RULE, and the self-describing "any" form are
-**BUILT** (element position: `AnyCodec`/`SchemaGenerator`'s collection-element rule, in `jgdms-der`;
-field position: extended by `docs/SOW-RemoteEvent-Source-DER-Encoding.md`, 2026-07-19 — a serial
-field declared exactly `Object.class`, e.g. `net.jini.core.event.RemoteEvent.source`, now resolves
-to `Any` by the identical rule and CHOICE, not a schema-generation error). See §8.3 for the current
-mechanism/status detail. This memo remains the normative reference for the model and rule
-themselves; it is retained for provenance and is no longer a pre-implementation review gate.
+**Status:** DESIGN / RULE for board review. **No code is proposed for merge by this memo.** It
+formalises a type MODEL, an element-derivation RULE (no annotations), a self-describing "any"
+element form, and names the one enabling code hook. A board reviews this before any codec change,
+exactly as the collection-*ordering* determinism rule (`docs/der-collection-ordering-research.md`)
+was documented, board-reviewed, and only then built.
 
 **Author:** design pass, 2026-07-05.
 **Parallels:** `docs/der-collection-ordering-research.md` (the determinism discriminator this
@@ -187,24 +185,6 @@ signal, precisely as the declared collection *class* is the signal for the order
 The rule is **total**: every field resolves either to a concrete closed-subset wire-type or to `Any`.
 It never asks the developer for input and never emits an error for "can't tell" — "can't tell"
 *is* the well-defined `Any` outcome.
-
-**The rule applies identically at FIELD position, not just collection-element position (§3.4a,
-added 2026-07-19).** The table and cases above are framed around a collection's element type, but
-§2.1 exclusion 1 and the "total" statement just above already cover a bare serial *field* the same
-way: a field declared exactly `Object.class` (not a collection/map type at all — e.g.
-`net.jini.core.event.RemoteEvent.source`, inherited from `java.util.EventObject`) has no
-closed-subset structural type either, for the identical reason `Set<Object>`'s element doesn't —
-and resolves to `Any` (§4) by the same rule, not a schema-generation error. `RemoteEvent.source`
-was, before `docs/SOW-RemoteEvent-Source-DER-Encoding.md` (2026-07-19), the field-position case
-this memo's element-only framing had not yet been extended to cover: `SchemaGenerator` hard-rejected
-a bare `Object.class` field unconditionally (a field-level code-vs-memo divergence, since §2.1/§3
-already implied the field case should resolve to `Any` too). The SOW closed that gap by extending
-`SchemaGenerator`'s field-derivation rule (`deriveFieldWireType`'s non-collection branch) to
-intercept `raw == Object.class` the same way `ruleForElement` already intercepts `element ==
-Object.class` at element position — same `Any` CHOICE, same four fences (§4.3), same memo §8.2
-consequence (type validation for such a field shifts entirely onto the class's own
-`check(GetArg)`). See the SOW's "Blast radius" section for the full reactor-wide site list this
-also (correctly, automatically) reaches.
 
 ### 3.1 Concrete resolvable element → `rule(E)`, recursively
 
@@ -580,7 +560,7 @@ element type is now derived by the §3 rule rather than hand-supplied.
 
 ---
 
-## 7. The enabling MECHANISM (BUILT — see §8.3 for current status)
+## 7. The enabling MECHANISM (design-level; not implemented)
 
 The single concrete change: **the schema-generation path must SEE the declared generic `Type`, not
 only the raw `Class`.** Today the chain is:
@@ -705,19 +685,10 @@ The board confirms **Option A** (§7) as the mechanism: `SchemaGenerator` reflec
 `Any` by §3.4. Option B (`SerialForm.getGenericType()`) remains recorded as an alternative but is not
 the adopted path.
 
-**Status (corrected 2026-07-19 — was stale "design-only, nothing built"; flagged by the SOW's
-second board review):** **BUILT**, at both element and field position. `AnyCodec`
-(`jgdms-der/.../der/object/AnyCodec.java`) implements the full `AnyElement` CHOICE encode/decode
-and the four NORMATIVE fences (§4.3); `SchemaGenerator`'s collection-element rule (`ruleForElement`)
-and, as of `docs/SOW-RemoteEvent-Source-DER-Encoding.md` (2026-07-19), its field-derivation rule
-(`deriveFieldWireType`'s non-collection branch) both auto-wire to `Any` per Option A above with zero
-`SerialForm` API change, exactly as designed; `DerFieldStore`/`DerGetArg` (`jgdms-der/.../der/getarg`
-and `.../der/object`) carry the field-position `Any` raw-TLV deferred-decode plumbing the same way
-they already did for nested `@AtomicSerial` fields. Conformance tests exist at both positions
-(`AnyElementCodecTest` — element; `AnyFieldPositionConformanceTest` — field, added by the same SOW),
-covering the four fences and E8/E9-style nested-generic cases. The `.asn1` `AnyElement CHOICE`
-production and the STD-006 §-section text remain to be transcribed into the formal spec documents
-(a documentation-only follow-up, not a code gap).
+**Status (accurate): design-only.** Nothing in this memo is built. The `.asn1` `AnyElement CHOICE`
+production, the STD-006 §-section, the codec `Any` encode/decode + the four fences, the auto-wiring hook
+(Option A), and the conformance tests (including E8/E9) are the implementation work that follows a
+build-time board pass — no code is proposed for merge here.
 
 ---
 
@@ -753,6 +724,6 @@ production and the STD-006 §-section text remain to be transcribed into the for
   an `Any`-resolved field, per-element type validation shifts entirely onto `check()` (§8.2).
 - **Mechanism (confirmed, §8.3):** **Option A** — `SchemaGenerator` reflects `Field.getGenericType()`,
   **zero API change**. Feasibility empirically verified (§7.1, incl. E8/E9 arrays).
-- **Status:** BUILT, at both element and field position (§8.3, corrected 2026-07-19).
+- **Status:** design-only, nothing built (§8.3).
 - **Deferred auto-wiring:** resolved for plain `Set`/`Map` fields with NO annotation; the single
   irreducible boundary (type variable in a generic `@AtomicSerial` class) degrades safely to `Any`.

@@ -114,16 +114,6 @@ public final class DerFieldStore {
     private static final Object ABSENT = new Object();
 
     /**
-     * The {@code Any} field wire-type token (STD-006 memo §2.1/§3/§4; must match
-     * {@code au.net.zeus.jgdms.der.schema.SchemaGenerator.ANY} and
-     * {@code au.net.zeus.jgdms.der.object.AnyCodec.ANY}). Declared independently here rather
-     * than imported, mirroring the existing precedent of those two other packages each declaring
-     * their own {@code "any"} constant rather than sharing one across the {@code der.schema} /
-     * {@code der.object} / {@code der.getarg} package boundary.
-     */
-    private static final String WIRE_TYPE_ANY = "any";
-
-    /**
      * Wrapper stored for a nested {@code @AtomicSerial} field (wireType
      * {@code "@AtomicSerial"}). Holds the raw TLV bytes of the nested record
      * (a SEQUENCE or NULL). The actual decoding is deferred to
@@ -133,23 +123,6 @@ public final class DerFieldStore {
      */
     record NestedRaw(byte[] rawBytes) {
         NestedRaw {
-            rawBytes = rawBytes.clone(); // defensive copy
-        }
-    }
-
-    /**
-     * Wrapper stored for an {@code Any}-resolved field (wireType {@code "any"}, STD-006 memo
-     * §2.1/§3 -- a serial field declared exactly {@code Object.class}, e.g.
-     * {@code net.jini.core.event.RemoteEvent.source}). Holds the raw TLV bytes of the complete
-     * {@code AnyElement} CHOICE encoding (a scalar {@code [0]}-{@code [9]} IMPLICIT primitive, an
-     * {@code atomicSerialObject [20]} / collection {@code [30]}/{@code [31]} EXPLICIT wrapper, or
-     * DER NULL). The actual decode is deferred to {@code DerGetArg.get(name, default)} (which
-     * lives in {@code der.object} and can call the package-private {@code AnyCodec.decode}),
-     * mirroring {@link NestedRaw} and keeping {@code der.getarg} free of any dependency on
-     * {@code der.object}.
-     */
-    record AnyRaw(byte[] rawBytes) {
-        AnyRaw {
             rawBytes = rawBytes.clone(); // defensive copy
         }
     }
@@ -397,18 +370,6 @@ public final class DerFieldStore {
                 // @AtomicSerial / nested-collection elements thread the cumulative depth guard
                 // and der.getarg stays cycle-free.
                 value = readCollectionRawTlv(seq, def.wireType());
-            } else if (WIRE_TYPE_ANY.equals(def.wireType())) {
-                // Any-resolved field (STD-006 memo §2.1/§3/§4 -- a serial field declared exactly
-                // Object.class, e.g. RemoteEvent.source): read the complete AnyElement TLV bytes
-                // (an IMPLICIT scalar, an EXPLICIT atomicSerialObject/collection wrapper, or DER
-                // NULL) without decoding, mirroring readNestedRawTlv. Actual decode is deferred to
-                // DerGetArg.get() in der.object, which can call the package-private
-                // AnyCodec.decode with the threaded nesting depth, DeserializationCompletion unit,
-                // and endpoint ResolutionContext -- keeping der.getarg free of any der.object
-                // dependency, same as the nested-record arm. WireTypes.decode's default arm
-                // hard-rejects "any" (fail-secure): this branch is what deliberately opts the
-                // token in, exactly as for "@AtomicSerial".
-                value = readAnyRawTlv(seq);
             } else {
                 value = WireTypes.decode(seq, def.wireType(), res);
             }
@@ -733,29 +694,6 @@ public final class DerFieldStore {
 
     /**
      * Reads the complete TLV bytes (tag + length + content) of the next item in
-     * {@code seq} as a raw byte array, without interpreting the TLV. Used to capture a complete
-     * {@code AnyElement} CHOICE encoding (STD-006 memo §4) -- an IMPLICIT scalar primitive, an
-     * EXPLICIT {@code atomicSerialObject}/collection wrapper, or DER NULL -- without decoding it
-     * here. Structurally identical to {@link #readNestedRawTlv}; kept as a separate method (rather
-     * than reused directly) so each field-kind's raw-read call site names its own wireType
-     * category, matching this class's existing one-record-per-field-kind convention.
-     */
-    private static AnyRaw readAnyRawTlv(DerReader seq) throws DerException {
-        DerReader.TlvHeader hdr = seq.readTlvHeader();
-        byte[] content = seq.readRawContent(hdr.contentLength());
-
-        byte[] tagBytes    = hdr.tag().encode();
-        byte[] lengthBytes = DerWriter.encodeLength(hdr.contentLength());
-        byte[] raw = new byte[tagBytes.length + lengthBytes.length + content.length];
-        int pos = 0;
-        System.arraycopy(tagBytes,    0, raw, pos, tagBytes.length);    pos += tagBytes.length;
-        System.arraycopy(lengthBytes, 0, raw, pos, lengthBytes.length); pos += lengthBytes.length;
-        System.arraycopy(content,     0, raw, pos, content.length);
-        return new AnyRaw(raw);
-    }
-
-    /**
-     * Reads the complete TLV bytes (tag + length + content) of the next item in
      * {@code seq} for an {@code @AtomicSerial[]} array field, without interpreting
      * the TLV. The raw bytes are wrapped in a {@link NestedArrayRaw} so that
      * {@code DerGetArg} (in {@code der.object}) can decode them depth-boundedly.
@@ -804,43 +742,6 @@ public final class DerFieldStore {
         System.arraycopy(lengthBytes, 0, raw, pos, lengthBytes.length); pos += lengthBytes.length;
         System.arraycopy(content,     0, raw, pos, content.length);
         return new CollectionRaw(raw, wireType);
-    }
-
-    // =========================================================================
-    // Any-resolved field access (STD-006 memo §2.1/§3/§4)
-    // =========================================================================
-
-    /**
-     * Returns {@code true} if the named field holds an {@code Any}-resolved raw record (wireType
-     * {@code "any"}), regardless of whether the value is the DER NULL sentinel or a real value.
-     *
-     * <p>A field that is absent (name not defined in the schema) returns {@code false} here; the
-     * caller checks {@link #defaulted(String)} and returns the default value.
-     *
-     * @param name the field name
-     * @return {@code true} if the stored value is an {@link AnyRaw} wrapper
-     */
-    public boolean isAny(String name) {
-        return fields.get(name) instanceof AnyRaw;
-    }
-
-    /**
-     * Returns the raw TLV bytes for an {@code Any}-resolved field (a complete {@code AnyElement}
-     * CHOICE encoding). The caller (in {@code der.object}) is responsible for decoding them via
-     * the package-private {@code AnyCodec.decode}.
-     *
-     * @param name the field name
-     * @return a defensive copy of the raw TLV bytes
-     * @throws IllegalStateException if the field is not an Any raw field
-     *                               (check {@link #isAny(String)} first)
-     */
-    public byte[] rawAny(String name) {
-        Object v = fields.get(name);
-        if (!(v instanceof AnyRaw ar)) {
-            throw new IllegalStateException(
-                    "DerFieldStore: field '" + name + "' is not an Any raw field");
-        }
-        return ar.rawBytes(); // AnyRaw.rawBytes() already returns a defensive copy
     }
 
     // =========================================================================

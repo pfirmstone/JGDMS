@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.event.RemoteEvent;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.io.MarshalledInstance;
@@ -93,18 +92,11 @@ public class ConstrainableRegistrarEvent extends RegistrarEvent implements Remot
     }
     
     private static MethodConstraints check(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException{
-	// Defensively construct a plain RemoteEvent (validated, side-effect-free) and read
-	// getSource() from it -- the Layer-2 narrowing pattern documented on RemoteEvent's class
-	// javadoc. "source" is declared by the RemoteEvent ancestor, not by this class or by
-	// RegistrarEvent, so it must NOT be read via a pre-super arg.get("source", null) call
-	// from this static method: AtomicSerial.GetArg resolves the caller's OWN serial-field
-	// namespace (this class's, which is empty -- @Stateless), not RemoteEvent's, so a direct
-	// read here silently resolves to the default (null) rather than the real source -- the
-	// known GetArg class-namespace trap. new RemoteEvent(arg) reads "source" from
-	// RemoteEvent's own declaring frame, correctly; super(arg) below still separately runs
-	// RegistrarEvent's/ServiceEvent's/RemoteEvent's own validation on the real instance.
-	RemoteEvent base = new RemoteEvent(arg);
-	Object server = base.getSource();
+	// Read the event source directly rather than constructing a plain
+	// RegistrarEvent (now abstract); super(arg) still runs its validation.
+	// The "source" field is declared by the RemoteEvent ancestor and is
+	// flattened into this GetArg by the AtomicSerial codec.
+	Object server = arg.get("source", null);
 	if (server instanceof RemoteMethodControl){
 	    return ((RemoteMethodControl) server).getConstraints();
 	}

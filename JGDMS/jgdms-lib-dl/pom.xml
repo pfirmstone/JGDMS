@@ -65,20 +65,6 @@
             <artifactId>jgdms-activation-parameters</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!--
-          Test-only: provides the java.rmi.server.RMIClassLoaderSpi ServiceLoader provider
-          (net.jini.loader.pref.PreferredClassProvider) so that tests can actually construct a
-          net.jini.io.MarshalledInstance at test-runtime (MarshalOutputStream.annotateClass ->
-          RMIClassLoader.initializeProvider fails with a ServiceConfigurationError without it).
-          Not referenced by any compiled symbol in main or test sources, purely a runtime SPI
-          provider (mirrors reggie-dl's equivalent test-scope jgdms-der dependency).
-        -->
-        <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-pref-class-loader</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
