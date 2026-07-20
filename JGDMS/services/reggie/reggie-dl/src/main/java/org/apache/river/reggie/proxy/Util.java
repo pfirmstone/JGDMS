@@ -18,13 +18,8 @@
 package org.apache.river.reggie.proxy;
 
 import java.lang.reflect.Method;
-import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import net.jini.core.constraint.InvocationConstraints;
-import net.jini.core.constraint.MarshallingFormat;
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lookup.ServiceID;
 
 /**
@@ -35,40 +30,16 @@ import net.jini.core.lookup.ServiceID;
  */
 public class Util {
 
-    /**
-     * Returns {@code true} if {@code obj} implements {@link RemoteMethodControl}
-     * and any of its method constraints require {@link MarshallingFormat#ATOMIC_DER}.
-     * <p>
-     * Used to derive, per client&lt;-&gt;server relationship, whether {@link
-     * org.apache.river.reggie.proxy.EntryRep}/{@link org.apache.river.reggie.proxy.Item}
-     * should marshal entry field / service payloads via DER
-     * ({@code net.jini.io.MarshalledInstance} +
-     * {@code InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)}) instead of the
-     * legacy JOSS {@code AtomicMarshalledInstance} form.
-     * <p>
-     * This must be derived per-instance from the object's own constraints -- never
-     * cached as a JVM-global flag -- because {@code MarshalledWrapper.equals()} (and
-     * transitively {@code EntryRep.equals()}/{@code matchEntry()}) perform a raw byte
-     * comparison of the wrapped {@code MarshalledInstance}: two logically-identical
-     * entries encoded with different inner formats will silently fail to match rather
-     * than throwing, so the format choice must track which Reggie relationship (proxy,
-     * registration) the payload is destined for.
-     *
-     * @param obj a proxy or registration object whose format requirement is being
-     *            queried (typically {@code this} at a client-side construction site)
-     * @return {@code true} if DER-tagged marshalling should be used
+    /*
+     * NOTE: the former requiresDerFormat(Object) helper -- which derived the
+     * DER-vs-JOSS marshalling decision by reading a proxy/registration's own
+     * (client-mutable, silently-droppable) getConstraints() -- was retired as
+     * part of the born-immutable format epoch (JGDMS-STD-006 sec.3 item 5,
+     * SOW-Entry-ATOMIC-DER-Migration.md sec.4 A3). Every former call site now
+     * reads the object's own immutable, born entryFormat field instead (see
+     * RegistrarProxy#useDer()/Registration#useDer()), which a client
+     * ProxyPreparer.setConstraints() call can never drop or change.
      */
-    static boolean requiresDerFormat(Object obj) {
-	if (!(obj instanceof RemoteMethodControl)) return false;
-	MethodConstraints mc = ((RemoteMethodControl) obj).getConstraints();
-	if (mc == null) return false;
-	Iterator<InvocationConstraints> iter = mc.possibleConstraints();
-	while (iter.hasNext()) {
-	    InvocationConstraints ic = iter.next();
-	    if (ic.requirements().contains(MarshallingFormat.ATOMIC_DER)) return true;
-	}
-	return false;
-    }
 
     /**
      * Returns Method object for specified method, which should always exist.

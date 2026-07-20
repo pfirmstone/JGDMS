@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.admin.Administrable;
+import net.jini.core.constraint.MarshallingFormat;
+import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.EventRegistration;
@@ -72,7 +74,8 @@ public abstract class RegistrarProxy
         return new SerialForm[]{
             new SerialForm("server", Registrar.class),
             new SerialForm("registrarIDMostSig", Long.TYPE),
-            new SerialForm("registrarIDLeastSig", Long.TYPE)
+            new SerialForm("registrarIDLeastSig", Long.TYPE),
+            new SerialForm("entryFormat", MarshallingFormat.class)
         };
     }
 
@@ -80,6 +83,7 @@ public abstract class RegistrarProxy
         arg.put("server", rp.server);
         arg.put("registrarIDMostSig", rp.registrarID.getMostSignificantBits());
         arg.put("registrarIDLeastSig", rp.registrarID.getLeastSignificantBits());
+        arg.put("entryFormat", rp.entryFormat);
         arg.writeArgs();
     }
 
@@ -95,11 +99,43 @@ public abstract class RegistrarProxy
     transient ServiceID registrarID;
 
     /**
+     * The marshalling format this registrar was born with, fixed at the
+     * registrar's instantiation and immutable for its life
+     * (JGDMS-STD-006 sec.3 item 5: a registrar-wide format epoch inherited
+     * uniformly by every client). Every registrant attribute set and
+     * lookup template this proxy marshals uses this format -- <em>not</em>
+     * a value derived from {@code ((RemoteMethodControl) this)
+     * .getConstraints()}, since client-set constraints are wholesale
+     * replaceable via {@code setConstraints} and would make the format
+     * silently droppable, reintroducing the per-relationship optionality
+     * the born-immutable model forbids (this is exactly the bug the
+     * former {@code Util.requiresDerFormat(this)} call sites had).
+     * Package protected so it can be read by subclasses.
+     *
+     * @serial
+     */
+    final MarshallingFormat entryFormat;
+
+    /**
      * Returns RegistrarProxy or ConstrainableRegistrarProxy instance,
      * depending on whether given server implements RemoteMethodControl.
+     *
+     * @param entryFormat the marshalling format this registrar was born
+     *              with (fixed at the registrar's instantiation, immutable
+     *              for its life); every registrant attribute set/template
+     *              this proxy marshals uses this format.
+     * @param initialConstraints wire-layer belt-and-braces (JGDMS-STD-006
+     *              sec.3 item 5): when non-null, baked into the proxy's
+     *              underlying server reference as the initial client
+     *              method constraints, so the JERI invocation layer itself
+     *              enforces the required {@link MarshallingFormat} for
+     *              every call this proxy makes, independent of the
+     *              non-droppable {@code entryFormat} field above.
      */
     public static RegistrarProxy getInstance(Registrar server,
-				      ServiceID registrarID)
+				      ServiceID registrarID,
+				      MarshallingFormat entryFormat,
+				      MethodConstraints initialConstraints)
     {
 	// Always constrainable; fail closed when the server was not exported
 	// with a constrainable endpoint.  The constrainable proxy is the only
@@ -109,12 +145,47 @@ public abstract class RegistrarProxy
 		"service must be exported with a constrainable endpoint: "
 		+ "server does not implement RemoteMethodControl");
 	}
-	return new ConstrainableRegistrarProxy(server, registrarID, null);
+	return new ConstrainableRegistrarProxy(
+	    server, registrarID, entryFormat, initialConstraints);
+    }
+
+    /**
+     * Sentinel distinguishing "the {@code entryFormat} field is absent from
+     * this stream's persistent schema" from "the field is present and its
+     * serialized value is {@code null}" -- {@link GetArg}'s type-checked
+     * {@code get(name, val, type)} overload conflates both into the same
+     * default-return path, so the untyped {@code get(name, Object)}
+     * overload is used here with a private sentinel default instead, which
+     * only substitutes on true absence.
+     */
+    private static final Object ENTRY_FORMAT_ABSENT = new Object();
+
+    /**
+     * Resolves the born {@link #entryFormat} from a {@link GetArg} stream,
+     * treating an absent field (a proxy serialized before this field
+     * existed, i.e. before DER support) as implicit legacy
+     * {@link MarshallingFormat#JOSS} rather than rejecting it (STD-006
+     * sec.11.8 graceful degradation: an absent old-format marker means
+     * implicit legacy JOSS, not a reject). A field that IS present but
+     * whose serialized value is actually {@code null} is left as
+     * {@code null} here -- that is corruption, and {@link #check} still
+     * rejects it.
+     */
+    private static MarshallingFormat resolveEntryFormat(GetArg arg)
+	    throws IOException, ClassNotFoundException
+    {
+	Object raw = arg.get("entryFormat", ENTRY_FORMAT_ABSENT);
+	if (raw == ENTRY_FORMAT_ABSENT) return MarshallingFormat.JOSS;
+	if (raw == null || raw instanceof MarshallingFormat) return (MarshallingFormat) raw;
+	throw new InvalidObjectException("entryFormat field is a "
+	    + raw.getClass().getName() + ", not assignable to MarshallingFormat");
     }
 
     private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{
 	Registrar server = (Registrar) arg.get("server", null);
 	if (server == null) throw new InvalidObjectException("null server");
+	if (resolveEntryFormat(arg) == null)
+	    throw new InvalidObjectException("null entryFormat");
 	return true;
     }
 
@@ -127,12 +198,15 @@ public abstract class RegistrarProxy
 	registrarID = new ServiceID(
 		arg.get("registrarIDMostSig", 0L),
 		arg.get("registrarIDLeastSig", 0L));
+	entryFormat = resolveEntryFormat(arg);
     }
-    
+
     /** Constructor for use by getInstance(), ConstrainableRegistrarProxy. */
-    RegistrarProxy(Registrar server, ServiceID registrarID) {
+    RegistrarProxy(Registrar server, ServiceID registrarID, MarshallingFormat entryFormat) {
+	if (entryFormat == null) throw new NullPointerException("entryFormat cannot be null");
 	this.server = server;
 	this.registrarID = registrarID;
+	this.entryFormat = entryFormat;
     }
 
     // Inherit javadoc
@@ -141,13 +215,26 @@ public abstract class RegistrarProxy
         return server.getAdmin();
     }
 
+    /**
+     * Returns {@code true} if this registrar's born {@link #entryFormat} is
+     * {@link MarshallingFormat#ATOMIC_DER}, {@code false} for legacy JOSS.
+     * This is the single source of truth for whether entry/template fields
+     * marshalled through this proxy use DER -- derived from the immutable
+     * {@link #entryFormat} field set once at construction (mirroring
+     * {@link RegistrarImpl#entryFormat()} on the server side), <em>never</em>
+     * from this proxy's own (droppable) {@code getConstraints()}.
+     */
+    final boolean useDer() {
+	return entryFormat.equals(MarshallingFormat.ATOMIC_DER);
+    }
+
     // Inherit javadoc
     @Override
     public ServiceRegistration register(ServiceItem srvItem,
 					long leaseDuration)
 	throws RemoteException
     {
-	Item item = new Item(srvItem, Util.requiresDerFormat(this));
+	Item item = new Item(srvItem, useDer());
 	if (item.getServiceID() != null) {
 	    Util.checkRegistrantServiceID(
 		    item.getServiceID(), logger, Level.WARNING);
@@ -158,7 +245,7 @@ public abstract class RegistrarProxy
     // Inherit javadoc
     @Override
     public Object lookup(ServiceTemplate tmpl) throws RemoteException {
-	MarshalledWrapper wrapper = server.lookup(new Template(tmpl, Util.requiresDerFormat(this)));
+	MarshalledWrapper wrapper = server.lookup(new Template(tmpl, useDer()));
 	if (wrapper == null)
 	    return null;
 	try {
@@ -175,14 +262,14 @@ public abstract class RegistrarProxy
     public ServiceMatches lookup(ServiceTemplate tmpl, int maxMatches)
 	throws RemoteException
     {
-	return server.lookup(new Template(tmpl, Util.requiresDerFormat(this)), maxMatches).get();
+	return server.lookup(new Template(tmpl, useDer()), maxMatches).get();
     }
 
     @Override
     public Object [] lookUp(
 	    ServiceTemplate tmpl, int maxProxies) throws RemoteException
     {
-	Object [] proxys = server.lookUp(new Template(tmpl, Util.requiresDerFormat(this)), maxProxies);
+	Object [] proxys = server.lookUp(new Template(tmpl, useDer()), maxProxies);
 	List result = new ArrayList(proxys.length);
 	for (int i = 0, l = proxys.length; i < l; i++){
 	    if(!(proxys[i] instanceof RemoteMethodControl)) continue;
@@ -204,7 +291,7 @@ public abstract class RegistrarProxy
 				    long leaseDuration)
 	throws RemoteException
     {
-	return server.notify(new Template(tmpl, Util.requiresDerFormat(this)), transitions, listener,
+	return server.notify(new Template(tmpl, useDer()), transitions, listener,
 			     handback, leaseDuration);
     }
 
@@ -217,7 +304,7 @@ public abstract class RegistrarProxy
 				    long leaseDuration)
 	throws RemoteException
     {
-	return server.notiFy(new Template(tmpl, Util.requiresDerFormat(this)), transitions, listener,
+	return server.notiFy(new Template(tmpl, useDer()), transitions, listener,
 			     handback, leaseDuration);
     }
 
@@ -227,7 +314,7 @@ public abstract class RegistrarProxy
 	throws RemoteException
     {
 	return EntryClassBase.toClass(
-				  server.getEntryClasses(new Template(tmpl, Util.requiresDerFormat(this))));
+				  server.getEntryClasses(new Template(tmpl, useDer())));
     }
 
     // Inherit javadoc
@@ -247,7 +334,7 @@ public abstract class RegistrarProxy
 	}
 	if (fidx < 0)
 	    throw new NoSuchFieldException(field);
-	Object[] values = server.getFieldValues(new Template(tmpl, Util.requiresDerFormat(this)),
+	Object[] values = server.getFieldValues(new Template(tmpl, useDer()),
 						setIndex, fidx);
 	/* unmarshal each value, replacing with null on exception */
 	if (values != null && efields[fidx].marshal) {
@@ -286,7 +373,7 @@ public abstract class RegistrarProxy
 	throws RemoteException
     {
 	return ServiceTypeBase.toClass(
-				   server.getServiceTypes(new Template(tmpl, Util.requiresDerFormat(this)),
+				   server.getServiceTypes(new Template(tmpl, useDer()),
 							  prefix));
     }
 

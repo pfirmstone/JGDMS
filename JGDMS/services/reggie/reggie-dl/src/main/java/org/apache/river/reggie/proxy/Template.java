@@ -115,10 +115,10 @@ public class Template {
      * @param useDer whether the template's marshallable attribute-set fields
      *     should be wrapped via DER instead of the legacy JOSS form; must
      *     match the format used by the entries this template is matched
-     *     against (derived from the calling proxy's own constraints -- see
-     *     {@link Util#requiresDerFormat(Object)}), otherwise matching
-     *     silently fails due to {@code MarshalledWrapper.equals()}'s raw
-     *     byte comparison.
+     *     against (derived from the calling proxy/registration's own
+     *     immutable, born {@code entryFormat} field -- never from
+     *     {@code getConstraints()}), otherwise matching silently fails due
+     *     to {@code MarshalledWrapper.equals()}'s raw byte comparison.
      */
     public Template(ServiceTemplate tmpl, boolean useDer) throws RemoteException {
 	serviceID = tmpl.serviceID;

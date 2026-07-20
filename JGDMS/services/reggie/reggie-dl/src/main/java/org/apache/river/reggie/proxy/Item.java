@@ -18,6 +18,7 @@
 package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.lang.reflect.Proxy;
 import java.rmi.MarshalException;
 import java.rmi.NoSuchObjectException;
@@ -76,10 +77,13 @@ public final class Item implements Cloneable {
             /** @serialField ServiceItem.attributeSets converted to EntryReps. */
             new SerialForm("attributeSets", EntryRep[].class),
             /** @serialField ServiceItem.attributeSets converted to EntryReps. */
-            new SerialForm("bootstrapProxy", Proxy.class)  
-        };  
+            new SerialForm("bootstrapProxy", Proxy.class),
+            /** @serialField The registrar's born marshalling format this item's
+             * attribute sets/service payload were marshalled under. */
+            new SerialForm("entryFormat", MarshallingFormat.class)
+        };
     }
-    
+
     public static void serialize(PutArg arg, Item item) throws IOException{
         arg.put("serviceID", item.serviceID);
         arg.put("serviceType", item.serviceType);
@@ -87,6 +91,7 @@ public final class Item implements Cloneable {
         arg.put("service", item.service);
         arg.put("attributeSets", item.attributeSets);
         arg.put("bootstrapProxy", item.bootstrapProxy);
+        arg.put("entryFormat", item.entryFormat);
         arg.writeArgs();
     }
 
@@ -147,16 +152,46 @@ public final class Item implements Cloneable {
      * @serial
      */
     Proxy bootstrapProxy;
-     
+
+    /**
+     * The registrar's born marshalling format (JGDMS-STD-006 sec.3 item 5)
+     * this item's attribute sets and service payload were marshalled
+     * under. Populated at construction from the caller-supplied
+     * {@code useDer} flag (itself sourced from the proxy/registrar's own
+     * immutable {@code entryFormat} field, never {@code getConstraints()}),
+     * or carried over unchanged when copying an existing {@code Item}.
+     *
+     * @serial
+     */
+    public final MarshallingFormat entryFormat;
+
+    /**
+     * Sentinel distinguishing "the {@code entryFormat} field is absent from
+     * this stream's persistent schema" (a pre-A3 {@code Item}) from "the
+     * field is present and its serialized value is {@code null}" -- see
+     * {@link RegistrarProxy#resolveEntryFormat} for the full rationale.
+     */
+    private static final Object ENTRY_FORMAT_ABSENT = new Object();
+
+    private static MarshallingFormat resolveEntryFormat(GetArg arg)
+	    throws IOException, ClassNotFoundException
+    {
+	Object raw = arg.get("entryFormat", ENTRY_FORMAT_ABSENT);
+	if (raw == ENTRY_FORMAT_ABSENT) return MarshallingFormat.JOSS;
+	if (raw == null || raw instanceof MarshallingFormat) return (MarshallingFormat) raw;
+	throw new InvalidObjectException("entryFormat field is a "
+	    + raw.getClass().getName() + ", not assignable to MarshallingFormat");
+    }
+
     /**
      * Checks all invariants are satisfied during de-serialization.
      * @param arg
      * @return
-     * @throws IOException 
+     * @throws IOException
      * @throws ClassCastException
      * @throws NullPointerException
      */
-    private static boolean check(GetArg arg) 
+    private static boolean check(GetArg arg)
 	    throws IOException, ClassNotFoundException{
 	arg.get("serviceID", null, ServiceID.class);
 	// serviceID is assigned by Reggie if null.
@@ -165,7 +200,7 @@ public final class Item implements Cloneable {
 	arg.get("codebase", null, String.class);
 	// codebase allowed to be null
 	Valid.notNull(
-		arg.get("service", null, MarshalledWrapper.class), 
+		arg.get("service", null, MarshalledWrapper.class),
 		"service cannot be null");
 	// attributeSets can be null and can contain null
 	arg.get("attributeSets", null, EntryRep[].class);
@@ -173,19 +208,21 @@ public final class Item implements Cloneable {
 	if (bootstrapProxy != null) {
 	    if (Proxy.isProxyClass(bootstrapProxy.getClass())) return true;
 	}
+	if (resolveEntryFormat(arg) == null)
+	    throw new InvalidObjectException("null entryFormat");
 	return true;
     }
-    
+
     /**
      * Failure is atomic, if any invariants aren't satisfied, construction fails
      * before an instance can be created.
      * @param arg
-     * @throws IOException 
+     * @throws IOException
      */
     public Item(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     };
-    
+
     private Item(GetArg arg, boolean check) throws IOException, ClassNotFoundException{
 	super(); // instance has been created here.
 	serviceID = arg.get("serviceID", null, ServiceID.class);
@@ -194,16 +231,18 @@ public final class Item implements Cloneable {
 	service = arg.get("service", null, MarshalledWrapper.class);
 	attributeSets = Valid.copy(arg.get("attributeSets", null, EntryRep[].class));
 	bootstrapProxy = arg.get("bootstrapProxy", null, Proxy.class);
+	entryFormat = resolveEntryFormat(arg);
     }
-    
+
     public Item(Item item, MethodConstraints constraints){
 	this(item.serviceID,
 	    item.serviceType,
 	    item.codebase,
 	    item.service,
 	    item.attributeSets.clone(),
-	    item.bootstrapProxy != null ? 
-	    (Proxy)((RemoteMethodControl)item.bootstrapProxy).setConstraints(constraints): null
+	    item.bootstrapProxy != null ?
+	    (Proxy)((RemoteMethodControl)item.bootstrapProxy).setConstraints(constraints): null,
+	    item.entryFormat
 	);
     }
 
@@ -216,10 +255,12 @@ public final class Item implements Cloneable {
      *     {@code MarshallingFormat.ATOMIC_DER}); if {@code false}, the legacy
      *     JOSS {@code AtomicMarshalledInstance} form is used (unchanged
      *     pre-existing behavior). Callers derive this from the relevant
-     *     proxy/registration's own constraints -- see
-     *     {@link Util#requiresDerFormat(Object)} -- never as a JVM-global flag,
-     *     since {@code MarshalledWrapper.equals()}'s raw byte comparison means
-     *     mixing formats between two sides of a match silently breaks matching.
+     *     proxy/registration's own immutable, born {@code entryFormat}
+     *     field -- never from {@code getConstraints()}, since that is a
+     *     client-mutable, silently-droppable value and
+     *     {@code MarshalledWrapper.equals()}'s raw byte comparison means
+     *     mixing formats between two sides of a match silently breaks
+     *     matching.
      */
     public Item(ServiceItem item, boolean useDer) throws RemoteException {
 	Object svc = item.service;
@@ -249,9 +290,16 @@ public final class Item implements Cloneable {
 	    throw new MarshalException("error marshalling arguments", e);
 	}
 	attributeSets = EntryRep.toEntryRep(item.attributeSets, true, useDer);
+	entryFormat = useDer ? MarshallingFormat.ATOMIC_DER : MarshallingFormat.JOSS;
     }
-    
-    public Item(ServiceID serviceID, ServiceType serviceType, String codebase, MarshalledWrapper service, EntryRep[] attrSets, Proxy bootstrap)
+
+    /**
+     * @param entryFormat the born marshalling format {@code service}/
+     *     {@code attrSets} were already marshalled under; carried over
+     *     unchanged, never re-derived, by callers that copy an existing
+     *     {@code Item} (e.g. {@link #clone()}).
+     */
+    public Item(ServiceID serviceID, ServiceType serviceType, String codebase, MarshalledWrapper service, EntryRep[] attrSets, Proxy bootstrap, MarshallingFormat entryFormat)
     {
         this.serviceID = serviceID;
         this.serviceType = serviceType;
@@ -259,6 +307,7 @@ public final class Item implements Cloneable {
         this.service = service;
         attributeSets = attrSets != null ? attrSets.clone() : new EntryRep[0];
 	this.bootstrapProxy = bootstrap;
+	this.entryFormat = entryFormat != null ? entryFormat : MarshallingFormat.JOSS;
     }
 
     /**
@@ -309,7 +358,7 @@ public final class Item implements Cloneable {
 	    for (int i = attrSets.length; --i >= 0; ) {
 		attrSets[i] = (EntryRep)attrSets[i].clone();
 	    }
-	    return new Item(serviceID, serviceType, codebase, service, attrSets, bootstrapProxy);
+	    return new Item(serviceID, serviceType, codebase, service, attrSets, bootstrapProxy, entryFormat);
     }
 
     /**

@@ -22,6 +22,10 @@ import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.List;
 import net.jini.core.entry.Entry;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.PutEntryArg;
+import net.jini.core.entry.SerialEntry;
 import net.jini.entry.AbstractEntry;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicMarshalledInstance;
@@ -101,6 +105,72 @@ public class EntryRepDerFormatTest {
         public Payload payload;
         public PayloadEntry() {}
         public PayloadEntry(Payload payload) { this.payload = payload; }
+    }
+
+    /**
+     * Reflection-path Entry with boxed-scalar fields -- exactly the shape
+     * the DER codec's top-level boxed-primitive support (commit
+     * {@code c70cc8fa2}) unblocks: before that commit, {@code EntryRep}'s
+     * per-field {@code new MarshalledInstance(fieldValue, ...,
+     * MarshallingFormat.ATOMIC_DER)} would fail to marshal a bare
+     * {@code Integer}/{@code Long}/{@code Boolean} field value under
+     * {@code ATOMIC_DER}. Mirrors outrigger-dl's
+     * {@code EntryRepDerFormatTest.NumericEntry} (SOW-Entry-ATOMIC-DER
+     * -Migration.md sec.4 A3, structurally parallel to A1).
+     */
+    public static class NumericEntry extends AbstractEntry {
+        public Integer id;
+        public Long seq;
+        public Boolean flag;
+        public NumericEntry() { }
+        public NumericEntry(Integer id, Long seq, Boolean flag) {
+            this.id = id;
+            this.seq = seq;
+            this.flag = flag;
+        }
+    }
+
+    /**
+     * The same boxed-scalar shape as {@link NumericEntry}, but marshalled
+     * via the {@code @SerialEntry} path ({@code EntryRep.fieldsViaSerialEntry})
+     * instead of reflection, so both {@code EntryRep} marshal paths are
+     * exercised.
+     */
+    @SerialEntry
+    public static class SerialNumericEntry extends AbstractEntry {
+        public Integer id;
+        public Long seq;
+        public Boolean flag;
+
+        public SerialNumericEntry() { }
+
+        public SerialNumericEntry(Integer id, Long seq, Boolean flag) {
+            this.id = id;
+            this.seq = seq;
+            this.flag = flag;
+        }
+
+        public static EntryWireField[] entryForm() {
+            return new EntryWireField[] {
+                new EntryWireField("id", Integer.class),
+                new EntryWireField("seq", Long.class),
+                new EntryWireField("flag", Boolean.class),
+            };
+        }
+
+        public SerialNumericEntry(GetEntryArg arg) throws IOException {
+            id = arg.get("id", null, Integer.class);
+            seq = arg.get("seq", null, Long.class);
+            flag = arg.get("flag", null, Boolean.class);
+        }
+
+        public static void serialize(PutEntryArg arg, SerialNumericEntry e)
+                throws IOException {
+            arg.put("id", e.id);
+            arg.put("seq", e.seq);
+            arg.put("flag", e.flag);
+            arg.writeArgs();
+        }
     }
 
     private static MarshalledWrapper wrappedField(EntryRep rep) {
@@ -190,8 +260,9 @@ public class EntryRepDerFormatTest {
             + "MarshalledWrapper.equals() is a raw byte comparison of the "
             + "inner MarshalledInstance, so mixing formats silently breaks "
             + "matching instead of throwing. This is exactly why the format "
-            + "choice must be derived per client<->server relationship "
-            + "(Util.requiresDerFormat), never as a JVM-global flag.",
+            + "choice must be a single, immutable, born value for the whole "
+            + "registrar instance (RegistrarImpl.entryFormat()), never "
+            + "derived per-call from a client's own droppable constraints.",
             jossRep.equals(derRep));
 
         assertFalse(
@@ -213,5 +284,97 @@ public class EntryRepDerFormatTest {
         assertTrue(a.equals(b));
         assertTrue(a.matchEntry(b));
         assertTrue(b.matchEntry(a));
+    }
+
+    // ── (d) numeric (boxed-scalar) ATTRIBUTE end-to-end round trip under DER ─
+    //
+    // This is the property that was silently broken before jgdms-der commit
+    // c70cc8fa2 added top-level boxed-scalar support: EntryRep wraps each
+    // field in its own top-level MarshalledInstance, so a bare boxed
+    // Integer/Long/Boolean field value hit the codec's top-level entry point
+    // directly (not nested inside a container class), which used to reject
+    // it. These tests fail without that codec fix and pass with it -- the
+    // end-to-end validation the SOW's A3 row asks for, confirming the fix
+    // already on trunk covers Reggie's attribute fields too (no codec work
+    // needed here).
+
+    @Test
+    public void numericAttributeRoundTripsUnderDerReflectionPath() throws Exception {
+        EntryRep rep = repFor(
+            new NumericEntry(Integer.valueOf(42), Long.valueOf(9001L), Boolean.TRUE), true);
+        Entry decoded = rep.get();
+        assertTrue(decoded instanceof NumericEntry);
+        NumericEntry n = (NumericEntry) decoded;
+        assertEquals(Integer.valueOf(42), n.id);
+        assertEquals(Long.valueOf(9001L), n.seq);
+        assertEquals(Boolean.TRUE, n.flag);
+    }
+
+    @Test
+    public void numericAttributeRoundTripsUnderDerSerialEntryPath() throws Exception {
+        EntryRep rep = repFor(
+            new SerialNumericEntry(Integer.valueOf(42), Long.valueOf(9001L), Boolean.TRUE), true);
+        Entry decoded = rep.get();
+        assertTrue(decoded instanceof SerialNumericEntry);
+        SerialNumericEntry n = (SerialNumericEntry) decoded;
+        assertEquals(Integer.valueOf(42), n.id);
+        assertEquals(Long.valueOf(9001L), n.seq);
+        assertEquals(Boolean.TRUE, n.flag);
+    }
+
+    /**
+     * The load-bearing matching property (SOW sec.2.3): two DER-marshalled
+     * {@code EntryRep}s built from equal boxed-scalar attribute values must
+     * be byte-identical -- {@code EntryRep.equals()}/{@code matchEntry()}
+     * are raw {@code MarshalledWrapper}/{@code MarshalledInstance}-payload
+     * byte comparisons, so this assertion IS the byte-identical-payload
+     * assertion, not a proxy for it.
+     */
+    @Test
+    public void numericAttributeByteIdenticalForEqualValuesReflectionPath() throws Exception {
+        EntryRep a = repFor(
+            new NumericEntry(Integer.valueOf(7), Long.valueOf(1234567890123L), Boolean.FALSE), true);
+        EntryRep b = repFor(
+            new NumericEntry(Integer.valueOf(7), Long.valueOf(1234567890123L), Boolean.FALSE), true);
+        assertTrue("equal boxed-scalar attribute values must marshal to "
+            + "byte-identical EntryReps under DER", a.equals(b));
+        assertTrue(a.matchEntry(b));
+        assertTrue(b.matchEntry(a));
+    }
+
+    @Test
+    public void numericAttributeByteIdenticalForEqualValuesSerialEntryPath() throws Exception {
+        EntryRep a = repFor(
+            new SerialNumericEntry(Integer.valueOf(7), Long.valueOf(1234567890123L), Boolean.FALSE), true);
+        EntryRep b = repFor(
+            new SerialNumericEntry(Integer.valueOf(7), Long.valueOf(1234567890123L), Boolean.FALSE), true);
+        assertTrue("equal boxed-scalar attribute values must marshal to "
+            + "byte-identical EntryReps under DER", a.equals(b));
+        assertTrue(a.matchEntry(b));
+        assertTrue(b.matchEntry(a));
+    }
+
+    /** Companion sanity: distinct values must NOT match (no false positive from the fix). */
+    @Test
+    public void numericAttributeDifferentValuesDoNotMatchUnderDer() throws Exception {
+        EntryRep a = repFor(
+            new NumericEntry(Integer.valueOf(1), Long.valueOf(1L), Boolean.TRUE), true);
+        EntryRep b = repFor(
+            new NumericEntry(Integer.valueOf(2), Long.valueOf(1L), Boolean.TRUE), true);
+        assertFalse(a.equals(b));
+        assertFalse(a.matchEntry(b));
+    }
+
+    /** Same numeric fixture, sanity-checked under the legacy JOSS format too. */
+    @Test
+    public void numericAttributeRoundTripsUnderJoss() throws Exception {
+        EntryRep rep = repFor(
+            new NumericEntry(Integer.valueOf(42), Long.valueOf(9001L), Boolean.TRUE), false);
+        Entry decoded = rep.get();
+        assertTrue(decoded instanceof NumericEntry);
+        NumericEntry n = (NumericEntry) decoded;
+        assertEquals(Integer.valueOf(42), n.id);
+        assertEquals(Long.valueOf(9001L), n.seq);
+        assertEquals(Boolean.TRUE, n.flag);
     }
 }

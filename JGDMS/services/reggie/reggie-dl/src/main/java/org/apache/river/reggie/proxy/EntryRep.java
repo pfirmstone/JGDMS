@@ -152,8 +152,10 @@ public final class EntryRep implements Cloneable {
      * @param useDer if {@code true}, marshallable fields are wrapped via DER
      *     ({@code MarshalledInstance} + {@code MarshallingFormat.ATOMIC_DER});
      *     if {@code false}, the legacy JOSS {@code AtomicMarshalledInstance}
-     *     form is used (unchanged pre-existing behavior). See
-     *     {@link Util#requiresDerFormat(Object)} for how callers derive this.
+     *     form is used (unchanged pre-existing behavior). Callers derive
+     *     this from the relevant proxy/registration's own immutable, born
+     *     {@code entryFormat} field (e.g. {@code RegistrarProxy.useDer()}),
+     *     never from {@code getConstraints()}.
      */
     private EntryRep(Entry entry, boolean needCodebase, boolean useDer) throws RemoteException {
 	EntryClassBase ecb = ClassMapper.toEntryClassBase(entry.getClass());
@@ -190,7 +192,7 @@ public final class EntryRep implements Cloneable {
     /**
      * Marshals {@code val} either via DER ({@code useDer == true}) or the legacy
      * JOSS {@code AtomicMarshalledInstance} form ({@code useDer == false}), for
-     * wrapping in a {@link MarshalledWrapper}. See {@link Util#requiresDerFormat(Object)}.
+     * wrapping in a {@link MarshalledWrapper}.
      */
     private static MarshalledInstance marshal(Object val, boolean useDer) throws IOException {
         return useDer
@@ -393,7 +395,8 @@ public final class EntryRep implements Cloneable {
      * is false, then the codebase of every EntryRep will be null.
      *
      * @param useDer whether to marshal fields via DER instead of the legacy
-     *     JOSS form; see {@link Util#requiresDerFormat(Object)}.
+     *     JOSS form; callers derive this from the relevant proxy/
+     *     registration's own immutable, born {@code entryFormat} field.
      */
     public static EntryRep[] toEntryRep(Entry[] entries, boolean needCodebase, boolean useDer)
 	throws RemoteException
