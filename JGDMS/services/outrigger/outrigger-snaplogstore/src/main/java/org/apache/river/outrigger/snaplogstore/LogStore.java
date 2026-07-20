@@ -76,11 +76,14 @@ public class LogStore implements Store {
      *
      * @param space object used for recovery of previous state
      *
+     * @param entryFormat the marshalling format token this instance is
+     *        configured with (see {@link Store#setupStore})
+     *
      * @return object used to persist state
      */
-    public LogOps setupStore(Recover space) {
+    public LogOps setupStore(Recover space, String entryFormat) {
 	try {
-	    be.setupStore(space);
+	    be.setupStore(space, entryFormat);
 
 	    // Use the log type as the file prefix
 	    //

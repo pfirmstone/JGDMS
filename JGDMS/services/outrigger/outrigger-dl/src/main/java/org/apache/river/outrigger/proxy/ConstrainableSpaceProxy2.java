@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
 import java.util.Collection;
 import net.jini.admin.Administrable;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.entry.Entry;
@@ -182,10 +183,17 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
      * @param serverMaxServerQueryTimeout The value this proxy
      *              should use for the <code>maxServerQueryTimeout</code>
      *              if no local value is provided.
+     * @param entryFormat The marshalling format this space was born with
+     *              (fixed at the space's instantiation, immutable for its
+     *              life); every entry/template this proxy marshals uses
+     *              this format. <em>Not</em> derived from
+     *              <code>methodConstraints</code> -- see
+     *              {@link #setConstraints}.
      * @param methodConstraints the client method constraints to place on
      *                          this proxy (may be <code>null</code>).
-     * @throws NullPointerException if <code>space</code> or
-     *         <code>spaceUuid</code> is <code>null</code>.
+     * @throws NullPointerException if <code>space</code>,
+     *         <code>spaceUuid</code> or <code>entryFormat</code> is
+     *         <code>null</code>.
      * @throws IllegalArgumentException if 
      *         <code>serverMaxServerQueryTimeout</code> is not
      *         larger than zero.     
@@ -193,11 +201,12 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
      *         does not implement <code>RemoteMethodControl</code>.
      */
     public ConstrainableSpaceProxy2(OutriggerServer space, Uuid spaceUuid, 
-			    long serverMaxServerQueryTimeout, 
-			    MethodConstraints methodConstraints)
+				    long serverMaxServerQueryTimeout, 
+				    MarshallingFormat entryFormat,
+				    MethodConstraints methodConstraints)
     {
 	super(constrainServer(space, methodConstraints),
-	      spaceUuid, serverMaxServerQueryTimeout);
+	      spaceUuid, serverMaxServerQueryTimeout, entryFormat);
 	this.methodConstraints = methodConstraints;
     }
 
@@ -257,10 +266,20 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 	return (OutriggerServer)constrainedServer;
     }
 
+    /**
+     * Returns a copy of this proxy with the client's requested method
+     * constraints. The born {@link #entryFormat} is carried over from
+     * {@code this} unconditionally -- it is <em>not</em> one of the
+     * constraints being replaced here, so a client cannot drop or change
+     * the space's format via {@code setConstraints}; only the dedicated
+     * immutable field set once at the space's instantiation ever
+     * determines it (JGDMS-STD-006 sec.3 item 5).
+     */
     public RemoteMethodControl setConstraints(MethodConstraints constraints)
     {
-	return new ConstrainableSpaceProxy2(space, spaceUuid, 
+	return new ConstrainableSpaceProxy2(space, spaceUuid,
 					   serverMaxServerQueryTimeout,
+					   entryFormat,
 					   constraints);
     }
 

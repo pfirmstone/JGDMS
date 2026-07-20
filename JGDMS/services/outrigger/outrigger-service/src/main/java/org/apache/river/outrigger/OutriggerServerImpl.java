@@ -47,6 +47,10 @@ import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 
+import net.jini.constraint.BasicMethodConstraints;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
+import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.security.TrustVerifier;
 import net.jini.security.ProxyPreparer;
@@ -107,6 +111,7 @@ import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.export.CodebaseAccessor;
 import net.jini.export.CodebaseDigestUtil;
 import net.jini.io.MarshalledInstance;
+import net.jini.jeri.AtomicDerILFactory;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
@@ -415,9 +420,33 @@ public class OutriggerServerImpl
     private final AtomicLong sessionId = new AtomicLong();
 
     /**
+     * The marshalling format this space was born with: read once, at
+     * startup, from the {@code useDerForEntries} configuration entry
+     * (mirrors Reggie's {@code RegistrarImpl.useDerForEntries} naming) and
+     * fixed for the life of this instance (JGDMS-STD-006 sec.3 item 5 --
+     * the ratified born-immutable format decision). {@code true} selects
+     * {@link MarshallingFormat#ATOMIC_DER}; {@code false} (the default)
+     * selects legacy {@link MarshallingFormat#JOSS}. Never flipped after
+     * construction -- there is no setter, and the two persistence guards
+     * ({@link #recoverEntryFormat}, and the exported proxy's own
+     * non-overridable born-format field) enforce that a populated store
+     * cannot silently change format underneath this value.
+     */
+    private final boolean useDerForEntries;
+
+    /**
+     * @return the {@link MarshallingFormat} token derived from
+     * {@link #useDerForEntries}: the single format every entry, template,
+     * and persisted snapshot for this space instance uses.
+     */
+    MarshallingFormat entryFormat() {
+	return useDerForEntries ? MarshallingFormat.ATOMIC_DER : MarshallingFormat.JOSS;
+    }
+
+    /**
      * Policy used to create and renew leases on entries
      */
-    private final LeasePeriodPolicy entryLeasePolicy; 
+    private final LeasePeriodPolicy entryLeasePolicy;
 
     /**
      * Policy used to create and renew leases on event registrations
@@ -615,6 +644,7 @@ public class OutriggerServerImpl
 	    this.certFactoryType = h.certFactoryType;
 	    this.certPathEncoding = h.certPathEncoding;
 	    this.encodedCerts = h.encodedCerts.clone();
+	    this.useDerForEntries = h.useDerForEntries;
             {
                 CodebaseDigestUtil.Result dr = null;
                 try {
@@ -656,6 +686,7 @@ public class OutriggerServerImpl
             activationSystem = null;
             transactionManagerPreparer = null;
             listenerPreparer = null;
+            this.useDerForEntries = false;
             exporter = null;
             ourRemoteRef = null;
             contents = null;
@@ -779,7 +810,8 @@ public class OutriggerServerImpl
                     }
                     // If we have a store, recover the log
                     if (store != null) {
-                        log = store.setupStore(OutriggerServerImpl.this);
+                        log = store.setupStore(OutriggerServerImpl.this,
+                            entryFormat().getFormat());
 
                         // Record this boot
                         //
@@ -816,12 +848,32 @@ public class OutriggerServerImpl
                             + "endpoint: server does not implement "
                             + "RemoteMethodControl");
                     }
+                    /* Belt-and-braces (JGDMS-STD-006 sec.3 item 5): the
+                     * born entryFormat() field below is what actually
+                     * drives entry/template marshalling (the non-droppable
+                     * source of truth -- see ConstrainableSpaceProxy2
+                     * /ConstrainableAdminProxy#setConstraints). This
+                     * initial MethodConstraints is an *additional*,
+                     * independently-enforced wire-layer requirement: when
+                     * DER-configured, it makes the exported OutriggerServer
+                     * reference itself require MarshallingFormat.ATOMIC_DER,
+                     * so the JERI invocation layer (now AtomicDerILFactory,
+                     * see init() above) fails loud with
+                     * UnsupportedConstraintException for a genuinely
+                     * DER-incapable legacy client, rather than only relying
+                     * on the client-side proxy field.
+                     */
+                    final MethodConstraints initialConstraints = useDerForEntries
+                        ? new BasicMethodConstraints(
+                            new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null))
+                        : null;
                     spaceProxy = new ConstrainableSpaceProxy2(ourRemoteRef, topUuid,
-                        maxServerQueryTimeout, null);
+                        maxServerQueryTimeout, entryFormat(), initialConstraints);
                     adminProxy =
-                        new ConstrainableAdminProxy(ourRemoteRef, topUuid, null);
+                        new ConstrainableAdminProxy(ourRemoteRef, topUuid,
+                            entryFormat(), initialConstraints);
                     participantProxy =
-                        new ConstrainableParticipantProxy(ourRemoteRef, topUuid, null);
+                        new ConstrainableParticipantProxy(ourRemoteRef, topUuid, initialConstraints);
 
                     leaseFactory = new LeaseFactory(ourRemoteRef, topUuid);
 
@@ -986,6 +1038,7 @@ public class OutriggerServerImpl
         Thread starter;
         long maxServerQueryTimeout;
         AccessControlContext context;
+	boolean useDerForEntries;
 	private String codebase;
 	private String certFactoryType;
 	private String certPathEncoding;
@@ -1067,6 +1120,15 @@ public class OutriggerServerImpl
 	    h.encodedCerts = Config.getNonNullEntry(config, COMPONENT_NAME,
 		    "Codebase_Certs", byte[].class, new byte[0]);
 
+	    /* The space's born-immutable marshalling format (JGDMS-STD-006
+	     * sec.3 item 5): read once, here, at startup. Mirrors Reggie's
+	     * useDerForEntries naming/default (RegistrarImpl.java). true
+	     * selects ATOMIC_DER for every entry/template this space
+	     * marshals; false (the default) is the legacy JOSS format.
+	     */
+	    h.useDerForEntries = Config.getNonNullEntry(config, COMPONENT_NAME,
+		    "useDerForEntries", Boolean.class, Boolean.FALSE);
+
             /* Export the server. */
 
             // Get the exporter
@@ -1075,10 +1137,24 @@ public class OutriggerServerImpl
              * what we make the underlying exporter).
 	     * Use the ClassLoader of the proxy bundle, the ActivationExporter
 	     * will use this also, from the passed in basicExporter.
+	     *
+	     * When useDerForEntries is configured, the default exporter's
+	     * invocation layer factory is AtomicDerILFactory rather than
+	     * AtomicILFactory -- belt-and-braces alongside the born-format
+	     * field on the exported proxies: this makes the JERI wire layer
+	     * itself (BasicInvocationHandler/Dispatcher's existing
+	     * MarshallingFormat enforcement) fail loud with
+	     * UnsupportedConstraintException for a genuinely
+	     * DER-incapable legacy client, rather than only relying on the
+	     * client-side proxy field. A deployer-supplied "serverExporter"
+	     * config entry overrides this default entirely, as before.
              */
-            final Exporter basicExporter = 
+            final Exporter basicExporter =
                 new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-                                      new AtomicILFactory(null, null, OutriggerServer.class.getClassLoader()), false, true);
+                                      h.useDerForEntries
+                                          ? new AtomicDerILFactory(null, null, OutriggerServer.class.getClassLoader())
+                                          : new AtomicILFactory(null, null, OutriggerServer.class.getClassLoader()),
+                                      false, true);
             if (activationID == null) {
                 h.exporter = (Exporter)Config.getNonNullEntry(config,
                     COMPONENT_NAME,	"serverExporter", Exporter.class,
@@ -3689,7 +3765,38 @@ public class OutriggerServerImpl
             long    bumpValue = Integer.MAX_VALUE;
 
             this.sessionId.addAndGet(bumpValue);
-    }    
+    }
+
+    /**
+     * Guard (i)+(ii) of the born-immutable format decision (JGDMS-STD-006
+     * sec.3 item 5): fail closed if the format recovered from a populated
+     * snapshot contradicts this instance's own {@link #useDerForEntries}
+     * configuration. Called by the store once, before any entry/registration
+     * recovery is dispatched, with the format token that was persisted
+     * alongside the snapshot's version marker (empty store: never called --
+     * an empty store has no prior format to contradict, so any format is a
+     * legal birth). This is what makes the immutability guarantee enforced
+     * rather than merely assumed: an operator cannot flip
+     * <code>useDerForEntries</code> underneath a populated store and have it
+     * silently take effect.
+     *
+     * @param format the marshalling format token recovered from the store
+     * @throws IllegalStateException if <code>format</code> does not match
+     *         this instance's configured format
+     */
+    public void recoverEntryFormat(String format) {
+	final String configured = entryFormat().getFormat();
+	if (!configured.equals(format)) {
+	    throw new IllegalStateException(
+		"Refusing to start: this store was born with marshalling "
+		+ "format " + format + " but this instance is configured "
+		+ "for " + configured + ". A space's marshalling format is "
+		+ "fixed at instantiation and immutable for the life of the "
+		+ "store (JGDMS-STD-006 sec.3 item 5); flipping "
+		+ "useDerForEntries on a populated store is not a supported "
+		+ "migration -- redeploy a new instance instead.");
+	}
+    }
 
     public void recoverJoinState(StoredObject state) throws Exception {
 	state.restore(joinStateManager);

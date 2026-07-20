@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.space.InternalSpaceException;
 
 /**
@@ -70,11 +71,56 @@ class BackEnd implements Observer {
     private volatile byte          topUuid[];
     private volatile LastLog	  lastLog;
 
+    /**
+     * The marshalling format token this instance is configured with
+     * (JGDMS-STD-006 sec.3 item 5's born-immutable format), passed in via
+     * {@link #setupStore}; persisted alongside every future snapshot so a
+     * later recovery can compare the store's born format against the
+     * then-current configuration.
+     */
+    private volatile String entryFormat;
+
+    /**
+     * The marshalling format token recovered from the most recent
+     * snapshot, or {@code null} if there was no snapshot (an empty store
+     * -- any format is a legal birth, per JGDMS-STD-006 sec.3 item 5).
+     */
+    private volatile String recoveredEntryFormat;
+
     /** Snapshot object */
     private volatile SnapshotFile	snapshotFile;
 
-    /** Keep logs and snapshot tied, though not necessary */
-    private static final int SNAPSHOT_VERSION = LogFile.LOG_VERSION;
+    /**
+     * Keep logs and snapshot tied, though not necessary. Bumped by one
+     * relative to {@code LogFile.LOG_VERSION} because the snapshot's own
+     * on-disk shape changed (the entryFormat marker below, added right
+     * after this version int) -- the log record shape (LOG_VERSION) did
+     * not, so log files are unaffected. This decoupling is deliberate:
+     * an older-version snapshot fails loudly via the existing "Wrong file
+     * version" check below, which doubles as the born-immutable-format
+     * guard's version marker (JGDMS-STD-006 sec.3 item 5, guard i+ii).
+     */
+    private static final int SNAPSHOT_VERSION = LogFile.LOG_VERSION + 1;
+
+    /**
+     * Board-review fix (blocking): the on-disk shape written by every
+     * pre-A1 release -- {@code LogFile.LOG_VERSION}, with no entryFormat
+     * marker following the version int. A new-code instance MUST still be
+     * able to recover this shape: it predates the born-immutable-format
+     * concept entirely, so it is unconditionally legacy JOSS (STD-006
+     * sec.11.8 graceful degradation -- an absent old-format marker means
+     * implicit legacy JOSS, never a reject). {@link #recoverSnapshot}
+     * recognizes this version, sets {@link #recoveredEntryFormat} to
+     * {@link MarshallingFormat#JOSS}'s token without attempting to read a
+     * marker that was never written, and lets the existing
+     * {@code recoverEntryFormat} guard in {@link #setupStore} make the
+     * real accept/refuse decision -- a JOSS-configured instance recovers
+     * it fine; a DER-configured instance pointed at legacy JOSS data is
+     * still correctly refused, via the guard, not a blunt version
+     * mismatch. Any version other than this one and {@link
+     * #SNAPSHOT_VERSION} remains a hard reject (genuine corruption).
+     */
+    private static final int PRE_A1_SNAPSHOT_VERSION = LogFile.LOG_VERSION;
 
     /**
      * The base name for the log files.
@@ -113,12 +159,31 @@ class BackEnd implements Observer {
 
     /**
      * Setup the database store and recover any existing state.
+     *
+     * @param space object used for recovery of previous state
+     * @param entryFormat the marshalling format token this instance is
+     *        configured with; recorded so future snapshots (written by
+     *        {@link #consumeLogs}) carry it, and dispatched for
+     *        comparison against any format recovered from an existing
+     *        snapshot (JGDMS-STD-006 sec.3 item 5's born-immutable-format
+     *        guards).
      */
-    void setupStore(Recover space) {
+    void setupStore(Recover space, String entryFormat) {
+	this.entryFormat = entryFormat;
 
 	// Recover the snapshot (if any)
 	//
 	recoverSnapshot();
+
+	/* Guard (i)+(ii): fail closed, before anything else is recovered or
+	 * a fresh snapshot is written (consumeLogs below), if the format
+	 * recovered from an existing snapshot contradicts this instance's
+	 * own configuration. An empty store (no snapshot) leaves
+	 * recoveredEntryFormat null -- any format is a legal birth.
+	 */
+	if (recoveredEntryFormat != null) {
+	    space.recoverEntryFormat(recoveredEntryFormat);
+	}
 
 	// Consume any remaining log files.
 	//
@@ -222,7 +287,24 @@ class BackEnd implements Observer {
 		    new FileInputStream(snapshot[0])));
 
 	    final int version = in.readInt();
-	    if (version != SNAPSHOT_VERSION) {
+	    if (version == SNAPSHOT_VERSION) {
+		// Born-immutable format marker (JGDMS-STD-006 sec.3 item 5),
+		// written immediately after the version int by consumeLogs;
+		// dispatched to Recover.recoverEntryFormat by the caller of
+		// recoverSnapshot (setupStore), before any other state is
+		// recovered.
+		recoveredEntryFormat = (String) in.readObject();
+	    } else if (version == PRE_A1_SNAPSHOT_VERSION) {
+		// Legacy pre-A1 shape: no format marker was ever written --
+		// this predates the born-immutable-format concept, so it is
+		// unconditionally legacy JOSS (STD-006 sec.11.8 graceful
+		// degradation: an absent old-format marker means implicit
+		// legacy JOSS, not a reject). Dispatched through the same
+		// recoverEntryFormat guard below, so a JOSS-configured
+		// instance recovers it and a DER-configured instance is
+		// still correctly refused.
+		recoveredEntryFormat = MarshallingFormat.JOSS.getFormat();
+	    } else {
 		logAndThrowRecoveryException(
 		    "Wrong file version:" + version, null);
 	    }
@@ -599,6 +681,10 @@ class BackEnd implements Observer {
 		ObjectOutputStream out = snapshotFile.next();
 
 		out.writeInt(SNAPSHOT_VERSION);
+		// Born-immutable format marker (JGDMS-STD-006 sec.3 item 5),
+		// read back by recoverSnapshot immediately after the version
+		// int above.
+		out.writeObject(entryFormat);
 		out.writeObject(sessionId.get());
 		out.writeObject(joinState);
                 // Serial form of maps is HashMap, cannot be changed.

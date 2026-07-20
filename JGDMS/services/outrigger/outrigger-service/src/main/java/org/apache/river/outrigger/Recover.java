@@ -129,5 +129,25 @@ public interface Recover {
      * @param uuid The <code>Uuid</code> being recovered.
      */
     public void recoverUuid(Uuid uuid);
+
+    /**
+     * Recover the marshalling format the store was born with -- part of
+     * the two born-immutable-format guards (JGDMS-STD-006 sec.3 item 5):
+     * (i) a service must refuse an in-place format change on a populated
+     * store, and (ii) recovery must refuse a snapshot whose format
+     * contradicts the instance's own configuration. Implementations
+     * enforce this by comparing <code>format</code> against their own
+     * configured format and throwing (fail-closed) on a mismatch. Called
+     * once, before any entry/registration recovery is dispatched. Will
+     * only be called if a format has been stored during a previous
+     * incarnation -- an empty store (no snapshot yet) has no prior format
+     * to contradict, so this method is not called and any format is a
+     * legal birth.
+     *
+     * @param format the marshalling format token recovered from the store
+     * @throws IllegalStateException if the recovered format contradicts
+     *         this instance's configuration
+     */
+    public void recoverEntryFormat(String format);
 }
 

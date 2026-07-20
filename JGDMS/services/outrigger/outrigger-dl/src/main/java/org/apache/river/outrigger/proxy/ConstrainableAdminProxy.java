@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import net.jini.admin.JoinAdmin;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
@@ -169,17 +170,22 @@ public final class ConstrainableAdminProxy extends AdminProxy
      * Create a new <code>ConstrainableAdminProxy</code>.
      * @param admin reference to remote server for the space.
      * @param spaceUuid universal unique ID for the space.
+     * @param entryFormat the marshalling format this space was born with;
+     *              <em>not</em> derived from <code>methodConstraints</code>
+     *              -- see {@link #setConstraints}.
      * @param methodConstraints the client method constraints to place on
      *                          this proxy (may be <code>null</code>).
-     * @throws NullPointerException if <code>admin</code> or
-     *         <code>spaceUuid</code> is <code>null</code>.     
+     * @throws NullPointerException if <code>admin</code>,
+     *         <code>spaceUuid</code> or <code>entryFormat</code> is
+     *         <code>null</code>.
      * @throws ClassCastException if <code>admin</code>
      *         does not implement <code>RemoteMethodControl</code>.
      */
     public ConstrainableAdminProxy(OutriggerAdmin admin, Uuid spaceUuid, 
-			    MethodConstraints methodConstraints)
+				    MarshallingFormat entryFormat,
+				    MethodConstraints methodConstraints)
     {
-	super(constrainServer(admin, methodConstraints), spaceUuid);
+	super(constrainServer(admin, methodConstraints), spaceUuid, entryFormat);
 	this.methodConstraints = methodConstraints;
     }
 
@@ -238,9 +244,15 @@ public final class ConstrainableAdminProxy extends AdminProxy
 	return (OutriggerAdmin)constrainedServer;
     }
 
+    /**
+     * Returns a copy of this proxy with the client's requested method
+     * constraints. The born {@link #entryFormat} is carried over from
+     * {@code this} unconditionally -- a client cannot drop or change the
+     * space's format via {@code setConstraints}.
+     */
     public RemoteMethodControl setConstraints(MethodConstraints constraints)
     {
-	return new ConstrainableAdminProxy(admin, spaceUuid, constraints);
+	return new ConstrainableAdminProxy(admin, spaceUuid, entryFormat, constraints);
     }
 
     public MethodConstraints getConstraints() {
@@ -271,7 +283,7 @@ public final class ConstrainableAdminProxy extends AdminProxy
 	throws TransactionException, RemoteException
     {
 	return new ConstrainableIteratorProxy(
-	    admin.contents(SpaceProxy2.repFor(tmpl), txn), admin, fetchSize,
+	    admin.contents(SpaceProxy2.repFor(tmpl, entryFormat), txn), admin, fetchSize,
 			   constraints);
     }
 

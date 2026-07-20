@@ -18,6 +18,7 @@
 package org.apache.river.outrigger.proxy;
 
 import java.rmi.MarshalException;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.entry.Entry;
 
 /**
@@ -75,10 +76,15 @@ class SnapshotRep implements Entry {
 
     /**
      * Create a new <code>SnapshotRep</code> that is a snapshot of
-     * <code>e</code>.
+     * <code>e</code>, marshalled under the space's single born
+     * <code>format</code> (see <code>SpaceProxy2#entryFormat</code>) so a
+     * later {@code write}/{@code read}/{@code take} using this snapshot
+     * (which bypasses re-marshalling, see {@code SpaceProxy2#repFor})
+     * carries the same format as every other entry/template for that
+     * space.
      */
-    SnapshotRep(Entry e) throws MarshalException {
-	rep = new EntryRep(e);
+    SnapshotRep(Entry e, MarshallingFormat format) throws MarshalException {
+	rep = new EntryRep(e, format);
     }
 
     /**

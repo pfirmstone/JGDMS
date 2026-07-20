@@ -20,6 +20,7 @@ package org.apache.river.outrigger.proxy;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.rmi.RemoteException;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.transaction.Transaction;
@@ -51,16 +52,27 @@ public abstract class AdminProxy implements JavaSpaceAdmin, ReferentUuid {
     /** The <code>Uuid</code> that identifies the space this proxy is for */
     final Uuid spaceUuid;
 
+    /**
+     * The marshalling format this space was born with (see
+     * {@code SpaceProxy2#entryFormat}); templates built for the admin
+     * {@code contents} iterator must marshal in this same single format,
+     * uniform with every other entry/template for the space.
+     * @serial
+     */
+    final MarshallingFormat entryFormat;
+
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
             new SerialForm("admin", OutriggerAdmin.class),
-            new SerialForm("spaceUuid", Uuid.class)
+            new SerialForm("spaceUuid", Uuid.class),
+            new SerialForm("entryFormat", MarshallingFormat.class)
         };
     }
 
     public static void serialize(PutArg arg, AdminProxy o) throws IOException {
         arg.put("admin", o.admin);
         arg.put("spaceUuid", o.spaceUuid);
+        arg.put("entryFormat", o.entryFormat);
         arg.writeArgs();
     }
 
@@ -71,41 +83,81 @@ public abstract class AdminProxy implements JavaSpaceAdmin, ReferentUuid {
      * objects.
      * @param admin reference to remote server for the space.
      * @param spaceUuid universal unique ID for the space.
-     * @throws NullPointerException if <code>admin</code> or
-     *         <code>spaceUuid</code> is <code>null</code>.     
+     * @param entryFormat the marshalling format this space was born with.
+     * @throws NullPointerException if <code>admin</code>,
+     *         <code>spaceUuid</code> or <code>entryFormat</code> is
+     *         <code>null</code>.
      */
-    public AdminProxy(OutriggerAdmin admin, Uuid spaceUuid) {
-	this(check(admin,spaceUuid), admin, spaceUuid);
+    public AdminProxy(OutriggerAdmin admin, Uuid spaceUuid, MarshallingFormat entryFormat) {
+	this(check(admin, spaceUuid, entryFormat), admin, spaceUuid, entryFormat);
     }
-    
+
     AdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	this(serialCheck((OutriggerAdmin) arg.get("admin", null),
-			(Uuid) arg.get("spaceUuid", null)),
+			(Uuid) arg.get("spaceUuid", null),
+			resolveEntryFormat(arg)),
 		(OutriggerAdmin) arg.get("admin", null),
-		(Uuid) arg.get("spaceUuid", null)
+		(Uuid) arg.get("spaceUuid", null),
+		resolveEntryFormat(arg)
 	);
     }
-    
-    private AdminProxy(boolean check, OutriggerAdmin admin, Uuid spaceUuid){
+
+    /**
+     * Sentinel distinguishing "the {@code entryFormat} field is absent from
+     * this stream's persistent schema" from "the field is present and its
+     * serialized value is {@code null}" -- {@link GetArg}'s type-checked
+     * {@code get(name, val, type)} overload conflates both into the same
+     * default-return path, so the untyped {@code get(name, Object)}
+     * overload is used here with a private sentinel default instead, which
+     * only substitutes on true absence.
+     */
+    private static final Object ENTRY_FORMAT_ABSENT = new Object();
+
+    /**
+     * Board-review fix (blocking): resolve the born {@link #entryFormat}
+     * from a {@link GetArg} stream, treating an absent field (a proxy
+     * serialized before this field existed, i.e. before DER support) as
+     * implicit legacy {@link MarshallingFormat#JOSS} rather than rejecting
+     * it (STD-006 sec.11.8 graceful degradation: an absent old-format
+     * marker means implicit legacy JOSS, not a reject). A field that IS
+     * present but whose serialized value is actually {@code null} is left
+     * as {@code null} here -- that is corruption, and {@link #serialCheck}
+     * (via {@link #check}) still rejects it.
+     */
+    private static MarshallingFormat resolveEntryFormat(GetArg arg)
+	    throws IOException, ClassNotFoundException
+    {
+	Object raw = arg.get("entryFormat", ENTRY_FORMAT_ABSENT);
+	if (raw == ENTRY_FORMAT_ABSENT) return MarshallingFormat.JOSS;
+	if (raw == null || raw instanceof MarshallingFormat) return (MarshallingFormat) raw;
+	throw new InvalidObjectException("entryFormat field is a "
+	    + raw.getClass().getName() + ", not assignable to MarshallingFormat");
+    }
+
+    private AdminProxy(boolean check, OutriggerAdmin admin, Uuid spaceUuid, MarshallingFormat entryFormat){
 	this.admin = admin;
 	this.spaceUuid = spaceUuid;
+	this.entryFormat = entryFormat;
     }
-    
-    private static boolean serialCheck(OutriggerAdmin admin, Uuid spaceUuid) throws InvalidObjectException{
+
+    private static boolean serialCheck(OutriggerAdmin admin, Uuid spaceUuid, MarshallingFormat entryFormat)
+	    throws InvalidObjectException{
 	try {
-	    return check(admin, spaceUuid);
+	    return check(admin, spaceUuid, entryFormat);
 	} catch (NullPointerException ex){
 	    InvalidObjectException e = new InvalidObjectException("Invariants not satisfied");
 	    e.initCause(ex);
 	    throw e;
 	}
     }
-    
-    private static boolean check(OutriggerAdmin admin, Uuid spaceUuid){
+
+    private static boolean check(OutriggerAdmin admin, Uuid spaceUuid, MarshallingFormat entryFormat){
 	if (admin == null)
 	    throw new NullPointerException("admin must be non-null");
-	if (spaceUuid == null) 
+	if (spaceUuid == null)
 	    throw new NullPointerException("spaceUuid must be non-null");
+	if (entryFormat == null)
+	    throw new NullPointerException("entryFormat must be non-null");
 	return true;
     }
 
@@ -126,7 +178,7 @@ public abstract class AdminProxy implements JavaSpaceAdmin, ReferentUuid {
 	throws TransactionException, RemoteException
     {
 	return new IteratorProxy(
-            admin.contents(SpaceProxy2.repFor(tmpl), tr), admin, fetchSize);
+            admin.contents(SpaceProxy2.repFor(tmpl, entryFormat), tr), admin, fetchSize);
     }
 
     // inherit doc comment

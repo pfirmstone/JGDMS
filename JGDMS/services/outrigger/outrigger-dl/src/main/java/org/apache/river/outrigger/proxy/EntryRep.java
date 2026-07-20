@@ -17,6 +17,8 @@
  */
 package org.apache.river.outrigger.proxy;
 
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.id.Uuid;
@@ -45,6 +47,7 @@ import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.WeakHashMap;
 import java.util.logging.Logger;
@@ -104,10 +107,17 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     static {
         classHashes = new WeakHashMap<Class,Long>();
 	try {
+	    /* matchAnyRep stands in for a null template and is never
+	     * actually marshalled on the wire (see class javadoc above);
+	     * the anonymous Entry below has no usable fields either, so no
+	     * field value is ever marshalled under this format -- any
+	     * MarshallingFormat value is equally inert here, JOSS is used
+	     * simply because it requires no optional codec on the classpath.
+	     */
 	    matchAnyRep = new EntryRep(new Entry() {
 		// keeps tests happy
 		static final long serialVersionUID = -4244768995726274609L;
-	    }, false);
+	    }, false, MarshallingFormat.JOSS);
 	} catch (MarshalException e) {
 	    throw new AssertionError(e);
 	}
@@ -289,8 +299,15 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      * <code>validate</code> is <code>false</code> only when creating the
      * stand-in object for "match any", which is never actually marshalled
      * on the wire and so which doesn't need to be "proper".
+     * <p>
+     * Each field value is marshalled under the given {@code format} --
+     * the space's single born-immutable marshalling format (JGDMS-STD-006
+     * sec.3 item 5) -- so that entries and templates produced for a given
+     * space always marshal uniformly; never a per-field or per-relationship
+     * choice (see {@code SpaceProxy2.repFor}).
      */
-    private EntryRep(Entry entry, boolean validate) throws MarshalException {
+    private EntryRep(Entry entry, boolean validate, MarshallingFormat format)
+	    throws MarshalException {
 	realClass = entry.getClass();
 	if (validate)
 	    ensureValidClass(realClass);
@@ -298,7 +315,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	codebase = CodebaseProvider.getClassAnnotation(realClass);
 
 	if (realClass.isAnnotationPresent(SerialEntry.class)) {
-	    this.values = marshalSerialEntry(realClass, entry);
+	    this.values = marshalSerialEntry(realClass, entry, format);
 	} else {
 	    /*
 	     * Build up the per-field and superclass information through
@@ -335,8 +352,20 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 		    vals[nvals] = null;
 		} else {
 		    try {
-			vals[nvals] = new MarshalledInstance(fieldValue);
-		    } catch (IOException e) {
+			vals[nvals] = new MarshalledInstance(fieldValue,
+			    Collections.EMPTY_SET,
+			    new InvocationConstraints(format, null));
+		    } catch (IOException | RuntimeException e) {
+			/* Board-review fix (Finding B): mirror
+			 * marshalSerialEntry's outer catch-all below -- a
+			 * marshalling failure isn't guaranteed to surface as
+			 * IOException (e.g. an UnsupportedOperationException
+			 * for a non-DER-encodable field value, sec.3 item 6
+			 * of the ATOMIC_DER migration SOW); left uncaught it
+			 * would escape this constructor unchecked, violating
+			 * its documented "throws only MarshalException"
+			 * contract.
+			 */
 			throw throwNewMarshalException(
 			    "Can't marshal field " + field + " with value " +
 			    fieldValue, e);
@@ -386,10 +415,11 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 
     /**
      * Marshals a {@code @SerialEntry} instance via its static
-     * {@code serialize(PutEntryArg, T)} method.
+     * {@code serialize(PutEntryArg, T)} method, marshalling each field
+     * value under the space's single born {@code format}.
      */
-    private static MarshalledInstance[] marshalSerialEntry(Class realClass, Entry entry)
-	    throws MarshalException {
+    private static MarshalledInstance[] marshalSerialEntry(Class realClass, Entry entry,
+	    MarshallingFormat format) throws MarshalException {
 	try {
 	    Method entryFormMethod = realClass.getMethod("entryForm");
 	    EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
@@ -403,7 +433,9 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 		Object val = rawValues[i];
 		if (val != null) {
 		    try {
-			values[i] = new MarshalledInstance(val);
+			values[i] = new MarshalledInstance(val,
+			    Collections.EMPTY_SET,
+			    new InvocationConstraints(format, null));
 		    } catch (IOException e) {
 			throw throwNewMarshalException(
 			    "Can't marshal @SerialEntry field " + wireFields[i].getName()
@@ -430,10 +462,38 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 
     /**
      * Create a serialized form of the entry with our object's
-     * relevant fields set.
+     * relevant fields set, marshalling each field value under the
+     * legacy JOSS format. Retained for source/binary compatibility;
+     * callers that must honor a space's configured (born-immutable)
+     * marshalling format should use {@link #EntryRep(Entry, MarshallingFormat)}
+     * instead -- see {@code SpaceProxy2.repFor}.
      */
     public EntryRep(Entry entry) throws MarshalException {
-	this(entry, true);
+	this(entry, true, MarshallingFormat.JOSS);
+    }
+
+    /**
+     * Create a serialized form of the entry with our object's relevant
+     * fields set, marshalling each field value under the given
+     * {@code format}. This is the format-aware constructor used so that
+     * entries and templates produced for a given space are always
+     * marshalled in that space's single born format (JGDMS-STD-006 sec.3
+     * item 5: the format is fixed at instantiation and immutable, and
+     * uniform for every client of the space) -- never a per-field or
+     * per-relationship choice.
+     * @param entry the entry to marshal.
+     * @param format the marshalling format required for each field's
+     *        {@link MarshalledInstance}.
+     * @throws NullPointerException if <code>format</code> is <code>null</code>.
+     */
+    public EntryRep(Entry entry, MarshallingFormat format) throws MarshalException {
+	this(entry, true, notNull(format));
+    }
+
+    private static MarshallingFormat notNull(MarshallingFormat format) {
+	if (format == null)
+	    throw new NullPointerException("format cannot be null");
+	return format;
     }
     private static boolean checkIntegrity(GetArg arg) throws IOException, ClassNotFoundException {
 	MarshalledInstance[] values = (MarshalledInstance[]) arg.get("values", null);

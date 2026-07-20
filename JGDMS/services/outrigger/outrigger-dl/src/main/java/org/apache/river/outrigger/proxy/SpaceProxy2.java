@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.admin.Administrable;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.core.event.EventRegistration;
@@ -97,11 +98,28 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
      */
     final long serverMaxServerQueryTimeout;
 
+    /**
+     * The marshalling format this space was born with, fixed at the
+     * space's instantiation and immutable for its life (JGDMS-STD-006
+     * sec.3 item 5: a space-wide format epoch inherited uniformly by
+     * every client). Every entry and template this proxy marshals
+     * ({@link #repFor}) uses this format -- <em>not</em> a value derived
+     * from {@code ((RemoteMethodControl) space).getConstraints()}, since
+     * client-set constraints are wholesale replaceable via
+     * {@code setConstraints} and would make the format silently
+     * droppable, reintroducing the per-relationship optionality the
+     * born-immutable model forbids.
+     * Package protected so it can be read by subclasses.
+     * @serial
+     */
+    final MarshallingFormat entryFormat;
+
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
             new SerialForm("space", OutriggerServer.class),
             new SerialForm("spaceUuid", Uuid.class),
-            new SerialForm("serverMaxServerQueryTimeout", Long.TYPE)
+            new SerialForm("serverMaxServerQueryTimeout", Long.TYPE),
+            new SerialForm("entryFormat", MarshallingFormat.class)
         };
     }
 
@@ -109,6 +127,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
         arg.put("space", o.space);
         arg.put("spaceUuid", o.spaceUuid);
         arg.put("serverMaxServerQueryTimeout", o.serverMaxServerQueryTimeout);
+        arg.put("entryFormat", o.entryFormat);
         arg.writeArgs();
     }
 
@@ -147,56 +166,102 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
      * @param serverMaxServerQueryTimeout The value this proxy
      *              should use for the <code>maxServerQueryTimeout</code>
      *              if no local value is provided.
-     * @throws NullPointerException if <code>space</code> or
-     *         <code>spaceUuid</code> is <code>null</code>.
-     * @throws IllegalArgumentException if 
+     * @param entryFormat The marshalling format this space was born with
+     *              (fixed at the space's instantiation, immutable for its
+     *              life); every entry/template this proxy marshals uses
+     *              this format.
+     * @throws NullPointerException if <code>space</code>,
+     *         <code>spaceUuid</code> or <code>entryFormat</code> is
+     *         <code>null</code>.
+     * @throws IllegalArgumentException if
      *         <code>serverMaxServerQueryTimeout</code> is not
      *         larger than zero.
      */
-    public SpaceProxy2(OutriggerServer space, Uuid spaceUuid, 
-		long serverMaxServerQueryTimeout)
+    public SpaceProxy2(OutriggerServer space, Uuid spaceUuid,
+		long serverMaxServerQueryTimeout, MarshallingFormat entryFormat)
     {
 	this (notNull(space),
 		notNull(spaceUuid),
 		serverMaxServerQueryTimeout,
+		notNull(entryFormat),
 		setMaxServerQueryTimeout(serverMaxServerQueryTimeout));
     }
-    
+
     private static <T> T notNull(T value){
 	if (value == null) throw new NullPointerException();
 	return value;
     }
-    
+
     private SpaceProxy2( OutriggerServer space, Uuid spaceUuid,
-	    long serverMaxServerQueryTimeout, long maxServerQueryTimeout ){
+	    long serverMaxServerQueryTimeout, MarshallingFormat entryFormat,
+	    long maxServerQueryTimeout ){
 	this.space = space;
 	this.spaceUuid = spaceUuid;
 	this.serverMaxServerQueryTimeout = serverMaxServerQueryTimeout;
+	this.entryFormat = entryFormat;
 	this.maxServerQueryTimeout = maxServerQueryTimeout;
     }
 
     private SpaceProxy2( boolean check, OutriggerServer space, Uuid spaceUuid,
-	    long serverMaxServerQueryTimeout, long maxServerQueryTimeout ){
-	this(space, spaceUuid, serverMaxServerQueryTimeout, maxServerQueryTimeout);
+	    long serverMaxServerQueryTimeout, MarshallingFormat entryFormat,
+	    long maxServerQueryTimeout ){
+	this(space, spaceUuid, serverMaxServerQueryTimeout, entryFormat, maxServerQueryTimeout);
     }
 
     SpaceProxy2(GetArg arg) throws IOException, ClassNotFoundException {
 	this(serialCheck((OutriggerServer) arg.get("space", null),
 			(Uuid) arg.get("spaceUuid", null),
-			arg.get("serverMaxServerQueryTimeout", -1L)),
+			arg.get("serverMaxServerQueryTimeout", -1L),
+			resolveEntryFormat(arg)),
 		(OutriggerServer) arg.get("space", null),
 		(Uuid) arg.get("spaceUuid", null),
 		arg.get("serverMaxServerQueryTimeout", -1L),
+		resolveEntryFormat(arg),
 		setMaxServerQueryTimeout(arg.get("serverMaxServerQueryTimeout", -1L)));
     }
 
     /**
+     * Sentinel distinguishing "the {@code entryFormat} field is absent from
+     * this stream's persistent schema" from "the field is present and its
+     * serialized value is {@code null}" -- {@link GetArg}'s type-checked
+     * {@code get(name, val, type)} overload conflates both into the same
+     * default-return path (see its {@code v == ABSENT || v == null} check),
+     * so the untyped {@code get(name, Object)} overload is used here with a
+     * private sentinel default instead, which only substitutes on true
+     * absence.
+     */
+    private static final Object ENTRY_FORMAT_ABSENT = new Object();
+
+    /**
+     * Board-review fix (blocking): resolve the born {@link #entryFormat}
+     * from a {@link GetArg} stream, treating an absent field (a proxy
+     * serialized before this field existed, i.e. before DER support) as
+     * implicit legacy {@link MarshallingFormat#JOSS} rather than rejecting
+     * it (STD-006 sec.11.8 graceful degradation: an absent old-format
+     * marker means implicit legacy JOSS, not a reject). A field that IS
+     * present but whose serialized value is actually {@code null} is left
+     * as {@code null} here -- that is corruption, and {@link #serialCheck}
+     * still rejects it.
+     */
+    private static MarshallingFormat resolveEntryFormat(GetArg arg)
+	    throws IOException, ClassNotFoundException
+    {
+	Object raw = arg.get("entryFormat", ENTRY_FORMAT_ABSENT);
+	if (raw == ENTRY_FORMAT_ABSENT) return MarshallingFormat.JOSS;
+	if (raw == null || raw instanceof MarshallingFormat) return (MarshallingFormat) raw;
+	throw new InvalidObjectException("entryFormat field is a "
+	    + raw.getClass().getName() + ", not assignable to MarshallingFormat");
+    }
+
+    /**
      * Validate the invariants formerly checked by {@code readObject}: a
-     * non-null server reference, a non-null {@code Uuid}, and a positive
-     * {@code serverMaxServerQueryTimeout}.
+     * non-null server reference, a non-null {@code Uuid}, a positive
+     * {@code serverMaxServerQueryTimeout}, and a non-null born
+     * {@code entryFormat}.
      */
     private static boolean serialCheck(OutriggerServer space, Uuid spaceUuid,
-	    long serverMaxServerQueryTimeout) throws InvalidObjectException
+	    long serverMaxServerQueryTimeout, MarshallingFormat entryFormat)
+	    throws InvalidObjectException
     {
 	if (space == null)
 	    throw new InvalidObjectException("null server reference");
@@ -205,6 +270,8 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	if (serverMaxServerQueryTimeout <= 0)
 	    throw new InvalidObjectException("Bad serverMaxServerQueryTimeout " +
 		"value:" + serverMaxServerQueryTimeout);
+	if (entryFormat == null)
+	    throw new InvalidObjectException("null entryFormat");
 	return true;
     }
 
@@ -328,7 +395,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
     {
 	if (entry == null)
 	    throw new NullPointerException("Cannot write null Entry");
-	long[] leaseData = space.write(repFor(entry), txn, lease);
+	long[] leaseData = space.write(repFor(entry, entryFormat), txn, lease);
 	if (leaseData == null || leaseData.length != 3){
             StringBuilder sb = new StringBuilder(180);
             sb.append("space.write returned malformed data \n");
@@ -359,7 +426,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	    logQuery("read", serverTimeout, queryCookie, remaining);
 
 	    final Object rslt = 
-		space.read(repFor(tmpl), txn, serverTimeout, queryCookie);
+		space.read(repFor(tmpl, entryFormat), txn, serverTimeout, queryCookie);
 	    if (rslt == null) {
 		// should never get null from a non-ifExists query
 		throw new AssertionError("space.read() returned null");
@@ -406,7 +473,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	    logQuery("readIfExists", serverTimeout, queryCookie, remaining);
 
 	    final Object rslt = 
-		space.readIfExists(repFor(tmpl), txn, serverTimeout,
+		space.readIfExists(repFor(tmpl, entryFormat), txn, serverTimeout,
 				   queryCookie);
 	    if (rslt == null) {
 		// Must be no matches in the space at all
@@ -454,7 +521,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	    logQuery("take", serverTimeout, queryCookie, remaining);
 
 	    final Object rslt = 
-		space.take(repFor(tmpl), txn, serverTimeout, queryCookie);
+		space.take(repFor(tmpl, entryFormat), txn, serverTimeout, queryCookie);
 	    if (rslt == null) {
 		// should never get null from a non-ifExists query
 		throw new AssertionError("space.take() returned null");
@@ -501,7 +568,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	    logQuery("takeIfExists", serverTimeout, queryCookie, remaining);
 
 	    final Object rslt = 
-		space.takeIfExists(repFor(tmpl), txn, serverTimeout, 
+		space.takeIfExists(repFor(tmpl, entryFormat), txn, serverTimeout, 
 				   queryCookie);
 	    if (rslt == null) {
 		// Must be no matches in the space at all
@@ -536,7 +603,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	if (entry == null)
 	    return null;
 	else
-	    return new SnapshotRep(entry);
+	    return new SnapshotRep(entry, entryFormat);
     }
 
     // inherit doc comment
@@ -545,7 +612,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	       long lease, MarshalledObject handback)
 	throws TransactionException, RemoteException
     {
-	return space.notify(repFor(tmpl), txn, listener, lease,
+	return space.notify(repFor(tmpl, entryFormat), txn, listener, lease,
 		handback != null ? new MarshalledInstance(handback) : null);
     }
 	
@@ -555,7 +622,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	       long lease, MarshalledInstance handback)
 	throws TransactionException, RemoteException
     {
-	return space.notify(repFor(tmpl), txn, listener, lease, handback);
+	return space.notify(repFor(tmpl, entryFormat), txn, listener, lease, handback);
     }
 
     public List write(List entries, Transaction txn, List leaseDurations)
@@ -577,7 +644,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	    leases[j++] = ((Long)l).longValue();
 	}
 
-	long[] leaseData = space.write(repFor(entries, "entries"), txn, leases);
+	long[] leaseData = space.write(repFor(entries, "entries", entryFormat), txn, leases);
 	if (leaseData == null)
 	    throw new AssertionError("space.write<multiple> returned null");
 
@@ -608,7 +675,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
     
 	long remaining = timeout;
 	OutriggerServer.QueryCookie queryCookie = null;
-	final EntryRep[] treps = repFor(tmpls, "tmpls");
+	final EntryRep[] treps = repFor(tmpls, "tmpls", entryFormat);
 
 	final int limit;
 	if (maxEntries < 1) {
@@ -695,7 +762,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
         throws TransactionException, RemoteException
     {
 	return space.registerForAvailabilityEvent(
-	    repFor(tmpls, "tmpls"), txn, visibilityOnly, listener,
+	    repFor(tmpls, "tmpls", entryFormat), txn, visibilityOnly, listener,
 	    leaseDuration, new MarshalledInstance(handback));
     }
 	
@@ -709,7 +776,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	    throws TransactionException, RemoteException 
     {
 	return space.registerForAvailabilityEvent(
-	    repFor(tmpls, "tmpls"), txn, visibilityOnly, listener,
+	    repFor(tmpls, "tmpls", entryFormat), txn, visibilityOnly, listener,
 	    leaseDuration, handback);
     }
 
@@ -721,7 +788,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	throws RemoteException, TransactionException
     {
 	final MatchSetData msd = 
-	    space.contents(repFor(tmpls, "tmpls"), txn, leaseDuration, maxEntries);
+	    space.contents(repFor(tmpls, "tmpls", entryFormat), txn, leaseDuration, maxEntries);
 	return new MatchSetProxy(msd, this, space, tmpls);
     }
 
@@ -786,8 +853,8 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	    return now + timeout;
     }
 
-    static EntryRep[] repFor(Collection entries, String argName)
-	throws MarshalException 
+    static EntryRep[] repFor(Collection entries, String argName, MarshallingFormat format)
+	throws MarshalException
     {
 	final EntryRep[] reps = new EntryRep[entries.size()];
 	int j = 0;
@@ -797,7 +864,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 		throw new IllegalArgumentException(
 		    argName + " contatins an element which is not an Entry");
 
-	    reps[j++] = repFor((Entry)e);
+	    reps[j++] = repFor((Entry)e, format);
 	}
 
 	return reps;
@@ -805,14 +872,19 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 
     /**
      * Return an <code>EntryRep</code> object for the given
-     * <code>Entry</code>.  
+     * <code>Entry</code>, marshalling its field values under
+     * <code>format</code> -- the caller's space's single born format
+     * (see {@link #entryFormat}). A pre-computed {@link SnapshotRep} is
+     * returned as-is: it was already marshalled (via {@link #snapshot})
+     * under the same proxy's born format, so it is already in
+     * <code>format</code>.
      */
-    static EntryRep repFor(Entry entry) throws MarshalException {
+    static EntryRep repFor(Entry entry, MarshallingFormat format) throws MarshalException {
 	if (entry == null)
 	    return null;
 	if (entry instanceof SnapshotRep)    // snapshots are pre-calculated
 	    return ((SnapshotRep) entry).rep();
-	return new EntryRep(entry);
+	return new EntryRep(entry, format);
     }
 
     /**
