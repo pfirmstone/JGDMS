@@ -58,7 +58,7 @@ import java.util.Set;
 
 /**
  * Engine for DER object-stream encoding and decoding (JGDMS-STD-008 sec.15.5,
- * Increment 1).
+ * Increment 1; boxed-scalar top-level items sec.15.2.1).
  *
  * <h2>Context-tag scheme for self-describing object items</h2>
  * <p>
@@ -66,15 +66,26 @@ import java.util.Set;
  * {@link #readObject} is a context-specific TLV whose tag number encodes the
  * item kind:
  * <pre>
- *   [0] PRIMITIVE   -- NULL reference (length 0)
- *   [1] CONSTRUCTED -- @AtomicSerial object; content = MarshalledInstanceRecord DER SEQUENCE
- *   [3] PRIMITIVE   -- java.lang.String; content = UTF8String value bytes
- *   [5] PRIMITIVE   -- byte[]; content = OCTET STRING value bytes
- *   [7] CONSTRUCTED -- enum constant; content = UTF8String(declaringClassName) ++ UTF8String(constantName)
- *   [8] CONSTRUCTED -- bare java.lang.reflect.Proxy; content = INTEGER ifaceCount ++ ifaceName(UTF8String)* ++ [1] @AtomicSerial InvocationHandler
+ *   [0]  PRIMITIVE   -- NULL reference (length 0)
+ *   [1]  CONSTRUCTED -- @AtomicSerial object; content = MarshalledInstanceRecord DER SEQUENCE
+ *   [2]  PRIMITIVE   -- boxed java.lang.Boolean; content = canonical BOOLEAN octet (0x00/0xFF)
+ *   [3]  PRIMITIVE   -- java.lang.String; content = UTF8String value bytes
+ *   [4]  PRIMITIVE   -- boxed java.lang.Byte; content = canonical minimal INTEGER content
+ *   [5]  PRIMITIVE   -- byte[]; content = OCTET STRING value bytes
+ *   [6]  PRIMITIVE   -- boxed java.lang.Short; content = canonical minimal INTEGER content
+ *   [7]  CONSTRUCTED -- enum constant; content = UTF8String(declaringClassName) ++ UTF8String(constantName)
+ *   [8]  CONSTRUCTED -- bare java.lang.reflect.Proxy; content = INTEGER ifaceCount ++ ifaceName(UTF8String)* ++ [1] @AtomicSerial InvocationHandler
+ *   [9]  CONSTRUCTED -- top-level value array; content = UTF8String(arrayWireType) ++ element SEQUENCE
+ *   [10] PRIMITIVE   -- boxed java.lang.Integer; content = canonical minimal INTEGER content
+ *   [11] PRIMITIVE   -- boxed java.lang.Long; content = canonical minimal INTEGER content
+ *   [12] PRIMITIVE   -- boxed java.lang.Float; content = canonical 4-byte IEEE-754 OCTET STRING content
+ *   [13] PRIMITIVE   -- boxed java.lang.Double; content = canonical 8-byte IEEE-754 OCTET STRING content
+ *   [14] PRIMITIVE   -- boxed java.lang.Character; content = canonical Unicode codepoint INTEGER content
  * </pre>
- * Context class = 0x80. Constructed bit = 0x20 set for [1], [7], [8]. Single-byte tags:
- * [0]->0x80, [1]->0xa1, [3]->0x83, [5]->0x85, [7]->0xa7, [8]->0xa8.
+ * Context class = 0x80 (primitive) / 0xA0 (constructed); constructed bit set only for
+ * [1], [7], [8], [9]. Single-byte tags: [0]-&gt;0x80, [1]-&gt;0xa1, [2]-&gt;0x82, [3]-&gt;0x83,
+ * [4]-&gt;0x84, [5]-&gt;0x85, [6]-&gt;0x86, [7]-&gt;0xa7, [8]-&gt;0xa8, [9]-&gt;0xa9, [10]-&gt;0x8a,
+ * [11]-&gt;0x8b, [12]-&gt;0x8c, [13]-&gt;0x8d, [14]-&gt;0x8e.
  * (A {@code java.lang.reflect.Proxy} whose interfaces + {@code @AtomicSerial} handler are
  * locally resolvable is transmitted bare as [8]; one that needs a codebase download is
  * instead substituted by a {@code ProxySerializer} and rides the [1] path, per STD-008 sec.15.2.
@@ -84,6 +95,31 @@ import java.util.Set;
  * {@link au.net.zeus.jgdms.der.object.RawWireFormRetaining}, which also preserve the full
  * original wire bytes for a byte-for-byte-faithful later re-forward of a narrowed proxy.)
  *
+ * <h3>Boxed-scalar tag allocation (STD-008 sec.15.2.1)</h3>
+ * <p>
+ * [2]/[4]/[6] fill the gaps the original [0]/[1]/[3]/[5]/[7]/[8]/[9] allocation left
+ * unused; [10]-[14] is a contiguous run for the remaining five boxed types once the gaps
+ * ran out. Eight DISTINCT tags are used -- one per boxed type -- rather than a single
+ * shared "boxed primitive" tag, because {@code byte}/{@code short}/{@code int}/
+ * {@code long} all encode on the wire as the identical DER INTEGER content and the
+ * context tag is the ONLY type carrier at top level (there is no schema to consult): a
+ * boxed {@code Integer} MUST decode back as an {@code Integer}, never silently as a
+ * {@code Long} or {@code Short} of the same numeric value (board guidance sec.2.1 H2 --
+ * distinct-tag discipline). All eight are PRIMITIVE (non-constructed) tags: a boxed
+ * scalar carries a single inert value, never a nested TLV structure.
+ * <p>
+ * <b>This is a DIFFERENT namespace from STD-006 sec.3.12's {@code AnyElement} scalar
+ * tags.</b> {@code AnyElement CHOICE} (the {@code ObjectCodec}/field-level polymorphic-slot
+ * scheme) also numbers its scalar arms [0]-[9] -- a completely separate grammar, decoded
+ * only for a polymorphic <em>field</em> value nested inside an already-identified
+ * {@code @AtomicSerial} record's own payload bytes, never for a top-level stream item.
+ * The two numeric spaces happen to overlap (e.g. this class's [2] boxed-{@code Boolean}
+ * vs. {@code AnyElement}'s {@code scalarShort [2]}) but no decoder ever reads one
+ * grammar's tag against the other's meaning: {@link #readObject} only ever dispatches on
+ * the outermost item of a {@code writeObject}/{@code readObject} call; {@code AnyElement}
+ * bytes only ever appear inside a payload already routed there by {@code ObjectCodec}'s
+ * own decoder.
+ *
  * <h2>No handle table -- pure value-tree, deterministic (STD-008 sec.15.3)</h2>
  * <p>
  * There is NO handle table and NO back-reference: every object occurrence is encoded in
@@ -92,8 +128,9 @@ import java.util.Set;
  * aliasing. It loses nothing real -- {@code @AtomicSerial} deserialization defensively
  * copies and re-checks invariants per object, so shared identity is never preserved across
  * the boundary anyway (a deliberate security property). Reference cycles are consequently
- * impossible to express. A back-reference-style context tag (e.g. [2]) is not part of the
- * grammar and is rejected fail-secure.
+ * impossible to express. A back-reference-style context tag is not part of the grammar:
+ * any tag number this class does not explicitly recognise above (including a would-be
+ * back-reference marker) is rejected fail-secure by {@link #readObject}'s final catch-all.
  */
 final class DerObjectStreamCodec {
 
@@ -115,6 +152,30 @@ final class DerObjectStreamCodec {
     private static final Tag CTX_PROXY       = new Tag(Tag.CLASS_CONTEXT, true,  8);
     /** [9] constructed context tag: top-level value array (UTF8 componentWireType + element SEQUENCE). */
     private static final Tag CTX_ARRAY       = new Tag(Tag.CLASS_CONTEXT, true,  9);
+
+    // -- Boxed scalar top-level items (STD-008 sec.15.2.1; see class javadoc "Boxed-scalar
+    // tag allocation" for why eight DISTINCT tags, not one shared tag). All PRIMITIVE
+    // (non-constructed): a boxed scalar is a single inert value, never a nested TLV. Each
+    // reuses the SAME canonical content the corresponding typed-primitive channel already
+    // produces (writeBoolean/writeInteger/writeFloat/writeDouble/writeChar below), so a
+    // value has exactly one wire encoding whether it travels boxed (top-level) or as a
+    // declared-type field (one encoding per value -- board guidance sec.2.1 H1).
+    /** [2] primitive context tag: boxed java.lang.Boolean; content = canonical BOOLEAN octet (0x00/0xFF). */
+    private static final Tag CTX_BOOLEAN     = new Tag(Tag.CLASS_CONTEXT, false, 2);
+    /** [4] primitive context tag: boxed java.lang.Byte; content = canonical minimal INTEGER content. */
+    private static final Tag CTX_BYTE        = new Tag(Tag.CLASS_CONTEXT, false, 4);
+    /** [6] primitive context tag: boxed java.lang.Short; content = canonical minimal INTEGER content. */
+    private static final Tag CTX_SHORT       = new Tag(Tag.CLASS_CONTEXT, false, 6);
+    /** [10] primitive context tag: boxed java.lang.Integer; content = canonical minimal INTEGER content. */
+    private static final Tag CTX_INTEGER     = new Tag(Tag.CLASS_CONTEXT, false, 10);
+    /** [11] primitive context tag: boxed java.lang.Long; content = canonical minimal INTEGER content. */
+    private static final Tag CTX_LONG        = new Tag(Tag.CLASS_CONTEXT, false, 11);
+    /** [12] primitive context tag: boxed java.lang.Float; content = canonical 4-byte IEEE-754 OCTET STRING content. */
+    private static final Tag CTX_FLOAT       = new Tag(Tag.CLASS_CONTEXT, false, 12);
+    /** [13] primitive context tag: boxed java.lang.Double; content = canonical 8-byte IEEE-754 OCTET STRING content. */
+    private static final Tag CTX_DOUBLE      = new Tag(Tag.CLASS_CONTEXT, false, 13);
+    /** [14] primitive context tag: boxed java.lang.Character; content = canonical Unicode codepoint INTEGER content. */
+    private static final Tag CTX_CHARACTER   = new Tag(Tag.CLASS_CONTEXT, false, 14);
 
     /** {@link DeSerializationPermission}("PROXY") required to reconstruct a [8] proxy (mirrors JOSS). */
     private static final Permission PROXY_PERM = new DeSerializationPermission("PROXY");
@@ -248,15 +309,7 @@ final class DerObjectStreamCodec {
      * canonical {@code +0.0}. {@code -0.0} is mapped to {@code +0.0} on encode.
      */
     void writeFloat(float v) {
-        int bits;
-        if (Float.isNaN(v))                                          bits = 0x7FC00000;
-        else if (Float.floatToRawIntBits(v) == 0x80000000)           bits = 0x00000000;
-        else                                                         bits = Float.floatToRawIntBits(v);
-        byte[] content = new byte[] {
-                (byte)(bits >>> 24), (byte)(bits >>> 16),
-                (byte)(bits >>>  8), (byte) bits
-        };
-        writeBuffer.add(DerWriter.writeOctetString(content));
+        writeBuffer.add(DerWriter.writeOctetString(encodeCanonicalFloatContent(v)));
     }
 
     /**
@@ -264,13 +317,7 @@ final class DerObjectStreamCodec {
      * canonical {@code +0.0}. {@code -0.0} is mapped to {@code +0.0} on encode.
      */
     void writeDouble(double v) {
-        long bits;
-        if (Double.isNaN(v))                                                  bits = 0x7FF8000000000000L;
-        else if (Double.doubleToRawLongBits(v) == 0x8000000000000000L)        bits = 0x0000000000000000L;
-        else                                                                  bits = Double.doubleToRawLongBits(v);
-        byte[] content = new byte[8];
-        for (int i = 7; i >= 0; i--) { content[i] = (byte)(bits & 0xFF); bits >>>= 8; }
-        writeBuffer.add(DerWriter.writeOctetString(content));
+        writeBuffer.add(DerWriter.writeOctetString(encodeCanonicalDoubleContent(v)));
     }
 
     /**
@@ -279,6 +326,51 @@ final class DerObjectStreamCodec {
      * the low 16 bits as the char value, matching {@link DataOutput#writeChar}.)
      */
     void writeChar(int v) {
+        writeBuffer.add(DerWriter.writeInteger(BigInteger.valueOf(validatedCodepoint(v))));
+    }
+
+    /**
+     * STD-008 sec.17.3.1 canonical 4-byte IEEE-754 content bytes for {@code v}: canonical
+     * NaN ({@code 0x7FC00000}), {@code -0.0} mapped to {@code +0.0}. Shared by the typed
+     * {@link #writeFloat} channel and the boxed {@code java.lang.Float} top-level item
+     * (sec.15.2.1) so the two never diverge on the same value (H1 -- one encoding per value).
+     */
+    private static byte[] encodeCanonicalFloatContent(float v) {
+        int bits;
+        if (Float.isNaN(v))                                bits = 0x7FC00000;
+        else if (Float.floatToRawIntBits(v) == 0x80000000) bits = 0x00000000;
+        else                                                bits = Float.floatToRawIntBits(v);
+        return new byte[] {
+                (byte)(bits >>> 24), (byte)(bits >>> 16),
+                (byte)(bits >>>  8), (byte) bits
+        };
+    }
+
+    /**
+     * STD-008 sec.17.3.1 canonical 8-byte IEEE-754 content bytes for {@code v}: canonical
+     * NaN ({@code 0x7FF8000000000000}), {@code -0.0} mapped to {@code +0.0}. Shared by the
+     * typed {@link #writeDouble} channel and the boxed {@code java.lang.Double} top-level
+     * item (sec.15.2.1).
+     */
+    private static byte[] encodeCanonicalDoubleContent(double v) {
+        long bits;
+        if (Double.isNaN(v))                                           bits = 0x7FF8000000000000L;
+        else if (Double.doubleToRawLongBits(v) == 0x8000000000000000L) bits = 0x0000000000000000L;
+        else                                                             bits = Double.doubleToRawLongBits(v);
+        byte[] content = new byte[8];
+        for (int i = 7; i >= 0; i--) { content[i] = (byte)(bits & 0xFF); bits >>>= 8; }
+        return content;
+    }
+
+    /**
+     * STD-008 sec.17.3.2 codepoint validation (BMP, non-surrogate) shared by
+     * {@link #writeChar} and the boxed {@code java.lang.Character} top-level item
+     * (sec.15.2.1). Treats the low 16 bits of {@code v} as the char value, matching
+     * {@link DataOutput#writeChar}.
+     *
+     * @throws IllegalArgumentException if the codepoint is an unpaired surrogate
+     */
+    private static int validatedCodepoint(int v) {
         int cp = v & 0xFFFF;
         if (cp >= 0xD800 && cp <= 0xDFFF) {
             throw new IllegalArgumentException(
@@ -286,7 +378,7 @@ final class DerObjectStreamCodec {
                     + Integer.toHexString(cp).toUpperCase()
                     + " is not a valid Unicode codepoint (STD-008 sec.17.3.2)");
         }
-        writeBuffer.add(DerWriter.writeInteger(BigInteger.valueOf(cp)));
+        return cp;
     }
 
     void writeUTF(String s) {
@@ -317,7 +409,15 @@ final class DerObjectStreamCodec {
      *   <li>@AtomicSerial instance -> [1] MarshalledInstanceRecord (full, every occurrence)</li>
      *   <li>String -> [3]</li>
      *   <li>byte[] -> [5]</li>
-     *   <li>anything else -> UnsupportedOperationException (fail-secure)</li>
+     *   <li>non-byte[] value array -> [9]</li>
+     *   <li>enum constant -> [7]</li>
+     *   <li>bare java.lang.reflect.Proxy -> [8]</li>
+     *   <li>boxed Boolean/Byte/Short/Integer/Long/Float/Double/Character -- inert scalar
+     *       VALUES, no object graph, no gadget surface (sec.15.2.1) -> [2]/[4]/[6]/[10]/
+     *       [11]/[12]/[13]/[14] respectively, one distinct tag per type (H2)</li>
+     *   <li>anything else -> UnsupportedOperationException (fail-secure; this restriction
+     *       is deliberately NOT relaxed for arbitrary Serializable/Object graphs -- only
+     *       the inert value-kinds above are admitted)</li>
      * </ul>
      */
     void writeObject(Object obj) throws IOException {
@@ -433,6 +533,61 @@ final class DerObjectStreamCodec {
             return;
         }
 
+        // Boxed scalar VALUES (STD-008 sec.15.2.1 -- this increment unblocks
+        // SOW-Entry-ATOMIC-DER-Migration.md A1: Outrigger wraps each Entry field in its own
+        // top-level MarshalledInstance, so a boxed-primitive-typed field reaches writeObject
+        // as a top-level item; Reggie has the identical shipped gap). A boxed
+        // Boolean/Byte/Short/Integer/Long/Float/Double/Character carries no object graph, no
+        // constructor to run on decode beyond e.g. Integer.valueOf (no attacker-influenced
+        // work), and no readObject/gadget surface -- the SAME admission category already
+        // granted to String ([3]) and byte[] ([5]) above, just extended to the remaining
+        // scalar VALUE types. This is a DELIBERATE, NARROW relaxation of the
+        // @AtomicSerial-restricted fallthrough below to admit inert scalar values ONLY -- it
+        // does NOT admit arbitrary Serializable or Object graphs; anything that is not one
+        // of the named value-kinds still falls through to, and fails, that restriction.
+        //
+        // Each type gets its OWN distinct context tag (never a shared "boxed primitive" tag)
+        // so a boxed Integer can never decode as a Long of the same numeric value (H2 --
+        // distinct-tag discipline; see class javadoc "Boxed-scalar tag allocation"). The
+        // encoding reuses the IDENTICAL typed-primitive canonical content
+        // (writeBoolean/writeInteger/writeFloat/writeDouble/writeChar above), so a value has
+        // exactly one wire encoding whether it travels boxed (top-level) or as a
+        // declared-type field (H1) -- required for Outrigger's byte-compare entry matching.
+        if (obj instanceof Boolean b) {
+            writeBuffer.add(DerWriter.writeTlv(CTX_BOOLEAN,
+                    new byte[] { b ? (byte) 0xFF : (byte) 0x00 }));
+            return;
+        }
+        if (obj instanceof Byte by) {
+            writeBuffer.add(DerWriter.writeTlv(CTX_BYTE, BigInteger.valueOf(by).toByteArray()));
+            return;
+        }
+        if (obj instanceof Short sh) {
+            writeBuffer.add(DerWriter.writeTlv(CTX_SHORT, BigInteger.valueOf(sh).toByteArray()));
+            return;
+        }
+        if (obj instanceof Integer iv) {
+            writeBuffer.add(DerWriter.writeTlv(CTX_INTEGER, BigInteger.valueOf(iv).toByteArray()));
+            return;
+        }
+        if (obj instanceof Long lg) {
+            writeBuffer.add(DerWriter.writeTlv(CTX_LONG, BigInteger.valueOf(lg).toByteArray()));
+            return;
+        }
+        if (obj instanceof Float f) {
+            writeBuffer.add(DerWriter.writeTlv(CTX_FLOAT, encodeCanonicalFloatContent(f)));
+            return;
+        }
+        if (obj instanceof Double d) {
+            writeBuffer.add(DerWriter.writeTlv(CTX_DOUBLE, encodeCanonicalDoubleContent(d)));
+            return;
+        }
+        if (obj instanceof Character c) {
+            int cp = validatedCodepoint(c);
+            writeBuffer.add(DerWriter.writeTlv(CTX_CHARACTER, BigInteger.valueOf(cp).toByteArray()));
+            return;
+        }
+
         // @AtomicSerial object -> a full record, EVERY occurrence (no handle table; sec.15.3).
         // Encoded by VALUE so the stream is a deterministic (canonical-DER) function of values,
         // not object identity/order; @AtomicSerial deserialization copies + re-checks invariants
@@ -521,50 +676,146 @@ final class DerObjectStreamCodec {
      * non-canonical NaN bit patterns and {@code -0.0} bits rejected fail-secure.
      */
     float readFloat() throws IOException {
+        byte[] content;
         try {
-            byte[] content = reader.readOctetString();
-            if (content.length != 4) {
-                throw new IOException("readFloat: OCTET STRING must be 4 bytes, got " + content.length);
-            }
-            int bits =  ((content[0] & 0xFF) << 24)
-                      | ((content[1] & 0xFF) << 16)
-                      | ((content[2] & 0xFF) <<  8)
-                      |  (content[3] & 0xFF);
-            if (bits == 0x80000000) {
-                throw new IOException("readFloat: -0.0 bits are not canonical (STD-008 sec.17.3.1)");
-            }
-            boolean isNaN = (bits & 0x7F800000) == 0x7F800000 && (bits & 0x007FFFFF) != 0;
-            if (isNaN && bits != 0x7FC00000) {
-                throw new IOException("readFloat: non-canonical NaN 0x"
-                        + String.format("%08X", bits) + " (canonical is 0x7FC00000)");
-            }
-            return Float.intBitsToFloat(bits);
+            content = reader.readOctetString();
         } catch (DerException e) {
             throw new IOException("readFloat: " + e.getMessage(), e);
         }
+        return Float.intBitsToFloat(decodeCanonicalFloatBits(content, "readFloat"));
     }
 
     /** STD-008 sec.17.3.1: strict canonical IEEE-754 decode (8 bytes; rejects non-canonical NaN / {@code -0.0}). */
     double readDouble() throws IOException {
+        byte[] content;
         try {
-            byte[] content = reader.readOctetString();
-            if (content.length != 8) {
-                throw new IOException("readDouble: OCTET STRING must be 8 bytes, got " + content.length);
-            }
-            long bits = 0L;
-            for (int i = 0; i < 8; i++) bits = (bits << 8) | (content[i] & 0xFF);
-            if (bits == 0x8000000000000000L) {
-                throw new IOException("readDouble: -0.0 bits are not canonical (STD-008 sec.17.3.1)");
-            }
-            boolean isNaN = (bits & 0x7FF0000000000000L) == 0x7FF0000000000000L
-                         && (bits & 0x000FFFFFFFFFFFFFL) != 0L;
-            if (isNaN && bits != 0x7FF8000000000000L) {
-                throw new IOException("readDouble: non-canonical NaN 0x"
-                        + String.format("%016X", bits) + " (canonical is 0x7FF8000000000000)");
-            }
-            return Double.longBitsToDouble(bits);
+            content = reader.readOctetString();
         } catch (DerException e) {
             throw new IOException("readDouble: " + e.getMessage(), e);
+        }
+        return Double.longBitsToDouble(decodeCanonicalDoubleBits(content, "readDouble"));
+    }
+
+    /**
+     * STD-008 sec.17.3.1 canonical decode shared by the typed {@link #readFloat} channel and
+     * the boxed {@code java.lang.Float} top-level item (sec.15.2.1): requires exactly 4
+     * content bytes, rejects non-canonical {@code -0.0} bits and non-canonical NaN bit
+     * patterns.
+     *
+     * @param content the OCTET STRING content bytes (header already consumed by the caller)
+     * @param what     a short label identifying the caller, for the error message
+     */
+    private static int decodeCanonicalFloatBits(byte[] content, String what) throws IOException {
+        if (content.length != 4) {
+            throw new IOException(what + ": OCTET STRING must be 4 bytes, got " + content.length);
+        }
+        int bits =  ((content[0] & 0xFF) << 24)
+                  | ((content[1] & 0xFF) << 16)
+                  | ((content[2] & 0xFF) <<  8)
+                  |  (content[3] & 0xFF);
+        if (bits == 0x80000000) {
+            throw new IOException(what + ": -0.0 bits are not canonical (STD-008 sec.17.3.1)");
+        }
+        boolean isNaN = (bits & 0x7F800000) == 0x7F800000 && (bits & 0x007FFFFF) != 0;
+        if (isNaN && bits != 0x7FC00000) {
+            throw new IOException(what + ": non-canonical NaN 0x"
+                    + String.format("%08X", bits) + " (canonical is 0x7FC00000)");
+        }
+        return bits;
+    }
+
+    /**
+     * STD-008 sec.17.3.1 canonical decode shared by the typed {@link #readDouble} channel and
+     * the boxed {@code java.lang.Double} top-level item (sec.15.2.1): requires exactly 8
+     * content bytes, rejects non-canonical {@code -0.0} bits and non-canonical NaN bit
+     * patterns.
+     *
+     * @param content the OCTET STRING content bytes (header already consumed by the caller)
+     * @param what     a short label identifying the caller, for the error message
+     */
+    private static long decodeCanonicalDoubleBits(byte[] content, String what) throws IOException {
+        if (content.length != 8) {
+            throw new IOException(what + ": OCTET STRING must be 8 bytes, got " + content.length);
+        }
+        long bits = 0L;
+        for (int i = 0; i < 8; i++) bits = (bits << 8) | (content[i] & 0xFF);
+        if (bits == 0x8000000000000000L) {
+            throw new IOException(what + ": -0.0 bits are not canonical (STD-008 sec.17.3.1)");
+        }
+        boolean isNaN = (bits & 0x7FF0000000000000L) == 0x7FF0000000000000L
+                     && (bits & 0x000FFFFFFFFFFFFFL) != 0L;
+        if (isNaN && bits != 0x7FF8000000000000L) {
+            throw new IOException(what + ": non-canonical NaN 0x"
+                    + String.format("%016X", bits) + " (canonical is 0x7FF8000000000000)");
+        }
+        return bits;
+    }
+
+    /**
+     * Parses INTEGER content bytes (TLV header already consumed by the caller) with the SAME
+     * canonical-form checks {@link DerReader#readInteger()} applies internally (X.690 minimal
+     * two's-complement: no non-minimal leading {@code 0x00}/{@code 0xFF}). Used by the boxed
+     * Byte/Short/Integer/Long/Character top-level items (sec.15.2.1), whose tag is
+     * context-specific -- not the universal INTEGER tag {@code readInteger()} itself requires.
+     *
+     * @param what a short label identifying the caller, for the error message
+     */
+    private static BigInteger parseCanonicalIntegerContent(byte[] content, String what) throws IOException {
+        if (content.length == 0) {
+            throw new IOException(what + ": INTEGER content must be at least 1 byte");
+        }
+        if (content.length >= 2) {
+            int b0 = content[0] & 0xFF;
+            int b1 = content[1] & 0xFF;
+            if (b0 == 0x00 && (b1 & 0x80) == 0) {
+                throw new IOException(what
+                        + ": non-canonical INTEGER, leading 0x00 with non-negative following byte (0x"
+                        + Integer.toHexString(b1) + ")");
+            }
+            if (b0 == 0xFF && (b1 & 0x80) != 0) {
+                throw new IOException(what
+                        + ": non-canonical INTEGER, leading 0xFF with negative-marked following byte (0x"
+                        + Integer.toHexString(b1) + ")");
+            }
+        }
+        return new BigInteger(content);
+    }
+
+    /**
+     * Parses a codepoint from already-consumed INTEGER content, applying the same
+     * canonical-form (via {@link #parseCanonicalIntegerContent}) plus range and surrogate
+     * checks as {@link #readChar} (STD-008 sec.17.3.2). Used by the boxed
+     * {@code java.lang.Character} top-level item (sec.15.2.1).
+     */
+    private static char parseCanonicalCharContent(byte[] content, String what) throws IOException {
+        BigInteger v = parseCanonicalIntegerContent(content, what);
+        int cp = exactIntOrThrow(v, what);
+        if (cp < 0 || cp > 0xFFFF) {
+            throw new IOException(what + ": codepoint " + cp
+                    + " out of BMP range [0, 0xFFFF] (STD-008 sec.17.3.2)");
+        }
+        if (cp >= 0xD800 && cp <= 0xDFFF) {
+            throw new IOException(what + ": surrogate codepoint 0x"
+                    + Integer.toHexString(cp).toUpperCase() + " is not a valid Unicode codepoint");
+        }
+        return (char) cp;
+    }
+
+    /** Wraps {@link BigInteger#longValueExact()}, translating overflow into a fail-secure {@link IOException}. */
+    private static long exactLongOrThrow(BigInteger v, String what) throws IOException {
+        try {
+            return v.longValueExact();
+        } catch (ArithmeticException e) {
+            throw new IOException(what + ": INTEGER overflow", e);
+        }
+    }
+
+    /** Wraps {@link BigInteger#intValueExact()}, translating overflow into a fail-secure {@link IOException}. */
+    private static int exactIntOrThrow(BigInteger v, String what) throws IOException {
+        try {
+            return v.intValueExact();
+        } catch (ArithmeticException e) {
+            throw new IOException(what + ": INTEGER overflow", e);
         }
     }
 
@@ -804,8 +1055,89 @@ final class DerObjectStreamCodec {
             }
         }
 
+        // Boxed scalar top-level items (STD-008 sec.15.2.1). Each decodes back to the EXACT
+        // box its tag names (never a widened/narrowed sibling -- H2) and applies the same
+        // canonical-form + range checks the corresponding typed-primitive reader already
+        // enforces (fail-secure reject, never tolerate -- H1/principle 6).
+        if (CTX_BOOLEAN.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readObject: [2] boxed Boolean");
+            if (content.length != 1) {
+                throw new IOException("readObject: [2] boxed Boolean content length must be 1, got "
+                        + content.length);
+            }
+            int b = content[0] & 0xFF;
+            if (b == 0x00) return Boolean.FALSE;
+            if (b == 0xFF) return Boolean.TRUE;
+            throw new IOException("readObject: [2] boxed Boolean content must be 0x00 or 0xFF, got 0x"
+                    + Integer.toHexString(b));
+        }
+
+        if (CTX_BYTE.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readObject: [4] boxed Byte");
+            long lv = exactLongOrThrow(parseCanonicalIntegerContent(content, "readObject: [4] boxed Byte"),
+                    "readObject: [4] boxed Byte");
+            if (lv < Byte.MIN_VALUE || lv > Byte.MAX_VALUE) {
+                throw new IOException("readObject: [4] boxed Byte value " + lv + " out of byte range");
+            }
+            return Byte.valueOf((byte) lv);
+        }
+
+        if (CTX_SHORT.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readObject: [6] boxed Short");
+            long lv = exactLongOrThrow(parseCanonicalIntegerContent(content, "readObject: [6] boxed Short"),
+                    "readObject: [6] boxed Short");
+            if (lv < Short.MIN_VALUE || lv > Short.MAX_VALUE) {
+                throw new IOException("readObject: [6] boxed Short value " + lv + " out of short range");
+            }
+            return Short.valueOf((short) lv);
+        }
+
+        if (CTX_INTEGER.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readObject: [10] boxed Integer");
+            BigInteger v = parseCanonicalIntegerContent(content, "readObject: [10] boxed Integer");
+            return Integer.valueOf(exactIntOrThrow(v, "readObject: [10] boxed Integer"));
+        }
+
+        if (CTX_LONG.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readObject: [11] boxed Long");
+            BigInteger v = parseCanonicalIntegerContent(content, "readObject: [11] boxed Long");
+            return Long.valueOf(exactLongOrThrow(v, "readObject: [11] boxed Long"));
+        }
+
+        if (CTX_FLOAT.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readObject: [12] boxed Float");
+            int bits = decodeCanonicalFloatBits(content, "readObject: [12] boxed Float");
+            return Float.valueOf(Float.intBitsToFloat(bits));
+        }
+
+        if (CTX_DOUBLE.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readObject: [13] boxed Double");
+            long bits = decodeCanonicalDoubleBits(content, "readObject: [13] boxed Double");
+            return Double.valueOf(Double.longBitsToDouble(bits));
+        }
+
+        if (CTX_CHARACTER.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readObject: [14] boxed Character");
+            return Character.valueOf(parseCanonicalCharContent(content, "readObject: [14] boxed Character"));
+        }
+
         throw new IOException("readObject: unexpected context tag " + tag
-                + " (expected [0],[1],[3],[5],[7],[8]); back-references are not supported (sec.15.3)");
+                + " (expected [0],[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12],[13],[14]);"
+                + " back-references are not supported (sec.15.3)");
+    }
+
+    /**
+     * Reads {@code hdr}'s content bytes (TLV header already consumed via {@link
+     * DerReader#readTlvHeader()}), wrapping a {@link DerException} as a fail-secure
+     * {@link IOException}. Shared by every context-tagged item's content read in
+     * {@link #readObject}.
+     */
+    private byte[] readTagContent(DerReader.TlvHeader hdr, String what) throws IOException {
+        try {
+            return reader.readRawContent(hdr.contentLength());
+        } catch (DerException e) {
+            throw new IOException(what + ": failed to read content", e);
+        }
     }
 
     /** Resolves an enum constant by declaring-class + name (raw-type bridge for {@link Enum#valueOf}). */

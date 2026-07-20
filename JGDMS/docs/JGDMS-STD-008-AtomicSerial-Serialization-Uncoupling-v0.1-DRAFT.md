@@ -902,9 +902,10 @@ header) and is cleaner-aligned with the 4.0.0 "no Java Serialization" thesis.
   the JERI dispatcher reads arguments using the method's declared parameter types, so
   primitives are not self-describing. Encoded directly with STD-006 DER primitives:
   boolean→BOOLEAN, byte/short/int/long→INTEGER (range-checked, `WireTypes`),
-  `writeUTF`/String→UTF8String, `write(byte[])`→OCTET STRING.
-  `float`/`double`/`char` are **deferred in STD-006 (S7.6)** → throw
-  `UnsupportedOperationException` for now (gap; a service using them can't go DER-only yet).
+  `writeUTF`/String→UTF8String, `write(byte[])`→OCTET STRING. `float`/`double`/`char` were
+  originally **deferred in STD-006 (S7.6)**, but that deferral was **LIFTED 2026-06-14** —
+  see sec.17.3 for the strict-canonicalization design (IEEE-754 OCTET STRING /
+  Unicode-codepoint INTEGER) that now ships on this same typed channel.
 - **Objects** go through `writeObject`/`readObject` (self-describing). Each is one
   DER-tagged item (a CHOICE keyed by context tag):
   - `[0]` NULL — null reference.
@@ -913,10 +914,113 @@ header) and is cleaner-aligned with the 4.0.0 "no Java Serialization" thesis.
     `@AtomicSerial` (reuse `SchemaGenerator`/`ObjectCodec`); a non-`@AtomicSerial`,
     non-value object is **rejected** (`UnsupportedOperationException` / fail-secure — the
     restricted model).
-  - `[2]` (reserved, NOT used) — there are no back-references in the grammar; a `[2]` tag is
-    **rejected** fail-secure (sec.15.3).
-  - `[3]` String (UTF8String), `[4]` a boxed primitive, `[5]` `byte[]` (OCTET STRING).
-  - (later) `[6]` array, `[7]` enum.
+  - `[3]` String (UTF8String), `[5]` `byte[]` (OCTET STRING), `[7]` enum constant
+    (sec.17.1), `[8]` a bare `java.lang.reflect.Proxy`, `[9]` a top-level value array
+    (sec.17.2).
+  - `[2]`/`[4]`/`[6]`/`[10]`-`[14]` boxed scalars — see **sec.15.2.1** immediately below.
+    (This numbering supersedes an earlier draft note that named `[2]` "reserved, NOT used"
+    and `[4]` "a boxed primitive" singular/unallocated; `[2]` is now assigned per sec.15.2.1
+    and there was never a decode-time special case pinned to that specific numeral — see
+    sec.15.2.1's security-rationale paragraph.)
+  - Anything else (arbitrary `Serializable`, a plain `Object` graph, …) is **rejected**
+    (`UnsupportedOperationException` / fail-secure). There is no back-reference tag in the
+    grammar at all (sec.15.3): any context tag number this codec does not explicitly
+    recognise — including a would-be back-reference marker — is rejected fail-secure.
+
+#### 15.2.1 Boxed scalar top-level items (increment; unblocks A1)
+
+**Motivation.** Outrigger wraps each `Entry` field in its own top-level
+`MarshalledInstance` (`EntryRep.java:338`/`:406`, `SOW-Entry-ATOMIC-DER-Migration.md` §2.2);
+a field whose declared type is a boxed primitive (`Integer`, `Long`, `Boolean`, …) therefore
+reaches `writeObject` as a **top-level** item, not as a declared-type field inside an
+`@AtomicSerial` record. Before this increment every such value fell through to the final
+`@AtomicSerial`-restricted branch and threw `UnsupportedOperationException` — the exact gap
+that SOW's A1 names as blocking. Reggie has the identical shipped gap on any entry field of
+a boxed-scalar type. This increment is the gating fix; wiring Outrigger's/Reggie's
+per-field marshalling to use it is out of scope here (that SOW's A1/A3 own that wiring).
+
+**Tag allocation.** Eight DISTINCT context tags, one per boxed type:
+
+| Tag    | Type        | Wire content |
+|--------|-------------|--------------|
+| `[2]`  | `Boolean`   | canonical BOOLEAN octet (`0x00`/`0xFF`) |
+| `[4]`  | `Byte`      | canonical minimal INTEGER content |
+| `[6]`  | `Short`     | canonical minimal INTEGER content |
+| `[10]` | `Integer`   | canonical minimal INTEGER content |
+| `[11]` | `Long`      | canonical minimal INTEGER content |
+| `[12]` | `Float`     | canonical 4-byte IEEE-754 OCTET STRING content (sec.17.3.1 rules) |
+| `[13]` | `Double`    | canonical 8-byte IEEE-754 OCTET STRING content (sec.17.3.1 rules) |
+| `[14]` | `Character` | canonical Unicode-codepoint INTEGER content (sec.17.3.2 rules) |
+
+`[2]`/`[4]`/`[6]` fill the gaps the original `[0]`/`[1]`/`[3]`/`[5]`/`[7]`/`[8]`/`[9]`
+allocation left unused; `[10]`-`[14]` is a contiguous run for the remaining five boxed
+types once the gaps ran out. All eight are **PRIMITIVE** (non-constructed) tags — a boxed
+scalar carries a single inert value, never a nested TLV.
+
+**Why eight tags, not one shared "boxed primitive" tag.** `byte`/`short`/`int`/`long` all
+encode on the wire as the identical DER INTEGER content (a minimal two's-complement byte
+string); at top level there is no schema to consult, so the context tag is the ONLY type
+carrier. A single shared tag could not tell a boxed `Integer` holding `5` apart from a
+boxed `Long` holding `5` on decode — exactly the distinct-tag hazard board guidance §2.1 H2
+calls out. Each boxed type therefore gets its own tag and MUST decode back to that exact
+box (an `Integer` never decodes as a `Long`), satisfying byte-for-byte type preservation.
+
+**Canonical encoding — reuses the existing typed-primitive writers, one encoding per
+value (H1).** `byte`/`short`/`int`/`long` reuse the same minimal two's-complement content
+`writeByte`/`writeShort`/`writeInt`/`writeLong` already produce; `float`/`double` reuse the
+sec.17.3.1 canonical IEEE-754 content (canonical NaN, `-0.0`→`+0.0`); `char` reuses the
+sec.17.3.2 codepoint-INTEGER content (BMP, non-surrogate). A boxed value and its
+declared-type field-level counterpart are therefore never given two different encodings of
+the same value — required for Outrigger's byte-compare entry matching
+(`MarshalledInstance.equals`/`hashCode` compare/hash `payloadBytes` only, §2.3 of the
+Entry-ATOMIC-DER SOW).
+
+**Canonical decode — reject, not tolerate (fail-secure, H1/principle 6).** Decode applies
+the identical canonical-form checks the corresponding typed-primitive reader already
+enforces: non-minimal INTEGER (non-minimal leading `0x00`/`0xFF`) rejected; a BOOLEAN octet
+other than `0x00`/`0xFF` rejected; a `float`/`double` OCTET STRING of the wrong length, a
+non-canonical `-0.0` bit pattern, or a non-canonical NaN bit pattern rejected (sec.17.3.1);
+an out-of-range or surrogate codepoint rejected (sec.17.3.2); a decoded value outside the
+target box's numeric range (e.g. a `[4]` boxed-`Byte` item whose INTEGER content decodes to
+`200`) rejected.
+
+**Security rationale — a deliberate, narrow relaxation, not a general one.** The top-level
+`@AtomicSerial`-restriction (sec.15.2 above) exists because an arbitrary `Serializable`/
+`Object` graph is a gadget surface: unbounded class graph, attacker-controlled
+constructors/`readObject`, no schema to bound decode. A boxed scalar is categorically
+different — it is an **inert VALUE** with no object graph, no constructor to run beyond
+e.g. `Integer.valueOf`/`Boolean.valueOf` (no attacker-influenced work), and no
+`readObject`/gadget surface — the same admission category the format already grants
+`String` (`[3]`) and `byte[]` (`[5]`) above. This increment extends that existing,
+already-admitted category to the remaining scalar VALUE types; it does **NOT** admit
+arbitrary `Serializable`, does **NOT** add a new constructed/object-graph tag, and does
+**NOT** relax the `@AtomicSerial`-restricted fallthrough for anything that is not one of
+the named value-kinds.
+
+**Relationship to STD-006 sec.3.12's `AnyElement` scalar tags (a DIFFERENT namespace).**
+STD-006's `AnyElement CHOICE` (the `ObjectCodec`/field-level polymorphic-slot scheme) also
+numbers its scalar arms `[0]`-`[9]` (`scalarBoolean [0]` … `scalarBytes [9]`). That is a
+separate grammar, decoded only for a polymorphic **field** value nested inside an
+already-identified `@AtomicSerial` record's own payload bytes — never for a top-level
+stream item. The two numeric spaces happen to overlap (e.g. this increment's `[2]`
+boxed-`Boolean` vs. `AnyElement`'s `scalarShort [2]`) but no decoder ever reads one
+grammar's tag against the other's meaning: `DerObjectStreamCodec.readObject` only ever
+dispatches on the outermost item of a `writeObject`/`readObject` call; `AnyElement` bytes
+only ever appear inside a payload already routed there by `ObjectCodec`'s own decoder. No
+ASN.1 module accompanies this document (STD-008 is prose-normative over the object-stream
+codec; STD-006's module covers the wire-scalar/`AnyElement` layer only), so there is no
+`.asn1` grammar to update for this increment.
+
+**Tests (`DerObjectStreamBoxedScalarTest`, `jgdms-der`).** Round-trip type-preservation for
+all eight boxed types; byte-identical determinism (same value ⇒ same bytes, both across
+independent encode calls and across genuinely distinct object instances); canonical-form
+REJECT probes (non-minimal INTEGER, non-canonical BOOLEAN, wrong OCTET STRING length,
+non-canonical NaN/`-0.0`, out-of-range decoded value, surrogate codepoint, unassigned
+context tag); a String/enum top-level regression confirming the pre-existing paths are
+unchanged; and the A1-motivating end-to-end case — a boxed `Integer`/`Long`/`Boolean`
+through a full `ATOMIC_DER` `MarshalledInstance` round-trip, with two independently
+constructed equal values asserted to produce byte-identical payloads (the property
+Outrigger's byte-compare matching needs).
 
 ### 15.3 No handle table — pure value-tree, deterministic, no cycles (security)
 
@@ -935,9 +1039,13 @@ both decisive:
    security property). Preserving identity on the wire would be a false promise.
 
 Therefore every object occurrence is encoded **in full, by value** (a pure tree). Reference
-cycles are not representable (no back-reference exists to close a loop), and a
-back-reference-style tag (`[2]`) is rejected fail-secure. This also removes the
-partially-constructed-object exposure a cycle would otherwise require — the same hazard
+cycles are not representable (no back-reference exists to close a loop): there is no
+back-reference tag in the grammar at all, so any context tag number this codec does not
+explicitly recognise is rejected fail-secure (sec.15.2.1 assigns `[2]` to a boxed
+`Boolean` item, superseding an earlier draft note that used `[2]` as the illustrative
+"back-reference" example — the fail-secure property was always "reject any unrecognised
+tag," never a decode-time special case pinned to that specific numeral). This also removes
+the partially-constructed-object exposure a cycle would otherwise require — the same hazard
 `@AtomicSerial` exists to eliminate.
 
 ### 15.4 Method identifier
@@ -962,7 +1070,11 @@ occurrence encoded in full; back-reference tag rejected; sec.15.3); round-trip t
 a `ByteArrayOutputStream` (no JERI, no network). **Increment 2:** nested `@AtomicSerial` object **trees** (NO cycles — sec.15.3);
 requires extending the STD-006 per-object codec (`ObjectCodec`/`SchemaGenerator`/wire-type
 mapping) to encode object-typed fields, which today handle value types only. **Increment 3:**
-arrays/enums; revisit float/double/char. **Then A0/B2:**
+arrays/enums; revisit float/double/char. **Increment (DONE, this session):** top-level
+boxed-scalar VALUES (`Boolean`/`Byte`/`Short`/`Integer`/`Long`/`Float`/`Double`/
+`Character`) via `writeObject`/`readObject` — sec.15.2.1; unblocks
+`SOW-Entry-ATOMIC-DER-Migration.md` A1's Outrigger per-field `MarshalledInstance` wrapping
+and fixes Reggie's identical shipped gap. **Then A0/B2:**
 `Der{InvocationHandler,InvocationDispatcher}` + `DerILFactory` wiring + loopback
 `ObjectEndpoint` round-trip (works on the flat model already built).
 

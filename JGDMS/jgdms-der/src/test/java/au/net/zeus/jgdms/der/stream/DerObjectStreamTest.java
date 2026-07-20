@@ -50,8 +50,14 @@ import static org.junit.jupiter.api.Assertions.*;
  *       {@code writeObject(@AtomicSerial arg)}, {@code writeInt(primitive arg)}.</li>
  *   <li>Fail-secure: writing a non-{@code @AtomicSerial}, non-value object
  *       ({@code new Object()}) throws {@link UnsupportedOperationException}.</li>
- *   <li>Deferred-type guards: {@code writeFloat}, {@code writeDouble},
- *       {@code writeChar} throw {@link UnsupportedOperationException}.</li>
+ *   <li>{@code writeFloat}/{@code writeDouble}/{@code writeChar} round-trips (the STD-006
+ *       S7.6 deferral was LIFTED per STD-008 sec.17.3; these are typed-primitive-channel
+ *       round-trips, not top-level {@code writeObject} items -- see
+ *       {@code DerObjectStreamBoxedScalarTest} for the boxed top-level equivalents added by
+ *       sec.15.2.1).</li>
+ *   <li>An unassigned context tag (not one of this codec's [0]-[9] plus boxed-scalar
+ *       [2]/[4]/[6]/[10]-[14] tags) is rejected fail-secure -- there is no back-reference
+ *       tag in the grammar at all (sec.15.3).</li>
  * </ol>
  */
 class DerObjectStreamTest {
@@ -311,7 +317,7 @@ class DerObjectStreamTest {
     }
 
     // =========================================================================
-    // 8. Deferred-type guards
+    // 8. Typed-primitive channel: float/double/char (S7.6 deferral lifted)
     // =========================================================================
 
     // STD-008 sec.17.3 (S7.6 lift): float/double/char round-trips are covered in
@@ -347,15 +353,22 @@ class DerObjectStreamTest {
 
     /**
      * The format has NO handle table and NO back-references (sec.15.3), so a shared
-     * reference or cycle simply cannot be expressed. A back-reference-style context tag
-     * ([2]) is not part of the grammar and MUST be rejected fail-secure -- proving the
-     * security property (no partially-constructed object can ever be aliased via a handle),
-     * not merely the happy path.
+     * reference or cycle simply cannot be expressed: there is no back-reference tag in the
+     * grammar at all, so any UNRECOGNISED context tag number MUST be rejected fail-secure --
+     * proving the security property (no partially-constructed object can ever be aliased via
+     * a handle), not merely the happy path.
+     *
+     * <p>Tag 100 is used here specifically because it is NOT one of this codec's assigned
+     * tags ([0]-[9] plus the boxed-scalar tags [2]/[4]/[6]/[10]-[14], STD-008 sec.15.2.1) --
+     * earlier revisions of this test used [2] as "the" example of an unassigned tag, but [2]
+     * is now assigned to the boxed {@code java.lang.Boolean} item (sec.15.2.1), so that
+     * numeral is no longer a valid stand-in for "unassigned." The property under test --
+     * fail-secure rejection of a tag this codec does not recognise -- is numeral-independent.
      */
     @Test
-    void backReferenceTag_isRejected() {
+    void unassignedContextTag_isRejected() {
         byte[] malicious = DerWriter.writeTlv(
-                new Tag(Tag.CLASS_CONTEXT, false, 2),
+                new Tag(Tag.CLASS_CONTEXT, false, 100),
                 DerWriter.writeInteger(BigInteger.ZERO));
         assertThrows(IOException.class, () ->
                 decode(malicious, DerMarshalInputStream::readObject));
