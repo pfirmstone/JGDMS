@@ -91,31 +91,64 @@ import static org.junit.Assert.*;
  * new writes are currently broken, old persisted data already on disk would
  * still be readable.
  *
- * <p><b>Merge-prep note (2026-07-20 board review of this branch):</b> trunk
- * commits {@code eae74ce08} ("Route RemoteEvent.source ... through the
- * STD-006 Any form") and {@code abf863fdf} ("Remove deprecated handback from
- * RemoteEvent's wire form") landed a fix for exactly this regression --
- * {@code docs/SOW-RemoteEvent-Source-DER-Encoding.md} documents the design,
- * and {@code abf863fdf}'s own message reports 996 green tests including a
- * new mercury {@code EventWriterReaderDerRoundTripTest}. <b>However, as of
- * this review, trunk HEAD ({@code 474a323d2}, "docs: reconcile SOW A3 row
- * ...", an unrelated Reggie/A3 commit) has reverted essentially all of that
- * fix</b>: {@code RemoteEvent.serialForm()} is back to declaring
- * {@code new SerialForm("source", Object.class)} *and* the
- * {@code MarshalledObject}-typed {@code handback} field the second commit
- * had removed, {@code SchemaGenerator}'s field-level {@code toWireType}
- * still hard-rejects a bare {@code Object.class} field, and the mercury
- * {@code EventWriterReaderDerRoundTripTest} file and the SOW doc are no
- * longer present in trunk's committed tree (confirmed via
- * {@code git show HEAD:<path>} against the shared trunk checkout, not
- * inferred). This looks like an accidental revert bundled into an unrelated
- * commit rather than a deliberate design reversal -- flagged separately for
- * the codebase owner to investigate -- but it means {@code
- * writeFailsBecauseRemoteEventSourceFieldIsUnsupportedByDer} below is
- * <b>still accurate against trunk's actual current state</b> and must
- * <b>not</b> be "fixed" to expect success without first re-confirming
- * whether the Any-form fix is back on trunk (re-run the {@code git show}
- * check above before touching this test during a future rebase/merge).
+ * <p><b>Merge-prep note, re-verified 2026-07-21 against trunk tip
+ * {@code a9c0a6f6c} (post-rebase of this branch):</b> trunk commit
+ * {@code eae74ce08} ("Route RemoteEvent.source ... through the STD-006 Any
+ * form") landed a real fix for exactly this regression -- it added an
+ * explicit {@code raw == Object.class -> return ANY;} intercept inside
+ * {@code SchemaGenerator.deriveFieldWireType}'s non-collection branch, plus
+ * matching decode-side support and a mercury
+ * {@code EventWriterReaderDerRoundTripTest}. Trunk commit {@code 474a323d2}
+ * ("docs: reconcile SOW A3 row ...", an unrelated Reggie/A3 commit) then
+ * reverted that entire fix as accidental collateral -- diffing
+ * {@code 474a323d2} shows it removing exactly the 18 lines {@code eae74ce08}
+ * added to {@code SchemaGenerator.java}, plus deleting
+ * {@code RemoteEventAnySourceFieldTest.java},
+ * {@code ObjectTypedSerialFieldReachTest.java}, mercury's
+ * {@code EventWriterReaderDerRoundTripTest.java}, and
+ * {@code docs/SOW-RemoteEvent-Source-DER-Encoding.md}.
+ *
+ * <p>A later merge-prep pass on this branch (2026-07-20) hypothesized that
+ * this revert was a stale finding -- since superseded by trunk commits
+ * {@code 483a0d448} ("DER: capture proxy raw-wire-form ..."),
+ * {@code a87fe4259} ("Update JoinManagerImpl.java"), and {@code 6f40d96e2}
+ * ("Remote event no longer serializes MarshalledObject") -- and that the
+ * Any-form fix was genuinely back. <b>That hypothesis was checked fresh for
+ * this rebase and does not hold.</b> {@code 6f40d96e2} only drops the
+ * deprecated {@code handback}/{@code MarshalledObject} entry from
+ * {@code RemoteEvent.serialForm()} (a real, separate improvement -- confirmed
+ * present, {@code serialForm()} is down to 4 entries); it does not touch
+ * {@code source}'s {@code Object.class} declaration or
+ * {@code SchemaGenerator} at all. {@code 483a0d448} and {@code a87fe4259}
+ * touch invocation-handler wire-form capture and {@code JoinManagerImpl}
+ * respectively -- neither file is {@code SchemaGenerator.java} or
+ * {@code RemoteEvent.java}. {@code git log 61a43c8bf..a9c0a6f6c -- .../
+ * schema/SchemaGenerator.java .../event/RemoteEvent.java} returns empty:
+ * <b>no commit between the revert and the current trunk tip touches either
+ * file</b>. {@code git show trunk:.../SchemaGenerator.java} still has no
+ * {@code raw == Object.class} branch in {@code deriveFieldWireType}, so a
+ * bare {@code Object.class} field still falls through to
+ * {@code toWireType(Class,...)}'s final {@code throw new DerException(
+ * "unsupported serial field type " + ...)}. Confirmed by actually running
+ * this test class on the DirtyChai SM-capable JDK against the rebased tip:
+ * {@code writeFailsBecauseRemoteEventSourceFieldIsUnsupportedByDer} still
+ * passes (i.e. {@code EventWriter.write} still throws), not by static
+ * reading alone.
+ *
+ * <p>So {@code writeFailsBecauseRemoteEventSourceFieldIsUnsupportedByDer}
+ * below is <b>still accurate against trunk's actual current state</b> and
+ * must <b>not</b> be "fixed" to expect success without first re-confirming
+ * whether the Any-form fix is back on trunk. Re-run, against the current
+ * trunk tip: {@code git show trunk:JGDMS/jgdms-der/src/main/java/au/net/
+ * zeus/jgdms/der/schema/SchemaGenerator.java} and look for
+ * {@code deriveFieldWireType}'s non-collection branch -- it must contain an
+ * explicit {@code if (raw == Object.class) return ANY;} (or equivalent)
+ * BEFORE the fall-through to {@code toWireType(raw, declaring)} for the fix
+ * to actually be in effect. A commit merely touching
+ * {@code RemoteEvent.java} or citing {@code eae74ce08}/{@code abf863fdf} in
+ * its message is not sufficient evidence on its own -- confirm the specific
+ * {@code SchemaGenerator.java} hunk survived, and re-run this test class to
+ * see the pinned assertion actually flip before rewriting it.
  *
  * <p>Both tests require {@code jgdms-der} on the test runtime classpath
  * (declared test-scope in this module's pom.xml). The dual-read test
