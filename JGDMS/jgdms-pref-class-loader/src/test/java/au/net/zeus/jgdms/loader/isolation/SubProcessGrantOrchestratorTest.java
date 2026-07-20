@@ -23,7 +23,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.rmi.RemoteException;
 import java.security.AllPermission;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.Permission;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,6 +42,7 @@ import javax.security.auth.Subject;
 import net.jini.security.GrantPermission;
 import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.PermissionGrant;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -54,6 +60,22 @@ import static org.junit.Assert.*;
  * ({@link #realAdminGate_nonAdminCallerCannotBypass_viaOrchestrator()}) does
  * compose with the already-landed real {@link SubProcessPolicyAdmin}
  * authentication gate, to prove this class adds no bypass of it.
+ *
+ * <p><strong>Signature verification (2026-07-20, board second pass).</strong>
+ * Every {@link RegistryVerdict} handed to {@link
+ * SubProcessGrantOrchestrator#applyVerdictCeiling} is now genuinely signed
+ * with {@link #registryKeys}' private key -- mirroring {@link
+ * RegistryVerdictSignatureTest}'s own signing helper -- and every {@link
+ * SubProcessGrantOrchestrator} constructed here is given {@link
+ * #registryKeys}' public key, so every existing "correct end-to-end" test
+ * below now also exercises the real signature-verification gate on its happy
+ * path, not merely a structurally-valid-but-unverified object. The dedicated
+ * forged-verdict tests near the bottom of this file are the actual
+ * regression coverage for the gap a board reviewer found: an earlier version
+ * of the anti-replay freshness check trusted {@link
+ * RegistryVerdict#getTimestamp()} without ever verifying the signature it is
+ * part of, so a forged verdict with a fabricated later timestamp and garbage
+ * "signature" bytes (no private key involved) sailed straight through.
  */
 public class SubProcessGrantOrchestratorTest {
 
@@ -62,18 +84,92 @@ public class SubProcessGrantOrchestratorTest {
     private static final String OTHER_HASH =
             "1122334455667788990011223344556677889900112233445566778899aabb";
 
+    private static final String SIG_ALG = "SHA256withRSA";
+    private static final Uri[] VERDICT_URLS =
+            { newUri("http://example.com/foo-dl.jar") };
+
+    /** The verdict registry's own key pair -- every orchestrator here trusts its public half. */
+    private static KeyPair registryKeys;
+    /** A DIFFERENT key pair, standing in for an attacker/imposter registry. */
+    private static KeyPair wrongKeys;
+
+    @BeforeClass
+    public static void generateKeys() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        registryKeys = kpg.generateKeyPair();
+        wrongKeys = kpg.generateKeyPair();
+    }
+
+    private static Uri newUri(String s) {
+        try {
+            return new Uri(s);
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    /** The registry's authoritative canonical DER TBS (order-significant), same source of truth
+     *  {@link RegistryVerdict#verifySignature} itself reconstructs from. */
+    private static byte[] canonicalBytes(VerdictType type, long timestamp) {
+        String[] urlStrings = new String[VERDICT_URLS.length];
+        for (int i = 0; i < VERDICT_URLS.length; i++) {
+            urlStrings[i] = VERDICT_URLS[i].toString();
+        }
+        return RegistryVerdict.signedContent(urlStrings, type, timestamp);
+    }
+
+    private static byte[] sign(PrivateKey key, byte[] data) {
+        try {
+            Signature sig = Signature.getInstance(SIG_ALG);
+            sig.initSign(key);
+            sig.update(data);
+            return sig.sign();
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    /** A genuinely, correctly signed verdict -- what a real {@code VerdictRegistry} would issue. */
     private static RegistryVerdict verdict(VerdictType t) {
         return verdictAt(t, 1L);
     }
 
     private static RegistryVerdict verdictAt(VerdictType t, long timestamp) {
         try {
-            return new RegistryVerdict(
-                    new Uri[]{ new Uri("http://example.com/foo-dl.jar") },
-                    t, timestamp, new byte[]{ 1 });
+            byte[] signature = sign(registryKeys.getPrivate(), canonicalBytes(t, timestamp));
+            return new RegistryVerdict(VERDICT_URLS, t, timestamp, signature);
         } catch (Exception e) {
             throw new AssertionError(e);
         }
+    }
+
+    /**
+     * A FORGED verdict: structurally well-formed (passes {@code
+     * RegistryVerdict}'s own {@code check(GetArg)}), carries whatever
+     * timestamp the forger wants, but the "signature" bytes are not produced
+     * by any private key at all -- exactly the board reviewer's probe shape
+     * (arbitrary garbage bytes, same length ballpark as a real RSA signature
+     * so it isn't rejected purely on size).
+     */
+    private static RegistryVerdict forgedVerdictAt(VerdictType t, long timestamp) {
+        byte[] garbage = new byte[256];
+        Arrays.fill(garbage, (byte) 0x5A);
+        // Perturb it so it isn't a suspiciously-uniform block; still not a
+        // real signature over anything, and still not derived from any key.
+        garbage[0] = (byte) (timestamp & 0xFF);
+        garbage[1] = (byte) t.ordinal();
+        return new RegistryVerdict(VERDICT_URLS, t, timestamp, garbage);
+    }
+
+    /** A verdict genuinely signed, but by the WRONG private key (an imposter registry). */
+    private static RegistryVerdict wrongKeySignedVerdictAt(VerdictType t, long timestamp) {
+        byte[] signature = sign(wrongKeys.getPrivate(), canonicalBytes(t, timestamp));
+        return new RegistryVerdict(VERDICT_URLS, t, timestamp, signature);
+    }
+
+    private static SubProcessGrantOrchestrator orchestrator(SubProcessAdminRegistry registry) {
+        return new SubProcessGrantOrchestrator(registry, registryKeys.getPublic(), SIG_ALG);
     }
 
     private static Set<Permission> set(Permission[] p) {
@@ -130,14 +226,37 @@ public class SubProcessGrantOrchestratorTest {
 
     @Test(expected = NullPointerException.class)
     public void constructor_nullRegistry_rejected() {
-        new SubProcessGrantOrchestrator(null);
+        new SubProcessGrantOrchestrator(null, registryKeys.getPublic(), SIG_ALG);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void constructor_nullPublicKey_rejected() {
+        new SubProcessGrantOrchestrator(new SubProcessAdminRegistry(), null, SIG_ALG);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void constructor_nullSigAlgorithm_rejected() {
+        new SubProcessGrantOrchestrator(
+                new SubProcessAdminRegistry(), registryKeys.getPublic(), null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void constructor_emptySigAlgorithm_rejected() {
+        new SubProcessGrantOrchestrator(
+                new SubProcessAdminRegistry(), registryKeys.getPublic(), "   ");
     }
 
     @Test(expected = NullPointerException.class)
     public void applyVerdictCeiling_nullTargetKey_rejected() throws Exception {
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(new SubProcessAdminRegistry());
-        orchestrator.applyVerdictCeiling(null, verdict(VerdictType.SAFE), HASH,
+        SubProcessGrantOrchestrator o = orchestrator(new SubProcessAdminRegistry());
+        o.applyVerdictCeiling(null, verdict(VerdictType.SAFE), HASH,
+                new Permission[0], new GrantPermission(new AllPermission()), false);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void applyVerdictCeiling_nullVerdict_rejected() throws Exception {
+        SubProcessGrantOrchestrator o = orchestrator(new SubProcessAdminRegistry());
+        o.applyVerdictCeiling(key("spiffe://example/workload/target"), null, HASH,
                 new Permission[0], new GrantPermission(new AllPermission()), false);
     }
 
@@ -162,8 +281,7 @@ public class SubProcessGrantOrchestratorTest {
         RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
         registry.register(target, new FixedSubProcessAdministrable(recording));
 
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
         Permission[] returned = orchestrator.applyVerdictCeiling(
                 target, verdict(VerdictType.SAFE), HASH, declaredNeeds, caller, false);
 
@@ -197,8 +315,7 @@ public class SubProcessGrantOrchestratorTest {
         RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
         registry.register(target, new FixedSubProcessAdministrable(recording));
 
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
         Permission[] returned = orchestrator.applyVerdictCeiling(
                 target, verdict(VerdictType.SAFE), HASH, declared, caller, false);
 
@@ -228,8 +345,7 @@ public class SubProcessGrantOrchestratorTest {
         RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
         registry.register(target, new FixedSubProcessAdministrable(recording));
 
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
         Permission[] returned = orchestrator.applyVerdictCeiling(
                 target, verdict(VerdictType.INCONCLUSIVE), HASH, declared, caller,
                 /* inconclusiveToleranceGranted */ false);
@@ -246,8 +362,7 @@ public class SubProcessGrantOrchestratorTest {
         RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
         registry.register(target, new FixedSubProcessAdministrable(recording));
 
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
         try {
             orchestrator.applyVerdictCeiling(
                     target, verdict(VerdictType.DANGEROUS), HASH,
@@ -269,8 +384,7 @@ public class SubProcessGrantOrchestratorTest {
         registry.register(key("spiffe://example/workload/other"),
                 new FixedSubProcessAdministrable(new RecordingPolicyAdmin()));
 
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
         orchestrator.applyVerdictCeiling(
                 key("spiffe://example/workload/unregistered"),
                 verdict(VerdictType.SAFE), HASH,
@@ -291,8 +405,7 @@ public class SubProcessGrantOrchestratorTest {
         registry.register(keyA, new FixedSubProcessAdministrable(recordingA));
         registry.register(keyB, new FixedSubProcessAdministrable(recordingB));
 
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
         orchestrator.applyVerdictCeiling(
                 keyA, verdict(VerdictType.SAFE), HASH,
                 new Permission[]{ new PropertyPermission("java.version", "read") },
@@ -387,8 +500,7 @@ public class SubProcessGrantOrchestratorTest {
         IsolationPoolingKey target = key("spiffe://example/workload/target");
         registry.register(target, realAdminSurface);
 
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
 
         try {
             orchestrator.applyVerdictCeiling(
@@ -429,8 +541,7 @@ public class SubProcessGrantOrchestratorTest {
         IsolationPoolingKey target = key("spiffe://example/workload/target");
         RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
         registry.register(target, new FixedSubProcessAdministrable(recording));
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
 
         GrantPermission caller =
                 new GrantPermission(new PropertyPermission("java.version", "read"));
@@ -472,8 +583,7 @@ public class SubProcessGrantOrchestratorTest {
         IsolationPoolingKey target = key("spiffe://example/workload/target");
         RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
         registry.register(target, new FixedSubProcessAdministrable(recording));
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
 
         GrantPermission caller =
                 new GrantPermission(new PropertyPermission("java.version", "read"));
@@ -513,8 +623,7 @@ public class SubProcessGrantOrchestratorTest {
         IsolationPoolingKey target = key("spiffe://example/workload/target");
         RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
         registry.register(target, new FixedSubProcessAdministrable(recording));
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
 
         GrantPermission caller =
                 new GrantPermission(new PropertyPermission("java.version", "read"));
@@ -545,8 +654,7 @@ public class SubProcessGrantOrchestratorTest {
         IsolationPoolingKey target = key("spiffe://example/workload/target");
         RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
         registry.register(target, new FixedSubProcessAdministrable(recording));
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
 
         GrantPermission caller =
                 new GrantPermission(new PropertyPermission("java.version", "read"));
@@ -579,8 +687,7 @@ public class SubProcessGrantOrchestratorTest {
         RecordingPolicyAdmin recordingB = new RecordingPolicyAdmin();
         registry.register(targetA, new FixedSubProcessAdministrable(recordingA));
         registry.register(targetB, new FixedSubProcessAdministrable(recordingB));
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
 
         GrantPermission caller =
                 new GrantPermission(new PropertyPermission("java.version", "read"));
@@ -617,8 +724,7 @@ public class SubProcessGrantOrchestratorTest {
             throws Exception {
         SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
         IsolationPoolingKey target = key("spiffe://example/workload/target");
-        SubProcessGrantOrchestrator orchestrator =
-                new SubProcessGrantOrchestrator(registry);
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
 
         GrantPermission caller =
                 new GrantPermission(new PropertyPermission("java.version", "read"));
@@ -644,5 +750,129 @@ public class SubProcessGrantOrchestratorTest {
         assertEquals("a legitimate retry of the same verdict after an upstream"
                 + " failure must not be mistaken for a replay",
                 1, recording.grants.size());
+    }
+
+    // ------------------------------------- forged-signature rejection
+    // (2026-07-20 board second pass: the actual reported gap)
+
+    /**
+     * <strong>The exact scenario the board reviewer proved.</strong> A
+     * genuine verdict is applied at t=1000 (succeeds). The reviewer then
+     * built a FORGED verdict using the same public {@link RegistryVerdict}
+     * constructor this test suite's own {@link #verdictAt} helper uses: a
+     * later timestamp (t=1001) and fresh garbage "signature" bytes, with no
+     * private key involved anywhere. Before the fix, this sailed through the
+     * freshness gate exactly as if it were a legitimate fresher re-verdict,
+     * because nothing in the call chain verified the signature before
+     * trusting {@code getTimestamp()}. After the fix, signature verification
+     * runs first and refuses it -- the forged verdict must never reach {@link
+     * PolicyAdmin#grant}, regardless of how favorable its (fabricated)
+     * timestamp looks to the freshness check.
+     */
+    @Test
+    public void forgedVerdict_laterTimestamp_garbageSignature_isRefused_evenThoughFresher()
+            throws Exception {
+        SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
+        IsolationPoolingKey target = key("spiffe://example/workload/target");
+        RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
+        registry.register(target, new FixedSubProcessAdministrable(recording));
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
+
+        GrantPermission caller =
+                new GrantPermission(new PropertyPermission("java.version", "read"));
+        Permission[] declared = new Permission[]{
+            new PropertyPermission("java.version", "read") };
+
+        // Genuine verdict at t=1000: succeeds.
+        orchestrator.applyVerdictCeiling(
+                target, verdictAt(VerdictType.SAFE, 1_000L), HASH, declared, caller, false);
+        assertEquals(1, recording.grants.size());
+
+        // Forged verdict at t=1001 -- fresher than the recorded generation,
+        // which is exactly why the freshness check ALONE would have let it
+        // through; the signature-verification gate must catch it instead.
+        RegistryVerdict forged = forgedVerdictAt(VerdictType.SAFE, 1_001L);
+        assertFalse("test sanity: the forged verdict's signature must not"
+                + " actually verify",
+                forged.verifySignature(registryKeys.getPublic(), SIG_ALG));
+
+        try {
+            orchestrator.applyVerdictCeiling(target, forged, HASH, declared, caller, false);
+            fail("a forged verdict (garbage signature, no private key) must be"
+                    + " refused regardless of how fresh its fabricated"
+                    + " timestamp looks");
+        } catch (SecurityException expected) {
+            // correct: fail-closed signature-verification guard.
+        }
+        assertEquals("the forged verdict must never have reached PolicyAdmin.grant"
+                + " -- it must not silently reinstate/advance the ceiling",
+                1, recording.grants.size());
+    }
+
+    /**
+     * The signature gate is unconditional, not merely "kicks in on a
+     * second/replay attempt": even a FIRST-EVER application for a target and
+     * contentHash pair (no prior recorded generation at all) must be refused
+     * if the verdict's signature doesn't verify. This proves signature
+     * verification is checked before, and independent of, the freshness
+     * comparison -- not a side effect of it.
+     */
+    @Test
+    public void forgedVerdict_asFirstEverApplication_isRefused() throws Exception {
+        SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
+        IsolationPoolingKey target = key("spiffe://example/workload/target");
+        RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
+        registry.register(target, new FixedSubProcessAdministrable(recording));
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
+
+        GrantPermission caller =
+                new GrantPermission(new PropertyPermission("java.version", "read"));
+        Permission[] declared = new Permission[]{
+            new PropertyPermission("java.version", "read") };
+
+        try {
+            orchestrator.applyVerdictCeiling(
+                    target, forgedVerdictAt(VerdictType.SAFE, 1L), HASH, declared, caller, false);
+            fail("a forged verdict must be refused even as a first-ever"
+                    + " application, with no prior generation to compare against");
+        } catch (SecurityException expected) {
+            // correct
+        }
+        assertEquals(0, recording.grants.size());
+    }
+
+    /**
+     * Belt-and-suspenders: a verdict genuinely signed, but by the WRONG
+     * private key (an imposter registry, not a garbage-bytes forger), must
+     * also be refused -- {@code verifySignature} is checked against THIS
+     * orchestrator's own configured public key, not merely "some signature
+     * that parses".
+     */
+    @Test
+    public void verdictSignedByWrongKey_isRefused() throws Exception {
+        SubProcessAdminRegistry registry = new SubProcessAdminRegistry();
+        IsolationPoolingKey target = key("spiffe://example/workload/target");
+        RecordingPolicyAdmin recording = new RecordingPolicyAdmin();
+        registry.register(target, new FixedSubProcessAdministrable(recording));
+        SubProcessGrantOrchestrator orchestrator = orchestrator(registry);
+
+        GrantPermission caller =
+                new GrantPermission(new PropertyPermission("java.version", "read"));
+        Permission[] declared = new Permission[]{
+            new PropertyPermission("java.version", "read") };
+
+        RegistryVerdict wrongKeySigned = wrongKeySignedVerdictAt(VerdictType.SAFE, 1L);
+        assertFalse("test sanity: a genuine signature from the WRONG key must"
+                + " not verify against the registry's real public key",
+                wrongKeySigned.verifySignature(registryKeys.getPublic(), SIG_ALG));
+
+        try {
+            orchestrator.applyVerdictCeiling(target, wrongKeySigned, HASH, declared, caller, false);
+            fail("a verdict signed by a key other than the configured registry"
+                    + " key must be refused");
+        } catch (SecurityException expected) {
+            // correct
+        }
+        assertEquals(0, recording.grants.size());
     }
 }
