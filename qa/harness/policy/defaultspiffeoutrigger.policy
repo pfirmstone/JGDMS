@@ -193,50 +193,24 @@ grant principal org.apache.river.api.security.UnresolvedPrincipal "spiffe://test
     permission net.jini.security.AccessPermission "*";
 };
 
+// --- baseline for ALL protection domains, including hosted/business-side code ---
+// AllPermission removed 2026-07-20 (was granted here unqualified, handing
+// AuthPermission("callAs"/"doAs") and RuntimePermission("setSecurityManager")
+// to every domain in the JVM -- undermining the fail-closed precondition that
+// AdminPrincipalAuthenticator relies on: see jgdms-pref-class-loader/.../
+// loader/isolation/AdminPrincipalAuthenticator.java. The former "spiffe Linux
+// bring-up scaffold" blocks (unqualified RuntimePermission "*" and explicit
+// AuthPermission "*") are removed for the same reason -- RuntimePermission "*"
+// implies setSecurityManager. Java policy is default-deny, so removing these
+// unqualified grants is what makes them denied; no explicit deny rule needed.
+// Only the narrow, least-privilege perms below are granted to every domain.
+// Trusted service jars/threads get anything further via the jrt:/principal
+// -scoped grants above; hosted/business-side code gets nothing beyond this.
 grant {
-    permission java.security.AllPermission "<all permissions>", "<all actions>";
     permission java.io.FilePermission "<<ALL FILES>>", "read";
-};
-
-// --- spiffe Linux bring-up scaffold (THROWAWAY; audit-scope later, per polp-no-allpermission-scaffolding) ---
-// Broad "boring" infrastructure perms so VMs run under SM; SPIFFE auth (AuthenticationPermission),
-// AccessPermission, GrantPermission and DownloadPermission are deliberately NOT here -> stay enforced.
-grant {
-    permission java.io.FilePermission "<<ALL FILES>>", "read,write,delete";
-    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
-    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "*";
-    permission java.security.SecurityPermission "*";
-    permission java.lang.RuntimePermission "*";
-    permission java.lang.reflect.ReflectPermission "*";
-    permission java.net.NetPermission "*";
-    permission java.net.SocketPermission "*", "connect,accept,listen,resolve";
-    permission java.io.SerializablePermission "*";
-    permission java.util.PropertyPermission "*", "read,write";
-    permission java.util.logging.LoggingPermission "control";
-    permission net.jini.io.context.ContextPermission "*";
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
-};
-// --- spiffe scaffold (cont.): remaining DirtyChai define-class + native gates ---
-grant {
-    permission au.zeus.jdk.authorization.guards.DefineClassPermission "ALLOW";
-    permission au.zeus.jdk.authorization.guards.NativeInvocationPermission "*";
-    permission au.zeus.jdk.authorization.guards.NativeMemoryPermission "*";
-};
-// --- spiffe scaffold (cont.): JAAS ServiceLoader loads platform LoginModules from jrt: ---
-grant {
-    permission java.net.URLPermission "jrt:/-", "GET:";
-};
-// --- spiffe scaffold (cont.): harness forks service VMs (exec java) ---
-grant {
-    permission java.io.FilePermission "<<ALL FILES>>", "execute";
-};
-// --- spiffe scaffold (cont.): DeSerializationPermission is BasicPermission; "*" = ATOMIC/ENTRY/MARSHALL/PROXY ---
-grant {
-    permission org.apache.river.api.io.DeSerializationPermission "*";
-};
-// --- spiffe scaffold (cont.): JAAS plumbing incl. Subject.callAs (AuthenticationPermission stays enforced) ---
-grant {
-    permission javax.security.auth.AuthPermission "*";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.lang.RuntimePermission "createVirtualThread";
+    permission java.lang.RuntimePermission "createPlatformThread";
 };
