@@ -16,8 +16,12 @@
   projection mechanism), §11 (2026-07-20 correction); `JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md`
   §2.3/§3.11 (data independence), §3.12 (wire type model), §7.8 (`MarshalledInstanceRecord`);
   `SOW-CEL-Filter-Format.md` (the evaluator primitive this SOW's Part B consumes — T1/T2/T3 are
-  hard dependencies of B3); `SOW-RemoteEvent-Source-DER-Encoding.md` (the board-reviewed precedent
-  for what NOT to do: hard-coding a format onto one side of a byte-compared value).
+  hard dependencies of B3). *(`SOW-RemoteEvent-Source-DER-Encoding.md` was previously cited here
+  as board-reviewed precedent — corrected below, §2.3: it is not a precedent for this SOW's
+  byte-compare-mismatch hazard shape.)*
+- **Board review (2026-07-20):** Board-reviewed 2026-07-20 (two adversarial seats: evidence+Part-A,
+  Part-B/C-design; both SOUND-WITH-FIXES). Consolidated 18-item fix list applied this revision;
+  NO-GO for implementation was lifted to GO-for-Part-A once these landed.
 
 ---
 
@@ -56,7 +60,7 @@ covers Reggie's format flip only, so the substrate is ready when that integratio
 - `MarshalledInstanceRecord` (`jgdms-der/.../marshal/MarshalledInstanceRecord.java:67-70`)
   unconditionally embeds `schemaBytes` (Merkle-chained per-class `AtomicSerialSchemaRecord`, each
   an ordered `wireName`/`wireType` field list) beside `payloadBytes`; scalars encode as native DER
-  primitives (`ObjectCodec.encodeValue`, `.../object/ObjectCodec.java:1066-1142`).
+  primitives (`ObjectCodec.encodeValue`, `.../object/ObjectCodec.java:~1027/1032`).
 - Class-free decode exists: `ObjectCodec.decodeToFieldMap` (`ObjectCodec.java:892`) —
   `className → (fieldName → value)`, no `Class.forName`, no constructor, no `check(GetArg)`;
   exercised by `Std006ConformanceTest`.
@@ -69,8 +73,11 @@ covers Reggie's format flip only, so the substrate is ready when that integratio
 
 - **Outrigger:** `EntryRep` builds every field with `new MarshalledInstance(fieldValue)` — the
   JOSS default — at `outrigger-dl/.../proxy/EntryRep.java:338` (reflection path) and `:406`
-  (`@SerialEntry` path). No constraints-aware constructor call, no format-selection plumbing of
-  any kind exists in outrigger.
+  (`@SerialEntry` path). No constraints-aware constructor call, no **entry-field** format-selection
+  plumbing exists in outrigger — but format-selection plumbing does exist elsewhere in the same
+  codebase: `StorableReference.java:140-155` and `JoinStateManager.java:558-586` already do
+  `ATOMIC_DER`-hardcoded, dual-read (JOSS-fallback) marshalling for other object kinds. A1/A2
+  should study this existing dual-read prior art rather than design the mechanism from scratch.
 - **Reggie:** `EntryRep.marshal(val, useDer)` (`reggie-dl/.../proxy/EntryRep.java:195-200`)
   already chooses `ATOMIC_DER` vs legacy per the `useDer` flag; `Util.requiresDerFormat`
   (`.../proxy/Util.java:61-71`) derives it **per client↔server relationship** from the proxy's
@@ -99,15 +106,25 @@ covers Reggie's format flip only, so the substrate is ready when that integratio
   `snaplogstore/BaseObject.java:45-56`). Reggie: `takeSnapshot` persists `SvcReg`/`Item`
   attribute `EntryRep`s (`RegistrarImpl.java:6357-6387`). A mid-life format flip therefore
   creates a **mixed-format store** exhibiting the silent-mismatch failure against half of it.
-- **Server-side re-marshal is off the table by design.** Converting stored JOSS bytes to DER
-  requires deserializing the entry — which the server must never do (STD-009 §9.2's
-  opaque-entry / confused-deputy discipline). Any migration strategy that says "the server
-  converts old entries" is rejected at the door.
-- **Board precedent:** `SOW-RemoteEvent-Source-DER-Encoding.md`'s original fix was withdrawn
-  exactly because hard-coding a format onto one side of a byte-compared value breaks the
-  comparison. Template and stored entry must be produced under the **same negotiated format**;
-  dual-read (`payloadFormat` dispatch on decode) fixes *decode* of old records but **not**
-  equals/hash-bucket matching.
+- **Server-side re-marshal of JOSS-encoded bytes is off the table by design.** Converting stored
+  JOSS bytes to DER requires deserializing the entry — which the server must never do (STD-009
+  §9.2's opaque-entry / confused-deputy discipline). Any migration strategy that says "the server
+  converts old JOSS-encoded entries" is rejected at the door. **This prohibition is scoped to JOSS
+  bytes specifically**: a class-free, schema-driven DER→DER re-encode (via
+  `ObjectCodec.decodeToFieldMap`/`encodeValue`, no deserialization) is possible in principle and is
+  relevant to Part C's schema-evolution story, but it does not help JOSS migration — the server
+  still cannot get from opaque JOSS bytes to a schema without deserializing.
+- **Board precedent — corrected citation.** `SOW-RemoteEvent-Source-DER-Encoding.md` is **not**
+  precedent here: its original fix (wrapping `RemoteEvent.source` in a hard-coded-format
+  `MarshalledInstance`) was withdrawn for encodability (it failed its own `Integer`-source
+  acceptance test) and deserialization-downgrade reasons (a wire-controlled `payloadFormat`
+  JOSS fallback), and that document explicitly states no byte-level comparison of
+  `RemoteEvent`/`EventID`/`source` exists anywhere in the platform. It is a precedent for
+  DER-encodability constraints and for the JOSS-downgrade hazard shape (both relevant elsewhere
+  in this SOW), but **not** for the byte-compare-mismatch hazard this section actually turns on:
+  Template and stored entry must be produced under the **same negotiated format**; dual-read
+  (`payloadFormat` dispatch on decode) fixes *decode* of old records but **not** equals/hash-bucket
+  matching.
 - **The upside, stated plainly:** DER is canonical — same value ⇒ same bytes regardless of
   sender, which JOSS never guaranteed for entry matching (impl-dependent serialization could
   yield unequal bytes for `.equals` values). Migration *improves* the byte-matching contract
@@ -123,7 +140,24 @@ Every match in every path funnels through **`EntryRep.matches(EntryRep)`**
   narrows (`:154`), quick-reject hash mask (`:172`), then **`tmpl.matches(rep)` at `:177`**,
   then `confirmAvailabilityWithTxn` (`:180`). Multi-template `take(EntryRep[])` goes via
   `ContinuingQuery` with its own `tmpl.matches(handle.rep())` at **`EntryHolder.java:818`**
-  (no field index on this path, `:772-779`).
+  (no field index on this path, `:772-779`), transactional visibility confirmed only afterward at
+  `:791`.
+- **New confused-deputy vector Part B introduces (HIGH, security).** In both shapes above, the
+  predicate would evaluate *before* the candidate's transactional visibility to the caller is
+  confirmed — `tmpl.matches(rep)` at `:177`/`:818` runs, then `confirmAvailabilityWithTxn` at
+  `:180`/`:791`. Today's byte-equality template can only confirm "this exact value is present,"
+  which requires the caller to already know the value. A CEL comparison/range predicate evaluated
+  at that pre-confirmation point lets a non-participant caller learn an *ordered* fact (`<`, `>`,
+  a `contains` boundary) about another principal's **uncommitted, exclusively-locked** entry
+  field — a binary-search disclosure of an in-flight value. This is qualitatively worse than
+  today's exact-value-required byte-equality leak and is new to Part B; it is not present in Part
+  A's byte-compare matching, which has no ordering semantics to exploit. See §3.2 for the fix and
+  §5 B3 for the acceptance criterion.
+- **Sixth chokepoint (previously missing from this list):** `OutriggerServerImpl.java:3607`
+  (`IteratorImpl.nextReps`) — the `JavaSpaceAdmin.contents()` admin paging iterator, distinct from
+  `ContinuingQuery`/`MatchSet` — already calls `tmpl.matches(reps[i])` and would silently **not**
+  apply a filter unless B3 explicitly wires it. This list should not be trusted as closed; see §5
+  B3's re-audit requirement.
 - **Blocking queries (write-time fan-out):** unmatched queries register watchers keyed by
   template (`templates.add(watcher, tmpl)`, `OutriggerServerImpl.java:2578`); the write path
   records a transition (`:1430-1431`) which a dedicated journal thread fans out:
@@ -135,8 +169,11 @@ Every match in every path funnels through **`EntryRep.matches(EntryRep)`**
 - **Notify / availability events:** registrations are `TransitionWatcher`s stored in
   `TemplateHandle`s (`notify` `:1659-1707`; `registerForAvailabilityEvent` `:1729-1802`) and
   ride the **same** write-time fan-out; per-watcher semantics (`visibilityOnly`, `ifExists`)
-  live in `isInterested`/`process` (`AvailabilityRegistrationWatcher.java:209-224`), which do
-  **not** re-run `matches` — enforcement must sit where `matches` is called.
+  live in `isInterested`/`process` (`TransitionWatcher.java:168`, abstract — implemented in
+  `StorableAvailabilityWatcher`/`TransactableAvailabilityWatcher`, not the
+  `AvailabilityRegistrationWatcher.java:209-224` `ifExists` watcher family it was previously
+  conflated with), which do **not** re-run `matches` — enforcement must sit where `matches` is
+  called.
 - **Class hierarchy:** entries are held per exact class (`EntryHolderSet.java:41`), subclass
   matching is the server's `types.subTypes` loop (`OutriggerServerImpl.java:2708-2725`,
   `TypeTree.java:195`); field offsets align across the hierarchy via `EntryRep.FieldComparator`
@@ -147,13 +184,22 @@ Every match in every path funnels through **`EntryRep.matches(EntryRep)`**
   `EntryRep`/`EntryRep[]` everywhere) with no interface change. There is **no** existing
   pluggable match SPI; `EntryFieldIndex` is documented as a candidate narrower only —
   `EntryRep.matches` remains the arbiter (`EntryFieldIndex.java:38-69`).
+- **Version-skew hazard in this seam.** An `EntryRep` filter field added as an optional
+  `@AtomicSerial` field is **fail-open** under version skew: an old server silently drops the
+  unknown field (documented STD-006 §11.8 behavior — unrequested fields are stored-not-accessed),
+  so a new client's filter silently **vanishes** and the query runs unfiltered, returning *more*
+  than the predicate asked for — a false-positive-direction failure §3.2's fail-closed rule does
+  not cover, since that rule only contemplates decode/format failure on the *candidate* side, not
+  disappearance of the filter itself. The `JavaSpace05` batch-parameter alternative fails
+  **loudly** instead: an old server lacks the overload, so dispatch fails outright. B1 must decide
+  this as a first-class question — see §5 B1.
 
 ### 2.5 Outrigger internals survey (for Part C)
 
 - **Entry storage:** per-class `EntryHolder.content` is a `ConcurrentLinkedQueue<EntryHandle>`
   (`EntryHolder.java:50`; the custom `FastList` was removed by Peter in 2013, commit
   `11ce40943`). Removal is `content.remove(this)` — an **O(n) scan per entry removal**
-  (`BaseHandle.java:65`), real cost under take-heavy churn.
+  (`BaseHandle.java:66`), real cost under take-heavy churn.
 - **Index coverage gap (explicit in-code follow-up note):** `EntryFieldIndex` narrows only the
   single-template `hasMatch` hot path; `ContinuingQuery` — the path under `contents()`/MatchSet
   and multi-template take — **full-scans the queue** (`EntryHolder.java:773-778`). `contents()`
@@ -193,7 +239,15 @@ Every match in every path funnels through **`EntryRep.matches(EntryRep)`**
    whose bytes fail canonical decode, whose format is not `ATOMIC_DER`, or whose schema lacks a
    field the predicate references ⇒ **no-match**. Filter verdicts are pre-selection only —
    `check(GetArg)` never ran, so the taking client still performs full gated deserialization;
-   filter false-positives cost bandwidth, never integrity.
+   filter false-positives cost bandwidth, never integrity. **New rule, added by board review:**
+   filter-predicate evaluation MUST NOT run against a candidate whose transactional visibility to
+   the caller is unconfirmed — evaluation is gated on (or re-checked after)
+   `confirmAvailabilityWithTxn`/`handle.canPerform` returning `true`. Without this, a CEL
+   predicate evaluated ahead of transactional confirmation (as `tmpl.matches` is today at every
+   chokepoint, §2.4) discloses an ordered comparison fact about another principal's uncommitted,
+   exclusively-locked value — a confused-deputy channel plain byte-equality matching never had
+   reason to guard, because equality-only matching cannot leak an ordering. This is a NEW hazard
+   Part B introduces, not present in Part A's byte-compare matching (see §2.4).
 3. **The projection reader is the existing fail-closed codec** (schemaDigest verified, canonical
    rejection, size bounds) — never a second lenient scanner (G1). Laziness (decode only
    predicate-touched fields by TLV skipping) is an optimization *inside* that codec, B2.
@@ -202,20 +256,48 @@ Every match in every path funnels through **`EntryRep.matches(EntryRep)`**
    pure-wildcard template with a filter is a legal full-scan query — cost containment is B4's
    problem, not a reason to forbid it.
 5. **Migration strategy decision is A2's deliverable, not presumed here.** The evidence (§2.3)
-   admits: (a) coordinated djinn-wide flip + **lease-expiry drain** of old-format entries
-   (entries and registrations are leased; old bytes age out naturally — with documented
-   reduced-visibility semantics during the drain window); (b) transitional **dual-format
-   marshalling** (client writes both encodings; matching uses whichever side pairs; storage and
-   wire cost roughly double during transition); (c) per-deployment cold-start migration
-   (drain/destroy stores at upgrade — brutal but honest for spaces used as transient
+   admits: (a) coordinated djinn-wide flip + **lease-expiry drain** of old-format entries —
+   **unsound as stated for indefinitely-renewed leases, see below**; (b) transitional
+   **dual-format marshalling** (client writes both encodings; matching uses whichever side pairs;
+   storage and wire cost roughly double during transition); (c) per-deployment cold-start
+   migration (drain/destroy stores at upgrade — brutal but honest for spaces used as transient
    coordination). Server-side conversion is excluded (§2.3). A2 picks, per service, with Peter.
+
+   **Strategy (a) is unsound as written (HIGH, board finding).** Ordinary lease *renewal* never
+   re-marshals the entry: Outrigger's `OutriggerServerImpl.renew` (`:1895-1937`) only calls
+   `setExpiration` — a timestamp write (`EntryRep.java:991-993`) — and Reggie's
+   `renewServiceLeaseInt` (`:6037-6065`) only reschedules the lease, with `SvcReg.item` declared
+   `public final`. Re-marshal happens only via an explicit add/modify/setAttributes call, which
+   the idiomatic `JoinManager`/`LeaseRenewalManager` renewal pattern never makes — so an
+   indefinitely-renewed service's entries never age out under passive lease-expiry drain; they
+   simply never expire. The registrar's own self-registration is a concrete instance of this: it
+   uses a literal `Long.MAX_VALUE` lease that can never drain. Strategy (a), as "drain via lease
+   expiry," must therefore not be presumed to complete a migration. A2 must either drop (a) or
+   redefine it as requiring an **explicit forced-re-registration trigger** (an operator- or
+   client-initiated re-add/re-marshal, not passive aging), and must state how the registrar's own
+   `Long.MAX_VALUE`-leased self-registration is handled under whichever strategy is chosen.
 6. **DER-encodability is a real adoption constraint A1 must surface, not paper over.** A JOSS
    `MarshalledInstance` accepts any `Serializable` field value; the DER path requires
    `@AtomicSerial`/scalar/substituted types and rejects raw `Object`-typed content
    (`SchemaGenerator.toWireType` — the exact failure `SOW-RemoteEvent-Source-DER-Encoding.md`
    root-caused). An entry class with non-DER-encodable field values must fail marshalling
    **loudly at write time** under `ATOMIC_DER` — never silently fall back per-field to JOSS
-   (per-field format mixing would recreate §2.3's hazard inside a single entry).
+   (per-field format mixing would recreate §2.3's hazard inside a single entry). **Not
+   hypothetical:** a 2026-07-20 sample of the platform's own shipped `jgdms-lib-dl` `Entry` types
+   found 4/26 failing DER-encodability today — `RemoteMatch.aRI` (a bare `Remote`-typed field),
+   `PayloadEntry.payload`, `Status.severity`, `ServiceTypes.serviceType` (two of the four in
+   `net.jini.lookup.entry`) — meaning §3.6's fail-loudly rule breaks real platform types out of
+   the box, not just test fixtures. A1 must include an explicit survey-and-fix pass over the
+   platform's own `Entry` classes as in-scope work, not assume a clean starting point.
+7. **Read-path union shim ruled out.** A tempting alternative — match JOSS-vs-JOSS and DER-vs-DER
+   separately per query and union the results — is rejected: it adds nothing over today's
+   same-format matching (§2.3), since bridging JOSS↔DER at the value level still needs either
+   forbidden deserialization or the deferred value-level-matching redesign (§7 non-goal). It also
+   does not partition cleanly at N-to-M scale: format/template pairing is not a clean
+   per-relationship split once a store has many concurrent writers —
+   `EntryRepDerFormatTest`'s own comment notes mixed-format is "the normal case mid-migration,
+   since `JoinManager` registers with every discovered lookup service concurrently," which
+   reinforces the epoch side of open question §9.2.
 
 Open (recorded in §9, decided during the tasks): the client-facing filter API shape (B1);
 CEL field-name resolution against STD-006 §3.9's **per-class namespaces** across an entry
@@ -229,20 +311,20 @@ space-wide format epoch (A1×A2 joint).
 
 | Task | Deliverable |
 |------|-------------|
-| **A1** · Outrigger DER marshal path + format selection | Constraints-aware marshalling in `EntryRep` (both the reflection path `:338` and the `@SerialEntry` path `:406`), per-relationship format derivation mirroring Reggie's `Util.requiresDerFormat`, and the loud-failure rule for non-DER-encodable field values (§3.6). Includes the proxy-side template path (`SpaceProxy2.repFor`) so template and entry are produced under the same negotiated format — the §2.3 board precedent made normative. |
-| **A2** · Coexistence & migration choreography | The strategy decision (§3.5) per service, including: recovery behavior over a mixed snaplogstore/snapshot, drain-window visibility semantics documented for operators, `useDerForEntries` documentation (currently undocumented outside code), and the flip plan for Reggie's default. Decision doc + config/recovery changes, board-reviewed. |
-| **A3** · Reggie default flip | Flip `useDerForEntries` default per A2's plan; align `Util.requiresDerFormat` docs; release-note the operational sequence. Mechanical once A2 lands. |
-| **A4** · Cross-format regression + persistence tests | Extend the `EntryRepDerFormatTest` pattern to Outrigger (matching, `EntryFieldIndex` bucketing, `hasMatch`/`ContinuingQuery`/watcher paths); mixed-store recovery tests for both services; adversarial probe: same logical value, both formats, assert the *documented* (not accidental) behavior on every path. |
+| **A1** · Outrigger DER marshal path + format selection | Constraints-aware marshalling in `EntryRep` (both the reflection path `:338` and the `@SerialEntry` path `:406`), per-relationship format derivation mirroring Reggie's `Util.requiresDerFormat`, and the loud-failure rule for non-DER-encodable field values (§3.6). Includes the proxy-side template path (`SpaceProxy2.repFor`) so template and entry are produced under the same negotiated format — the §2.3 board precedent made normative. **Additional marshal sites in scope** (missing from earlier drafts): Outrigger `SpaceProxy2.java:549,699` (handbacks), `AvailabilityRegistrationWatcher.java:406`, `EventRegistrationWatcher.java:207`; Reggie `Item.java:243-246`, `EventReg.serialize`/`writeObject`. Most materially, `RegistrarImpl.marshalAttributes` (`:4447-4456`) and `marshalLocators` (`:4492-4501`) are both JOSS-only today and both called from inside `takeSnapshot` (`:6368-6369`) — the persistence path §2.3 already cites — so they belong in A2/A4's mixed-snapshot recovery analysis, not silently assumed covered by A3's config flip. **Also in scope:** a survey-and-fix pass over shipped `jgdms-lib-dl` `Entry` types for DER-encodability (§3.6) — a 2026-07-20 sample found 4/26 failing today. |
+| **A2** · Coexistence & migration choreography | The strategy decision (§3.5) per service, including: recovery behavior over a mixed snaplogstore/snapshot, drain-window visibility semantics documented for operators, `useDerForEntries` documentation (currently undocumented outside code), and the flip plan for Reggie's default. **Strategy (a) — lease-expiry drain — is unsound for indefinitely-renewed leases (§3.5) and must not be selected as written**: A2 must pick an explicit forced-re-registration trigger or one of strategies (b)/(c), and must state how the registrar's own `Long.MAX_VALUE`-leased self-registration is handled. Decision doc + config/recovery changes, board-reviewed. |
+| **A3** · Reggie client-side rollout (re-scoped from "default flip") | Flip `useDerForEntries` default per A2's plan; align `Util.requiresDerFormat` docs; release-note the operational sequence. **Scope correction:** `useDerForEntries` governs only the registrar's own self-attributes/self-registration marshalling — an ordinary client's service-registration attribute format is decided entirely client-side by the deployed proxy's method constraints (`Util.requiresDerFormat`, invoked only client-side in `RegistrarProxy.java`/`Registration.java`). Flipping the server default does **not** move the entry-matching hazard (§2.3) for real client registrations; the actual lever is client-side constraint/jar rollout, which A3 must scope alongside the config flip. Ties to open question §9.2 (per-relationship format negotiation vs. a space-wide format epoch) — the client-side lever is what makes that choice consequential. No longer purely mechanical once this is accounted for. |
+| **A4** · Cross-format regression + persistence tests | Extend the `EntryRepDerFormatTest` pattern to Outrigger (matching, `EntryFieldIndex` bucketing, `hasMatch`/`ContinuingQuery`/watcher paths); mixed-store recovery tests for both services; adversarial probe: same logical value, both formats, assert the *documented* (not accidental) behavior on every path. Recovery tests must also cover the additional marshal sites named in A1 (handbacks, watcher registration paths, and Reggie's `marshalAttributes`/`marshalLocators` inside `takeSnapshot`) with a mixed-format snapshot exercising each, not just the primary entry-field path. |
 
 ## 5. Part B — Outrigger filter integration
 
 | Task | Deliverable |
 |------|-------------|
-| **B1** · API + wire design | How a client expresses (template, predicate): the filter as an **optional field on `EntryRep`** (the §2.4 wire seam — no signature changes) vs a parallel collection on the `JavaSpace05` batch ops; the client-facing API surface for attaching a CEL expression to a query; filter-applicability key (`className` vs `schemaDigest`); **field-name resolution semantics** across the entry hierarchy given STD-006 §3.9 per-class namespaces and `FieldComparator` ordering (qualified names? leaf-shadows-super? reject collisions?). Board-reviewed design memo; this is the task that must not be rushed. |
+| **B1** · API + wire design | How a client expresses (template, predicate): the filter as an **optional field on `EntryRep`** (the §2.4 wire seam — no signature changes) vs a parallel collection on the `JavaSpace05` batch ops; the client-facing API surface for attaching a CEL expression to a query; filter-applicability key (`className` vs `schemaDigest`); **field-name resolution semantics** across the entry hierarchy given STD-006 §3.9 per-class namespaces and `FieldComparator` ordering (qualified names? leaf-shadows-super? reject collisions?). **Failure-direction decision (version skew, §2.4):** name both wire-seam options explicitly — filter-as-`EntryRep`-field (silent false-positive under skew: filter vanishes, query runs unfiltered against an old server) vs. filter-as-`JavaSpace05`-batch-parameter (loud break: dispatch fails outright against an old server lacking the overload). If the `EntryRep`-field route is chosen, require a server-declared capability check so a new client can detect absent filter support rather than silently getting an unfiltered result; for a security-relevant feature, loud-break is the safer default absent that check. **Dual-use hazard:** `EntryRep` serves both templates and stored (written) entries; nothing today rejects a populated filter field on a write-path `EntryRep` — B1 must specify the field is template-only and reject (or ignore-and-flag) one found on a write. `EntryRep` also has a **second** serialization path — `store()`/`restore()` (`EntryRep.java:1011-1054` → `snaplogstore/BaseObject.java:45-56`) — distinct from `serialForm()`/`serialize()` used on the wire; the filter field must **not** be persisted there. **Observability requirement:** specify a client- or operator-visible signal distinguishing a Part-B fail-closed no-match (candidate undecodable/wrong-format/missing-field ⇒ silently excluded per §3.2) from a genuine "no entries match" result — distinct from A2's drain-window visibility metric (open question §9.3), which covers Part-A format-visibility only and says nothing about filtered queries. Board-reviewed design memo; this is the task that must not be rushed. |
 | **B2** · Lazy field projector | A projection reader over the existing codec that decodes only predicate-referenced fields (DER TLV lengths make skipping cheap), full fail-closed behavior inherited (schemaDigest verification, canonical rejection, bounds). Extends `decodeToFieldMap`'s machinery; no second parser (§3.3). |
-| **B3** · Chokepoint wiring | Predicate enforcement at the verified sites: `EntryHolder.java:177` and `:818` (synchronous paths), `WatchersForTemplateClass.java:113` / `TemplateHandle.matches` (write-time fan-out for blocking queries, notify, availability), catch-up replays `OutriggerServerImpl.java:2593`/`:2185`. Fail-closed rules of §3.2 applied identically at every site; `EntryFieldIndex` untouched (remains a narrower). Depends on `SOW-CEL-Filter-Format.md` T1–T3 (grammar, DER encoding, Java evaluator). |
-| **B4** · Write-path cost containment | Filter evaluation now runs on the `OperationJournal` thread for every pending filtered registration per write — a new DoS surface distinct from the evaluator's own bounded-by-construction guarantee (that bounds *one* evaluation; this bounds *N registrations × writes*). Static expression-size/cost caps at registration time (CEL cost-estimation precedent), per-registration and per-principal limits, metering. **C3 is the structural complement** — caps bound the damage, C3's shared projections and predicate indexing shrink the work itself. Cross-check against `SOW-BAE-Timing-Sidechannel-Denial.md` §1b and the CEL SOW's T7 isolation-posture outcome once that lands. |
-| **B5** · Integration tests + adversarial probes | End-to-end over real read/take/notify/availability/blocking paths; crafted malformed expressions and payloads at every chokepoint; hierarchy field-resolution edge cases (shadowed names, subclass-only fields, empty/degenerate templates per G11); mixed-format candidates asserting fail-closed no-match; conformance against the CEL SOW's T5 corpus where applicable. |
+| **B3** · Chokepoint wiring | **First step: re-derive the complete `EntryRep.matches`/`TemplateHandle.matches` caller set exhaustively against trunk rather than trusting the list below as closed** — a missed call site is a silent fail-open bypass, not a benign gap (§2.4). Predicate enforcement at the verified sites: `EntryHolder.java:177` and `:818` (synchronous paths), `WatchersForTemplateClass.java:113` / `TemplateHandle.matches` (write-time fan-out for blocking queries, notify, availability), catch-up replays `OutriggerServerImpl.java:2593`/`:2185`, and `OutriggerServerImpl.java:3607` (`IteratorImpl.nextReps` — the `JavaSpaceAdmin.contents()` admin paging iterator, distinct from `ContinuingQuery`/MatchSet). Fail-closed rules of §3.2 applied identically at every site; `EntryFieldIndex` untouched (remains a narrower). **Acceptance criterion at every chokepoint:** predicate evaluation is gated on / re-checked after transactional-visibility confirmation (`confirmAvailabilityWithTxn`/`handle.canPerform`) — never evaluated against a transactionally-unconfirmed candidate (§3.2/§2.4). The write-time fan-out chokepoint (`WatchersForTemplateClass.java:113`) needs the equivalent check for uncommitted writes — a write inside an open transaction must not have its predicate-match result disclosed to non-participant watchers before it commits. Depends on `SOW-CEL-Filter-Format.md` T1–T3 (grammar, DER encoding, Java evaluator). |
+| **B4** · Write-path cost containment | Filter evaluation now runs on the `OperationJournal` thread for every pending filtered registration per write — a new DoS surface distinct from the evaluator's own bounded-by-construction guarantee (that bounds *one* evaluation; this bounds *N registrations × writes*). Static expression-size/cost caps at registration time (CEL cost-estimation precedent), per-registration and per-principal limits, metering. **C3 is a structural complement, not a resolution** — caps bound the damage, C3's shared projections and predicate indexing shrink the work itself, but **only for registrations with sargable conjuncts**: C3(c)'s predicate indexing helps only expressions of the `field op constant` shape C2 can extract; a predicate with none (e.g. `strContains`) falls back to full per-write evaluation bounded only by B4's static caps. State this sargable-only scope explicitly rather than treating B4 as resolved by C3; open question §9.4 (admission control beyond static caps) remains live precisely for the non-sargable case. Cross-check against `SOW-BAE-Timing-Sidechannel-Denial.md` §1b and the CEL SOW's T7 isolation-posture outcome once that lands. |
+| **B5** · Integration tests + adversarial probes | End-to-end over real read/take/notify/availability/blocking paths; crafted malformed expressions and payloads at every chokepoint; hierarchy field-resolution edge cases (shadowed names, subclass-only fields, empty/degenerate templates per G11); mixed-format candidates asserting fail-closed no-match; conformance against the CEL SOW's T5 corpus where applicable. Tests must also assert B1's observability signal fires correctly (distinguishing fail-closed no-match from genuine no-match), alongside the mixed-format fail-closed assertions already scoped. |
 
 ## 6. Part C — Matching-runtime modernisation (Outrigger)
 
@@ -255,7 +337,7 @@ rule — never an error).
 
 | Task | Deliverable |
 |------|-------------|
-| **C1** · Write-time typed projection | Decode each `ATOMIC_DER` entry's field projection **once at write**, class-free and fail-closed, and keep the typed values on the `EntryHandle` beside the opaque bytes — extending the existing derived-data idiom (the add-time quick-reject hash, `EntryHandle.java:180-207`). Filters then evaluate over in-memory values with zero query-path decode. Decide eager-vs-lazy (lazy-with-memoize is the likely answer for entries no filter ever touches); strict memory accounting (projection size is sender-influenced; codec bounds inherited); projection derived **only** from the validated canonical bytes, never a second decode path (G1/G12). |
+| **C1** · Write-time typed projection | Decode each `ATOMIC_DER` entry's field projection **once at write**, class-free and fail-closed, and keep the typed values on the `EntryHandle` beside the opaque bytes — extending the existing derived-data idiom (the add-time quick-reject hash, `EntryHandle.java:180-207`). Filters then evaluate over in-memory values with zero query-path decode. Decide eager-vs-lazy (lazy-with-memoize is the likely answer for entries no filter ever touches); strict memory accounting (projection size is sender-influenced; codec bounds inherited); projection derived **only** from the validated canonical bytes, never a second decode path (G1/G12). **Acceptance criterion:** the write-time projection must be rebuilt on snaplogstore recovery/restore, not only on live writes. Placing the decode inside the shared `EntryHandle` constructor (matching the existing quick-reject-hash precedent, computed the same way) gets this for free, since recovery reconstructs `EntryHandle`s through the same constructor; hooking the decode into the write RPC body instead would leave recovered entries unprojected and silently invisible to filters after a restart. |
 | **C2** · Typed ordered indexes + sargable planning | Per-field ordered indexes (`ConcurrentSkipListMap`-style) over projected numeric/string values, so range predicates narrow candidates instead of full-scanning. Query side: extract sargable conjuncts (`field op constant`) from the CEL expression, choose the most selective index — the same heuristic `EntryFieldIndex.candidates` already applies to equality buckets (`EntryFieldIndex.java:203-207`) — then run the residual predicate per survivor. Keep planning deliberately primitive (single best index, no cost model); index-field selection policy is §9.5. `EntryFieldIndex` stays for byte-equality template fields, now strengthened by DER canonicity (same value ⇒ same bytes across senders). |
 | **C3** · Write-path fan-out modernisation | Four graded pieces: (a) **one projection per written entry**, shared across every interested filter evaluation (amortizes C1's decode across N watchers); (b) **expression interning** — identical registered expressions evaluate once; (c) **predicate indexing** — index registered sargable conditions (interval structures) so a write touches only the watchers its values can satisfy: the symmetric dual of C2 (index the queries, not just the data), and the structural fix behind B4's caps; (d) **journal hygiene** — bound the `OperationJournal` queue with backpressure and supervise/restart the thread, but keep processing **serial**: the ordinal total order is load-bearing (§2.5) and parallelisation is out of scope without a proof (§9.7). |
 | **C4** · Index the `ContinuingQuery` path + entry-store structure | Extend `EntryFieldIndex` (and C2's typed indexes once present) to `contents()`/MatchSet and multi-template take — closing the explicit in-code follow-up (`EntryHolder.java:773-778`). Independent of filters and valuable to all bulk operations; the equality half has no Part-C dependency and can land early. Also replace `EntryHolder.content` per the researched recommendation below (**C4a**): a sequence-keyed `ConcurrentSkipListMap` — O(n)-scan removal becomes O(log n), FIFO iteration preserved, and leased cursors become stateless. Benchmark before/after on a mid-queue-take-heavy workload to confirm, not assume, the win (G13). |
@@ -283,6 +365,16 @@ library survey plus workload analysis:
   cursors. **Bonus:** `tailMap(lastSeq, false)` turns `ContentsQuery`'s pinned live
   `contentsIterator` (`EntryHolder.java:709`) into a **stateless cursor** — a resumable `long`
   instead of a held iterator object, a strictly better shape for a leased cross-call query.
+- **Open risk requiring a fix before implementation: the `tailMap(lastSeq, false)` resume-atomicity
+  gap.** The stateless-cursor resume assumes `AtomicLong` key-assignment and the corresponding
+  `put()` into the map are effectively atomic together. If they are not — a writer reserves a
+  lower sequence number but its `put()` completes *after* a reader has already advanced its
+  watermark past that key — the entry is hidden from that cursor **permanently**, strictly worse
+  than the current held-iterator behavior (a live `ConcurrentLinkedQueue` iterator cannot lose a
+  linked-ahead entry once inserted). This must be closed before implementation, either with a
+  two-phase publish (reserve-then-visible-commit, cursors skip not-yet-committed keys) or a
+  contiguous-watermark design (the resumable watermark advances only to the highest *contiguous*
+  committed sequence, not the highest assigned one).
 - **Alternatives surveyed and rejected:** `ConcurrentLinkedDeque`/`LinkedTransferQueue` — same
   O(n) `remove(Object)`, no exposed node handles (confirmed against JDK source). JCTools/Agrona —
   throughput queues, no interior handle-delete. Caffeine's and Netty's intrusive doubly-linked
@@ -393,8 +485,13 @@ B2 after B1; B3 gates on the CEL evaluator existing; B4/B5 close it out. **C4's 
 C5 are early riders** (no filter dependency — C5 can land with Part A, C4-equality any time);
 C1 → C2/C3 follow Part A and inform B4's final calibration. Part A alone is independently
 valuable (canonical matching bytes, data independence for stored entries) and should not wait
-for Part B or C. Part B without Part C is correct but slow — acceptable for first landing,
-not for the SOW's definition of done.
+for Part B or C — **with a completion-dependency caveat**: that value is only *fully* realized
+once a store is homogeneously migrated to `ATOMIC_DER`, and given §3.5's lease-drain
+unsoundness finding, homogeneous migration may never complete for indefinitely-renewed services
+under a passive strategy. Landing Part A is still worth doing immediately; declaring its benefit
+*complete* depends on A2 actually closing that gap (an explicit forced-re-registration trigger or
+strategy (b)/(c), not passive lease-expiry drain). Part B without Part C is correct but slow —
+acceptable for first landing, not for the SOW's definition of done.
 
 ## 9. Open questions
 
