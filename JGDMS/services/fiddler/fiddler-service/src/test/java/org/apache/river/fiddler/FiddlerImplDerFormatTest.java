@@ -56,6 +56,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
 
 import org.junit.Test;
@@ -80,11 +81,13 @@ import static org.junit.Assert.*;
  *   <li>{@code RegistrationInfo.serialize(PutArg, RegistrationInfo)} --
  *       the {@code "listener"} field, reached via the @AtomicSerial
  *       {@code serialize}/{@code GetArg}-constructor pair (exercised here
- *       through {@link AtomicMarshalOutputStream}, the same stream
+ *       through {@link AtomicMarshalOutputStream} / {@link
+ *       org.apache.river.api.io.AtomicMarshalInputStream}, the same streams
  *       {@code AtomicExternalRoundTripTest} uses to drive
- *       {@code serialize(PutArg)}. Only the write half is tested for this
- *       site: reading it back is blocked on this JDK by a pre-existing,
- *       unrelated defect -- see the site-1 test comment below for
+ *       {@code serialize(PutArg)}. Both halves are round-tripped for this
+ *       site, but the read half requires running this module's tests with
+ *       {@code JAVA_HOME} pointed at the SM-capable DirtyChai JDK, not
+ *       vanilla JDK 25 -- see the site-1 test comment below for
  *       details.).</li>
  *   <li>{@code RegistrationInfo.addToDiscoveredRegs(Map)} -- marshals a
  *       newly-discovered {@code ServiceRegistrar}, a public instance method
@@ -371,34 +374,30 @@ public class FiddlerImplDerFormatTest {
     // path any AtomicSerial-aware stream -- JOSS or DER -- uses; this is
     // NOT the path FiddlerImpl's own snapshot persistence uses, see site 3.)
     //
-    // Only the WRITE half is exercised here. Reading it back through
-    // AtomicMarshalInputStream is blocked on this JDK by a pre-existing,
-    // unrelated defect in net.jini.io.MarshalledInstance -- NOT introduced
-    // by 221fe251c, and not specific to fiddler or to DER: reconstructing
-    // *any* MarshalledInstance via its @AtomicSerial GetArg constructor
-    // unconditionally calls MarshalledInstance#check(GetArg), which calls
+    // Both halves are exercised here. Reading this back through
+    // AtomicMarshalInputStream requires the SM-capable DirtyChai JDK, not
+    // vanilla JDK 25: reconstructing *any* MarshalledInstance via its
+    // @AtomicSerial GetArg constructor unconditionally calls
+    // MarshalledInstance#check(GetArg), which calls
     // new DeSerializationPermission("MARSHALL").checkGuard(null). On
-    // vanilla JDK 25 (this module's build/test JDK -- `java -version`
-    // reports 25.0.3, not the SM-capable DirtyChai build some other JGDMS
-    // modules use), java.security.Permission#checkGuard now unconditionally
-    // throws SecurityException("checking permissions is not supported"),
-    // per JEP 486's SecurityManager removal -- independently reproduced
-    // with a 5-line java.security.Permission#checkGuard probe outside this
-    // module/class entirely, so this is a JDK/platform-level fact, not a
-    // fiddler bug. That means *any* @AtomicSerial class with a nested
-    // MarshalledInstance field (this exact shape) currently cannot be
-    // decoded via an AtomicSerial-aware stream (AtomicMarshalInputStream,
-    // and presumably DerObjectInputStream) on this JDK, regardless of the
-    // JOSS/DER migration. RegistrationInfo's *real* persistence path (site
-    // 3, below) does not hit this at all: it decodes the nested
-    // MarshalledInstance via plain java.io Serialization (writeObject/
-    // readObject), not the GetArg constructor -- and that path is fully
-    // round-tripped, in both directions, below. Fixing the
-    // MarshalledInstance#check(GetArg) defect itself is out of scope here
-    // (it lives in jgdms-platform, outside JGDMS/services/fiddler/).
+    // vanilla JDK 25, java.security.Permission#checkGuard now
+    // unconditionally throws SecurityException("checking permissions is
+    // not supported"), per JEP 486's SecurityManager removal -- confirmed
+    // with a standalone java.security.Permission#checkGuard probe outside
+    // this module/class entirely, so this is a JDK/platform-level fact,
+    // not a fiddler bug. DirtyChai (this codebase's SM-capable JDK build,
+    // used by sibling JGDMS modules for exactly this reason) restores the
+    // pre-JEP-486 behaviour -- checkGuard is a no-op when no
+    // SecurityManager is installed, which is the case here (no SM is
+    // installed process-wide by this test) -- so no SM install/uninstall
+    // is needed to exercise this path; run this module's tests with
+    // JAVA_HOME pointed at the DirtyChai build. RegistrationInfo's *real*
+    // persistence path (site 3, below) never hits this at all regardless
+    // of JDK: it decodes the nested MarshalledInstance via plain java.io
+    // Serialization (writeObject/readObject), not the GetArg constructor.
 
     @Test
-    public void site1_atomicSerializeListenerFieldSucceeds() throws Exception {
+    public void site1_atomicSerializeListenerFieldRoundTrips() throws Exception {
         FiddlerImpl.RegistrationInfo regInfo = newRegInfo(new TestListener("site1"));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -415,6 +414,15 @@ public class FiddlerImplDerFormatTest {
         oos.flush();
 
         assertTrue("serialize() must produce non-empty output", baos.size() > 0);
+
+        ObjectInputStream ois = AtomicMarshalInputStream.create(
+                new ByteArrayInputStream(baos.toByteArray()), null, false, null, null, false);
+        FiddlerImpl.RegistrationInfo restored =
+                (FiddlerImpl.RegistrationInfo) ois.readObject();
+
+        assertEquals("listener must round-trip through the @AtomicSerial "
+                + "serialize(PutArg)/GetArg-constructor pair",
+                new TestListener("site1"), restored.listener);
     }
 
     // ── Site 2: RegistrationInfo.addToDiscoveredRegs ────────────────────────
