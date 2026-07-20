@@ -74,15 +74,22 @@
           test-runtime (JoinStateManagerDerFormatTest,
           StorableReferenceDerFormatTest, covering the outrigger write
           sites from the AtomicMarshalledInstance to DER migration, commit
-          221fe251c). Not referenced by any compiled symbol in main or test
-          sources, purely a runtime SPI provider (same pattern as
-          reggie-dl's test-scope jgdms-der dependency).
+          221fe251c). Originally added test-scope only (a runtime SPI
+          provider, not referenced by any compiled symbol at the time).
+          Bumped to compile scope: trunk's born-immutable configured-format
+          entry marshalling (5899a7f9e) added a real main-source compile
+          dependency on jgdms-der (OutriggerServerImpl's AtomicDerILFactory
+          usage needs DerInputLimits), previously satisfied only by a
+          deeper transitive path via jgdms-jeri. Declaring it here directly
+          at test scope shadowed that transitive compile-scope resolution
+          under Maven's nearest-declaration-wins mediation, breaking the
+          main-source compile after this branch rebased on top of 5899a7f9e.
+          A direct compile-scope declaration here is correct either way now.
         -->
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-der</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 
