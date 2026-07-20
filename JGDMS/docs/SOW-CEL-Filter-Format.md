@@ -1,16 +1,19 @@
 # Scope of Work — CEL-shaped filter/predicate format for `@RemoteFunction` (`FUNCTION` form), DER-native
 
 - **Drafted:** 2026-07-17.
-- **Status:** IN PROGRESS (2026-07-20) — the format recommendation was **ratified by Peter**
-  (recorded in STD-009 §8). Landed on trunk: **T1** (STD-011, board-reviewed, all
-  ratifications recorded), **T2** (Appendix B DER wire encoding, board-reviewed), **T3
-  phase 1** (`jgdms-cel`: decoder + cost model + evaluator + fail-closed
-  `CorrectlyRoundedMath` seam, board-reviewed, 179 tests). In flight: **T6** (verifier
-  facade + redundancy ruling). **Sequencing per Peter (2026-07-20): T6 → T5 (Java-side
-  corpus) → T3 phase 2 (the correctly-rounded 7-function port + MPFR oracle — the §7.5
-  mandate's priced-in cost).** **T4 (Rust evaluator) deferred, not dropped**: sequenced
-  behind a Rust JERI DER implementation, which follows the JERI-DER join-manager QA work
-  in flight 2026-07-20; T5's conformance corpus is the deferral's safety net.
+- **Status:** JAVA SIDE COMPLETE (2026-07-20) — the format recommendation was **ratified
+  by Peter** (STD-009 §8). Landed on trunk, each board-reviewed: **T1** (STD-011 + all
+  ratifications), **T2** (Appendix B DER wire encoding), **T3 phase 1** (`jgdms-cel`
+  decoder/cost/evaluator), **T6** (CelVerifier gate + the §5.3 redundancy ruling,
+  resolved in STD-011 §12.2/§12.3), **T5** (428-vector implementation-neutral
+  conformance corpus + oracle), **T3 phase 2** (`CrMath` correctly-rounded
+  transcendentals per §7.5 — all 188 gated vectors live; 685 module tests green).
+  **Remaining:** **T4 (Rust evaluator) deferred, not dropped** — sequenced behind a Rust
+  JERI DER implementation, which follows the JERI-DER join-manager QA work in flight
+  2026-07-20; it validates against T5's committed corpus. **T7** (isolation posture)
+  open. **T8** (documentation reconciliation) appropriate once T7 resolves and the
+  Outrigger integration (`SOW-Entry-ATOMIC-DER-Migration.md`) begins consuming the
+  primitive.
 - **Origin:** `JGDMS-STD-009-Service-RemoteFunction-Annotation-Model-v0.1-DRAFT.md` §8's 2026-07-17
   decision note (filters are not standard JVM bytecode; the same mechanism must serve both Rust and Java
   services) and the format-recommendation note that follows it (CEL grammar/semantics, custom
