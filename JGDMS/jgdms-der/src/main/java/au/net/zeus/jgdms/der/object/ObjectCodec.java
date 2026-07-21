@@ -1993,15 +1993,15 @@ public final class ObjectCodec {
                     "ObjectCodec.decodeNested: unexpected trailing bytes in nested SEQUENCE");
         }
 
-        // Decode schema chain (same format as MarshalledInstanceRecord.decodeSchemaChain)
-        List<AtomicSerialSchemaRecord> records = new ArrayList<>();
-        DerReader schemaReader = new DerReader(schemaChainBytes);
-        while (schemaReader.hasMore()) {
-            records.add(AtomicSerialSchemaRecord.decode(schemaReader));
-        }
-        if (records.isEmpty()) {
-            throw new DerException("ObjectCodec.decodeNested: empty schema chain");
-        }
+        // Decode schema chain -- same format AND same checks as
+        // MarshalledInstanceRecord.decodeSchemaChain: SchemaChain.decodeChain is the single
+        // shared chain-decode path, so this nested (P2) site enforces the S4.5
+        // maxChainRecords/maxChainBytes ceilings, the S7.8 parentSchemaHash adjacent-pair
+        // cross-check and the S7.8 terminal-record completeness check identically to the
+        // top-level (P1) site. (Previously this site parsed the chain WITHOUT those
+        // checks -- the asymmetry is closed by construction.)
+        List<AtomicSerialSchemaRecord> records =
+                SchemaChain.decodeChain(schemaChainBytes, "ObjectCodec.decodeNested");
         byte[] leafDigest = records.get(0).schemaDigest();
         SchemaChain.Result chain = new SchemaChain.Result(records, leafDigest);
 

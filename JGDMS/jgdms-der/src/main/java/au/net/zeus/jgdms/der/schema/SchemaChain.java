@@ -17,7 +17,11 @@
 
 package au.net.zeus.jgdms.der.schema;
 
+import au.net.zeus.jgdms.der.DerException;
+import au.net.zeus.jgdms.der.DerReader;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -52,6 +56,33 @@ import java.util.Objects;
  * The input list is <b>leaf-first, root-last</b> (matching S7.8 "leaf -> root" order).
  */
 public final class SchemaChain {
+
+    /**
+     * Maximum number of {@link AtomicSerialSchemaRecord} SEQUENCEs in one encoded
+     * schema chain (STD-006 S4.5 {@code maxChainRecords}, <b>inclusive</b>: exactly
+     * {@code maxChainRecords} records are accepted and {@code maxChainRecords + 1}
+     * is rejected). Enforced by {@link #decodeChain} during the chain-decode loop
+     * at every chain decode site -- the top-level {@code MarshalledInstanceRecord}
+     * and every nested {@code @AtomicSerial} field record's embedded chain -- as a
+     * structural resource ceiling: without it the loop is bounded only by
+     * {@code maxInputBytes}. The deepest real {@code @AtomicSerial} hierarchy in
+     * the repository is 4 records; 64 is deliberate headroom, not a target.
+     */
+    public static final int MAX_CHAIN_RECORDS = 64;
+
+    /**
+     * Maximum cumulative encoded byte length of one schema chain (STD-006 S4.5
+     * {@code maxChainBytes}, <b>inclusive</b>: a chain of exactly
+     * {@code maxChainBytes} bytes is accepted and one of {@code maxChainBytes + 1}
+     * bytes is rejected). Enforced by {@link #decodeChain} during the chain-decode
+     * loop (metered as records accumulate, not checked once at entry). This
+     * deliberately tightens the base-admissible set: a single record at the
+     * S4.5 {@code maxFields}/{@code className} ceilings could alone exceed this
+     * bound, but no real class remotely approaches it (largest real
+     * {@code serialForm()} in the repository is ~11 fields; real chains are under
+     * 2 KiB).
+     */
+    public static final int MAX_CHAIN_BYTES = 65536;
 
     private SchemaChain() {
         throw new AssertionError("no instances");
@@ -111,6 +142,113 @@ public final class SchemaChain {
         List<AtomicSerialSchemaRecord> resultList = List.of(linked);
         byte[] leafDigest = linked[0].schemaDigest();
         return new Result(resultList, leafDigest);
+    }
+
+    /**
+     * Decodes an encoded schema chain -- the concatenation of complete
+     * {@link AtomicSerialSchemaRecord} DER SEQUENCEs in leaf-first order (STD-006
+     * S7.8 "Schema chain encoding") -- back into the ordered record list, enforcing
+     * the STD-006 S4.5 chain ceilings and the S7.8 chain-integrity checks. This is
+     * the <b>single</b> chain-decode path: both the top-level
+     * {@code MarshalledInstanceRecord.decodeSchemaChain()} (P1) site and the nested
+     * {@code @AtomicSerial} field record site in {@code ObjectCodec.decodeNested}
+     * (P2) delegate here, so the two sites cannot diverge.
+     *
+     * <h4>Checks (all hard decode rejects -- fail-secure, never skip/default)</h4>
+     * <ol>
+     *   <li><b>{@code maxChainRecords} ceiling</b> ({@link #MAX_CHAIN_RECORDS},
+     *       S4.5, inclusive): metered during the decode loop as records accumulate;
+     *       the {@code (MAX_CHAIN_RECORDS + 1)}-th record throws before any further
+     *       record is parsed.</li>
+     *   <li><b>{@code maxChainBytes} ceiling</b> ({@link #MAX_CHAIN_BYTES}, S4.5,
+     *       inclusive): the cumulative consumed byte count is metered during the
+     *       loop; crossing the ceiling throws before any further record is
+     *       parsed.</li>
+     *   <li><b>Adjacent-pair cross-check</b> (S7.8): each record's
+     *       {@code parentSchemaHash} must equal the next record's
+     *       {@code schemaDigest()}; a non-terminal record with no
+     *       {@code parentSchemaHash} is a broken chain.</li>
+     *   <li><b>Chain completeness</b> (S7.8): the terminal record MUST NOT carry a
+     *       {@code parentSchemaHash} -- a dangling parent hash is a truncated
+     *       chain. Without this check a truncated chain {@code {leaf}} and the full
+     *       chain {@code {leaf, parent, root}} would both yield the same leaf
+     *       digest from different bytes, breaking digest-to-bytes injectivity.</li>
+     *   <li><b>Non-empty</b>: an empty chain is rejected.</li>
+     * </ol>
+     *
+     * @param chainBytes the concatenated chain bytes (leaf-first record SEQUENCEs)
+     * @param context    caller name used as the error-message prefix (e.g.
+     *                   {@code "MarshalledInstanceRecord"})
+     * @return ordered list of schema records, leaf-first, at least one element
+     * @throws DerException if the bytes are malformed, a ceiling is breached, the
+     *                      adjacent-pair cross-check fails, the chain is truncated,
+     *                      or the chain is empty
+     */
+    public static List<AtomicSerialSchemaRecord> decodeChain(byte[] chainBytes, String context)
+            throws DerException {
+        Objects.requireNonNull(chainBytes, "chainBytes");
+        Objects.requireNonNull(context, "context");
+
+        List<AtomicSerialSchemaRecord> records = new ArrayList<>();
+        DerReader reader = new DerReader(chainBytes);
+
+        while (reader.hasMore()) {
+            AtomicSerialSchemaRecord rec = AtomicSerialSchemaRecord.decode(reader);
+            records.add(rec);
+
+            // S4.5 maxChainRecords -- metered at the accumulating frame (G10): the
+            // ceiling-breaching record is the last one parsed; nothing beyond it is.
+            if (records.size() > MAX_CHAIN_RECORDS) {
+                throw new DerException(
+                        context + ": schema chain record count exceeds maxChainRecords ("
+                        + MAX_CHAIN_RECORDS + ", STD-006 S4.5) -- rejected");
+            }
+            // S4.5 maxChainBytes -- cumulative consumed bytes, metered during the loop.
+            if (reader.position() > MAX_CHAIN_BYTES) {
+                throw new DerException(
+                        context + ": schema chain cumulative byte length " + reader.position()
+                        + " exceeds maxChainBytes (" + MAX_CHAIN_BYTES
+                        + ", STD-006 S4.5) -- rejected");
+            }
+            // S7.8 adjacent-pair cross-check, applied as each pair completes:
+            // records[i].parentSchemaHash must equal records[i+1].schemaDigest()
+            // (records[i] is the child, records[i+1] is its parent in the chain).
+            int i = records.size() - 2;
+            if (i >= 0) {
+                AtomicSerialSchemaRecord child = records.get(i);
+                byte[] childParentHash = child.parentSchemaHashOrNull();
+                if (childParentHash == null) {
+                    throw new DerException(
+                            context + ": schema chain broken at index " + i
+                            + " -- record for '" + child.className()
+                            + "' has no parentSchemaHash but is not the last record in the chain");
+                }
+                if (!Arrays.equals(childParentHash, rec.schemaDigest())) {
+                    throw new DerException(
+                            context + ": schema chain cross-check failed at index " + i
+                            + " -- record[" + i + "].parentSchemaHash does not match "
+                            + "record[" + (i + 1) + "].schemaDigest() for class '"
+                            + rec.className() + "'");
+                }
+            }
+        }
+
+        if (records.isEmpty()) {
+            throw new DerException(context + ": schema chain is empty");
+        }
+
+        // S7.8 chain completeness: the terminal record must be a root (no
+        // parentSchemaHash). A dangling parent hash means the chain was truncated.
+        AtomicSerialSchemaRecord terminal = records.get(records.size() - 1);
+        if (terminal.parentSchemaHashOrNull() != null) {
+            throw new DerException(
+                    context + ": schema chain is truncated -- terminal record for '"
+                    + terminal.className()
+                    + "' carries a parentSchemaHash but no parent record follows"
+                    + " (STD-006 S7.8 chain completeness) -- rejected");
+        }
+
+        return records;
     }
 
     /**
