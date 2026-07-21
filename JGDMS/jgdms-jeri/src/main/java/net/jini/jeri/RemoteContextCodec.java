@@ -258,6 +258,18 @@ final class RemoteContextCodec {
      * On a stock JVM (where {@code DomainIdentity} is absent and the codec does not run) it
      * falls back to the identity-equality {@link ReconstructedDomain}.
      */
+    /**
+     * Package hook for {@link AdminAuthorizationAssembler}: builds a temporary
+     * reducing domain over {@code cs} carrying {@code principals} with the same
+     * vetted shape as the reconstructed reducing domains (null static
+     * permissions, null class loader, value-equality {@code DomainIdentity} on
+     * DirtyChai).  Reused so the admin authorization context interns in the same
+     * {@code AccessControlContext} cache rather than duplicating the construction.
+     */
+    static ProtectionDomain reducingDomain(CodeSource cs, Principal[] principals) {
+        return reconstructDomain(cs, principals);
+    }
+
     private static ProtectionDomain reconstructDomain(CodeSource cs, Principal[] principals) {
         if (DOMAIN_IDENTITY_CTOR != null) {
             try {

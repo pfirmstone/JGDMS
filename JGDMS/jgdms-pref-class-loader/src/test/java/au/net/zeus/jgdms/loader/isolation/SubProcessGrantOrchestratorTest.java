@@ -39,6 +39,7 @@ import java.util.PropertyPermission;
 import java.util.Set;
 import java.security.Principal;
 import javax.security.auth.Subject;
+import net.jini.security.AdminAuthorizationContext;
 import net.jini.security.GrantPermission;
 import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.PermissionGrant;
@@ -468,10 +469,20 @@ public class SubProcessGrantOrchestratorTest {
 
     // --------------------------------------- composes with the real T2 gate
 
-    /** Injectable caller identity, mirroring {@code IsolationSecurityCriticalTest}. */
-    static final class Caller implements AdminPrincipalAuthenticator.CallerIdentity {
+    /**
+     * Injectable caller identity, adapted to the Option B carrier API: the
+     * {@code subject} field is kept so existing test bodies are unchanged; it is
+     * converted on demand into the seam-shaped {@link AdminAuthorizationContext}
+     * the gate consumes (a {@code null} subject yields a {@code null} carrier =
+     * unauthenticated).
+     */
+    static final class Caller implements AdminPrincipalAuthenticator.AdminContextSource {
         volatile Subject subject;
-        public Subject current() { return subject; }
+        public AdminAuthorizationContext current() {
+            if (subject == null) return null;
+            return AdminAuthTestSupport.carrierFor(
+                    subject.getPrincipals().toArray(new Principal[0]));
+        }
     }
 
     private static Subject subjectWith(Principal... ps) {

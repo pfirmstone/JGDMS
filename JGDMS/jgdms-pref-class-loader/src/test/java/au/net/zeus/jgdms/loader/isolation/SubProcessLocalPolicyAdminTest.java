@@ -34,6 +34,7 @@ import java.util.Set;
 import javax.security.auth.Subject;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
+import net.jini.security.AdminAuthorizationContext;
 import net.jini.security.GrantPermission;
 import net.jini.security.policy.DynamicPolicyProvider;
 import org.apache.river.api.security.LeasedPermissionGrant;
@@ -103,10 +104,20 @@ public class SubProcessLocalPolicyAdminTest {
                 Collections.<Object>emptySet());
     }
 
-    /** Injectable caller identity holder, same shape as the T2 test suite's. */
-    static final class Caller implements AdminPrincipalAuthenticator.CallerIdentity {
+    /**
+     * Injectable caller identity holder, adapted to the Option B carrier API:
+     * the {@code subject} field is kept so existing test bodies are unchanged;
+     * it is converted on demand into the seam-shaped
+     * {@link AdminAuthorizationContext} the gate consumes (a {@code null}
+     * subject yields a {@code null} carrier = unauthenticated).
+     */
+    static final class Caller implements AdminPrincipalAuthenticator.AdminContextSource {
         volatile Subject subject;
-        public Subject current() { return subject; }
+        public AdminAuthorizationContext current() {
+            if (subject == null) return null;
+            return AdminAuthTestSupport.carrierFor(
+                    subject.getPrincipals().toArray(new Principal[0]));
+        }
     }
 
     private static final class DenyAllBasePolicy extends Policy {

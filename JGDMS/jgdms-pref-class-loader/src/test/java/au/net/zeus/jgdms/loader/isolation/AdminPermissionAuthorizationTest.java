@@ -16,40 +16,37 @@
 package au.net.zeus.jgdms.loader.isolation;
 
 import java.security.Principal;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
-import javax.security.auth.Subject;
 import net.jini.security.AccessPermission;
+import net.jini.security.AdminAuthorizationContext;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+import au.net.zeus.jgdms.loader.isolation.AdminAuthTestSupport.MutableContextSource;
+
 /**
- * Unit coverage for the 2026-07-21 ratified redesign of
- * {@link AdminPrincipalAuthenticator}: authorization is a per-operation
- * {@link SubProcessAdminPermission} check (target = operation name) against
- * a synthetic principal-only context, submitted to the installed
- * {@link SecurityManager} &mdash; no longer a principal-name loop against a
- * single configured admin principal.  Covers, per the ratified design:
+ * Unit coverage for the 2026-07-21 board-ratified "Option B" redesign of
+ * {@link AdminPrincipalAuthenticator}: the gate is a pure
+ * <em>identity&nbsp;&rarr;&nbsp;permit/deny</em> function over the
+ * seam-assembled {@link AdminAuthorizationContext} carrier.  Authorization is a
+ * per-operation {@link SubProcessAdminPermission} check (target = operation
+ * name) against the carrier's reducing domains, submitted to the installed
+ * {@link SecurityManager}.  Covers:
  * <ol type="a">
  *   <li>grant present &rarr; each of the four operations authorized;</li>
- *   <li>no grant &rarr; refused;</li>
- *   <li>per-operation separation (a grant for {@code getGrants} does not
- *       authorize {@code grant} &mdash; least privilege: {@code grant} is
- *       the dangerous one);</li>
- *   <li>principals delivered via a connection-derived
- *       {@link AdminPrincipalAuthenticator.CallerIdentity} injected through
- *       the constructor seam &mdash; the NORMATIVE T4 wiring for remote
- *       TLS+SPIFFE callers (see {@code AdminPrincipalAuthenticator}'s class
- *       javadoc); the stub here exercises exactly that seam;</li>
- *   <li>the class-gate: an equivalent plain {@link AccessPermission} grant
- *       must NOT satisfy a {@link SubProcessAdminPermission} check.</li>
+ *   <li>no grant / unauthenticated / empty-principal carrier &rarr; refused;</li>
+ *   <li>per-operation separation (a {@code getGrants} grant does not authorize
+ *       the dangerous {@code grant} &mdash; least privilege);</li>
+ *   <li>identity delivered through the seam carrier (the NORMATIVE Option&nbsp;B
+ *       wiring) &mdash; the pure function authorizes over <em>exactly</em> the
+ *       carrier's principals (MUST-address&nbsp;2), the worker SPIFFE principal
+ *       is the seam/connection-derived one (MUST-address&nbsp;4);</li>
+ *   <li>the class-gate: an equivalent plain {@link AccessPermission} grant must
+ *       NOT satisfy a {@link SubProcessAdminPermission} check.</li>
  * </ol>
  * Scaffolding notes: see {@link AdminAuthTestSupport} &mdash; tests
- * {@code Assume}-skip on JDKs where {@code setSecurityManager} is
- * unsupported (they execute for real on the DirtyChai build JDK this
- * module's tests run under).
+ * {@code Assume}-skip on JDKs where {@code setSecurityManager} is unsupported
+ * (they execute for real on the DirtyChai build JDK this module's tests run
+ * under).
  */
 public class AdminPermissionAuthorizationTest {
 
@@ -62,18 +59,6 @@ public class AdminPermissionAuthorizationTest {
             public int hashCode() { return n.hashCode(); }
             public String toString() { return n; }
         };
-    }
-
-    private static Subject subjectWith(Principal... ps) {
-        Set<Principal> set = new LinkedHashSet<Principal>(Arrays.asList(ps));
-        return new Subject(true, set, Collections.<Object>emptySet(),
-                Collections.<Object>emptySet());
-    }
-
-    /** Injectable caller identity holder, same shape as the T2 test suite's. */
-    static final class Caller implements AdminPrincipalAuthenticator.CallerIdentity {
-        volatile Subject subject;
-        public Subject current() { return subject; }
     }
 
     private static final String[] ALL_OPERATIONS = {
@@ -89,8 +74,8 @@ public class AdminPermissionAuthorizationTest {
     @Test
     public void grantPresent_eachOfTheFourOperationsAuthorized() throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(admin);
+            MutableContextSource caller =
+                    new MutableContextSource(AdminAuthTestSupport.carrierFor(admin));
             AdminPrincipalAuthenticator auth =
                     new AdminPrincipalAuthenticator(caller);
             for (String op : ALL_OPERATIONS) {
@@ -102,7 +87,7 @@ public class AdminPermissionAuthorizationTest {
     }
 
     // ==================================================================
-    // (b) No grant -> refused.
+    // (b) No grant / unauthenticated / empty-principal carrier -> refused.
     // ==================================================================
 
     @Test
@@ -110,8 +95,8 @@ public class AdminPermissionAuthorizationTest {
         // Policy grants the four operations to the admin principal ONLY; the
         // caller authenticates as a different principal -> no grant applies.
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(name("spiffe://ctrl/not-admin"));
+            MutableContextSource caller = new MutableContextSource(
+                    AdminAuthTestSupport.carrierFor(name("spiffe://ctrl/not-admin")));
             AdminPrincipalAuthenticator auth =
                     new AdminPrincipalAuthenticator(caller);
             for (String op : ALL_OPERATIONS) {
@@ -130,28 +115,52 @@ public class AdminPermissionAuthorizationTest {
     }
 
     @Test
-    public void noGrant_unauthenticatedCaller_refused() throws Exception {
+    public void noCarrier_unauthenticatedCaller_refused() throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            Caller caller = new Caller();       // subject == null
+            MutableContextSource caller = new MutableContextSource();  // ctx == null
             AdminPrincipalAuthenticator auth =
                     new AdminPrincipalAuthenticator(caller);
             for (String op : ALL_OPERATIONS) {
-                assertFalse("unauthenticated caller must be refused for " + op,
+                assertFalse("no carrier (unauthenticated) must be refused for " + op,
                         auth.isAdmin(op));
+            }
+        });
+    }
+
+    /**
+     * MUST-address&nbsp;3 (gate side): a carrier that is present but carries
+     * <em>zero</em> principals &mdash; the shape produced when a user Subject's
+     * JWT(s) do not verify, so {@code readUserSubjects} drops every wire
+     * principal &mdash; is refused for every operation.  (The end-to-end
+     * assembly of that zero-principal carrier from unverified wire principals is
+     * asserted seam-side in {@code jgdms-jeri}.)
+     */
+    @Test
+    public void emptyPrincipalCarrier_refusedForEveryOperation() throws Exception {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
+            AdminAuthorizationContext empty = AdminAuthTestSupport.emptyCarrier();
+            MutableContextSource caller = new MutableContextSource(empty);
+            AdminPrincipalAuthenticator auth =
+                    new AdminPrincipalAuthenticator(caller);
+            for (String op : ALL_OPERATIONS) {
+                assertFalse("a carrier with no principals must be refused for " + op,
+                        auth.isAdmin(op));
+                // Same verdict through the pure static entry point.
+                assertFalse(AdminPrincipalAuthenticator.isAdmin(empty, op));
             }
         });
     }
 
     @Test
     public void emptyPolicy_refusesEvenTheAdminPrincipal() throws Exception {
-        // A policy with NO SubProcessAdminPermission grants at all refuses
-        // even a caller genuinely authenticated as the admin principal:
-        // authorization now lives in the policy, not in this class.
+        // A policy with NO SubProcessAdminPermission grants at all refuses even
+        // a caller genuinely authenticated as the admin principal: authorization
+        // now lives in the policy, not in this class.
         AdminAuthTestSupport.withAuthorization(
                 new AdminAuthTestSupport.PrincipalGrantPolicy(admin
                         /* no permissions granted */), () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(admin);
+            MutableContextSource caller =
+                    new MutableContextSource(AdminAuthTestSupport.carrierFor(admin));
             AdminPrincipalAuthenticator auth =
                     new AdminPrincipalAuthenticator(caller);
             for (String op : ALL_OPERATIONS) {
@@ -170,8 +179,8 @@ public class AdminPermissionAuthorizationTest {
         AdminAuthTestSupport.withAuthorization(
                 new AdminAuthTestSupport.PrincipalGrantPolicy(admin,
                         new SubProcessAdminPermission("getGrants")), () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(admin);
+            MutableContextSource caller =
+                    new MutableContextSource(AdminAuthTestSupport.carrierFor(admin));
             AdminPrincipalAuthenticator auth =
                     new AdminPrincipalAuthenticator(caller);
 
@@ -200,8 +209,8 @@ public class AdminPermissionAuthorizationTest {
                         new SubProcessAdminPermission("getSubProcessPolicyAdmin"),
                         new SubProcessAdminPermission("refresh"),
                         new SubProcessAdminPermission("getGrants")), () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(admin);
+            MutableContextSource caller =
+                    new MutableContextSource(AdminAuthTestSupport.carrierFor(admin));
             final int[] grantCalls = { 0 };
             PolicyAdmin backing = new PolicyAdmin() {
                 public void grant(org.apache.river.api.security.PermissionGrant g) {
@@ -229,42 +238,40 @@ public class AdminPermissionAuthorizationTest {
     }
 
     // ==================================================================
-    // (d) Principals delivered via an injected, connection-derived
-    //     CallerIdentity (the normative T4 wiring for remote callers).
+    // (d) Identity delivered through the seam carrier (Option B wiring).
     // ==================================================================
 
     /**
-     * A TLS/SPIFFE-authenticated remote caller's principals are
-     * connection-derived: they are never on the receiving thread's ambient
-     * subject, so {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT}
-     * (which resolves ambient {@code callAs}/{@code doAs} bindings only)
-     * can never see them.  The NORMATIVE deployment requirement (see
-     * {@code AdminPrincipalAuthenticator}'s class javadoc) is that T4
-     * wiring inject a connection-derived
-     * {@link AdminPrincipalAuthenticator.CallerIdentity} &mdash; the
-     * equivalent of {@code Util.getClientSubject()} as consumed by
-     * {@code BasicInvocationDispatcher} &mdash; through the constructor
-     * seam.  The stub below IS that seam: it delivers the worker-shaped
-     * Subject exactly as the connection-derived identity would, proving
-     * the permission check authorizes on the delivered principals even
-     * though nothing about the calling stack or ambient subject carries
-     * them.
+     * MUST-address&nbsp;2 + 4.  A TLS/SPIFFE-authenticated remote caller's
+     * identity is assembled at the seam (worker SPIFFE principal from the
+     * verified connection + verified user principals) and conveyed in the
+     * carrier; the gate authorizes over <em>exactly</em> those principals.  A
+     * carrier carrying the granted principal is authorized; a carrier carrying a
+     * different principal is refused &mdash; proving the decision rests on the
+     * carrier-supplied identity, not on any ambient/stack state.
      */
     @Test
-    public void connectionDerivedCallerIdentity_principalsAuthorizeViaPolicyGrant()
+    public void gateAuthorizesOverExactlyTheCarrierSuppliedPrincipals()
             throws Exception {
         final Principal workerSpiffeId = name("spiffe://ctrl/admin");
         AdminAuthTestSupport.withAdminAuthorization(workerSpiffeId, () -> {
-            // Read-only stamped worker subject, as the SSLEngine/TLS+SPIFFE
-            // keystone mints it: principals only, no credentials here.
-            final Subject workerSubject = subjectWith(workerSpiffeId);
-            AdminPrincipalAuthenticator auth = new AdminPrincipalAuthenticator(
-                    new AdminPrincipalAuthenticator.CallerIdentity() {
-                        public Subject current() { return workerSubject; }
-                    });
+            // Carrier carrying the granted (worker/connection-derived) principal.
+            AdminAuthorizationContext granted =
+                    AdminAuthTestSupport.carrierFor(workerSpiffeId);
+            // Carrier carrying a DIFFERENT principal -- same policy, no grant.
+            AdminAuthorizationContext other =
+                    AdminAuthTestSupport.carrierFor(name("spiffe://ctrl/other"));
             for (String op : ALL_OPERATIONS) {
-                assertTrue("worker-delivered principals must satisfy the"
-                        + " policy grant for " + op, auth.isAdmin(op));
+                assertTrue("carrier-supplied granted principal authorizes " + op,
+                        AdminPrincipalAuthenticator.isAdmin(granted, op));
+                assertFalse("a different carrier-supplied principal is refused "
+                        + op, AdminPrincipalAuthenticator.isAdmin(other, op));
+            }
+            // And through the instance/source path.
+            AdminPrincipalAuthenticator auth = new AdminPrincipalAuthenticator(
+                    new MutableContextSource(granted));
+            for (String op : ALL_OPERATIONS) {
+                assertTrue(auth.isAdmin(op));
             }
         });
     }
@@ -286,8 +293,8 @@ public class AdminPermissionAuthorizationTest {
                         new AccessPermission("grant"),
                         new AccessPermission("refresh"),
                         new AccessPermission("getGrants")), () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(admin);
+            MutableContextSource caller =
+                    new MutableContextSource(AdminAuthTestSupport.carrierFor(admin));
             AdminPrincipalAuthenticator auth =
                     new AdminPrincipalAuthenticator(caller);
             for (String op : ALL_OPERATIONS) {
@@ -319,13 +326,13 @@ public class AdminPermissionAuthorizationTest {
     @Test
     public void noSecurityManager_isAdminFalse_requireAdminThrows() {
         // Only meaningful when this (possibly shared) test JVM has no
-        // SecurityManager installed by an earlier test; mirrors the
-        // pre-existing Assume convention in IsolationSecurityCriticalTest.
+        // SecurityManager installed by an earlier test; mirrors the pre-existing
+        // Assume convention in IsolationSecurityCriticalTest.
         org.junit.Assume.assumeTrue(
                 "skipped: a SecurityManager is already installed",
                 System.getSecurityManager() == null);
-        Caller caller = new Caller();
-        caller.subject = subjectWith(admin);
+        MutableContextSource caller =
+                new MutableContextSource(AdminAuthTestSupport.carrierFor(admin));
         AdminPrincipalAuthenticator auth = new AdminPrincipalAuthenticator(caller);
         assertFalse(auth.isAdmin("grant"));
         try {

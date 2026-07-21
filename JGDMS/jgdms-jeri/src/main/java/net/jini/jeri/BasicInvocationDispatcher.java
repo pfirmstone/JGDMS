@@ -97,6 +97,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import net.jini.security.AdminAuthorizationContext;
 import net.jini.security.Security;
 import net.jini.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtVerificationException;
@@ -1056,12 +1057,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    atomicValidation = true;
 		}
 	    }
+	    List<Subject> userSubjects = Collections.emptyList();
 	    if (hasUserSubjects) {
-		List<Subject> userSubjects = readUserSubjects(rin);
+		userSubjects = readUserSubjects(rin);
 		if (!userSubjects.isEmpty()) {
 		    addUserSubjectsToContext(context, userSubjects);
 		}
 	    }
+            ProtectionDomain[] remoteDomains = null;
             if (hasSerializedAcc) {
                 byte[] accBytes = readByteArrayBlock(rin);
                 if (accBytes.length > 0) {
@@ -1071,8 +1074,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                     // verified connection.  The ProtectionDomain[] is consumed here in
                     // trusted dispatcher code to build the opaque AccessControlContext;
                     // it never escapes this frame.
-                    ProtectionDomain[] remoteDomains =
-                            unmarshalRemoteContext(accBytes, integrity);
+                    remoteDomains = unmarshalRemoteContext(accBytes, integrity);
                     if (remoteDomains.length > 0) {
                         // Factory, not the constructor: on DirtyChai this interns the
                         // value-equal reducing context in the AccessControlContext cache,
@@ -1084,10 +1086,29 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                         // (the array constructor requires it too); run it under this trusted JERI frame
                         // via doPrivileged so the permission does not go viral to callers and, being
                         // authorized, the reducing context is exactly the remote domains (no stack merge).
+                        final ProtectionDomain[] rd = remoteDomains;
                         remoteIdentityContext = AccessController.doPrivileged(
-                                (PrivilegedAction<AccessControlContext>) () -> Security.create(remoteDomains));
+                                (PrivilegedAction<AccessControlContext>) () -> Security.create(rd));
                     }
                 }
+            }
+            // Option B (2026-07-21, board-ratified): assemble the caller's admin
+            // authorization identity ONCE here at the trusted seam -- captured
+            // code sources + connection-derived worker principal + verified USER
+            // principals (readUserSubjects already dropped every unverified wire
+            // principal) -- and publish it as a ServerContext element.  A pure
+            // downstream gate (au.net.zeus.jgdms.loader.isolation
+            // .AdminPrincipalAuthenticator) then authorizes over exactly this
+            // seam-supplied identity, never re-reading ambient/worker state
+            // (confused-deputy defence).  Only published when the request
+            // actually carried identity fields (protocol 0x02); the value-only
+            // carrier exposes no ProtectionDomain.getClassLoader() capability
+            // (every domain has a null class loader).
+            if (hasUserSubjects || hasSerializedAcc) {
+                AdminAuthorizationContext adminIdentity =
+                        AdminAuthorizationAssembler.assemble(
+                                remoteDomains, getClientSubject(), userSubjects);
+                context.add(adminIdentity);
             }
 	} catch (Throwable t) {
 	    if (logger.isLoggable(Levels.FAILED)) {
