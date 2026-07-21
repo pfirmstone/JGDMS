@@ -472,3 +472,4 @@ JGDMS/services/codebase-downloader/codebase-downloader-dl/target/
 /JGDMS/.vs
 /JGDMS/tools/preferred-list-analyzer/target
 /JGDMS/services/codebase-downloader/codebase-downloader-service/target
+/.claude
