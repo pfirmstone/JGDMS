@@ -629,13 +629,16 @@ identity itself (it reads no ambient `Subject.current()`/`currentAll()` and no
 trusted JERI dispatch seam (`net.jini.jeri.BasicInvocationDispatcher`), which
 holds the verified mTLS connection (the authenticated worker SPIFFE principal)
 and validates the caller's JWT USER tokens, reconstructing their principals
-from the **verified claims alone**. The seam packages that identity into a
+from the **verified claims alone**. The seam **mints** that identity into a
 `net.jini.security.AdminAuthorizationContext` carrier (a `DomainIdentity[]`
-stamped with the worker + verified user principals, plus the user `Subject`s)
-and publishes it as a `ServerContext` element; the gate consumes exactly that
-carrier and submits `SubProcessAdminPermission("<operation>")` — target = the
-operation name (`getSubProcessPolicyAdmin`, `grant`, `refresh`, `getGrants`) —
-to the installed `SecurityManager`'s two-argument `checkPermission(perm, ctx)`.
+stamped with the worker + verified user principals, plus the user `Subject`s) —
+stamping an unforgeable provenance token under `AdminAuthorizationMintPermission`
+— and conveys it via a dedicated `net.jini.security.AdminAuthorizationScope`
+`ScopedValue` bound around the dispatch (**not** a `ServerContext` ThreadLocal
+element). The gate consumes exactly that carrier, **honors it only when it is
+seam-minted**, and submits `SubProcessAdminPermission("<operation>")` — target =
+the operation name (`getSubProcessPolicyAdmin`, `grant`, `refresh`, `getGrants`)
+— to the installed `SecurityManager`'s two-argument `checkPermission(perm, ctx)`.
 The deployed policy, not the code, names the admin.
 
 **Positive prerequisite — the policy must grant the admin.** Grant
@@ -663,6 +666,54 @@ worker SPIFFE principal is independently bound by the verified mTLS
 connection, so a deployment that authorizes admin operations solely on the
 worker SVID does not depend on this registration — but any JWT-derived admin
 authority does.)
+
+**Required grant — carrier provenance (`AdminAuthorizationMintPermission`).**
+NEW load-bearing prerequisite (2026-07-21 forgery fix). The authorization
+carrier is honored **only when the trusted seam minted it**. `seamMint`
+performs `checkPermission(new AdminAuthorizationMintPermission("mint"))`, so the
+deployed policy MUST grant `AdminAuthorizationMintPermission "mint"` to the
+`jgdms-jeri` code source (the module that owns `BasicInvocationDispatcher` /
+`AdminAuthorizationAssembler`) — e.g.:
+
+```
+// Grant ONLY to the trusted JERI seam code source — never to hosted/business code.
+grant codeBase "file:${jgdms.lib}/jgdms-jeri.jar" {
+    permission net.jini.security.AdminAuthorizationMintPermission "mint";
+};
+```
+
+Hosted code **must not** be granted it: with the grant, hosted code could mint a
+carrier naming any principal and defeat the gate; without it, a carrier hosted
+code fabricates via the public `AdminAuthorizationContext` constructor carries no
+provenance token, and the gate refuses it (fail closed) **however it is
+conveyed** — a forged `ServerContext` element (no longer even read), or a forged
+`ScopedValue` binding. `AdminAuthorizationMintPermission` is a distinct
+permission class, so a broad `SecurityPermission "*"` grant does not imply it;
+only an explicit grant (or `AllPermission`, which must never reach hosted code)
+does. The provenance token is the load-bearing forgery defence; the `ScopedValue`
+conveyance is defence-in-depth. Reproduced in
+`IsolationSecurityCriticalTest.priorExploit_forgedCarrierViaServerContext_nowFailsClosed`,
+`.realDefaultSource_resolvesSeamMintedCarrierFromScopedValue`, and
+`.seamMint_deniedWhenMintPermissionNotGranted`.
+
+**Authoring the admin grant — name the principal(s), and name both to require
+both.** The gate ANDs the carrier's domains, each stamped with the union of the
+worker SPIFFE principal and the verified user principal(s); *which* of those a
+grant requires is **policy-authored, not code-forced**:
+
+- An admin grant **must always name the principal(s)**. A *principal-less*
+  (codesource-only) `SubProcessAdminPermission` grant authorizes on **code
+  identity alone** — every caller whose carrier domain matches that code source
+  is admin regardless of who authenticated. Because the seam stamps the caller's
+  captured code source (or the empty `CodeSource`) onto the carrier domains, a
+  codesource-only grant is a latent authorize-everyone hole. Always scope admin
+  grants with a principal (a `PrincipalGrant` / `grant ... principal ...`).
+- To require **both** the worker SVID **and** a specific user principal, the
+  policy must **name both** in the grant (e.g. a grant whose `principal` clause
+  lists the worker SPIFFE `Principal` *and* the user `Principal`); the code does
+  not force the conjunction. Naming only the worker authorizes on the worker SVID
+  alone; naming only the user authorizes on the verified user principal alone.
+  Author the grant to match the intended trust conjunction.
 
 **Deny prerequisites.**
 
@@ -693,11 +744,12 @@ javadoc, section "NECESSARY, not SUFFICIENT", for the full reasoning and the
 adversarial reproductions in `IsolationSecurityCriticalTest`.
 
 **Remote callers.** No per-deployment identity injection is required under
-Option B: the JERI dispatch seam publishes the assembled
-`AdminAuthorizationContext` as a `ServerContext` element for every request
-that carries identity fields (protocol `0x02`), and the gate's default source
-`AdminPrincipalAuthenticator.CURRENT_CONTEXT` resolves it. Outside a remote
-call (no server context) the default source resolves no carrier and the gate
+Option B: the JERI dispatch seam mints the assembled
+`AdminAuthorizationContext` and binds it in the dedicated
+`AdminAuthorizationScope` `ScopedValue` for every request that carries identity
+fields (protocol `0x02`), and the gate's default source
+`AdminPrincipalAuthenticator.CURRENT_CONTEXT` reads it back. Outside a seam
+dispatch (no binding) the default source resolves no carrier and the gate
 fails closed.
 
 **CLOSED 2026-07-20 (was: known pre-existing gap, not specific to SPIFFE/SPIRE deployment).** The 7

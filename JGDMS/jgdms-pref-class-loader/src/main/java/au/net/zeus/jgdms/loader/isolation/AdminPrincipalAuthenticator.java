@@ -25,8 +25,8 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.concurrent.Callable;
 import javax.security.auth.Subject;
-import net.jini.export.ServerContext;
 import net.jini.security.AdminAuthorizationContext;
+import net.jini.security.AdminAuthorizationScope;
 import net.jini.security.Security;
 
 /**
@@ -48,8 +48,13 @@ import net.jini.security.Security;
  * that validates the caller's JWT USER tokens and reconstructs their principals
  * from the <em>verified claims alone</em> (dropping every attacker-controlled
  * wire principal).  The seam packages that identity into a value-only
- * {@link AdminAuthorizationContext} carrier and publishes it as a
- * {@code ServerContext} element; this gate consumes exactly that carrier.
+ * {@link AdminAuthorizationContext} carrier that it <em>mints</em> (stamping an
+ * unforgeable provenance token &mdash; see
+ * {@link net.jini.security.AdminAuthorizationMintPermission}) and conveys via a
+ * dedicated {@link net.jini.security.AdminAuthorizationScope} {@code ScopedValue}
+ * bound around the dispatch; this gate consumes exactly that carrier and honors
+ * it <strong>only</strong> when it is
+ * {@linkplain AdminAuthorizationContext#isSeamMinted() seam-minted}.
  *
  * <p>Given the carrier, authorization is a standard JGDMS permission check
  * (recipe steps&nbsp;4&ndash;7):
@@ -118,17 +123,33 @@ import net.jini.security.Security;
  *       token bearing the admin's {@code sub} and this gate will authorize over
  *       principals no trust anchor vouched for.  The worker SPIFFE principal is
  *       independently bound by the verified mTLS connection.</li>
+ *   <li><strong>carrier provenance</strong> (2026-07-21 forgery fix):
+ *       {@code AdminAuthorizationMintPermission("mint")} must be granted
+ *       <em>only</em> to the trusted {@code jgdms-jeri} seam code source.  The
+ *       gate honors a carrier only when it is
+ *       {@linkplain AdminAuthorizationContext#isSeamMinted() seam-minted}; a
+ *       carrier hosted code forges via the public
+ *       {@code AdminAuthorizationContext} constructor carries no provenance token
+ *       and is refused (fail closed).  If the mint permission were mis-granted to
+ *       hosted code, that code could mint a carrier naming any principal and
+ *       defeat this gate, so the grant belongs to the seam and no one else.  (The
+ *       carrier is also conveyed via {@link net.jini.security.AdminAuthorizationScope},
+ *       a {@code ScopedValue}, not the public {@code ServerContext} ThreadLocal;
+ *       that conveyance is defence-in-depth &mdash; the token is the load-bearing
+ *       guarantee: a forged carrier bound into the {@code ScopedValue} by any
+ *       means is still refused.)</li>
  * </ul>
  * These attack shapes are exercised as permanent regressions in
  * {@code IsolationSecurityCriticalTest}.
  *
  * <h2>Fail-closed identity</h2>
- * When no carrier is available (no {@code ServerContext} element, e.g. a
- * same-JVM caller that never dispatched through the seam, or an injected source
- * that yields {@code null}), the gate authorizes against a synthetic domain
- * carrying <em>no</em> principals &mdash; only a policy that grants
+ * When no carrier is available (no {@code ScopedValue} binding, e.g. a same-JVM
+ * caller that never dispatched through the seam, or an injected source that
+ * yields {@code null}), the gate authorizes against a synthetic domain carrying
+ * <em>no</em> principals &mdash; only a policy that grants
  * {@code SubProcessAdminPermission} to everyone would authorize it.  A carrier
- * whose principal set is empty is treated identically.
+ * whose principal set is empty, <em>and a carrier that is not seam-minted</em>,
+ * are treated identically (refused unless the policy grants to everyone).
  *
  * @since 3.1.1
  */
@@ -138,7 +159,8 @@ public final class AdminPrincipalAuthenticator {
      * Supplies the {@link AdminAuthorizationContext} the seam assembled for the
      * current remote call.  Injectable so the gate is unit-testable without a
      * live transport; the default {@link #CURRENT_CONTEXT} resolves it from the
-     * {@code ServerContext}.
+     * {@link net.jini.security.AdminAuthorizationScope} {@code ScopedValue} the
+     * seam binds.
      */
     public interface AdminContextSource {
         /**
@@ -199,31 +221,21 @@ public final class AdminPrincipalAuthenticator {
 
     /**
      * The default {@link AdminContextSource}: resolves the carrier the JERI
-     * dispatch seam published as a {@code ServerContext} element for the current
-     * remote call.  Resolves to {@code null} outside a remote call (no server
-     * context) or when the seam published none &mdash; the caller is then
-     * refused (fail closed).  The {@code ServerContext} read runs under this
-     * library's own privilege so it does not go viral to constrained caller
-     * stacks.
+     * dispatch seam bound for the current remote call via the dedicated
+     * {@link AdminAuthorizationScope} {@code ScopedValue} (NOT the public
+     * {@code ServerContext} ThreadLocal &mdash; which any code could publish and
+     * which is unsafe under virtual threads).  Resolves to {@code null} outside a
+     * seam dispatch (no binding) or when the seam bound none &mdash; the caller
+     * is then refused (fail closed).  The provenance check on the returned
+     * carrier is applied centrally in {@link #authorize}; a carrier that is not
+     * {@linkplain AdminAuthorizationContext#isSeamMinted() seam-minted} is
+     * refused there.
      */
     public static final AdminContextSource CURRENT_CONTEXT = new AdminContextSource() {
         @Override
         public AdminAuthorizationContext current() {
-            return AccessController.doPrivileged(
-                    new PrivilegedAction<AdminAuthorizationContext>() {
-                @Override
-                public AdminAuthorizationContext run() {
-                    try {
-                        return (AdminAuthorizationContext)
-                                ServerContext.getServerContextElement(
-                                        AdminAuthorizationContext.class);
-                    } catch (Exception notActive) {
-                        // No server context for this thread (not in a remote
-                        // call) -> no carrier -> unauthenticated (fail closed).
-                        return null;
-                    }
-                }
-            });
+            // Never throws; unbound / absent ScopedValue -> null (fail closed).
+            return AdminAuthorizationScope.currentCarrier();
         }
     };
 
@@ -300,12 +312,24 @@ public final class AdminPrincipalAuthenticator {
         return authorize(carrier, new SubProcessAdminPermission(operation));
     }
 
-    private static boolean authorize(final AdminAuthorizationContext carrier,
+    private static boolean authorize(final AdminAuthorizationContext carrier0,
                                      final SubProcessAdminPermission perm) {
         final SecurityManager sm = System.getSecurityManager();
         if (sm == null) {
             return false;
         }
+        // PROVENANCE GATE (load-bearing forgery defence).  Honor ONLY a carrier
+        // the trusted JERI seam minted under AdminAuthorizationMintPermission.  A
+        // carrier hosted code fabricated via the public AdminAuthorizationContext
+        // constructor is NOT seam-minted; treat it exactly like "no carrier"
+        // (authorized against the no-principal EMPTY_PROTECTION_DOMAIN, i.e.
+        // refused unless the policy grants to everyone).  This holds no matter
+        // HOW the forged carrier reached us -- a forged ScopedValue binding, a
+        // legacy ServerContext element, or an injected AdminContextSource --
+        // because the check is on the token the seam alone can mint, not on the
+        // conveyance.
+        final AdminAuthorizationContext carrier =
+                (carrier0 != null && carrier0.isSeamMinted()) ? carrier0 : null;
         final ProtectionDomain[] domains;
         final Subject[] users;
         if (carrier == null) {

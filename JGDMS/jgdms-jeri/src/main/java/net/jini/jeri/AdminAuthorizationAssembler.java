@@ -17,8 +17,10 @@
  */
 package net.jini.jeri;
 
+import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Principal;
+import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
@@ -120,7 +122,21 @@ final class AdminAuthorizationAssembler {
         Subject[] users = (userSubjects == null)
                 ? new Subject[0]
                 : userSubjects.toArray(new Subject[0]);
-        return new AdminAuthorizationContext(
-                domains.toArray(new ProtectionDomain[0]), users);
+        final ProtectionDomain[] pds = domains.toArray(new ProtectionDomain[0]);
+        final Subject[] finalUsers = users;
+        // Mint an AUTHENTICATED carrier: seamMint checks
+        // AdminAuthorizationMintPermission, which the deployed policy grants only
+        // to this (jgdms-jeri) code source.  A carrier the downstream gate will
+        // honor can be produced ONLY here.  Run under this trusted seam's own
+        // privilege (doPrivileged) so the mint permission is evaluated against
+        // THIS code source alone and does not go viral to any less-privileged
+        // frame that may be on the dispatch stack.
+        return AccessController.doPrivileged(
+                new PrivilegedAction<AdminAuthorizationContext>() {
+            @Override
+            public AdminAuthorizationContext run() {
+                return AdminAuthorizationContext.seamMint(pds, finalUsers);
+            }
+        });
     }
 }
