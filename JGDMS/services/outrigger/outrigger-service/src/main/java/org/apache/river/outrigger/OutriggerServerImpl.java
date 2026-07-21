@@ -921,6 +921,26 @@ public class OutriggerServerImpl
             lifecycleLogger.log(Level.SEVERE, "Failed to start Outrigger server", e);
             cleanupFailedStart();
             throw e;
+        } catch (Error e) {
+            /* F3 hardening (U1a review follow-up, routed to U1b): an Error
+             * thrown from inside the startup action (e.g. a LinkageError
+             * resolving a store or exporter class) propagates from
+             * doPrivileged unwrapped and used to bypass cleanupFailedStart
+             * entirely, exactly like the RuntimeException case above.
+             * Post-reordering (export only after successful store recovery)
+             * the endpoint cannot leak, but non-daemon threads (txnMonitor,
+             * starter, reapers) still can. Clean up, then ALWAYS rethrow the
+             * original Error unchanged -- never swallow an Error; a cleanup
+             * failure is attached as a suppressed exception rather than
+             * masking it.
+             */
+            lifecycleLogger.log(Level.SEVERE, "Failed to start Outrigger server", e);
+            try {
+                cleanupFailedStart();
+            } catch (Throwable cleanupFailure) {
+                e.addSuppressed(cleanupFailure);
+            }
+            throw e;
         } finally {
             config = null;
             starter = null;

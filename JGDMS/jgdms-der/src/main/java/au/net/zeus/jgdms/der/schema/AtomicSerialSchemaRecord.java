@@ -90,6 +90,19 @@ public final class AtomicSerialSchemaRecord {
     /** Required byte length of parentSchemaHash (SIZE(32)). */
     static final int PARENT_HASH_LENGTH = 32;
 
+    /**
+     * Maximum field-definition count per record (STD-006 S4.5 {@code maxFields},
+     * {@code SIZE(0..maxFields)}, <b>inclusive</b>: exactly {@code maxFields}
+     * fields accepted, {@code maxFields + 1} rejected). Enforced by
+     * {@link #decode(DerReader)} metered during the fields loop -- the S4.5 table
+     * names {@code AtomicSerialSchemaRecord.fields} as a {@code maxFields} surface,
+     * and decoders MUST reject over-ceiling input (fail-secure, principle 6).
+     * Inside a chain the S4.5 {@code maxChainBytes} ceiling binds first (65536
+     * fields cannot fit in 65536 chain bytes); this check additionally covers
+     * standalone single-record decodes (e.g. the schema-registry path).
+     */
+    static final int MAX_FIELDS = 65535;
+
     private final String className;
     private final byte[] parentSchemaHash; // null = absent; always 32 bytes when non-null
     private final List<AtomicSerialFieldDef> fields;
@@ -302,6 +315,13 @@ public final class AtomicSerialSchemaRecord {
         List<AtomicSerialFieldDef> fields = new ArrayList<>();
         while (fieldsSeq.hasMore()) {
             fields.add(AtomicSerialFieldDef.decode(fieldsSeq));
+            // S4.5 maxFields -- metered during the fields loop (the ceiling-breaching
+            // field def is the last one parsed; nothing beyond it is).
+            if (fields.size() > MAX_FIELDS) {
+                throw new DerException(
+                        "AtomicSerialSchemaRecord: field count exceeds maxFields ("
+                        + MAX_FIELDS + ", STD-006 S4.5) -- rejected");
+            }
         }
 
         if (seq.hasMore()) {

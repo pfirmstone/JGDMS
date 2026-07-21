@@ -1142,6 +1142,21 @@ obligation.
 | `maxCerts` | 100 | `UrlCodeSourceRecord.certificates` (§7.2) and `DigestCodeSourceRecord.certificates` (§7.3) — shared bound |
 | `maxCertLen` | 65536 | per-certificate `OCTET STRING` length, both §7.2 and §7.3 certificate paths |
 | `maxDigestLen` | 512 | `DigestValue.digest` (§7.2) |
+| `maxChainRecords` | 64 **[PROPOSED]** | §7.8 schema chain — maximum `AtomicSerialSchemaRecord` SEQUENCEs per encoded chain, at **every** chain decode site: the top-level `MarshalledInstanceRecord.schemaBytes` and each nested `@AtomicSerial` field record's embedded chain. Inclusive: exactly 64 records accepted, 65 rejected. Metered **during** the chain-decode loop (the ceiling-breaching record is the last one parsed), not checked once at entry. |
+| `maxChainBytes` | 65536 **[PROPOSED]** | §7.8 schema chain — cumulative encoded byte length of one chain, same two sites as `maxChainRecords`. Inclusive: a chain of exactly 65536 bytes accepted, 65537 rejected. Metered during the chain-decode loop. |
+
+**Chain-ceiling admissibility note [PROPOSED — ratify with the values].** `maxChainBytes`
+deliberately **tightens** the base-admissible set: a single `AtomicSerialSchemaRecord` at
+the `maxFields` (65535) and `className`/`wireType` (1024-byte) ceilings could alone encode
+to tens of megabytes, so such a record — while individually legal against the per-record
+bounds — is not encodable inside a chain. This is intentional pre-release tightening, not
+an oversight: the deepest real `@AtomicSerial` hierarchy in the JGDMS repository is **4
+records** (`ConstrainableRegistrarEvent → RegistrarEvent → ServiceEvent → RemoteEvent`),
+the largest real `serialForm()` is ~11 fields, and real encoded chains are under 2 KiB —
+64 records / 64 KiB is 16×/32× headroom over the measured maxima, not a target. The
+per-record ceilings (`maxFields`, the SIZE bounds on `className`/`wireName`/`wireType`)
+continue to apply to each record individually; the chain ceilings additionally bound the
+aggregate.
 
 ```asn1
 maxFields          INTEGER ::= 65535
@@ -1157,6 +1172,8 @@ maxDomains         INTEGER ::= 4096
 maxCerts           INTEGER ::= 100     -- shared: UrlCodeSourceRecord and DigestCodeSourceRecord cert paths
 maxCertLen         INTEGER ::= 65536
 maxDigestLen       INTEGER ::= 512
+maxChainRecords    INTEGER ::= 64      -- [PROPOSED] §7.8 schema chain record count, inclusive
+maxChainBytes      INTEGER ::= 65536   -- [PROPOSED] §7.8 schema chain cumulative bytes, inclusive
 ```
 
 ### 4.6 Tagging Mode (NORMATIVE)
@@ -2794,8 +2811,10 @@ sender route a payload encoded under one schema into a decode under another.
 what control of `payloadBytes` already gives — `check(GetArg)` still runs — but a
 format that *silently* decodes data against the wrong schema violates fail-secure
 decode, principle 6.) If `schemaBytes` is absent, empty, undecodable, fails the
-`parentSchemaHash` chain cross-check, or does not match `schemaDigest`, the record
-MUST be **rejected** — no fallback to a local or registry schema (§12.4).
+`parentSchemaHash` chain cross-check, is truncated (terminal record carrying a
+`parentSchemaHash` — see "Chain integrity and ceilings" below), exceeds the §4.5
+`maxChainRecords`/`maxChainBytes` ceilings, or does not match `schemaDigest`, the
+record MUST be **rejected** — no fallback to a local or registry schema (§12.4).
 
 **Schema is authoritative for decoding.** The `schemaBytes` embedded in
 `MarshalledInstanceRecord` are the authoritative, permanent schema for decoding
@@ -2813,6 +2832,21 @@ class's `AtomicSerialSchemaRecord` followed by each parent class's
 record in the chain is a complete, self-contained DER SEQUENCE. The decoder reads
 each record in order; `parentSchemaHash` in each record provides a cross-check
 against the next record in the chain.
+
+**Chain integrity and ceilings (NORMATIVE — added under T6, chain-ceiling
+adoption).** A well-formed chain is **complete**: its terminal (last, root) record
+MUST NOT carry a `parentSchemaHash` — a terminal record with a dangling
+`parentSchemaHash` is a **truncated chain** and MUST be rejected. (Without this
+check, a truncated chain `{leaf}` and the full chain `{leaf, parent, root}` yield
+the same leaf digest from different `schemaBytes`, breaking the injectivity of
+`schemaDigest` over chain bytes.) The adjacent-pair cross-check (each record's
+`parentSchemaHash` equals the next record's schema version digest, and every
+non-terminal record MUST carry one), the completeness check, and the §4.5 chain
+ceilings (`maxChainRecords`, `maxChainBytes` — metered **during** the chain-decode
+loop, rejecting on breach before further records are parsed) apply identically at
+**every** chain decode site: the top-level `MarshalledInstanceRecord` and each
+nested `@AtomicSerial` field record's embedded chain. All of these are hard decode
+rejects (fail-secure, principle 6) — never a skip, default, or fallback.
 
 **Schema version comparison.** After the mandatory verification of `schemaDigest`
 against `schemaBytes` (above), the receiver computes

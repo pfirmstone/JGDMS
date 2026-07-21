@@ -122,8 +122,27 @@ public class RecoveryFailCleanTest {
         public void close() { closeCalled.set(true); }
     }
 
+    /**
+     * A store whose recovery throws an {@link Error} (the F3 hardening case,
+     * routed from U1a's review to U1b): {@code doPrivileged} propagates an
+     * Error unwrapped, so without an explicit {@code catch (Error)} the
+     * startup cleanup block is bypassed entirely.
+     */
+    public static final class ErrorThrowingStore implements Store {
+        final AtomicBoolean closeCalled = new AtomicBoolean();
+        final AtomicBoolean destroyCalled = new AtomicBoolean();
+
+        public LogOps setupStore(Recover space, String entryFormat) {
+            throw new LinkageError("simulated Error during store recovery");
+        }
+
+        public void destroy() { destroyCalled.set(true); }
+        public void close() { closeCalled.set(true); }
+    }
+
     private static volatile RecordingExporter exporter;
     private static volatile JossBornStore store;
+    private static volatile ErrorThrowingStore errorStore;
 
     /** Called from the configuration file. */
     public static Exporter testExporter() { return exporter; }
@@ -131,10 +150,14 @@ public class RecoveryFailCleanTest {
     /** Called from the configuration file. */
     public static Store testStore() { return store; }
 
+    /** Called from the configuration file. */
+    public static Store testErrorStore() { return errorStore; }
+
     @Before
     public void fresh() {
         exporter = new RecordingExporter();
         store = new JossBornStore();
+        errorStore = new ErrorThrowingStore();
     }
 
     private String writeConfig(String body) throws IOException {
@@ -214,6 +237,58 @@ public class RecoveryFailCleanTest {
         // refused startup survives (TxnMonitor + pool, starter, etc.).
         Set<Thread> stragglers = awaitNoNewNonDaemonThreads(before, 30000);
         assertTrue("non-daemon threads survived a refused recovery: "
+            + stragglers, stragglers.isEmpty());
+    }
+
+    /**
+     * F3 hardening: an {@link Error} thrown during startup (here: from store
+     * recovery) must propagate UNCHANGED to the caller -- never swallowed,
+     * never rewrapped -- and must still run the same fail-clean cleanup as
+     * the checked and RuntimeException paths: no live endpoint, no surviving
+     * non-daemon threads, store closed (not destroyed).
+     */
+    @Test
+    public void errorDuringStartupIsFailCleanAndPropagates() throws Exception {
+        String config = writeConfig(
+            "import org.apache.river.outrigger.RecoveryFailCleanTest;\n"
+            + "import net.jini.export.Exporter;\n"
+            + "org.apache.river.outrigger {\n"
+            + "    store = RecoveryFailCleanTest.testErrorStore();\n"
+            + "    serverExporter = RecoveryFailCleanTest.testExporter();\n"
+            + "    initialLookupGroups = new String[]{};\n"
+            + "}\n");
+
+        Set<Thread> before = liveThreads();
+
+        PersistentOutriggerImpl wrapper =
+            new PersistentOutriggerImpl(new String[]{config}, null);
+        try {
+            wrapper.start();
+            fail("an Error during store recovery must propagate");
+        } catch (LinkageError expected) {
+            // Error propagation semantics preserved: the ORIGINAL Error
+            // reaches the caller (not an IOException, not a swallow).
+            assertEquals("simulated Error during store recovery",
+                expected.getMessage());
+        }
+
+        // Fail-CLEAN (i): export runs only after successful store recovery,
+        // so an Error during recovery must never have exported an endpoint.
+        assertFalse("exporter.export() must never have been called when "
+            + "recovery threw an Error", exporter.exportCalled.get());
+
+        // Fail-CLEAN (ii): the store was closed (not destroyed) by cleanup --
+        // proof the Error path actually ran cleanupFailedStart rather than
+        // bypassing it.
+        assertTrue("cleanup must close the store on the Error path",
+            errorStore.closeCalled.get());
+        assertFalse("cleanup must never destroy the store on the Error path",
+            errorStore.destroyCalled.get());
+
+        // Fail-CLEAN (iii): no non-daemon thread started during the failed
+        // startup survives (txnMonitor + pool, starter, etc.).
+        Set<Thread> stragglers = awaitNoNewNonDaemonThreads(before, 30000);
+        assertTrue("non-daemon threads survived an Error during startup: "
             + stragglers, stragglers.isEmpty());
     }
 
