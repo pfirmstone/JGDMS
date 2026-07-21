@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
 import net.jini.admin.Administrable;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.event.RemoteEventListener;
@@ -142,23 +143,39 @@ public final class ConstrainableRegistrarProxy
     
     /**
      * Creates new ConstrainableRegistrarProxy with given server reference,
-     * service ID and client constraints.
+     * service ID, born entry format and client constraints.
+     *
+     * @param entryFormat the marshalling format this registrar was born
+     *              with (fixed at the registrar's instantiation, immutable
+     *              for its life); <em>not</em> derived from
+     *              {@code constraints} -- see {@link #setConstraints}.
      */
     ConstrainableRegistrarProxy(Registrar server,
 				ServiceID registrarID,
+				MarshallingFormat entryFormat,
 				MethodConstraints constraints)
     {
 	super((Registrar) ((RemoteMethodControl) server).setConstraints(
 		  ConstrainableProxyUtil.translateConstraints(
 		      constraints, methodMappings)),
-	      registrarID);
+	      registrarID, entryFormat);
 	this.constraints = constraints;
     }
 
+    /**
+     * Returns a copy of this proxy with the client's requested method
+     * constraints. The born {@link RegistrarProxy#entryFormat entryFormat}
+     * is carried over from {@code this} unconditionally -- it is
+     * <em>not</em> one of the constraints being replaced here, so a client
+     * cannot drop or change the registrar's format via
+     * {@code setConstraints}; only the dedicated immutable field set once
+     * at the registrar's instantiation ever determines it
+     * (JGDMS-STD-006 sec.3 item 5).
+     */
     // javadoc inherited from RemoteMethodControl.setConstraints
     public RemoteMethodControl setConstraints(MethodConstraints constraints) {
 	return new ConstrainableRegistrarProxy(
-	    server, registrarID, constraints);
+	    server, registrarID, entryFormat, constraints);
     }
 
     // javadoc inherited from RemoteMethodControl.getConstraints
