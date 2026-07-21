@@ -249,7 +249,14 @@ public class ActivatableServiceStarterAdmin
 	}
         //XXX temporary work-around for jrmp dgc problem
 	try {
-	    serviceRef = new DerMarshalledInstance(created.proxy).get(false);
+	    // Supply the harness application class loader as the DER decode's default
+	    // (endpoint) loader so downloaded service codebases resolve their parent
+	    // classes -- e.g. net.jini.core.constraint.RemoteMethodControl in jgdms-platform --
+	    // against a platform-bearing loader. The loader-less get(false) hardcodes a null
+	    // default (MarshalledInstance:676), which leaves the downloaded codebase loader
+	    // bootstrap-parented and unable to link core constraint classes.
+	    serviceRef = new DerMarshalledInstance(created.proxy)
+		    .get(ActivatableServiceStarterAdmin.class.getClassLoader(), false, null, null);
         } catch (IOException e) {
 	    throw new TestException("Problem unmarshalling proxy", e);
         } catch (ClassNotFoundException e) {
