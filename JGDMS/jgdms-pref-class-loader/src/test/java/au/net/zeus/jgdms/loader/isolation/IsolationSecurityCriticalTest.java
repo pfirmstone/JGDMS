@@ -16,7 +16,6 @@
 package au.net.zeus.jgdms.loader.isolation;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.security.Permission;
 import java.security.Principal;
@@ -766,78 +765,48 @@ public class IsolationSecurityCriticalTest {
     }
 
     // ==================================================================
-    // (2026-07-21) CURRENT_SUBJECT gains a new highest-priority tier:
-    // Subject.processWorker() (DirtyChai JDK), tried before Subject.current()
-    // and the legacy getSubject(ACC) path, so a caller authenticated purely
-    // by TLS/SPIFFE (the ambient WorkerSubject the SSLEngine keystone mints,
-    // which Subject.current() structurally cannot see) can be recognised.
+    // (2026-07-21 board round 2, F1) CURRENT_SUBJECT resolves the AMBIENT
+    // subject only: Subject.current() (JDK 18+/DirtyChai), else the legacy
+    // getSubject(ACC) read. Subject.processWorker() was REMOVED from the
+    // identity path: it returns this process's OWN SPIRE workload identity
+    // (SpiffeCredentialManager singleton), never a remote caller's, and on
+    // a configured deployment it always returns non-null, so it would have
+    // shadowed the genuine tiers. Remote TLS+SPIFFE callers require a
+    // connection-derived CallerIdentity injected at T4 wiring time (see
+    // AdminPrincipalAuthenticator's class javadoc, normative requirement).
     // ==================================================================
 
     /**
-     * Records, without failing either way, which {@code Subject.processWorker()}
-     * capability this build/test JDK has, and pins that the tier-1 lookup
-     * degrades gracefully in both cases. (A previous revision of this test
-     * asserted the build JDK is vanilla -- that assertion was empirically
-     * wrong: this module's tests run under the DirtyChai JDK, which DOES
-     * provide {@code Subject.processWorker()}.) On a vanilla JDK the method
-     * is absent and the tier is skipped; on DirtyChai it is present and,
-     * outside any transport-established worker context (as in this test
-     * JVM), must return {@code null} without throwing, so
-     * {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT} falls through to
-     * the {@code Subject.current()} tier exactly as the fall-through test
-     * below verifies.
+     * Graceful-degradation guard for the remaining ambient tiers, on both
+     * JDK shapes this module is built/run against (vanilla JDK: reflective
+     * {@code Subject.current()} absent pre-18, legacy path throws
+     * {@link UnsupportedOperationException} with the SecurityManager
+     * disabled on 24+; DirtyChai: {@code Subject.current()} present):
+     * with no ambient subject bound, {@link
+     * AdminPrincipalAuthenticator#CURRENT_SUBJECT} must resolve
+     * "unauthenticated" and the gate fails closed, never throws from
+     * identity acquisition; with the granted admin subject bound via
+     * {@code Subject.callAs}, it must be recognised. Exercises the real
+     * production {@code CURRENT_SUBJECT} field (not the injectable stub),
+     * the same real-path style as {@code realCurrentSubjectPath_enforcesAdmin}.
      */
     @Test
-    public void processWorkerTier_degradesGracefully_onThisBuildJdk()
-            throws Exception {
-        Method processWorker;
-        try {
-            processWorker = Subject.class.getMethod("processWorker");
-        } catch (NoSuchMethodException vanillaJdk) {
-            // Vanilla JDK: tier resolves to null and is silently skipped --
-            // nothing more to probe here.
-            return;
-        }
-        // DirtyChai (or a future JDK providing it): outside any worker
-        // dispatch there is no ambient WorkerSubject; the tier must yield
-        // null (fall through), never throw.
-        Object ambient = processWorker.invoke(new Subject());
-        assertNull("no transport-established worker context exists in this"
-                + " test JVM, so processWorker() must return null (fall"
-                + " through to Subject.current())", ambient);
-    }
-
-    /**
-     * No-regression guard: when the tier-1 {@code processWorker()} lookup
-     * yields nothing (method absent on a vanilla JDK, or present-but-null
-     * outside a worker context on DirtyChai -- see
-     * {@link #processWorkerTier_degradesGracefully_onThisBuildJdk}),
-     * {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT} must fall straight
-     * through to the same {@code Subject.current()}/legacy behaviour --
-     * unauthenticated fails closed, the granted admin subject succeeds. This
-     * exercises the real production
-     * {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT} field (not the
-     * injectable stub), the same real-path style as
-     * {@code realCurrentSubjectPath_enforcesAdmin}, but framed specifically
-     * as the regression check for the tier-ordering change.
-     */
-    @Test
-    public void processWorkerYieldsNothing_currentSubjectFallsThroughUnchanged()
+    public void ambientTiers_degradeGracefully_onBothJdkShapes()
             throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             final SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(),
                     AdminPrincipalAuthenticator.CURRENT_SUBJECT);
 
-            // No ambient Subject at all (no processWorker, no current()) ->
-            // fail closed, exactly as before this fix.
+            // No ambient Subject at all (nothing bound via callAs/doAs) ->
+            // fail closed, on either JDK shape.
             try {
                 s.getSubProcessPolicyAdmin();
                 fail("no ambient Subject must fail closed");
             } catch (SecurityException expected) { /* good */ }
 
-            // Subject.current() (JDK 18+) still resolves the admin subject
-            // -- the fall-through to that tier still works.
+            // Subject.current() (JDK 18+/DirtyChai) resolves the admin
+            // subject bound via callAs.
             Object ok = callAs(subjectWith(admin), new Callable<Object>() {
                 public Object call() {
                     try { return s.getSubProcessPolicyAdmin(); }
@@ -845,94 +814,8 @@ public class IsolationSecurityCriticalTest {
                 }
             });
             if (ok == SKIP) return;   // callAs unavailable on this JDK
-            assertTrue("admin subject via Subject.current() fallback must"
-                    + " still be recognised: " + ok, ok instanceof PolicyAdmin);
+            assertTrue("admin subject via Subject.current() must be"
+                    + " recognised: " + ok, ok instanceof PolicyAdmin);
         });
-    }
-
-    /**
-     * No transport-established ambient {@code WorkerSubject} exists in this
-     * test JVM -- {@code Subject.processWorker()} is either absent (vanilla
-     * JDK) or present-but-null outside a worker dispatch (DirtyChai; see
-     * {@link #processWorkerTier_degradesGracefully_onThisBuildJdk}) -- so
-     * the priority-ordering logic itself -- "if the reflective method is
-     * present and returns non-null, prefer it over the next tier" -- cannot
-     * be exercised against the real {@code Subject} class here. This test
-     * verifies that exact mechanics in isolation, using a local stand-in
-     * that mirrors {@code Subject.processWorker()}'s documented shape: an
-     * instance method invoked via reflection on a throwaway receiver (just
-     * like {@code PROCESS_WORKER.invoke(new Subject())}), whose result comes
-     * from ambient state rather than the receiver (the receiver is discarded
-     * exactly as {@code new Subject()} is in the production idiom).
-     *
-     * <p>There is deliberately no seam added to
-     * {@link AdminPrincipalAuthenticator} to make {@code PROCESS_WORKER}
-     * injectable for testing -- {@code net.jini.jeri.ssl.Utilities}, which
-     * defines the canonical instance of this exact idiom, has no such seam
-     * (and no dedicated unit test of its own for {@code
-     * spiffeWorkerSubject()} either); adding one here purely for testability
-     * would be new production complexity this codebase's established
-     * convention doesn't have. This test instead reimplements the identical
-     * three-tier branching {@code CURRENT_SUBJECT.current()} uses against a
-     * local fake, so the priority order is genuinely executed and asserted,
-     * not merely asserted by code inspection.
-     */
-    @Test
-    public void processWorkerIdiom_whenAvailableAndNonNull_isPreferredOverNextTier()
-            throws Exception {
-        final Subject sentinelWorker = subjectWith(name("spiffe://ambient/worker"));
-        final Subject sentinelNextTier = subjectWith(admin);
-
-        // Case 1: fake processWorker present and returns non-null -> wins.
-        FakeAmbientWorkerSource.ambient = sentinelWorker;
-        Subject resolved = resolveMirroringCurrentSubjectPriority(
-                FakeAmbientWorkerSource.class.getMethod("processWorker"),
-                new FakeAmbientWorkerSource(),
-                sentinelNextTier);
-        assertSame("processWorker tier must win when present and non-null",
-                sentinelWorker, resolved);
-
-        // Case 2: fake processWorker present but returns null -> falls
-        // through to the next tier's value.
-        FakeAmbientWorkerSource.ambient = null;
-        resolved = resolveMirroringCurrentSubjectPriority(
-                FakeAmbientWorkerSource.class.getMethod("processWorker"),
-                new FakeAmbientWorkerSource(),
-                sentinelNextTier);
-        assertSame("null from processWorker must fall through to the next tier",
-                sentinelNextTier, resolved);
-
-        // Case 3: no processWorker method resolved at all (method == null,
-        // mirroring findProcessWorker() on a vanilla JDK) -> falls through.
-        resolved = resolveMirroringCurrentSubjectPriority(
-                null, new FakeAmbientWorkerSource(), sentinelNextTier);
-        assertSame("absent processWorker method must fall through to the next tier",
-                sentinelNextTier, resolved);
-    }
-
-    /** Mirrors {@code Subject.processWorker()}: ambient, receiver ignored. */
-    static final class FakeAmbientWorkerSource {
-        static volatile Subject ambient;
-        public Subject processWorker() { return ambient; }
-    }
-
-    /**
-     * Reimplements, for test purposes only, the exact tier-1-vs-tier-2
-     * branch {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT}'s
-     * {@code current()} uses: if {@code processWorkerMethod} is non-null,
-     * invoke it reflectively on {@code receiver} (a throwaway instance,
-     * mirroring {@code new Subject()}); a non-null result wins, otherwise
-     * fall through to {@code nextTierValue}.
-     */
-    private static Subject resolveMirroringCurrentSubjectPriority(
-            Method processWorkerMethod, Object receiver, Subject nextTierValue)
-            throws Exception {
-        if (processWorkerMethod != null) {
-            Subject worker = (Subject) processWorkerMethod.invoke(receiver);
-            if (worker != null) {
-                return worker;
-            }
-        }
-        return nextTierValue;
     }
 }

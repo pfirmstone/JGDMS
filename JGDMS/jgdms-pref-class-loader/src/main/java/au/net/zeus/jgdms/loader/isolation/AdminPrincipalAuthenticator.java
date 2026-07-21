@@ -23,6 +23,7 @@ import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import javax.security.auth.Subject;
 import net.jini.security.Security;
@@ -46,10 +47,14 @@ import net.jini.security.Security;
  * JGDMS permission check:
  * <ol>
  *   <li>The caller's authenticated {@link Subject} is obtained from the
- *       injectable {@link CallerIdentity} (the default,
- *       {@link #CURRENT_SUBJECT}, resolves it in three tiers &mdash; see
- *       below).  This step is <em>only</em> how the caller's principals are
- *       obtained; it is no longer the authorization decision itself.</li>
+ *       injectable {@link CallerIdentity}.  The default,
+ *       {@link #CURRENT_SUBJECT}, resolves the <em>ambient</em>
+ *       ({@code Subject.callAs}/{@code doAs}-bound) subject only &mdash; see
+ *       below, including the <strong>normative deployment requirement</strong>
+ *       that remote TLS+SPIFFE dispatch inject a connection-derived
+ *       {@code CallerIdentity} instead.  This step is <em>only</em> how the
+ *       caller's principals are obtained; it is no longer the authorization
+ *       decision itself.</li>
  *   <li>A synthetic {@link ProtectionDomain} is built over an empty
  *       {@link CodeSource} carrying exactly those principals ({@code null}
  *       permissions, {@code null} class loader), mirroring
@@ -62,8 +67,8 @@ import net.jini.security.Security;
  *       alone, never qualified by executing code.
  *       ({@code jgdms-pref-class-loader} does not depend on
  *       {@code jgdms-jeri}, so the small idiom is duplicated locally, just
- *       as this class already duplicates the {@code Subject.processWorker()}
- *       / {@code Subject.current()} reflective lookups.)</li>
+ *       as this class already duplicates the {@code Subject.current()}
+ *       reflective lookup.)</li>
  *   <li>An {@link AccessControlContext} over exactly that domain is obtained
  *       via the {@link Security#create(ProtectionDomain[])} <em>factory</em>
  *       (never the {@code AccessControlContext} constructor): on DirtyChai
@@ -77,17 +82,27 @@ import net.jini.security.Security;
  *       {@code grant}, {@code refresh}, {@code getGrants}), keeping the
  *       installed {@code SecurityManager} (on DirtyChai, the
  *       {@code CombinerSecurityManager}) the single authorization
- *       chokepoint.  The whole check runs inside
- *       {@link AccessController#doPrivileged(PrivilegedAction)} so this
- *       library's own privilege performs it and the operation's permission
- *       requirements do not go viral to constrained caller stacks.</li>
+ *       chokepoint.  The permission check runs inside
+ *       {@link AccessController#doPrivileged(PrivilegedAction)}, and the
+ *       preceding identity read inside
+ *       {@code AccessController.doPrivilegedWithCombiner} (see
+ *       {@link #isAdmin(String)} for why the combiner-preserving form is
+ *       required), so this library's own privilege performs both and
+ *       neither the operation's permission requirement nor the
+ *       {@code AuthPermission("getSubject")} the identity tiers need goes
+ *       viral to constrained caller stacks.</li>
  * </ol>
  * The deployed policy names the admin: it grants
  * {@code SubProcessAdminPermission} targets to the orchestrating admin
  * principal(s) (e.g. via a {@code PrincipalGrant}).  Per-operation targets
  * allow least privilege &mdash; {@code grant} installs new authority into
  * the subprocess policy and can be granted more narrowly than the read-only
- * {@code getGrants}.  Because {@link net.jini.security.AccessPermission}
+ * {@code getGrants}.  Grant BARE operation names only: wildcard/prefix
+ * targets ({@code "*"}, {@code "get*"}) really do imply the operation
+ * targets and defeat per-operation least privilege, while qualified
+ * targets ({@code "some.Interface.grant"}) silently never match &mdash;
+ * see {@link SubProcessAdminPermission}'s javadoc for the verified
+ * matching semantics.  Because {@link net.jini.security.AccessPermission}
  * matching is class-gated, a grant of a plain {@code AccessPermission} (or
  * any other subclass) never satisfies this gate.  In the live transport
  * (task&nbsp;T4) the stricter endpoint {@code MethodConstraints}
@@ -132,26 +147,44 @@ import net.jini.security.Security;
  *       reproduced end-to-end and remain permanent regressions in
  *       {@code IsolationSecurityCriticalTest}.</li>
  * </ul>
- * The highest-priority identity tier &mdash; the DirtyChai
- * {@code Subject.processWorker()} ambient {@code WorkerSubject} &mdash; is
- * deliberately outside the {@code AuthPermission} list: it takes no
- * caller-supplied {@link Subject} to bind, so there is nothing for hosted
- * code to forge by calling it.
- *
- * <h2>The three-tier caller-identity lookup (2026-07-21, retained: it now
- * only OBTAINS the principals)</h2>
+ * <h2>Caller identity: ambient tiers only, plus a NORMATIVE
+ * connection-derived requirement for remote callers (2026-07-21 board
+ * round&nbsp;2, finding&nbsp;F1)</h2>
  * The "current caller identity" is obtained from an injectable
  * {@link CallerIdentity} so the gate is unit-testable without live TLS; the
- * default, {@link #CURRENT_SUBJECT}, resolves the ambient {@link Subject}
- * in three tiers, most-specific first: the DirtyChai
- * {@code Subject.processWorker()} ambient {@code WorkerSubject} minted by
- * the SSLEngine/TLS+SPIFFE keystone for a TLS-authenticated remote caller
- * (structurally invisible to the other two tiers &mdash; see
- * {@link #CURRENT_SUBJECT}'s javadoc); else {@code Subject.current()}
- * (JDK&nbsp;18+), bound via {@code Subject.callAs}/{@code doAs}; else the
- * legacy access-control-context read.  An unauthenticated caller (no
- * resolvable {@code Subject}) is checked against an empty synthetic domain
- * carrying no principals, exactly as
+ * default, {@link #CURRENT_SUBJECT}, resolves the <em>ambient</em>
+ * {@link Subject} in two tiers: {@code Subject.current()} (JDK&nbsp;18+),
+ * bound via {@code Subject.callAs} (always prefer {@code callAs};
+ * {@code Subject.doAs} also binds it but is deprecated); else the legacy
+ * {@code Subject.getSubject(AccessController.getContext())} read.  These
+ * tiers are legitimate for JAAS-login, JWT-derived and same-JVM callers,
+ * whose identity IS bound to the calling thread.
+ *
+ * <p><strong>Normative deployment requirement (T4 wiring):</strong> a
+ * remote TLS+SPIFFE caller's principals are <em>never</em> on the
+ * receiving thread's ambient subject &mdash; they are established by the
+ * server connection.  A deployment that dispatches remote callers to this
+ * gate MUST inject a <em>connection-derived</em> {@link CallerIdentity}
+ * (the equivalent of
+ * {@code org.apache.river.jeri.internal.runtime.Util.getClientSubject()},
+ * as consumed by {@code net.jini.jeri.BasicInvocationDispatcher}) through
+ * the {@link #AdminPrincipalAuthenticator(CallerIdentity) constructor
+ * seam} at T4 wiring time.  With the default {@link #CURRENT_SUBJECT} a
+ * remote caller resolves to "unauthenticated" and is refused (fail
+ * closed) &mdash; never resolved to some other identity.
+ *
+ * <p>The DirtyChai {@code Subject.processWorker()} lookup is deliberately
+ * <strong>not</strong> an identity tier (board round&nbsp;2 removed it):
+ * it returns THIS process's own SPIRE workload identity from the
+ * {@code SpiffeCredentialManager} singleton, so by construction it can
+ * never deliver a remote caller's principals, and on a configured
+ * deployment it always returns non-null &mdash; consulted first it would
+ * shadow the genuine ambient tiers and evaluate the subprocess's OWN
+ * principals: a bricked admin surface (own SVID not granted), or a
+ * confused-deputy authorization of every caller (own SVID granted).
+ *
+ * <p>An unauthenticated caller (no resolvable {@code Subject}) is checked
+ * against an empty synthetic domain carrying no principals, exactly as
  * {@code BasicInvocationDispatcher.checkClientPermission} does &mdash; only
  * a policy that grants {@code SubProcessAdminPermission} to everyone would
  * authorize it.
@@ -167,29 +200,6 @@ public final class AdminPrincipalAuthenticator {
          *         or {@code null} if the caller is unauthenticated.
          */
         Subject current();
-    }
-
-    /**
-     * {@code Subject.processWorker()} on the DirtyChai JDK &mdash; the
-     * ambient, stamped-not-logged-in {@code WorkerSubject} that the
-     * SSLEngine/TLS+SPIFFE keystone mints for a TLS-authenticated remote
-     * caller (see {@code net.jini.jeri.ssl.Utilities#spiffeWorkerSubject()},
-     * the canonical instance of this exact lookup idiom, which this field and
-     * {@link #findProcessWorker()} mirror). Looked up reflectively so this
-     * class stays buildable on the vanilla build JDK, where the method is
-     * absent; {@code jgdms-pref-class-loader} does not depend on
-     * {@code jgdms-jeri}, so the lookup is duplicated locally rather than
-     * shared. {@code null} on a JDK too old/vanilla to provide it, in which
-     * case the {@link #CURRENT_METHOD} tier below is tried next.
-     */
-    private static final Method PROCESS_WORKER = findProcessWorker();
-
-    private static Method findProcessWorker() {
-        try {
-            return Subject.class.getMethod("processWorker");
-        } catch (NoSuchMethodException e) {
-            return null;
-        }
     }
 
     /**
@@ -229,32 +239,32 @@ public final class AdminPrincipalAuthenticator {
             new ProtectionDomain(EMPTY_CODE_SOURCE, null, null, null);
 
     /**
-     * The current caller's authenticated {@link Subject}, read in the same
-     * three-tier priority order the rest of JGDMS's SSLEngine/TLS+SPIFFE
-     * keystone uses:
+     * The current caller's <em>ambient</em> authenticated {@link Subject},
+     * read in two tiers:
      * <ol>
-     *   <li>{@code Subject.processWorker()} (DirtyChai JDK only) &mdash; the
-     *       ambient {@code WorkerSubject} minted for a TLS-authenticated
-     *       remote caller. This identity is, by the {@code WorkerSubject}
-     *       contract, never bound via {@code Subject.doAs}/{@code callAs}
-     *       (see {@code net.jini.jeri.ssl.Utilities}'s comment on
-     *       {@code isAmbientWorkerSubject}, right after
-     *       {@code findWorkerSubject()}) and so is <strong>structurally
-     *       invisible</strong> to {@code Subject.current()} and to the
-     *       legacy {@code getSubject(AccessControlContext)} path below;
-     *       {@code Subject.processWorker()} is the only way to observe it;</li>
-     *   <li>else {@code Subject.current()} (JDK&nbsp;18+), bound via
-     *       {@code Subject.callAs}/{@code Subject.doAs} &mdash; the caller
-     *       authenticated some other way (e.g. a real JAAS login) that IS
-     *       captured that way;</li>
+     *   <li>{@code Subject.current()} (JDK&nbsp;18+, and the DirtyChai JDK),
+     *       bound via {@code Subject.callAs} (preferred; the deprecated
+     *       {@code Subject.doAs} also binds it) &mdash; a caller
+     *       authenticated in-thread (a real JAAS login, a JWT-derived
+     *       subject, a same-JVM {@code callAs} caller);</li>
      *   <li>else the legacy
      *       {@code Subject.getSubject(AccessController.getContext())}.</li>
      * </ol>
-     * Both reflective lookups resolve to {@code null} on a JDK lacking the
-     * corresponding method, in which case that tier is silently skipped. On a
-     * modern JDK with the SecurityManager disabled the legacy call throws
-     * {@link UnsupportedOperationException}; that is caught and treated as
-     * "no authenticated caller" (fail closed) &mdash; unchanged from before.
+     * The reflective lookup resolves to {@code null} on a JDK lacking
+     * {@code Subject.current()}, in which case that tier is silently
+     * skipped. On a modern vanilla JDK with the SecurityManager disabled
+     * the legacy call throws {@link UnsupportedOperationException}; that is
+     * caught and treated as "no authenticated caller" (fail closed).
+     *
+     * <p><strong>This default can never see a remote TLS+SPIFFE
+     * caller</strong>: such a caller's principals are connection-derived,
+     * not thread-bound, so the deployment MUST inject a connection-derived
+     * {@link CallerIdentity} at T4 wiring time instead &mdash; see the
+     * class javadoc's normative deployment requirement.  A remote caller
+     * reaching this default resolves to {@code null} (unauthenticated,
+     * refused fail-closed).  {@code Subject.processWorker()} is
+     * deliberately not consulted: it returns this process's own workload
+     * identity, never a caller's (see the class javadoc).
      *
      * <p>Under the 2026-07-21 redesign (see the class javadoc) the resolved
      * {@code Subject} is no longer itself the authorization decision: its
@@ -264,16 +274,6 @@ public final class AdminPrincipalAuthenticator {
     public static final CallerIdentity CURRENT_SUBJECT = new CallerIdentity() {
         @Override
         public Subject current() {
-            if (PROCESS_WORKER != null) {
-                try {
-                    Subject worker = (Subject) PROCESS_WORKER.invoke(new Subject());
-                    if (worker != null) {
-                        return worker;
-                    }
-                } catch (Exception ignored) {
-                    // Fall through to Subject.current() below.
-                }
-            }
             if (CURRENT_METHOD != null) {
                 try {
                     return (Subject) CURRENT_METHOD.invoke(null);
@@ -316,9 +316,14 @@ public final class AdminPrincipalAuthenticator {
      * {@link SecurityManager}'s two-argument
      * {@code checkPermission(perm, ctx)} &mdash; keeping the
      * {@code SecurityManager} the single authorization chokepoint.  The
-     * check runs inside {@link AccessController#doPrivileged(PrivilegedAction)}
-     * so this library's own privilege performs it and the permission
-     * requirement does not go viral to constrained caller stacks.
+     * permission check runs inside
+     * {@link AccessController#doPrivileged(PrivilegedAction)}, and the
+     * preceding identity read inside
+     * {@code AccessController.doPrivilegedWithCombiner} (which preserves
+     * the subject's {@code DomainCombiner} &mdash; see the inline comment),
+     * so this library's own privilege performs both and neither the
+     * permission requirement nor {@code AuthPermission("getSubject")} goes
+     * viral to constrained caller stacks.
      *
      * @param operation the guarded operation name, used as the
      *        {@link SubProcessAdminPermission} target
@@ -336,26 +341,82 @@ public final class AdminPrincipalAuthenticator {
      *         necessary but not sufficient</strong> &mdash; see the class
      *         javadoc's "NECESSARY, not SUFFICIENT" section for the
      *         deployment prerequisites this class cannot itself verify.
-     * @throws NullPointerException if {@code operation} is null
+     * @throws NullPointerException if {@code operation} is null &mdash;
+     *         thrown in preference to the no-{@code SecurityManager}
+     *         {@code false}: the permission is deliberately constructed and
+     *         validated before that guard, so a caller bug (null/invalid
+     *         operation name) is never masked as a mere refusal
      * @throws IllegalArgumentException if {@code operation} does not match
      *         {@link net.jini.security.AccessPermission}'s target syntax
+     *         (same precedence as {@code NullPointerException})
      */
     public boolean isAdmin(String operation) {
         final SecurityManager sm = System.getSecurityManager();
+        // Constructed BEFORE the no-SecurityManager guard on purpose: a null
+        // or syntactically invalid operation name is a caller bug and throws
+        // NPE/IAE even when the guard below would otherwise return false.
         final SubProcessAdminPermission perm =
                 new SubProcessAdminPermission(operation);
         if (sm == null) {
             return false;
         }
-        Subject s = callerIdentity.current();
+        Subject s;
+        try {
+            /*
+             * Identity acquisition runs under this library's own privilege:
+             * every CURRENT_SUBJECT tier (Subject.current() and the legacy
+             * getSubject(ACC) read) requires AuthPermission("getSubject")
+             * when a SecurityManager is installed, and performed on the
+             * ambient stack that requirement would go viral to constrained
+             * caller domains. doPrivilegedWithCombiner -- deliberately NOT
+             * plain doPrivileged -- preserves the current DomainCombiner:
+             * on a vanilla SM-enabled JDK (18..23 with
+             * -Djava.security.manager=allow), Subject.current() reads the
+             * SubjectDomainCombiner off the AccessControlContext, so plain
+             * doPrivileged would drop the combiner and blind that tier; on
+             * DirtyChai, Subject.current() reads a ScopedValue that
+             * privilege frames do not affect, so preserving the combiner is
+             * harmless there (both implementations read and verified,
+             * 2026-07-21 board round 2, F2).
+             */
+            s = AccessController.doPrivilegedWithCombiner(
+                    new PrivilegedAction<Subject>() {
+                @Override
+                public Subject run() {
+                    return callerIdentity.current();
+                }
+            });
+        } catch (SecurityException identityDenied) {
+            // Fail-closed skip: even this library's own domain was refused
+            // AuthPermission("getSubject") (or an injected CallerIdentity
+            // threw). Treat the caller as unauthenticated -- the check below
+            // then runs against an empty-principal domain -- rather than let
+            // a SecurityException from identity ACQUISITION escape this
+            // method's boolean contract as if it were the authorization
+            // verdict.
+            s = null;
+        }
         final ProtectionDomain pd;
         if (s == null) {
             pd = EMPTY_PROTECTION_DOMAIN;
         } else {
-            Set<Principal> principals = s.getPrincipals();
+            // Copy the (synchronized-but-mutable) principal set BEFORE
+            // toArray: sizing the array from principals.size() and then
+            // filling it races with concurrent Subject modification. Same
+            // canonical shape as BasicInvocationDispatcher
+            // .checkClientPermission's HashSet copy + toArray(new
+            // Principal[0]).
+            Set<Principal> principals =
+                    new LinkedHashSet<Principal>(s.getPrincipals());
             pd = new ProtectionDomain(EMPTY_CODE_SOURCE, null, null,
-                    principals.toArray(new Principal[principals.size()]));
+                    principals.toArray(new Principal[0]));
         }
+        // Deliberate divergence from BasicInvocationDispatcher, which caches
+        // these synthetic domains in a weak map (domains.computeIfAbsent)
+        // because it sits on the per-call dispatch hot path: this admin gate
+        // is a low-frequency administrative path, and the fresh domain is
+        // only identity-compared within the single check below, so a cache
+        // would add shared state for no measurable win.
         try {
             /*
              * The single caller domain is built into an AccessControlContext
@@ -392,6 +453,13 @@ public final class AdminPrincipalAuthenticator {
      * @param operation the guarded operation name, used as the
      *        {@link SubProcessAdminPermission} target and in the exception
      *        message
+     * @throws NullPointerException if {@code operation} is null &mdash;
+     *         thrown in preference to either {@code SecurityException}
+     *         below, aligning with {@link #isAdmin(String)}: a caller bug
+     *         is never reported as a security refusal
+     * @throws IllegalArgumentException if {@code operation} does not match
+     *         {@link net.jini.security.AccessPermission}'s target syntax
+     *         (same precedence as {@code NullPointerException})
      * @throws SecurityException if no {@link SecurityManager} is installed
      *         (there is nothing to submit the permission check to, and this
      *         class cannot verify the ambient {@link Subject} it would read
@@ -401,6 +469,10 @@ public final class AdminPrincipalAuthenticator {
      *         caller's authenticated principals
      */
     public void requireAdmin(String operation) {
+        // Validate eagerly, aligning with isAdmin's construct-before-guard
+        // contract: a null/invalid operation name throws NPE/IAE here, and
+        // is never reported as a SecurityException naming "null".
+        new SubProcessAdminPermission(operation);
         if (!securityManagerInstalled()) {
             throw new SecurityException(
                 "Refused: no SecurityManager is installed in this JVM ("

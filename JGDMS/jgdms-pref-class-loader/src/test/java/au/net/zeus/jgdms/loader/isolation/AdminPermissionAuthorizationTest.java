@@ -38,11 +38,11 @@ import static org.junit.Assert.*;
  *   <li>per-operation separation (a grant for {@code getGrants} does not
  *       authorize {@code grant} &mdash; least privilege: {@code grant} is
  *       the dangerous one);</li>
- *   <li>principals delivered via the WorkerSubject/processWorker-style path
- *       (stubbed via {@link AdminPrincipalAuthenticator.CallerIdentity},
- *       matching this suite's established idiom &mdash; see
- *       {@code IsolationSecurityCriticalTest}'s mirror test of the
- *       reflective tier ordering);</li>
+ *   <li>principals delivered via a connection-derived
+ *       {@link AdminPrincipalAuthenticator.CallerIdentity} injected through
+ *       the constructor seam &mdash; the NORMATIVE T4 wiring for remote
+ *       TLS+SPIFFE callers (see {@code AdminPrincipalAuthenticator}'s class
+ *       javadoc); the stub here exercises exactly that seam;</li>
  *   <li>the class-gate: an equivalent plain {@link AccessPermission} grant
  *       must NOT satisfy a {@link SubProcessAdminPermission} check.</li>
  * </ol>
@@ -229,24 +229,29 @@ public class AdminPermissionAuthorizationTest {
     }
 
     // ==================================================================
-    // (d) Principals delivered via the WorkerSubject/processWorker path.
+    // (d) Principals delivered via an injected, connection-derived
+    //     CallerIdentity (the normative T4 wiring for remote callers).
     // ==================================================================
 
     /**
-     * A TLS/SPIFFE-authenticated remote caller's {@code WorkerSubject} is
-     * delivered by {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT}'s
-     * tier-1 {@code Subject.processWorker()} lookup &mdash; never bound via
-     * {@code doAs}/{@code callAs}, so never on the ambient thread stack.
-     * The reflective tier ordering itself is covered by
-     * {@code IsolationSecurityCriticalTest}'s mirror test; here a
-     * {@link AdminPrincipalAuthenticator.CallerIdentity} stub delivers the
-     * worker-shaped Subject exactly as that tier would (the suite's
-     * established idiom), proving the permission check authorizes on the
-     * delivered principals even though nothing about the calling stack or
-     * ambient subject carries them.
+     * A TLS/SPIFFE-authenticated remote caller's principals are
+     * connection-derived: they are never on the receiving thread's ambient
+     * subject, so {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT}
+     * (which resolves ambient {@code callAs}/{@code doAs} bindings only)
+     * can never see them.  The NORMATIVE deployment requirement (see
+     * {@code AdminPrincipalAuthenticator}'s class javadoc) is that T4
+     * wiring inject a connection-derived
+     * {@link AdminPrincipalAuthenticator.CallerIdentity} &mdash; the
+     * equivalent of {@code Util.getClientSubject()} as consumed by
+     * {@code BasicInvocationDispatcher} &mdash; through the constructor
+     * seam.  The stub below IS that seam: it delivers the worker-shaped
+     * Subject exactly as the connection-derived identity would, proving
+     * the permission check authorizes on the delivered principals even
+     * though nothing about the calling stack or ambient subject carries
+     * them.
      */
     @Test
-    public void workerSubjectDeliveredPrincipals_authorizeViaPolicyGrant()
+    public void connectionDerivedCallerIdentity_principalsAuthorizeViaPolicyGrant()
             throws Exception {
         final Principal workerSpiffeId = name("spiffe://ctrl/admin");
         AdminAuthTestSupport.withAdminAuthorization(workerSpiffeId, () -> {

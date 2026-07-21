@@ -616,14 +616,33 @@ permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
 ### Hard prerequisite: smart-proxy-isolation admin authority (`AdminPrincipalAuthenticator`)
 
 Unlike the grants above (permissions the trusted `SpiffeCredentialManager` code
-itself needs), this is about permissions that must be **denied** to every
-hosted/business protection domain — i.e. what a least-privilege policy must
-*not* grant. `au.net.zeus.jgdms.loader.isolation.AdminPrincipalAuthenticator`
-(the in-process gate on the subprocess policy-admin surface used by smart-proxy
-isolation) authenticates the calling admin by matching a `Principal`'s
-canonical name against the ambient `Subject`. That match means nothing unless
-the deployed policy denies **all three** of the following to every
-hosted/business protection domain (2026-07-20 board finding):
+itself needs), this section covers what the deployed policy must grant — and,
+just as importantly, must **deny** — for the subprocess policy-admin gate.
+`au.net.zeus.jgdms.loader.isolation.AdminPrincipalAuthenticator` (the
+in-process gate on the subprocess policy-admin surface used by smart-proxy
+isolation) authorizes by a **permission check** (2026-07-21 redesign): it
+builds a synthetic `ProtectionDomain` carrying only the caller's authenticated
+principals and submits `SubProcessAdminPermission("<operation>")` — target =
+the operation name (`getSubProcessPolicyAdmin`, `grant`, `refresh`,
+`getGrants`) — to the installed `SecurityManager`'s two-argument
+`checkPermission(perm, ctx)`. The deployed policy, not the code, names the
+admin.
+
+**Positive prerequisite — the policy must grant the admin.** Grant
+`SubProcessAdminPermission` with the **bare per-operation target names** to
+the orchestrating admin principal(s) (e.g. via a principal-scoped grant), per
+least privilege — `grant` installs new authority into the subprocess policy
+and should be granted more narrowly than the read-only `getGrants`. Grant
+bare names only: wildcard/prefix targets (`"*"`, `"get*"`) really do imply
+the operation targets and defeat per-operation least privilege, while
+qualified targets (e.g. `"...PolicyAdmin.grant"`) silently never match — see
+`SubProcessAdminPermission`'s javadoc. With no such grant in the policy, the
+gate refuses everyone, including a genuinely authenticated admin.
+
+**Deny prerequisites.** The permission check means nothing unless the
+deployed policy also denies **all three** of the following to every
+hosted/business protection domain (2026-07-20 board finding, retained under
+the redesign):
 
 - `javax.security.auth.AuthPermission "callAs"`
 - `javax.security.auth.AuthPermission "doAs"`
@@ -631,12 +650,31 @@ hosted/business protection domain (2026-07-20 board finding):
 
 Any one of these left ungranted-but-not-explicitly-denied by an otherwise
 permissive/`AllPermission` policy defeats the gate: hosted code can forge a
-`Subject` naming the admin principal and bind it via `Subject.callAs`/`doAs`
-(the first two), or — if only those two are denied — simply install its own
-permissive `SecurityManager` first (the third) and then forge the `Subject`
-against that. See `AdminPrincipalAuthenticator`'s class javadoc, section
-"NECESSARY, not SUFFICIENT", for the full reasoning and the adversarial
-reproductions in `IsolationSecurityCriticalTest`.
+`Subject` naming a granted admin principal and bind it via
+`Subject.callAs`/`doAs` (the first two), or — if only those two are denied —
+simply install its own permissive `SecurityManager` first (the third) and
+then forge the `Subject` against that.
+
+**A permissive or no-op `SecurityManager` authorizes everyone — by design.**
+Because the gate's whole decision is the submitted permission check, a
+`SecurityManager` whose `checkPermission(perm, ctx)` allows everything (or a
+policy granting `SubProcessAdminPermission` broadly) authorizes **every**
+caller — the forgery no longer even needs to name the admin principal. An
+installed `SecurityManager` is *necessary* (with none installed the gate
+refuses everyone, fail-closed) but never *sufficient*: the deployed policy is
+the whole guarantee. See `AdminPrincipalAuthenticator`'s class javadoc,
+section "NECESSARY, not SUFFICIENT", for the full reasoning and the
+adversarial reproductions in `IsolationSecurityCriticalTest`.
+
+**Remote callers (normative).** `AdminPrincipalAuthenticator`'s default
+identity source resolves the *ambient* (`callAs`/`doAs`-bound) `Subject`
+only. A remote TLS+SPIFFE caller's principals are connection-derived and are
+never on the receiving thread's ambient subject, so deployments dispatching
+remote callers to this gate MUST inject a connection-derived `CallerIdentity`
+(the `Util.getClientSubject()` equivalent used by
+`BasicInvocationDispatcher`) through the constructor seam at T4 wiring time;
+with the default, a remote caller is refused as unauthenticated
+(fail-closed).
 
 **CLOSED 2026-07-20 (was: known pre-existing gap, not specific to SPIFFE/SPIRE deployment).** The 7
 `qa/harness/policy/defaultspiffe*.policy` files (mahalo, outrigger, reggie, fiddler, group, mercury,
