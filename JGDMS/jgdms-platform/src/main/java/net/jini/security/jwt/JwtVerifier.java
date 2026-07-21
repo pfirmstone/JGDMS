@@ -77,4 +77,44 @@ public interface JwtVerifier {
      * @throws JwtVerificationException if the token is invalid or rejected
      */
     void verify(String rawJwt) throws JwtVerificationException;
+
+    /**
+     * Verifies the token and returns the set of {@link Principal}s the
+     * verified token's own claims authorise.
+     *
+     * <h2>Why the transport uses this, not the wire principals</h2>
+     * A JWT-bearing user {@link javax.security.auth.Subject} transmits its
+     * principals and its raw token as two independent wire fields.  The
+     * principals are attacker-controlled: a malicious peer can present its
+     * own genuine token while attaching an arbitrary principal set (for
+     * example, the orchestrating admin's identity).  {@code
+     * BasicInvocationDispatcher} therefore does not trust the transmitted
+     * principals; it calls this method and <strong>reconstructs</strong> the
+     * accepted principal set from the verified token alone, dropping every
+     * wire principal the token does not justify.  A Subject that carries no
+     * successfully-verified token contributes no principals at all.
+     *
+     * <p>The default implementation verifies via {@link #verify(String)} and
+     * then derives principals with
+     * {@link JwtPrincipalDeriver#derivePrincipals(String)} (the canonical
+     * {@code sub}/{@code email}/{@code group} mapping used by {@code
+     * JwtLoginModule}).  A custom verifier that maps claims to principals
+     * differently &mdash; or that filters which claims may become principals
+     * &mdash; should override this method; whatever it returns is the
+     * authoritative accepted set for that token, so it must return
+     * <em>only</em> principals the token genuinely authorises.
+     *
+     * @param rawJwt the JWT compact serialization ({@code header.payload.sig})
+     * @return the principals authorised by the verified token; never
+     *         {@code null}, possibly empty
+     * @throws JwtVerificationException if the token is invalid or rejected
+     *         (in which case no principals are authorised and the dispatcher
+     *         aborts the request)
+     */
+    default java.util.Set<java.security.Principal> verifyAndExtractPrincipals(
+            String rawJwt) throws JwtVerificationException
+    {
+        verify(rawJwt);
+        return JwtPrincipalDeriver.derivePrincipals(rawJwt);
+    }
 }

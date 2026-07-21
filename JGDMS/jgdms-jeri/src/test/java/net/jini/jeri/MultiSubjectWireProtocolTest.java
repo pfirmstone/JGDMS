@@ -363,7 +363,12 @@ public class MultiSubjectWireProtocolTest {
 
     /**
      * A round-trip (write + read) of a Subject carrying a {@link JwtRawToken}
-     * should successfully deserialise when no verifier is registered.
+     * deserialises to the principals <em>reconstructed from the verified
+     * token's claims</em> — not the transmitted wire principals.  With no
+     * custom verifier the built-in {@code DefaultJwtVerifier} (structural
+     * claims) vouches for the token, so the {@code sub} claim becomes a
+     * {@code JwtPrincipal("sub:...")} while the unrelated wire {@code
+     * X500Principal} is dropped (2026-07-21 forgery hardening).
      */
     @Test
     public void testJwtRoundTripNoVerifier() throws Exception {
@@ -378,16 +383,21 @@ public class MultiSubjectWireProtocolTest {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BasicInvocationHandler.writeUserSubjects(baos, new Subject[]{s});
 
-        // Read back — no verifier registered, so JWT bytes are silently discarded.
         List<Subject> decoded = invokeReadUserSubjects(baos.toByteArray());
         Assert.assertEquals(1, decoded.size());
-        Assert.assertTrue(decoded.get(0).getPrincipals().stream()
-            .anyMatch(pr -> pr.getName().contains("alice")));
+        Set<Principal> got = decoded.get(0).getPrincipals();
+        Assert.assertTrue("verified sub claim must be reconstructed as a JwtPrincipal",
+            got.contains(new net.jini.security.jwt.JwtPrincipal(
+                "sub:alice-roundtrip-no-verifier")));
+        Assert.assertFalse("untrusted wire X500Principal must be dropped",
+            got.contains(p));
+        Assert.assertEquals("only the token-authorised principal survives", 1, got.size());
     }
 
     /**
      * When a {@link JwtVerifier} is registered and the token is valid,
-     * the round-trip should succeed and the verifier should be called.
+     * the round-trip succeeds, the verifier is called, and the accepted
+     * principals are reconstructed from the verified claims.
      */
     @Test
     public void testJwtRoundTripWithPassingVerifier() throws Exception {
@@ -408,6 +418,140 @@ public class MultiSubjectWireProtocolTest {
         List<Subject> decoded = invokeReadUserSubjects(baos.toByteArray());
         Assert.assertEquals(1, decoded.size());
         Assert.assertTrue("Verifier must have been called", called[0]);
+        Set<Principal> got = decoded.get(0).getPrincipals();
+        Assert.assertTrue("verified sub claim reconstructed",
+            got.contains(new net.jini.security.jwt.JwtPrincipal("sub:bob-passing-verifier")));
+        Assert.assertFalse("wire X500Principal dropped", got.contains(p));
+    }
+
+    // -------------------------------------------------------------------------
+    // Forgery-hardening tests (2026-07-21): transmitted principals are never
+    // trusted; the accepted identity is reconstructed from the verified JWT.
+    // -------------------------------------------------------------------------
+
+    /** Builds a JWT with sub + a groups array, for multi-principal derivation. */
+    private static String buildJwtWithGroups(long expEpoch, String sub, String... groups) {
+        StringBuilder arr = new StringBuilder("[");
+        for (int i = 0; i < groups.length; i++) {
+            if (i > 0) arr.append(',');
+            arr.append('"').append(groups[i]).append('"');
+        }
+        arr.append(']');
+        String header  = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString("{\"alg\":\"RS256\",\"typ\":\"JWT\"}".getBytes(
+                        java.nio.charset.StandardCharsets.UTF_8));
+        String payload = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(("{\"sub\":\"" + sub + "\",\"iss\":\"https://issuer\","
+                        + "\"groups\":" + arr + ",\"exp\":" + expEpoch + "}").getBytes(
+                        java.nio.charset.StandardCharsets.UTF_8));
+        return header + "." + payload + ".fakesig";
+    }
+
+    /**
+     * The core forgery gate: a peer presents its own valid token (sub=alice)
+     * but attaches a forged {@code JwtPrincipal("sub:admin")} on the wire.
+     * The forged principal must be dropped — only the token's own sub claim
+     * is accepted.
+     */
+    @Test
+    public void testForgedWirePrincipalNotAuthorisedByTokenIsDropped() throws Exception {
+        long futureExp = System.currentTimeMillis() / 1000L + 3600;
+        String rawJwt = buildJwt(futureExp, "alice-forgery-" + System.nanoTime());
+
+        net.jini.security.jwt.JwtPrincipal forgedAdmin =
+            new net.jini.security.jwt.JwtPrincipal("sub:admin");
+        Set<Principal> wire = new java.util.LinkedHashSet<>();
+        wire.add(forgedAdmin);
+        wire.add(new X500Principal("CN=alice"));
+        Set<Object> pubCreds = Collections.singleton((Object) new JwtRawToken(rawJwt));
+        Subject s = new Subject(true, wire, pubCreds, Collections.emptySet());
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        BasicInvocationHandler.writeUserSubjects(baos, new Subject[]{s});
+
+        List<Subject> decoded = invokeReadUserSubjects(baos.toByteArray());
+        Set<Principal> got = decoded.get(0).getPrincipals();
+        Assert.assertFalse("forged admin principal must NOT survive",
+            got.contains(forgedAdmin));
+        Assert.assertFalse("wire X500Principal must be dropped",
+            got.contains(new X500Principal("CN=alice")));
+        Assert.assertEquals("only the token's own sub claim is accepted", 1, got.size());
+        Assert.assertTrue(got.iterator().next().getName().startsWith("sub:alice-forgery-"));
+    }
+
+    /**
+     * A Subject transmitted with principals but NO JWT conveys no verifiable
+     * identity: all its principals are dropped (a forger cannot bypass the
+     * gate simply by omitting the token).
+     */
+    @Test
+    public void testZeroJwtSubjectHasAllPrincipalsDropped() throws Exception {
+        net.jini.security.jwt.JwtPrincipal forgedAdmin =
+            new net.jini.security.jwt.JwtPrincipal("sub:admin");
+        Set<Principal> wire = new java.util.LinkedHashSet<>();
+        wire.add(forgedAdmin);
+        wire.add(new X500Principal("CN=nobody"));
+        Subject s = new Subject(true, wire,
+            Collections.emptySet(), Collections.emptySet());
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        BasicInvocationHandler.writeUserSubjects(baos, new Subject[]{s});
+
+        List<Subject> decoded = invokeReadUserSubjects(baos.toByteArray());
+        Assert.assertEquals(1, decoded.size());
+        Assert.assertTrue("a Subject with no verified token keeps no principals",
+            decoded.get(0).getPrincipals().isEmpty());
+    }
+
+    /**
+     * A verified token carrying a {@code groups} array reconstructs one
+     * {@code JwtPrincipal("group:...")} per element, alongside {@code sub}.
+     */
+    @Test
+    public void testGroupsClaimReconstructsMultiplePrincipals() throws Exception {
+        long futureExp = System.currentTimeMillis() / 1000L + 3600;
+        String sub = "carol-groups-" + System.nanoTime();
+        String rawJwt = buildJwtWithGroups(futureExp, sub, "admins", "users");
+
+        Subject s = new Subject(true,
+            Collections.emptySet(),
+            Collections.singleton((Object) new JwtRawToken(rawJwt)),
+            Collections.emptySet());
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        BasicInvocationHandler.writeUserSubjects(baos, new Subject[]{s});
+
+        List<Subject> decoded = invokeReadUserSubjects(baos.toByteArray());
+        Set<Principal> got = decoded.get(0).getPrincipals();
+        Assert.assertTrue(got.contains(new net.jini.security.jwt.JwtPrincipal("sub:" + sub)));
+        Assert.assertTrue(got.contains(new net.jini.security.jwt.JwtPrincipal("group:admins")));
+        Assert.assertTrue(got.contains(new net.jini.security.jwt.JwtPrincipal("group:users")));
+        Assert.assertEquals("sub + 2 groups", 3, got.size());
+    }
+
+    /**
+     * A failing verifier still aborts the whole request (unchanged), so a
+     * bad token can never contribute forged principals.
+     */
+    @Test
+    public void testFailingVerifierDropsNothingBecauseItAbortsEntirely() throws Exception {
+        long futureExp = System.currentTimeMillis() / 1000L + 3600;
+        String rawJwt = buildJwt(futureExp, "erin-failing-" + System.nanoTime());
+        BasicInvocationDispatcher.setJwtVerifier(jwt -> {
+            throw new JwtVerificationException("rejected");
+        });
+        Subject s = new Subject(true,
+            Collections.singleton((Principal) new net.jini.security.jwt.JwtPrincipal("sub:erin")),
+            Collections.singleton((Object) new JwtRawToken(rawJwt)),
+            Collections.emptySet());
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        BasicInvocationHandler.writeUserSubjects(baos, new Subject[]{s});
+        try {
+            invokeReadUserSubjects(baos.toByteArray());
+            Assert.fail("expected IOException from verification failure");
+        } catch (java.lang.reflect.InvocationTargetException ite) {
+            Assert.assertTrue(ite.getCause() instanceof java.io.IOException);
+        }
     }
 
     /**

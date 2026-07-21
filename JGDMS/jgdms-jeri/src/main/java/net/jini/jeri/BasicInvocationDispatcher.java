@@ -281,19 +281,37 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     /**
      * Connection-level JWT verification cache (Option D, Work Item 44).
      *
-     * <p>Maps raw JWT compact-serialization strings to their expiry
-     * {@link Instant} (extracted from the {@code exp} claim).  An entry is
-     * considered valid while {@code Instant.now().isBefore(exp)}.  The
-     * {@link JwtVerifier} is called at most once per token per validity window,
-     * amortising any expensive JWKS HTTP lookup over the full token lifetime.
+     * <p>Maps raw JWT compact-serialization strings to a {@link CachedJwt}
+     * record carrying the token's expiry {@link Instant} (extracted from the
+     * {@code exp} claim) and the {@link Principal}s its verified claims
+     * authorise.  An entry is considered valid while
+     * {@code Instant.now().isBefore(exp)}.  The {@link JwtVerifier} is called
+     * at most once per token per validity window, amortising any expensive
+     * JWKS HTTP lookup over the full token lifetime; the reconstructed
+     * principal set is cached alongside so a cache hit reproduces exactly the
+     * authorised identity without re-parsing.
      *
      * <p>Size is bounded at {@value #JWT_CACHE_MAX_SIZE} entries.  When the
      * limit is reached, all expired entries are purged; if the map is still
      * full after pruning, it is cleared entirely (simple, safe, rare).
      */
-    private static final ConcurrentHashMap<String, Instant> JWT_VERIFICATION_CACHE =
+    private static final ConcurrentHashMap<String, CachedJwt> JWT_VERIFICATION_CACHE =
             new ConcurrentHashMap<>();
     private static final int JWT_CACHE_MAX_SIZE = 1024;
+
+    /**
+     * Cached outcome of verifying one raw JWT: the token expiry (cache TTL)
+     * and the immutable set of {@link Principal}s its verified claims
+     * authorise (see {@link JwtVerifier#verifyAndExtractPrincipals(String)}).
+     */
+    private static final class CachedJwt {
+	final Instant exp;
+	final Set<Principal> principals;
+	CachedJwt(Instant exp, Set<Principal> principals) {
+	    this.exp = exp;
+	    this.principals = principals;
+	}
+    }
 
     
     /** Marshal stream protocol version mismatch. */
@@ -2274,17 +2292,29 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *       jwtBytes      : UTF-8 (raw JWT compact serialization)
      * </pre>
      *
-     * <p>Each principal is reconstructed by calling
-     * {@code new ClassName(name)} via reflection.  Only classes that are
-     * reachable from the platform (bootstrap/extension) class loader are
-     * accepted; unknown class names result in a
-     * {@link RemotePrincipal} placeholder that preserves the wire data
-     * without loading untrusted code.
+     * <p><strong>The transmitted principals are not trusted.</strong>  They
+     * are attacker-controlled: a peer may attach any principal set (including
+     * the orchestrating admin's identity) alongside a token it does legitimately
+     * hold.  Each Subject's accepted principals are therefore
+     * <em>reconstructed from its verified JWT(s) alone</em> (via
+     * {@link JwtVerifier#verifyAndExtractPrincipals(String)}); every wire
+     * principal the verified token(s) do not authorise is dropped, and a
+     * Subject carrying no successfully-verified token is left with no
+     * principals at all.  The wire principals are still decoded (for framing
+     * and for a {@code FINE}-level "dropped" audit log); unknown principal
+     * class names decode to a {@link RemotePrincipal} placeholder without
+     * loading untrusted code, but that too is dropped unless a verified token
+     * authorises it.
      *
-     * <p>If a {@link JwtVerifier} is registered via
-     * {@link #setJwtVerifier(JwtVerifier)} and the Subject carries one or more
-     * JWT tokens, each token is verified (with connection-level caching).  A
-     * verification failure throws {@link IOException}, aborting the request.
+     * <p>Verification uses the registered {@link JwtVerifier} (or the built-in
+     * {@link DefaultJwtVerifier} structural-claims check when none is
+     * registered), with connection-level caching of both the verification
+     * outcome and the reconstructed principals.  A verification failure throws
+     * {@link IOException}, aborting the request.  Note that the trustworthiness
+     * of the reconstructed principals is only as strong as the verifier: the
+     * default verifier performs no signature check, so a deployment that must
+     * cryptographically bind the identity registers a JWKS-backed verifier via
+     * {@link #setJwtVerifier(JwtVerifier)}.
      *
      * <p>To guard against malicious or malformed input, at most
      * {@value #MAX_USER_SUBJECTS} Subjects and at most
@@ -2318,14 +2348,20 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    "User-principal count " + principalCount
 		    + " in Subject " + si + " exceeds limit of " + MAX_USER_PRINCIPALS);
 	    }
-	    Set<Principal> principals = new LinkedHashSet<>((int)(principalCount / 0.75) + 1);
+	    // Read the transmitted (attacker-controlled) principals for framing.
+	    // They are NOT trusted: the accepted set is reconstructed below from
+	    // the Subject's verified JWT(s) alone, so a peer cannot smuggle in a
+	    // principal (e.g. the admin identity) it holds no verified token for.
+	    Set<Principal> wirePrincipals =
+		new LinkedHashSet<>((int)(principalCount / 0.75) + 1);
 	    for (int i = 0; i < principalCount; i++) {
 		String className = readUtf8Prefixed(in, MAX_STRING_BYTES);
 		String name      = readUtf8Prefixed(in, MAX_STRING_BYTES);
 		Principal p = instantiatePrincipal(className, name);
-		principals.add(p);
+		wirePrincipals.add(p);
 	    }
-	    // JWT block (Option D, Work Item 44): read jwtCount raw tokens.
+	    // JWT block (Option D, Work Item 44): read jwtCount raw tokens and
+	    // reconstruct the authorised principals from the verified claims.
 	    int jwtCount = in.read();
 	    if (jwtCount < 0) throw new EOFException();
 	    if (jwtCount > MAX_JWT_PER_SUBJECT) {
@@ -2333,11 +2369,26 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    "JWT token count " + jwtCount
 		    + " in Subject " + si + " exceeds limit of " + MAX_JWT_PER_SUBJECT);
 	    }
+	    Set<Principal> accepted = new LinkedHashSet<>();
 	    for (int ji = 0; ji < jwtCount; ji++) {
 		String rawJwt = readJwtBytes(in);
-		verifyJwtWithCache(rawJwt, si, ji);
+		accepted.addAll(verifyAndDeriveJwtPrincipals(rawJwt, si, ji));
 	    }
-	    subjects.add(new Subject(true, principals,
+	    // Fail closed: every wire principal the verified token(s) did not
+	    // authorise is dropped (a Subject with no verified token keeps
+	    // nothing).  This is the forgery gate — the accepted identity is
+	    // exactly what the tokens vouch for, never what the peer claimed.
+	    if (logger.isLoggable(Level.FINE)) {
+		for (Principal p : wirePrincipals) {
+		    if (!accepted.contains(p)) {
+			logger.log(Level.FINE,
+			    "Dropping unverified wire principal {0} from user "
+			    + "Subject[{1}]: not authorised by any verified JWT",
+			    new Object[]{ p, si });
+		    }
+		}
+	    }
+	    subjects.add(new Subject(true, accepted,
 				     Collections.emptySet(), Collections.emptySet()));
 	}
 	return subjects;
@@ -2392,40 +2443,53 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * @throws IOException wrapping the {@link JwtVerificationException} if
      *         the verifier rejects the token
      */
-    private static void verifyJwtWithCache(String rawJwt, int subjectIdx, int jwtIdx)
+    private static Set<Principal> verifyAndDeriveJwtPrincipals(
+	    String rawJwt, int subjectIdx, int jwtIdx)
 	    throws IOException
     {
 	JwtVerifier verifier = jwtVerifier;
 	if (verifier == null) verifier = DEFAULT_JWT_VERIFIER; // fallback: structural claims only
 
-	Instant cachedExp = JWT_VERIFICATION_CACHE.get(rawJwt);
-	if (cachedExp != null && Instant.now().isBefore(cachedExp)) {
-	    return; // Still within cached validity window — skip re-verification.
+	CachedJwt cached = JWT_VERIFICATION_CACHE.get(rawJwt);
+	if (cached != null && Instant.now().isBefore(cached.exp)) {
+	    // Still within cached validity window — skip re-verification and
+	    // reproduce exactly the authorised principals derived earlier.
+	    return cached.principals;
 	}
 
+	Set<Principal> principals;
 	try {
-	    verifier.verify(rawJwt);
+	    // Verify AND reconstruct the authorised principals from the verified
+	    // claims in one step; the transmitted wire principals are never
+	    // consulted here (see readUserSubjects).
+	    principals = verifier.verifyAndExtractPrincipals(rawJwt);
 	} catch (JwtVerificationException e) {
 	    throw new IOException(
 		"JWT verification failed for Subject[" + subjectIdx
 		+ "] JWT[" + jwtIdx + "]: " + e.getMessage(), e);
+	}
+	if (principals == null) {
+	    principals = Collections.emptySet();
+	} else {
+	    principals = Collections.unmodifiableSet(principals);
 	}
 
 	// Cache the result using the token's exp claim as the TTL.
 	Instant exp = extractJwtExp(rawJwt);
 	if (exp == null) {
 	    // No parseable exp → do not cache; re-verify on every call.
-	    return;
+	    return principals;
 	}
 	if (JWT_VERIFICATION_CACHE.size() >= JWT_CACHE_MAX_SIZE) {
 	    // Prune expired entries; clear entirely if still full.
 	    Instant now = Instant.now();
-	    JWT_VERIFICATION_CACHE.entrySet().removeIf(e -> !now.isBefore(e.getValue()));
+	    JWT_VERIFICATION_CACHE.entrySet().removeIf(e -> !now.isBefore(e.getValue().exp));
 	    if (JWT_VERIFICATION_CACHE.size() >= JWT_CACHE_MAX_SIZE) {
 		JWT_VERIFICATION_CACHE.clear();
 	    }
 	}
-	JWT_VERIFICATION_CACHE.put(rawJwt, exp);
+	JWT_VERIFICATION_CACHE.put(rawJwt, new CachedJwt(exp, principals));
+	return principals;
     }
 
     /**
