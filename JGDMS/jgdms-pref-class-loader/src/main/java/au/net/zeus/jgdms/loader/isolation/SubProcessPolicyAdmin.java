@@ -41,15 +41,18 @@ import net.jini.core.constraint.ServerAuthentication;
  * authentication, never on interface declaration:
  * <ol>
  *   <li><b>Fail-closed accessor.</b> {@link #getSubProcessPolicyAdmin()}
- *       returns nothing usable unless the current caller is authenticated as
- *       the orchestrating admin principal (via
- *       {@link AdminPrincipalAuthenticator}).  An unauthenticated / wrongly-
- *       authenticated caller gets a {@link SecurityException}, whatever
+ *       returns nothing usable unless the deployed policy grants
+ *       {@code SubProcessAdminPermission("getSubProcessPolicyAdmin")} to the
+ *       current caller's authenticated principals (checked via
+ *       {@link AdminPrincipalAuthenticator}).  An unauthenticated /
+ *       ungranted caller gets a {@link SecurityException}, whatever
  *       interfaces its stub declares.</li>
  *   <li><b>Per-operation re-gate.</b> Even a captured {@link PolicyAdmin}
- *       reference is useless to a non-admin: the returned proxy re-checks the
- *       admin identity on <em>every</em> operation before dispatching to the
- *       backing management object.</li>
+ *       reference is useless to a non-admin: the returned proxy re-checks
+ *       {@code SubProcessAdminPermission(&lt;operation&gt;)} on <em>every</em>
+ *       operation ({@code grant} / {@code refresh} / {@code getGrants} --
+ *       least privilege per operation, {@code grant} being the dangerous
+ *       one) before dispatching to the backing management object.</li>
  *   <li><b>Stricter endpoint constraints.</b> The returned proxy is a
  *       {@link RemoteMethodControl} whose {@link #adminConstraints
  *       MethodConstraints} require {@code Integrity.YES},
@@ -72,8 +75,13 @@ public final class SubProcessPolicyAdmin implements SubProcessAdministrable {
     private final MethodConstraints adminConstraints;
 
     /**
-     * @param adminPrincipal the orchestrating admin principal callers must
-     *        prove; must not be null
+     * @param adminPrincipal the orchestrating admin principal named in the
+     *        stricter endpoint {@link #adminConstraints() MethodConstraints}
+     *        (via {@link ClientMinPrincipal}); must not be null.  Note that
+     *        under the 2026-07-21 redesign the in-process gate itself
+     *        authorizes by {@link SubProcessAdminPermission} check &mdash;
+     *        the deployed policy, not this parameter, decides which
+     *        principals are admin (see {@link AdminPrincipalAuthenticator}).
      * @param backing the trusted, separately-exported management object;
      *        must not be null and must not be a hosted business proxy
      * @param callerIdentity source of the current caller's authenticated
@@ -82,9 +90,9 @@ public final class SubProcessPolicyAdmin implements SubProcessAdministrable {
     public SubProcessPolicyAdmin(Principal adminPrincipal,
                                  PolicyAdmin backing,
                                  AdminPrincipalAuthenticator.CallerIdentity callerIdentity) {
+        if (adminPrincipal == null) throw new NullPointerException("adminPrincipal");
         if (backing == null) throw new NullPointerException("backing");
-        this.authenticator =
-                new AdminPrincipalAuthenticator(adminPrincipal, callerIdentity);
+        this.authenticator = new AdminPrincipalAuthenticator(callerIdentity);
         this.backing = backing;
         this.adminConstraints = buildAdminConstraints(adminPrincipal);
     }

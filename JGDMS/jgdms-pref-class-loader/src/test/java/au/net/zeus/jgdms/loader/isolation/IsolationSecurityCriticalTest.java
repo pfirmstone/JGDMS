@@ -253,12 +253,19 @@ public class IsolationSecurityCriticalTest {
     private final Principal admin = name("spiffe://ctrl/admin");
 
     // ==================================================================
-    // SecurityManager test scaffolding (2026-07-20 board finding fix):
-    // AdminPrincipalAuthenticator now requires an installed SecurityManager
-    // before it will trust ANY ambient Subject (see its class javadoc). Tests
-    // that exercise the legitimate "caller IS the admin" success path must
-    // install one; tests that specifically probe the no-SM fail-closed
-    // behaviour install none (the JVM default).
+    // SecurityManager test scaffolding.
+    // 2026-07-20 board finding fix: AdminPrincipalAuthenticator requires an
+    // installed SecurityManager before it will trust ANY ambient Subject
+    // (see its class javadoc); tests probing the no-SM fail-closed behaviour
+    // install none (the JVM default).
+    // 2026-07-21 ratified redesign: authorization is now a per-operation
+    // SubProcessAdminPermission check against a synthetic principal-only
+    // context, submitted to the installed SecurityManager -- so tests
+    // exercising the legitimate admin success/refusal paths use
+    // AdminAuthTestSupport (context-evaluating SecurityManager + a Policy
+    // granting the operation targets to the admin principal only). The
+    // AllowAll/DenySubjectRebind doubles below remain for the tests that
+    // probe the SecurityManager-level boundaries themselves.
     // ==================================================================
 
     /** Allows everything: used where the test only needs SM presence. */
@@ -326,7 +333,7 @@ public class IsolationSecurityCriticalTest {
 
     @Test
     public void unauthenticatedCaller_getAdminFailsClosed() throws Exception {
-        withSecurityManager(new AllowAllSecurityManager(), () -> {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             Caller caller = new Caller();       // subject == null
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(), caller);
@@ -340,14 +347,14 @@ public class IsolationSecurityCriticalTest {
 
     @Test
     public void wronglyAuthenticatedCaller_getAdminFailsClosed() throws Exception {
-        withSecurityManager(new AllowAllSecurityManager(), () -> {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             Caller caller = new Caller();
             caller.subject = subjectWith(name("spiffe://ctrl/not-admin"));
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(), caller);
             try {
                 s.getSubProcessPolicyAdmin();
-                fail("wrong principal must not receive a usable admin proxy");
+                fail("ungranted principal must not receive a usable admin proxy");
             } catch (SecurityException expected) { /* good */ }
             catch (RemoteException e) { fail("unexpected: " + e); }
         });
@@ -355,7 +362,7 @@ public class IsolationSecurityCriticalTest {
 
     @Test
     public void adminCaller_getsUsableProxy_operationsDispatch() throws Exception {
-        withSecurityManager(new AllowAllSecurityManager(), () -> {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             Caller caller = new Caller();
             caller.subject = subjectWith(admin);
             TrustedPolicyBacking backing = new TrustedPolicyBacking();
@@ -375,7 +382,7 @@ public class IsolationSecurityCriticalTest {
         // An admin obtains the proxy, then the caller identity drops to a
         // non-admin (e.g. the reference leaks / is replayed by another party).
         // Every subsequent operation must re-check and fail closed.
-        withSecurityManager(new AllowAllSecurityManager(), () -> {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             Caller caller = new Caller();
             caller.subject = subjectWith(admin);
             TrustedPolicyBacking backing = new TrustedPolicyBacking();
@@ -395,7 +402,7 @@ public class IsolationSecurityCriticalTest {
     @Test
     public void adminProxyCarriesStricterConstraints_integrityAndAdminPrincipal()
             throws Exception {
-        withSecurityManager(new AllowAllSecurityManager(), () -> {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             Caller caller = new Caller();
             caller.subject = subjectWith(admin);
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
@@ -417,7 +424,7 @@ public class IsolationSecurityCriticalTest {
 
     @Test
     public void constraintsCannotBeWeakenedByClient() throws Exception {
-        withSecurityManager(new AllowAllSecurityManager(), () -> {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             Caller caller = new Caller();
             caller.subject = subjectWith(admin);
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
@@ -549,6 +556,11 @@ public class IsolationSecurityCriticalTest {
      * SUFFICIENT" section) -- it intentionally asserts the attack
      * SUCCEEDS, so a future reader sees the limitation is known and covered,
      * not silently reintroduced or newly discovered by adversarial probing.
+     * (Under the 2026-07-21 permission-check redesign the boundary is, if
+     * anything, sharper: a permissive SecurityManager's two-argument
+     * checkPermission trivially allows the SubProcessAdminPermission check
+     * for EVERY caller, so the forgery no longer even needs to name the
+     * admin principal -- the deployed policy is the whole guarantee.)
      */
     @Test
     public void permissiveSecurityManager_stillLetsTheForgeryThrough()
@@ -656,26 +668,31 @@ public class IsolationSecurityCriticalTest {
      * defence: even in a hypothetical where {@code Subject.callAs} succeeded
      * in binding the forged Subject (e.g. a misconfigured policy that DOES
      * grant {@code AuthPermission("callAs")} to hosted code), the admin gate
-     * itself still requires the caller to be the real admin principal -- the
-     * fix does not rest solely on the JDK-level permission check.
-     * (Uses the injectable {@link Caller} stub to model "forged Subject
-     * successfully bound", since binding one for real requires the
-     * permission this test is deliberately NOT about.)
+     * still refuses a caller whose principals the deployed policy has not
+     * granted {@code SubProcessAdminPermission} -- under the 2026-07-21
+     * redesign that second line of defence is the per-operation permission
+     * grant itself, not a name match. (Uses the injectable {@link Caller}
+     * stub to model "forged Subject successfully bound", since binding one
+     * for real requires the permission this test is deliberately NOT about.)
+     * NOTE the boundary this deliberately documents: a forged Subject that
+     * names the GRANTED admin principal WOULD be authorized -- which is
+     * exactly why the AuthPermission("callAs")/("doAs") deployment
+     * prerequisite in the class javadoc is retained under the redesign.
      */
     @Test
     public void evenIfRebindingSucceeded_wrongCallerStillRefused_underSM()
             throws Exception {
-        withSecurityManager(new AllowAllSecurityManager(), () -> {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             Caller caller = new Caller();
             TrustedPolicyBacking backing = new TrustedPolicyBacking();
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
 
-            // Not the admin -- even though "binding" (setting caller.subject)
+            // Not granted -- even though "binding" (setting caller.subject)
             // trivially "succeeded" here, the gate must still refuse.
             caller.subject = subjectWith(name("spiffe://ctrl/attacker"));
             try {
                 s.getSubProcessPolicyAdmin();
-                fail("wrong principal must be refused even when a SecurityManager"
+                fail("ungranted principal must be refused even when a SecurityManager"
                         + " is installed and Subject-rebinding itself succeeded");
             } catch (SecurityException expected) { /* good */ }
             assertEquals(0, backing.grantCalls);
@@ -704,14 +721,16 @@ public class IsolationSecurityCriticalTest {
     @Test
     public void realCurrentSubjectPath_enforcesAdmin() throws Exception {
         // Exercise the DEFAULT mechanism (Subject.current()), not just the
-        // injected identity, on the real runtime path. A SecurityManager is
-        // installed throughout (AllowAll: this test is not about the
-        // callAs/doAs permission check itself, which is covered separately
-        // by forgedSubjectViaCallAs_blockedBeforeReachingTheGate_whenSMDeniesRebind)
+        // injected identity, on the real runtime path. The full redesigned
+        // authorization scaffold is installed throughout (context-evaluating
+        // SecurityManager + policy granting the operation targets to the
+        // admin principal only; the callAs/doAs permission check itself is
+        // covered separately by
+        // forgedSubjectViaCallAs_blockedBeforeReachingTheGate_whenSMDeniesRebind)
         // so the "admin subject in context -> succeeds" branch actually
-        // exercises the identity-matching logic rather than failing closed
+        // exercises the permission-grant logic rather than failing closed
         // for the unrelated reason of no SecurityManager being installed.
-        withSecurityManager(new AllowAllSecurityManager(), () -> {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             final SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(),
                     AdminPrincipalAuthenticator.CURRENT_SUBJECT);
@@ -733,7 +752,7 @@ public class IsolationSecurityCriticalTest {
             assertTrue("admin subject in context must obtain the proxy: " + ok,
                     ok instanceof PolicyAdmin);
 
-            // Running as a non-admin subject -> fail closed.
+            // Running as an ungranted subject -> fail closed.
             Object bad = callAs(subjectWith(name("spiffe://ctrl/x")),
                     new Callable<Object>() {
                 public Object call() {
@@ -741,7 +760,7 @@ public class IsolationSecurityCriticalTest {
                     catch (Exception e) { return e; }
                 }
             });
-            assertTrue("non-admin subject in context must fail closed",
+            assertTrue("ungranted subject in context must fail closed",
                     bad instanceof SecurityException);
         });
     }
@@ -755,45 +774,57 @@ public class IsolationSecurityCriticalTest {
     // ==================================================================
 
     /**
-     * Pins the empirical precondition the two tests below rely on: this
-     * build JDK is a vanilla JDK without the DirtyChai
-     * {@code Subject.processWorker()} extension. If this ever starts
-     * failing (e.g. the module is built against a DirtyChai JDK), the
-     * fall-through behaviour verified by
-     * {@link #processWorkerAbsent_currentSubjectUnchangedFromBeforeTheFix}
-     * needs a companion "processWorker present" test added alongside it.
+     * Records, without failing either way, which {@code Subject.processWorker()}
+     * capability this build/test JDK has, and pins that the tier-1 lookup
+     * degrades gracefully in both cases. (A previous revision of this test
+     * asserted the build JDK is vanilla -- that assertion was empirically
+     * wrong: this module's tests run under the DirtyChai JDK, which DOES
+     * provide {@code Subject.processWorker()}.) On a vanilla JDK the method
+     * is absent and the tier is skipped; on DirtyChai it is present and,
+     * outside any transport-established worker context (as in this test
+     * JVM), must return {@code null} without throwing, so
+     * {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT} falls through to
+     * the {@code Subject.current()} tier exactly as the fall-through test
+     * below verifies.
      */
     @Test
-    public void processWorkerMethod_notPresentOnThisBuildJdk_confirmedEmpirically() {
+    public void processWorkerTier_degradesGracefully_onThisBuildJdk()
+            throws Exception {
+        Method processWorker;
         try {
-            Subject.class.getMethod("processWorker");
-            fail("expected this build JDK to be vanilla (no"
-                    + " Subject.processWorker()); if this JDK now provides"
-                    + " it, add a companion test exercising the"
-                    + " processWorker-present branch directly");
-        } catch (NoSuchMethodException expected) {
-            // Confirmed: this is the vanilla-JDK case AdminPrincipalAuthenticator's
-            // PROCESS_WORKER/findProcessWorker() must degrade gracefully on.
+            processWorker = Subject.class.getMethod("processWorker");
+        } catch (NoSuchMethodException vanillaJdk) {
+            // Vanilla JDK: tier resolves to null and is silently skipped --
+            // nothing more to probe here.
+            return;
         }
+        // DirtyChai (or a future JDK providing it): outside any worker
+        // dispatch there is no ambient WorkerSubject; the tier must yield
+        // null (fall through), never throw.
+        Object ambient = processWorker.invoke(new Subject());
+        assertNull("no transport-established worker context exists in this"
+                + " test JVM, so processWorker() must return null (fall"
+                + " through to Subject.current())", ambient);
     }
 
     /**
-     * No-regression guard for the fix: on this (confirmed-vanilla, see
-     * {@link #processWorkerMethod_notPresentOnThisBuildJdk_confirmedEmpirically})
-     * build JDK, {@code PROCESS_WORKER} resolves to {@code null} and
+     * No-regression guard: when the tier-1 {@code processWorker()} lookup
+     * yields nothing (method absent on a vanilla JDK, or present-but-null
+     * outside a worker context on DirtyChai -- see
+     * {@link #processWorkerTier_degradesGracefully_onThisBuildJdk}),
      * {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT} must fall straight
-     * through to exactly the same {@code Subject.current()}/legacy behaviour
-     * it had before this fix -- unauthenticated fails closed, the admin
-     * subject succeeds, a non-admin subject fails closed. This exercises the
-     * real production {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT}
-     * field (not the injectable stub), the same real-path style as
+     * through to the same {@code Subject.current()}/legacy behaviour --
+     * unauthenticated fails closed, the granted admin subject succeeds. This
+     * exercises the real production
+     * {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT} field (not the
+     * injectable stub), the same real-path style as
      * {@code realCurrentSubjectPath_enforcesAdmin}, but framed specifically
-     * as the regression check for this change.
+     * as the regression check for the tier-ordering change.
      */
     @Test
-    public void processWorkerAbsent_currentSubjectUnchangedFromBeforeTheFix()
+    public void processWorkerYieldsNothing_currentSubjectFallsThroughUnchanged()
             throws Exception {
-        withSecurityManager(new AllowAllSecurityManager(), () -> {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             final SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(),
                     AdminPrincipalAuthenticator.CURRENT_SUBJECT);
@@ -820,9 +851,11 @@ public class IsolationSecurityCriticalTest {
     }
 
     /**
-     * {@code Subject.processWorker()} is unavailable on this build JDK (see
-     * {@link #processWorkerMethod_notPresentOnThisBuildJdk_confirmedEmpirically}),
-     * so the priority-ordering logic itself -- "if the reflective method is
+     * No transport-established ambient {@code WorkerSubject} exists in this
+     * test JVM -- {@code Subject.processWorker()} is either absent (vanilla
+     * JDK) or present-but-null outside a worker dispatch (DirtyChai; see
+     * {@link #processWorkerTier_degradesGracefully_onThisBuildJdk}) -- so
+     * the priority-ordering logic itself -- "if the reflective method is
      * present and returns non-null, prefer it over the next tier" -- cannot
      * be exercised against the real {@code Subject} class here. This test
      * verifies that exact mechanics in isolation, using a local stand-in

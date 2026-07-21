@@ -195,38 +195,49 @@ public class SubProcessLocalPolicyAdminTest {
     private final Principal hosted = name("spiffe://ctrl/hosted-proxy-owner");
 
     // ==================================================================
-    // 2026-07-20 board finding fix: AdminPrincipalAuthenticator now requires
-    // an installed SecurityManager before it will trust ANY ambient Subject
-    // (see its class javadoc) -- without one it cannot tell a genuinely
-    // authenticated Subject from one forged in-process. Every test in this
-    // class exercises the authenticated-admin success path through the real
-    // T2 gate, so a permissive SecurityManager is installed for the
-    // duration of each test (restored afterwards); none of these tests are
-    // about the SecurityManager-presence check itself (that is covered by
-    // IsolationSecurityCriticalTest), so denying nothing keeps them focused
-    // on what they actually probe. grant_stillSurfacesInstallCeilingDenial
-    // below layers its own, stricter CeilingSecurityManager on top of this
-    // one for the portion of that test that needs it.
+    // 2026-07-20 board finding fix: AdminPrincipalAuthenticator requires an
+    // installed SecurityManager before it will trust ANY ambient Subject
+    // (see its class javadoc). 2026-07-21 ratified redesign: the gate now
+    // authorizes by submitting SubProcessAdminPermission(<operation>)
+    // against the caller's principals to the installed SecurityManager's
+    // two-argument checkPermission, so "some permissive SecurityManager is
+    // installed" is no longer enough for these tests to mean anything: a
+    // permissive one authorizes EVERY caller. Every test in this class
+    // exercises the real T2 gate, so a context-evaluating SecurityManager
+    // plus a java.security.Policy granting the four operation targets to
+    // the admin principal ONLY are installed for the duration of each test
+    // (restored afterwards) -- admin succeeds, unauthenticated/other
+    // principals are refused, exactly the deployed-policy shape.
+    // grant_stillSurfacesInstallCeilingDenial below layers its own,
+    // stricter CeilingSecurityManager on top of this one for the portion of
+    // that test that needs it (its two-argument check delegates to its
+    // one-argument check, which allows SubProcessAdminPermission, so the
+    // re-gate still passes while the GrantPermission ceiling gates).
     // ==================================================================
 
     private SecurityManager previousSecurityManager;
+    private Policy previousPolicy;
 
     @Before
-    public void installPermissiveSecurityManager() {
+    public void installAdminAuthorizationScaffold() {
         previousSecurityManager = System.getSecurityManager();
         try {
-            System.setSecurityManager(new SecurityManager() {
-                @Override public void checkPermission(Permission perm) { }
-                @Override public void checkPermission(Permission perm, Object ctx) { }
-            });
+            System.setSecurityManager(
+                    new AdminAuthTestSupport.ContextEvaluatingSecurityManager());
         } catch (UnsupportedOperationException noAllowFlag) {
             Assume.assumeNoException(
                     "needs -Djava.security.manager=allow", noAllowFlag);
         }
+        previousPolicy = Policy.getPolicy();
+        Policy.setPolicy(new AdminAuthTestSupport.PrincipalGrantPolicy(
+                admin, AdminAuthTestSupport.allAdminOperations()));
     }
 
     @After
-    public void restoreSecurityManager() {
+    public void restoreAdminAuthorizationScaffold() {
+        if (previousPolicy != null) {
+            Policy.setPolicy(previousPolicy);
+        }
         // Some JDKs (e.g. the DirtyChai build) refuse to revert an installed
         // SecurityManager back to null once one has been set; only restore
         // when there is something concrete to restore to.

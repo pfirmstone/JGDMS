@@ -16,160 +16,145 @@
 package au.net.zeus.jgdms.loader.isolation;
 
 import java.lang.reflect.Method;
+import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.security.CodeSource;
 import java.security.Principal;
+import java.security.PrivilegedAction;
+import java.security.ProtectionDomain;
+import java.security.cert.Certificate;
 import java.util.Set;
 import javax.security.auth.Subject;
+import net.jini.security.Security;
 
 /**
- * The <em>mechanism</em> that decides whether the current caller is the
- * orchestrating admin principal (task&nbsp;T2, requirement&nbsp;#3).  This is
- * the fail-closed gate that guards every access to the subprocess policy
- * admin surface; it never consults what interfaces a caller's stub declares.
+ * The <em>mechanism</em> that decides whether the current caller may reach
+ * the subprocess policy admin surface (task&nbsp;T2, requirement&nbsp;#3).
+ * This is the fail-closed gate that guards every access to the subprocess
+ * policy admin surface; it never consults what interfaces a caller's stub
+ * declares.
  *
- * <p>Enforcement is by <em>proven authenticated identity</em>: the caller must
- * be executing within a {@link Subject} that carries the orchestrating admin
- * principal.  Matching is by canonical name (via
- * {@link IsolationPoolingKey#canonicalName(Principal)}), consistent with
- * JGDMS's {@code PrincipalGrant} precedent of identifying principals by
- * canonical name rather than object identity.
+ * <h2>2026-07-21 ratified redesign: authorization by
+ * {@link SubProcessAdminPermission}, not principal-name matching</h2>
+ * Previous revisions of this class authorized by looping over the caller's
+ * principals and comparing canonical names against a single configured
+ * "admin principal".  That conflated <em>authentication</em> (which
+ * principals the caller proved) with <em>authorization</em> (what those
+ * principals are allowed to do), hard-wired a single all-or-nothing admin
+ * identity, and could not distinguish the dangerous {@code grant} operation
+ * from the read-only {@code getGrants}.  Authorization is now a standard
+ * JGDMS permission check:
+ * <ol>
+ *   <li>The caller's authenticated {@link Subject} is obtained from the
+ *       injectable {@link CallerIdentity} (the default,
+ *       {@link #CURRENT_SUBJECT}, resolves it in three tiers &mdash; see
+ *       below).  This step is <em>only</em> how the caller's principals are
+ *       obtained; it is no longer the authorization decision itself.</li>
+ *   <li>A synthetic {@link ProtectionDomain} is built over an empty
+ *       {@link CodeSource} carrying exactly those principals ({@code null}
+ *       permissions, {@code null} class loader), mirroring
+ *       {@code net.jini.jeri.BasicInvocationDispatcher#checkClientPermission}.
+ *       A bare {@code AccessController.checkPermission()} would <strong>not
+ *       </strong> work here: a remote TLS/SPIFFE caller's principals are
+ *       never on the ambient thread stack &mdash; the useful "call stack"
+ *       exists only on the client side of the remote call &mdash; so the
+ *       grant that satisfies this check must be to the caller's principals
+ *       alone, never qualified by executing code.
+ *       ({@code jgdms-pref-class-loader} does not depend on
+ *       {@code jgdms-jeri}, so the small idiom is duplicated locally, just
+ *       as this class already duplicates the {@code Subject.processWorker()}
+ *       / {@code Subject.current()} reflective lookups.)</li>
+ *   <li>An {@link AccessControlContext} over exactly that domain is obtained
+ *       via the {@link Security#create(ProtectionDomain[])} <em>factory</em>
+ *       (never the {@code AccessControlContext} constructor): on DirtyChai
+ *       the factory is virtual-thread-safe and interning, and it performs no
+ *       call-stack merge, so the context contains the caller's domain alone.
+ *       </li>
+ *   <li>{@link SecurityManager#checkPermission(java.security.Permission,
+ *       Object) SecurityManager.checkPermission(perm, ctx)} is invoked with
+ *       a {@link SubProcessAdminPermission} whose target is the
+ *       <em>operation name</em> ({@code getSubProcessPolicyAdmin},
+ *       {@code grant}, {@code refresh}, {@code getGrants}), keeping the
+ *       installed {@code SecurityManager} (on DirtyChai, the
+ *       {@code CombinerSecurityManager}) the single authorization
+ *       chokepoint.  The whole check runs inside
+ *       {@link AccessController#doPrivileged(PrivilegedAction)} so this
+ *       library's own privilege performs it and the operation's permission
+ *       requirements do not go viral to constrained caller stacks.</li>
+ * </ol>
+ * The deployed policy names the admin: it grants
+ * {@code SubProcessAdminPermission} targets to the orchestrating admin
+ * principal(s) (e.g. via a {@code PrincipalGrant}).  Per-operation targets
+ * allow least privilege &mdash; {@code grant} installs new authority into
+ * the subprocess policy and can be granted more narrowly than the read-only
+ * {@code getGrants}.  Because {@link net.jini.security.AccessPermission}
+ * matching is class-gated, a grant of a plain {@code AccessPermission} (or
+ * any other subclass) never satisfies this gate.  In the live transport
+ * (task&nbsp;T4) the stricter endpoint {@code MethodConstraints}
+ * additionally enforce authentication at the wire before dispatch ever
+ * reaches here; this gate is the in-process floor that holds even if a
+ * proxy reference is captured and re-invoked.
  *
- * <p>The "current caller identity" is obtained from an injectable
- * {@link CallerIdentity} so the gate is unit-testable without live TLS; the
- * default, {@link #CURRENT_SUBJECT}, resolves the ambient {@link Subject} in
- * three tiers, most-specific first: the DirtyChai {@code Subject.processWorker()}
- * ambient {@code WorkerSubject} minted by the SSLEngine/TLS+SPIFFE keystone
- * for a TLS-authenticated remote caller; else {@code Subject.current()}
- * (JDK&nbsp;18+), bound via {@code Subject.callAs}/{@code doAs}; else the
- * legacy access-control-context read &mdash; see {@link #CURRENT_SUBJECT}'s
- * own javadoc, and the "{@code processWorker()}" dated section below, for why
- * all three are needed. In the live transport (task&nbsp;T4) the stricter
- * endpoint {@code MethodConstraints} additionally enforce this at the wire
- * before dispatch ever reaches here; this gate is intended as the in-process
- * floor that holds even if a proxy reference is captured and re-invoked.
- *
- * <h2>Why that claim requires an installed {@code SecurityManager}
- * (2026-07-20 board finding, fixed)</h2>
- * Name-matching against {@code Subject.current()}'s principals is, by
- * itself, <strong>not</strong> proof of authenticated identity: any code
- * running in this JVM can execute
- * {@code new Subject(true, Set.of(forgedAdminPrincipal), Set.of(), Set.of())}
- * and bind it as the ambient subject via {@code Subject.doAs}/
- * {@code Subject.callAs} &mdash; construction and binding are both
- * unprivileged operations. The <em>only</em> thing that makes that binding
- * require authority is the JDK's own {@code AuthPermission("callAs")/AuthPermission("doAs")}
- * check inside {@code Subject.doAs}/{@code callAs} &mdash; and the JDK
- * performs that check <strong>only when a {@link SecurityManager} is
- * installed</strong>; with none installed it is skipped entirely, so any
- * hosted/business code (e.g. inside {@code SubProcessReconstructionServer
- * #dispatchInvoke}, which does not itself wrap hosted-method execution in a
- * {@code doAs} boundary) can forge the ambient {@code Subject} at will and
- * this gate would otherwise trust it verbatim. This is exactly the same
- * "NO-OP without an installed SecurityManager" shape as
- * {@code DeSerializationPermission("ATOMIC")} elsewhere in JGDMS &mdash; the
- * difference is that class's javadoc did not previously say so.
- *
- * <p><strong>Fix:</strong> {@link #isAdmin()} and {@link #requireAdmin} both
- * check {@link System#getSecurityManager()} first and refuse
- * <em>every</em> caller &mdash; including a genuinely authenticated admin
- * &mdash; when no {@code SecurityManager} is installed, rather than trust an
- * ambient {@code Subject} this class has no way to verify was legitimately
- * bound. This turns the previous silent bypass into a loud, safe failure.
+ * <h2>Why an installed {@code SecurityManager} is required
+ * (2026-07-20 board finding, retained under the redesign)</h2>
+ * Without an installed {@link SecurityManager} there is nothing to submit
+ * the permission check to, and the ambient {@link Subject} this class reads
+ * cannot be trusted to be genuinely authenticated: any code in this JVM can
+ * execute {@code new Subject(true, Set.of(forgedAdminPrincipal), ...)} and
+ * bind it via {@code Subject.doAs}/{@code Subject.callAs} &mdash; the JDK's
+ * own {@code AuthPermission("callAs")/("doAs")} check inside those methods
+ * runs <strong>only when a SecurityManager is installed</strong>.  Both
+ * {@link #isAdmin} and {@link #requireAdmin} therefore refuse
+ * <em>every</em> caller when no {@code SecurityManager} is installed
+ * (loud, safe failure rather than silent bypass).
  *
  * <h2>"A SecurityManager is installed" is NECESSARY, not SUFFICIENT
- * (2026-07-20 two-seat board re-review, closed)</h2>
- * A first version of this fix's javadoc stopped at "installed with a policy
- * that does not grant {@code AuthPermission}" without naming every permission
- * that policy must actually deny &mdash; both board seats independently
- * proved that gap by adversarial probe. The check in {@link #isAdmin()} only
- * tests "is <em>some</em> {@code SecurityManager} installed"; a
- * <strong>permissive</strong> one (one whose policy grants everything,
- * including to hosted/business code) satisfies that check while providing
- * <strong>zero</strong> protection &mdash; the forged-{@code Subject} binding
- * via {@code Subject.callAs}/{@code doAs} goes through unchallenged exactly
- * as it does with no {@code SecurityManager} at all. Worse: even a
- * {@code SecurityManager} whose policy correctly denies
- * {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")} to hosted
- * code is defeated if that same policy does not <em>also</em> deny
- * {@code RuntimePermission("setSecurityManager")} &mdash; hosted code can
- * simply call {@code System.setSecurityManager(new PermissiveSM())} to
- * replace the restrictive installation with one of its own choosing, then
- * replay the forged-{@code Subject} binding against the new, permissive one.
- * Both attacks were reproduced end-to-end against this class's own fix and
- * are now permanent regressions ({@code
- * IsolationSecurityCriticalTest#permissiveSecurityManager_stillLetsTheForgeryThrough}
- * and {@code
- * #hostedCodeReplacingTheSecurityManager_defeatsAnAuthPermissionOnlyPolicy_unlessSetSecurityManagerIsAlsoDenied}).
- *
- * <p>The guarantee this class actually depends on is therefore that the
- * deployed policy denies <strong>all three</strong> of the following to
- * every hosted/business protection domain (the fail-closed default for any
- * domain that isn't explicitly granted them):
+ * (2026-07-20 two-seat board re-review, retained under the redesign)</h2>
+ * The guarantee this class depends on is a deployment/policy prerequisite
+ * it cannot verify from inside the JVM:
  * <ul>
- *   <li>{@code AuthPermission("callAs")} &mdash; checked by
- *       {@code Subject.callAs} (JDK&nbsp;18+, the second of the three tiers
- *       {@link #CURRENT_SUBJECT} tries, via {@code Subject.current()});</li>
- *   <li>{@code AuthPermission("doAs")} &mdash; checked by the deprecated
- *       {@code Subject.doAs(Subject, PrivilegedAction)} overload;</li>
- *   <li>{@code RuntimePermission("setSecurityManager")} &mdash; without this
- *       being denied too, hosted code can simply install its own permissive
- *       {@code SecurityManager} and defeat the other two regardless of how
- *       correctly they are configured.</li>
+ *   <li>the installed {@code SecurityManager}'s policy must grant
+ *       {@code SubProcessAdminPermission} targets <em>only</em> to the
+ *       orchestrating admin principal(s) &mdash; a permissive
+ *       {@code SecurityManager} (or a policy granting these targets to
+ *       everyone) authorizes every caller while satisfying the
+ *       "installed" check;</li>
+ *   <li>{@code AuthPermission("callAs")} and {@code AuthPermission("doAs")}
+ *       must be denied to hosted/business protection domains, or hosted
+ *       code can bind a forged {@link Subject} carrying the admin
+ *       principals and this gate's synthetic domain will genuinely carry
+ *       them (the redesign moves the decision to policy, but the
+ *       principals it decides over still come from the ambient
+ *       {@code Subject});</li>
+ *   <li>{@code RuntimePermission("setSecurityManager")} must be denied to
+ *       hosted code, or it can replace the restrictive installation with a
+ *       permissive one and replay either attack.  Both attack shapes were
+ *       reproduced end-to-end and remain permanent regressions in
+ *       {@code IsolationSecurityCriticalTest}.</li>
  * </ul>
- * <p>The first, highest-priority tier {@link #CURRENT_SUBJECT} tries &mdash;
- * the DirtyChai {@code Subject.processWorker()} ambient {@code WorkerSubject}
- * &mdash; is deliberately <strong>not</strong> in this list: it takes no
- * caller-supplied {@link Subject} argument to bind (unlike {@code doAs}/
- * {@code callAs}), so there is nothing for hosted/business code to forge by
- * calling it; see the "{@code processWorker()}" dated section below.
- * This class has no way to verify any of this from inside the JVM (a
- * permissive {@code SecurityManager} object is indistinguishable from a
- * restrictive one by any check available here short of actually attempting
- * the forgery); it is a deployment/policy prerequisite, not something this
- * class enforces or can enforce. When no {@code SecurityManager} is present
- * at all, the gate no longer pretends to enforce a guarantee it cannot back
- * &mdash; but "a {@code SecurityManager} is present" is only the first of
- * the three preconditions above, and is not, by itself, evidence the other
- * two hold. <strong>Known pre-existing gap (not introduced by this fix,
- * tracked separately):</strong> several {@code qa/harness/policy/defaultspiffe*.policy}
- * files currently grant unconditional {@code AllPermission}/
- * {@code AuthPermission("*")} to every protection domain, which does not
- * satisfy this precondition; this class's guarantee does not hold in those
- * deployments until that is corrected.
+ * The highest-priority identity tier &mdash; the DirtyChai
+ * {@code Subject.processWorker()} ambient {@code WorkerSubject} &mdash; is
+ * deliberately outside the {@code AuthPermission} list: it takes no
+ * caller-supplied {@link Subject} to bind, so there is nothing for hosted
+ * code to forge by calling it.
  *
- * <h2>Missing the {@code processWorker()} tier meant a TLS/SPIFFE-only
- * caller could never be recognised as admin (2026-07-21, fixed)</h2>
- * {@link #CURRENT_SUBJECT} previously tried only {@code Subject.current()}
- * (JDK&nbsp;18+) and then the legacy
- * {@code Subject.getSubject(AccessControlContext)} path; it never called
- * {@code Subject.processWorker()}. Both of the tiers it did try are
- * structurally unable to observe the ambient {@code WorkerSubject} that this
- * repo's SSLEngine/TLS+SPIFFE keystone mints for a TLS-authenticated remote
- * caller: {@code net.jini.jeri.BasicInvocationDispatcher#invokeWithClientSubject}
- * explicitly branches on {@code isAmbientWorkerSubject} and does
- * <strong>not</strong> pass a {@code WorkerSubject} through
- * {@code Subject.doAs}/{@code callAs} (so it never becomes visible to
- * {@code Subject.current()}), and its principals are carried instead via the
- * transmitted {@code AccessControlContext}/{@code ProtectionDomain}s rather
- * than bound as the thread's ambient {@code Subject} the legacy
- * {@code getSubject(AccessControlContext)} call would see (see
- * {@code net.jini.jeri.ssl.Utilities}'s comment on {@code isAmbientWorkerSubject},
- * immediately after {@code findWorkerSubject()}, on exactly why a
- * {@code WorkerSubject} must never be captured via {@code doAs}/{@code callAs}).
- * A caller authenticated purely by TLS/SPIFFE &mdash; with no separate JAAS
- * login layered on top &mdash; was therefore invisible to this gate no
- * matter what principals it carried.
- *
- * <p><strong>Fix:</strong> {@link #CURRENT_SUBJECT} now tries
- * {@code Subject.processWorker()} (resolved reflectively, mirroring
- * {@code net.jini.jeri.ssl.Utilities#spiffeWorkerSubject()}'s idiom exactly,
- * since {@code jgdms-pref-class-loader} does not depend on {@code jgdms-jeri})
- * <em>first</em>, falling back to {@code Subject.current()} and then the
- * legacy access-control-context path for callers authenticated some other
- * way. This tier needs no new entry in the three-{@code AuthPermission}
- * deployment requirement above: {@code processWorker()} takes no
- * caller-supplied {@link Subject} to bind, so there is no forgery surface for
- * a policy to gate the way {@code doAs}/{@code callAs} must be gated.
+ * <h2>The three-tier caller-identity lookup (2026-07-21, retained: it now
+ * only OBTAINS the principals)</h2>
+ * The "current caller identity" is obtained from an injectable
+ * {@link CallerIdentity} so the gate is unit-testable without live TLS; the
+ * default, {@link #CURRENT_SUBJECT}, resolves the ambient {@link Subject}
+ * in three tiers, most-specific first: the DirtyChai
+ * {@code Subject.processWorker()} ambient {@code WorkerSubject} minted by
+ * the SSLEngine/TLS+SPIFFE keystone for a TLS-authenticated remote caller
+ * (structurally invisible to the other two tiers &mdash; see
+ * {@link #CURRENT_SUBJECT}'s javadoc); else {@code Subject.current()}
+ * (JDK&nbsp;18+), bound via {@code Subject.callAs}/{@code doAs}; else the
+ * legacy access-control-context read.  An unauthenticated caller (no
+ * resolvable {@code Subject}) is checked against an empty synthetic domain
+ * carrying no principals, exactly as
+ * {@code BasicInvocationDispatcher.checkClientPermission} does &mdash; only
+ * a policy that grants {@code SubProcessAdminPermission} to everyone would
+ * authorize it.
  *
  * @since 3.1.1
  */
@@ -226,6 +211,24 @@ public final class AdminPrincipalAuthenticator {
     }
 
     /**
+     * The empty {@link CodeSource} ({@code null} location and certificates)
+     * the synthetic caller domain is built over &mdash; the grant that
+     * satisfies this gate must be to the caller's principals alone, never
+     * qualified by what code is executing (mirrors
+     * {@code BasicInvocationDispatcher}'s {@code emptyCS}).
+     */
+    private static final CodeSource EMPTY_CODE_SOURCE =
+            new CodeSource(null, (Certificate[]) null);
+
+    /**
+     * The synthetic domain used for an unauthenticated caller: empty
+     * {@link CodeSource}, no permissions, no class loader, no principals
+     * (mirrors {@code BasicInvocationDispatcher}'s {@code emptyPD}).
+     */
+    private static final ProtectionDomain EMPTY_PROTECTION_DOMAIN =
+            new ProtectionDomain(EMPTY_CODE_SOURCE, null, null, null);
+
+    /**
      * The current caller's authenticated {@link Subject}, read in the same
      * three-tier priority order the rest of JGDMS's SSLEngine/TLS+SPIFFE
      * keystone uses:
@@ -253,28 +256,10 @@ public final class AdminPrincipalAuthenticator {
      * {@link UnsupportedOperationException}; that is caught and treated as
      * "no authenticated caller" (fail closed) &mdash; unchanged from before.
      *
-     * <h3>2026-07-21: added the {@code processWorker()} tier</h3>
-     * Before this change, {@code current()} tried only {@code Subject.current()}
-     * then the legacy {@code getSubject(ACC)} path &mdash; it never called
-     * {@code Subject.processWorker()}. That meant it could not see the
-     * ambient {@code WorkerSubject} the SSLEngine/TLS+SPIFFE keystone mints
-     * for a TLS-authenticated remote caller (see
-     * {@code net.jini.jeri.BasicInvocationDispatcher#invokeWithClientSubject},
-     * which explicitly branches on {@code isAmbientWorkerSubject} and does
-     * <em>not</em> pass a {@code WorkerSubject} through {@code Subject.doAs}/
-     * {@code callAs}, precisely because a {@code WorkerSubject} must never be
-     * captured that way): a caller authenticated purely by TLS/SPIFFE, with
-     * no JAAS login layered on top, was invisible to both of the tiers this
-     * class previously checked, and so could never be recognised as the
-     * admin regardless of its principals. Note that this new tier is
-     * <em>not</em> gated by {@code AuthPermission("callAs")}/
-     * {@code AuthPermission("doAs")} the way the tier below it is: unlike
-     * {@code doAs}/{@code callAs}, {@code processWorker()} takes no
-     * caller-supplied {@link Subject} argument to bind, so there is nothing
-     * for hosted/business code to forge by calling it &mdash; it only reads
-     * back whichever {@code WorkerSubject} the trusted transport
-     * infrastructure already established ambiently for the current execution
-     * context.
+     * <p>Under the 2026-07-21 redesign (see the class javadoc) the resolved
+     * {@code Subject} is no longer itself the authorization decision: its
+     * principals populate the synthetic {@link ProtectionDomain} the
+     * {@link SubProcessAdminPermission} check is evaluated against.
      */
     public static final CallerIdentity CURRENT_SUBJECT = new CallerIdentity() {
         @Override
@@ -306,103 +291,148 @@ public final class AdminPrincipalAuthenticator {
         }
     };
 
-    private final String requiredAdminCanonicalName;
     private final CallerIdentity callerIdentity;
 
     /**
-     * @param adminPrincipal the orchestrating admin principal that a caller
-     *        must prove to reach the policy admin surface; must not be null
      * @param callerIdentity source of the current caller's authenticated
      *        identity; must not be null
      */
-    public AdminPrincipalAuthenticator(Principal adminPrincipal,
-                                       CallerIdentity callerIdentity) {
-        if (adminPrincipal == null) {
-            throw new NullPointerException("adminPrincipal");
-        }
+    public AdminPrincipalAuthenticator(CallerIdentity callerIdentity) {
         if (callerIdentity == null) {
             throw new NullPointerException("callerIdentity");
         }
-        this.requiredAdminCanonicalName =
-                IsolationPoolingKey.canonicalName(adminPrincipal);
         this.callerIdentity = callerIdentity;
     }
 
     /**
+     * Checks whether the current caller is authorized for the named admin
+     * operation: builds a synthetic {@link ProtectionDomain} (empty
+     * {@link CodeSource}, {@code null} permissions, {@code null} class
+     * loader) carrying the principals of the caller's authenticated
+     * {@link Subject} (or no principals if the caller is unauthenticated),
+     * obtains an {@link AccessControlContext} over exactly that domain via
+     * the {@link Security#create(ProtectionDomain[])} factory, and submits
+     * {@code SubProcessAdminPermission(operation)} to the installed
+     * {@link SecurityManager}'s two-argument
+     * {@code checkPermission(perm, ctx)} &mdash; keeping the
+     * {@code SecurityManager} the single authorization chokepoint.  The
+     * check runs inside {@link AccessController#doPrivileged(PrivilegedAction)}
+     * so this library's own privilege performs it and the permission
+     * requirement does not go viral to constrained caller stacks.
+     *
+     * @param operation the guarded operation name, used as the
+     *        {@link SubProcessAdminPermission} target
+     *        ({@code getSubProcessPolicyAdmin}, {@code grant},
+     *        {@code refresh} or {@code getGrants}); must not be null
      * @return {@code true} iff a {@link SecurityManager} is installed AND
-     *         the current caller is authenticated as the orchestrating admin
-     *         principal. Always {@code false} when no {@code SecurityManager}
-     *         is installed &mdash; see the class javadoc: without one, the
-     *         ambient {@link Subject} this method reads cannot be trusted to
-     *         be genuinely authenticated rather than forged in-process, so
-     *         every caller is refused rather than any being trusted on an
-     *         unverifiable basis. <strong>An installed {@code
-     *         SecurityManager} is necessary but not sufficient</strong> for
-     *         the identity match below to mean anything: this method cannot
-     *         verify the installed instance's policy actually denies
-     *         {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")}
-     *         and {@code RuntimePermission("setSecurityManager")} to
-     *         hosted/business code (see the class javadoc's "NECESSARY, not
-     *         SUFFICIENT" section) &mdash; that is a deployment prerequisite
-     *         this class cannot observe or enforce from inside the JVM.
+     *         the deployed policy grants
+     *         {@code SubProcessAdminPermission(operation)} to the current
+     *         caller's authenticated principals. Always {@code false} when
+     *         no {@code SecurityManager} is installed &mdash; see the class
+     *         javadoc: without one there is nothing to submit the check to,
+     *         and the ambient {@link Subject} this method reads cannot be
+     *         trusted to be genuinely authenticated rather than forged
+     *         in-process. <strong>An installed {@code SecurityManager} is
+     *         necessary but not sufficient</strong> &mdash; see the class
+     *         javadoc's "NECESSARY, not SUFFICIENT" section for the
+     *         deployment prerequisites this class cannot itself verify.
+     * @throws NullPointerException if {@code operation} is null
+     * @throws IllegalArgumentException if {@code operation} does not match
+     *         {@link net.jini.security.AccessPermission}'s target syntax
      */
-    public boolean isAdmin() {
-        if (!securityManagerInstalled()) {
+    public boolean isAdmin(String operation) {
+        final SecurityManager sm = System.getSecurityManager();
+        final SubProcessAdminPermission perm =
+                new SubProcessAdminPermission(operation);
+        if (sm == null) {
             return false;
         }
         Subject s = callerIdentity.current();
-        if (s == null) return false;
-        Set<Principal> principals = s.getPrincipals();
-        if (principals == null || principals.isEmpty()) return false;
-        for (Principal p : principals) {
-            if (requiredAdminCanonicalName.equals(
-                    IsolationPoolingKey.canonicalName(p))) {
-                return true;
-            }
+        final ProtectionDomain pd;
+        if (s == null) {
+            pd = EMPTY_PROTECTION_DOMAIN;
+        } else {
+            Set<Principal> principals = s.getPrincipals();
+            pd = new ProtectionDomain(EMPTY_CODE_SOURCE, null, null,
+                    principals.toArray(new Principal[principals.size()]));
         }
-        return false;
+        try {
+            /*
+             * The single caller domain is built into an AccessControlContext
+             * via the interning factory (Security.create) and submitted to
+             * the installed SecurityManager, all inside doPrivileged: this
+             * trusted frame's own privilege (e.g. createAccessControlContext)
+             * applies, the factory returns a context of exactly {pd} -- no
+             * call-stack merge -- and the permission requirement does not
+             * leak to constrained caller stacks. Calling
+             * ProtectionDomain.implies directly would bypass the
+             * SecurityManager chokepoint; using the AccessControlContext
+             * constructor instead of the factory would forgo DirtyChai's
+             * virtual-thread-safe interning.
+             */
+            AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                @Override
+                public Void run() {
+                    AccessControlContext ctx =
+                            Security.create(new ProtectionDomain[]{ pd });
+                    sm.checkPermission(perm, ctx);
+                    return null;
+                }
+            });
+            return true;
+        } catch (SecurityException denied) {
+            return false;
+        }
     }
 
     /**
-     * Fail-closed assertion: throws unless {@link #isAdmin()} holds.
+     * Fail-closed assertion: throws unless {@link #isAdmin(String)} holds
+     * for {@code operation}.
      *
-     * @param operation short description of the guarded operation, for the
-     *        exception message
+     * @param operation the guarded operation name, used as the
+     *        {@link SubProcessAdminPermission} target and in the exception
+     *        message
      * @throws SecurityException if no {@link SecurityManager} is installed
-     *         (this class cannot verify the ambient {@link Subject} it would
-     *         read is genuine rather than forged; see the class javadoc), or
-     *         if the current caller is not the admin
+     *         (there is nothing to submit the permission check to, and this
+     *         class cannot verify the ambient {@link Subject} it would read
+     *         is genuine rather than forged; see the class javadoc), or if
+     *         the deployed policy does not grant
+     *         {@code SubProcessAdminPermission(operation)} to the current
+     *         caller's authenticated principals
      */
     public void requireAdmin(String operation) {
         if (!securityManagerInstalled()) {
             throw new SecurityException(
                 "Refused: no SecurityManager is installed in this JVM ("
-                + operation + " denied, fail-closed). Subject-name matching"
-                + " alone is not proof of identity: without an installed"
-                + " SecurityManager enforcing AuthPermission(\"callAs\")/"
-                + " AuthPermission(\"doAs\"), any code in this JVM can"
-                + " construct new Subject(true, {forged admin principal},"
-                + " ...) and bind it via Subject.callAs/Subject.doAs with no"
-                + " permission check at all, defeating the principal-name"
-                + " match this gate otherwise performs. This gate cannot"
-                + " distinguish that forged Subject from a genuinely"
-                + " authenticated one, so it refuses EVERY caller --"
-                + " including a genuine admin -- rather than silently trust"
-                + " an unverifiable Subject. NOTE: installing a"
-                + " SecurityManager is NECESSARY but NOT SUFFICIENT -- its"
-                + " policy must ALSO deny AuthPermission(\"callAs\"),"
-                + " AuthPermission(\"doAs\"), AND"
+                + operation + " denied, fail-closed). This gate authorizes by"
+                + " submitting SubProcessAdminPermission(\"" + operation
+                + "\") against the caller's authenticated principals to the"
+                + " installed SecurityManager; with none installed there is"
+                + " nothing to submit the check to, and the ambient Subject"
+                + " the principals are read from cannot be trusted either:"
+                + " without an installed SecurityManager enforcing"
+                + " AuthPermission(\"callAs\")/AuthPermission(\"doAs\"), any"
+                + " code in this JVM can construct new Subject(true, {forged"
+                + " admin principal}, ...) and bind it via"
+                + " Subject.callAs/Subject.doAs with no permission check at"
+                + " all. So it refuses EVERY caller -- including a genuine"
+                + " admin -- rather than silently trust an unverifiable"
+                + " Subject. NOTE: installing a SecurityManager is NECESSARY"
+                + " but NOT SUFFICIENT -- its policy must grant"
+                + " SubProcessAdminPermission targets only to the"
+                + " orchestrating admin principal(s), and must deny"
+                + " AuthPermission(\"callAs\"), AuthPermission(\"doAs\") AND"
                 + " RuntimePermission(\"setSecurityManager\") to"
-                + " untrusted/hosted business-proxy code (the last one so"
-                + " hosted code cannot simply install its own permissive"
-                + " SecurityManager and defeat the first two); see this"
-                + " class's javadoc for why all three are required.");
+                + " untrusted/hosted business-proxy code; see this class's"
+                + " javadoc for why all of these are required.");
         }
-        if (!isAdmin()) {
+        if (!isAdmin(operation)) {
             throw new SecurityException(
-                "Refused: caller is not authenticated as the orchestrating"
-                + " admin principal; " + operation + " denied (fail-closed)."
-                + " Interface declaration is not authority; authentication is.");
+                "Refused: the deployed policy does not grant"
+                + " SubProcessAdminPermission(\"" + operation + "\") to the"
+                + " current caller's authenticated principals; " + operation
+                + " denied (fail-closed). Interface declaration is not"
+                + " authority; an authenticated, policy-granted identity is.");
         }
     }
 
@@ -411,18 +441,14 @@ public final class AdminPrincipalAuthenticator {
      *         installed. This is the same idiom used throughout JGDMS (e.g.
      *         {@code PreferredClassProvider},
      *         {@code PreferredProxyCodebaseProvider}) to detect whether the
-     *         JDK will actually enforce permission checks -- in particular,
-     *         whether {@code Subject.doAs}/{@code callAs} will enforce
-     *         {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")}
-     *         against the calling code before allowing it to rebind the
-     *         ambient {@link Subject}. <strong>This alone does not verify
-     *         the installed instance's policy actually denies those
-     *         permissions</strong> (a permissive {@code SecurityManager}
-     *         satisfies this check while enforcing nothing) <strong>nor that
-     *         {@code RuntimePermission("setSecurityManager")} is denied to
-     *         hosted code</strong> (without which hosted code can simply
-     *         install its own permissive replacement) &mdash; see the class
-     *         javadoc's "NECESSARY, not SUFFICIENT" section.
+     *         JDK will actually enforce permission checks. <strong>This
+     *         alone does not verify the installed instance's policy grants
+     *         {@code SubProcessAdminPermission} only to the admin
+     *         principal(s), nor that it denies
+     *         {@code AuthPermission("callAs")/("doAs")} and
+     *         {@code RuntimePermission("setSecurityManager")} to hosted
+     *         code</strong> &mdash; see the class javadoc's "NECESSARY, not
+     *         SUFFICIENT" section.
      */
     private static boolean securityManagerInstalled() {
         return System.getSecurityManager() != null;
