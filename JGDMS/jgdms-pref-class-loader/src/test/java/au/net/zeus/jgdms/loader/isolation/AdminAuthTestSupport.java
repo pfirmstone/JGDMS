@@ -23,10 +23,14 @@ import java.security.Permissions;
 import java.security.Policy;
 import java.security.Principal;
 import java.security.ProtectionDomain;
+import java.security.cert.Certificate;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import javax.security.auth.Subject;
 import net.jini.security.AccessPermission;
+import net.jini.security.AdminAuthorizationContext;
 import org.junit.Assume;
 
 /**
@@ -150,6 +154,55 @@ final class AdminAuthTestSupport {
 
         @Override
         public void refresh() { }
+    }
+
+    /** The empty {@link CodeSource} the seam-style caller domains are built over. */
+    static final CodeSource EMPTY_CS = new CodeSource(null, (Certificate[]) null);
+
+    /**
+     * Builds a seam-style {@link AdminAuthorizationContext} carrier the way
+     * {@code net.jini.jeri.AdminAuthorizationAssembler} would: a single reducing
+     * domain over the empty {@link CodeSource} stamped with {@code principals}
+     * (the union of worker + verified-user principals), plus a matching verified
+     * user {@link Subject} so the gate's {@code Subject.callAs} path (recipe
+     * step&nbsp;4) is exercised exactly as in production.  Passing no principals
+     * yields an authenticated-but-empty identity (see {@link #emptyCarrier()}).
+     */
+    static AdminAuthorizationContext carrierFor(Principal... principals) {
+        Principal[] ps = (principals == null) ? new Principal[0] : principals.clone();
+        ProtectionDomain pd = new ProtectionDomain(EMPTY_CS, null, null, ps);
+        Subject user = new Subject(true,
+                new LinkedHashSet<Principal>(Arrays.asList(ps)),
+                Collections.emptySet(), Collections.emptySet());
+        return new AdminAuthorizationContext(
+                new ProtectionDomain[] { pd },
+                new Subject[] { user });
+    }
+
+    /**
+     * A carrier that carries NO principals at all (empty domain, no user
+     * subjects): the seam-shaped equivalent of an unauthenticated / no-grant
+     * caller, used to assert the gate fails closed even though a carrier is
+     * present.
+     */
+    static AdminAuthorizationContext emptyCarrier() {
+        ProtectionDomain pd = new ProtectionDomain(EMPTY_CS, null, null, null);
+        return new AdminAuthorizationContext(
+                new ProtectionDomain[] { pd }, new Subject[0]);
+    }
+
+    /**
+     * A mutable {@link AdminPrincipalAuthenticator.AdminContextSource} test
+     * double: the Option&nbsp;B replacement for the old {@code CallerIdentity}
+     * {@code Caller} stub.  Set {@link #ctx} to the carrier the seam would have
+     * supplied (or leave it {@code null} for an unauthenticated caller).
+     */
+    static final class MutableContextSource
+            implements AdminPrincipalAuthenticator.AdminContextSource {
+        volatile AdminAuthorizationContext ctx;
+        MutableContextSource() { }
+        MutableContextSource(AdminAuthorizationContext ctx) { this.ctx = ctx; }
+        @Override public AdminAuthorizationContext current() { return ctx; }
     }
 
     /** The four operation names {@code SubProcessPolicyAdmin} threads through. */

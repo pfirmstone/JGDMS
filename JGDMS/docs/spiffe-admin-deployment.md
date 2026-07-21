@@ -617,16 +617,26 @@ permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
 
 Unlike the grants above (permissions the trusted `SpiffeCredentialManager` code
 itself needs), this section covers what the deployed policy must grant — and,
-just as importantly, must **deny** — for the subprocess policy-admin gate.
+just as importantly, must **deny** — plus one required transport registration,
+for the subprocess policy-admin gate.
+
 `au.net.zeus.jgdms.loader.isolation.AdminPrincipalAuthenticator` (the
 in-process gate on the subprocess policy-admin surface used by smart-proxy
-isolation) authorizes by a **permission check** (2026-07-21 redesign): it
-builds a synthetic `ProtectionDomain` carrying only the caller's authenticated
-principals and submits `SubProcessAdminPermission("<operation>")` — target =
-the operation name (`getSubProcessPolicyAdmin`, `grant`, `refresh`,
-`getGrants`) — to the installed `SecurityManager`'s two-argument
-`checkPermission(perm, ctx)`. The deployed policy, not the code, names the
-admin.
+isolation) is, under the **2026-07-21 board-ratified "Option B" redesign**, a
+pure *identity → permit/deny* function. It does **not** determine the caller's
+identity itself (it reads no ambient `Subject.current()`/`currentAll()` and no
+`Subject.processWorker()`). Instead the identity is assembled once at the
+trusted JERI dispatch seam (`net.jini.jeri.BasicInvocationDispatcher`), which
+holds the verified mTLS connection (the authenticated worker SPIFFE principal)
+and validates the caller's JWT USER tokens, reconstructing their principals
+from the **verified claims alone**. The seam packages that identity into a
+`net.jini.security.AdminAuthorizationContext` carrier (a `DomainIdentity[]`
+stamped with the worker + verified user principals, plus the user `Subject`s)
+and publishes it as a `ServerContext` element; the gate consumes exactly that
+carrier and submits `SubProcessAdminPermission("<operation>")` — target = the
+operation name (`getSubProcessPolicyAdmin`, `grant`, `refresh`, `getGrants`) —
+to the installed `SecurityManager`'s two-argument `checkPermission(perm, ctx)`.
+The deployed policy, not the code, names the admin.
 
 **Positive prerequisite — the policy must grant the admin.** Grant
 `SubProcessAdminPermission` with the **bare per-operation target names** to
@@ -639,42 +649,56 @@ qualified targets (e.g. `"...PolicyAdmin.grant"`) silently never match — see
 `SubProcessAdminPermission`'s javadoc. With no such grant in the policy, the
 gate refuses everyone, including a genuinely authenticated admin.
 
-**Deny prerequisites.** The permission check means nothing unless the
-deployed policy also denies **all three** of the following to every
-hosted/business protection domain (2026-07-20 board finding, retained under
-the redesign):
+**Required transport registration — a signature-verifying `JwtVerifier`.**
+Under Option B the caller's USER principals are exactly what the seam's
+`JwtVerifier.verifyAndExtractPrincipals(...)` returns for the presented
+token(s). The built-in fallback `DefaultJwtVerifier` performs only a
+structural claims check (`exp`/`iat`/`iss`/`aud`) and **signs nothing**, so a
+peer can present a self-minted token bearing the admin's `sub` and the gate
+will authorize over principals no trust anchor vouched for. A deployment that
+authorizes admin operations on a **JWT-derived** user identity MUST therefore
+register a signature-verifying (JWKS-backed) `JwtVerifier` at the seam via
+`net.jini.jeri.BasicInvocationDispatcher.setJwtVerifier(JwtVerifier)`. (The
+worker SPIFFE principal is independently bound by the verified mTLS
+connection, so a deployment that authorizes admin operations solely on the
+worker SVID does not depend on this registration — but any JWT-derived admin
+authority does.)
 
-- `javax.security.auth.AuthPermission "callAs"`
-- `javax.security.auth.AuthPermission "doAs"`
-- `java.lang.RuntimePermission "setSecurityManager"`
+**Deny prerequisites.**
 
-Any one of these left ungranted-but-not-explicitly-denied by an otherwise
-permissive/`AllPermission` policy defeats the gate: hosted code can forge a
-`Subject` naming a granted admin principal and bind it via
-`Subject.callAs`/`doAs` (the first two), or — if only those two are denied —
-simply install its own permissive `SecurityManager` first (the third) and
-then forge the `Subject` against that.
+- `java.lang.RuntimePermission "setSecurityManager"` MUST be denied to every
+  hosted/business protection domain: otherwise hosted code can replace the
+  restrictive `SecurityManager` with a permissive one of its own and authorize
+  every carrier (reproduced in
+  `IsolationSecurityCriticalTest.hostedCodeReplacingTheSecurityManager_authorizesEveryCarrier`).
+- `javax.security.auth.AuthPermission "callAs"` / `"doAs"`: denying these to
+  hosted code remains good hygiene, but under Option B it is **no longer the
+  load-bearing control it was under the R2 design**. The gate authorizes over
+  the seam-assembled carrier, never the ambient `Subject`, so a hosted domain
+  that forges and binds a `Subject` naming the admin gains nothing — the pure
+  gate ignores it (reproduced in
+  `IsolationSecurityCriticalTest.forgedAmbientSubject_ignoredByPureGate_evenWhenBound`).
+  These permissions must, of course, be **granted** to the trusted JERI /
+  gate library domains, which perform the seam `callAs(userSubjects)` and the
+  gate's belt-and-braces `callAs`.
 
 **A permissive or no-op `SecurityManager` authorizes everyone — by design.**
 Because the gate's whole decision is the submitted permission check, a
 `SecurityManager` whose `checkPermission(perm, ctx)` allows everything (or a
 policy granting `SubProcessAdminPermission` broadly) authorizes **every**
-caller — the forgery no longer even needs to name the admin principal. An
-installed `SecurityManager` is *necessary* (with none installed the gate
-refuses everyone, fail-closed) but never *sufficient*: the deployed policy is
-the whole guarantee. See `AdminPrincipalAuthenticator`'s class javadoc,
-section "NECESSARY, not SUFFICIENT", for the full reasoning and the
+carrier. An installed `SecurityManager` is *necessary* (with none installed
+the gate refuses everyone, fail-closed) but never *sufficient*: the deployed
+policy is the whole guarantee. See `AdminPrincipalAuthenticator`'s class
+javadoc, section "NECESSARY, not SUFFICIENT", for the full reasoning and the
 adversarial reproductions in `IsolationSecurityCriticalTest`.
 
-**Remote callers (normative).** `AdminPrincipalAuthenticator`'s default
-identity source resolves the *ambient* (`callAs`/`doAs`-bound) `Subject`
-only. A remote TLS+SPIFFE caller's principals are connection-derived and are
-never on the receiving thread's ambient subject, so deployments dispatching
-remote callers to this gate MUST inject a connection-derived `CallerIdentity`
-(the `Util.getClientSubject()` equivalent used by
-`BasicInvocationDispatcher`) through the constructor seam at T4 wiring time;
-with the default, a remote caller is refused as unauthenticated
-(fail-closed).
+**Remote callers.** No per-deployment identity injection is required under
+Option B: the JERI dispatch seam publishes the assembled
+`AdminAuthorizationContext` as a `ServerContext` element for every request
+that carries identity fields (protocol `0x02`), and the gate's default source
+`AdminPrincipalAuthenticator.CURRENT_CONTEXT` resolves it. Outside a remote
+call (no server context) the default source resolves no carrier and the gate
+fails closed.
 
 **CLOSED 2026-07-20 (was: known pre-existing gap, not specific to SPIFFE/SPIRE deployment).** The 7
 `qa/harness/policy/defaultspiffe*.policy` files (mahalo, outrigger, reggie, fiddler, group, mercury,

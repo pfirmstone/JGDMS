@@ -32,6 +32,9 @@ import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.export.ServerContext;
+import net.jini.security.AdminAuthorizationContext;
+import au.net.zeus.jgdms.loader.isolation.AdminAuthTestSupport.MutableContextSource;
 import org.apache.river.api.security.PermissionGrant;
 import org.junit.Assume;
 import org.junit.Test;
@@ -243,10 +246,8 @@ public class IsolationSecurityCriticalTest {
                 Collections.<Object>emptySet());
     }
 
-    /** Injectable caller identity holder. */
-    static final class Caller implements AdminPrincipalAuthenticator.CallerIdentity {
-        volatile Subject subject;
-        public Subject current() { return subject; }
+    private static AdminAuthorizationContext carrierFor(Principal... ps) {
+        return AdminAuthTestSupport.carrierFor(ps);
     }
 
     private final Principal admin = name("spiffe://ctrl/admin");
@@ -333,7 +334,7 @@ public class IsolationSecurityCriticalTest {
     @Test
     public void unauthenticatedCaller_getAdminFailsClosed() throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            Caller caller = new Caller();       // subject == null
+            MutableContextSource caller = new MutableContextSource();  // ctx == null
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(), caller);
             try {
@@ -347,8 +348,8 @@ public class IsolationSecurityCriticalTest {
     @Test
     public void wronglyAuthenticatedCaller_getAdminFailsClosed() throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(name("spiffe://ctrl/not-admin"));
+            MutableContextSource caller = new MutableContextSource(
+                    carrierFor(name("spiffe://ctrl/not-admin")));
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(), caller);
             try {
@@ -362,8 +363,7 @@ public class IsolationSecurityCriticalTest {
     @Test
     public void adminCaller_getsUsableProxy_operationsDispatch() throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(admin);
+            MutableContextSource caller = new MutableContextSource(carrierFor(admin));
             TrustedPolicyBacking backing = new TrustedPolicyBacking();
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
 
@@ -378,17 +378,17 @@ public class IsolationSecurityCriticalTest {
     @Test
     public void capturedProxy_reGatesOnEveryOperation_forNonAdmin()
             throws Exception {
-        // An admin obtains the proxy, then the caller identity drops to a
-        // non-admin (e.g. the reference leaks / is replayed by another party).
-        // Every subsequent operation must re-check and fail closed.
+        // An admin obtains the proxy, then the seam-supplied identity drops to
+        // a non-admin (e.g. a subsequent call on the same source carries a
+        // different caller's carrier).  Every operation must re-check and fail
+        // closed.
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(admin);
+            MutableContextSource caller = new MutableContextSource(carrierFor(admin));
             TrustedPolicyBacking backing = new TrustedPolicyBacking();
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
 
             PolicyAdmin pa = s.getSubProcessPolicyAdmin();     // captured while admin
-            caller.subject = subjectWith(name("spiffe://ctrl/attacker"));
+            caller.ctx = carrierFor(name("spiffe://ctrl/attacker"));
             try {
                 pa.grant(null);
                 fail("captured proxy must re-gate and refuse a non-admin caller");
@@ -402,8 +402,7 @@ public class IsolationSecurityCriticalTest {
     public void adminProxyCarriesStricterConstraints_integrityAndAdminPrincipal()
             throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(admin);
+            MutableContextSource caller = new MutableContextSource(carrierFor(admin));
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(), caller);
 
@@ -424,8 +423,7 @@ public class IsolationSecurityCriticalTest {
     @Test
     public void constraintsCannotBeWeakenedByClient() throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            Caller caller = new Caller();
-            caller.subject = subjectWith(admin);
+            MutableContextSource caller = new MutableContextSource(carrierFor(admin));
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(), caller);
             RemoteMethodControl pa = (RemoteMethodControl) s.getSubProcessPolicyAdmin();
@@ -442,42 +440,34 @@ public class IsolationSecurityCriticalTest {
     }
 
     // ==================================================================
-    // (#3, S1, 2026-07-20 board finding) Fail-closed without a
-    // SecurityManager, and blocking the forged-Subject exploit.
+    // (#3, S1) Fail-closed without a SecurityManager, and the Option B
+    // treatment of ambient-Subject forgery and SecurityManager boundaries.
     // ==================================================================
 
     /**
-     * The core regression for the board finding: with NO SecurityManager
-     * installed -- today's default state for, e.g., the subprocess dispatch
-     * thread in {@code SubProcessReconstructionServer#dispatchInvoke} --
+     * The core regression for the 2026-07-20 board finding, retained under
+     * Option&nbsp;B: with NO SecurityManager installed
      * {@link AdminPrincipalAuthenticator} must refuse EVERY caller, including
-     * one whose {@link Subject} genuinely (not via any forgery) carries the
-     * admin principal. Without an installed SecurityManager this class has
-     * no way to tell a genuine binding from a forged one, so it must not
-     * trust either.
+     * one whose seam-assembled carrier genuinely carries the admin principal
+     * -- with no SecurityManager there is nothing to submit the permission
+     * check to.
      */
     @Test
     public void noSecurityManagerInstalled_refusesEvenAGenuineAdminSubject() {
-        // Surefire reuses one JVM across this whole module by default, and
-        // some JDKs (e.g. the DirtyChai build) refuse to revert an installed
-        // SecurityManager back to null once one has been set -- so an
-        // earlier test in this shared JVM may have permanently left one
-        // installed. Skip rather than force a fragile run-order dependency;
-        // the "no SecurityManager installed at all" scenario (today's actual
-        // default deployment state) is independently, authoritatively
-        // reproduced in a pristine JVM as part of this fix's verification.
+        // Surefire reuses one JVM across this whole module by default, and some
+        // JDKs (e.g. the DirtyChai build) refuse to revert an installed
+        // SecurityManager back to null once one has been set -- so an earlier
+        // test in this shared JVM may have permanently left one installed.
         Assume.assumeTrue("skipped: a SecurityManager is already installed in"
                 + " this (possibly shared/reused) test JVM by an earlier test",
                 System.getSecurityManager() == null);
-        Caller caller = new Caller();
-        caller.subject = subjectWith(admin);   // genuinely the admin principal
+        MutableContextSource caller = new MutableContextSource(carrierFor(admin));
         TrustedPolicyBacking backing = new TrustedPolicyBacking();
         SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
         try {
             s.getSubProcessPolicyAdmin();
-            fail("must refuse even a genuine admin Subject when no"
-                    + " SecurityManager is installed (fail-closed on an"
-                    + " unverifiable ambient Subject)");
+            fail("must refuse even a genuine admin carrier when no"
+                    + " SecurityManager is installed (fail-closed)");
         } catch (SecurityException expected) {
             assertTrue("exception must explain the SecurityManager is missing",
                     expected.getMessage().contains("SecurityManager"));
@@ -488,211 +478,122 @@ public class IsolationSecurityCriticalTest {
     }
 
     /**
-     * Reproduces the T4 board finding's exploit shape end-to-end through the
-     * REAL production wiring -- {@link AdminPrincipalAuthenticator#CURRENT_SUBJECT}
-     * (not the injectable test stub) and {@code Subject.callAs} (JDK&nbsp;18+,
-     * exactly what a hosted business object's own method body would use) --
-     * with a {@link SecurityManager} installed whose policy denies
-     * {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")} to the
-     * calling code, exactly as a least-privilege policy would for
-     * hosted/business protection domains. The forged {@link Subject} must
-     * never even successfully bind: {@code Subject.callAs} itself throws
-     * before {@link AdminPrincipalAuthenticator} is ever reached.
+     * Option&nbsp;B security property (stronger than the R2 design it
+     * replaces): the pure gate <strong>ignores the ambient {@link Subject}
+     * entirely</strong>.  Even a forged ambient subject that names the admin,
+     * successfully bound via {@code Subject.callAs} (this test's SM allows the
+     * binding), does NOT authorize the caller: the gate authorizes only over
+     * the seam-supplied carrier, which the attacker cannot forge.  So under
+     * Option&nbsp;B the ambient-forgery vector the R2 design depended on
+     * denying {@code AuthPermission("callAs")} to defeat is closed by
+     * construction -- forging the ambient subject achieves nothing.  Here the
+     * real default source {@link AdminPrincipalAuthenticator#CURRENT_CONTEXT}
+     * finds no carrier (no ServerContext for this thread) and fails closed.
      */
     @Test
-    public void forgedSubjectViaCallAs_blockedBeforeReachingTheGate_whenSMDeniesRebind()
+    public void forgedAmbientSubject_ignoredByPureGate_evenWhenBound()
             throws Exception {
-        withSecurityManager(new DenySubjectRebindSecurityManager(), () -> {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             TrustedPolicyBacking backing = new TrustedPolicyBacking();
             final SubProcessPolicyAdmin realAdminSurface = new SubProcessPolicyAdmin(
-                    admin, backing, AdminPrincipalAuthenticator.CURRENT_SUBJECT);
+                    admin, backing, AdminPrincipalAuthenticator.CURRENT_CONTEXT);
 
             Subject forged = subjectWith(admin); // attacker-forged, names the admin
-            try {
-                Object outcome = callAs(forged, new Callable<Object>() {
-                    public Object call() {
-                        try {
-                            PolicyAdmin pa = realAdminSurface.getSubProcessPolicyAdmin();
-                            pa.grant(null);
-                            return "SHOULD NOT REACH HERE";
-                        } catch (Exception e) {
-                            return e;
-                        }
+            Object outcome = callAs(forged, new Callable<Object>() {
+                public Object call() {
+                    try {
+                        PolicyAdmin pa = realAdminSurface.getSubProcessPolicyAdmin();
+                        pa.grant(null);
+                        return "FORGED AMBIENT SUBJECT REACHED grant()";
+                    } catch (Exception e) {
+                        return e;
                     }
-                });
-                if (outcome == SKIP) return;   // callAs unavailable on this JDK
-                fail("expected Subject.callAs itself to throw (its own"
-                        + " AuthPermission(\"callAs\") check denied by the"
-                        + " test SM) before the forged Subject ever bound;"
-                        + " instead the call completed with: " + outcome);
-            } catch (java.lang.reflect.InvocationTargetException expected) {
-                // Subject.callAs's own permission check fires before the
-                // lambda body (and therefore AdminPrincipalAuthenticator)
-                // ever runs -- the forged Subject never even binds.
-                Throwable cause = expected.getCause();
-                assertTrue("expected a SecurityException from the denied"
-                        + " AuthPermission, got: " + cause,
-                        cause instanceof SecurityException);
-            }
-            assertEquals("the hosted backing must never have been reached",
+                }
+            });
+            if (outcome == SKIP) return;   // callAs unavailable on this JDK
+            assertTrue("a forged ambient Subject must NOT authorize the pure"
+                    + " gate (it authorizes over the seam carrier only): "
+                    + outcome, outcome instanceof SecurityException);
+            assertEquals("the forged ambient caller must never reach the backing",
                     0, backing.grantCalls);
         });
     }
 
     /**
-     * 2026-07-20 two-seat board re-review finding #1 (both seats found this
-     * independently): {@link AdminPrincipalAuthenticator}'s fix checks only
-     * "is <em>some</em> SecurityManager installed" -- that is NECESSARY but
-     * NOT SUFFICIENT. A {@code SecurityManager} whose policy is permissive
-     * (grants everything, including to hosted/business code) satisfies the
-     * check while enforcing nothing: {@code Subject.callAs} performs its
-     * {@code AuthPermission("callAs")} check against that permissive
-     * instance, which allows it, so the forged {@link Subject} binds exactly
-     * as it would with no {@code SecurityManager} at all, and the exploit
-     * succeeds through the real production wiring. This is a PERMANENT
-     * regression documenting a known, board-confirmed boundary of this
-     * class's guarantee (see the class javadoc's "NECESSARY, not
-     * SUFFICIENT" section) -- it intentionally asserts the attack
-     * SUCCEEDS, so a future reader sees the limitation is known and covered,
-     * not silently reintroduced or newly discovered by adversarial probing.
-     * (Under the 2026-07-21 permission-check redesign the boundary is, if
-     * anything, sharper: a permissive SecurityManager's two-argument
-     * checkPermission trivially allows the SubProcessAdminPermission check
-     * for EVERY caller, so the forgery no longer even needs to name the
-     * admin principal -- the deployed policy is the whole guarantee.)
+     * Boundary, retained under Option&nbsp;B: "a SecurityManager is installed"
+     * is NECESSARY but NOT SUFFICIENT.  A permissive {@code SecurityManager}
+     * (two-argument {@code checkPermission} a no-op) authorizes EVERY carrier
+     * -- even one carrying a non-admin principal -- because the deployed policy
+     * is the whole guarantee.  PERMANENT regression: intentionally asserts the
+     * check SUCCEEDS for a non-admin, documenting a known boundary (see the
+     * class javadoc's "NECESSARY, not SUFFICIENT" section).
      */
     @Test
-    public void permissiveSecurityManager_stillLetsTheForgeryThrough()
+    public void permissiveSecurityManager_authorizesEveryCarrier()
             throws Exception {
         withSecurityManager(new AllowAllSecurityManager(), () -> {
             TrustedPolicyBacking backing = new TrustedPolicyBacking();
-            final SubProcessPolicyAdmin realAdminSurface = new SubProcessPolicyAdmin(
-                    admin, backing, AdminPrincipalAuthenticator.CURRENT_SUBJECT);
+            // A carrier for a principal the (real) admin policy never granted;
+            // under a permissive SM it is authorized regardless.
+            MutableContextSource caller = new MutableContextSource(
+                    carrierFor(name("spiffe://ctrl/not-admin")));
+            SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
 
-            Subject forged = subjectWith(admin); // attacker-forged, names the admin
-            Object outcome = callAs(forged, new Callable<Object>() {
-                public Object call() {
-                    try {
-                        PolicyAdmin pa = realAdminSurface.getSubProcessPolicyAdmin();
-                        pa.grant(null);
-                        return "FORGED SUBJECT REACHED grant()";
-                    } catch (Exception e) {
-                        return e;
-                    }
-                }
-            });
-            if (outcome == SKIP) return;   // callAs unavailable on this JDK
+            PolicyAdmin pa = s.getSubProcessPolicyAdmin();  // permissive SM -> granted
+            pa.grant(null);
+            assertEquals("a permissive-but-installed SecurityManager authorizes"
+                    + " every carrier -- documented boundary; closing it is the"
+                    + " deployed policy's job", 1, backing.grantCalls);
+        });
+    }
 
-            assertEquals("a merely-installed-but-permissive SecurityManager"
-                    + " does not stop the forgery -- this is the documented"
-                    + " boundary of the fix, not a regression to be fixed"
-                    + " here; closing it requires the DEPLOYED POLICY to"
-                    + " deny AuthPermission(\"callAs\")/(\"doAs\") to hosted"
-                    + " code, which this test's SecurityManager deliberately"
-                    + " does not, to demonstrate exactly that gap",
-                    "FORGED SUBJECT REACHED grant()", outcome);
-            assertEquals("the forged caller's grant(null) DID reach the"
-                    + " trusted backing under a permissive-but-installed SM",
+    /**
+     * Boundary, retained under Option&nbsp;B: a policy that fails to deny
+     * {@code RuntimePermission("setSecurityManager")} to hosted code lets that
+     * code replace the restrictive {@code SecurityManager} with a permissive
+     * one and authorize every carrier.  PERMANENT regression documenting the
+     * board-confirmed boundary.
+     */
+    @Test
+    public void hostedCodeReplacingTheSecurityManager_authorizesEveryCarrier()
+            throws Exception {
+        withSecurityManager(new DenySubjectRebindSecurityManager(), () -> {
+            // "Hosted/business code" replaces the restrictive SM with a
+            // permissive one -- succeeds because RuntimePermission
+            // ("setSecurityManager") was never denied by the SM being replaced.
+            System.setSecurityManager(new AllowAllSecurityManager());
+
+            TrustedPolicyBacking backing = new TrustedPolicyBacking();
+            MutableContextSource caller = new MutableContextSource(
+                    carrierFor(name("spiffe://ctrl/not-admin")));
+            SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
+
+            PolicyAdmin pa = s.getSubProcessPolicyAdmin();
+            pa.grant(null);
+            assertEquals("replacing the SecurityManager with a permissive one"
+                    + " (RuntimePermission(\"setSecurityManager\") not denied)"
+                    + " authorizes every carrier -- documented boundary",
                     1, backing.grantCalls);
         });
     }
 
     /**
-     * 2026-07-20 two-seat board re-review finding #2: even a
-     * {@code SecurityManager} whose policy correctly denies
-     * {@code AuthPermission("callAs")}/{@code AuthPermission("doAs")} (this
-     * test reuses {@link DenySubjectRebindSecurityManager}, the same double
-     * that proves the defence works in
-     * {@link #forgedSubjectViaCallAs_blockedBeforeReachingTheGate_whenSMDeniesRebind})
-     * is defeated if that policy does not <em>also</em> deny
-     * {@code RuntimePermission("setSecurityManager")}: hosted/business code
-     * can simply replace the installed {@code SecurityManager} with a
-     * permissive one of its own construction, then replay the forgery
-     * against the new installation. {@code DenySubjectRebindSecurityManager}
-     * does not override {@code RuntimePermission("setSecurityManager")}
-     * handling (it only intercepts the two {@code AuthPermission} checks),
-     * so {@code System.setSecurityManager} succeeds here exactly as it would
-     * for genuinely hosted code under an AuthPermission-only-denying policy
-     * -- reproducing the second board seat's exact probe. PERMANENT
-     * regression: documents this specific, board-confirmed boundary of the
-     * fix (see the class javadoc's "NECESSARY, not SUFFICIENT" section) so
-     * a future reader sees it is known and covered.
+     * Second, independent line of defence: under a correct restrictive policy,
+     * the gate refuses a caller whose seam-supplied carrier carries principals
+     * the deployed policy has not granted {@code SubProcessAdminPermission} --
+     * the per-operation permission grant itself, not a name match.
      */
     @Test
-    public void hostedCodeReplacingTheSecurityManager_defeatsAnAuthPermissionOnlyPolicy_unlessSetSecurityManagerIsAlsoDenied()
-            throws Exception {
-        withSecurityManager(new DenySubjectRebindSecurityManager(), () -> {
-            // "Hosted/business code" (this test body, standing in for it)
-            // replaces the restrictive SecurityManager with a permissive one
-            // of its own -- succeeds because RuntimePermission
-            // ("setSecurityManager") was never denied by the SM being
-            // replaced.
-            System.setSecurityManager(new AllowAllSecurityManager());
-
-            TrustedPolicyBacking backing = new TrustedPolicyBacking();
-            final SubProcessPolicyAdmin realAdminSurface = new SubProcessPolicyAdmin(
-                    admin, backing, AdminPrincipalAuthenticator.CURRENT_SUBJECT);
-
-            Subject forged = subjectWith(admin);
-            Object outcome = callAs(forged, new Callable<Object>() {
-                public Object call() {
-                    try {
-                        PolicyAdmin pa = realAdminSurface.getSubProcessPolicyAdmin();
-                        pa.grant(null);
-                        return "FORGED SUBJECT REACHED grant() AFTER REPLACING THE SM";
-                    } catch (Exception e) {
-                        return e;
-                    }
-                }
-            });
-            if (outcome == SKIP) return;   // callAs unavailable on this JDK
-
-            assertEquals("replacing the SecurityManager (permitted because"
-                    + " RuntimePermission(\"setSecurityManager\") was not"
-                    + " denied) let the forgery through despite the ORIGINAL"
-                    + " SM correctly denying AuthPermission(\"callAs\")/"
-                    + "(\"doAs\") -- this is the documented boundary of the"
-                    + " fix: the deployed policy must deny"
-                    + " RuntimePermission(\"setSecurityManager\") to hosted"
-                    + " code too, or an AuthPermission-only policy provides"
-                    + " no real protection",
-                    "FORGED SUBJECT REACHED grant() AFTER REPLACING THE SM",
-                    outcome);
-            assertEquals(1, backing.grantCalls);
-        });
-    }
-
-    /**
-     * Same forged-Subject shape, but proves the SECOND, independent line of
-     * defence: even in a hypothetical where {@code Subject.callAs} succeeded
-     * in binding the forged Subject (e.g. a misconfigured policy that DOES
-     * grant {@code AuthPermission("callAs")} to hosted code), the admin gate
-     * still refuses a caller whose principals the deployed policy has not
-     * granted {@code SubProcessAdminPermission} -- under the 2026-07-21
-     * redesign that second line of defence is the per-operation permission
-     * grant itself, not a name match. (Uses the injectable {@link Caller}
-     * stub to model "forged Subject successfully bound", since binding one
-     * for real requires the permission this test is deliberately NOT about.)
-     * NOTE the boundary this deliberately documents: a forged Subject that
-     * names the GRANTED admin principal WOULD be authorized -- which is
-     * exactly why the AuthPermission("callAs")/("doAs") deployment
-     * prerequisite in the class javadoc is retained under the redesign.
-     */
-    @Test
-    public void evenIfRebindingSucceeded_wrongCallerStillRefused_underSM()
+    public void nonAdminCarrier_refused_underRestrictiveSM()
             throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            Caller caller = new Caller();
+            MutableContextSource caller = new MutableContextSource(
+                    carrierFor(name("spiffe://ctrl/attacker")));
             TrustedPolicyBacking backing = new TrustedPolicyBacking();
             SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(admin, backing, caller);
-
-            // Not granted -- even though "binding" (setting caller.subject)
-            // trivially "succeeded" here, the gate must still refuse.
-            caller.subject = subjectWith(name("spiffe://ctrl/attacker"));
             try {
                 s.getSubProcessPolicyAdmin();
-                fail("ungranted principal must be refused even when a SecurityManager"
-                        + " is installed and Subject-rebinding itself succeeded");
+                fail("a carrier for an ungranted principal must be refused");
             } catch (SecurityException expected) { /* good */ }
             assertEquals(0, backing.grantCalls);
         });
@@ -701,9 +602,7 @@ public class IsolationSecurityCriticalTest {
     /**
      * Binds {@code subject} as the current Subject via {@code Subject.callAs}
      * (JDK 18+ / DirtyChai) reflectively, so this test stays {@code -release 8}
-     * source-compatible and works on a JDK 25 where {@code Subject.doAs} /
-     * {@code getSubject} are unsupported with the SecurityManager disabled.
-     * Returns null (skip) if {@code callAs} is unavailable.
+     * source-compatible.  Returns {@link #SKIP} if {@code callAs} is unavailable.
      */
     private static Object callAs(Subject subject, Callable<Object> action)
             throws Exception {
@@ -717,105 +616,76 @@ public class IsolationSecurityCriticalTest {
     }
     private static final Object SKIP = new Object();
 
-    @Test
-    public void realCurrentSubjectPath_enforcesAdmin() throws Exception {
-        // Exercise the DEFAULT mechanism (Subject.current()), not just the
-        // injected identity, on the real runtime path. The full redesigned
-        // authorization scaffold is installed throughout (context-evaluating
-        // SecurityManager + policy granting the operation targets to the
-        // admin principal only; the callAs/doAs permission check itself is
-        // covered separately by
-        // forgedSubjectViaCallAs_blockedBeforeReachingTheGate_whenSMDeniesRebind)
-        // so the "admin subject in context -> succeeds" branch actually
-        // exercises the permission-grant logic rather than failing closed
-        // for the unrelated reason of no SecurityManager being installed.
-        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
-            final SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
-                    admin, new TrustedPolicyBacking(),
-                    AdminPrincipalAuthenticator.CURRENT_SUBJECT);
-
-            // No current Subject -> fail closed.
-            try {
-                s.getSubProcessPolicyAdmin();
-                fail("no ambient Subject must fail closed");
-            } catch (SecurityException expected) { /* good */ }
-
-            // Running as the admin subject -> succeeds.
-            Object ok = callAs(subjectWith(admin), new Callable<Object>() {
-                public Object call() {
-                    try { return s.getSubProcessPolicyAdmin(); }
-                    catch (Exception e) { return e; }
-                }
-            });
-            if (ok == SKIP) return;   // callAs unavailable on this JDK
-            assertTrue("admin subject in context must obtain the proxy: " + ok,
-                    ok instanceof PolicyAdmin);
-
-            // Running as an ungranted subject -> fail closed.
-            Object bad = callAs(subjectWith(name("spiffe://ctrl/x")),
-                    new Callable<Object>() {
-                public Object call() {
-                    try { return s.getSubProcessPolicyAdmin(); }
-                    catch (Exception e) { return e; }
-                }
-            });
-            assertTrue("ungranted subject in context must fail closed",
-                    bad instanceof SecurityException);
-        });
-    }
-
     // ==================================================================
-    // (2026-07-21 board round 2, F1) CURRENT_SUBJECT resolves the AMBIENT
-    // subject only: Subject.current() (JDK 18+/DirtyChai), else the legacy
-    // getSubject(ACC) read. Subject.processWorker() was REMOVED from the
-    // identity path: it returns this process's OWN SPIRE workload identity
-    // (SpiffeCredentialManager singleton), never a remote caller's, and on
-    // a configured deployment it always returns non-null, so it would have
-    // shadowed the genuine tiers. Remote TLS+SPIFFE callers require a
-    // connection-derived CallerIdentity injected at T4 wiring time (see
-    // AdminPrincipalAuthenticator's class javadoc, normative requirement).
+    // (Option B) The real default source resolves the seam-assembled carrier
+    // from the ServerContext -- the production handoff the seam performs via
+    // context.add(adminAuthorizationContext) in BasicInvocationDispatcher.
     // ==================================================================
 
     /**
-     * Graceful-degradation guard for the remaining ambient tiers, on both
-     * JDK shapes this module is built/run against (vanilla JDK: reflective
-     * {@code Subject.current()} absent pre-18, legacy path throws
-     * {@link UnsupportedOperationException} with the SecurityManager
-     * disabled on 24+; DirtyChai: {@code Subject.current()} present):
-     * with no ambient subject bound, {@link
-     * AdminPrincipalAuthenticator#CURRENT_SUBJECT} must resolve
-     * "unauthenticated" and the gate fails closed, never throws from
-     * identity acquisition; with the granted admin subject bound via
-     * {@code Subject.callAs}, it must be recognised. Exercises the real
-     * production {@code CURRENT_SUBJECT} field (not the injectable stub),
-     * the same real-path style as {@code realCurrentSubjectPath_enforcesAdmin}.
+     * Exercises the real production default
+     * {@link AdminPrincipalAuthenticator#CURRENT_CONTEXT} end-to-end through the
+     * {@code ServerContext} handoff the JERI seam performs: the seam publishes
+     * the assembled {@link AdminAuthorizationContext} as a server-context
+     * element, and {@code CURRENT_CONTEXT} resolves it.  An admin carrier in
+     * context obtains the proxy; a non-admin carrier fails closed; no context at
+     * all fails closed (and never throws from identity acquisition).
      */
     @Test
-    public void ambientTiers_degradeGracefully_onBothJdkShapes()
+    public void realDefaultSource_resolvesSeamCarrierFromServerContext()
             throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             final SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(),
-                    AdminPrincipalAuthenticator.CURRENT_SUBJECT);
+                    AdminPrincipalAuthenticator.CURRENT_CONTEXT);
 
-            // No ambient Subject at all (nothing bound via callAs/doAs) ->
-            // fail closed, on either JDK shape.
+            // No server context at all -> no carrier -> fail closed.
             try {
                 s.getSubProcessPolicyAdmin();
-                fail("no ambient Subject must fail closed");
+                fail("no seam carrier (no ServerContext) must fail closed");
             } catch (SecurityException expected) { /* good */ }
 
-            // Subject.current() (JDK 18+/DirtyChai) resolves the admin
-            // subject bound via callAs.
-            Object ok = callAs(subjectWith(admin), new Callable<Object>() {
-                public Object call() {
-                    try { return s.getSubProcessPolicyAdmin(); }
-                    catch (Exception e) { return e; }
+            // Seam publishes an admin carrier -> resolved -> proxy obtained.
+            final Object[] ok = { null };
+            ServerContext.doWithServerContext(new Runnable() {
+                public void run() {
+                    try { ok[0] = s.getSubProcessPolicyAdmin(); }
+                    catch (Exception e) { ok[0] = e; }
                 }
-            });
-            if (ok == SKIP) return;   // callAs unavailable on this JDK
-            assertTrue("admin subject via Subject.current() must be"
-                    + " recognised: " + ok, ok instanceof PolicyAdmin);
+            }, Collections.singletonList((Object) carrierFor(admin)));
+            assertTrue("admin carrier in ServerContext must obtain the proxy: "
+                    + ok[0], ok[0] instanceof PolicyAdmin);
+
+            // Seam publishes an ungranted carrier -> fail closed.
+            final Object[] bad = { null };
+            ServerContext.doWithServerContext(new Runnable() {
+                public void run() {
+                    try { bad[0] = s.getSubProcessPolicyAdmin(); }
+                    catch (Exception e) { bad[0] = e; }
+                }
+            }, Collections.singletonList(
+                    (Object) carrierFor(name("spiffe://ctrl/x"))));
+            assertTrue("ungranted carrier in ServerContext must fail closed",
+                    bad[0] instanceof SecurityException);
+        });
+    }
+
+    /**
+     * The default source must fail closed (resolve no carrier) and never throw
+     * when called outside any remote call (no server context set for the
+     * thread) -- graceful degradation on both JDK shapes.
+     */
+    @Test
+    public void defaultSource_outsideRemoteCall_failsClosed_neverThrows()
+            throws Exception {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
+            // CURRENT_CONTEXT.current() must not throw; must return null.
+            assertNull("no ServerContext -> no carrier",
+                    AdminPrincipalAuthenticator.CURRENT_CONTEXT.current());
+            AdminPrincipalAuthenticator auth = new AdminPrincipalAuthenticator(
+                    AdminPrincipalAuthenticator.CURRENT_CONTEXT);
+            assertFalse("no carrier -> not admin, fail closed",
+                    auth.isAdmin("grant"));
         });
     }
 }

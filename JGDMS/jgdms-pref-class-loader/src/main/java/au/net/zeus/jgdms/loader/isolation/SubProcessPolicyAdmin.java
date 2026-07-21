@@ -30,6 +30,7 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.ServerAuthentication;
+import net.jini.security.AdminAuthorizationContext;
 
 /**
  * The subprocess-side {@link SubProcessAdministrable} implementation: a
@@ -84,15 +85,17 @@ public final class SubProcessPolicyAdmin implements SubProcessAdministrable {
      *        principals are admin (see {@link AdminPrincipalAuthenticator}).
      * @param backing the trusted, separately-exported management object;
      *        must not be null and must not be a hosted business proxy
-     * @param callerIdentity source of the current caller's authenticated
-     *        identity; must not be null
+     * @param contextSource source of the current call's seam-assembled
+     *        {@link AdminAuthorizationContext} caller identity; must not be null
+     *        (the production default is
+     *        {@link AdminPrincipalAuthenticator#CURRENT_CONTEXT})
      */
     public SubProcessPolicyAdmin(Principal adminPrincipal,
                                  PolicyAdmin backing,
-                                 AdminPrincipalAuthenticator.CallerIdentity callerIdentity) {
+                                 AdminPrincipalAuthenticator.AdminContextSource contextSource) {
         if (adminPrincipal == null) throw new NullPointerException("adminPrincipal");
         if (backing == null) throw new NullPointerException("backing");
-        this.authenticator = new AdminPrincipalAuthenticator(callerIdentity);
+        this.authenticator = new AdminPrincipalAuthenticator(contextSource);
         this.backing = backing;
         this.adminConstraints = buildAdminConstraints(adminPrincipal);
     }
