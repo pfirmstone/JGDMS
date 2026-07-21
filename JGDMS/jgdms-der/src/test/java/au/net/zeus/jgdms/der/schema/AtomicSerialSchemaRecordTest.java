@@ -27,6 +27,7 @@ import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -231,6 +232,39 @@ class AtomicSerialSchemaRecordTest {
         byte[] fieldsTlv    = DerWriter.writeSequence(new byte[0]);
         byte[] der = DerWriter.writeSequence(List.of(classNameTlv, fieldsTlv));
         assertThrows(DerException.class, () -> AtomicSerialSchemaRecord.decode(der));
+    }
+
+    // ----------------------------------------------------------------
+    // S4.5 maxFields boundary pair (inclusive fencepost) -- metered
+    // during the fields loop in decode (T6 review fold-in: the S4.5
+    // table names AtomicSerialSchemaRecord.fields as a maxFields
+    // surface; previously the decode loop was unmetered)
+    // ----------------------------------------------------------------
+
+    private static byte[] recordWithNFields(int n) {
+        List<AtomicSerialFieldDef> fields = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            fields.add(new AtomicSerialFieldDef("f", "int"));
+        }
+        return new AtomicSerialSchemaRecord("com.example.Wide", fields).encode();
+    }
+
+    @Test
+    void decode_fieldsAtMaxFields_accepted() throws Exception {
+        AtomicSerialSchemaRecord decoded =
+                AtomicSerialSchemaRecord.decode(recordWithNFields(AtomicSerialSchemaRecord.MAX_FIELDS));
+        assertEquals(AtomicSerialSchemaRecord.MAX_FIELDS, decoded.fields().size(),
+                "a record of exactly maxFields fields must be accepted (inclusive)");
+    }
+
+    @Test
+    void decode_fieldsMaxFieldsPlusOne_rejected() {
+        byte[] der = recordWithNFields(AtomicSerialSchemaRecord.MAX_FIELDS + 1);
+        DerException e = assertThrows(DerException.class,
+                () -> AtomicSerialSchemaRecord.decode(der),
+                "a record of maxFields + 1 fields must be rejected");
+        assertTrue(e.getMessage().contains("maxFields"),
+                "reject must cite maxFields; got: " + e.getMessage());
     }
 
     // ====================================================================

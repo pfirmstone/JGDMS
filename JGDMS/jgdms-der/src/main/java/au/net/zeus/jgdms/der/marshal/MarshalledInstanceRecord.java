@@ -54,8 +54,11 @@ import java.util.Objects;
  * {@code schemaBytes} is a raw concatenation of each {@link AtomicSerialSchemaRecord}
  * DER SEQUENCE in leaf-first order. To recover the records, use
  * {@link #decodeSchemaChain()} which reads them back by scanning for complete SEQUENCE
- * TLVs until the bytes are exhausted, and then cross-checks each record's
- * {@code parentSchemaHash} against the next record's {@code schemaDigest()}.
+ * TLVs until the bytes are exhausted (bounded by the STD-006 S4.5 chain ceilings
+ * {@code maxChainRecords}/{@code maxChainBytes}, metered during the loop), cross-checks
+ * each record's {@code parentSchemaHash} against the next record's
+ * {@code schemaDigest()}, and rejects a truncated chain (a terminal record carrying a
+ * dangling {@code parentSchemaHash} -- S7.8 chain completeness).
  *
  * <h2>schemaDigest is a routing hint, verified before use</h2>
  * <p>
@@ -291,55 +294,28 @@ public final class MarshalledInstanceRecord {
 
     /**
      * Parses {@link #schemaBytes()} back into the leaf-first ordered list of
-     * {@link AtomicSerialSchemaRecord}s.
+     * {@link AtomicSerialSchemaRecord}s via the shared chain decoder
+     * {@link SchemaChain#decodeChain} (the single chain-decode path -- the nested
+     * {@code @AtomicSerial} field record site uses the same method, so the checks
+     * cannot diverge between the two sites).
      *
      * <p>The bytes are read sequentially; each complete SEQUENCE TLV is decoded as
-     * an {@code AtomicSerialSchemaRecord}. Reading continues until the bytes are
-     * exhausted. After decoding, each record's {@code parentSchemaHash} is
-     * cross-checked: for records at index {@code i > 0}, the previous record's
-     * {@code parentSchemaHash} must equal this record's {@code schemaDigest()}.
+     * an {@code AtomicSerialSchemaRecord}. During the loop the STD-006 S4.5 chain
+     * ceilings ({@link SchemaChain#MAX_CHAIN_RECORDS} records,
+     * {@link SchemaChain#MAX_CHAIN_BYTES} cumulative bytes, both inclusive) are
+     * metered, and each record's {@code parentSchemaHash} is cross-checked against
+     * the next record's {@code schemaDigest()}. After the loop the terminal record
+     * MUST NOT carry a {@code parentSchemaHash} (S7.8 chain completeness -- a
+     * dangling parent hash is a truncated chain and is rejected).
      *
      * @return ordered list of schema records, leaf-first
-     * @throws DerException if the bytes are malformed or the parentSchemaHash
-     *                      cross-check fails
+     * @throws DerException if the bytes are malformed, a S4.5 chain ceiling is
+     *                      breached, the parentSchemaHash cross-check fails, or the
+     *                      chain is truncated (terminal record with a
+     *                      parentSchemaHash)
      */
     public List<AtomicSerialSchemaRecord> decodeSchemaChain() throws DerException {
-        List<AtomicSerialSchemaRecord> records = new ArrayList<>();
-        DerReader reader = new DerReader(schemaBytes);
-
-        while (reader.hasMore()) {
-            AtomicSerialSchemaRecord rec = AtomicSerialSchemaRecord.decode(reader);
-            records.add(rec);
-        }
-
-        if (records.isEmpty()) {
-            throw new DerException("MarshalledInstanceRecord: schemaBytes is empty");
-        }
-
-        // Cross-check: records[i].parentSchemaHash must equal records[i+1].schemaDigest()
-        // (records[i] is the child, records[i+1] is its parent in the chain)
-        for (int i = 0; i < records.size() - 1; i++) {
-            AtomicSerialSchemaRecord child  = records.get(i);
-            AtomicSerialSchemaRecord parent = records.get(i + 1);
-
-            byte[] childParentHash = child.parentSchemaHashOrNull();
-            if (childParentHash == null) {
-                throw new DerException(
-                        "MarshalledInstanceRecord: schema chain broken at index " + i
-                        + " -- record for '" + child.className()
-                        + "' has no parentSchemaHash but is not the last record in the chain");
-            }
-            byte[] parentDigest = parent.schemaDigest();
-            if (!Arrays.equals(childParentHash, parentDigest)) {
-                throw new DerException(
-                        "MarshalledInstanceRecord: schema chain cross-check failed at index " + i
-                        + " -- record[" + i + "].parentSchemaHash does not match "
-                        + "record[" + (i + 1) + "].schemaDigest() for class '"
-                        + parent.className() + "'");
-            }
-        }
-
-        return records;
+        return SchemaChain.decodeChain(schemaBytes, "MarshalledInstanceRecord");
     }
 
     /**
