@@ -66,13 +66,34 @@ final class AdminAuthTestSupport {
      * One-argument (ambient/stack) checks allow everything, keeping the
      * scaffold focused on the admin gate; the two-argument check evaluates
      * the supplied context exactly as the default
-     * {@code java.lang.SecurityManager} does, which routes the synthetic
-     * caller domain's {@code implies} through the installed {@link Policy}.
+     * {@code java.lang.SecurityManager} does &mdash; but ONLY for the
+     * {@link AccessPermission} family under test (mirroring
+     * {@link PrincipalGrantPolicy}'s allow-everything-else stance), which
+     * routes the synthetic caller domain's {@code implies} through the
+     * installed {@link Policy}.
+     *
+     * <p>The {@code instanceof} filter is load-bearing, not a convenience
+     * (2026-07-21 board round&nbsp;2, R4): the DirtyChai JDK itself routes
+     * unrelated two-argument checks through the installed SecurityManager
+     * &mdash; e.g. {@code MethodHandles.Lookup}'s {@code ClassDefiner}
+     * submits {@code au.zeus.jdk.authorization.guards.DefineClassPermission}
+     * with a context over the lookup class's domain during <em>lambda class
+     * generation</em> &mdash; and once installed this SecurityManager stays
+     * resident for the remainder of the shared surefire JVM (the DirtyChai
+     * build refuses reverting an installed SecurityManager to {@code null}).
+     * An unconditional context evaluation therefore denied lambda bootstrap
+     * and locale-provider initialisation in whatever tests happened to run
+     * <em>later</em>, with the restored default {@link Policy} in force; the
+     * previously-green suite was JUnit method-order luck, reproduced as
+     * {@code AccessControlException: access denied ("...DefineClassPermission"
+     * "ALLOW")} the moment the order shifted.
      */
     static class ContextEvaluatingSecurityManager extends SecurityManager {
         @Override public void checkPermission(Permission perm) { }
         @Override public void checkPermission(Permission perm, Object context) {
-            ((AccessControlContext) context).checkPermission(perm);
+            if (perm instanceof AccessPermission) {
+                ((AccessControlContext) context).checkPermission(perm);
+            }
         }
     }
 

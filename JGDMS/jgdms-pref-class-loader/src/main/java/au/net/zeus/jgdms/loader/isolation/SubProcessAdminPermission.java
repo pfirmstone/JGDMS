@@ -28,8 +28,30 @@ import net.jini.security.AccessPermission;
  * actions list; you either have the named permission or you don't.  The
  * convention is that the target name is the name of the guarded admin
  * operation being invoked: {@code getSubProcessPolicyAdmin}, {@code grant},
- * {@code refresh} or {@code getGrants}.  Wildcard matches are supported
- * using the syntax specified by {@link AccessPermission}.
+ * {@code refresh} or {@code getGrants}.
+ * <p>
+ * <strong>Grant BARE operation names only.</strong>  Two of
+ * {@link AccessPermission}'s target-name forms are hazardous in policy
+ * grants of this permission (both behaviours verified against
+ * {@link AccessPermission#implies}):
+ * <ul>
+ *   <li><em>Wildcard and prefix/suffix forms</em> ({@code "*"},
+ *       {@code "get*"}, {@code "*s"}, ...) <em>do</em> imply the bare
+ *       operation targets: a {@code "*"} grant authorizes every operation
+ *       &mdash; including the dangerous {@code grant} &mdash; and a
+ *       {@code "get*"} grant authorizes both {@code getGrants} and
+ *       {@code getSubProcessPolicyAdmin}, defeating the per-operation
+ *       least-privilege design.  Do not grant wildcard targets to admin
+ *       principals.</li>
+ *   <li><em>Qualified targets</em> (e.g.
+ *       {@code "au.net.zeus.jgdms.loader.isolation.PolicyAdmin.grant"})
+ *       silently <em>never</em> match: {@link AdminPrincipalAuthenticator}
+ *       always checks the unqualified operation name, and
+ *       {@code AccessPermission.implies} refuses when the granted target
+ *       names an interface but the checked permission does not.  A
+ *       qualified grant looks more precise but in fact denies the admin
+ *       everything.</li>
+ * </ul>
  * <p>
  * Per-operation targets exist so a deployed policy can follow least
  * privilege: {@code grant} is the dangerous operation (it installs new
