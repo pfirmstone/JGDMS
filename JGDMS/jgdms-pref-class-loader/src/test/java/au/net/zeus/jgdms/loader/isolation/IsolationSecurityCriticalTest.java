@@ -768,6 +768,110 @@ public class IsolationSecurityCriticalTest {
     }
 
     /**
+     * REPLAY defence (2026-07-21 HIGH fix).  The provenance token proves a seam
+     * minted this carrier for <em>some</em> caller at <em>some</em> time &mdash;
+     * not that it belongs to the <em>current</em> call.  So hosted code running
+     * inside a genuine admin dispatch can (step&nbsp;1) capture the live,
+     * genuinely seam-minted carrier via the public
+     * {@link AdminAuthorizationScope#currentCarrier()}, then later (step&nbsp;2)
+     * re-bind it around a call on a directly-held admin reference &mdash; a
+     * replay the provenance check alone would authorize.  The fix guards the
+     * <em>bind</em> path with the same seam-only
+     * {@link AdminAuthorizationMintPermission} the mint path uses: an
+     * unprivileged/hosted {@code runWithCarrier}/{@code bindCarrier} call is
+     * refused BEFORE the carrier is bound, so the gate never sees the replayed
+     * carrier.
+     *
+     * <p>This test proves both halves: the capture step works (currentCarrier()
+     * really does leak the live, seam-minted carrier), and the replay bind is
+     * then denied (SecurityException from the bind, the replay action never runs,
+     * the backing admin object is never reached).  The positive control &mdash;
+     * the seam's own privileged bind still authorizing a legitimate admin dispatch
+     * &mdash; is {@link #realDefaultSource_resolvesSeamMintedCarrierFromScopedValue}
+     * and the disarmed Phase&nbsp;A bind below, both of which permit the bind.
+     */
+    @Test
+    public void capturedSeamCarrier_replayBindIsDeniedByTheBindGuard()
+            throws Exception {
+        // An enforcing SecurityManager that denies the seam bind/mint permission
+        // when "armed" -- modelling hosted code that was never granted it -- and
+        // allows everything else so the shared JVM keeps working.  Disarmed for
+        // the capture phase (standing in for the seam holding the grant), armed
+        // for the replay phase.  Mirrors seamMint_deniedWhenMintPermissionNotGranted.
+        final boolean[] armed = { false };
+        SecurityManager enforcing = new SecurityManager() {
+            @Override public void checkPermission(Permission perm) {
+                if (armed[0] && perm instanceof AdminAuthorizationMintPermission) {
+                    throw new SecurityException("seam bind not granted (test)");
+                }
+            }
+            @Override public void checkPermission(Permission perm, Object ctx) { }
+        };
+        SecurityManager previous = System.getSecurityManager();
+        try {
+            System.setSecurityManager(enforcing);
+        } catch (UnsupportedOperationException noAllowFlag) {
+            Assume.assumeNoException(
+                    "needs -Djava.security.manager=allow", noAllowFlag);
+            return;
+        }
+        try {
+            // ---- Phase A: CAPTURE (exploit step 1), bind PERMITTED (disarmed) ----
+            // A genuinely seam-minted admin carrier (carrierFor -> seamMint; the
+            // disarmed check is a no-op, as if the seam held the grant).
+            final AdminAuthorizationContext genuine = carrierFor(admin);
+            assertTrue("precondition: carrier must be seam-minted",
+                    genuine.isSeamMinted());
+            // Inside a genuine dispatch extent, hosted code grabs the live carrier
+            // via the public currentCarrier() -- and the bind itself is permitted
+            // here (positive control: disarmed == seam holds the grant).
+            final AdminAuthorizationContext[] captured = { null };
+            AdminAuthorizationScope.runWithCarrier(genuine, new Runnable() {
+                public void run() {
+                    captured[0] = AdminAuthorizationScope.currentCarrier();
+                }
+            });
+            assertNotNull("currentCarrier() leaks the live carrier to hosted code",
+                    captured[0]);
+            assertTrue("the captured carrier is genuinely seam-minted"
+                    + " (replay would defeat a token-only check)",
+                    captured[0].isSeamMinted());
+
+            // ---- Phase B: REPLAY (exploit step 2), bind DENIED (armed) ----
+            TrustedPolicyBacking backing = new TrustedPolicyBacking();
+            final SubProcessPolicyAdmin held = new SubProcessPolicyAdmin(
+                    admin, backing, AdminPrincipalAuthenticator.CURRENT_CONTEXT);
+            final boolean[] replayActionRan = { false };
+            armed[0] = true;
+            try {
+                // Hosted-style replay: a direct runWithCarrier (no doPrivileged,
+                // no grant) re-binding the captured admin carrier around a call on
+                // the directly-held admin surface.
+                AdminAuthorizationScope.runWithCarrier(captured[0], new Runnable() {
+                    public void run() {
+                        replayActionRan[0] = true;
+                        try { held.getSubProcessPolicyAdmin().grant(null); }
+                        catch (Exception ignored) { /* would-be escalation */ }
+                    }
+                });
+                fail("replay bind of a captured seam carrier must be refused"
+                        + " by the seam bind guard");
+            } catch (SecurityException expected) {
+                // good: the bind guard fired before the carrier was bound
+            }
+            assertFalse("the bind guard must refuse BEFORE the replay action runs",
+                    replayActionRan[0]);
+            assertEquals("the replayed carrier must never reach the admin"
+                    + " gate / backing object", 0, backing.grantCalls);
+        } finally {
+            armed[0] = false;   // never leave a stale mint/bind-deny resident
+            if (previous != null) {
+                System.setSecurityManager(previous);
+            }
+        }
+    }
+
+    /**
      * The default source must fail closed (resolve no carrier) and never throw
      * when called outside any remote call (no server context set for the
      * thread) -- graceful degradation on both JDK shapes.

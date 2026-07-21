@@ -123,21 +123,37 @@ import net.jini.security.Security;
  *       token bearing the admin's {@code sub} and this gate will authorize over
  *       principals no trust anchor vouched for.  The worker SPIFFE principal is
  *       independently bound by the verified mTLS connection.</li>
- *   <li><strong>carrier provenance</strong> (2026-07-21 forgery fix):
- *       {@code AdminAuthorizationMintPermission("mint")} must be granted
- *       <em>only</em> to the trusted {@code jgdms-jeri} seam code source.  The
- *       gate honors a carrier only when it is
+ *   <li><strong>carrier provenance and bind</strong> (2026-07-21 forgery +
+ *       replay fix): {@code AdminAuthorizationMintPermission("mint")} must be
+ *       granted <em>only</em> to the trusted seam code sources &mdash;
+ *       <em>both</em> {@code jgdms-jeri} and {@code jgdms-platform}, since the
+ *       seam frames above its {@code doPrivileged} span both modules at mint and
+ *       at bind time.  The gate honors a carrier only when it is
  *       {@linkplain AdminAuthorizationContext#isSeamMinted() seam-minted}; a
  *       carrier hosted code forges via the public
  *       {@code AdminAuthorizationContext} constructor carries no provenance token
- *       and is refused (fail closed).  If the mint permission were mis-granted to
- *       hosted code, that code could mint a carrier naming any principal and
- *       defeat this gate, so the grant belongs to the seam and no one else.  (The
- *       carrier is also conveyed via {@link net.jini.security.AdminAuthorizationScope},
- *       a {@code ScopedValue}, not the public {@code ServerContext} ThreadLocal;
- *       that conveyance is defence-in-depth &mdash; the token is the load-bearing
- *       guarantee: a forged carrier bound into the {@code ScopedValue} by any
- *       means is still refused.)</li>
+ *       and is refused (fail closed).  The <em>same</em> permission also guards
+ *       <em>binding</em> a carrier into the
+ *       {@link net.jini.security.AdminAuthorizationScope} {@code ScopedValue}
+ *       ({@code bindCarrier}/{@code runWithCarrier}): the provenance token proves
+ *       a seam minted the carrier for <em>some</em> caller, not that it belongs
+ *       to <em>this</em> call, so without the bind guard hosted code could
+ *       capture a live seam-minted carrier via the public {@code currentCarrier()}
+ *       and <em>replay</em> it around a directly-held admin reference.  If the
+ *       permission were mis-granted to hosted code, that code could mint a carrier
+ *       naming any principal (forgery) or bind a captured one (replay) and defeat
+ *       this gate, so the grant belongs to the seam and no one else.  The
+ *       {@code ScopedValue} conveyance itself is additional defence-in-depth.</li>
+ *   <li><strong>seam ClassLoader isolation</strong>:
+ *       {@code net.jini.jeri.AdminAuthorizationAssembler.assemble} is
+ *       package-private and mints under its own {@code doPrivileged}, so any class
+ *       loaded into the <em>same runtime package</em> {@code net.jini.jeri} could
+ *       mint an arbitrary-principal carrier without holding the mint permission.
+ *       The barrier is runtime-package access control: hosted/business code MUST
+ *       be loaded by a <em>different</em> {@code ClassLoader} than the seam (as the
+ *       preferred-class-loader isolation ensures), so it is in a different runtime
+ *       package and cannot reach {@code assemble}.  A deployment must not flatten
+ *       hosted code onto the {@code jgdms-jeri} loader.</li>
  * </ul>
  * These attack shapes are exercised as permanent regressions in
  * {@code IsolationSecurityCriticalTest}.

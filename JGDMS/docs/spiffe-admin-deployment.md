@@ -635,8 +635,12 @@ stamped with the worker + verified user principals, plus the user `Subject`s) �
 stamping an unforgeable provenance token under `AdminAuthorizationMintPermission`
 — and conveys it via a dedicated `net.jini.security.AdminAuthorizationScope`
 `ScopedValue` bound around the dispatch (**not** a `ServerContext` ThreadLocal
-element). The gate consumes exactly that carrier, **honors it only when it is
-seam-minted**, and submits `SubProcessAdminPermission("<operation>")` — target =
+element). *Binding* the carrier into that `ScopedValue` is itself a seam-only
+privileged operation, guarded by the same `AdminAuthorizationMintPermission`
+(see "Required grant — carrier provenance AND bind" below), so hosted code
+cannot *replay* a captured genuine carrier. The gate consumes exactly that
+carrier, **honors it only when it is seam-minted**, and submits
+`SubProcessAdminPermission("<operation>")` — target =
 the operation name (`getSubProcessPolicyAdmin`, `grant`, `refresh`, `getGrants`)
 — to the installed `SecurityManager`'s two-argument `checkPermission(perm, ctx)`.
 The deployed policy, not the code, names the admin.
@@ -667,34 +671,64 @@ connection, so a deployment that authorizes admin operations solely on the
 worker SVID does not depend on this registration — but any JWT-derived admin
 authority does.)
 
-**Required grant — carrier provenance (`AdminAuthorizationMintPermission`).**
-NEW load-bearing prerequisite (2026-07-21 forgery fix). The authorization
-carrier is honored **only when the trusted seam minted it**. `seamMint`
-performs `checkPermission(new AdminAuthorizationMintPermission("mint"))`, so the
-deployed policy MUST grant `AdminAuthorizationMintPermission "mint"` to the
-`jgdms-jeri` code source (the module that owns `BasicInvocationDispatcher` /
-`AdminAuthorizationAssembler`) — e.g.:
+**Required grant — carrier provenance AND bind (`AdminAuthorizationMintPermission`).**
+NEW load-bearing prerequisite (2026-07-21 forgery + replay fix). The
+authorization carrier is honored **only when the trusted seam minted it AND the
+trusted seam bound it into the current call**. Two seam-only operations are
+guarded by the *same* `AdminAuthorizationMintPermission`:
+
+- **Mint** — `AdminAuthorizationContext.seamMint(...)` performs
+  `checkPermission(new AdminAuthorizationMintPermission("mint"))` before stamping
+  the provenance token (closes *forgery*).
+- **Bind** — `AdminAuthorizationScope.bindCarrier(...)` (and hence
+  `runWithCarrier(...)`) performs the same check before binding a carrier into
+  the conveyance `ScopedValue` (closes *replay*: the token proves a seam minted
+  the carrier for *some* caller at *some* time, not that it belongs to *this*
+  call, so hosted code that captured a live seam-minted carrier via the public
+  `currentCarrier()` could otherwise re-bind it around a directly-held admin
+  reference — a replay the token check alone would authorize).
+
+Both are one trust boundary — only the JERI seam mints or binds — so the single
+`"mint"` grant covers both; there is no principal that should hold one but not
+the other. **Grant it to BOTH seam code sources.** At mint time the assembler
+mints under its own `doPrivileged` (`jgdms-jeri`), and `seamMint` itself lives in
+`jgdms-platform`; at bind time `BasicInvocationDispatcher` binds under its own
+`doPrivileged` (`jgdms-jeri`), and `bindCarrier` lives in `jgdms-platform`. In
+each case the frames above the `doPrivileged` marker span **both** modules, so
+**both** protection domains are evaluated and both must hold the permission. A
+hardened POLP deployment that strips `jgdms-platform`'s `AllPermission` without
+adding this grant would make every identity-bearing admin dispatch fail
+closed at mint/bind:
 
 ```
-// Grant ONLY to the trusted JERI seam code source — never to hosted/business code.
+// Grant ONLY to the trusted JERI seam code sources — never to hosted/business code.
+// BOTH modules must hold it: jgdms-jeri (BasicInvocationDispatcher /
+// AdminAuthorizationAssembler) and jgdms-platform (AdminAuthorizationContext.seamMint /
+// AdminAuthorizationScope.bindCarrier) are both on the stack above the seam's doPrivileged.
 grant codeBase "file:${jgdms.lib}/jgdms-jeri.jar" {
+    permission net.jini.security.AdminAuthorizationMintPermission "mint";
+};
+grant codeBase "file:${jgdms.lib}/jgdms-platform.jar" {
     permission net.jini.security.AdminAuthorizationMintPermission "mint";
 };
 ```
 
 Hosted code **must not** be granted it: with the grant, hosted code could mint a
-carrier naming any principal and defeat the gate; without it, a carrier hosted
-code fabricates via the public `AdminAuthorizationContext` constructor carries no
-provenance token, and the gate refuses it (fail closed) **however it is
-conveyed** — a forged `ServerContext` element (no longer even read), or a forged
-`ScopedValue` binding. `AdminAuthorizationMintPermission` is a distinct
-permission class, so a broad `SecurityPermission "*"` grant does not imply it;
-only an explicit grant (or `AllPermission`, which must never reach hosted code)
-does. The provenance token is the load-bearing forgery defence; the `ScopedValue`
-conveyance is defence-in-depth. Reproduced in
+carrier naming any principal (forgery) or re-bind a captured genuine carrier
+(replay) and defeat the gate; without it, a carrier hosted code fabricates via
+the public `AdminAuthorizationContext` constructor carries no provenance token
+and the gate refuses it (fail closed) **however conveyed** — a forged
+`ServerContext` element (no longer even read), or a forged `ScopedValue`
+binding — and hosted code cannot bind *any* carrier (genuine or forged) into the
+conveyance. `AdminAuthorizationMintPermission` is a distinct permission class, so
+a broad `SecurityPermission "*"` grant does not imply it; only an explicit grant
+(or `AllPermission`, which must never reach hosted code) does. The provenance
+token is the forgery defence; the bind guard is the replay defence; the
+`ScopedValue` conveyance is additional defence-in-depth. Reproduced in
 `IsolationSecurityCriticalTest.priorExploit_forgedCarrierViaServerContext_nowFailsClosed`,
-`.realDefaultSource_resolvesSeamMintedCarrierFromScopedValue`, and
-`.seamMint_deniedWhenMintPermissionNotGranted`.
+`.realDefaultSource_resolvesSeamMintedCarrierFromScopedValue`,
+`.seamMint_deniedWhenMintPermissionNotGranted`, and
+`.capturedSeamCarrier_replayBindIsDeniedByTheBindGuard`.
 
 **Authoring the admin grant — name the principal(s), and name both to require
 both.** The gate ANDs the carrier's domains, each stamped with the union of the
@@ -715,6 +749,25 @@ grant requires is **policy-authored, not code-forced**:
   alone; naming only the user authorizes on the verified user principal alone.
   Author the grant to match the intended trust conjunction.
 
+**Load-bearing prerequisite — hosted code MUST NOT share the seam's ClassLoader
+/ runtime package.** `AdminAuthorizationAssembler.assemble(...)` is
+*package-private* in `net.jini.jeri` and mints under its own `doPrivileged`, so
+any class loaded into the **same runtime package** `net.jini.jeri` of the
+`jgdms-jeri` module could call `assemble(...)` and obtain an
+arbitrary-principal seam-minted carrier **without itself holding
+`AdminAuthorizationMintPermission`** (the assembler's `doPrivileged` supplies the
+mint permission from the seam domains). Likewise, `bindCarrier` is public but
+seam-guarded; the assembler shortcut is the sharper hazard. The only barrier is
+runtime-package access control: a package is confined to a single
+`ClassLoader`, and hosted/business code is loaded by a *different*
+`ClassLoader` (the preferred-class-loader isolation), so it is in a *different*
+runtime package `net.jini.jeri` and cannot invoke the package-private
+`assemble`. **This is NECESSARY, not merely hygienic:** a deployment MUST NOT
+place hosted/business code on the `jgdms-jeri` `ClassLoader` (e.g. flattening the
+platform and hosted code onto one flat classpath/`ClassLoader`), or the
+package-access barrier collapses and hosted code can mint arbitrary carriers.
+Keep the seam modules on their own loader, distinct from any hosted-code loader.
+
 **Deny prerequisites.**
 
 - `java.lang.RuntimePermission "setSecurityManager"` MUST be denied to every
@@ -722,6 +775,15 @@ grant requires is **policy-authored, not code-forced**:
   restrictive `SecurityManager` with a permissive one of its own and authorize
   every carrier (reproduced in
   `IsolationSecurityCriticalTest.hostedCodeReplacingTheSecurityManager_authorizesEveryCarrier`).
+- `java.lang.reflect.ReflectPermission "suppressAccessChecks"` MUST be denied to
+  every hosted/business protection domain. With it, deep reflection could set the
+  private `provenance` field of a hosted-forged `AdminAuthorizationContext` to the
+  class-private token (defeating the forgery guard), or reach the package-private
+  `assemble`/private conveyance internals directly (defeating the bind guard).
+  This is the standard `AllPermission`-equivalent caveat — `suppressAccessChecks`
+  is game-over for any in-JVM invariant — listed here explicitly alongside
+  `setSecurityManager` because both the provenance token and the bind guard rely
+  on private/package-private state staying private.
 - `javax.security.auth.AuthPermission "callAs"` / `"doAs"`: denying these to
   hosted code remains good hygiene, but under Option B it is **no longer the
   load-bearing control it was under the R2 design**. The gate authorizes over
