@@ -160,15 +160,37 @@ final class AdminAuthTestSupport {
     static final CodeSource EMPTY_CS = new CodeSource(null, (Certificate[]) null);
 
     /**
-     * Builds a seam-style {@link AdminAuthorizationContext} carrier the way
-     * {@code net.jini.jeri.AdminAuthorizationAssembler} would: a single reducing
-     * domain over the empty {@link CodeSource} stamped with {@code principals}
-     * (the union of worker + verified-user principals), plus a matching verified
-     * user {@link Subject} so the gate's {@code Subject.callAs} path (recipe
-     * step&nbsp;4) is exercised exactly as in production.  Passing no principals
-     * yields an authenticated-but-empty identity (see {@link #emptyCarrier()}).
+     * Builds a <em>genuinely seam-minted</em> {@link AdminAuthorizationContext}
+     * carrier the way {@code net.jini.jeri.AdminAuthorizationAssembler} would: a
+     * single reducing domain over the empty {@link CodeSource} stamped with
+     * {@code principals} (the union of worker + verified-user principals), plus a
+     * matching verified user {@link Subject} so the gate's
+     * {@code Subject.callAs} path (recipe step&nbsp;4) is exercised exactly as in
+     * production.  It is produced via {@link AdminAuthorizationContext#seamMint}
+     * so it carries the provenance token the gate requires; under the test
+     * {@code ContextEvaluatingSecurityManager} the mint permission check is a
+     * no-op, mirroring the seam holding the grant.  Passing no principals yields
+     * an authenticated-but-empty identity (see {@link #emptyCarrier()}).
      */
     static AdminAuthorizationContext carrierFor(Principal... principals) {
+        Principal[] ps = (principals == null) ? new Principal[0] : principals.clone();
+        ProtectionDomain pd = new ProtectionDomain(EMPTY_CS, null, null, ps);
+        Subject user = new Subject(true,
+                new LinkedHashSet<Principal>(Arrays.asList(ps)),
+                Collections.emptySet(), Collections.emptySet());
+        return AdminAuthorizationContext.seamMint(
+                new ProtectionDomain[] { pd },
+                new Subject[] { user });
+    }
+
+    /**
+     * Builds a carrier the way <em>hosted code</em> could forge it: through the
+     * public {@link AdminAuthorizationContext} constructor, so it carries NO
+     * provenance token ({@link AdminAuthorizationContext#isSeamMinted()} is
+     * {@code false}).  The gate MUST refuse it however it is conveyed &mdash; the
+     * exact prior exploit shape.
+     */
+    static AdminAuthorizationContext forgedCarrier(Principal... principals) {
         Principal[] ps = (principals == null) ? new Principal[0] : principals.clone();
         ProtectionDomain pd = new ProtectionDomain(EMPTY_CS, null, null, ps);
         Subject user = new Subject(true,
@@ -180,14 +202,14 @@ final class AdminAuthTestSupport {
     }
 
     /**
-     * A carrier that carries NO principals at all (empty domain, no user
-     * subjects): the seam-shaped equivalent of an unauthenticated / no-grant
-     * caller, used to assert the gate fails closed even though a carrier is
-     * present.
+     * A <em>seam-minted</em> carrier that carries NO principals at all (empty
+     * domain, no user subjects): the seam-shaped equivalent of an authenticated
+     * but no-grant caller, used to assert the gate fails closed even though a
+     * genuine carrier is present.
      */
     static AdminAuthorizationContext emptyCarrier() {
         ProtectionDomain pd = new ProtectionDomain(EMPTY_CS, null, null, null);
-        return new AdminAuthorizationContext(
+        return AdminAuthorizationContext.seamMint(
                 new ProtectionDomain[] { pd }, new Subject[0]);
     }
 

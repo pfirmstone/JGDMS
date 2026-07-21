@@ -89,6 +89,10 @@ public class AdminAuthorizationAssemblerTest {
         // The verified user Subject is carried for callAs (step 4).
         Assert.assertEquals(1, c.userSubjects().length);
         Assert.assertTrue(c.userSubjects()[0].getPrincipals().contains(user));
+        // 2026-07-21 forgery fix: the assembler mints an AUTHENTICATED carrier
+        // (provenance token stamped) so the downstream gate will honor it.
+        Assert.assertTrue("assembler must seam-mint the carrier",
+                c.isSeamMinted());
     }
 
     // MUST-4: with no user subjects, only the connection-derived worker.
@@ -149,5 +153,9 @@ public class AdminAuthorizationAssemblerTest {
         Assert.assertTrue(c.domains().length >= 1);
         Assert.assertTrue(domainPrincipals(c).isEmpty());
         Assert.assertEquals(0, c.userSubjects().length);
+        // Even the principal-empty carrier is seam-minted (authenticated but
+        // authorizes nobody unless the policy grants to everyone).
+        Assert.assertTrue("assembler must seam-mint even the empty carrier",
+                c.isSeamMinted());
     }
 }

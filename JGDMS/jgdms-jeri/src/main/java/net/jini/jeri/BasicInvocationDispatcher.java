@@ -98,6 +98,7 @@ import java.util.Base64;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import net.jini.security.AdminAuthorizationContext;
+import net.jini.security.AdminAuthorizationScope;
 import net.jini.security.Security;
 import net.jini.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtVerificationException;
@@ -1010,6 +1011,11 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
         // opaque AccessControlContext crosses into the overridable checkAccess, so
         // no ProtectionDomain.getClassLoader() capability is exposed to subclasses.
         AccessControlContext remoteIdentityContext = null;
+        // Option B (2026-07-21): the caller's admin authorization identity,
+        // seam-minted below and conveyed to the pure downstream gate via a
+        // dedicated ScopedValue (AdminAuthorizationScope), NOT a ServerContext
+        // element.  Null when the request carried no identity fields.
+        AdminAuthorizationContext adminIdentity = null;
 	try {
 	    rin = request.getRequestInputStream();
 	    int versionByte = rin.read();
@@ -1092,23 +1098,26 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                     }
                 }
             }
-            // Option B (2026-07-21, board-ratified): assemble the caller's admin
-            // authorization identity ONCE here at the trusted seam -- captured
-            // code sources + connection-derived worker principal + verified USER
-            // principals (readUserSubjects already dropped every unverified wire
-            // principal) -- and publish it as a ServerContext element.  A pure
-            // downstream gate (au.net.zeus.jgdms.loader.isolation
-            // .AdminPrincipalAuthenticator) then authorizes over exactly this
-            // seam-supplied identity, never re-reading ambient/worker state
-            // (confused-deputy defence).  Only published when the request
-            // actually carried identity fields (protocol 0x02); the value-only
-            // carrier exposes no ProtectionDomain.getClassLoader() capability
-            // (every domain has a null class loader).
+            // Option B (2026-07-21, board-ratified; 2026-07-21 forgery fix):
+            // assemble the caller's admin authorization identity ONCE here at the
+            // trusted seam -- captured code sources + connection-derived worker
+            // principal + verified USER principals (readUserSubjects already
+            // dropped every unverified wire principal).  The carrier is
+            // AUTHENTICATED (seamMint stamps an unforgeable provenance token under
+            // AdminAuthorizationMintPermission, granted only to this code source),
+            // and it is conveyed to the pure downstream gate
+            // (au.net.zeus.jgdms.loader.isolation.AdminPrincipalAuthenticator) via
+            // a dedicated ScopedValue (AdminAuthorizationScope) bound around the
+            // invocation below -- NOT via the public ServerContext ThreadLocal
+            // element (which any code can publish and which is ThreadLocal-based).
+            // The gate honors ONLY a seam-minted carrier; a carrier hosted code
+            // forges via the public constructor is refused (fail closed).  Only
+            // assembled when the request actually carried identity fields
+            // (protocol 0x02); the value-only carrier exposes no
+            // ProtectionDomain.getClassLoader() capability.
             if (hasUserSubjects || hasSerializedAcc) {
-                AdminAuthorizationContext adminIdentity =
-                        AdminAuthorizationAssembler.assemble(
-                                remoteDomains, getClientSubject(), userSubjects);
-                context.add(adminIdentity);
+                adminIdentity = AdminAuthorizationAssembler.assemble(
+                        remoteDomains, getClientSubject(), userSubjects);
             }
 	} catch (Throwable t) {
 	    if (logger.isLoggable(Levels.FAILED)) {
@@ -1199,9 +1208,43 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	     * re-establish them with nested Subject.callAs calls in the new thread.
 	     */
 	    try {
-		returnValue = invokeWithClientSubject(impl, method, args, context, remoteIdentityContext);
-		if (logger.isLoggable(Level.FINE)) {
-		    logReturn(impl, method, returnValue);
+		// Bind the seam-minted admin carrier for the dynamic extent of the
+		// invocation via the dedicated ScopedValue, so the pure gate can
+		// read it back (AdminAuthorizationScope.currentCarrier()).  Bound
+		// only when identity fields were present; otherwise the invocation
+		// runs with no carrier bound and the gate fails closed.  The binding
+		// is confined to this synchronous dispatch call tree (a worker thread
+		// the invoked method may spawn does NOT inherit admin authority).
+		final Object[]    rvHolder = { null };
+		final Throwable[] thHolder = { null };
+		final Remote   fImpl = impl;
+		final Method   fMethod = method;
+		final Object[] fArgs = args;
+		final Collection fContext = context;
+		final AccessControlContext fRic = remoteIdentityContext;
+		Runnable invokeAction = new Runnable() {
+		    @Override public void run() {
+			try {
+			    rvHolder[0] = invokeWithClientSubject(
+				    fImpl, fMethod, fArgs, fContext, fRic);
+			} catch (Throwable tt) {
+			    thHolder[0] = tt;
+			}
+		    }
+		};
+		if (adminIdentity != null) {
+		    AdminAuthorizationScope.runWithCarrier(adminIdentity, invokeAction);
+		} else {
+		    invokeAction.run();
+		}
+		if (thHolder[0] != null) {
+		    t = thHolder[0];
+		    fromImpl = true;
+		} else {
+		    returnValue = rvHolder[0];
+		    if (logger.isLoggable(Level.FINE)) {
+			logReturn(impl, method, returnValue);
+		    }
 		}
 	    } catch (Throwable tt) {
 		t = tt;

@@ -34,6 +34,8 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.ServerContext;
 import net.jini.security.AdminAuthorizationContext;
+import net.jini.security.AdminAuthorizationMintPermission;
+import net.jini.security.AdminAuthorizationScope;
 import au.net.zeus.jgdms.loader.isolation.AdminAuthTestSupport.MutableContextSource;
 import org.apache.river.api.security.PermissionGrant;
 import org.junit.Assume;
@@ -617,57 +619,152 @@ public class IsolationSecurityCriticalTest {
     private static final Object SKIP = new Object();
 
     // ==================================================================
-    // (Option B) The real default source resolves the seam-assembled carrier
-    // from the ServerContext -- the production handoff the seam performs via
-    // context.add(adminAuthorizationContext) in BasicInvocationDispatcher.
+    // (Option B, 2026-07-21 forgery fix) The real default source resolves the
+    // seam-MINTED carrier from the dedicated AdminAuthorizationScope ScopedValue
+    // the seam binds around the dispatch (BasicInvocationDispatcher).  The gate
+    // honors ONLY a seam-minted carrier: a carrier hosted code forges via the
+    // public AdminAuthorizationContext constructor is refused however conveyed.
     // ==================================================================
+
+    /** Binds {@code carrier} via the production ScopedValue conveyance (the seam
+     *  path) and returns the proxy-or-exception the gate produced. */
+    private static Object underScope(AdminAuthorizationContext carrier,
+                                     final SubProcessPolicyAdmin s) {
+        final Object[] out = { null };
+        AdminAuthorizationScope.runWithCarrier(carrier, new Runnable() {
+            public void run() {
+                try { out[0] = s.getSubProcessPolicyAdmin(); }
+                catch (Exception e) { out[0] = e; }
+            }
+        });
+        return out[0];
+    }
 
     /**
      * Exercises the real production default
      * {@link AdminPrincipalAuthenticator#CURRENT_CONTEXT} end-to-end through the
-     * {@code ServerContext} handoff the JERI seam performs: the seam publishes
-     * the assembled {@link AdminAuthorizationContext} as a server-context
-     * element, and {@code CURRENT_CONTEXT} resolves it.  An admin carrier in
-     * context obtains the proxy; a non-admin carrier fails closed; no context at
-     * all fails closed (and never throws from identity acquisition).
+     * {@link AdminAuthorizationScope} {@code ScopedValue} handoff the JERI seam
+     * performs.  A genuinely seam-minted admin carrier bound via the seam path
+     * obtains the proxy; a seam-minted but ungranted carrier fails closed; a
+     * hosted-code-forged carrier (public constructor, no provenance token) bound
+     * directly into the ScopedValue fails closed; no binding at all fails closed
+     * (and never throws from identity acquisition).
      */
     @Test
-    public void realDefaultSource_resolvesSeamCarrierFromServerContext()
+    public void realDefaultSource_resolvesSeamMintedCarrierFromScopedValue()
             throws Exception {
         AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             final SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
                     admin, new TrustedPolicyBacking(),
                     AdminPrincipalAuthenticator.CURRENT_CONTEXT);
 
-            // No server context at all -> no carrier -> fail closed.
+            // No ScopedValue binding at all -> no carrier -> fail closed.
             try {
                 s.getSubProcessPolicyAdmin();
-                fail("no seam carrier (no ServerContext) must fail closed");
+                fail("no seam carrier (no ScopedValue) must fail closed");
             } catch (SecurityException expected) { /* good */ }
 
-            // Seam publishes an admin carrier -> resolved -> proxy obtained.
-            final Object[] ok = { null };
-            ServerContext.doWithServerContext(new Runnable() {
-                public void run() {
-                    try { ok[0] = s.getSubProcessPolicyAdmin(); }
-                    catch (Exception e) { ok[0] = e; }
-                }
-            }, Collections.singletonList((Object) carrierFor(admin)));
-            assertTrue("admin carrier in ServerContext must obtain the proxy: "
-                    + ok[0], ok[0] instanceof PolicyAdmin);
+            // Genuine seam-minted admin carrier via the seam path -> proxy.
+            Object ok = underScope(carrierFor(admin), s);
+            assertTrue("seam-minted admin carrier must obtain the proxy: " + ok,
+                    ok instanceof PolicyAdmin);
 
-            // Seam publishes an ungranted carrier -> fail closed.
-            final Object[] bad = { null };
+            // Seam-minted but UNGRANTED carrier -> fail closed.
+            Object ungranted = underScope(carrierFor(name("spiffe://ctrl/x")), s);
+            assertTrue("ungranted seam-minted carrier must fail closed",
+                    ungranted instanceof SecurityException);
+
+            // HOSTED-CODE-FORGED carrier (public ctor, no token) bound directly
+            // into the ScopedValue -> refused: provenance, not conveyance, decides.
+            Object forged = underScope(
+                    AdminAuthTestSupport.forgedCarrier(admin), s);
+            assertTrue("forged (non-seam-minted) carrier bound into the"
+                    + " ScopedValue must fail closed, even naming the admin",
+                    forged instanceof SecurityException);
+        });
+    }
+
+    /**
+     * The exact prior exploit, asserted to now fail closed.  Before the
+     * 2026-07-21 forgery fix, hosted code that captured a
+     * {@link SubProcessPolicyAdmin} reference could: (1) build a carrier naming
+     * the admin via the public {@code AdminAuthorizationContext} constructor,
+     * (2) publish it as a {@code ServerContext} element via
+     * {@code doWithServerContext} (no permission check), and (3) invoke the held
+     * reference &mdash; obtaining the admin proxy.  Now BOTH legs are dead: the
+     * gate reads only the {@link AdminAuthorizationScope} ScopedValue (so a
+     * {@code ServerContext} element is never consulted), and even bound into the
+     * ScopedValue the forged carrier is not seam-minted and is refused.
+     */
+    @Test
+    public void priorExploit_forgedCarrierViaServerContext_nowFailsClosed()
+            throws Exception {
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
+            final SubProcessPolicyAdmin s = new SubProcessPolicyAdmin(
+                    admin, new TrustedPolicyBacking(),
+                    AdminPrincipalAuthenticator.CURRENT_CONTEXT);
+
+            // The old exploit verbatim: forge an admin-named carrier via the
+            // public constructor and publish it through the unchecked
+            // ServerContext ThreadLocal, then invoke the held reference.
+            final Object[] exploit = { null };
             ServerContext.doWithServerContext(new Runnable() {
                 public void run() {
-                    try { bad[0] = s.getSubProcessPolicyAdmin(); }
-                    catch (Exception e) { bad[0] = e; }
+                    try { exploit[0] = s.getSubProcessPolicyAdmin(); }
+                    catch (Exception e) { exploit[0] = e; }
                 }
             }, Collections.singletonList(
-                    (Object) carrierFor(name("spiffe://ctrl/x"))));
-            assertTrue("ungranted carrier in ServerContext must fail closed",
-                    bad[0] instanceof SecurityException);
+                    (Object) AdminAuthTestSupport.forgedCarrier(admin)));
+            assertTrue("prior exploit (forged carrier via ServerContext) must"
+                    + " now fail closed; got: " + exploit[0],
+                    exploit[0] instanceof SecurityException);
         });
+    }
+
+    /**
+     * The permission-guard on the mint itself: when a {@link SecurityManager}
+     * that actually enforces {@link AdminAuthorizationMintPermission} is
+     * installed and the caller is NOT granted it, {@code seamMint} throws &mdash;
+     * hosted code cannot obtain an authenticated carrier.  (In the other tests
+     * the {@code ContextEvaluatingSecurityManager}'s one-argument check is a
+     * no-op, standing in for the seam holding the grant; here we prove the guard
+     * denies when the grant is absent.)
+     */
+    @Test
+    public void seamMint_deniedWhenMintPermissionNotGranted() throws Exception {
+        SecurityManager previous = System.getSecurityManager();
+        // "armed" is disarmed in finally so that, should the DirtyChai build keep
+        // this SM resident (it refuses reverting an installed SM to null), a
+        // later carrierFor() -> seamMint() is never blocked by a stale mint-deny.
+        final boolean[] armed = { true };
+        SecurityManager enforcing = new SecurityManager() {
+            @Override public void checkPermission(Permission perm) {
+                if (armed[0] && perm instanceof AdminAuthorizationMintPermission) {
+                    throw new SecurityException("mint not granted (test)");
+                }
+                // allow everything else so the JVM keeps working
+            }
+            @Override public void checkPermission(Permission perm, Object ctx) { }
+        };
+        try {
+            System.setSecurityManager(enforcing);
+        } catch (UnsupportedOperationException noAllowFlag) {
+            Assume.assumeNoException(
+                    "needs -Djava.security.manager=allow", noAllowFlag);
+            return;
+        }
+        try {
+            try {
+                AdminAuthorizationContext.seamMint(null, null);
+                fail("seamMint must be denied without"
+                        + " AdminAuthorizationMintPermission");
+            } catch (SecurityException expected) { /* good */ }
+        } finally {
+            armed[0] = false;
+            if (previous != null) {
+                System.setSecurityManager(previous);
+            }
+        }
     }
 
     /**
