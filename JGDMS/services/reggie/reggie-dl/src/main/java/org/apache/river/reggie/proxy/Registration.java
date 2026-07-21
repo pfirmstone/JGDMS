@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.entry.Entry;
@@ -50,13 +51,15 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
             new SerialForm("server", Registrar.class),
-            new SerialForm("lease", ServiceLease.class)
+            new SerialForm("lease", ServiceLease.class),
+            new SerialForm("entryFormat", MarshallingFormat.class)
         };
     }
-    
+
     public static void serialize(PutArg arg, Registration r) throws IOException{
         arg.put("server", r.server);
         arg.put("lease", r.lease);
+        arg.put("entryFormat", r.entryFormat);
         arg.writeArgs();
     }
 
@@ -94,35 +97,81 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
      */
     final ServiceLease lease;
 
-    
+    /**
+     * The marshalling format this registrar was born with, fixed at the
+     * registrar's instantiation and immutable for its life
+     * (JGDMS-STD-006 sec.3 item 5). Every attribute set this registration
+     * marshals ({@link #addAttributes}/{@link #modifyAttributes}/
+     * {@link #setAttributes}) uses this format -- <em>not</em> a value
+     * derived from {@code ((RemoteMethodControl) this).getConstraints()}
+     * (the former {@code Util.requiresDerFormat(this)} bug: a client-set,
+     * wholesale-replaceable, silently-droppable value).
+     *
+     * @serial
+     */
+    final MarshallingFormat entryFormat;
+
 //    @Override
 //    public void write(PutArg arg) {
 //	arg.put("server", server);
 //	arg.put("lease", lease);
 //    }
-    
+
+    /**
+     * Sentinel distinguishing "the {@code entryFormat} field is absent from
+     * this stream's persistent schema" from "the field is present and its
+     * serialized value is {@code null}" -- see
+     * {@link RegistrarProxy#resolveEntryFormat} for the full rationale;
+     * mirrored here since {@code Registration} has its own independent
+     * serial form.
+     */
+    private static final Object ENTRY_FORMAT_ABSENT = new Object();
+
+    private static MarshallingFormat resolveEntryFormat(GetArg arg)
+	    throws IOException, ClassNotFoundException
+    {
+	Object raw = arg.get("entryFormat", ENTRY_FORMAT_ABSENT);
+	if (raw == ENTRY_FORMAT_ABSENT) return MarshallingFormat.JOSS;
+	if (raw == null || raw instanceof MarshallingFormat) return (MarshallingFormat) raw;
+	throw new InvalidObjectException("entryFormat field is a "
+	    + raw.getClass().getName() + ", not assignable to MarshallingFormat");
+    }
+
     private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	Registrar server = (Registrar) arg.get("server", null);
 	if (server == null) throw new InvalidObjectException("null server");
 	ServiceLease lease = (ServiceLease) arg.get("lease", null);
 	if (lease == null) throw new InvalidObjectException("null lease");
+	if (resolveEntryFormat(arg) == null)
+	    throw new InvalidObjectException("null entryFormat");
 	return true;
     }
-    
+
     Registration(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg, check(arg));
     }
-    
+
     private Registration(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
 	server = (Registrar) arg.get("server", null);
 	lease = (ServiceLease) arg.get("lease", null);
+	entryFormat = resolveEntryFormat(arg);
     }
 
     /**
      * Returns Registration or ConstrainableRegistration instance, depending on
      * whether given server implements RemoteMethodControl.
+     *
+     * @param entryFormat the marshalling format this registrar was born
+     *              with (fixed at the registrar's instantiation, immutable
+     *              for its life); every attribute set this registration
+     *              marshals uses this format.
+     * @param initialConstraints wire-layer belt-and-braces (JGDMS-STD-006
+     *              sec.3 item 5): when non-null, baked into this
+     *              registration's underlying server reference as the
+     *              initial client method constraints.
      */
-    public static Registration getInstance(Registrar server, ServiceLease lease) {
+    public static Registration getInstance(Registrar server, ServiceLease lease,
+	    MarshallingFormat entryFormat, MethodConstraints initialConstraints) {
 	// Always constrainable; fail closed when the server was not exported
 	// with a constrainable endpoint.  The constrainable proxy is the only
 	// concrete wire form (this class is abstract).
@@ -131,7 +180,8 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
 		"service must be exported with a constrainable endpoint: "
 		+ "server does not implement RemoteMethodControl");
 	}
-	return new ConstrainableRegistration(server, lease, null, true);
+	return new ConstrainableRegistration(
+	    server, lease, entryFormat, initialConstraints, true);
     }
 
     /**
@@ -140,7 +190,8 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
      * whether given server implements RemoteMethodControl.
      */
     public static Object getInstance(Object server, ServiceLease lease,
-	    MethodConstraints constraints) throws InvalidObjectException {
+	    MarshallingFormat entryFormat, MethodConstraints constraints)
+	    throws InvalidObjectException {
 	if (server instanceof Registrar){
 	    // Always constrainable; fail closed when the server was not exported
 	    // with a constrainable endpoint.  The constrainable proxy is the only
@@ -152,20 +203,23 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
 	    }
 	    ConstrainableProxyUtil.verifyConsistentConstraints(
 	    constraints, server, methodMappings);
-	    return new ConstrainableRegistration((Registrar)server, lease, constraints, false) ;
+	    return new ConstrainableRegistration(
+		(Registrar)server, lease, entryFormat, constraints, false);
 	}
 	throw new ClassCastException("server must be an instance of Registrar");
     }
-    
+
     static MethodConstraints translateConstraints(MethodConstraints constraints){
 	return ConstrainableProxyUtil.translateConstraints(
 		      constraints, methodMappings);
     }
 
     /** Constructor for use by getInstance(), ConstrainableRegistration. */
-    Registration(Registrar server, ServiceLease lease) {
+    Registration(Registrar server, ServiceLease lease, MarshallingFormat entryFormat) {
+	if (entryFormat == null) throw new NullPointerException("entryFormat cannot be null");
 	this.server = server;
 	this.lease = lease;
+	this.entryFormat = entryFormat;
     }
 
     // This method's javadoc is inherited from an interface of this class
@@ -180,6 +234,18 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
 	return lease;
     }
 
+    /**
+     * Returns {@code true} if this registration's born {@link #entryFormat}
+     * is {@link MarshallingFormat#ATOMIC_DER}, {@code false} for legacy
+     * JOSS -- derived from the immutable {@link #entryFormat} field set
+     * once at construction, never from this registration's own (droppable)
+     * {@code getConstraints()} (the former {@code Util.requiresDerFormat}
+     * bug this replaces).
+     */
+    final boolean useDer() {
+	return entryFormat.equals(MarshallingFormat.ATOMIC_DER);
+    }
+
     // This method's javadoc is inherited from an interface of this class
     @Override
     public void addAttributes(Entry[] attrSets)
@@ -187,7 +253,7 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
     {
 	server.addAttributes(lease.getServiceID(),
 			     lease.getReferentUuid(),
-			     EntryRep.toEntryRep(attrSets, true, Util.requiresDerFormat(this)));
+			     EntryRep.toEntryRep(attrSets, true, useDer()));
     }
 
     // This method's javadoc is inherited from an interface of this class
@@ -195,7 +261,7 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
     public void modifyAttributes(Entry[] attrSetTmpls, Entry[] attrSets)
 	throws UnknownLeaseException, RemoteException
     {
-	boolean useDer = Util.requiresDerFormat(this);
+	boolean useDer = useDer();
 	server.modifyAttributes(lease.getServiceID(),
 				lease.getReferentUuid(),
 				EntryRep.toEntryRep(attrSetTmpls, false, useDer),
@@ -209,7 +275,7 @@ public abstract class Registration implements ServiceRegistration, ReferentUuid
     {
 	server.setAttributes(lease.getServiceID(),
 			     lease.getReferentUuid(),
-			     EntryRep.toEntryRep(attrSets, true, Util.requiresDerFormat(this)));
+			     EntryRep.toEntryRep(attrSets, true, useDer()));
     }
 
     // This method's javadoc is inherited from an interface of this class

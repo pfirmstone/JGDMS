@@ -19,6 +19,7 @@ package org.apache.river.reggie.proxy;
 
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import org.apache.river.api.io.AtomicSerial;
@@ -80,22 +81,36 @@ public final class ConstrainableRegistration
 
     /**
      * Creates new ConstrainableRegistration with given server reference,
-     * service lease and client constraints.
+     * service lease, born entry format and client constraints.
+     *
+     * @param entryFormat the marshalling format this registrar was born
+     *              with (fixed at the registrar's instantiation, immutable
+     *              for its life); <em>not</em> derived from
+     *              {@code constraints} -- see {@link #setConstraints}.
      */
     ConstrainableRegistration(  Registrar server,
 			      ServiceLease lease,
+				MarshallingFormat entryFormat,
 				MethodConstraints constraints,
 				boolean setConstraints)
     {
 	super( setConstraints ? (Registrar) ((RemoteMethodControl) server).setConstraints(
-		  translateConstraints(constraints)): server,lease);
+		  translateConstraints(constraints)): server, lease, entryFormat);
 	this.constraints = constraints;
     }
 
+    /**
+     * Returns a copy of this registration with the client's requested
+     * method constraints. The born {@link Registration#entryFormat
+     * entryFormat} is carried over from {@code this} unconditionally -- it
+     * is <em>not</em> one of the constraints being replaced here, so a
+     * client cannot drop or change the registrar's format via
+     * {@code setConstraints} (JGDMS-STD-006 sec.3 item 5).
+     */
     // javadoc inherited from RemoteMethodControl.setConstraints
     @Override
     public RemoteMethodControl setConstraints(MethodConstraints constraints) {
-	return new ConstrainableRegistration(server, lease, constraints, true);
+	return new ConstrainableRegistration(server, lease, entryFormat, constraints, true);
     }
 
     // javadoc inherited from RemoteMethodControl.getConstraints

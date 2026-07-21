@@ -178,33 +178,28 @@ class ClassMapper {
 	return null;
     }
 
-    /** Field of an Entry class, with marshalling information */
+    /**
+     * Field of an Entry class.
+     * <p>
+     * Formerly also carried a {@code marshal} flag distinguishing
+     * known-immutable types (stored raw in {@code EntryRep.fields}) from
+     * everything else (stored wrapped). That raw-storage optimization is
+     * retired as part of the A3 rework: {@code EntryRep.fields} is now a
+     * homogeneous {@code MarshalledInstance[]} (DER-schema-encodable via the
+     * {@code array:@AtomicSerial} route, mirroring Outrigger's
+     * {@code EntryRep.values}) with every field wrapped, since a bare
+     * {@code Object[]} mixing raw and wrapped elements is rejected by the
+     * DER SchemaGenerator as heterogeneous.
+     */
     static class EntryField {
 	/** Field for the field */
 	public final Field field;
-	/**
-	 * True if instances of the field need to be converted
-	 * to MarshalledWrapper.  False if the type of the field
-	 * is String, Integer, Boolean, Character, Long, Float,
-	 * Double, Byte, or Short.
-	 */
-	public final boolean marshal;
 
 	/**
 	 * Basic constructor.
 	 */
 	public EntryField(Field field) {
 	    this.field = field;
-	    Class c = field.getType();
-	    marshal = !(c == String.class ||
-			c == Integer.class ||
-			c == Boolean.class ||
-			c == Character.class ||
-			c == Long.class ||
-			c == Float.class ||
-			c == Double.class ||
-			c == Byte.class ||
-			c == Short.class);
 	}
     }
 

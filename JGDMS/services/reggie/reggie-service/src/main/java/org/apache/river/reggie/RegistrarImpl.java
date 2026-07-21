@@ -129,6 +129,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.UnsupportedConstraintException;
+import net.jini.jeri.AtomicDerILFactory;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -199,8 +200,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private static final int DEFAULT_MULTICAST_TTL = 15;
     /** Default timeout to set on sockets used for unicast discovery */
     private static final int DEFAULT_SOCKET_TIMEOUT = 1*60*1000;
-    /** Log format version */
-    private static final int LOG_VERSION = 3;
+    /**
+     * Log format version. JGDMS-STD-006 sec.3 item 5 (born-immutable
+     * format): {@link SnapshotFormatGuard#LOG_VERSION} is one more than the
+     * pre-A3 on-disk shape ({@link SnapshotFormatGuard#PRE_A3_LOG_VERSION}),
+     * because the snapshot's own on-disk shape changed -- a format marker
+     * is written immediately after this version int (see
+     * {@link #takeSnapshot}/{@link #recoverSnapshot}) -- not because the
+     * log-record shape changed.
+     */
+    private static final int LOG_VERSION = SnapshotFormatGuard.LOG_VERSION;
     /** Logger and configuration component name */
     private static final String COMPONENT = "org.apache.river.reggie";
     /** Lease ID always assigned to self */
@@ -394,20 +403,64 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private int httpsUnicastPort;
     private boolean enableHttpsUnicast;
     /**
-     * If true, this Reggie's own self-registered attributes (added via
+     * The whole-instance born marshalling format epoch (JGDMS-STD-006
+     * sec.3 item 5, SOW-Entry-ATOMIC-DER-Migration.md sec.4 A3): if true,
+     * this Reggie's own self-registered attributes (added via
      * {@link #addLookupAttributes}/{@link #modifyLookupAttributes} and the
-     * initial self-registration in {@link #start()}) are marshalled via DER
+     * initial self-registration in {@link #start()}), every registrant's
+     * attribute sets, and every lookup template marshal via DER
      * ({@code MarshallingFormat.ATOMIC_DER}) instead of the legacy JOSS
      * {@code AtomicMarshalledInstance} form. Read once at startup from
-     * Configuration, mirroring {@link #enableHttpsUnicast}. Must match the
-     * format required by this Reggie's exported constraints (the same
-     * decision {@link org.apache.river.reggie.proxy.Util#requiresDerFormat}
-     * derives client-side from the exported server's constraints) -- entries
-     * registered by remote clients through this same exported Registrar
-     * already self-select consistently; this field only covers Reggie's own
-     * server-constructed self-item, which bypasses that client-side proxy path.
+     * Configuration (see {@link #entryFormat()}), mirroring
+     * {@link #enableHttpsUnicast} and {@code OutriggerServerImpl}'s own
+     * {@code useDerForEntries}. This is the single source of truth for the
+     * whole registrar instance -- client-facing proxies/registrations carry
+     * it as their own immutable, non-{@code getConstraints()}-derived
+     * {@code entryFormat} field (populated from {@link #entryFormat()} at
+     * construction), never re-derived per call from a client's own
+     * (droppable) constraints.
      */
     private boolean useDerForEntries;
+
+    /**
+     * The marshalling format token this registrar was born with (JGDMS-STD-006
+     * sec.3 item 5): read once, at startup, from {@link #useDerForEntries}
+     * and fixed for the life of this instance -- mirrors
+     * {@code OutriggerServerImpl.entryFormat()}. Every registrant's
+     * attribute set, every lookup template, and this registrar's own
+     * self-attributes marshal in this one format. Populates the immutable,
+     * non-{@code getConstraints()}-derived {@code entryFormat} field on
+     * {@code RegistrarProxy}/{@code Registration}/{@code Item} at
+     * construction (never re-derived from a client's own, droppable,
+     * constraints -- the bug the former per-relationship
+     * {@code Util.requiresDerFormat} mechanism had).
+     *
+     * @return {@link MarshallingFormat#ATOMIC_DER} if this registrar is
+     *         DER-configured, {@link MarshallingFormat#JOSS} otherwise
+     */
+    MarshallingFormat entryFormat() {
+	return useDerForEntries ? MarshallingFormat.ATOMIC_DER : MarshallingFormat.JOSS;
+    }
+
+    /**
+     * Wire-layer belt-and-braces (JGDMS-STD-006 sec.3 item 5): when this
+     * registrar is DER-configured, the initial client method constraints
+     * baked into the exported proxies below require
+     * {@link MarshallingFormat#ATOMIC_DER}, so the JERI invocation layer
+     * itself (paired with the {@code AtomicDerILFactory} exporter selected
+     * in {@link Initializer}) fails loud with
+     * {@link net.jini.io.UnsupportedConstraintException} for a genuinely
+     * DER-incapable legacy client -- independent of, and in addition to,
+     * the non-droppable {@code entryFormat} field the proxy/registration
+     * carry as the actual source of truth for marshalling.
+     */
+    private MethodConstraints initialMethodConstraints() {
+	return useDerForEntries
+	    ? new BasicMethodConstraints(
+		new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null))
+	    : null;
+    }
+
     private Discovery httpsDiscovery;
     /** The groups we are a member of */
     private volatile String[] memberGroups; // accessed from DecodeRequestTask and Announce
@@ -4241,7 +4294,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	for (int i = attrSets.length; --i >= 0; ) {
             attrSets[i] = new EntryRep(attrSets[i], true);
 	}
-	return new Item(item.getServiceID(), null, null, item.service, attrSets, item.getProxy() );
+	// item.bootstrapProxy (not item.getProxy()) -- the registrar relays the
+	// opaque wrapper as-is here, it must never decode it merely to build a
+	// copy of an Item for another client (see Item#getProxy javadoc).
+	return new Item(item.getServiceID(), null, null, item.service, attrSets, item.bootstrapProxy, item.entryFormat);
     }
 
     /**
@@ -5178,6 +5234,15 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     COMPONENT, "socketFactory", SocketFactory.class,
                     SocketFactory.getDefault(), Configuration.NO_DATA);
 
+            /* Read once, at startup: this registrar's born marshalling
+             * format (JGDMS-STD-006 sec.3 item 5). Read here, before the
+             * exporter is constructed below, so DER config selects
+             * AtomicDerILFactory (belt-and-braces alongside the
+             * entryFormat field the exported proxies carry).
+             */
+            this.useDerForEntries = config.getEntry(COMPONENT,
+                    "useDerForEntries", Boolean.class, Boolean.FALSE);
+
             /* persistence-specific initialization */
             if (persistent) {
                 this.persistenceSnapshotThreshold = Config.getIntEntry(
@@ -5219,7 +5284,20 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                         this.activationID,
                         new BasicJeriExporter(
                             TcpServerEndpoint.getInstance(0),
-                            new AtomicILFactory(null, null, Registrar.class.getClassLoader()))),
+                            /* Wire-layer belt-and-braces (JGDMS-STD-006 sec.3
+                             * item 5): when useDerForEntries is configured,
+                             * the default exporter's invocation layer factory
+                             * is AtomicDerILFactory rather than AtomicILFactory,
+                             * alongside the born-format field on the exported
+                             * proxies -- this makes the JERI wire layer itself
+                             * fail loud with UnsupportedConstraintException for
+                             * a genuinely DER-incapable legacy client. A
+                             * deployer-supplied "serverExporter" config entry
+                             * overrides this default entirely, as before.
+                             */
+                            this.useDerForEntries
+                                ? new AtomicDerILFactory(null, null, Registrar.class.getClassLoader())
+                                : new AtomicILFactory(null, null, Registrar.class.getClassLoader()))),
                     this.activationID);
             } else {
                 this.activationID = null;
@@ -5229,7 +5307,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     config, COMPONENT, "serverExporter", Exporter.class,
                     new BasicJeriExporter(
                         TcpServerEndpoint.getInstance(0),
-                        new AtomicILFactory(null, null, Registrar.class.getClassLoader())));
+                        this.useDerForEntries
+                            ? new AtomicDerILFactory(null, null, Registrar.class.getClassLoader())
+                            : new AtomicILFactory(null, null, Registrar.class.getClassLoader())));
             }
 
             /* fetch "initial*" config entries, first time starting up */
@@ -5259,9 +5339,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    443, 0, 0xFFFF);
 	    this.enableHttpsUnicast = config.getEntry(COMPONENT,
 		    "enableHttpsUnicast" ,Boolean.class , Boolean.FALSE);
-	    this.useDerForEntries = config.getEntry(COMPONENT,
-		    "useDerForEntries", Boolean.class, Boolean.FALSE);
-            if (initialLookupAttributes != null && 
+            if (initialLookupAttributes != null &&
                 initialLookupAttributes.length > 0)
             {
                 List l = new ArrayList(Arrays.asList(baseAttrs));
@@ -5452,7 +5530,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
                 public Object run() throws Exception {
                     myRef = (Registrar) serverExporter.export(RegistrarImpl.this);
-                    proxy = RegistrarProxy.getInstance(myRef, myServiceID);
+                    proxy = RegistrarProxy.getInstance(myRef, myServiceID,
+                        entryFormat(), initialMethodConstraints());
 		    String uri;
 		    if (enableHttpsUnicast){
 			uri = "https://" + unicastDiscoveryHost + ":"+ httpsUnicastPort; 
@@ -5553,6 +5632,21 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     {
 	if (nitem.service == null)
 	    throw new NullPointerException("null service");
+	/* Defense-in-depth (JGDMS-STD-006 sec.3 item 5): reject a registration
+	 * whose born entryFormat contradicts this registrar's configured
+	 * born format. The wire-layer ATOMIC_DER method constraint (the
+	 * exporter/initial proxy constraints set up in Initializer/start())
+	 * already makes a genuinely DER-incapable client fail loud before
+	 * reaching here; this is an additional, independent field-level
+	 * check against the marshalled Item itself, so a mismatch can never
+	 * silently reach the store.
+	 */
+	if (!entryFormat().equals(nitem.entryFormat)) {
+	    throw new IllegalArgumentException(
+		"registration entryFormat " + nitem.entryFormat
+		+ " does not match this registrar's configured format "
+		+ entryFormat());
+	}
 	if (myServiceID.equals(nitem.getServiceID()))
 	    throw new IllegalArgumentException("reserved service id");
 	if (nitem.getAttributeSets() == null)
@@ -5596,10 +5690,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    myRef,
 	    ServiceLease.getInstance(
 		myRef,
-		myServiceID, 
+		myServiceID,
 		nitem.getServiceID(),
 		reg.leaseID,
-		reg.leaseExpiration));
+		reg.leaseExpiration),
+	    entryFormat(),
+	    initialMethodConstraints());
     }
 
    /**
@@ -5828,7 +5924,22 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	}
 	if (values.isEmpty())
 	    return null;
-	return values.toArray();
+	/* Every stored EntryRep.fields element is a MarshalledInstance (the
+	 * A3 rework's uniform wire shape). Return each to the client wrapped
+	 * in a MarshalledWrapper: the wrapper samples the response stream's
+	 * integrity setting during client-side deserialization, so the
+	 * client's unwrap (RegistrarProxy.getFieldValues) verifies codebase
+	 * integrity exactly as the pre-rework MarshalledWrapper-carrying
+	 * shape did -- a bare MarshalledInstance cannot self-track integrity
+	 * and would silently drop that verification.
+	 */
+	Object[] result = values.toArray();
+	for (int i = result.length; --i >= 0; ) {
+	    if (result[i] != null) {
+		result[i] = new MarshalledWrapper((MarshalledInstance) result[i]);
+	    }
+	}
+	return result;
     }
 
     /**
@@ -6359,6 +6470,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
 	stream.writeUTF(getClass().getName());
 	stream.writeInt(LOG_VERSION);
+	// Born-immutable format marker (JGDMS-STD-006 sec.3 item 5), read
+	// back by recoverSnapshot immediately after the version int above.
+	SnapshotFormatGuard.writeFormatMarker(stream, entryFormat().getFormat());
 	stream.writeObject(myServiceID);
 	stream.writeLong(eventID);
 	stream.writeInt(unicastPort);
@@ -6426,8 +6540,18 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	if (!getClass().getName().equals(stream.readUTF()))
 	    throw new IOException("log from wrong implementation");
 	int logVersion = stream.readInt();
-	if (logVersion != LOG_VERSION)
-	    throw new IOException("wrong log format version");
+	/* Born-immutable format guard (JGDMS-STD-006 sec.3 item 5): resolve
+	 * the format this snapshot was born with -- the marker written right
+	 * after the version int for a current-shape snapshot, or implicit
+	 * JOSS for a pre-A3 snapshot that predates the marker entirely (the
+	 * absent-marker-means-implicit-JOSS rule is airtight for Reggie
+	 * since DER is unreleased -- see SnapshotFormatGuard) -- and refuse
+	 * to recover a snapshot whose format contradicts this instance's own
+	 * configuration. Any other version is a hard reject (genuine
+	 * corruption / unsupported version).
+	 */
+	String recoveredFormat = SnapshotFormatGuard.resolveRecoveredFormat(stream, logVersion);
+	SnapshotFormatGuard.checkFormat(recoveredFormat, entryFormat());
 	myServiceID = (ServiceID)stream.readObject();
 	eventID = stream.readLong();
 	unicastPort = stream.readInt();
