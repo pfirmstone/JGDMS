@@ -8,7 +8,7 @@ explicitly as a **[PATCH]** block, and every contradiction or gap found in the S
 ground-truth claims while verifying them against trunk source is recorded as a
 **[FLAG]** (per board guidance G3: the codebase is authoritative; discrepancies are
 reported, never silently adapted to).
-**Version:** 0.2-DRAFT
+**Version:** 0.3-DRAFT
 **Date:** 2026-07-21
 **Author:** Peter Firmstone + Claude (T1 of `SOW-DER-Stream-Schema-Dedup.md`)
 **Applies to:** JGDMS 4.0.0+ DER object streams (`jgdms-der` stream layer, `AtomicDer*`
@@ -61,20 +61,40 @@ verify-before-insert ordering, fail-closed completeness including cleanup, the
 downgrade/echo analysis, `[15]` tag safety, the traversal-order definition, and the
 dropped-`schemaDigest` decision (now that the completeness rule holds).
 
+**Ratification record (v0.2 → v0.3, Peter, 2026-07-21).** Ruling on the v0.2 §C.13.1
+list: *"dedup should be standard, so determinism is maintained, so there isn't a
+non-dedup and dedup version with differing bytes."* **Dedup is the mandatory stream
+form of the released DER object-stream format — not a negotiated mode.** Recorded
+rationale: G1 (one encoding per value) applied at the stream layer — one record
+sequence, one stream encoding, with no coexisting non-dedup stream producing different
+bytes; affordable precisely because DER is unreleased with no legacy peer population
+(the v0.2 negotiation matrix defended against binaries that will never ship). v0.2
+items 1, 2, 4, 5, 6, 7, 9, 10 stand **RATIFIED as written**; items 3, 8, 11, 12
+(mode marker, negotiation design, acceptance gating, marked-profile precedence) are
+**superseded by this ruling** — v0.3 rewrites §C.5.2 (the `[15]` TLV becomes a
+mandatory stream-format **version octet** [PROPOSED]), replaces §C.9 wholesale
+(mandatory dedup, mechanically enforced by the existing pinned-rule + duplicate-full
+rejects; one residual-skew paragraph), reframes §C.8.1 (the chain ceilings are the
+format's admissibility bounds, one profile, converging with the T6 base adoption), and
+sweeps the marked/unmarked mode terminology out of the document (the superseded
+per-occurrence trunk encoding is referred to historically as the **superseded trunk
+format**). §C.13.1 carries the full ratification state.
+
 ---
 
-> **Decision summary (for the board; each decided section carries the full rationale).**
+> **Decision summary (with ratification state; each decided section carries the full rationale).**
 >
-> | # | SOW item | Decision here |
-> |---|---|---|
-> | 1 | §6.1 placement | **STD-006 appendix**, authored as this standalone file and merged after review (the STD-011 Appendix B precedent). §C.1.3. |
-> | 2 | §6.2 reference granularity | **Whole-chain only**; per-record links rejected with numbers (estimated-from-code basis). §C.10. |
-> | 3 | §6.3 negotiation mechanism | **Export-time capability (ILFactory-scoped, §5.1-shaped) + in-band per-stream mode marker `[15]` + response-echoes-request.** The export configuration gates **both emission and acceptance** (config-off endpoints reject marked streams loudly — board fix 3); absence of support falls back **transparently to full form** on the sending side (normative), and every mismatch cell is loud. §C.9. |
-> | 4 | Ceilings | `maxDistinctChainsPerStream` = 256, `maxChainRecords` = 64, `maxChainBytes` = 65536, `maxDedupTableBytes` = 1 048 576 — inclusive, metered during decode; the marked-stream profile deliberately tightens the admissible class set relative to base §4.5 maxima (loud encode-time failure — board fix 4). §C.8 [PROPOSED]. |
-> | 5 | (found in design) dedup-mode record shape | The dedup-mode §7.8 record **drops the `schemaDigest` field** (derivable in both arms; removes a restate-and-disagree surface). Contingent on the §C.5.1 chain-completeness rule (board fix 2), which makes chain identity → chain bytes injective. §C.5.3 [PROPOSED]. |
-> | 6 | (found in source) table scope | **Per marshal stream** (one codec lifetime: the request *or* response object stream of one call, or one standalone encode unit) — a precision correction to the SOW's "per-stream (per-connection)" parenthetical. §C.7.1 [FLAG]. |
-> | 7 | (found in source) boomerang seam | **Every** `[8]` proxy item's interior — at any nesting level — is **excluded** from dedup, byte-region-scoped and transitive (raw-wire-form retention's verbatim-relay contract exists at both the object-stream and the nested field level; v0.1 wrongly claimed top-level only). §C.6.5 [PROPOSED]. |
-> | 8 | (board round 1) chain completeness | A `fullChain` whose **last record carries `parentSchemaHash`** is rejected (truncated-chain reject) — closes a table-poisoning identity collision; recommended for base §7.8 decode too ([PATCH]). §C.5.1, §C.7.3, §C.8.1. |
+> | # | Item | Decision | State |
+> |---|---|---|---|
+> | 1 | SOW §6.1 placement | **STD-006 appendix**, authored as this standalone file and merged after review (the STD-011 Appendix B precedent). §C.1.3. | **RATIFIED** (Peter, 2026-07-21) |
+> | 2 | SOW §6.2 reference granularity | **Whole-chain only**; per-record links rejected with numbers (estimated-from-code basis). §C.10. | **RATIFIED** (Peter, 2026-07-21) |
+> | 3 | SOW §6.3 negotiation | **Superseded by ruling: there is nothing to negotiate.** Dedup is the mandatory stream form of the released DER object-stream format; the v0.2 capability/marker/echo design and its matrix are replaced by §C.9 (mechanical enforcement + one residual-skew note). | **RULED** (Peter, 2026-07-21) |
+> | 4 | Ceilings | `maxDistinctChainsPerStream` = 256, `maxChainRecords` = 64, `maxChainBytes` = 65536, `maxDedupTableBytes` = 1 048 576 — inclusive, metered during decode; they are the format's admissibility bounds (§C.8.1, one profile, converging with T6's base adoption). §C.8. | **RATIFIED** (values); admissibility framing per ruling |
+> | 5 | Stream record shapes | The stream-form §7.8 record **drops the `schemaDigest` field** (derivable in both arms; removes a restate-and-disagree surface) — sound given the chain-completeness rule. §C.5.3. | **RATIFIED** (Peter, 2026-07-21) |
+> | 6 | Table scope | **Per marshal stream** (one codec lifetime) — a precision correction to the SOW's "per-connection" parenthetical. §C.7.1 [FLAG]. | **RATIFIED** (Peter, 2026-07-21) |
+> | 7 | Boomerang seam | **Every** `[8]` proxy item's interior — any nesting level — excluded from dedup, byte-region-scoped and transitive (retention's verbatim-relay contract). §C.6.5. | **RATIFIED** (Peter, 2026-07-21) |
+> | 8 | Chain completeness | A `fullChain` whose **last record carries `parentSchemaHash`** is rejected (truncated-chain reject) — closes a table-poisoning identity collision; recommended for base decode too ([PATCH]). §C.5.1, §C.7.3, §C.8.1. | **RATIFIED** (Peter, 2026-07-21) |
+> | 9 | Stream-format version octet | The `[15]` first-TLV is **repurposed from mode marker to mandatory format version octet** (`8F 01 01`): absence or unknown version = hard reject; the format's fail-loud evolution hook. §C.5.2. | **[PROPOSED]** (new in v0.3) |
 
 ---
 
@@ -106,7 +126,7 @@ banned from (§C.3; `SOW-Outrigger-DER-Only-JOSS-Rejection.md` §9 decision 6).
 ### C.1.2 Scope boundary: wire only (NORMATIVE)
 
 The reference form is a **transport encoding, below identity**. It exists only inside a
-negotiated DER object stream, between one encoder and one decoder, for the lifetime of
+DER object stream, between one encoder and one decoder, for the lifetime of
 that stream:
 
 1. The reference form MUST NOT cross any persistence boundary. Stored records, snaplog
@@ -117,12 +137,19 @@ that stream:
    observe remain canonical full form at all times, on both sides. (The ratified
    invariant from `SOW-Outrigger-DER-Only-JOSS-Rejection.md` §9 item 4: canonical
    uncompressed bytes are the only identity.)
-3. A standalone `MarshalledInstance` capture stream (`DerMarshalInstanceOutput` /
-   `DerMarshalInstanceInput` — the stream that produces an MI's own captured
-   `payloadBytes`/`schemaBytes` state) MUST NOT use dedup mode. Those bytes are
-   identity- and persistence-bearing by construction.
-4. Dedup applies per individual marshal stream and only when negotiated (§C.9). An
-   un-negotiated stream is byte-identical to the pre-dedup format.
+3. The standalone `MarshalledInstance` capture path (`DerMarshalInstanceOutput` /
+   `DerMarshalInstanceInput` — the path that produces an MI's own captured
+   `payloadBytes`/`schemaBytes` state) is **not an instance of this stream format**
+   and MUST NOT use its productions: no version octet, no `SchemaChainRef`, canonical
+   record-level full form only. Those bytes are identity- and persistence-bearing by
+   construction, and the capture path already operates at whole-object granularity
+   with schema as separate first-class state, not as an object stream. (This
+   clarification is what preserves the wire-only boundary under mandatory dedup —
+   "mandatory" quantifies over DER **object streams**, not over every byte production
+   in `jgdms-der`; see §C.9.4.)
+4. Dedup applies per individual marshal stream (§C.7.1) and is **unconditional**: it
+   is the released DER object-stream format, not a mode of it (Peter's ruling,
+   2026-07-21 — header ratification record; §C.9).
 
 Storage-side duplication is C5's job (digest-keyed interning); intra-entry duplication
 is EntryRep-v2's. The three are complementary layers of one idea at three lifetimes:
@@ -170,10 +197,11 @@ A/B) or is re-lettered at merge is editorial and deliberately not decided here.
 | **Schema chain** | The leaf-first concatenation of `AtomicSerialSchemaRecord` DER SEQUENCEs for one `@AtomicSerial` class hierarchy (STD-006 §7.8 "Schema chain encoding"). A pure function of the class (`SchemaGenerator.generateChain`, memoised per class — `SchemaGenerator.java:194-203`). |
 | **Chain identity / chain digest** | `SHA-256(DER(leaf AtomicSerialSchemaRecord))`, computed over the received leaf-record bytes (§C.7.3). Because `parentSchemaHash` forms a Merkle chain (§7.8) **and this appendix enforces chain completeness** (a terminal record carrying `parentSchemaHash` is rejected, §C.5.1), the leaf digest commits the entire chain's bytes and the identity→bytes mapping is **injective**: two accepted chains with equal leaf digests are byte-identical absent a SHA-256 collision. (Without the completeness rule the claim is false — a truncated `{leaf}` and the full `{leaf, parent, root}` share a leaf digest with different bytes; board round 1, fix 2.) |
 | **Stream** | One DER object stream: the byte sequence produced by one `DerObjectStreamCodec` lifetime — concretely, the argument stream *or* the return stream of one remote call (`createMarshalOutputStream` / `createMarshalInputStream` each construct a fresh codec), or one standalone encode/decode unit. See §C.7.1. |
-| **Marked stream** | A stream that begins with the dedup mode marker (§C.5.2) and therefore uses the dedup-mode grammar at every chain site. An **unmarked stream** uses the pre-dedup grammar exactly, byte-for-byte. |
+| **Stream format version octet** | The mandatory first TLV of every stream (`8F 01 01`, §C.5.2): tag `[15]`, one content octet naming the stream-format version (this appendix = version 1). Absence or an unknown version is a hard reject. |
+| **Superseded trunk format** | The pre-dedup, full-chain-per-occurrence object-stream encoding in trunk before T2 lands (no version octet, §7.8/STD-008 §16 records at every site). Referred to only historically and as an analytical baseline; it is **not** a valid stream form of the released format (Peter's ruling, 2026-07-21). Its record-level productions — the §7.8 four-field record and the STD-008 §16 nested record — remain defined and in use as the **canonical record-level full forms** (MI state, persistence, `[8]` interiors, reconstitution targets). |
 | **Chain site** | A position in the stream grammar where the encoder emits a schema chain (§C.4): the chain field of a §7.8 `MarshalledInstanceRecord` (production P1) or of a STD-008 §16 nested record (production P2). |
 | **Occurrence** | One chain site instance in one stream, ordered by the normative traversal order (§C.6.2). |
-| **Dedup table** | The per-stream map from chain digest to verified chain bytes (decoder) / to emitted-marker (encoder). Created at stream open, discarded at stream close (§C.7). |
+| **Dedup table** | The per-stream map from chain digest to verified chain bytes (decoder) / to an already-emitted presence flag (encoder). Created at stream open, discarded at stream close (§C.7). |
 | **Full-chain form / reference form** | The two arms of `SchemaChainRef` (§C.5.1): the complete canonical chain bytes, or the 32-byte chain digest of a chain already carried in full earlier in the same stream. |
 | **Reconstitution** | The decoder-side recovery of canonical full-form bytes for every referenced chain, such that everything above the transport observes exactly the bytes a pre-dedup stream would have delivered (§C.5.4). |
 
@@ -209,8 +237,8 @@ any of them without a new, board-reviewed security argument:
 
 ### C.3.2 Claim and argument
 
-> **Claim (length independence).** For a fixed stream mode, the byte length of an
-> encoded stream is a function of the stream's *structure* only: the sequence of item
+> **Claim (length independence).** The byte length of an encoded stream is a function
+> of the stream's *structure* only: the sequence of item
 > kinds, each value's structural shape (declared classes, chain identities, collection
 > sizes, scalar/string/octet lengths — every quantity the pre-dedup encoding's length
 > already depends on), and the multiset-with-order of chain identities at chain sites.
@@ -219,29 +247,31 @@ any of them without a new, board-reviewed security argument:
 **Argument.**
 
 *(i) The only length-affecting mechanism is chain-site substitution.* By construction
-(§C.5), a marked stream differs from the corresponding unmarked stream in exactly three
-places: the fixed-size stream marker (constant length), the removal of the `schemaDigest`
-field from P1 records (constant 34-byte delta per P1 site, independent of content), and
-the choice of `SchemaChainRef` arm at each chain site. Every other octet — payload
-values, scalars, tags, collection contents — is emitted verbatim by the same rules as
-the unmarked grammar (rule 2). Hence
-`len(marked) = len(unmarked) + len(marker) − 34·|P1 sites| − Σ_subsequent (len(chainᵢ) − len(ref))`,
+(§C.5), a stream of this format differs from the same record sequence's *superseded
+trunk format* encoding — used here purely as the analytical baseline, since every
+octet outside this appendix's productions is defined by the same rules — in exactly
+three places: the fixed-size version octet TLV (constant length), the removal of the
+`schemaDigest` field from P1 records (constant 34-byte delta per P1 site, independent
+of content), and the choice of `SchemaChainRef` arm at each chain site. Every other
+octet — payload values, scalars, tags, collection contents — is emitted verbatim by
+the same rules as the baseline grammar (rule 2). Hence
+`len(stream) = len(baseline) + len(versionTLV) − 34·|P1 sites| − Σ_subsequent (len(chainᵢ) − len(ref))`,
 where the sum ranges over subsequent occurrences under the pinned rule of §C.6.
 
 *(ii) Every term of that expression is a function of structure.* `|P1 sites|` and the
 occurrence sequence are determined by the object graph's shape (which classes appear,
-where, how many times) — the same facts that determine the unmarked stream's length.
-Which occurrences are "subsequent" is determined by chain-identity equality in traversal
+where, how many times) — the same facts that determine the baseline length. Which
+occurrences are "subsequent" is determined by chain-identity equality in traversal
 order (§C.6), and chain identity is a function of the class alone (§C.2): no instance
 value can make two sites share or not share a chain. `len(chainᵢ)` is a function of the
 class. `len(ref)` is constant (34 bytes).
 
 *(iii) No adversary-visible length varies with a secret value.* Combining (i) and (ii):
 two streams that are structurally identical but differ arbitrarily in field values
-(payload octets of any field, of any record) produce marked encodings of **identical
+(payload octets of any field, of any record) produce encodings of **identical
 length**, because no term above reads a value octet. The scheme therefore adds *zero*
 value-dependent length variation beyond what DER's explicit length fields already
-reveal in the unmarked format. This is precisely the property whose absence makes
+reveal in the baseline encoding. This is precisely the property whose absence makes
 DEFLATE-over-TLS a CRIME oracle: there, a shared compression context lets an
 attacker-controlled plaintext's length depend on its byte-level similarity to a secret
 plaintext. Here there is no shared context between values at all (rule 1), no value is
@@ -252,9 +282,9 @@ public class structure (rule 3). ∎
 (`SOW-Outrigger-DER-Only-JOSS-Rejection.md` §9, ratified 2026-07-21) bans
 general-purpose compression over connections with confidentiality, because compressed
 length is a function of plaintext content. This scheme's output length is a function of
-plaintext *structure* only, so decision 6 does not cover it: dedup MAY be negotiated
-over TLS/mTLS and every other transport, and the encrypted bulk-response wire-bloat gap
-decision 6 deliberately left open is closed by it. DEFLATE and any other
+plaintext *structure* only, so decision 6 does not cover it: the dedup-form stream is
+admissible over TLS/mTLS and every other transport, and the encrypted bulk-response
+wire-bloat gap decision 6 deliberately left open is closed by it. DEFLATE and any other
 value-reading compressor remain banned over encrypted transports regardless of this
 appendix.
 
@@ -262,13 +292,14 @@ appendix.
 
 - **It does not claim the structural length channel is closed — and dedup widens it
   slightly.** Message lengths reveal message shape — which classes appear, how many,
-  collection sizes — with or without dedup. Dedup additionally reveals chain
-  **distinctness**: two records carrying equal-length but *distinct* chains encode as
-  two full forms, while two records of the *same* class encode as full + reference —
-  observably different lengths where the unmarked format's lengths coincide. An
-  observer of ciphertext lengths can therefore infer whether shapes repeat, which the
-  unmarked format does not always disclose. (v0.1 claimed everything so inferable was
-  already inferable unmarked; that was an overclaim — corrected per board round 1,
+  collection sizes — with or without dedup. Relative to the superseded trunk format,
+  dedup additionally reveals chain **distinctness**: two records carrying equal-length
+  but *distinct* chains encode as two full forms, while two records of the *same*
+  class encode as full + reference — observably different lengths where the
+  superseded format's lengths coincide. An observer of ciphertext lengths can
+  therefore infer whether shapes repeat, which the superseded format did not always
+  disclose. (v0.1 claimed everything so inferable was already inferable from the
+  per-occurrence encoding; that was an overclaim — corrected per board round 1,
   fix 7.) The delta is confined to *structural, public* facts — which class shapes
   appear and whether they coincide — never value content: rule 3 and the §C.3.2
   value-independence argument are unaffected, and no JGDMS security property depends
@@ -434,43 +465,55 @@ Decode rules (fail-secure, principle 6 — reject, never skip or default):
   a non-minimal length, non-canonical inner encoding, or any BER-ism inside a chain
   record MUST be rejected (see the digest-preimage rule, §C.7.3).
 
-### C.5.2 The stream mode marker
+### C.5.2 The stream-format version octet [PROPOSED — repurposed per the 2026-07-21 ruling]
 
-A marked stream begins with the **dedup mode marker**: a context-specific primitive TLV,
-tag `[15]` (tag byte `0x8F`), content exactly one octet `0x01` (mode version 1). Wire
-bytes: `8F 01 01`.
+Every stream begins with the **stream-format version octet**: a context-specific
+primitive TLV, tag `[15]` (tag byte `0x8F`), content exactly one octet naming the
+stream-format version. This appendix defines version `0x01`. Wire bytes: `8F 01 01`.
 
-- The marker MUST be the first TLV of the stream — before any object item or positional
-  primitive. A marker anywhere else in a stream MUST be rejected. A second marker MUST
-  be rejected.
-- A marker whose content length is not 1, or whose content octet is not `0x01`, MUST be
-  rejected (unknown mode version — a future revision that changes the grammar assigns
-  `0x02`, it does not reuse `0x01`).
-- A dedup-**enabled** receiver (an endpoint whose export configuration enables dedup,
-  §C.9.2) MUST accept both marked and unmarked streams. A dedup-capable but
-  **config-off** receiver MUST reject a marked stream exactly as a pre-dedup receiver
-  does — loudly, at the marker (§C.9.4: the export configuration gates acceptance as
-  well as emission). In an unmarked stream the pre-dedup grammar applies exactly; a
-  `SchemaChainRef` arm tag or dedup-mode record shape appearing in an unmarked stream
-  is malformed input and MUST be rejected (it will be, by the existing grammar's own
-  checks).
-- A pre-dedup receiver meeting `0x8F` fails loudly by existing construction: no
-  pre-dedup production admits context tag `[15]` — `readObject`'s catch-all rejects it
-  by name, and every positional typed read rejects it as a tag mismatch (verified
-  against `DerObjectStreamCodec.readObject`'s final reject and `DerReader`'s
-  universal-tag checks). See the negotiation matrix, §C.9.5.
+- The version TLV MUST be the first TLV of the stream — before any object item or
+  positional primitive — and MUST appear exactly once. A version TLV anywhere else, or
+  a second one, MUST be rejected.
+- A stream that does **not** begin with the version TLV MUST be rejected — there is no
+  unversioned form. A version TLV whose content length is not 1, or whose content
+  octet names a version the receiver does not implement, MUST be rejected (a future
+  revision that changes the grammar assigns `0x02`; it never reuses `0x01`).
+- This is **not** a mode marker and carries no optionality: dedup is the format
+  (§C.9), and version `0x01` *means* the grammar of this appendix at every chain
+  site. Its retention — rather than deletion along with the v0.2 negotiation design —
+  is a deliberate decision [PROPOSED], for two reasons:
+  1. **Fail-loud format evolution for free.** A future stream-format revision (a
+     `SchemaChainRef` arm addition per §C.10.3's revisit trigger, a SOW §6.4
+     dictionary, any grammar change) needs a discriminator; first-TLV position plus
+     hard-reject-on-unknown-version gives every such change a crisp, immediate,
+     identifiable failure against older decoders instead of a mid-stream tag error —
+     the §5.2 objection to a *protocol* version byte does not apply to a
+     *stream-format* version interior to one invocation layer's own framing.
+  2. **The T2 transition becomes self-announcing.** A superseded-trunk-format stream
+     (which starts with an item TLV, never `0x8F`) is rejected identifiably at the
+     first TLV (§C.9.3), and conversely a versioned stream reaching a
+     superseded-format decoder fails loudly by existing construction — no pre-dedup
+     production admits context tag `[15]`: `readObject`'s catch-all rejects it by
+     name and every positional typed read rejects it as a tag mismatch (verified
+     against `DerObjectStreamCodec.readObject`'s final reject and `DerReader`'s
+     universal-tag checks).
+  The alternative — removal — was rejected: it saves 3 bytes per stream and forfeits
+  both properties; the first future grammar change would have to retrofit exactly
+  this TLV.
 
 **[PROPOSED]** Tag number 15 — the next free value after the object-stream item tags
 `[0]`–`[14]` (STD-008 §15.2/§15.2.1). **[OPEN → T2]** confirm against STD-008's tag
 registry at merge time that `[15]` remains unallocated, and record the allocation there.
 
-### C.5.3 Dedup-mode record shapes
+### C.5.3 The stream record shapes
 
-In a **marked stream**, the two chain-carrying productions are replaced as follows —
-this is a whole-grammar switch, not a per-record option (§C.6.1):
+In the stream, the two chain-carrying productions are the following — for every stream,
+at every site; the record-level canonical forms (§7.8 four-field record, STD-008 §16
+nested record) remain defined and in use for MI state, persistence, `[8]` interiors
+(§C.6.5), and as reconstitution targets, but are not stream productions:
 
 ```asn1
--- Replaces the sec. 7.8 MarshalledInstanceRecord at P1 sites in marked streams.
+-- Replaces the sec. 7.8 MarshalledInstanceRecord at P1 stream sites.
 DedupMarshalledInstanceRecord ::= SEQUENCE {
     payloadBytes  OCTET STRING,      -- unchanged: sec. 7.8 hierarchy payload,
                                      -- except interior P2 sites use
@@ -479,7 +522,7 @@ DedupMarshalledInstanceRecord ::= SEQUENCE {
     payloadFormat UTF8String         -- unchanged: "JGDMS-STD-006/ATOMIC-DER"
 }
 
--- Replaces the STD-008 sec. 16 nested record at P2 sites in marked streams.
+-- Replaces the STD-008 sec. 16 nested record at P2 stream sites.
 DedupNestedAtomicRecord ::= SEQUENCE {
     schema        SchemaChainRef,    -- chain-first, matching the sec. 16 field order
     payloadBytes  OCTET STRING
@@ -487,7 +530,8 @@ DedupNestedAtomicRecord ::= SEQUENCE {
 ```
 
 **The `schemaDigest` field is deliberately absent** from
-`DedupMarshalledInstanceRecord` **[PROPOSED]**. Rationale: in the reference arm the
+`DedupMarshalledInstanceRecord` **[RATIFIED (Peter, 2026-07-21), together with the
+§C.5.1 completeness rule]**. Rationale: in the reference arm the
 digest *is* the content (`chainRef`); in the full arm the receiver must recompute the
 leaf digest from the received bytes anyway (that recomputation is the §7.8-mandated
 verification, and the result is the table key). Keeping the field would restate a
@@ -505,20 +549,23 @@ Field-count enforcement mirrors §7.8: a `DedupMarshalledInstanceRecord` is exac
 three fields and a `DedupNestedAtomicRecord` exactly two; trailing content MUST be
 rejected.
 
-**Everything else in the stream grammar is unchanged, octet for octet**: item tags
-`[0]`–`[14]`, positional primitives, payload interiors (except interior chain sites),
-enum/array/proxy/collection encodings, `Any` arms, canonical scalar forms. Rule 2 of
-§C.3.1 is enforced by this sentence: a conformance vector MUST be able to diff a marked
-and unmarked encoding of the same record sequence and find differences *only* at the
-marker, at P1 field-set changes, and at chain sites.
+**Everything else in the stream grammar is unchanged from the superseded trunk
+format, octet for octet**: item tags `[0]`–`[14]`, positional primitives, payload
+interiors (except interior chain sites), enum/array/proxy/collection encodings, `Any`
+arms, canonical scalar forms. Rule 2 of §C.3.1 is enforced by this sentence: a
+conformance check MUST be able to diff a stream against the analytic baseline encoding
+of the same record sequence (§C.3.2(i)) and find differences *only* at the version
+TLV, at P1 field-set changes, and at chain sites.
 
 ### C.5.4 Canonicality and the round-trip law
 
-- **One encoding per stream mode (G1).** For a given record sequence and stream mode,
-  there is exactly one conformant byte stream. In a marked stream the full/reference
+- **One encoding, period (G1 at the stream layer — the ratified rationale).** For a
+  given record sequence there is exactly one conformant byte stream: the full/reference
   choice at every site is forced by §C.6 (no encoder discretion, no size thresholds, no
-  heuristics); in an unmarked stream the pre-dedup encoding applies unchanged. Same
-  record sequence ⇒ same stream bytes, on every conformant implementation.
+  heuristics), and no second stream form exists — this is precisely why dedup was made
+  mandatory rather than negotiated ("so there isn't a non-dedup and dedup version with
+  differing bytes", Peter, 2026-07-21). Same record sequence ⇒ same stream bytes, on
+  every conformant implementation.
 - **Decoders reject non-canonical dedup streams** (G1's decode half): a `fullChain`
   whose digest is already in the table (a duplicate full form where the pinned rule
   requires a reference) MUST be rejected, exactly as a `chainRef` with no table entry
@@ -529,8 +576,9 @@ marker, at P1 field-set changes, and at chain sites.
   machinery, MI state, retained raw forms, or any re-encode) MUST be byte-identical to
   the sender's canonical full form — i.e. to the bytes `SchemaGenerator` +
   §7.8/STD-008 §16 would produce for the same class. Consequently, re-encoding a
-  decoded record in a non-dedup context MUST reproduce the canonical full-form bytes
-  byte-for-byte, and any digest, signature, byte-comparison, or persistence operating
+  decoded record in any canonical-form context — MI capture, persistence, a `[8]`
+  interior, digest or signature computation — MUST reproduce the canonical full-form
+  bytes byte-for-byte, and any digest, signature, byte-comparison, or persistence operating
   above the transport is provably unaffected by which arm carried the chain.
   Reconstituting the P1 §7.8 four-field record inserts the computed leaf digest as
   `schemaDigest` — deterministically identical to the field the sender omitted.
@@ -542,11 +590,11 @@ authoritative vectors are T3/T5 outputs generated from the built codec (a hand-d
 hex transcript is deliberately *not* presented as verified — G13's discipline; T5's
 corpus is the known-good).
 
-A marked response stream carrying two top-level `@AtomicSerial` objects of the same
+A response stream carrying two top-level `@AtomicSerial` objects of the same
 class `com.example.Foo` (chain digest `D`):
 
 ```
-8F 01 01                          -- mode marker, version 1
+8F 01 01                          -- stream-format version octet, version 1
 A1 <len>                          -- [1] CTX_ATOMIC item 1
   30 <len>                        --   DedupMarshalledInstanceRecord
     04 <len> <payload bytes>      --     payloadBytes (verbatim value octets)
@@ -559,9 +607,10 @@ A1 <len>                          -- [1] CTX_ATOMIC item 2, same class
     0C 18 "JGDMS-STD-006/..."
 ```
 
-The same two objects in an unmarked stream carry two identical full `schemaBytes`
-octet strings and two `schemaDigest` fields, and no marker — and MUST be byte-identical
-to the pre-dedup format.
+Under the superseded trunk format the same two objects carried two identical full
+`schemaBytes` octet strings and two `schemaDigest` fields, and no version octet —
+shown here only as the historical/analytic contrast; that encoding is not a valid
+stream of the released format and MUST be rejected at its first TLV (§C.5.2, §C.9.3).
 
 ---
 
@@ -569,7 +618,7 @@ to the pre-dedup format.
 
 ### C.6.1 The rule
 
-Within a marked stream, considering every chain site in the normative traversal order
+Within a stream, considering every chain site in the normative traversal order
 of §C.6.2:
 
 - the **first occurrence** of a given chain identity MUST be encoded as `fullChain`;
@@ -645,8 +694,8 @@ decode ahead of the enclosing chain field.
 An occurrence is a chain **site**, not a class mention: every P1a/P2a–P2d position
 emits exactly one `SchemaChainRef`, and nested records inside a payload are occurrences
 in their own right. The chain identity at a site is the leaf digest of the chain for
-the *runtime class being encoded at that site* (the same class the pre-dedup format
-would have emitted a chain for) — dedup never changes which class's chain a site
+the *runtime class being encoded at that site* (the same class the superseded trunk
+format emitted a chain for) — dedup never changes which class's chain a site
 carries, only whether it travels in full.
 
 ### C.6.4 Decoder enforcement of the rule (G1 decode half)
@@ -664,7 +713,7 @@ A conformant decoder MUST maintain the same traversal order and MUST reject:
 A rejection at any site is a decode failure of the whole stream (no partial tolerance,
 no object constructed from the failing item — principle 6).
 
-### C.6.5 Exclusion: every `[8]` proxy interior, at any nesting level [PROPOSED]
+### C.6.5 Exclusion: every `[8]` proxy interior, at any nesting level [RATIFIED (Peter, 2026-07-21)]
 
 **The rule (one rule, byte-region-scoped, transitive).** The entire content of every
 `[8]` `CTX_PROXY` TLV — the top-level object-stream item (P1b) **and** the nested
@@ -673,17 +722,20 @@ directions:
 
 - No chain site anywhere inside a `[8]` TLV's content participates in dedup: the
   handler's own record, and transitively every P1/P2-shaped record inside the
-  handler's `@AtomicSerial` field payloads, MUST be encoded with the canonical
-  pre-dedup grammar (full §7.8 / STD-008 §16 forms) even in a marked stream.
+  handler's `@AtomicSerial` field payloads, MUST be encoded as the canonical
+  record-level full forms (§7.8 / STD-008 §16 — the forms also used for MI state and
+  persistence), in every stream.
 - No chain inside a `[8]` interior is entered into the dedup table, counted as an
   occurrence, or usable as a reference-resolution target; no `chainRef` may appear
   inside a `[8]` interior. The exclusion is a property of the **byte region** (the
   `[8]` TLV content), not of any particular record within it.
 
-Consequently P1b and P2d are **not chain sites** (§C.4.1, §C.4.2), and within a marked
-stream every byte region has exactly one grammar: dedup grammar outside `[8]`
-interiors, canonical pre-dedup grammar inside them — no site has two encodings (G1
-preserved).
+Consequently P1b and P2d are **not chain sites** (§C.4.1, §C.4.2), and within every
+stream each byte region has exactly one grammar: the stream productions outside `[8]`
+interiors, the canonical record-level full forms inside them — no site has two
+encodings (G1 preserved). The exclusion's substance is independent of dedup's
+mandatoriness: retention crosses stream boundaries regardless, so the region must stay
+reference-free in any design.
 
 **Rationale.** `[8]` items are subject to the raw-wire-form retention contract
 (`RawWireFormRetaining` / `ProxyWireSupport.wireContentForBoomerang`) **at both
@@ -719,7 +771,7 @@ expectation, not a measurement; T4's wire-size probe reports the actual `[8]`-in
 residue alongside its three-way comparison.
 
 **[OPEN → T2/T3]** T2 MUST implement the region exclusion at both write/read sites;
-T3's corpus carries the §C.11.3(15)–(16) boomerang-relay and transitivity vectors.
+T3's corpus carries the §C.11.3(14)–(15) boomerang-relay and transitivity vectors.
 
 ---
 
@@ -749,14 +801,15 @@ occurrences cheap to produce, §C.12.3.)
 
 ### C.7.2 Lifecycle
 
-- The table is created at stream open (encoder: first byte written; decoder: marker
-  processed) and MUST be discarded at stream close — including abandoned/failed
+- The table is created at stream open (encoder: first byte written; decoder: version
+  octet processed) and MUST be discarded at stream close — including abandoned/failed
   streams. It MUST NOT be global, MUST NOT be shared between streams (not even two
   streams of one call, one connection, or one thread), MUST NOT be persisted, and MUST
   NOT be pre-seeded from any source (no "well-known chains" dictionary — a pre-seeded
   entry is a cross-stream channel and a poisoning surface, and it breaks the
   first-occurrence-is-full invariant that makes streams self-contained).
-- An unmarked stream has no table and no dedup state of any kind.
+- Non-stream contexts (the standalone MI capture path, §C.1.2 item 3; `[8]` interior
+  regions, §C.6.5) carry no table and no dedup state of any kind.
 
 ### C.7.3 Normative decode algorithm (verify once, then look up)
 
@@ -784,14 +837,15 @@ For each chain site, in traversal order (§C.6.2):
    hashed a re-encode while tolerating non-canonical input would silently launder
    non-canonical bytes into the table — the construction this pin forecloses.
 
-   *(Marked/unmarked validation asymmetry, [FLAG] — base-standard gap found in this
-   review round: the base P2 decode path, `ObjectCodec.decodeNested`
-   `:1996-2006`, parses chain records but **skips the `parentSchemaHash` Merkle
-   cross-check** that the base P1 path runs — despite its "same format as
-   MarshalledInstanceRecord.decodeSchemaChain" comment. This appendix's algorithm
-   cross-checks uniformly at every full arm, P1 and P2 alike, so until the base gap
-   is fixed a marked stream validates P2 chains* more *strictly than an unmarked
-   stream — a direct tension with §C.11.1(3)'s mode-transparency claim for
+   *(Validation asymmetry, [FLAG] — base-standard gap found in board round 1: the
+   base record-level P2 decode path, `ObjectCodec.decodeNested` `:1996-2006`, parses
+   chain records but **skips the `parentSchemaHash` Merkle cross-check** that the
+   base P1 path runs — despite its "same format as
+   MarshalledInstanceRecord.decodeSchemaChain" comment. This appendix's stream
+   algorithm cross-checks uniformly at every full arm, P1 and P2 alike, so until the
+   base gap is fixed the stream decode validates P2 chains* more *strictly than the
+   base record-level decode paths still used for `[8]` interiors, MI state, and
+   persistence — a residual asymmetry against §C.11.1(3)'s equivalence claim for
    malformed-chain inputs. See the §C.8.1 [PATCH], which recommends adding the
    cross-check (and the completeness check) to base P2 decode.)*
 2. **`chainRef` arm:** look the digest up in the table. Absent ⇒ reject (§C.6.4).
@@ -842,7 +896,7 @@ its size is bounded by the same §C.8 ceilings, enforced as encode failures.
 
 ---
 
-## C.8 Ceilings [PROPOSED — values for ratification]
+## C.8 Ceilings [RATIFIED values (Peter, 2026-07-21); admissibility framing per the same ruling]
 
 ### C.8.1 The table (STD-006 §4.5 style)
 
@@ -854,7 +908,7 @@ encoder and decoder, JVM and non-JVM, enforces them identically.
 
 | Constant | Value | Applies to |
 |---|---|---|
-| `maxDistinctChainsPerStream` | 256 | Distinct chain identities entered into one stream's dedup table (= number of `fullChain` occurrences in a marked stream). The 257th distinct `fullChain` is rejected at insertion. |
+| `maxDistinctChainsPerStream` | 256 | Distinct chain identities entered into one stream's dedup table (= number of `fullChain` occurrences in a stream). The 257th distinct `fullChain` is rejected at insertion. |
 | `maxChainRecords` | 64 | `AtomicSerialSchemaRecord` count in one chain (`fullChain` content). Chains are class hierarchies; real JVM hierarchies are ≤ ~10 deep — 64 mirrors `maxCauseDepth`'s generosity without admitting pathological record floods. |
 | `maxChainBytes` | 65536 | Byte length of one `fullChain` content (`SIZE(1..maxChainBytes)`, §C.5.1). Typical chains measure hundreds of bytes (§C.10.2); 64 KiB accommodates `maxChainRecords` records of unusual width while capping single-chain allocation. |
 | `maxDedupTableBytes` | 1048576 | Sum of stored chain-byte lengths in one stream's table. Binds before `maxDistinctChainsPerStream × maxChainBytes` (16 MiB) can be reached; 1 MiB of *distinct* schema text in one stream is far beyond any legitimate workload. |
@@ -871,34 +925,38 @@ per-record `className` `SIZE(1..1024)`, `maxFields` 65535 (§4.5), the stream-le
 `maxInputBytes` / nesting caps (`DerInputLimits`, STD-008), and `MAX_NESTING` for
 nested records.
 
-**Precedence over base §4.5 maxima [PROPOSED — board fix 4].** `maxChainBytes` = 64 KiB
-is intentionally far below the theoretical maximum a single base-admissible record can
-reach (`maxFields` = 65535 fields of up to ~1.3 KB each, `className` ≤ 1024 B): a class
-can exist that is encodable in an **unmarked** stream but exceeds the marked-stream
-chain ceilings. The pinned resolution: **the marked-stream profile deliberately
-tightens the admissible class set**, and the failure mode is a **loud encode-time
-error** (the §C.8.2 encoder obligation — never a silent fallback to full form or to an
-unmarked stream) and a decode-time reject on receipt. Rationale: no sane class
-approaches these bounds (a 64 KiB *schema* is a generated-code pathology, not a
-design), DER is unreleased with no deployed peers to strand, and the alternative —
-raising `maxChainBytes` to cover the §4.5-theoretical maximum (~85 MB) — would gut the
-table ceilings' DoS value. Consequence for the corpus: the §C.8.2 boundary vectors are
-constrained **jointly** — no vector may demand an accepted-at-`maxFields` record inside
-an accepted chain, since `maxChainBytes` binds first; each ceiling's boundary pair is
-built to satisfy every *other* ceiling with margin. The same tension arises if the base
-standard adopts these ceilings ([PATCH] below); its resolution there (tighten §4.5's
-own maxima vs. accept the narrowed set globally) belongs to the base-adoption pass
-(tracked as T6 in the board fix list), cross-referenced in §C.13.3.
+**The chain ceilings are the format's admissibility bounds (reframed per the
+2026-07-21 ruling — no profile split exists).** `maxChainBytes` = 64 KiB is
+intentionally far below the theoretical maximum a single §4.5-admissible *record* can
+reach (`maxFields` = 65535 fields of up to ~1.3 KB each, `className` ≤ 1024 B): a
+class can be imagined whose individual records satisfy §4.5 while its chain exceeds
+these bounds. Such a class is simply **not encodable in the released stream format** —
+there is no laxer stream form for it to ride (the v0.2 marked-vs-unmarked precedence
+question dissolved with the mode split). The failure mode is a **loud encode-time
+error** (the §C.8.2 encoder obligation — never a silent fallback of any kind) and a
+decode-time reject on receipt. Rationale: no sane class approaches these bounds (a
+64 KiB *schema* is a generated-code pathology, not a design), DER is unreleased with
+no deployed peers to strand, and the alternative — raising `maxChainBytes` to cover
+the §4.5-theoretical maximum (~85 MB) — would gut the table ceilings' DoS value.
+Consequence for the corpus: the §C.8.2 boundary vectors are constrained **jointly** —
+no vector may demand an accepted-at-`maxFields` record inside an accepted chain, since
+`maxChainBytes` binds first; each ceiling's boundary pair is built to satisfy every
+*other* ceiling with margin. **Convergence with the base adoption (T6):** the T6 pass
+(branch `hardening/der-chain-ceilings`) implements these same ceilings in the base
+record-level decode paths, so spec and base describe **one profile** — the same four
+constants, the same admissibility statement, everywhere chains are parsed. The small
+wording alignment of T6's §4.5 admissibility note with this paragraph is flagged for
+T6's merge (not edited on T6's branch from here), §C.13.3.
 
 **[PATCH — STD-006 §7.8 / §4.5 / base decode paths]** On merge, recommend to the base
-standard (flagged here, not enacted — this appendix's normative reach is marked
-streams):
+standard (flagged here, not enacted — this appendix's normative reach is the object
+stream format; the base record-level decode paths are the [PATCH]'s target):
 
 1. Add the four constants above to the §4.5 profile table. Independently of dedup:
    §4.5 currently declares **no ceiling on chain record count or chain byte length** —
-   `schemaBytes` in the pre-dedup format is bounded only by the stream-level
-   `maxInputBytes`. `maxChainRecords`/`maxChainBytes` are sound bounds for the
-   pre-dedup chain parser too (`MarshalledInstanceRecord.decodeSchemaChain` loops
+   `schemaBytes` in the base record-level format is bounded only by the stream-level
+   `maxInputBytes`. `maxChainRecords`/`maxChainBytes` are sound bounds for the base
+   record-level chain parser too (`MarshalledInstanceRecord.decodeSchemaChain` loops
    until bytes are exhausted with no record-count cap — trunk-verified). Ceiling
    precedence per the paragraph above is part of the adoption decision (T6).
 2. **Chain completeness in base decode (board fix 2):** `decodeSchemaChain`
@@ -911,9 +969,10 @@ streams):
 3. **P2 Merkle cross-check in base decode (board fix 5):** `ObjectCodec.decodeNested`
    (`:1996-2006`) skips the `parentSchemaHash` cross-check the P1 path runs, despite
    its "same format" comment — nested chains are currently accepted with broken
-   Merkle links in unmarked streams. Add the cross-check (and item 2's completeness
-   check) to base P2 decode, which also removes the marked/unmarked validation
-   asymmetry noted in §C.7.3.
+   Merkle links wherever the base record-level P2 decode runs (`[8]` interiors, MI
+   state, persistence). Add the cross-check (and item 2's completeness check) to base
+   P2 decode, which also removes the stream-vs-record-level validation asymmetry
+   noted in §C.7.3. (The T6 base-adoption branch is the natural carrier.)
 
 ### C.8.2 Metered during decode (G10 interior fence)
 
@@ -943,154 +1002,83 @@ small records or one wide record within the byte bound).
 
 ### C.8.3 Honesty note (informative)
 
-The dedup table is a **new** allocation surface: the pre-dedup format has no per-stream
-accumulation keyed by stream content (each record is self-contained, bounded by
-`maxInputBytes`). These ceilings fence that new surface; they do not claim to improve
-the pre-dedup format's bounds (see the [PATCH] above for that separate recommendation).
+The dedup table is a **new** allocation surface: the superseded trunk format had no
+per-stream accumulation keyed by stream content (each record was self-contained,
+bounded by `maxInputBytes`). These ceilings fence that new surface; they do not claim
+to improve the base record-level bounds (see the [PATCH] above for that separate
+recommendation).
 Worst-case decoder memory attributable to dedup is `maxDedupTableBytes` + one in-flight
 chain ≤ `maxChainBytes`, per live stream.
 
 ---
 
-## C.9 Negotiation (NORMATIVE; decides SOW §6.3)
+## C.9 Mandatory Dedup (NORMATIVE; SOW §6.3 dissolved by ratification)
 
-### C.9.1 What the existing machinery offers (surveyed before deciding)
+### C.9.1 The ruling
 
-Verified against STD-006 §5 and trunk:
+**Dedup is unconditional in the released DER object-stream format.** There is no
+negotiated mode, no export-time capability flag, no configuration surface, no
+response-echo rule, no transparent full-form fallback, and no compatibility matrix:
+every stream a conformant implementation produces is a dedup-form stream (version
+octet + §C.5/§C.6 productions), and every stream a conformant implementation accepts
+is one. Ratified by Peter, 2026-07-21 (header ratification record): *"dedup should be
+standard, so determinism is maintained, so there isn't a non-dedup and dedup version
+with differing bytes."* Recorded rationale: this is G1 — one encoding per value —
+applied at the stream layer (one record sequence, one stream encoding), and it is
+affordable precisely because DER is unreleased: there is no legacy peer population,
+so the v0.2 negotiation design defended against binaries that will never ship. SOW
+§6.3 (negotiation mechanism) is thereby dissolved rather than decided: with one
+mandatory form there is nothing to negotiate. (The v0.2 design — export-affirmed
+capability, in-band mode marker, response-echoes-request, acceptance gating, six-cell
+matrix — is preserved in this document's history for the record and superseded in
+full.)
 
-- **`MarshallingFormat` (§5.1)** is a *policy assertion checked fail-fast* — a
-  constraint naming a format identifier string, resolved before transmission; it is
-  deliberately not a per-call negotiation. The format mechanism itself is fixed at
-  export time by the `InvocationLayerFactory`.
-- **There is no protocol version byte (§5.2)** — DER was introduced as a separate
-  invocation layer, not a version discriminator, and that section explicitly withdraws
-  the version-byte pattern. A "codec version bump" mechanism would have to be invented,
-  against precedent.
-- **The proxy carries its codec (§5.3).** A client's DER marshalling code is the
-  `AtomicDer*` handler shipped (as authenticated mobile code) by the service's own
-  export. Handler and dispatcher of one export are one codebase — the two ends of a
-  proxied call run *matched* stream implementations except when a proxy is stale
-  (obtained before a service upgrade/rollback).
-- **`payloadFormat`** (`"JGDMS-STD-006/ATOMIC-DER"`) is per-record, identity-bearing MI
-  state. Changing it to signal dedup would alter reconstituted identity bytes —
-  disqualified immediately.
+### C.9.2 Mechanical enforcement (no mode machinery exists or is needed)
 
-### C.9.2 Decision [PROPOSED]: export-affirmed capability + in-band stream marker + response echo
+Mandatory dedup requires no enforcement mechanism beyond the grammar already
+specified — an observation the spec states explicitly so no implementer adds one:
 
-The least-new-surface design consistent with §5.1–§5.3:
+- A sender that fails to dedup (emits a duplicate full chain where the pinned rule
+  §C.6.1 mandates a reference) produces a stream every conformant decoder **rejects**
+  at the duplicate-full-form check (§C.6.4). Non-deduping output is not a laxer
+  dialect; it is a malformed stream.
+- A sender that emits the superseded trunk format (no version octet) is rejected at
+  the first TLV (§C.5.2); a stream of this format reaching a superseded-format
+  decoder is likewise rejected at its first TLV by the existing catch-alls (§C.5.2).
+- A sender that references a chain never sent in full is rejected at the
+  unknown-digest check (§C.6.4).
 
-1. **Capability is export-scoped** (the §5.1 shape): a service opts in through its
-   `AtomicDerILFactory` configuration; the exported handler/dispatcher pair are both
-   dedup-capable, and the proxy carries that capability to clients as it carries the
-   codec itself. No new constraint class, no new wire identifier, no handshake round
-   trip.
-2. **Activation is per-stream and in-band**: a dedup stream declares itself with the
-   §C.5.2 marker as its first TLV. The marker is the *only* wire-visible negotiation
-   artifact.
-3. **Direction rules:**
-   - A sender MUST NOT emit a marked stream unless the receiver's support is
-     affirmed. For the **request** direction, the affirmation is the proxy itself: a
-     handler created by a dedup-enabled export marks its request streams (the
-     dispatcher that will decode them is the same export's other half). A handler from
-     a non-dedup export sends unmarked streams.
-   - For the **response** direction, the affirmation is the request: a dispatcher MUST
-     mark its response stream **iff the corresponding request stream was marked**
-     (response-echoes-request). An unmarked request — from a pre-dedup client or a
-     stale pre-upgrade proxy — always receives an unmarked, pre-dedup-byte-identical
-     response.
-   - Marking is content-independent: a dedup-mode sender marks every stream it is
-     entitled to mark, even one containing no chain sites (a marked stream with zero
-     occurrences is valid and degenerate-conformant, §C.11.3(11)); it never
-     conditionally omits the marker. One rule, no discretion (G1).
-4. **The export configuration gates both emission and acceptance [PROPOSED — board
-   fix 3]**: a dedup-**enabled** endpoint marks the streams it is entitled to mark and
-   MUST accept both marked and unmarked streams (§C.5.2); a **config-off** endpoint —
-   even one running dedup-capable code — does not advertise, does not mark, and MUST
-   **reject marked streams loudly** at the marker, identically to a pre-dedup binary.
-   Rationale: accepting a marked stream is a **resource commitment** — a per-stream
-   table of up to `maxDedupTableBytes` (1 MiB) plus verification state — and an
-   operator who deliberately opts out must thereby refuse that commitment; a
-   capability that cannot be turned off at the acceptance side is not an opt-in.
-   Emission-side, **absence of dedup support falls back transparently to full form** —
-   normative, explicit, and safe because the full form is always valid (§C.1.2
-   item 4); it is not an emergent behaviour.
+The pinned first-full-then-reference rule plus the fail-closed decode checks *are*
+the mandatory-dedup enforcement — mechanically, on every stream, with no mode state
+anywhere. The per-stream table commitment (bounded by §C.8's ceilings, at most
+`maxDedupTableBytes` + one in-flight chain per live stream) is part of implementing
+the format, exactly as the existing `maxInputBytes` buffering is; it is not a
+capability an endpoint can decline while speaking the format.
 
-### C.9.3 Rejected alternatives (recorded rationale)
+### C.9.3 Residual skew (transition note, informative)
 
-- **New `MarshallingFormat` identifier** (`"…;dedup"` or similar): couples a transport
-  framing detail into the format-identity string that `payloadFormat`/MI state and
-  §5.1's policy layer share; would force clients to *require* dedup to get it, or
-  services to dual-export per identifier. Heavier surface, and misuses a policy
-  mechanism as a capability mechanism (the constraint layer is decode *policy*, §5.1's
-  own distinction).
-- **New `InvocationConstraint` capability advertisement**: per-call constraint
-  negotiation is exactly what §5.1 says the format machinery is *not*; it adds a
-  constraint class to `net.jini.core.constraint` (public API surface, serialized
-  everywhere) to express something the proxy already knows statically.
-- **Codec/stream version byte**: withdrawn pattern per §5.2; and a bare version byte is
-  strictly weaker than the marker (same wire cost, but positioned as a permanent
-  header rather than an opt-in mode signal).
-- **Per-export static enablement without a marker**: broken under stale proxies — a
-  pre-upgrade handler would receive dedup responses it cannot decode, and the failure
-  (unknown tag mid-stream) would be loud but avoidable. The echo rule converts that
-  cell into a valid transparent-fallback cell.
+The only skew that can exist is transitional: current trunk streams are
+superseded-trunk-format streams, and they change format when T2 lands. This is
+acceptable and deliberate — both ends of every DER connection ship in the same jars
+(the proxy carries its codec as mobile code, §5.3, so handler and dispatcher come
+from one codebase), and **nothing is deployed**: DER is unreleased with no peer
+population, which is the express premise of the ratification (§C.9.1). Any residual
+mixed-jar skew during development fails loudly and identifiably at the first TLV in
+either direction (§C.5.2's version-octet properties); no silent misdecode is
+reachable. No compatibility window, dual-stack period, or migration tooling exists or
+is needed for the stream format itself.
 
-### C.9.4 Absence-of-support disposition (normative statement)
+### C.9.4 Scope of streams covered
 
-Three endpoint states exist and the first two are wire-indistinguishable by design:
-**pre-dedup binary** (no dedup code), **capable-but-config-off** (dedup code present,
-export configuration off), and **enabled**. v0.1 of this appendix conflated the first
-two ([FLAG] — board fix 3): it required any *capable* receiver to accept marked
-streams, which would have made opting out of the per-stream table commitment
-impossible. The pinned resolution: **config-off behaves as pre-dedup on the wire in
-both directions** — sends unmarked, rejects marked at the marker.
-
-For an **enabled receiver**, an unmarked stream is not an error, not a warning, and
-not an inferior mode to be upgraded: it is the pre-dedup format, accepted
-byte-for-byte unchanged, forever (the coexistence guarantee — pre-dedup senders never
-break). For an **enabled sender**, absence of peer affirmation means unmarked
-full-form emission — a valid, silent, *correct* outcome, explicitly not a "silent
-downgrade" in §3.4's prohibited sense because full form is not a degraded security
-mode: it is the canonical encoding itself. What MUST be loud is the true mismatch:
-a marked stream reaching any endpoint — pre-dedup or config-off — that has not
-affirmed acceptance. **Explicit consequence of acceptance-gating: the
-stale-proxy-after-rollback cell is loud.** A client holding an enabled-export proxy
-whose service has since rolled back (to a pre-dedup binary *or* to config-off) sends a
-marked request and receives an immediate, identifiable reject at the marker — not a
-transparent fallback. This is the deliberate price of refusable resource commitment;
-the client's remedy is re-fetching the proxy (the normal stale-proxy remedy), and the
-failure is fail-secure, first-TLV, before any table allocation on either side.
-
-### C.9.5 The negotiation matrix (every cell loud-or-valid, never silent-wrong)
-
-Sender columns collapse to two (pre-dedup and config-off both send unmarked); receiver
-rows are the three states. Each cell covers both stream directions via the direction
-rules (request per proxy affirmation, response per echo).
-
-| Receiver ↓ / Sender → | **Unmarked sender** (pre-dedup binary *or* config-off) | **Marked sender** (enabled export) |
-|---|---|---|
-| **Pre-dedup binary** | Unmarked streams both ways. **Valid** (pre-dedup format, unchanged). | Skew case (stale new proxy vs rolled-back service, or misconfiguration). First TLV is `0x8F`, which **no pre-dedup production admits** — `readObject`'s tag catch-all or the positional readers' universal-tag checks reject it immediately, before any object is constructed. **Loud, fail-secure, never a misdecode.** |
-| **Capable, config-off** | Unmarked streams both ways. **Valid.** | Same skew case. The receiver MUST reject at the marker (§C.9.2 item 4) — behaviourally identical to the pre-dedup row, by rule rather than by ignorance; the endpoint thereby refuses the table commitment it opted out of. **Loud.** |
-| **Enabled** | Receiver accepts the unmarked request and — echo rule — responds unmarked. **Valid, transparent fallback.** Covers the stale *old* proxy against an upgraded service. | Marked streams both ways. **Valid** (dedup mode). |
-
-A pre-dedup or config-off *client* can never receive a marked response: it can only
-have sent an unmarked request, and no conformant enabled dispatcher marks a response
-to an unmarked request — the echo rule forecloses those cells. There is no cell in
-which a receiver silently misinterprets bytes: the marker tag and the `SchemaChainRef`
-arm tags are outside every pre-dedup grammar, dedup-mode productions are gated behind
-the marker for enabled receivers, and config-off receivers reject the marker by rule.
-Conformance vectors cover all six cells, including the config-off row (§C.11.3(13)).
-
-### C.9.6 Scope of streams covered
-
-These rules apply to every DER object stream a dedup-configured endpoint pair creates,
-including the invocation arg/return streams and — if T2 wires it — the
-`DerReducingContextCodec` context streams (each is its own stream with its own table;
-the marker/echo rules apply per stream). **[OPEN → T2]** whether the context-channel
-streams enable dedup in the first increment (their chain traffic is small; leaving them
-unmarked is conformant — an unmarked stream is always valid) — but whichever choice T2
-makes MUST be deterministic per endpoint configuration, not per-stream discretionary.
-Standalone MI capture streams are excluded categorically (§C.1.2 item 3).
+Mandatory dedup quantifies over **DER object streams**: every stream created for this
+format — the invocation arg/return streams and the `DerReducingContextCodec` context
+streams alike — is a dedup-form stream unconditionally, each with its own table per
+§C.7.1. (The v0.2 open question of whether context streams enable dedup in increment
+1 dissolves: they are streams, so they dedup like everything else — noted in
+§C.13.3.) The standalone `MarshalledInstance` capture path is not an object stream
+and never uses stream productions (§C.1.2 item 3); `[8]` interior regions within a
+stream use the canonical record-level full forms (§C.6.5). Those two exclusions are
+the wire-only boundary, not exceptions to mandatoriness.
 
 ---
 
@@ -1173,19 +1161,23 @@ implementation MUST produce the identical outcome:
    byte-identical canonical chain bytes, payload bytes, and (P1) reconstituted
    four-field §7.8 record including the computed `schemaDigest` — or the identical
    rejection (case-labelled per §C.11.3).
-2. **Encode determinism:** for a given record sequence and mode, the encoded stream is
+2. **Encode determinism:** for a given record sequence, the encoded stream is
    byte-identical across implementations and across repeated runs (no
    iteration-order, timing, or identity dependence — chain identity is a function of
-   the class, never of instances; G4's declaration-not-instance discipline).
-3. **Mode transparency:** decoding the marked and unmarked encodings of the same
-   record sequence yields observably identical results above the transport (same
+   the class, never of instances; G4's declaration-not-instance discipline). One
+   record sequence, one stream encoding — the ratified G1-at-the-stream-layer
+   property (§C.5.4, §C.9.1) asserted directly.
+3. **Stream/record-level equivalence:** decoding a stream and decoding the same
+   objects' canonical record-level forms (§7.8 / STD-008 §16 — e.g. via the MI
+   capture path) yield observably identical results above the transport (same
    objects, same chain bytes delivered upward, same MI state). *(Scope: this holds
-   unconditionally for valid inputs. For malformed-chain inputs, base decode
-   currently validates P2 chains less strictly than this appendix's marked-stream
-   algorithm — the §C.7.3 [FLAG]; full rejection-behaviour transparency arrives with
-   the §C.8.1 [PATCH] items 2–3.)*
-4. **Round-trip byte-exactness:** decode(marked stream) → re-encode in unmarked mode
-   → byte-identical to the canonical unmarked stream for the same sequence; and
+   unconditionally for valid inputs. For malformed-chain inputs, the base
+   record-level decode currently validates P2 chains less strictly than this
+   appendix's stream algorithm — the §C.7.3 [FLAG]; full rejection-behaviour
+   equivalence arrives with the §C.8.1 [PATCH] items 2–3.)*
+4. **Round-trip byte-exactness:** decode(stream) → re-encode each record in a
+   canonical-form context (MI capture / §7.8 record / STD-008 §16 record) →
+   byte-identical to the canonical record-level full forms for the same values; and
    chain bytes delivered upward are byte-identical to `SchemaGenerator` output for the
    same classes (§C.5.4).
 
@@ -1211,8 +1203,11 @@ the §C.7.6 interning path exercised together, board fix 8a).
    the stream — including the digest of a chain that *is* known to the receiver's local
    classes (no local fallback), and a reference-before-full byte ordering that a
    byte-order (rather than traversal-order) implementation would wrongly accept.
-2. **Duplicate full form:** a second `fullChain` for an identity already tabled
-   (canonicality reject, §C.6.4).
+2. **Duplicate full form — the mandatory-dedup enforcement vector:** a second
+   `fullChain` for an identity already tabled (canonicality reject, §C.6.4). Promoted
+   per the 2026-07-21 ruling: this vector is what makes "dedup is not optional"
+   mechanically testable — it is precisely the stream a non-deduping (per-occurrence)
+   encoder would produce, and every conformant decoder MUST reject it (§C.9.2).
 3. **Malformed `SchemaChainRef`:** arm tag outside `[0]`/`[1]`; constructed arm
    encodings; `chainRef` of length 31 and 33; empty `fullChain`; `fullChain` with
    trailing bytes after the last record; non-record content; **non-canonical interior
@@ -1226,16 +1221,20 @@ the §C.7.6 interning path exercised together, board fix 8a).
    reject — the mirror case trunk's base decode currently accepts; include the
    poisoning shape: truncated `{leaf}` first, genuine `{leaf, parent, root}` second,
    asserting the stream rejects at the *first* occurrence rather than tabling it).
-5. **Marker misuse:** marker absent but dedup-mode productions present (i.e. dedup
-   shapes in an unmarked stream); marker not the first TLV; duplicate marker; marker
-   content length ≠ 1; unknown mode version octet (`0x00`, `0x02`, `0xFF`).
-6. **Mode mixing:** a marked stream containing a pre-dedup four-field P1 record at a
+5. **Version-octet misuse:** a stream with no version TLV — including the
+   superseded-trunk-format shape (first TLV is an item tag), rejected at the first
+   TLV; the version TLV not first; a duplicate version TLV; content length ≠ 1;
+   unknown version octet (`0x00`, `0x02`, `0xFF`); and the reverse direction run
+   against the actual superseded-format decoder (a versioned stream's `0x8F` first
+   TLV rejected loudly by the pre-T2 codec — the §C.9.3 transition property, run,
+   not reasoned).
+6. **Format mixing:** a stream containing a canonical four-field §7.8 record at a
    chain site (other than inside a `[8]` interior, where the canonical form is
-   *required* at every nesting level, §C.6.5); a marked stream with dedup shapes
-   inside a `[8]` interior — probed at the top level, at a nested proxy, **and
-   transitively** (a `chainRef` inside the handler's own field payloads) — all
-   rejected.
-7. **`schemaDigest` restatement:** a marked-stream P1 record with four fields (the
+   *required* at every nesting level, §C.6.5); a stream with stream productions
+   (`SchemaChainRef` shapes) inside a `[8]` interior — probed at the top level, at a
+   nested proxy, **and transitively** (a `chainRef` inside the handler's own field
+   payloads) — all rejected.
+7. **`schemaDigest` restatement:** a stream P1 record with four fields (the
    dropped digest field re-inserted) — trailing/extra-field reject.
 8. **Ceiling boundary pairs (all four constants, inclusive fencepost):** accepted at
    exactly `maxDistinctChainsPerStream` / `maxChainRecords` / `maxChainBytes` /
@@ -1251,8 +1250,8 @@ the §C.7.6 interning path exercised together, board fix 8a).
 10. **Cross-stream isolation:** stream A's full-then-ref pair decodes; stream B
     consisting of A's reference item alone rejects (same digest, fresh table); two
     interleaved streams on one logical connection maintain independent tables.
-11. **Degenerate cases (G11):** a marked stream with zero `@AtomicSerial` values
-    (marker + primitives only — valid, empty table); a marked stream with exactly one
+11. **Degenerate cases (G11):** a stream with zero `@AtomicSerial` values
+    (version octet + primitives only — valid, empty table); a stream with exactly one
     chain site (valid, one full form, zero references); a single-record chain (one
     class, no parent); an empty-fields record chain (`@Stateless`-shaped class); one
     class repeated at high count within one stream (table size 1, reference count
@@ -1261,24 +1260,18 @@ the §C.7.6 interning path exercised together, board fix 8a).
     §C.6.2) — outer full + nested ref accepted; the byte-order-tempting inverse
     (outer ref + nested full) rejected on both legs (outer site: unknown digest at
     processing time; nested site: duplicate full).
-13. **Negotiation matrix:** all six §C.9.5 cells — including the marked-request→
-    pre-dedup-receiver loud reject (run against the actual pre-dedup decoder), the
-    **marked-request→config-off-receiver loud reject** (run against dedup-capable code
-    with the capability off — asserting rejection happens at the marker, before any
-    table allocation), the unmarked-request→enabled-receiver transparent path with
-    byte-identical pre-dedup response, and echo-rule conformance (an enabled
-    dispatcher answering an unmarked request MUST NOT mark the response).
-14. **Standalone-context exclusion:** an MI capture produced by a dedup-capable
-    implementation contains no marker and no dedup shapes (byte-compare against
-    pre-dedup capture of the same object).
-15. **Boomerang relay across streams (board fix 1a):** a nested proxy decoded from a
-    **marked** stream with interface narrowing (raw-form retention triggered), then
-    re-forwarded into a *later* stream — both a marked and an unmarked one. Both
-    relays MUST decode cleanly with byte-verbatim `[8]` content, which is possible
-    precisely because the §C.6.5 exclusion means the retained interior was never
-    dedup-encoded (no stream-scoped reference to dangle). The negative leg: a
-    synthetic retained form containing a `chainRef` MUST reject on re-decode.
-16. **Exclusion transitivity (board fix 1b):** a marked stream carrying a `[8]` proxy
+13. **Standalone-context exclusion:** an MI capture produced by a conformant
+    implementation contains no version octet and no stream productions — canonical
+    record-level full form only (byte-compare against the record-level encoding of
+    the same object; the wire-only boundary, §C.1.2 item 3).
+14. **Boomerang relay across streams (board fix 1a):** a nested proxy decoded from a
+    stream with interface narrowing (raw-form retention triggered), then re-forwarded
+    into *later, distinct* streams. Every relay MUST decode cleanly with
+    byte-verbatim `[8]` content, which is possible precisely because the §C.6.5
+    exclusion means the retained interior was never dedup-encoded (no stream-scoped
+    reference to dangle across the stream boundary). The negative leg: a synthetic
+    retained form containing a `chainRef` MUST reject on re-decode.
+15. **Exclusion transitivity (board fix 1b):** a stream carrying a `[8]` proxy
     whose handler has an `@AtomicSerial` field of class `X`, where `X` also occurs at
     ordinary chain sites *outside* the `[8]` in the same stream: the outside sites
     dedup normally (first full, then references), while every interior `X` record is
@@ -1336,22 +1329,28 @@ deferred until T4 shows a material residue; any such extension re-runs §C.3.2.
 
 ## C.13 Summary of [PROPOSED] / [OPEN] / [FLAG] / [PATCH] Items
 
-### C.13.1 Requiring Peter's ratification [PROPOSED]
+### C.13.1 Ratification state (ruling of 2026-07-21 applied)
 
-| # | Item | Section |
-|---|---|---|
-| 1 | Placement: STD-006 appendix (standalone file, merged post-review) | §C.1.3 |
-| 2 | `SchemaChainRef` arms/tags and the dedup-mode record shapes, incl. dropping `schemaDigest` from the marked-stream P1 record (board-endorsed contingent on item 10) | §C.5.1, §C.5.3 |
-| 3 | Stream mode marker: tag `[15]`, one-octet version content | §C.5.2 |
-| 4 | Traversal-order definition of "first occurrence" (record-entry pre-order), incl. the one-pass buffering consequence | §C.6.2 |
-| 5 | **Every** `[8]` proxy interior excluded from dedup — any nesting level, byte-region-scoped, transitive (retention contract at both write/read sites) | §C.6.5 |
-| 6 | Per-marshal-stream table scope (narrowing the SOW's "per-connection") | §C.7.1 |
-| 7 | Ceiling values 256 / 64 / 65536 / 1 048 576 | §C.8.1 |
-| 8 | Negotiation: export-affirmed capability + marker + response-echo; transparent full-form fallback on the sending side | §C.9.2, §C.9.4 |
-| 9 | Granularity: whole-chain only | §C.10.3 |
-| 10 | Chain-completeness rule (terminal record carrying `parentSchemaHash` = reject), making chain identity → bytes injective; plus the base-decode [PATCH] items (completeness in `decodeSchemaChain`, Merkle cross-check in P2 `decodeNested`, §7.8 clarifying sentence) | §C.5.1, §C.7.3, §C.8.1 |
-| 11 | Export configuration gates **acceptance as well as emission** (config-off rejects marked streams at the marker; stale-proxy-after-rollback becomes loud) | §C.9.2 item 4, §C.9.4, §C.9.5 |
-| 12 | Marked-profile ceiling precedence: the marked-stream profile tightens the admissible class set relative to base §4.5 maxima, failing loudly at encode time | §C.8.1 |
+Numbering preserved from the v0.2 list Peter ruled on. **RATIFIED** = stands as
+written; **RULED-SUPERSEDED** = replaced by the mandatory-dedup ruling, original v0.2
+text recorded struck for the audit trail; **[PROPOSED]** = new in v0.3, awaiting
+ratification.
+
+| # | Item | Section | State |
+|---|---|---|---|
+| 1 | Placement: STD-006 appendix (standalone file, merged post-review) | §C.1.3 | **RATIFIED** (Peter, 2026-07-21) |
+| 2 | `SchemaChainRef` arms/tags and the stream record shapes, incl. dropping `schemaDigest` from the stream P1 record (contingent on item 10 — both ratified together) | §C.5.1, §C.5.3 | **RATIFIED** (Peter, 2026-07-21) |
+| 3 | ~~Stream mode marker: tag `[15]`, one-octet version content~~ | §C.5.2 | **RULED-SUPERSEDED** → repurposed as the mandatory stream-format **version octet** (no mode semantics); the repurposing itself is item 13 |
+| 4 | Traversal-order definition of "first occurrence" (record-entry pre-order), incl. the one-pass buffering consequence | §C.6.2 | **RATIFIED** (Peter, 2026-07-21) |
+| 5 | **Every** `[8]` proxy interior excluded from dedup — any nesting level, byte-region-scoped, transitive (retention contract at both write/read sites) | §C.6.5 | **RATIFIED** (Peter, 2026-07-21) |
+| 6 | Per-marshal-stream table scope (narrowing the SOW's "per-connection") | §C.7.1 | **RATIFIED** (Peter, 2026-07-21) |
+| 7 | Ceiling values 256 / 64 / 65536 / 1 048 576 | §C.8.1 | **RATIFIED** (Peter, 2026-07-21) |
+| 8 | ~~Negotiation: export-affirmed capability + marker + response-echo; transparent full-form fallback on the sending side~~ | (was §C.9.2, §C.9.4) | **RULED-SUPERSEDED** → dedup is mandatory; nothing is negotiated (§C.9.1); enforcement is mechanical (§C.9.2) |
+| 9 | Granularity: whole-chain only | §C.10.3 | **RATIFIED** (Peter, 2026-07-21) |
+| 10 | Chain-completeness rule (terminal record carrying `parentSchemaHash` = reject), making chain identity → bytes injective; plus the base-decode [PATCH] items (completeness in `decodeSchemaChain`, Merkle cross-check in P2 `decodeNested`, §7.8 clarifying sentence) | §C.5.1, §C.7.3, §C.8.1 | **RATIFIED** (Peter, 2026-07-21); base [PATCH] adoption rides T6 |
+| 11 | ~~Export configuration gates acceptance as well as emission (config-off rejects marked streams; stale-proxy-after-rollback loud)~~ | (was §C.9) | **RULED-SUPERSEDED** → no config gate exists; the table commitment is part of implementing the format, bounded by §C.8 (§C.9.2) |
+| 12 | ~~Marked-profile ceiling precedence over base §4.5 maxima~~ | §C.8.1 | **RULED-SUPERSEDED** → no profile split; the chain ceilings are the format's admissibility bounds, one profile, converging with T6's base adoption (§C.8.1) |
+| 13 | The `[15]` first-TLV retained as the mandatory stream-format **version octet** (`8F 01 01`; absence/unknown = hard reject; fail-loud evolution hook) rather than deleted | §C.5.2 | **RATIFIED (Peter, 2026-07-21)** |
 
 ### C.13.2 Verified discrepancies and gaps found [FLAG]
 
@@ -1363,7 +1362,7 @@ deferred until T4 shows a material residue; any such extension re-runs §C.3.2.
 | 4 | STD-006 §4.5 has no chain-record-count or chain-byte ceiling; pre-dedup chain parsing loops uncapped below `maxInputBytes` | [PATCH] recommendation, §C.8.1 |
 | 5 | SOW line citations (`:410`, `:1158-1162`, `:371-382`, `:194-203`) verified accurate against trunk | No action, §C.4.4 |
 | 6 | **This document's own v0.1 verification error (board round 1, fix 1 — both seats, HIGH, CONFIRMED):** v0.1 claimed nested (P2d) proxy records have no raw-form retention path. False against trunk: `ObjectCodec.encodeProxy` consults retention first (`ObjectCodec.java:1739-1742`), nested `decodeProxy` injects `[8]` content as `rawForm` on narrowing (`:2088-2094`), and `ProxyWireSupport` documents both write sites. The v0.1 grep-level check saw the fresh-encode call at `:1762` and missed the retained branch 20 lines above it — an instance of exactly the empty-search≠absence failure G3 warns about, recorded here by the standard this document applies to others | Corrected: exclusion generalized to all `[8]` interiors, §C.4.2, §C.6.5 |
-| 7 | **Base-standard validation gaps (board round 1, fixes 2 and 5):** (a) base `decodeSchemaChain` (`MarshalledInstanceRecord.java:306-343`) accepts a terminal record with a dangling `parentSchemaHash` (truncated chain decodes cleanly — under dedup this would have been stream-wide table poisoning); (b) base P2 decode (`ObjectCodec.decodeNested:1996-2006`) skips the Merkle cross-check the P1 path runs, contra its own "same format" comment | Marked-stream rules close both for dedup streams (§C.5.1, §C.7.3); base fixes recommended in the §C.8.1 [PATCH], items 2–3 |
+| 7 | **Base-standard validation gaps (board round 1, fixes 2 and 5):** (a) base `decodeSchemaChain` (`MarshalledInstanceRecord.java:306-343`) accepts a terminal record with a dangling `parentSchemaHash` (truncated chain decodes cleanly — under dedup this would have been stream-wide table poisoning); (b) base P2 decode (`ObjectCodec.decodeNested:1996-2006`) skips the Merkle cross-check the P1 path runs, contra its own "same format" comment | The stream rules close both for object streams (§C.5.1, §C.7.3); base record-level fixes recommended in the §C.8.1 [PATCH], items 2–3 |
 
 ### C.13.3 Left open, with owners [OPEN]
 
@@ -1371,22 +1370,27 @@ deferred until T4 shows a material residue; any such extension re-runs §C.3.2.
 |---|---|---|
 | 1 | Appendix letter at merge (STD-006 has no A/B yet) | merge editor |
 | 2 | `[15]` tag registration in STD-008's object-stream tag registry | T2 (+ STD-008 editor) |
-| 3 | Whether `DerReducingContextCodec` context streams enable dedup in increment 1 (must be deterministic per endpoint config either way) | T2 |
-| 4 | Implementing the §C.6.5 region exclusion at all four retention sites (both write, both read — the paths exist in trunk **now**, `ObjectCodec.java:1739-1742`/`:2088-2094` and the object-stream pair) and carrying the §C.11.3(15)–(16) vectors | T2 / T3 |
-| 5 | Exact `AtomicDerILFactory` configuration surface for the capability flag (which now gates acceptance as well as emission, §C.9.2 item 4) | T2 |
+| 3 | ~~Whether context streams enable dedup in increment 1~~ **Resolved by the ruling:** `DerReducingContextCodec` context streams are DER object streams and dedup unconditionally like every stream (§C.9.4). Residual for T2: mechanical wiring only | T2 |
+| 4 | Implementing the §C.6.5 region exclusion at all four retention sites (both write, both read — the paths exist in trunk **now**, `ObjectCodec.java:1739-1742`/`:2088-2094` and the object-stream pair) and carrying the §C.11.3(14)–(15) vectors | T2 / T3 |
+| 5 | ~~Exact `AtomicDerILFactory` configuration surface for the capability flag~~ **Dissolved by the ruling:** no configuration surface exists; dedup is the format (§C.9.1) | — |
 | 6 | Whether T4's measurement triggers the per-record-links revisit (§C.10.3's recorded trigger), the SOW §6.4 dictionaries, or action on the `[8]`-interior residue (§C.6.5 cost annotation) | T4 → board |
-| 7 | Base-standard adoption of the chain ceilings and their precedence vs §4.5 maxima, plus the [PATCH] items 2–3 (completeness and P2 cross-check in base decode) | base-adoption pass (T6 per the board fix list) → STD-006 editor + board |
+| 7 | Base-standard adoption of the chain ceilings (one profile with this appendix, §C.8.1) plus the [PATCH] items 2–3 (completeness and P2 cross-check in base decode); align T6's §4.5 admissibility-note wording with §C.8.1 at T6's merge | base-adoption pass (T6; branch `hardening/der-chain-ceilings`) → STD-006 editor + board |
 
 ---
 
-*End of v0.2-DRAFT. Produced as T1 of `SOW-DER-Stream-Schema-Dedup.md`. Board-reviewed
+*End of v0.3-DRAFT. Produced as T1 of `SOW-DER-Stream-Schema-Dedup.md`. Board-reviewed
 2026-07-21 (two adversarial seats: wire-format/canonicality, adversarial security; both
-SOUND-WITH-FIXES); the consolidated 8-item fix list was applied in this revision — see
-the board review record in the header, including the two HIGHs (the generalized `[8]`
-interior exclusion, correcting this document's own v0.1 verification error; and the
-chain-completeness rule closing the truncated-chain table-poisoning collision). No
-production code was written or modified in producing this document. Ground-truth
-claims were verified against trunk source (`jgdms-der`, `jgdms-jeri`, Outrigger
-`EntryRep`) on 2026-07-21, including re-verification of the board's fix-1 and fix-2
-citations; all worked byte sketches are illustrative pending T3/T5's machine-generated
-vectors.*
+SOUND-WITH-FIXES; the consolidated 8-item fix list applied in v0.2 — see the board
+review record in the header, including the two HIGHs: the generalized `[8]` interior
+exclusion, correcting this document's own v0.1 verification error; and the
+chain-completeness rule closing the truncated-chain table-poisoning collision).
+**Ratified by Peter 2026-07-21 (v0.3):** dedup is the mandatory stream form of the
+released DER object-stream format — G1 at the stream layer, one record sequence, one
+stream encoding, no negotiated mode (header ratification record; §C.9); v0.2
+ratification items 1, 2, 4, 5, 6, 7, 9, 10 stand as written, items 3/8/11/12
+superseded by the ruling (§C.13.1). The remaining [PROPOSED] item is the §C.5.2
+stream-format version octet. No production code was written or modified in producing
+this document. Ground-truth claims were verified against trunk source (`jgdms-der`,
+`jgdms-jeri`, Outrigger `EntryRep`) on 2026-07-21, including re-verification of the
+board's fix-1 and fix-2 citations; all worked byte sketches are illustrative pending
+T3/T5's machine-generated vectors.*
