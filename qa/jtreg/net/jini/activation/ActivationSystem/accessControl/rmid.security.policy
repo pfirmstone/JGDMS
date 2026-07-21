@@ -1,9 +1,115 @@
-grant codebase "file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/tools/policy-condenser/target/policy-condenser-4.0.0-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib/jgdms-collections-4.0.0-SNAPSHOT.jar;C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/dist/target/JGDMS-4.0.0-SNAPSHOT/lib/jgdms-platform-4.0.0-SNAPSHOT.jar",
-{
+/*
+ * Was a bare Windows-path codebase grant (dead: never matched this
+ * environment) plus an unconditional "grant { AllPermission }" catch-all.
+ * That catch-all is what made this a vacuous permission test once it could
+ * actually run: net.jini.jeri.BasicInvocationDispatcher.checkClientPermission
+ * builds the client's ProtectionDomain with an *empty* CodeSource (see its
+ * Javadoc/impl) and the client's authenticated Principals, and an
+ * unqualified "grant { ... }" block (no codeBase/principal/signedBy clause)
+ * matches *every* ProtectionDomain unconditionally -- so it granted every
+ * SystemPermission/ExecPermission/ExecOptionPermission to every client
+ * regardless of identity, defeating the whole point of a test named
+ * "AccessControl". (Combined with rmid.config's systemExporter previously
+ * passing permClass=null, policy=null to SystemAccessAtomicILFactory --
+ * fixed separately -- no per-method or per-content check ran at all.)
+ *
+ * Replaced with: a codebase-scoped grant for rmid's own code (so phoenix
+ * itself, spawning group processes etc, keeps working -- this does NOT
+ * match the client-permission checks above, since those use an empty
+ * CodeSource that no codebase clause can match), plus principal-scoped
+ * grants matching exactly the permission matrix AccessControl.java's
+ * AsClient1/AsClient2/AsServer/AsNobody assert.
+ */
+
+grant codebase "file:${jsk.home}/lib/-" {
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
+grant codebase "file:${jsk.home}/lib-dl/-" {
+    permission java.security.AllPermission "<all permissions>", "<all actions>";
+};
+
+// Needed once a SecurityManager is actually active (see RMID.java's
+// MANAGER_OPTION fix): javax.security.auth.login.LoginContext's provider
+// lookup for "server" (login file names
+// com.sun.security.auth.module.KeyStoreLoginModule) enumerates the
+// javax.security.auth.spi.LoginModule ServiceLoader providers, which
+// touches the unrelated built-in com.sun.security.auth.module.Krb5LoginModule
+// too and fails fetching its module resource without this grant:
+// AccessControlException: access denied ("java.net.URLPermission"
+// "jrt:/jdk.security.auth" "GET:"). URLPermission is a different
+// permission class from SystemPermission/ExecPermission/ExecOptionPermission
+// (the ones that actually gate the client1/client2 differentiation above),
+// so granting it unconditionally does not reopen the vacuous-pass hole.
+// The LoginModule ServiceLoader provider scan touches every built-in
+// LoginModule's module (jdk.security.auth for Krb5LoginModule,
+// java.security.jgss for its GSS dependencies, and potentially others),
+// each needing its own "jrt:/<module>" URLPermission grant one at a time
+// -- so grant the whole jrt: scheme once instead of chasing each module.
 grant {
-    permission java.security.AllPermission "<all permissions>", "<all actions>";
+    permission java.net.URLPermission "jrt:/*", "GET:";
 };
 
+// Same cascade, one step further: DirtyChai's own java.base embeds a
+// class-load guard (au.zeus.jdk.authorization.guards.LoadClassPermission)
+// that the same LoginModule ServiceLoader provider scan also trips once a
+// real SecurityManager is active. Again a distinct permission class from
+// SystemPermission/ExecPermission/ExecOptionPermission.
+grant {
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+};
+
+// Bare "java.lang.SecurityException" (no message) from
+// javax.security.auth.login.LoginContext.invoke() -- the standard JAAS
+// requirement that the calling code have AuthPermission to let a
+// LoginModule populate the Subject during commit(). Again a distinct
+// permission class from SystemPermission/ExecPermission/ExecOptionPermission.
+grant {
+    permission javax.security.auth.AuthPermission "*";
+};
+
+// client1: can registerGroup, getActivationGroupDesc, registerObject,
+// getActivationDesc, unregisterObject, and activate (via
+// ActivatorPermission, a separate exporter/permission from SystemPermission);
+// cannot setActivationGroupDesc, setActivationDesc, activeGroup,
+// unregisterGroup, shutdown.
+grant principal javax.security.auth.x500.X500Principal "CN=Client1" {
+    permission org.apache.river.phoenix.dl.SystemPermission
+	"net.jini.activation.arg.ActivationSystem.registerGroup";
+    permission org.apache.river.phoenix.dl.SystemPermission
+	"net.jini.activation.arg.ActivationSystem.getActivationGroupDesc";
+    permission org.apache.river.phoenix.dl.SystemPermission
+	"net.jini.activation.arg.ActivationSystem.registerObject";
+    permission org.apache.river.phoenix.dl.SystemPermission
+	"net.jini.activation.arg.ActivationSystem.getActivationDesc";
+    permission org.apache.river.phoenix.dl.SystemPermission
+	"net.jini.activation.arg.ActivationSystem.unregisterObject";
+    permission org.apache.river.phoenix.dl.ActivatorPermission "activate";
+};
+
+// client2: can registerObject, getActivationDesc, setActivationDesc,
+// unregisterObject, and setActivationGroupDesc -- but only with content
+// DefaultGroupPolicy.checkGroup permits: program "foobar" and option
+// "-baz" (see the Exec(Option)Permission grants below; AsClient2 also
+// tries program "baz" and option "-foobar", which must fail); cannot
+// registerGroup, getActivationGroupDesc, activate, activeGroup,
+// unregisterGroup, shutdown.
+grant principal javax.security.auth.x500.X500Principal "CN=Client2" {
+    permission org.apache.river.phoenix.dl.SystemPermission
+	"net.jini.activation.arg.ActivationSystem.registerObject";
+    permission org.apache.river.phoenix.dl.SystemPermission
+	"net.jini.activation.arg.ActivationSystem.getActivationDesc";
+    permission org.apache.river.phoenix.dl.SystemPermission
+	"net.jini.activation.arg.ActivationSystem.setActivationDesc";
+    permission org.apache.river.phoenix.dl.SystemPermission
+	"net.jini.activation.arg.ActivationSystem.setActivationGroupDesc";
+    permission org.apache.river.phoenix.dl.SystemPermission
+	"net.jini.activation.arg.ActivationSystem.unregisterObject";
+    permission org.apache.river.phoenix.dl.ExecPermission "foobar";
+    permission org.apache.river.phoenix.dl.ExecOptionPermission "\"-baz\"";
+};
+
+// server: AsServer expects every ActivationSystem call to throw
+// SecurityException (only the initial Security.verifyObjectTrust(sys,...)
+// -- a local, class-based check, not a SystemPermission grant -- must
+// succeed). Deliberately no grants: default-deny.
