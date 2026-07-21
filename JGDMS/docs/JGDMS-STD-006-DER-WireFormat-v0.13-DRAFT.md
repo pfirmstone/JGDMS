@@ -12,6 +12,16 @@
 **Applies to:** JGDMS, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Depends on:** JGDMS-STD-001 (@AtomicSerial), JGDMS-STD-003 (Multi-Subject Identity)
 **Supersedes (on completion):** the Java-serialization-based JERI wire encoding
+**Integral parts:** **Appendix C — Stream Schema Dedup**
+(`JGDMS-STD-006-Appendix-C-Stream-Schema-Dedup-v0.1-DRAFT.md`, internal version
+0.3-DRAFT; standalone file pending merge) is a **NORMATIVE, MANDATORY** part of this
+standard — **RATIFIED by Peter, 2026-07-21**: dedup is the sole stream form of the
+released DER object-stream format (one record sequence, one stream encoding; no
+non-dedup variant exists). Every conformant implementation of this standard's object
+streams MUST implement Appendix C; a stream lacking its `[15]` version octet or its
+dedup grammar is malformed and MUST be rejected. Appendix C's ceilings compose with
+§4.5's table; its record-level canonical full forms (non-stream contexts:
+`MarshalledInstance` capture, persistence) are defined in Appendix C §C.5.3–§C.5.4.
 
 > **Editorial note (v0.13-DRAFT):** This is a working scaffold. Sections marked
 > **[OPEN]** require Peter's knowledge of the exact field layout of the current
