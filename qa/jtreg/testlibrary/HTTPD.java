@@ -17,6 +17,7 @@
  */
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.FilePermission;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -34,6 +35,7 @@ import java.security.CodeSource;
 import java.security.PermissionCollection;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.regex.Pattern;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -78,11 +80,19 @@ public class HTTPD {
      */
     public HTTPD(int port, String dir) throws IOException {
 	this.port = port;
+	// WI-4: jsk.home (test.props) is the dist image dir (decision
+	// table row 2), which has lib/ + lib-dl/ directly under it -- not
+	// the repo root (the old "/JGDMS/tools/classserver/target/..."
+	// path assumed) -- and its jars are named per the dist's actual
+	// versioned output, not the unsubstituted Maven placeholder
+	// "${river.version}" (which was never a real token in this
+	// pom-less test fixture; it was always a Java string literal).
 	String libDir =
 	    TestLibrary.getExtraProperty("jsk.home", TestLibrary.jskHome) ;
-//		+ File.separator + "lib";
-	String toolsJar = libDir + "/JGDMS/tools/classserver/target/classserver-${river.version}.jar";
-	String jsklibJar = libDir + File.separator + "jgdms-lib-dl-${river.version}.jar";
+	String toolsJar = libDir + File.separator + "lib" + File.separator +
+	    findVersionedJar(libDir + File.separator + "lib", "classserver");
+	String jsklibJar = libDir + File.separator + "lib-dl" + File.separator +
+	    findVersionedJar(libDir + File.separator + "lib-dl", "jgdms-lib-dl");
 	System.err.println("HTTPD: using " + toolsJar +
 			   " on port " + port + " serving " + dir);
         
@@ -124,6 +134,35 @@ public class HTTPD {
 	    ee.initCause(e);
 	    throw ee;
 	}
+    }
+
+    /**
+     * Finds the single jar in {@code dir} whose name matches
+     * {@code <prefix>-<version>.jar} (version begins with a digit),
+     * so the dist's real versioned jar name is used instead of
+     * hardcoding a version. See RMID.findVersionedJar (test-infra
+     * fixture, kept as a small independent copy here rather than
+     * shared, matching this file's existing self-contained style).
+     */
+    private static String findVersionedJar(String dir, final String prefix) {
+	File d = new File(dir);
+	final Pattern p = Pattern.compile(
+	    "^" + Pattern.quote(prefix) + "-[0-9].*\\.jar$");
+	File[] matches = d.listFiles(new FilenameFilter() {
+	    public boolean accept(File dir, String name) {
+		return p.matcher(name).matches();
+	    }
+	});
+	if (matches == null || matches.length == 0) {
+	    throw new RuntimeException("HTTPD: no jar matching " + prefix +
+					"-<version>.jar found in " + dir);
+	}
+	if (matches.length > 1) {
+	    throw new RuntimeException("HTTPD: multiple jars matching " +
+		prefix + "-<version>.jar found in " + dir + ": " +
+		java.util.Arrays.toString(matches));
+	}
+	return matches[0].getName();
     }
 
     /** Returns the default port for serving up davis files */

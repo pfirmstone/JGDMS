@@ -151,9 +151,39 @@ public class AccessControl {
      */
     public static class AsClient1 implements PrivilegedExceptionAction {
 	public Object run() throws Exception {
-	    Security.verifyObjectTrust(sys, null, trustCtx);
+	    // Security.verifyObjectTrust(obj, loader, ctx): loader==null
+	    // resolves to Thread.currentThread().getContextClassLoader(),
+	    // used both to find TrustVerifier services and (in
+	    // BasicJeriTrustVerifier.hasTrustedClassLoader) to require that
+	    // the *caller's* loader descend from (or equal) the *proxy's*
+	    // defining loader. sys/aid are obtained over a real out-of-
+	    // process RMI codebase download (rmid is a genuinely separate
+	    // JVM here, unlike most single-process qa/jtreg trust tests),
+	    // so their proxy class is defined by a codebase loader that is
+	    // a *child* of this test's own (system/app) loader -- the
+	    // reverse of what covers() requires when loader==null, however
+	    // the context class loader is set (setContextClassLoader in
+	    // main() alone did not resolve it; confirmed via
+	    // net.jini.jeri.BasicJeriTrustVerifier FINEST logging: "Sub
+	    // ClassLoader was not a child ClassLoader of sup"). Passing the
+	    // proxy's own loader explicitly is a documented, supported
+	    // usage of the API (see its javadoc) and matches how a caller
+	    // that received the proxy via RMI would naturally know its
+	    // loader, without altering the trust-verification logic itself.
+	    Security.verifyObjectTrust(sys, sys.getClass().getClassLoader(), trustCtx);
 	    Properties props = new Properties();
 	    props.put("javax.net.ssl.trustStore", testsrc + "keystore");
+	    // au.net.zeus.rmi.tls.FilterX509TrustManager.getTrustManager()
+	    // loads javax.net.ssl.trustStore as a KeyStore using
+	    // javax.net.ssl.trustStorePassword (empty char[] if unset). The
+	    // keystore keystore.sh generates is PKCS12 (modern keytool
+	    // default), which -- unlike the old JKS format -- cryptographically
+	    // requires the correct password just to read it; with the wrong
+	    // password KeyStore.load() fails and is silently swallowed
+	    // (logged at CONFIG only), leaving an empty KeyStore and hence
+	    // zero trust anchors ("the trustAnchors parameter must be
+	    // non-empty"). Must match keystore.sh's -storepass/-keypass.
+	    props.put("javax.net.ssl.trustStorePassword", "keypass");
 	    props.put("java.security.policy",
 		      testsrc + "group.security.policy");
 	    props.put("java.security.auth.login.config", testsrc + "login");
@@ -175,7 +205,7 @@ public class AccessControl {
 						      null, null));
 	    // cannot call getProxyVerifier
 	    try {
-		Security.verifyObjectTrust(aid, null, trustCtx);
+		Security.verifyObjectTrust(aid, aid.getClass().getClassLoader(), trustCtx);
 		throw new RuntimeException(
 				   "client1 able to verifyObjectTrust");
 	    } catch (SecurityException e) {
@@ -229,7 +259,7 @@ public class AccessControl {
      */
     public static class AsClient2 implements PrivilegedExceptionAction {
 	public Object run() throws Exception {
-	    Security.verifyObjectTrust(sys, null, trustCtx);
+	    Security.verifyObjectTrust(sys, sys.getClass().getClassLoader(), trustCtx);
 	    // cannot call registerGroup
 	    try {
 		sys.registerGroup(new ActivationGroupDescImpl(null, null));
@@ -280,7 +310,7 @@ public class AccessControl {
 	    } catch (SecurityException e) {
 	    }
 	    // can call getProxyVerifier
-	    Security.verifyObjectTrust(aid, null, trustCtx);
+	    Security.verifyObjectTrust(aid, aid.getClass().getClassLoader(), trustCtx);
 	    // can call getActivationDesc
 	    ActivationDesc adesc = sys.getActivationDesc(aid);
 	    // can call setActivationDesc
@@ -315,7 +345,7 @@ public class AccessControl {
     public static class AsNobody implements PrivilegedExceptionAction {
 	public Object run() throws Exception {
 	    try {
-		Security.verifyObjectTrust(sys, null, trustCtx);
+		Security.verifyObjectTrust(sys, sys.getClass().getClassLoader(), trustCtx);
 		throw new RuntimeException("nobody able to verify trust");
 	    } catch (ConnectIOException e) {
 	    }
@@ -378,7 +408,7 @@ public class AccessControl {
      */
     public static class AsServer implements PrivilegedExceptionAction {
 	public Object run() throws Exception {
-	    Security.verifyObjectTrust(sys, null, trustCtx);
+	    Security.verifyObjectTrust(sys, sys.getClass().getClassLoader(), trustCtx);
 	    try {
 		sys.registerGroup(new ActivationGroupDescImpl(null, null));
 		throw new RuntimeException("server able to registerGroup");
@@ -427,10 +457,23 @@ public class AccessControl {
 	if (System.getSecurityManager() == null) {
 	    System.setSecurityManager(new SecurityManager());
 	}
+	// Security.verifyObjectTrust(obj, null, ctx) resolves a null loader
+	// to Thread.currentThread().getContextClassLoader() (see
+	// net.jini.jeri.BasicJeriTrustVerifier.hasTrustedClassLoader /
+	// covers()); jtreg's MainWrapper doesn't set it to anything in
+	// particular. Set it explicitly to this test's own loader, per the
+	// documented convention (see qa/jtreg/net/jini/security/Security/
+	// contextClassLoader/Test.java, which does the same before its own
+	// null-loader verifyObjectTrust call).
+	Thread.currentThread().setContextClassLoader(
+	    AccessControl.class.getClassLoader());
 	System.setProperty("java.security.auth.login.config",
 			   testsrc + "login");
 	System.setProperty("javax.net.ssl.trustStore",
 			   testsrc + "keystore");
+	// Must match keystore.sh's -storepass/-keypass -- see the longer
+	// comment on the same property in AsClient1.run() above.
+	System.setProperty("javax.net.ssl.trustStorePassword", "keypass");
 	server = getSubject("server");
 	Subject client1 = getSubject("client1");
 	Subject client2 = getSubject("client2");
@@ -438,11 +481,40 @@ public class AccessControl {
 	final RMID rmid = RMID.createRMID(true);
 	rmid.addOptions(new String[]{"-Djava.security.auth.login.config=" +
 				     testsrc + "login",
+				     "-Djavax.net.ssl.trustStorePassword=keypass",
 				     "-Djavax.net.ssl.trustStore=" +
 				     testsrc + "keystore"});
 	rmid.slowStart();
 	try {
-	    sys = ActivationGroup.getSystem();
+	    // ActivationGroup.getSystem() uses au.net.zeus.rmi.tls.
+	    // TlsRMIClientSocketFactory to contact the (secure) Registry,
+	    // whose Subject resolution (Utilities.getTlsSubject()) checks
+	    // Subject.current() (a ScopedValue, populated by Subject.callAs)
+	    // before falling back to the legacy ACC-derived Subject via
+	    // Subject.getSubject(AccessController.getContext()) -- and on
+	    // this JDK, Subject.doAsPrivileged() alone does not populate
+	    // Subject.current(), so plain doAsPrivileged still resolves to
+	    // "no TLS-capable Subject" here. Mirror the pattern
+	    // org.apache.river.phoenix.Activation.main(String[],boolean,
+	    // PhoenixStarter) already uses for the same reason (see its
+	    // comment above the Subject.callAs(...) call): nest
+	    // doAsPrivileged inside callAs so both the ScopedValue and the
+	    // legacy ACC mechanisms see the Subject. (The later
+	    // Subject.doAsPrivileged(client1/client2/null/server, ...)
+	    // calls below go through JERI's net.jini.jeri.ssl SslEndpoint,
+	    // a separate, ACC-based mechanism unaffected by this; only this
+	    // au.net.zeus.rmi.tls-based Registry lookup needs it.)
+	    sys = (ActivationSystem) Subject.callAs(server,
+		new java.util.concurrent.Callable<Object>() {
+		    public Object call() throws Exception {
+			return Subject.doAsPrivileged(server,
+			    new PrivilegedExceptionAction() {
+				public Object run() throws Exception {
+				    return ActivationGroup.getSystem();
+				}
+			    }, null);
+		    }
+		});
 	    Subject.doAsPrivileged(client1, new AsClient1(), null);
 	    Subject.doAsPrivileged(client2, new AsClient2(), null);
 	    Subject.doAsPrivileged(null, new AsNobody(), null);

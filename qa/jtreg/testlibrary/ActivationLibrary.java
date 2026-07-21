@@ -141,6 +141,28 @@ public class ActivationLibrary {
 		    return false;
 		}
 
+	    } catch (java.rmi.ConnectIOException cioe) {
+		// A registry secured with a non-plain-JRMP server socket
+		// factory (e.g. registryRmiServerSocketFactory = new
+		// TlsRMIServerSocketFactory() in rmid.config, needed once
+		// the client side -- ActivationGroup.getSystem() -- talks
+		// TLS) rejects this deliberately-plain readiness probe with
+		// "non-JRMP server at remote endpoint". That failure is
+		// itself proof the registry is up and listening (just not
+		// speaking plain JRMP to an anonymous, un-logged-in probe,
+		// which is by design -- this probe intentionally avoids
+		// doing a real ActivationSystem lookup, so it has no
+		// TLS-capable Subject to connect properly with). Treat it
+		// as "running" instead of retrying until timeout.
+		if (cioe.getMessage() != null &&
+		    cioe.getMessage().indexOf("non-JRMP") >= 0) {
+		    return true;
+		}
+		mesg("caught an exception trying to" +
+		     " start rmid, last exception was: " +
+		     cioe.getMessage());
+		cioe.printStackTrace();
+
 	    } catch (Exception e) {
 		// print out other types of exceptions as an FYI.
 		// test should not fail as rmid is likely to be in an
