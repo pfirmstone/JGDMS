@@ -539,10 +539,20 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
      * {@code MarshalledInstance} contains <em>before</em> any call to
      * {@link #get()} can reach the named codec.
      *
+     * <p>This accessor is {@code final} for the same reason {@link #isNull()},
+     * {@link #equals(Object)} and {@link #hashCode()} are: it is a
+     * trust-boundary input (format-gating receivers act on its answer), and a
+     * subclass must not be able to report a format different from the
+     * {@code payloadFormat} the codec machinery recorded and that
+     * {@link #get()} will actually dispatch on. Subclasses using alternative
+     * marshalling frameworks already surface their format through this field
+     * via {@code MarshalInstanceOutput.getPayloadFormat()}, so there is no
+     * legitimate override.
+     *
      * @return the payload format identifier, never {@code null}
      * @since 4.0.0
      */
-    public String getPayloadFormat(){
+    public final String getPayloadFormat(){
 	return payloadFormat;
     }
 
