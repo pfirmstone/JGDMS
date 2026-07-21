@@ -42,7 +42,7 @@ import javax.security.auth.Subject;
 import net.jini.security.GrantPermission;
 import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.PermissionGrant;
-import org.junit.Assume;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -490,27 +490,18 @@ public class SubProcessGrantOrchestratorTest {
     @Test
     public void realAdminGate_nonAdminCallerCannotBypass_viaOrchestrator()
             throws Exception {
-        // 2026-07-20 board finding fix: AdminPrincipalAuthenticator now
-        // requires an installed SecurityManager before it will trust ANY
-        // ambient Subject -- without one it refuses even a genuinely
-        // authenticated admin (see IsolationSecurityCriticalTest for that
-        // dedicated coverage). This test is about the orchestrator adding no
-        // bypass of the real gate, not about the SecurityManager-presence
-        // check itself, so a permissive SecurityManager is installed for the
-        // duration of the test.
-        SecurityManager previous = System.getSecurityManager();
-        try {
-            System.setSecurityManager(new SecurityManager() {
-                @Override public void checkPermission(Permission perm) { }
-                @Override public void checkPermission(Permission perm, Object ctx) { }
-            });
-        } catch (UnsupportedOperationException noAllowFlag) {
-            Assume.assumeNoException(
-                    "needs -Djava.security.manager=allow", noAllowFlag);
-            return;
-        }
-        try {
-            Principal admin = principal("spiffe://ctrl/admin");
+        // 2026-07-20 board finding fix: AdminPrincipalAuthenticator requires
+        // an installed SecurityManager (see IsolationSecurityCriticalTest
+        // for that dedicated coverage). 2026-07-21 ratified redesign: the
+        // gate authorizes by SubProcessAdminPermission check against the
+        // caller's principals, so this test installs the full scaffold
+        // (context-evaluating SecurityManager + a Policy granting the
+        // operation targets to the admin principal only) -- a merely
+        // permissive SecurityManager would now authorize every caller and
+        // prove nothing. This test remains about the orchestrator adding no
+        // bypass of the real gate.
+        final Principal admin = principal("spiffe://ctrl/admin");
+        AdminAuthTestSupport.withAdminAuthorization(admin, () -> {
             RecordingPolicyAdmin backing = new RecordingPolicyAdmin();
             Caller caller = new Caller(); // unauthenticated: subject == null
 
@@ -548,13 +539,7 @@ public class SubProcessGrantOrchestratorTest {
                     false);
             assertEquals(1, returned.length);
             assertEquals(1, backing.grants.size());
-        } finally {
-            // Some JDKs (e.g. the DirtyChai build) refuse to revert an
-            // installed SecurityManager back to null once one has been set.
-            if (previous != null) {
-                System.setSecurityManager(previous);
-            }
-        }
+        });
     }
 
     // ---------------------------------------------------- digest scoping
