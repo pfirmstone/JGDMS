@@ -43,7 +43,10 @@ for d in $(find "$ROOT" -type d -path '*/target/classes' | sort); do
 done
 # third-party (ASM + reggie's runtime deps): prefer the built dist/lib, fall back to ~/.m2 ASM.
 for j in $(find "$ROOT/dist/target" -path '*/lib/*.jar' 2>/dev/null); do CP="$CP:$j"; done
-for j in $(find "$HOME/.m2/repository/org/ow2/asm" -name 'asm-*.jar' 2>/dev/null | head -1); do CP="$CP:$j"; done
+# Core asm artifact only (org/ow2/asm/asm/<ver>/asm-<ver>.jar), highest version --
+# 'find ... | head -1' used to pick asm-analysis-4.0.jar, which cannot read modern
+# class files: every class is skipped "unreadable" and the gate reports garbage.
+for j in $(find "$HOME/.m2/repository/org/ow2/asm/asm" -maxdepth 2 -name 'asm-[0-9]*.jar' ! -name '*-sources*' ! -name '*-javadoc*' 2>/dev/null | sort -V | tail -1); do CP="$CP:$j"; done
 
 exec "$JAVA" -cp "$CP" org.apache.river.tool.serial.SerialSchemaTracker \
      check --golden "$GOLDEN" $SCAN --fail-on-change
