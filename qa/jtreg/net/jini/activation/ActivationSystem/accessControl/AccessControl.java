@@ -24,7 +24,7 @@
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID
  * @build AccessControl
- * @run shell classpath.sh main/othervm/timeout=240/policy=security.policy
+ * @run main/othervm/timeout=240/policy=security.policy
  * -Djava.protocol.handler.pkgs=net.jini.url AccessControl
  */
 import java.io.File;
