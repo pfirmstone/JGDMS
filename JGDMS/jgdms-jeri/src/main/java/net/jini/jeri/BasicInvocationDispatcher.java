@@ -1213,8 +1213,10 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		// read it back (AdminAuthorizationScope.currentCarrier()).  Bound
 		// only when identity fields were present; otherwise the invocation
 		// runs with no carrier bound and the gate fails closed.  The binding
-		// is confined to this synchronous dispatch call tree (a worker thread
-		// the invoked method may spawn does NOT inherit admin authority).
+		// reaches this synchronous dispatch call tree (and any structured-
+		// concurrency fork of it, which is the admin dispatch's own work); a
+		// worker thread the invoked method spawns unstructured does NOT inherit
+		// admin authority.
 		final Object[]    rvHolder = { null };
 		final Throwable[] thHolder = { null };
 		final Remote   fImpl = impl;
@@ -1233,7 +1235,27 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    }
 		};
 		if (adminIdentity != null) {
-		    AdminAuthorizationScope.runWithCarrier(adminIdentity, invokeAction);
+		    // Replay fix (2026-07-21): binding a carrier into the
+		    // AdminAuthorizationScope ScopedValue is a seam-only privileged
+		    // operation (AdminAuthorizationScope.bindCarrier checks the
+		    // seam-only AdminAuthorizationMintPermission).  Create the binding
+		    // under THIS seam's own doPrivileged so the check is satisfied by
+		    // the seam domains alone (this jgdms-jeri frame + the jgdms-platform
+		    // AdminAuthorizationScope frame) and does NOT go viral to the frames
+		    // below dispatch -- while hosted code that captured a live carrier
+		    // and later calls bindCarrier() directly (no doPrivileged, no grant)
+		    // to REPLAY it is refused.  The invocation itself (invokeAction)
+		    // then runs OUTSIDE this doPrivileged, at the caller's reducing
+		    // privilege, so seam authority is never leaked into the invoked
+		    // method.
+		    final AdminAuthorizationContext fCarrier = adminIdentity;
+		    Object binding = AccessController.doPrivileged(
+			    new PrivilegedAction<Object>() {
+			@Override public Object run() {
+			    return AdminAuthorizationScope.bindCarrier(fCarrier);
+			}
+		    });
+		    AdminAuthorizationScope.runBound(binding, invokeAction);
 		} else {
 		    invokeAction.run();
 		}
