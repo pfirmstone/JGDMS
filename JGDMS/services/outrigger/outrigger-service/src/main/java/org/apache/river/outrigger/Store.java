@@ -38,16 +38,22 @@ public interface Store {
      * @param space object used for recovery of previous state (if any)
      *
      * @param entryFormat the marshalling format token this instance is
-     *        configured with (JGDMS-STD-006 sec.3 item 5's born-immutable
-     *        format, e.g. {@code MarshallingFormat.ATOMIC_DER.getFormat()}
-     *        or {@code MarshallingFormat.JOSS.getFormat()}); persisted
-     *        alongside future snapshots so a later recovery can compare
-     *        the store's born format against the then-current
-     *        configuration (see {@link Recover#recoverEntryFormat}).
+     *        configured with (always
+     *        {@code MarshallingFormat.ATOMIC_DER.getFormat()} -- Outrigger
+     *        is DER-only in JGDMS 4.0.0); persisted alongside future
+     *        snapshots so a later recovery can verify the store's born
+     *        format (see {@link Recover#recoverEntryFormat}).
      *
      * @return object used to persist state
+     * @throws IncompatibleStoreException if the recovered store's
+     *         persisted marshalling format is not {@code ATOMIC_DER}
+     *         (propagated from {@link Recover#recoverEntryFormat}); the
+     *         store is left pristine on disk and no consumer thread has
+     *         been started
+     * @throws java.io.IOException if store setup or recovery fails
      */
-    public LogOps setupStore(Recover space, String entryFormat);
+    public LogOps setupStore(Recover space, String entryFormat)
+        throws java.io.IOException;
 
     /**
      * Destroy any persistent state and release

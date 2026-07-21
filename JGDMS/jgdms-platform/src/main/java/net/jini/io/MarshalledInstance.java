@@ -522,6 +522,31 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
     }
     
     /**
+     * Returns this instance's self-describing payload-format identifier
+     * (JGDMS-STD-008 sec.13.1): the token naming the codec that encoded
+     * the contained object and that {@link #get()} will use to decode it
+     * -- {@link #FORMAT_JOSS} for the legacy Java-Object-Serialization
+     * codec, {@link net.jini.core.constraint.MarshallingFormat#ATOMIC_DER}'s
+     * token for the JGDMS-STD-006 canonical DER codec, or any other
+     * registered {@link MarshalFactoryProvider} format. Never
+     * {@code null}. Note that a {@code MarshalledInstance} containing
+     * {@code null} always carries the {@link #FORMAT_JOSS} token (it has
+     * no payload bytes to decode); callers gating on format should treat
+     * {@link #isNull()} instances as format-neutral.
+     *
+     * <p>This accessor lets format-sensitive receivers (e.g. a DER-only
+     * service refusing JOSS payloads at its trust boundary) check what a
+     * {@code MarshalledInstance} contains <em>before</em> any call to
+     * {@link #get()} can reach the named codec.
+     *
+     * @return the payload format identifier, never {@code null}
+     * @since 4.0.0
+     */
+    public String getPayloadFormat(){
+	return payloadFormat;
+    }
+
+    /**
      * Sub classes implement this method to use alternative Serialization
      * frameworks to unmarshall data.
      * @return a new MarshalFactory instance.

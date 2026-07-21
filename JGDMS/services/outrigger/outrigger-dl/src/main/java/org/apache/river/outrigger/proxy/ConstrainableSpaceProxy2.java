@@ -21,7 +21,6 @@ import org.apache.river.landlord.ConstrainableLandlordLease;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.rmi.MarshalledObject;
 import java.util.Collection;
 import net.jini.admin.Administrable;
 import net.jini.core.constraint.MarshallingFormat;
@@ -35,6 +34,7 @@ import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
 import net.jini.space.JavaSpace;
 import net.jini.space.JavaSpace05;
+import net.jini.space.TupleSpace;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -119,12 +119,19 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 OutriggerServer.QueryCookie.class}),
 
 
-	ProxyUtil.getMethod(JavaSpace.class, "notify", 
+	/* DER-only (JGDMS 4.0.0): the client-side method mapped here is
+	 * the live TupleSpace MarshalledInstance overload -- the
+	 * deprecated JavaSpace MarshalledObject overload's behavior is
+	 * withdrawn (non-null -> UnsupportedOperationException; null
+	 * delegates to this MI path), so constraints are keyed against
+	 * the MI method.
+	 */
+	ProxyUtil.getMethod(TupleSpace.class, "notify",
 			    new Class[] {Entry.class,
 					 Transaction.class,
 					 RemoteEventListener.class,
 					 long.class,
-					 MarshalledObject.class}),
+					 MarshalledInstance.class}),
 	ProxyUtil.getMethod(OutriggerServer.class, "notify",
 			    new Class[] {EntryRep.class,
 					 Transaction.class,

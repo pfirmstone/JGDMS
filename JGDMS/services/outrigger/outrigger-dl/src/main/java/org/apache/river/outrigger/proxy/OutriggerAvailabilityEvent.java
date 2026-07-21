@@ -19,7 +19,6 @@ package org.apache.river.outrigger.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.rmi.MarshalledObject;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.export.ProxyAccessor;
@@ -66,29 +65,6 @@ public abstract class OutriggerAvailabilityEvent extends AvailabilityEvent imple
 	rep = (EntryRep) arg.get("rep", null);
     }
 
-    /**
-     * Constructs an OutriggerAvailabilityEvent object.
-     * 
-     * @param source    an <code>Object</code> representing the event source
-     * @param eventID   a <code>long</code> containing the event identifier
-     * @param seqNum    a <code>long</code> containing the event sequence number
-     * @param handback  a <code>MarshalledObject</code> that was passed in 
-     *                  as part of the original event registration.
-     * @param visibilityTransition <code>true</code> if this event
-     *                  must also signal a transition from
-     *                  invisible to visible
-     * @param rep       the entry that triggered the event
-     * @deprecated To be removed; use the MarshalledInstance-handback constructor (java.rmi.MarshalledObject drops the DER schema a MarshalledInstance carries).
-     */
-    @Deprecated
-    public OutriggerAvailabilityEvent(JavaSpace source, long eventID, 
-	long seqNum, MarshalledObject handback, boolean visibilityTransition,
-	EntryRep rep) 
-    {
-	super(source, eventID, seqNum, handback, visibilityTransition);
-	this.rep = rep;
-    }
-    
     /**
      * Constructs an OutriggerAvailabilityEvent object.
      * 

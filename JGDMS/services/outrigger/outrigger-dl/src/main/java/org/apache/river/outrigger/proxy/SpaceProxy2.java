@@ -606,16 +606,44 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	    return new SnapshotRep(entry, entryFormat);
     }
 
-    // inherit doc comment
+    /**
+     * Deprecated {@link java.rmi.MarshalledObject} overload, behavior
+     * withdrawn in JGDMS 4.0.0 (Outrigger is ATOMIC_DER-only;
+     * {@code SOW-Outrigger-DER-Only-JOSS-Rejection.md} decisions 3+4): a
+     * <code>null</code> handback delegates to the
+     * {@link net.jini.io.MarshalledInstance} path (nothing MO-shaped
+     * exists in a null call); a non-null handback throws
+     * {@link UnsupportedOperationException} -- a MarshalledObject can only
+     * carry a JOSS payload, which this space rejects at registration.
+     * Use {@link net.jini.space.TupleSpace#notify(Entry, Transaction,
+     * RemoteEventListener, long, MarshalledInstance)} with a
+     * constraint-built DER handback:
+     * <pre>
+     * new MarshalledInstance(obj, Collections.EMPTY_SET,
+     *     new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null))
+     * </pre>
+     * (never the bare {@code new MarshalledInstance(obj)}, which produces
+     * a JOSS payload).
+     */
     public EventRegistration
 	notify(Entry tmpl, Transaction txn, RemoteEventListener listener,
 	       long lease, MarshalledObject handback)
 	throws TransactionException, RemoteException
     {
+	if (handback != null) {
+	    throw new UnsupportedOperationException(
+		"The MarshalledObject handback overload of notify has been "
+		+ "withdrawn: this space is ATOMIC_DER-only (JGDMS 4.0.0) "
+		+ "and a java.rmi.MarshalledObject can only carry a JOSS "
+		+ "payload. Use the MarshalledInstance overload with a "
+		+ "handback built as new MarshalledInstance(obj, "
+		+ "Collections.EMPTY_SET, new InvocationConstraints("
+		+ "MarshallingFormat.ATOMIC_DER, null)).");
+	}
 	return space.notify(repFor(tmpl, entryFormat), txn, listener, lease,
-		handback != null ? new MarshalledInstance(handback) : null);
+		(MarshalledInstance) null);
     }
-	
+
 	// inherit doc comment
     public EventRegistration
 	notify(Entry tmpl, Transaction txn, RemoteEventListener listener,
@@ -752,18 +780,48 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	return Collections.EMPTY_LIST;
     }
 
-    public EventRegistration 
+    /**
+     * Deprecated {@link java.rmi.MarshalledObject} overload, behavior
+     * withdrawn in JGDMS 4.0.0 (Outrigger is ATOMIC_DER-only;
+     * {@code SOW-Outrigger-DER-Only-JOSS-Rejection.md} decisions 3+4): a
+     * <code>null</code> handback delegates to the
+     * {@link net.jini.io.MarshalledInstance} path (nothing MO-shaped
+     * exists in a null call); a non-null handback throws
+     * {@link UnsupportedOperationException} -- a MarshalledObject can only
+     * carry a JOSS payload, which this space rejects at registration.
+     * Use {@link net.jini.space.TupleSpace#registerForAvailabilityEvent(
+     * Collection, Transaction, boolean, RemoteEventListener, long,
+     * MarshalledInstance)} with a constraint-built DER handback:
+     * <pre>
+     * new MarshalledInstance(obj, Collections.EMPTY_SET,
+     *     new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null))
+     * </pre>
+     * (never the bare {@code new MarshalledInstance(obj)}, which produces
+     * a JOSS payload).
+     */
+    public EventRegistration
 	registerForAvailabilityEvent(Collection tmpls,
-				     Transaction txn, 
+				     Transaction txn,
 				     boolean visibilityOnly,
 				     RemoteEventListener listener,
-				     long leaseDuration, 
+				     long leaseDuration,
 				     MarshalledObject handback)
         throws TransactionException, RemoteException
     {
+	if (handback != null) {
+	    throw new UnsupportedOperationException(
+		"The MarshalledObject handback overload of "
+		+ "registerForAvailabilityEvent has been withdrawn: this "
+		+ "space is ATOMIC_DER-only (JGDMS 4.0.0) and a "
+		+ "java.rmi.MarshalledObject can only carry a JOSS payload. "
+		+ "Use the MarshalledInstance overload with a handback "
+		+ "built as new MarshalledInstance(obj, "
+		+ "Collections.EMPTY_SET, new InvocationConstraints("
+		+ "MarshallingFormat.ATOMIC_DER, null)).");
+	}
 	return space.registerForAvailabilityEvent(
 	    repFor(tmpls, "tmpls", entryFormat), txn, visibilityOnly, listener,
-	    leaseDuration, new MarshalledInstance(handback));
+	    leaseDuration, (MarshalledInstance) null);
     }
 	
     public EventRegistration registerForAvailabilityEvent(

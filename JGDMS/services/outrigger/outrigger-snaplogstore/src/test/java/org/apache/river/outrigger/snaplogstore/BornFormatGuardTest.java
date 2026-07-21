@@ -21,12 +21,15 @@ import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
+import java.util.Map;
 import net.jini.config.AbstractConfiguration;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.NoSuchEntryException;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import org.apache.river.outrigger.IncompatibleStoreException;
 import org.apache.river.outrigger.LogOps;
 import org.apache.river.outrigger.OutriggerServerImpl;
 import org.apache.river.outrigger.Recover;
@@ -39,20 +42,28 @@ import org.junit.rules.TemporaryFolder;
 import static org.junit.Assert.*;
 
 /**
- * Tests for the born-immutable-format guards (JGDMS-STD-006 sec.3 item 5,
- * guard i+ii) added to {@link BackEnd}/{@link LogStore}: a snapshot's
- * recovered marshalling format is compared against the recovering
- * instance's own configuration, and a mismatch is refused (fail-closed)
- * before any other state is recovered. An empty store (no snapshot yet)
- * fires no guard -- any format is a legal birth.
+ * Tests for the recovery format guard dispatch in
+ * {@link BackEnd}/{@link LogStore}. Outrigger is DER-only in JGDMS 4.0.0
+ * ({@code SOW-Outrigger-DER-Only-JOSS-Rejection.md}): the guard is
+ * <em>unconditional</em> -- any snapshot whose persisted format is not
+ * ATOMIC_DER is refused via the checked
+ * {@link org.apache.river.outrigger.IncompatibleStoreException},
+ * before any other state is recovered and before {@code consumeLogs} can
+ * mutate the store (a refused store stays pristine on disk for the
+ * offline converter). An empty store (no snapshot yet) fires no guard --
+ * a legal (DER) birth.
  *
  * <p>Drives the real {@link LogStore}/{@link BackEnd} persistence path (a
  * minimal in-memory {@link Configuration} stands in for a real deployment
  * configuration) so the guard is exercised exactly as
  * {@code OutriggerServerImpl} would exercise it, not a reimplementation of
- * the snapshot format in the test.
+ * the snapshot format in the test. The {@link RecoverStub} mirrors
+ * {@code OutriggerServerImpl.recoverEntryFormat}'s unconditional rule.
  */
 public class BornFormatGuardTest {
+
+    private static final String DER = MarshallingFormat.ATOMIC_DER.getFormat();
+    private static final String JOSS = MarshallingFormat.JOSS.getFormat();
 
     @Rule
     public TemporaryFolder tmp = new TemporaryFolder();
@@ -72,12 +83,14 @@ public class BornFormatGuardTest {
         }
     }
 
-    /** Records what was recovered; enforces the same comparison OutriggerServerImpl does. */
+    /**
+     * Records what was recovered; enforces the same UNCONDITIONAL DER-only
+     * rule {@code OutriggerServerImpl.recoverEntryFormat} does (JGDMS
+     * 4.0.0): anything but ATOMIC_DER is refused via the checked
+     * {@link IncompatibleStoreException}, regardless of configuration.
+     */
     private static class RecoverStub implements Recover {
-        final String configuredFormat;
         volatile boolean entryFormatDispatched;
-
-        RecoverStub(String configuredFormat) { this.configuredFormat = configuredFormat; }
 
         public void recoverSessionId(long sessionId) { }
         public void recoverJoinState(StoredObject state) throws Exception { }
@@ -88,12 +101,13 @@ public class BornFormatGuardTest {
         public void recoverTransaction(Long txnId, StoredObject transaction) throws Exception { }
         public void recoverUuid(Uuid uuid) { }
 
-        public void recoverEntryFormat(String format) {
+        public void recoverEntryFormat(String format)
+                throws IncompatibleStoreException {
             entryFormatDispatched = true;
-            if (!configuredFormat.equals(format)) {
-                throw new IllegalStateException(
+            if (!DER.equals(format)) {
+                throw new IncompatibleStoreException(
                     "Refusing to start: store born with " + format
-                    + " but configured for " + configuredFormat);
+                    + " but Outrigger is " + DER + "-only (JGDMS 4.0.0)");
             }
         }
     }
@@ -107,61 +121,69 @@ public class BornFormatGuardTest {
     public void emptyStoreFiresNoGuard() throws Exception {
         String dir = tmp.newFolder("empty").getAbsolutePath();
         LogStore store = openStore(dir);
-        RecoverStub recover = new RecoverStub("JOSS");
-        LogOps log = store.setupStore(recover, "JOSS");
+        RecoverStub recover = new RecoverStub();
+        LogOps log = store.setupStore(recover, DER);
         assertNotNull(log);
         assertFalse("no snapshot exists yet -- recoverEntryFormat must not be called",
             recover.entryFormatDispatched);
         store.close();
     }
 
-    /** Boot a store, force a snapshot to be written, then reopen with the same format. */
+    /** Boot a store, force a DER snapshot to be written, then reopen: recovers fine. */
     @Test
-    public void sameFormatOnRecoveryFiresNoException() throws Exception {
-        String dir = tmp.newFolder("same").getAbsolutePath();
-        writeOneSnapshot(dir, "JOSS");
+    public void derSnapshotOnRecoveryFiresNoException() throws Exception {
+        String dir = tmp.newFolder("der").getAbsolutePath();
+        writeOneSnapshot(dir, DER);
 
         LogStore store2 = openStore(dir);
-        RecoverStub recover2 = new RecoverStub("JOSS");
-        store2.setupStore(recover2, "JOSS");
+        RecoverStub recover2 = new RecoverStub();
+        store2.setupStore(recover2, DER);
         assertTrue("a populated store's snapshot must dispatch recoverEntryFormat",
             recover2.entryFormatDispatched);
         store2.close();
     }
 
-    /** JOSS-configured instance recovering a DER-written snapshot must refuse to start. */
+    /**
+     * A JOSS-born snapshot is refused UNCONDITIONALLY (DER-only, JGDMS
+     * 4.0.0) -- via the checked IncompatibleStoreException so the
+     * caller's cleanup path runs -- and the refused store is left
+     * byte-for-byte pristine on disk (the guard fires before consumeLogs
+     * can consume logs or write a fresh snapshot), preserving it for the
+     * offline JOSS-to-DER converter.
+     */
     @Test
-    public void derSnapshotRefusedByJossConfiguredInstance() throws Exception {
-        String dir = tmp.newFolder("der-then-joss").getAbsolutePath();
-        writeOneSnapshot(dir, "JGDMS-STD-006/ATOMIC-DER");
+    public void jossSnapshotRefusedUnconditionallyAndStorePristine() throws Exception {
+        String dir = tmp.newFolder("joss-refused").getAbsolutePath();
+        writeOneSnapshot(dir, JOSS);
+
+        final Map<String, Long> before = dirState(dir);
 
         LogStore store2 = openStore(dir);
-        RecoverStub recover2 = new RecoverStub("JOSS");
+        RecoverStub recover2 = new RecoverStub();
         try {
-            store2.setupStore(recover2, "JOSS");
-            fail("recovering a DER-born snapshot as a JOSS-configured instance must throw");
-        } catch (IllegalStateException expected) {
-            // expected: fail-closed guard fired -- LogStore never finishes
-            // setupStore (the guard throws before the consumer thread
-            // starts or the front-end log file is opened), so there is
-            // nothing for this test to close.
+            store2.setupStore(recover2, DER);
+            fail("recovering a JOSS-born snapshot must throw");
+        } catch (IncompatibleStoreException expected) {
+            // expected: fail-closed guard fired, CHECKED -- LogStore never
+            // finishes setupStore (the guard throws before the consumer
+            // thread starts or the front-end log file is opened), so
+            // there is nothing for this test to close.
         }
+        assertTrue("the guard must have actually been consulted",
+            recover2.entryFormatDispatched);
+        assertEquals("a refused store must be left pristine on disk",
+            before, dirState(dir));
     }
 
-    /** JOSS-configured instance recovering a DER-written snapshot (and vice versa) refuses startup. */
-    @Test
-    public void jossSnapshotRefusedByDerConfiguredInstance() throws Exception {
-        String dir = tmp.newFolder("joss-then-der").getAbsolutePath();
-        writeOneSnapshot(dir, "JOSS");
-
-        LogStore store2 = openStore(dir);
-        RecoverStub recover2 = new RecoverStub("JGDMS-STD-006/ATOMIC-DER");
-        try {
-            store2.setupStore(recover2, "JGDMS-STD-006/ATOMIC-DER");
-            fail("recovering a JOSS-born snapshot as a DER-configured instance must throw");
-        } catch (IllegalStateException expected) {
-            // expected: fail-closed guard fired -- see note above.
+    /** Name -> length for every file under dir (recursive not needed: flat). */
+    private static Map<String, Long> dirState(String dir) {
+        Map<String, Long> state = new HashMap<String, Long>();
+        File[] children = new File(dir).listFiles();
+        assertNotNull(children);
+        for (File f : children) {
+            state.put(f.getName(), Long.valueOf(f.length()));
         }
+        return state;
     }
 
     /**
@@ -178,14 +200,14 @@ public class BornFormatGuardTest {
      */
     private void writeOneSnapshot(String dir, String format) throws Exception {
         LogStore store1 = openStore(dir);
-        RecoverStub recover1 = new RecoverStub(format);
+        RecoverStub recover1 = new RecoverStub();
         LogOps log1 = store1.setupStore(recover1, format);
         assertFalse("boot 1 is an empty store", recover1.entryFormatDispatched);
         log1.uuidOp(UuidFactory.generate());
         store1.close();
 
         LogStore store2 = openStore(dir);
-        RecoverStub recover2 = new RecoverStub(format);
+        RecoverStub recover2 = new RecoverStub();
         store2.setupStore(recover2, format);
         assertFalse("boot 2 still has no prior snapshot to recover",
             recover2.entryFormatDispatched);
@@ -235,49 +257,30 @@ public class BornFormatGuardTest {
     }
 
     /**
-     * Fix 1 regression (blocking): a JOSS-configured instance recovering a
-     * PRE-A1-shaped legacy snapshot (no format marker at all) must recover
-     * normally -- not be refused by a blunt version-int mismatch. This is
-     * exactly the JOSS-stays-JOSS in-place upgrade the pre-fix code would
-     * have refused outright (data loss), since the pre-fix version check
-     * threw before ever reaching the format-comparison guard.
+     * A PRE-A1-shaped legacy snapshot (no format marker at all --
+     * unconditionally implicit JOSS) is recognized by its version int and
+     * dispatched through the {@code recoverEntryFormat} guard as JOSS --
+     * where the DER-only rule refuses it with the checked, actionable
+     * {@link IncompatibleStoreException}, not a blunt version-mismatch
+     * reject. The distinction matters for the operator message: the store
+     * is a convertible pre-DER store, not corruption.
      */
     @Test
-    public void preA1LegacySnapshotRecoveredByJossConfiguredInstance() throws Exception {
-        String dir = tmp.newFolder("pre-a1-joss").getAbsolutePath();
+    public void preA1LegacySnapshotDispatchedAsJossAndRefused() throws Exception {
+        String dir = tmp.newFolder("pre-a1").getAbsolutePath();
         writeLegacyPreA1Snapshot(dir);
 
         LogStore store = openStore(dir);
-        RecoverStub recover = new RecoverStub("JOSS");
-        store.setupStore(recover, "JOSS");
-        assertTrue("a legacy pre-A1 snapshot must still dispatch "
-            + "recoverEntryFormat (as implicit JOSS), not be refused outright",
-            recover.entryFormatDispatched);
-        store.close();
-    }
-
-    /**
-     * Fix 1 regression (blocking), other half: a DER-configured instance
-     * pointed at the same pre-A1-shaped legacy snapshot must still be
-     * correctly refused -- via the existing {@code recoverEntryFormat}
-     * guard (a genuine format contradiction), not via the blunt version
-     * check this fix removes.
-     */
-    @Test
-    public void preA1LegacySnapshotRefusedByDerConfiguredInstance() throws Exception {
-        String dir = tmp.newFolder("pre-a1-der").getAbsolutePath();
-        writeLegacyPreA1Snapshot(dir);
-
-        LogStore store = openStore(dir);
-        RecoverStub recover = new RecoverStub("JGDMS-STD-006/ATOMIC-DER");
+        RecoverStub recover = new RecoverStub();
         try {
-            store.setupStore(recover, "JGDMS-STD-006/ATOMIC-DER");
-            fail("a DER-configured instance recovering a legacy (implicit "
-                + "JOSS) pre-A1 snapshot must still be refused");
-        } catch (IllegalStateException expected) {
-            // expected: fail-closed guard fired.
+            store.setupStore(recover, DER);
+            fail("a legacy (implicit JOSS) pre-A1 snapshot must be refused");
+        } catch (IncompatibleStoreException expected) {
+            // expected: fail-closed guard fired, CHECKED.
         }
-        assertTrue("the guard must have actually been consulted",
+        assertTrue("the guard must have actually been consulted "
+            + "(recognized shape dispatched as implicit JOSS, not a blunt "
+            + "version reject)",
             recover.entryFormatDispatched);
     }
 
@@ -297,9 +300,9 @@ public class BornFormatGuardTest {
         sf.commit();
 
         LogStore store = openStore(dir);
-        RecoverStub recover = new RecoverStub("JOSS");
+        RecoverStub recover = new RecoverStub();
         try {
-            store.setupStore(recover, "JOSS");
+            store.setupStore(recover, DER);
             fail("an unrecognized snapshot version must be a hard reject");
         } catch (net.jini.space.InternalSpaceException expected) {
             // expected: BackEnd.logAndThrowRecoveryException wraps "Wrong

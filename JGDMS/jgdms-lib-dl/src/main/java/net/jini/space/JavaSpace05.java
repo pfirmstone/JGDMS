@@ -528,16 +528,39 @@ public interface JavaSpace05 extends JavaSpace {
      *         or if <code>leaseDuration</code> is neither
      *         positive nor {@link Lease#ANY Lease.ANY}
      * @throws NullPointerException if <code>tmpls</code> or
-     *         <code>listener</code> is <code>null</code> 
-     * @deprecated
+     *         <code>listener</code> is <code>null</code>
+     * @throws UnsupportedOperationException from JGDMS 4.0.0
+     *         implementations if <code>handback</code> is
+     *         non-<code>null</code> -- see the deprecation note below.
+     * @deprecated For removal (JGDMS 5.0). Use
+     * {@link TupleSpace#registerForAvailabilityEvent(Collection,
+     * Transaction, boolean, RemoteEventListener, long,
+     * net.jini.io.MarshalledInstance)}. The behavior of this overload is
+     * withdrawn in JGDMS 4.0.0 (the signature is retained for
+     * binary/source compatibility): a {@link MarshalledObject} can only
+     * carry a legacy Java-Object-Serialization (JOSS) payload, which a
+     * DER-only service such as Outrigger rejects at registration. A call
+     * with a <code>null</code> <code>handback</code> delegates to the
+     * {@link net.jini.io.MarshalledInstance} overload (nothing MO-shaped
+     * exists in a null call); a non-<code>null</code>
+     * <code>handback</code> throws
+     * {@link UnsupportedOperationException}. Build the replacement
+     * handback with an ATOMIC_DER payload:
+     * <pre>
+     * new MarshalledInstance(obj, Collections.EMPTY_SET,
+     *     new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null))
+     * </pre>
+     * -- never the bare {@code new MarshalledInstance(obj)}, which
+     * produces a JOSS payload and will likewise be rejected by a
+     * DER-only service.
      */
     @Deprecated
     public EventRegistration
-	registerForAvailabilityEvent(Collection          tmpls, 
+	registerForAvailabilityEvent(Collection          tmpls,
 				     Transaction         txn,
 				     boolean             visibilityOnly,
 				     RemoteEventListener listener,
-				     long                leaseDuration, 
+				     long                leaseDuration,
 				     MarshalledObject    handback)
 	throws TransactionException, RemoteException;
 }

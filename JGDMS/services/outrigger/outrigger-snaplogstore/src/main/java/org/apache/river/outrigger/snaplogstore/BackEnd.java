@@ -168,18 +168,25 @@ class BackEnd implements Observer {
      *        snapshot (JGDMS-STD-006 sec.3 item 5's born-immutable-format
      *        guards).
      */
-    void setupStore(Recover space, String entryFormat) {
+    void setupStore(Recover space, String entryFormat)
+	throws org.apache.river.outrigger.IncompatibleStoreException
+    {
 	this.entryFormat = entryFormat;
 
 	// Recover the snapshot (if any)
 	//
 	recoverSnapshot();
 
-	/* Guard (i)+(ii): fail closed, before anything else is recovered or
-	 * a fresh snapshot is written (consumeLogs below), if the format
-	 * recovered from an existing snapshot contradicts this instance's
-	 * own configuration. An empty store (no snapshot) leaves
-	 * recoveredEntryFormat null -- any format is a legal birth.
+	/* Recovery format guard: fail closed, before anything else is
+	 * recovered or a fresh snapshot is written (consumeLogs below), if
+	 * the format recovered from an existing snapshot is refused by the
+	 * Recover implementation (DER-only in JGDMS 4.0.0: anything but
+	 * ATOMIC_DER is refused, unconditionally). The refusal is the
+	 * CHECKED IncompatibleStoreException so the caller's startup
+	 * cleanup path runs (fail-loud AND fail-clean), and it fires
+	 * before consumeLogs so a refused JOSS-era store stays pristine
+	 * on disk for offline conversion. An empty store (no snapshot)
+	 * leaves recoveredEntryFormat null -- a legal (DER) birth.
 	 */
 	if (recoveredEntryFormat != null) {
 	    space.recoverEntryFormat(recoveredEntryFormat);

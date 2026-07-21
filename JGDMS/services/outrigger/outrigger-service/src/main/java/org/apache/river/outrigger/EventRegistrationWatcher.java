@@ -19,7 +19,6 @@ package org.apache.river.outrigger;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
-import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.UnknownEventException;
@@ -50,11 +49,14 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
     Uuid cookie;
 
     /**
-     * The handback associated with this registration.
+     * The handback associated with this registration (DER-only:
+     * always a canonical {@link MarshalledInstance}, never a legacy
+     * {@code java.rmi.MarshalledObject} -- JGDMS 4.0.0 withdrew the MO
+     * surface end-to-end).
      * Protected, but only for use by subclasses.
      * Should not be changed.
      */
-    Object handback;
+    MarshalledInstance handback;
 
     /** 
      * The event ID associated with this registration
@@ -126,36 +128,6 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      *        argument is <code>null</code>.
      */
     EventRegistrationWatcher(long timestamp, long startOrdinal, Uuid cookie,
-	MarshalledObject handback, long eventID)
-    {
-	super(timestamp, startOrdinal);
-
-	if (cookie == null)
-	    throw new NullPointerException("cookie must be non-null");
-
-	this.cookie = cookie;
-	this.handback = handback;
-	this.eventID = eventID;
-    }
-    
-    /**
-     * Create a new <code>EventRegistrationWatcher</code>.
-     * @param timestamp the value that is used
-     *        to sort <code>TransitionWatcher</code>s.
-     * @param startOrdinal the highest ordinal associated
-     *        with operations that are considered to have occurred 
-     *        before the operation associated with this watcher.
-     * @param cookie The unique identifier associated
-     *        with this watcher. Must not be <code>null</code>.
-     * @param handback The handback object that
-     *        should be sent along with event
-     *        notifications to the the listener.
-     * @param eventID The event ID for event type
-     *        represented by this object.
-     * @throws NullPointerException if the <code>cookie</code>
-     *        argument is <code>null</code>.
-     */
-    EventRegistrationWatcher(long timestamp, long startOrdinal, Uuid cookie,
 	MarshalledInstance handback, long eventID)
     {
 	super(timestamp, startOrdinal);
@@ -200,12 +172,7 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
 	    } else {
 		currentSeqNum++;
 		owner.getServer().enqueueDelivery(
-			new BasicEventSender(
-			    currentSeqNum,
-			    eventID,
-			    handback instanceof MarshalledObject ?
-				new MarshalledInstance((MarshalledObject) handback)
-				: (MarshalledInstance) handback));
+			new BasicEventSender(currentSeqNum, eventID, handback));
 	    }
 	}
 

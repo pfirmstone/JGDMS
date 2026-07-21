@@ -131,23 +131,26 @@ public interface Recover {
     public void recoverUuid(Uuid uuid);
 
     /**
-     * Recover the marshalling format the store was born with -- part of
-     * the two born-immutable-format guards (JGDMS-STD-006 sec.3 item 5):
-     * (i) a service must refuse an in-place format change on a populated
-     * store, and (ii) recovery must refuse a snapshot whose format
-     * contradicts the instance's own configuration. Implementations
-     * enforce this by comparing <code>format</code> against their own
-     * configured format and throwing (fail-closed) on a mismatch. Called
-     * once, before any entry/registration recovery is dispatched. Will
-     * only be called if a format has been stored during a previous
-     * incarnation -- an empty store (no snapshot yet) has no prior format
-     * to contradict, so this method is not called and any format is a
-     * legal birth.
+     * Recover the marshalling format the store was born with. Outrigger is
+     * DER-only in JGDMS 4.0.0 (JGDMS-STD-006 sec.3 item 5, strengthened by
+     * {@code SOW-Outrigger-DER-Only-JOSS-Rejection.md}): implementations
+     * MUST refuse -- unconditionally, not relative to any configuration --
+     * a store whose persisted format is not
+     * {@link net.jini.core.constraint.MarshallingFormat#ATOMIC_DER},
+     * by throwing the <em>checked</em>
+     * {@link IncompatibleStoreException} (checked so the startup
+     * cleanup path runs: fail-loud must also be fail-clean). Called once,
+     * before any entry/registration recovery is dispatched and before any
+     * log consumption mutates the store, so a refused store is left
+     * pristine on disk for offline conversion. Will only be called if a
+     * format has been stored during a previous incarnation -- an empty
+     * store (no snapshot yet) has no prior format and is a legal birth.
      *
      * @param format the marshalling format token recovered from the store
-     * @throws IllegalStateException if the recovered format contradicts
-     *         this instance's configuration
+     * @throws IncompatibleStoreException if the recovered format is
+     *         not {@code ATOMIC_DER}
      */
-    public void recoverEntryFormat(String format);
+    public void recoverEntryFormat(String format)
+        throws IncompatibleStoreException;
 }
 

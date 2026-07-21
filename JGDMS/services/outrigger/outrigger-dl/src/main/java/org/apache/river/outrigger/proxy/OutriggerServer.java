@@ -21,7 +21,6 @@ import org.apache.river.landlord.Landlord;
 
 import net.jini.lookup.ServiceProxyAccessor;
 
-import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;

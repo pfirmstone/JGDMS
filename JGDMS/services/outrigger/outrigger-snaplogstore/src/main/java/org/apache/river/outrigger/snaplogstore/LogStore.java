@@ -81,10 +81,17 @@ public class LogStore implements Store {
      *
      * @return object used to persist state
      */
-    public LogOps setupStore(Recover space, String entryFormat) {
+    public LogOps setupStore(Recover space, String entryFormat)
+	throws org.apache.river.outrigger.IncompatibleStoreException
+    {
+	/* Outside the wrap below: a recovery format refusal
+	 * (IncompatibleStoreException, DER-only in JGDMS 4.0.0) must
+	 * propagate CHECKED so the caller's startup cleanup path runs --
+	 * wrapping it in an unchecked InternalSpaceException would bypass
+	 * that path (fail-loud must also be fail-clean).
+	 */
+	be.setupStore(space, entryFormat);
 	try {
-	    be.setupStore(space, entryFormat);
-
 	    // Use the log type as the file prefix
 	    //
 	    log = new LogOutputFile(
@@ -94,7 +101,7 @@ public class LogStore implements Store {
 	    log.observable().addObserver(be);
 	} catch (IOException e) {
 	    final String msg = "LogStore: log creation failed";
-	    final InternalSpaceException ise = 
+	    final InternalSpaceException ise =
 		new InternalSpaceException(msg, e);
 	    logger.log(Level.SEVERE, msg, ise);
 	    throw ise;

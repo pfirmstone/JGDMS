@@ -44,7 +44,6 @@ import net.jini.config.ConfigurationException;
 
 import net.jini.export.Exporter;
 import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 
 import net.jini.constraint.BasicMethodConstraints;
@@ -112,7 +111,6 @@ import net.jini.export.CodebaseAccessor;
 import net.jini.export.CodebaseDigestUtil;
 import net.jini.io.MarshalledInstance;
 import net.jini.jeri.AtomicDerILFactory;
-import net.jini.jeri.AtomicILFactory;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
@@ -420,27 +418,20 @@ public class OutriggerServerImpl
     private final AtomicLong sessionId = new AtomicLong();
 
     /**
-     * The marshalling format this space was born with: read once, at
-     * startup, from the {@code useDerForEntries} configuration entry
-     * (mirrors Reggie's {@code RegistrarImpl.useDerForEntries} naming) and
-     * fixed for the life of this instance (JGDMS-STD-006 sec.3 item 5 --
-     * the ratified born-immutable format decision). {@code true} selects
-     * {@link MarshallingFormat#ATOMIC_DER}; {@code false} (the default)
-     * selects legacy {@link MarshallingFormat#JOSS}. Never flipped after
-     * construction -- there is no setter, and the two persistence guards
-     * ({@link #recoverEntryFormat}, and the exported proxy's own
-     * non-overridable born-format field) enforce that a populated store
-     * cannot silently change format underneath this value.
-     */
-    private final boolean useDerForEntries;
-
-    /**
-     * @return the {@link MarshallingFormat} token derived from
-     * {@link #useDerForEntries}: the single format every entry, template,
-     * and persisted snapshot for this space instance uses.
+     * @return the marshalling format every entry, template, and persisted
+     * snapshot for this space instance uses: unconditionally
+     * {@link MarshallingFormat#ATOMIC_DER}. Outrigger is DER-only in
+     * JGDMS 4.0.0 ({@code SOW-Outrigger-DER-Only-JOSS-Rejection.md},
+     * superseding the born-immutable format <em>choice</em> of
+     * JGDMS-STD-006 sec.3 item 5 -- there is no born-JOSS Outrigger).
+     * The {@code useDerForEntries} configuration entry is retained but
+     * reject-if-JOSS: {@link #init} fails loudly at startup if it is set
+     * to anything but {@code true} (see init()), and
+     * {@link #recoverEntryFormat} refuses any persisted store whose
+     * format is not {@code ATOMIC_DER}.
      */
     MarshallingFormat entryFormat() {
-	return useDerForEntries ? MarshallingFormat.ATOMIC_DER : MarshallingFormat.JOSS;
+	return MarshallingFormat.ATOMIC_DER;
     }
 
     /**
@@ -644,7 +635,6 @@ public class OutriggerServerImpl
 	    this.certFactoryType = h.certFactoryType;
 	    this.certPathEncoding = h.certPathEncoding;
 	    this.encodedCerts = h.encodedCerts.clone();
-	    this.useDerForEntries = h.useDerForEntries;
             {
                 CodebaseDigestUtil.Result dr = null;
                 try {
@@ -686,7 +676,6 @@ public class OutriggerServerImpl
             activationSystem = null;
             transactionManagerPreparer = null;
             listenerPreparer = null;
-            this.useDerForEntries = false;
             exporter = null;
             ourRemoteRef = null;
             contents = null;
@@ -796,7 +785,6 @@ public class OutriggerServerImpl
 			}
 			
 		    }));
-                    ourRemoteRef = (OutriggerServer) exporter.export(serverGate);
                             // This takes a while the first time, so let's get it going
                     txnMonitor.start();
                     starter.start();
@@ -828,14 +816,31 @@ public class OutriggerServerImpl
                             " a persistent space");
                     }
 
-                    /* Now that we have recovered any store we have, create a 
+                    /* Now that we have recovered any store we have, create a
                      * Uuid if there was not one in the store.
                      */
                     if (topUuid == null) {
                         topUuid = UuidFactory.generate();
                         if (log != null)
                             log.uuidOp(topUuid);
-                    }		
+                    }
+
+                    /* Export ONLY after successful store recovery (board
+                     * fix, SOW-Outrigger-DER-Only-JOSS-Rejection sec.3
+                     * item 2): a store refused by the recovery format
+                     * guard (or any other recovery failure) must never
+                     * have had a live JERI endpoint -- fail-loud is only
+                     * realized when it is also fail-clean. Nothing in
+                     * store recovery needs the exported reference (the
+                     * proxies and lease factory are constructed below,
+                     * after export), and this ordering matches the
+                     * classic recover-then-export service startup shape
+                     * for all three variants (transient: store == null,
+                     * nothing changes; persistent; activatable: the
+                     * ActivationExporter registers with the activation
+                     * group here instead of before recovery).
+                     */
+                    ourRemoteRef = (OutriggerServer) exporter.export(serverGate);
 
                     // Always constrainable; fail closed when the server was not
                     // exported with a constrainable endpoint.  The constrainable
@@ -848,25 +853,24 @@ public class OutriggerServerImpl
                             + "endpoint: server does not implement "
                             + "RemoteMethodControl");
                     }
-                    /* Belt-and-braces (JGDMS-STD-006 sec.3 item 5): the
-                     * born entryFormat() field below is what actually
-                     * drives entry/template marshalling (the non-droppable
+                    /* Belt-and-braces (DER-only, JGDMS 4.0.0): the born
+                     * entryFormat() below is what actually drives
+                     * entry/template marshalling (the non-droppable
                      * source of truth -- see ConstrainableSpaceProxy2
                      * /ConstrainableAdminProxy#setConstraints). This
                      * initial MethodConstraints is an *additional*,
-                     * independently-enforced wire-layer requirement: when
-                     * DER-configured, it makes the exported OutriggerServer
-                     * reference itself require MarshallingFormat.ATOMIC_DER,
-                     * so the JERI invocation layer (now AtomicDerILFactory,
-                     * see init() above) fails loud with
+                     * independently-enforced wire-layer requirement: it
+                     * makes the exported OutriggerServer reference itself
+                     * require MarshallingFormat.ATOMIC_DER, so the JERI
+                     * invocation layer (AtomicDerILFactory, see init()
+                     * above) fails loud with
                      * UnsupportedConstraintException for a genuinely
                      * DER-incapable legacy client, rather than only relying
                      * on the client-side proxy field.
                      */
-                    final MethodConstraints initialConstraints = useDerForEntries
-                        ? new BasicMethodConstraints(
-                            new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null))
-                        : null;
+                    final MethodConstraints initialConstraints =
+                        new BasicMethodConstraints(
+                            new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
                     spaceProxy = new ConstrainableSpaceProxy2(ourRemoteRef, topUuid,
                         maxServerQueryTimeout, entryFormat(), initialConstraints);
                     adminProxy =
@@ -899,65 +903,91 @@ public class OutriggerServerImpl
             Exception e = ex.getException();
             // Clean up and rethrow.
             lifecycleLogger.log(Level.SEVERE, "Failed to start Outrigger server", e);
-           
-            unwindExporter(ourRemoteRef, exporter);
-           
-             // If we created a JoinStateManager,
-            try {
-                joinStateManager.destroy();
-            } catch (Throwable t) {
-                // Ignore and go on
-            }
-            
-            if (expirationOpQueue != null)
-                expirationOpQueue.terminate();
-
-            if (txnMonitor != null) {
-                try {
-                    txnMonitor.destroy();
-                } catch (Throwable t) {
-                    // Ignore and go on
-                }
-            }
-
-            // Interrupt and join independent threads
-            if (notifier != null) {
-                try {
-                    notifier.terminate();
-                } catch (Throwable t) {
-                    // Ignore and go on
-                }
-            }
-
-            if (operationJournal != null) {
-                try {
-                    operationJournal.terminate();
-                } catch (Throwable t) {
-                    // Ignore and go on
-                }	       
-            }
-
-            unwindReaper(templateReaperThread);
-            unwindReaper(entryReaperThread);
-            unwindReaper(contentsQueryReaperThread);
-
-            // Close (but do not destroy) the store
-            if (store != null) {
-                try {
-                    store.close();
-                } catch (Throwable t) {
-                    // Ignore and go on
-                }
-            }
+            cleanupFailedStart();
             if (e instanceof IOException) throw (IOException) e;
             else if (e instanceof ConfigurationException) throw (ConfigurationException) e;
             else if (e instanceof LoginException) throw (LoginException) e;
             else if (e instanceof RuntimeException) throw (RuntimeException) e;
+        } catch (RuntimeException e) {
+            /* Fail-clean for unchecked failures too (board fix,
+             * SOW-Outrigger-DER-Only-JOSS-Rejection sec.3 item 2):
+             * doPrivileged only wraps CHECKED exceptions in
+             * PrivilegedActionException -- an unchecked throw from inside
+             * the startup action (e.g. a recovery failure surfaced as
+             * InternalSpaceException) propagates directly and would
+             * otherwise bypass the cleanup entirely, leaving a live
+             * endpoint and running non-daemon threads.
+             */
+            lifecycleLogger.log(Level.SEVERE, "Failed to start Outrigger server", e);
+            cleanupFailedStart();
+            throw e;
         } finally {
             config = null;
             starter = null;
             except = null;
             thrown = null;
+        }
+    }
+
+    /**
+     * Undo everything a failed {@link #start} may have done, whichever
+     * point it failed at: unexport the endpoint (if it was ever
+     * exported), destroy/terminate every helper with a non-daemon
+     * thread, and close (but do not destroy) the store. Shared by the
+     * checked ({@code PrivilegedActionException}) and unchecked
+     * ({@code RuntimeException}) failure paths so no startup failure can
+     * bypass it -- a refusal that leaves a live endpoint or running
+     * threads behind is not fail-clean.
+     */
+    private void cleanupFailedStart() {
+        unwindExporter(ourRemoteRef, exporter);
+
+         // If we created a JoinStateManager,
+        try {
+            joinStateManager.destroy();
+        } catch (Throwable t) {
+            // Ignore and go on
+        }
+
+        if (expirationOpQueue != null)
+            expirationOpQueue.terminate();
+
+        if (txnMonitor != null) {
+            try {
+                txnMonitor.destroy();
+            } catch (Throwable t) {
+                // Ignore and go on
+            }
+        }
+
+        // Interrupt and join independent threads
+        if (notifier != null) {
+            try {
+                notifier.terminate();
+            } catch (Throwable t) {
+                // Ignore and go on
+            }
+        }
+
+        if (operationJournal != null) {
+            try {
+                operationJournal.terminate();
+            } catch (Throwable t) {
+                // Ignore and go on
+            }
+        }
+
+        unwindReaper(templateReaperThread);
+        unwindReaper(entryReaperThread);
+        unwindReaper(contentsQueryReaperThread);
+
+        // Close (but do not destroy) the store
+        if (store != null) {
+            try {
+                store.close();
+            } catch (Throwable t) {
+                // Ignore and go on
+            }
         }
     }
 
@@ -1038,7 +1068,6 @@ public class OutriggerServerImpl
         Thread starter;
         long maxServerQueryTimeout;
         AccessControlContext context;
-	boolean useDerForEntries;
 	private String codebase;
 	private String certFactoryType;
 	private String certPathEncoding;
@@ -1120,14 +1149,28 @@ public class OutriggerServerImpl
 	    h.encodedCerts = Config.getNonNullEntry(config, COMPONENT_NAME,
 		    "Codebase_Certs", byte[].class, new byte[0]);
 
-	    /* The space's born-immutable marshalling format (JGDMS-STD-006
-	     * sec.3 item 5): read once, here, at startup. Mirrors Reggie's
-	     * useDerForEntries naming/default (RegistrarImpl.java). true
-	     * selects ATOMIC_DER for every entry/template this space
-	     * marshals; false (the default) is the legacy JOSS format.
+	    /* Outrigger is DER-only in JGDMS 4.0.0
+	     * (SOW-Outrigger-DER-Only-JOSS-Rejection.md sec.9.1): the
+	     * useDerForEntries configuration entry is RETAINED so a stale
+	     * JOSS deployment configuration surfaces as an explicit,
+	     * actionable refusal at startup -- never a silently ignored
+	     * setting -- but the only accepted value is true (the default).
 	     */
-	    h.useDerForEntries = Config.getNonNullEntry(config, COMPONENT_NAME,
-		    "useDerForEntries", Boolean.class, Boolean.FALSE);
+	    final boolean useDerForEntries =
+		((Boolean) Config.getNonNullEntry(config, COMPONENT_NAME,
+		    "useDerForEntries", boolean.class, Boolean.TRUE))
+		    .booleanValue();
+	    if (!useDerForEntries) {
+		throw new ConfigurationException(
+		    "Configuration entry " + COMPONENT_NAME
+		    + ".useDerForEntries is set to false, but Outrigger is "
+		    + "ATOMIC_DER-only in JGDMS 4.0.0: the legacy JOSS "
+		    + "marshalling format has been withdrawn "
+		    + "(SOW-Outrigger-DER-Only-JOSS-Rejection.md). Remove "
+		    + "the entry or set it to true. A populated JOSS-era "
+		    + "store cannot be started by this release; convert it "
+		    + "offline first.");
+	    }
 
             /* Export the server. */
 
@@ -1138,32 +1181,101 @@ public class OutriggerServerImpl
 	     * Use the ClassLoader of the proxy bundle, the ActivationExporter
 	     * will use this also, from the passed in basicExporter.
 	     *
-	     * When useDerForEntries is configured, the default exporter's
-	     * invocation layer factory is AtomicDerILFactory rather than
-	     * AtomicILFactory -- belt-and-braces alongside the born-format
-	     * field on the exported proxies: this makes the JERI wire layer
-	     * itself (BasicInvocationHandler/Dispatcher's existing
-	     * MarshallingFormat enforcement) fail loud with
-	     * UnsupportedConstraintException for a genuinely
-	     * DER-incapable legacy client, rather than only relying on the
-	     * client-side proxy field. A deployer-supplied "serverExporter"
-	     * config entry overrides this default entirely, as before.
+	     * DER-only (decision 2 of SOW-Outrigger-DER-Only-JOSS-Rejection):
+	     * the default exporter's invocation layer factory is
+	     * unconditionally AtomicDerILFactory -- belt-and-braces
+	     * alongside the born-format field on the exported proxies: the
+	     * JERI wire layer itself (BasicInvocationHandler/Dispatcher's
+	     * existing MarshallingFormat enforcement) fails loud with
+	     * UnsupportedConstraintException for a genuinely DER-incapable
+	     * legacy client, rather than only relying on the client-side
+	     * proxy field.
              */
-            final Exporter basicExporter =
-                new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-                                      h.useDerForEntries
-                                          ? new AtomicDerILFactory(null, null, OutriggerServer.class.getClassLoader())
-                                          : new AtomicILFactory(null, null, OutriggerServer.class.getClassLoader()),
-                                      false, true);
-            if (activationID == null) {
-                h.exporter = (Exporter)Config.getNonNullEntry(config,
-                    COMPONENT_NAME,	"serverExporter", Exporter.class,
-                    basicExporter);
+            Exporter deployerExporter = null;
+            try {
+                deployerExporter = (activationID == null)
+                    ? (Exporter) config.getEntry(
+                        COMPONENT_NAME, "serverExporter", Exporter.class)
+                    : (Exporter) config.getEntry(
+                        COMPONENT_NAME, "serverExporter", Exporter.class,
+                        Configuration.NO_DEFAULT, activationID);
+                if (deployerExporter == null) {
+                    throw new ConfigurationException(
+                        "entry for component " + COMPONENT_NAME
+                        + ", name serverExporter cannot be null");
+                }
+            } catch (net.jini.config.NoSuchEntryException e) {
+                // No deployer override: fall through to the default below.
+            }
+            if (deployerExporter != null) {
+                /* Deployer-override vector (SOW-Outrigger-DER-Only
+                 * sec.2.2): a deployer-supplied "serverExporter" entry
+                 * replaces the default exporter wholesale, which could
+                 * silently reintroduce a JOSS invocation layer against
+                 * decision 2. Best-effort startup check:
+                 *
+                 *   - CAN catch: a BasicJeriExporter whose
+                 *     InvocationLayerFactory is not an AtomicDerILFactory
+                 *     (the common misconfiguration -- e.g. a stale config
+                 *     still naming BasicILFactory or AtomicILFactory).
+                 *     This is a hard ConfigurationException, before
+                 *     anything is exported.
+                 *   - CANNOT catch: any other Exporter implementation
+                 *     (including a deployer-supplied ActivationExporter,
+                 *     which exposes no getter for its underlying exporter,
+                 *     or a custom wrapper). An arbitrary Exporter is
+                 *     opaque; for those we log a loud WARNING naming the
+                 *     residual risk. The independent backstops still hold
+                 *     either way: the exported proxies' born entryFormat
+                 *     field drives all entry/template marshalling, the
+                 *     proxies' initial MethodConstraints require
+                 *     ATOMIC_DER, and the recovery guard refuses any
+                 *     non-DER store.
+                 */
+                if (deployerExporter instanceof BasicJeriExporter) {
+                    net.jini.jeri.InvocationLayerFactory ilf =
+                        ((BasicJeriExporter) deployerExporter)
+                            .getInvocationLayerFactory();
+                    if (!(ilf instanceof AtomicDerILFactory)) {
+                        throw new ConfigurationException(
+                            "Configuration entry " + COMPONENT_NAME
+                            + ".serverExporter supplies a BasicJeriExporter "
+                            + "whose invocation layer factory ("
+                            + (ilf == null ? "null" : ilf.getClass().getName())
+                            + ") is not an AtomicDerILFactory. Outrigger is "
+                            + "ATOMIC_DER-only in JGDMS 4.0.0 "
+                            + "(SOW-Outrigger-DER-Only-JOSS-Rejection.md); "
+                            + "export with AtomicDerILFactory.");
+                    }
+                } else {
+                    lifecycleLogger.log(Level.WARNING,
+                        "Configuration entry {0}.serverExporter supplies a "
+                        + "custom Exporter ({1}) that cannot be introspected "
+                        + "for its invocation layer. Outrigger is "
+                        + "ATOMIC_DER-only in JGDMS 4.0.0: the deployer is "
+                        + "responsible for ensuring this exporter uses "
+                        + "AtomicDerILFactory (or an equivalent DER "
+                        + "invocation layer); a JOSS invocation layer here "
+                        + "would violate the DER-only contract "
+                        + "(SOW-Outrigger-DER-Only-JOSS-Rejection.md).",
+                        new Object[]{COMPONENT_NAME,
+                                     deployerExporter.getClass().getName()});
+                }
+                h.exporter = deployerExporter;
             } else {
-                h.exporter = (Exporter)Config.getNonNullEntry(config, 
-                    COMPONENT_NAME,	"serverExporter", Exporter.class,
-                    new ActivationExporter(activationID, basicExporter),
-                    activationID);
+                /* Default exporter, constructed LAZILY -- only when no
+                 * deployer override exists -- so supplying a
+                 * serverExporter never touches TcpServerEndpoint's
+                 * class initialization.
+                 */
+                final Exporter basicExporter =
+                    new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+                        new AtomicDerILFactory(null, null,
+                            OutriggerServer.class.getClassLoader()),
+                        false, true);
+                h.exporter = (activationID == null)
+                    ? basicExporter
+                    : new ActivationExporter(activationID, basicExporter);
             }
 
             // Create our top level proxy
@@ -1731,6 +1843,50 @@ public class OutriggerServerImpl
 	 return false;
      }
 
+    /**
+     * Registration-time handback format check (decision 5 of
+     * {@code SOW-Outrigger-DER-Only-JOSS-Rejection.md}): a
+     * {@link MarshalledInstance} handback whose payload format is not
+     * {@link MarshallingFormat#ATOMIC_DER} is loudly rejected. The
+     * handback is wire-inbound, server-persisted, and later delivered to
+     * the listener -- possibly a third party (e.g. a mercury mailbox) --
+     * whose {@code MarshalledInstance.get()} would be an unguarded
+     * JOSS-downgrade vector; rejecting at registration closes that vector
+     * at the source. MUST be called before any lease is granted, any
+     * watcher is created or registered, and any durable log record is
+     * written, so a rejected registration leaves no trace.
+     *
+     * <p>A {@code null} handback reference and a {@code MarshalledInstance}
+     * containing {@code null} are both accepted: neither carries a JOSS
+     * payload for a listener to decode (a null-content
+     * {@code MarshalledInstance} has no payload bytes at all -- the
+     * platform labels it with the JOSS token, but there is nothing to
+     * decode, so it is not a downgrade vector).
+     *
+     * @param handback the registration's handback, may be {@code null}
+     * @throws IllegalArgumentException if the handback carries a non-null
+     *         payload whose format is not {@code ATOMIC_DER}
+     */
+    private void checkHandbackFormat(MarshalledInstance handback) {
+	if (handback == null || handback.isNull())
+	    return;
+	final String format = handback.getPayloadFormat();
+	if (!MarshallingFormat.ATOMIC_DER.getFormat().equals(format)) {
+	    throw logAndThrowIllegalArg(
+		"Rejecting event registration: the handback "
+		+ "MarshalledInstance's payload format is " + format
+		+ ", but this space is "
+		+ MarshallingFormat.ATOMIC_DER.getFormat()
+		+ "-only (JGDMS 4.0.0 withdrew the legacy JOSS format; "
+		+ "SOW-Outrigger-DER-Only-JOSS-Rejection.md decision 5). "
+		+ "Construct the handback with new MarshalledInstance(obj, "
+		+ "Collections.EMPTY_SET, new InvocationConstraints("
+		+ "MarshallingFormat.ATOMIC_DER, null)) -- never the bare "
+		+ "new MarshalledInstance(obj), which produces a JOSS "
+		+ "payload. No lease, watcher, or log record was created.");
+	}
+    }
+
     // purposefully inherit doc comment from supertype
     public EventRegistration
 	notify(EntryRep tmpl, Transaction tr, RemoteEventListener listener, long leaseTime, MarshalledInstance handback)
@@ -1741,6 +1897,13 @@ public class OutriggerServerImpl
 	typeCheck(tmpl);
 
 	checkForNull(listener, "Passed null listener for event registration");
+
+	/* Decision 5 placement pin: before the lease grant, the
+	 * eventRegistrations insert, the template registration, and the
+	 * durable log.registerOp write below -- a rejected registration
+	 * leaves no lease, no watcher, no log record.
+	 */
+	checkHandbackFormat(handback);
 
 	listener = 
 	    (RemoteEventListener)listenerPreparer.prepareProxy(listener);
@@ -1815,6 +1978,13 @@ public class OutriggerServerImpl
 
 	checkForNull(listener, "Passed null listener for event registration");
 	checkForEmpty(tmpls, "Must provide at least one template");
+
+	/* Decision 5 placement pin: before the lease grant, the
+	 * eventRegistrations insert, the template registrations, and the
+	 * durable log.registerOp write below -- a rejected registration
+	 * leaves no lease, no watcher, no log record.
+	 */
+	checkHandbackFormat(handback);
 
 	// eventLeasePolicy.grant allo ws 0 length leases
  	if (leaseTime == 0) {
@@ -3768,33 +3938,44 @@ public class OutriggerServerImpl
     }
 
     /**
-     * Guard (i)+(ii) of the born-immutable format decision (JGDMS-STD-006
-     * sec.3 item 5): fail closed if the format recovered from a populated
-     * snapshot contradicts this instance's own {@link #useDerForEntries}
-     * configuration. Called by the store once, before any entry/registration
-     * recovery is dispatched, with the format token that was persisted
-     * alongside the snapshot's version marker (empty store: never called --
-     * an empty store has no prior format to contradict, so any format is a
-     * legal birth). This is what makes the immutability guarantee enforced
-     * rather than merely assumed: an operator cannot flip
-     * <code>useDerForEntries</code> underneath a populated store and have it
-     * silently take effect.
+     * Recovery format guard, unconditional (DER-only, JGDMS 4.0.0 --
+     * {@code SOW-Outrigger-DER-Only-JOSS-Rejection.md} sec.3 item 2):
+     * fail closed if the format recovered from a populated snapshot is
+     * anything but {@link MarshallingFormat#ATOMIC_DER}. Called by the
+     * store once, before any entry/registration recovery is dispatched
+     * and before any log consumption mutates the store (see
+     * {@code BackEnd.setupStore}), so a refused JOSS-era store is left
+     * pristine on disk for offline conversion (empty store: never called
+     * -- an empty store has no prior format and is a legal DER birth).
+     *
+     * <p>The refusal is a <em>checked</em>
+     * {@link IncompatibleStoreException} so it travels the
+     * {@code PrivilegedExceptionAction} path in {@link #start} and the
+     * cleanup block runs: the endpoint is only exported <em>after</em>
+     * successful store recovery, so a refused store never had a live
+     * endpoint, and every started non-daemon thread is torn down --
+     * fail-loud AND fail-clean.
      *
      * @param format the marshalling format token recovered from the store
-     * @throws IllegalStateException if <code>format</code> does not match
-     *         this instance's configured format
+     * @throws IncompatibleStoreException if <code>format</code> is not
+     *         {@code ATOMIC_DER}
      */
-    public void recoverEntryFormat(String format) {
-	final String configured = entryFormat().getFormat();
-	if (!configured.equals(format)) {
-	    throw new IllegalStateException(
-		"Refusing to start: this store was born with marshalling "
-		+ "format " + format + " but this instance is configured "
-		+ "for " + configured + ". A space's marshalling format is "
-		+ "fixed at instantiation and immutable for the life of the "
-		+ "store (JGDMS-STD-006 sec.3 item 5); flipping "
-		+ "useDerForEntries on a populated store is not a supported "
-		+ "migration -- redeploy a new instance instead.");
+    public void recoverEntryFormat(String format)
+	throws IncompatibleStoreException
+    {
+	final String required = entryFormat().getFormat();
+	if (!required.equals(format)) {
+	    throw new IncompatibleStoreException(
+		"Refusing to start: this persistent store was born with "
+		+ "marshalling format " + format + ", but Outrigger is "
+		+ required + "-only in JGDMS 4.0.0: the legacy JOSS "
+		+ "marshalling format has been withdrawn "
+		+ "(SOW-Outrigger-DER-Only-JOSS-Rejection.md). The store "
+		+ "has not been modified. To keep its contents, convert "
+		+ "the store offline with the JOSS-to-DER store converter "
+		+ "(SOW-Entry-ATOMIC-DER-Migration.md sec.4, task A5) and "
+		+ "restart; to discard them, point the service at a fresh "
+		+ "persistence directory.");
 	}
     }
 

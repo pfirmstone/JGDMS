@@ -46,13 +46,26 @@ public interface TupleSpace extends JavaSpace05 {
      * @param txn	The transaction (if any) under which to work.
      * @param listener  The remote event listener to notify.
      * @param lease  the requested lease time, in milliseconds
-     * @param handback  An object to send to the listener as part of the 
-     *                  event notification.
+     * @param handback  An object to send to the listener as part of the
+     *                  event notification, may be <code>null</code>.
+     *                  A DER-only space (e.g. Outrigger in JGDMS 4.0.0)
+     *                  requires the handback's payload to be in the
+     *                  ATOMIC_DER format; construct it as
+     *                  <pre>
+     * new MarshalledInstance(obj, Collections.EMPTY_SET,
+     *     new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null))
+     *                  </pre>
+     *                  -- never the bare
+     *                  {@code new MarshalledInstance(obj)}, which
+     *                  produces a legacy JOSS payload that a DER-only
+     *                  space loudly rejects at registration.
      * @return the event registration to the the registrant
      * @throws TransactionException if a transaction error occurs
      * @throws RemoteException if a communication error occurs
-     * @throws IllegalArgumentException if the lease time requested 
-     *         is not Lease.ANY and is negative
+     * @throws IllegalArgumentException if the lease time requested
+     *         is not Lease.ANY and is negative, or if the space is
+     *         DER-only and the handback's payload format is not
+     *         ATOMIC_DER
      * @see #read
      * @see net.jini.core.event.EventRegistration
      */
@@ -164,11 +177,22 @@ public interface TupleSpace extends JavaSpace05 {
      *              this registration should be delivered
      * @param leaseDuration the requested initial lease time on
      *              the resulting event registration
-     * @param handback the {@link MarshalledInstance} to be 
+     * @param handback the {@link MarshalledInstance} to be
      *              returned by the {@link
-     *              RemoteEvent#getRegistrationObject 
+     *              RemoteEvent#getRegistrationObject
      *              RemoteEvent.getRegistrationObject} method of
-     *              the events generated for this registration
+     *              the events generated for this registration, may be
+     *              <code>null</code>. A DER-only space (e.g. Outrigger
+     *              in JGDMS 4.0.0) requires the handback's payload to
+     *              be in the ATOMIC_DER format; construct it as
+     *              <pre>
+     * new MarshalledInstance(obj, Collections.EMPTY_SET,
+     *     new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null))
+     *              </pre>
+     *              -- never the bare
+     *              {@code new MarshalledInstance(obj)}, which produces
+     *              a legacy JOSS payload that a DER-only space loudly
+     *              rejects at registration.
      * @return an {@link EventRegistration} object with
      *         information on this registration
      * @throws TransactionException if <code>txn</code> is
@@ -178,10 +202,12 @@ public interface TupleSpace extends JavaSpace05 {
      * @throws IllegalArgumentException if any non-<code>null</code>
      *         element of <code>tmpls</code> is not an instance of
      *         <code>Entry</code>, if <code>tmpls</code> is empty,
-     *         or if <code>leaseDuration</code> is neither
-     *         positive nor {@link Lease#ANY Lease.ANY}
+     *         if <code>leaseDuration</code> is neither
+     *         positive nor {@link Lease#ANY Lease.ANY}, or if the
+     *         space is DER-only and the handback's payload format is
+     *         not ATOMIC_DER
      * @throws NullPointerException if <code>tmpls</code> or
-     *         <code>listener</code> is <code>null</code> 
+     *         <code>listener</code> is <code>null</code>
      */
     public EventRegistration 
 	registerForAvailabilityEvent(Collection          tmpls, 

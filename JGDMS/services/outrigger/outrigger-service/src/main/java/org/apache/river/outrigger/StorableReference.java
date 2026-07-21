@@ -21,7 +21,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.rmi.MarshalledObject;
+import java.io.StreamCorruptedException;
 import java.rmi.RemoteException;
 import java.util.Collections;
 import net.jini.core.constraint.InvocationConstraints;
@@ -31,9 +31,9 @@ import net.jini.security.ProxyPreparer;
 
 /**
  * This class holds a proxy for some remote resource. When
- * persisted the proxy is marshalled in its own 
- * {@link MarshalledObject} so this object can be unmarshalled
- * even if the proxy can't be (say because it codebase is 
+ * persisted the proxy is marshalled in its own
+ * {@link MarshalledInstance} so this object can be unmarshalled
+ * even if the proxy can't be (say because it codebase is
  * unavailable). The {@link #get} method can
  * be used to retrieve the proxy on demand.
  *
@@ -131,11 +131,7 @@ class StorableReference implements Externalizable {
     // inherit doc comment
     public void writeExternal(ObjectOutput out) throws IOException {
 	synchronized (this) {
-	    // Dual-read upgrade: write via DER (MarshallingFormat.ATOMIC_DER);
-	    // old JOSS-encoded entries still decode via the dual-read
-	    // instanceof MarshalledInstance check in readExternal below
-	    // (payloadFormat dispatch happens inside MarshalledInstance.get(),
-	    // no code change needed there).
+	    // DER-only write (MarshallingFormat.ATOMIC_DER, JGDMS 4.0.0).
 	    if (instance == null)
 		instance = new MarshalledInstance(obj, Collections.EMPTY_SET,
 		        new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
@@ -148,11 +144,21 @@ class StorableReference implements Externalizable {
 	throws IOException, ClassNotFoundException
     {
         synchronized (this){
-            // Dual-read: legacy records hold a java.rmi.MarshalledObject, new ones a
-            // MarshalledInstance; normalize to the canonical MarshalledInstance.
+            /* DER-only read (JGDMS 4.0.0): the persisted reference must be
+             * a canonical MarshalledInstance; a legacy
+             * java.rmi.MarshalledObject means a pre-DER store, which the
+             * recovery format guard should already have refused -- reject
+             * loudly rather than silently normalizing.
+             */
             Object o = in.readObject();
-            instance = (o instanceof MarshalledInstance) ? (MarshalledInstance) o
-                    : (o == null ? null : new MarshalledInstance((MarshalledObject) o));
+            if (o != null && !(o instanceof MarshalledInstance)) {
+                throw new StreamCorruptedException(
+                    "Persisted reference is a " + o.getClass().getName()
+                    + ", not a net.jini.io.MarshalledInstance: this store "
+                    + "predates the DER-only regime (JGDMS 4.0.0) and must "
+                    + "be converted offline.");
+            }
+            instance = (MarshalledInstance) o;
         }
     }
 }

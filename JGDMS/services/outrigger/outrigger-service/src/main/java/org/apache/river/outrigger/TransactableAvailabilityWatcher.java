@@ -17,7 +17,6 @@
  */
 package org.apache.river.outrigger;
 
-import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.space.InternalSpaceException;
 import net.jini.id.Uuid;
@@ -64,23 +63,6 @@ class TransactableAvailabilityWatcher extends AvailabilityRegistrationWatcher
      *         <code>listener</code>, or <code>txn</code> arguments are
      *         <code>null</code>.
      */
-    TransactableAvailabilityWatcher(long timestamp, long startOrdinal,
-	Uuid cookie, boolean visibilityOnly, MarshalledObject handback,
-	long eventID, RemoteEventListener listener, Txn txn)
-    {
-	super(timestamp, startOrdinal, cookie, visibilityOnly, handback,
-	      eventID);
-
-	if (listener == null)
-	    throw new NullPointerException("listener must be non-null");
-
-	if (txn == null)
-	    throw new NullPointerException("txn must be non-null");
-
-	this.listener = listener;
-	this.txn = txn;
-    }
-    
     TransactableAvailabilityWatcher(long timestamp, long startOrdinal,
 	Uuid cookie, boolean visibilityOnly, MarshalledInstance handback,
 	long eventID, RemoteEventListener listener, Txn txn)

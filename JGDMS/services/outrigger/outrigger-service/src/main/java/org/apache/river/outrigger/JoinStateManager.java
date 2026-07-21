@@ -20,7 +20,6 @@ package org.apache.river.outrigger;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.util.Collections;
 import java.util.List;
@@ -163,13 +162,30 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
 		OutriggerServerImpl.COMPONENT_NAME, "lookupLocatorPreparer",
 		ProxyPreparer.class, defaultPreparer);
 
-	dgm = (DiscoveryGroupManagement)
-	    Config.getNonNullEntry(config, 
+	/* The default LookupDiscoveryManager is constructed LAZILY -- only
+	 * when no deployer-supplied "discoveryManager" entry exists.
+	 * Passing it as an eager default argument constructed a full
+	 * discovery stack (provider loading, threads) that was then
+	 * silently discarded, and leaked, whenever the entry was present.
+	 */
+	DiscoveryGroupManagement configuredDgm = null;
+	try {
+	    configuredDgm = (DiscoveryGroupManagement) config.getEntry(
 		OutriggerServerImpl.COMPONENT_NAME, "discoveryManager",
-		DiscoveryGroupManagement.class, 
-		new LookupDiscoveryManager(
+		DiscoveryGroupManagement.class);
+	    if (configuredDgm == null) {
+		throw throwNewConfigurationException("Entry for component " +
+		    OutriggerServerImpl.COMPONENT_NAME + ", name " +
+		    "discoveryManager cannot be null");
+	    }
+	} catch (net.jini.config.NoSuchEntryException e) {
+	    // No deployer override: fall through to the default below.
+	}
+	dgm = (configuredDgm != null)
+	    ? configuredDgm
+	    : new LookupDiscoveryManager(
                     DiscoveryGroupManagement.NO_GROUPS, null, null,
-		    config));
+		    config);
 
 	if (!(dgm instanceof DiscoveryManagement))
 	    throw throwNewConfigurationException("Entry for component " +
@@ -535,7 +551,7 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
      * <code>ObjectOutputStream</code>.  Can be recovered by a call
      * to <code>readAttributes()</code>
      * <p>
-     * Packages each attribute in its own <code>MarshalledObject</code> so
+     * Packages each attribute in its own <code>MarshalledInstance</code> so
      * a bad codebase on an attribute class will not corrupt the whole array.
      */
     // @see JoinAdminActivationState#readAttributes
@@ -550,11 +566,7 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
          
         out.writeInt(attributes.length);
         for (int i=0; i<attributes.length; i++) {
-            // Dual-read upgrade: write via DER (MarshallingFormat.ATOMIC_DER);
-            // old JOSS-encoded entries still decode via the existing dual-read
-            // instanceof MarshalledInstance check in readAttributes below
-            // (payloadFormat dispatch happens inside MarshalledInstance.get(),
-            // no code change needed there).
+            // DER-only write (MarshallingFormat.ATOMIC_DER, JGDMS 4.0.0).
             out.writeObject(new MarshalledInstance(attributes[i], Collections.EMPTY_SET,
                     new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)));
 	}
@@ -577,14 +589,37 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
         final List entries = new java.util.LinkedList();
         final int objectCount = in.readInt();
         for (int i=0; i<objectCount; i++) {
+            final Object o;
             try {
-                // Dual-read: accept a legacy java.rmi.MarshalledObject or a new
-                // MarshalledInstance; normalize to the canonical instance.
-                Object o = in.readObject();
-                MarshalledInstance mi = (o instanceof MarshalledInstance)
-                        ? (MarshalledInstance) o
-                        : new MarshalledInstance((MarshalledObject) o);
-                entries.add(mi.get(false));
+                o = in.readObject();
+            } catch (IOException e) {
+		logger.log(Level.INFO, "Encountered IOException recovering " +
+                    "attribute, dropping attribute", e);
+                continue;
+            } catch (ClassNotFoundException e) {
+		logger.log(Level.INFO, "Encountered ClassNotFoundException " +
+		    "recovering attribute, dropping attribute", e);
+                continue;
+            }
+            /* DER-only read (JGDMS 4.0.0): the persisted attribute wrapper
+             * must be a canonical MarshalledInstance; a legacy
+             * java.rmi.MarshalledObject means a pre-DER store, which the
+             * recovery format guard should already have refused. Unlike
+             * the per-attribute catch-and-drop around it (which tolerates
+             * a bad codebase on an individual attribute), a wrong wrapper
+             * TYPE is a store-regime violation: reject loudly, outside the
+             * drop handling, so it propagates and fails recovery.
+             */
+            if (o != null && !(o instanceof MarshalledInstance)) {
+                throw new java.io.StreamCorruptedException(
+                    "Persisted attribute wrapper is a "
+                    + o.getClass().getName()
+                    + ", not a net.jini.io.MarshalledInstance: this store "
+                    + "predates the DER-only regime (JGDMS 4.0.0) and must "
+                    + "be converted offline.");
+            }
+            try {
+                entries.add(((MarshalledInstance) o).get(false));
             } catch (IOException e) {
 		logger.log(Level.INFO, "Encountered IOException recovering " +
                     "attribute, dropping attribute", e);
@@ -598,7 +633,7 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
                     "attribute, dropping attribute", e);
             }
         }
- 
+
         return (Entry[])entries.toArray(new Entry[0]);
     }
 

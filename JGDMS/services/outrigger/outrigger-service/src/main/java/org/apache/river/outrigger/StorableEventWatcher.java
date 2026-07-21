@@ -146,7 +146,21 @@ class StorableEventWatcher extends EventRegistrationWatcher
 	cookie = UuidFactory.read(in);
 	expiration = in.readLong();
 	eventID = in.readLong();
-	handback = in.readObject();	
+	/* DER-only read (JGDMS 4.0.0): the persisted handback must be a
+	 * canonical MarshalledInstance; a legacy
+	 * java.rmi.MarshalledObject means a pre-DER store, which the
+	 * recovery format guard should already have refused -- reject
+	 * loudly rather than silently normalizing.
+	 */
+	final Object hb = in.readObject();
+	if (hb != null && !(hb instanceof MarshalledInstance)) {
+	    throw new StreamCorruptedException(
+		"Persisted handback is a " + hb.getClass().getName()
+		+ ", not a net.jini.io.MarshalledInstance: this store "
+		+ "predates the DER-only regime (JGDMS 4.0.0) and must "
+		+ "be converted offline.");
+	}
+	handback = (MarshalledInstance) hb;
 	listener = (StorableReference)in.readObject();
 	if (listener == null)
 	    throw new StreamCorruptedException(

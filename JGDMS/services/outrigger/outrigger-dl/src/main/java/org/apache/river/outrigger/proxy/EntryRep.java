@@ -922,7 +922,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     }
 
     /**
-     * @return the <code>MarshalledObject</code> for the given field.
+     * @return the <code>MarshalledInstance</code> for the given field.
      */
     public MarshalledInstance value(int fieldNum) {
             return values[fieldNum];

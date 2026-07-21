@@ -19,7 +19,6 @@ package org.apache.river.outrigger;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
-import java.rmi.MarshalledObject;
 import java.util.Set;
 import java.util.Iterator;
 import net.jini.core.event.RemoteEventListener;
@@ -55,11 +54,14 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
     volatile Uuid cookie;
 
     /**
-     * The handback associated with this registration.
+     * The handback associated with this registration (DER-only:
+     * always a canonical {@link MarshalledInstance}, never a legacy
+     * {@code java.rmi.MarshalledObject} -- JGDMS 4.0.0 withdrew the MO
+     * surface end-to-end).
      * Only for use by subclasses.
      * Should not be changed.
      */
-    Object handback;
+    MarshalledInstance handback;
 
     /**
      * <code>true</code> if client is interested
@@ -119,40 +121,6 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 	this.currentSeqNum = currentSeqNum;
     }
 
-    /**
-     * Create a new <code>AvailabilityRegistrationWatcher</code>.
-     * @param timestamp the value that is used
-     *        to sort <code>TransitionWatcher</code>s.
-     * @param startOrdinal the highest ordinal associated
-     *        with operations that are considered to have occurred 
-     *        before the operation associated with this watcher.
-     * @param cookie The unique identifier associated
-     *        with this watcher. Must not be <code>null</code>.
-     * @param visibilityOnly pass <code>true</code> if client
-     *        only wants visibility events
-     * @param handback The handback object that
-     *        should be sent along with event
-     *        notifications to the the listener.
-     * @param eventID The event ID for event type
-     *        represented by this object.
-     * @throws NullPointerException if the <code>cookie</code>
-     *        argument is <code>null</code>.
-     */
-    AvailabilityRegistrationWatcher(long timestamp, long startOrdinal, 
-	Uuid cookie, boolean visibilityOnly, MarshalledObject handback, 
-        long eventID)
-    {
-	super(timestamp, startOrdinal);
-
-	if (cookie == null)
-	    throw new NullPointerException("cookie must be non-null");
-
-	this.cookie = cookie;
-	this.handback = handback;
-	this.eventID = eventID;
-	this.visibilityOnly = visibilityOnly;
-    }
-    
     /**
      * Create a new <code>AvailabilityRegistrationWatcher</code>.
      * @param timestamp the value that is used
@@ -401,10 +369,8 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
                 event = new ConstrainableOutriggerAvailabilityEvent(
 		    source,
 		    eventID,
-		    ourSeqNumber,    
-		    handback instanceof MarshalledObject ?
-			new MarshalledInstance((MarshalledObject) handback)
-			: (MarshalledInstance) handback,
+		    ourSeqNumber,
+		    handback,
 		    isVisible,
 		    rep
 		);

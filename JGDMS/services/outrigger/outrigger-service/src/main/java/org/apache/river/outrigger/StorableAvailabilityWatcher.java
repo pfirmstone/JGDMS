@@ -21,7 +21,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.IOException;
 import java.io.StreamCorruptedException;
-import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -87,41 +86,8 @@ class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
      * @throws NullPointerException if the <code>cookie</code>,
      *        or <code>listener</code> arguments are <code>null</code>.
      */
-    StorableAvailabilityWatcher(long timestamp, long startOrdinal, Uuid cookie, 
-        boolean visibilityOnly, MarshalledObject handback, long eventID, 
-        RemoteEventListener listener)
-    {
-	super(timestamp, startOrdinal, cookie, visibilityOnly, handback,
-	      eventID);
-
-	if (listener == null)
-	    throw new NullPointerException("listener must be non-null");
-	this.listener = new StorableReference(listener);
-    }
-    
-    /**
-     * Create a new <code>StorableAvailabilityWatcher</code>.
-     * @param timestamp the value that is used
-     *        to sort <code>TransitionWatcher</code>s.
-     * @param startOrdinal the highest ordinal associated
-     *        with operations that are considered to have occurred 
-     *        before the operation associated with this watcher.
-     * @param cookie The unique identifier associated
-     *        with this watcher. Must not be <code>null</code>.
-     * @param visibilityOnly pass <code>true</code> if client
-     *        only wants visibility events
-     * @param handback The handback object that
-     *        should be sent along with event
-     *        notifications to the the listener.
-     * @param eventID The event ID for event type
-     *        represented by this object. 
-     * @param listener The object to notify of
-     *        matches.
-     * @throws NullPointerException if the <code>cookie</code>,
-     *        or <code>listener</code> arguments are <code>null</code>.
-     */
-    StorableAvailabilityWatcher(long timestamp, long startOrdinal, Uuid cookie, 
-        boolean visibilityOnly, MarshalledInstance handback, long eventID, 
+    StorableAvailabilityWatcher(long timestamp, long startOrdinal, Uuid cookie,
+        boolean visibilityOnly, MarshalledInstance handback, long eventID,
         RemoteEventListener listener)
     {
 	super(timestamp, startOrdinal, cookie, visibilityOnly, handback,
@@ -203,7 +169,21 @@ class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
             expiration = in.readLong();
             eventID = in.readLong();
             visibilityOnly = in.readBoolean();
-            handback = in.readObject();	
+            /* DER-only read (JGDMS 4.0.0): the persisted handback must be
+             * a canonical MarshalledInstance; a legacy
+             * java.rmi.MarshalledObject means a pre-DER store, which the
+             * recovery format guard should already have refused --
+             * reject loudly rather than silently normalizing.
+             */
+            final Object hb = in.readObject();
+            if (hb != null && !(hb instanceof MarshalledInstance)) {
+                throw new StreamCorruptedException(
+                    "Persisted handback is a " + hb.getClass().getName()
+                    + ", not a net.jini.io.MarshalledInstance: this store "
+                    + "predates the DER-only regime (JGDMS 4.0.0) and must "
+                    + "be converted offline.");
+            }
+            handback = (MarshalledInstance) hb;
             listener = (StorableReference)in.readObject();
             if (listener == null)
                 throw new StreamCorruptedException(
