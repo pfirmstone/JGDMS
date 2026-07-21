@@ -17,9 +17,19 @@
  */
 package org.apache.river.outrigger.proxy;
 
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.NotSerializableException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamException;
 import java.rmi.MarshalException;
 import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.entry.Entry;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * This class is used by the <code>snapshot</code> implementation of the
@@ -69,10 +79,35 @@ import net.jini.core.entry.Entry;
  *
  */
 // @see SpaceProxy#snapshot
+@AtomicSerial
 class SnapshotRep implements Entry {
     static final long serialVersionUID = 5126328162389368097L;
 
     private final EntryRep rep;	// the rep from the snapshot
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[] {
+	    new SerialForm("rep", EntryRep.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, SnapshotRep o) throws IOException {
+	arg.put("rep", o.rep);
+	arg.writeArgs();
+    }
+
+    SnapshotRep(GetArg arg) throws IOException, ClassNotFoundException {
+	this(check(arg));
+    }
+
+    private static EntryRep check(GetArg arg)
+	    throws IOException, ClassNotFoundException
+    {
+	EntryRep rep = arg.get("rep", null, EntryRep.class);
+	if (rep == null)
+	    throw new InvalidObjectException("SnapshotRep requires a non-null rep");
+	return rep;
+    }
 
     /**
      * Create a new <code>SnapshotRep</code> that is a snapshot of
@@ -99,5 +134,36 @@ class SnapshotRep implements Entry {
      */
     EntryRep rep() {
 	return rep;
+    }
+
+    /**
+     * @throws NotSerializableException always -- java.io serialization is
+     * disabled; a snapshot is JVM-local per the JavaSpaces specification and,
+     * if ever marshalled, travels via {@code @AtomicSerial} (PutArg).
+     */
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	throw new NotSerializableException(
+	    "java.io serialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (PutArg)");
+    }
+
+    /**
+     * java.io deserialization is disabled; reconstruct via {@code @AtomicSerial}
+     * (the {@link #SnapshotRep(GetArg)} constructor).
+     *
+     * @throws NotSerializableException always
+     */
+    private void readObject(ObjectInputStream in)
+	throws IOException, ClassNotFoundException
+    {
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
+    }
+
+    private void readObjectNoData() throws ObjectStreamException {
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; use @AtomicSerial (GetArg)");
     }
 }

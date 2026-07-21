@@ -25,6 +25,29 @@ import java.io.*;
  * will give a description that can be reported to the space developer
  * (and may be documented in that space's external documentation).
  *
+ * <h2>Serialization (JGDMS 4.0.0)</h2>
+ * <p>
+ * java.io (JOSS) serialization of this exception is <b>disabled</b>
+ * ({@code writeObject}/{@code readObject}/{@code readObjectNoData} throw
+ * {@link NotSerializableException}) &mdash; in <em>any</em> object graph,
+ * including when this exception appears as a nested <em>cause</em> or
+ * suppressed exception of another {@code Throwable} being java.io-serialized.
+ * The {@code Serializable} signature and the public {@link #nestedException}
+ * field are retained for API compatibility only.
+ * <p>
+ * Over the atomic marshalling layers the exception still travels exactly as
+ * before: {@code org.apache.river.api.io.AtomicMarshalOutputStream} substitutes
+ * every non-{@code @AtomicSerial} {@code Throwable} with
+ * {@code org.apache.river.api.io.ThrowableSerializer} <em>before</em> the
+ * object itself is serialized, so the fence methods below are never invoked on
+ * that path and the wire form is unchanged. This class is deliberately
+ * <b>not</b> annotated {@code @AtomicSerial}: the runtime class's annotation
+ * takes precedence over the {@code ThrowableSerializer} substitution in both
+ * atomic layers ({@code AtomicMarshalOutputStream.defaultReplaceObject} and the
+ * DER codec's {@code DerReplacer.replace} check the annotation first), so
+ * annotating it would silently change the existing wire form
+ * (SOW-Outrigger-DER-Only-JOSS-Rejection &sect;2.2 board constraint).
+ *
  * @author Sun Microsystems, Inc.
  *
  * @see JavaSpace
@@ -94,5 +117,38 @@ public class InternalSpaceException extends RuntimeException {
 	    out.println("nested exception:");
 	    nestedException.printStackTrace(out);
 	}
+    }
+
+    /**
+     * @throws NotSerializableException always -- java.io serialization is
+     * disabled; over the atomic marshalling layers this exception is
+     * substituted with {@code ThrowableSerializer} before serialization, so
+     * this method is never reached on those paths.
+     */
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	throw new NotSerializableException(
+	    "java.io serialization is disabled for " + getClass().getName()
+	    + "; atomic marshalling substitutes ThrowableSerializer");
+    }
+
+    /**
+     * java.io deserialization is disabled; inbound atomic streams reconstruct
+     * this exception via {@code ThrowableSerializer}'s constructor-matching
+     * reconstruction ({@code InternalSpaceException(String, Throwable)}).
+     *
+     * @throws NotSerializableException always
+     */
+    private void readObject(ObjectInputStream in)
+	throws IOException, ClassNotFoundException
+    {
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; atomic marshalling substitutes ThrowableSerializer");
+    }
+
+    private void readObjectNoData() throws ObjectStreamException {
+	throw new NotSerializableException(
+	    "java.io deserialization is disabled for " + getClass().getName()
+	    + "; atomic marshalling substitutes ThrowableSerializer");
     }
 }
