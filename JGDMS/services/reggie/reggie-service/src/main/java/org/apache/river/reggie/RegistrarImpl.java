@@ -5627,6 +5627,51 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     
     }
 
+    /*
+     * ------------------------------------------------------------------
+     * A3-F1 nested-payload format binding (JGDMS-STD-006 sec.3 item 5).
+     *
+     * registerDo and the attribute mutators gate only the client-asserted
+     * Item.entryFormat token. But every nested payload -- Item.service,
+     * Item.bootstrapProxy, and each EntryRep attribute field's
+     * MarshalledInstance -- is self-describing: it carries its own
+     * payloadFormat and decode-dispatches on THAT (MarshalledInstance
+     * .getMarshalFactory() -> factoryForFormat(payloadFormat)), unbound to
+     * the asserted token. A DER-asserting registrant could therefore ship
+     * JOSS (AtomicMarshalledInstance) payloads that pass the token guard yet
+     * decode on the attacker-chosen JOSS codec -- decoded by the registrar
+     * itself (lookUp(Template,int) -> Matches.getProxys() -> Item.getProxy()
+     * -> bootstrapProxy.get()) or by browsing clients in a nominally
+     * single-format djinn.
+     *
+     * These helpers bind each nested payload's format to this registrar's
+     * born epoch format, fail-closed, mirroring Outrigger U1a's
+     * checkHandbackFormat (OutriggerServerImpl.checkHandbackFormat).
+     * getPayloadFormat() reads only the (trunk-final) format token that
+     * decode dispatch itself uses -- no hostile bytes are ever decoded to
+     * perform the check. All checks MUST run before any lease grant, store
+     * mutation, event generation, or log write, so a rejected request
+     * leaves no trace.
+     * ------------------------------------------------------------------
+     */
+
+    /**
+     * Checks all nested payloads carried by a registration Item against this
+     * registrar's born format, fail-closed (delegates to the unit-testable
+     * {@link PayloadFormatGuard}; see that class for the A3-F1 rationale).
+     */
+    private void checkItemPayloadFormats(Item nitem) {
+	PayloadFormatGuard.checkItem(nitem, entryFormat());
+    }
+
+    /**
+     * Checks every attribute-set field payload against this registrar's born
+     * format, fail-closed (delegates to {@link PayloadFormatGuard}).
+     */
+    private void checkAttrSetFormats(EntryRep[] sets) {
+	PayloadFormatGuard.checkAttrSets(sets, entryFormat());
+    }
+
     /** The code that does the real work of register. */
     private ServiceRegistration registerDo(Item nitem, long leaseDuration)
     {
@@ -5647,6 +5692,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		+ " does not match this registrar's configured format "
 		+ entryFormat());
 	}
+	/* A3-F1: bind every nested payload's self-describing format to the
+	 * born epoch, fail-closed, before any store mutation (the token
+	 * check above is client-asserted and does not cover the payloads
+	 * the registrar itself later decodes -- see checkItemPayloadFormats).
+	 */
+	checkItemPayloadFormats(nitem);
 	if (myServiceID.equals(nitem.getServiceID()))
 	    throw new IllegalArgumentException("reserved service id");
 	if (nitem.getAttributeSets() == null)
@@ -5989,6 +6040,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				 EntryRep[] attrSets)
 	throws UnknownLeaseException
     {
+	checkAttrSetFormats(attrSets); // A3-F1: bind nested payload formats, fail-closed
 	long now = System.currentTimeMillis();
 	SvcReg reg = checkLease(serviceID, leaseID, now);
 	Item pre = (Item)reg.item.clone();
@@ -6025,6 +6077,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				    EntryRep[] attrSets)
 	throws UnknownLeaseException
     {
+	// A3-F1: bind nested payload formats of both templates and new sets,
+	// fail-closed, before any matching or store mutation.
+	checkAttrSetFormats(attrSetTmpls);
+	checkAttrSetFormats(attrSets);
 	if (attrSetTmpls.length != attrSets.length)
 	    throw new IllegalArgumentException(
 				       "attribute set length mismatch");
@@ -6077,6 +6133,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				 EntryRep[] attrSets)
 	throws UnknownLeaseException
     {
+	checkAttrSetFormats(attrSets); // A3-F1: bind nested payload formats, fail-closed
 	if (attrSets == null)
 	    attrSets = emptyAttrs;
 	else
