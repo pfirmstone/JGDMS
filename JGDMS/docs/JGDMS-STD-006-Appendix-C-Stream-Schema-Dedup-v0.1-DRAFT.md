@@ -502,8 +502,9 @@ stream-format version. This appendix defines version `0x01`. Wire bytes: `8F 01 
   this TLV.
 
 **[PROPOSED]** Tag number 15 — the next free value after the object-stream item tags
-`[0]`–`[14]` (STD-008 §15.2/§15.2.1). **[OPEN → T2]** confirm against STD-008's tag
-registry at merge time that `[15]` remains unallocated, and record the allocation there.
+`[0]`–`[14]` (STD-008 §15.2/§15.2.1). **[RESOLVED → T2, 2026-07-24]** confirmed
+unallocated and registered in STD-008's object-stream tag registry as new §15.2.2
+(same change set as the T2 implementation; future item tags continue from `[16]`).
 
 ### C.5.3 The stream record shapes
 
@@ -1369,9 +1370,9 @@ ratification.
 | # | Item | Owner |
 |---|---|---|
 | 1 | Appendix letter at merge (STD-006 has no A/B yet) | merge editor |
-| 2 | `[15]` tag registration in STD-008's object-stream tag registry | T2 (+ STD-008 editor) |
-| 3 | ~~Whether context streams enable dedup in increment 1~~ **Resolved by the ruling:** `DerReducingContextCodec` context streams are DER object streams and dedup unconditionally like every stream (§C.9.4). Residual for T2: mechanical wiring only | T2 |
-| 4 | Implementing the §C.6.5 region exclusion at all four retention sites (both write, both read — the paths exist in trunk **now**, `ObjectCodec.java:1739-1742`/`:2088-2094` and the object-stream pair) and carrying the §C.11.3(14)–(15) vectors | T2 / T3 |
+| 2 | ~~`[15]` tag registration in STD-008's object-stream tag registry~~ **DONE (T2, 2026-07-24):** registered as STD-008 §15.2.2 (`[15]` = stream-format version octet; next free item tag `[16]`) | ~~T2 (+ STD-008 editor)~~ done |
+| 3 | ~~Whether context streams enable dedup in increment 1~~ **Resolved by the ruling:** `DerReducingContextCodec` context streams are DER object streams and dedup unconditionally like every stream (§C.9.4). **T2 wiring note (2026-07-24):** no wiring was needed — `DerReducingContextCodec` constructs `DerMarshalOutputStream`/`DerMarshalInputStream`, whose codec speaks the stream format unconditionally; the context channel dedups (with its own per-stream table) by construction | ~~T2~~ done |
+| 4 | ~~Implementing the §C.6.5 region exclusion at all four retention sites~~ **DONE (T2, 2026-07-24):** the exclusion is byte-region-scoped in the codec — the object-stream `[8]` write/read pair never routes through the dedup transform, and the transform's payload walker passes every nested `[8]` TLV (the `ObjectCodec.encodeProxy`/`decodeProxy` retention sites' bytes) through verbatim without descent, both directions; T2 carries the §C.11.3(15) transitivity vector and the (14) relay + negative-leg vectors; T3 extends with narrowing-based relay corpus | ~~T2 /~~ T3 |
 | 5 | ~~Exact `AtomicDerILFactory` configuration surface for the capability flag~~ **Dissolved by the ruling:** no configuration surface exists; dedup is the format (§C.9.1) | — |
 | 6 | Whether T4's measurement triggers the per-record-links revisit (§C.10.3's recorded trigger), the SOW §6.4 dictionaries, or action on the `[8]`-interior residue (§C.6.5 cost annotation) | T4 → board |
 | 7 | Base-standard adoption of the chain ceilings (one profile with this appendix, §C.8.1) plus the [PATCH] items 2–3 (completeness and P2 cross-check in base decode); align T6's §4.5 admissibility-note wording with §C.8.1 at T6's merge | base-adoption pass (T6; branch `hardening/der-chain-ceilings`) → STD-006 editor + board |

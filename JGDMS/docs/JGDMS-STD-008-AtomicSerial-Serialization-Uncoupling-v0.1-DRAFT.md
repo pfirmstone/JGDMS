@@ -922,6 +922,10 @@ header) and is cleaner-aligned with the 4.0.0 "no Java Serialization" thesis.
     and `[4]` "a boxed primitive" singular/unallocated; `[2]` is now assigned per sec.15.2.1
     and there was never a decode-time special case pinned to that specific numeral — see
     sec.15.2.1's security-rationale paragraph.)
+  - `[15]` the **stream-format version octet** (`8F 01 01`) — **NOT an object item**: the
+    mandatory FIRST TLV of every DER object stream, registered in **sec.15.2.2** below
+    (STD-006 Appendix C §C.5.2). A `[15]` anywhere other than first-TLV position — a
+    second one, or one presented as an item — is rejected by the `readObject` catch-all.
   - Anything else (arbitrary `Serializable`, a plain `Object` graph, …) is **rejected**
     (`UnsupportedOperationException` / fail-secure). There is no back-reference tag in the
     grammar at all (sec.15.3): any context tag number this codec does not explicitly
@@ -1021,6 +1025,31 @@ unchanged; and the A1-motivating end-to-end case — a boxed `Integer`/`Long`/`B
 through a full `ATOMIC_DER` `MarshalledInstance` round-trip, with two independently
 constructed equal values asserted to produce byte-identical payloads (the property
 Outrigger's byte-compare matching needs).
+
+#### 15.2.2 Tag `[15]` — the stream-format version octet (STD-006 Appendix C §C.5.2)
+
+**Registration (closes Appendix C §C.13.3 item 2; T2, 2026-07-24).** Context tag `[15]`
+(tag byte `0x8F`, PRIMITIVE) is allocated as the **stream-format version octet**: the
+mandatory first TLV of every DER object stream, content exactly one octet naming the
+stream-format version (Appendix C = version `0x01`; wire bytes `8F 01 01`). It was the
+next free value after the object-stream item tags `[0]`–`[14]` above, confirmed
+unallocated at registration time.
+
+- It is **not an object item** and never rides `writeObject`/`readObject`: it is stream
+  framing, emitted once at stream open and verified/consumed at stream open. A stream
+  that does not begin with it (including the superseded pre-dedup trunk encoding, whose
+  first TLV is an item tag), a version TLV with content length ≠ 1, an unknown version
+  octet, a second `[15]`, or a `[15]` in item position is a **hard reject** — there is
+  no unversioned form and no fallback (Appendix C §C.5.2, §C.9).
+- Version `0x01` **means** the Appendix C grammar at every chain site (mandatory
+  per-stream schema-chain dedup: `DedupMarshalledInstanceRecord` at the `[1]` item and
+  `DedupNestedAtomicRecord` at nested sites, first-occurrence `fullChain [0]` /
+  subsequent `chainRef [1]` under the pinned rule). A future grammar revision assigns
+  `0x02`; it never reuses `0x01`.
+- The **record-level capture context** (the standalone `MarshalledInstance` capture
+  path, Appendix C §C.1.2 item 3) is not an object stream: it carries no `[15]` TLV and
+  no dedup productions — sec.13's canonical record-level forms only.
+- Future item-tag allocations in this registry continue from `[16]`.
 
 ### 15.3 No handle table — pure value-tree, deterministic, no cycles (security)
 

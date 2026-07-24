@@ -1166,7 +1166,15 @@ the largest real `serialForm()` is ~11 fields, and real encoded chains are under
 64 records / 64 KiB is 16×/32× headroom over the measured maxima, not a target. The
 per-record ceilings (`maxFields`, the SIZE bounds on `className`/`wireName`/`wireType`)
 continue to apply to each record individually; the chain ceilings additionally bound the
-aggregate.
+aggregate. **One profile with Appendix C (alignment per §C.8.1, ratified 2026-07-21):**
+these chain ceilings are the released format's **admissibility bounds** — the same
+constants, the same admissibility statement, everywhere chains are parsed (base
+record-level decode and the Appendix C stream layer alike; the stream layer adds its own
+table ceilings `maxDistinctChainsPerStream` = 256 and `maxDedupTableBytes` = 1 048 576,
+§C.8.1). There is no marked/unmarked or stream/base profile split: a class whose chain
+exceeds these bounds is not encodable in the released format anywhere — a loud
+encode-time error on the sender, a decode-time reject on the receiver, never a silent
+fallback.
 
 ```asn1
 maxFields          INTEGER ::= 65535
