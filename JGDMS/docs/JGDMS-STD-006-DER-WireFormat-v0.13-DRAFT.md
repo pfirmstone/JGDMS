@@ -2224,8 +2224,11 @@ the code and SOW cite (previously cited but unwritten); cite it as **STD-006 §7
    `DerReplacer.resolve` only honours the java.io `Resolve` interface. Decode admission
    for a nested field is enforced by the **declared-type assignability gate**
    (`ObjectCodec.admissibleConstructClass`, run before construction — see STD-008
-   §16 decode-admission) **+** `DeSerializationPermission("ATOMIC")` (SM-dependent; inert
-   under DirtyChai / no-SM) **+** each class's `check(GetArg)` **+** decode depth/size
+   §16 decode-admission) **+** `DeSerializationPermission("ATOMIC")` (SM-dependent:
+   **ENFORCED on DirtyChai** via `CombinerSecurityManager` under
+   `-Djava.security.manager=default` — the deployment posture; inert **only** on
+   runtimes with no `SecurityManager`, i.e. stock JDK 24+ and non-JVM peers)
+   **+** each class's `check(GetArg)` **+** decode depth/size
    bounds (§4.5). Do **not** rely on registry membership to bound what a peer may
    reconstruct; a genuinely `Object`/broad-interface-typed slot is a documented residual
    still governed only by the ATOMIC gate + `check(GetArg)`.

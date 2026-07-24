@@ -39,7 +39,7 @@ The implemented WI-2 note (and the memory ledger's "registry is the admission bo
 - Therefore the registry is an **encode-substitution + schema-generation-determinism control**, *not* a decode gate.
 
 **Corrected statement of decode admission (post-fix), for a nested field:**
-> declared-type assignability gate (§3.1(b), `ObjectCodec.admissibleConstructClass`, pre-construction) **+** `DeSerializationPermission("ATOMIC")` (SM-dependent; no-op under DirtyChai/no-SM) **+** each class's `check(GetArg)` **+** decode depth/size bounds.
+> declared-type assignability gate (§3.1(b), `ObjectCodec.admissibleConstructClass`, pre-construction) **+** `DeSerializationPermission("ATOMIC")` (SM-dependent: **enforced on DirtyChai** via `CombinerSecurityManager` under `-Djava.security.manager=default` — the deployment posture; no-op **only** on runtimes with no `SecurityManager`, i.e. stock JDK 24+ and non-JVM peers) **+** each class's `check(GetArg)` **+** decode depth/size bounds.
 
 WI-2's closure of the registry remains valuable and stays — but for its **true** reasons: (i) `isRegistered` feeds `schemaDigest` (an open set diverges the wire form across deployments), and (ii) it bounds which serializer the sender will *encode*. It does **not** gate what a peer may reconstruct.
 

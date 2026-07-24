@@ -155,21 +155,35 @@ the skeleton already carries them as anchors.
   `BasicInvocationDispatcher.java:1015–1016` carries a live `TODO` questioning whether the
   version byte "was to be written in spec, or just 0x00" — an un-pinned point this
   standard MUST settle (§6, §11).
-- **The method hash is RMI-derived SHA-1 in shipped 3.x; SHA-256 is the ONLY modern scheme**
+- **The method identifier is version-keyed: SHA-1/64-bit retained on the `0x01`
+  atomic-interop lane, SHA-256 on the `0x02` DER version**
   (`org/apache/river/jeri/internal/runtime/Util.java:243–267`): the hash River/JGDMS 3.x
   actually released (RMI heritage) is the first 64 bits of `SHA` (SHA-1) over
   `writeUTF(methodName + JVMS-descriptor)`, accumulated little-endian into a `long`. SHA-1
   here is a *structural identifier*, not a security primitive. **Ratified (Peter,
-  2026-07-24):** the modernized standard defines the method identifier as the leftmost *N*
-  bytes of **SHA-256**(name + JVMS §4.3.3 descriptor) as the **only** scheme — there is **no
-  SHA-1 legacy lane**. The 3.x SHA-1/64-bit hash is recorded as historical fact and
-  **deliberately severed** under the 4.0.0 clean-break posture (consistent with the JOSS
-  rejection and the DiscoveryV1 removal), *not* retained for 3.x interop. Pre-4.0 invocation
-  version bytes are **rejected fail-loud** via the existing MISMATCH path (two `0x00` bytes,
-  skeleton §6.5). The identifier field is **version-keyed and length-delimited**, sized to
-  accommodate up to the full 64-byte SHA-512 output with zero framing change (note
-  **SHA-512/256**'s 64-bit-CPU throughput advantage); the collision bound is set by the
-  identifier **field width**, not the digest algorithm. Full detail in §6 OQ-3
+  2026-07-24):** the modernized standard keys the method identifier to the marshal-stream
+  version, **not** to a single hash:
+  - **`0x00` (pre-Atomic JOSS, `PREVIOUS_VERSION`)** is **rejected outright, fail-loud** via
+    the existing MISMATCH path (two `0x00` bytes, skeleton §6.5). This is a **security**
+    decision — `0x00` is the JOSS-without-Atomic version, the deserialization-gadget-exposure
+    surface — **not** hash-driven (consistent with the JOSS rejection and the DiscoveryV1
+    removal). It is the **only** version rejected.
+  - **`0x01` (Atomic, JOSS wire format, `VERSION`)** **retains the SHA-1/64-bit hash** as its
+    atomic-interop identifier. SHA-1 is confined to this lane; as a non-cryptographic
+    structural selector there is no real risk in retaining it for the transition. **Supported
+    through the 4.x line; sunset in JGDMS 5.0** (targeted for release *before* the NIST 2030
+    SHA-1 retirement).
+  - **`0x02` (DER — the version under development for release with JGDMS 4.0.0, adding
+    principals/ACC + DER marshalling)** uses the leftmost *N* bytes of **SHA-256**(name +
+    JVMS §4.3.3 descriptor). Because `0x02` is **unreleased**, it adopts SHA-256 now at
+    **zero interop cost** — SHA-256 **ships in 4.0.0 on the DER path**, not deferred to 5.0.
+    The identifier field is **version-keyed and length-delimited**, sized to accommodate up
+    to the full 64-byte SHA-512 output with zero framing change (note **SHA-512/256**'s
+    64-bit-CPU throughput advantage); the collision bound is set by the identifier **field
+    width**, not the digest algorithm; default width **128-bit [RATIFIED]**.
+
+  SHA-1 is thus **not dropped entirely** and pre-4.0 is **not wholesale-rejected**: only
+  `0x00` is rejected (security); `0x01` and `0x02` are supported. Full detail in §6 OQ-3
   **[RATIFIED]** and the skeleton's §6.4.
 - **The DER object-stream boundary is settled by STD-006 Appendix C.** Dedup is the
   **mandatory** stream form (not negotiated); the stream begins with the version octet
@@ -274,7 +288,7 @@ SOW: every task's deliverable is normative (or conformance) text, no production 
 |------|-------------|-------------------------|-----------|--------|---------|
 | **T1** · Layering model + endpoint/transport SPI (§3, §4) | The reference stack (object/DER → invocation → request/response SPI → mux/connection → transport/endpoint → byte stream) and the one SPI model with named contracts: `Endpoint`/`ServerEndpoint`/`OutboundRequest`/`InboundRequest`/`Connection`/`ServerConnection`, `ServerCapabilities`, the `getChannel()` seam, and the **three-axes** appendix (bytes / origination / authz as independent). Transcribe the `Out/InboundRequest` javadoc guarantees to RFC-2119. | general-purpose · **MAX** (wire/contract-resolution; the doc every other section hangs off) | top-tier | **parallel board** (transport seat + security seat) | — |
 | **T2** · Mux protocol section (§5) | Reconcile `mux.html` v1.1 into the standard (G9 markdown + `docs/asn1/` bit-layout companion): connection headers, message-type table, session lifecycle, flow-control rationing. Promote the four invisible contracts (DGC-ack, delivery-status, half-close, flow control) to normative text. **Catalogue the deviations**: unimplemented client version negotiation, ping *initiation* NYI (ping *response* is implemented), the `Mux.java:67` ACKNOWLEDGMENT comment error (resolve to the wire). Flag the mux as the highest-risk / least-documented area. | general-purpose · **XHIGH** (the hardest section — the least-documented, highest-blast-radius contracts live here) | top-tier | **parallel board** (transport seat lead) | T1 |
-| **T3** · Invocation layer section (§6) | The exact request/response byte sequence (version byte + integrity/validation/Subject/ACC blocks + method hash + args; `0x01`-return / `0x02`-throw). Pin the DER object-stream boundary: entry point, the STD-006 mandatory version octet `8F 01 01` **(cited)**, and **dedup table lifetime = per marshal stream (one call = two streams)**. Settle the `:1015` version-byte `TODO`. Specify the **ratified** method-identifier design (OQ-3): SHA-256 leftmost-*N* as the **only** scheme (**no SHA-1 legacy lane**; pre-4.0 version bytes rejected fail-loud via the MISMATCH two-`0x00`-byte path), the version-keyed **length-delimited** identifier field sized for SHA-512, default width **128-bit [RATIFIED — Peter, 2026-07-24]**. | general-purpose · **XHIGH** (wire-format + security seam) | top-tier | **parallel board** | T1 |
+| **T3** · Invocation layer section (§6) | The exact request/response byte sequence (version byte + integrity/validation/Subject/ACC blocks + method hash + args; `0x01`-return / `0x02`-throw). Pin the DER object-stream boundary: entry point, the STD-006 mandatory version octet `8F 01 01` **(cited)**, and **dedup table lifetime = per marshal stream (one call = two streams)**. Settle the `:1015` version-byte `TODO`. Specify the **ratified** version-keyed method-identifier design (OQ-3): **`0x00` rejected fail-loud** via the MISMATCH two-`0x00`-byte path (security — JOSS-without-Atomic); **`0x01` retains SHA-1/64-bit** as the atomic-interop lane (supported through 4.x, sunset 5.0); **`0x02` (the unreleased DER version) uses SHA-256 leftmost-*N*, shipping in 4.0.0**, on a version-keyed **length-delimited** identifier field sized for SHA-512, default width **128-bit [RATIFIED — Peter, 2026-07-24]**. | general-purpose · **XHIGH** (wire-format + security seam) | top-tier | **parallel board** | T1 |
 | **T4** · Fault-marshalling contract (§7) | `marshalThrow`/`unmarshalThrow` as part of the invocation contract (new vs the Sun spec): the DER `DerThrowableForm` carrier, `ServerException`/`ServerError` wrapping, checked-exception→`UnmarshalException` wrapping, the null-method case, and the round-trip law for fault carriage over the DER stream. | general-purpose · **HIGH** | mid-tier | security-literate reviewer + transport seat spot-check | T3 |
 | **T5** · Constraint model + enforcement (§8) | How `InvocationConstraints`, `MarshallingFormat` (`ATOMIC_DER`), and integrity/confidentiality are carried and **enforced** (`InboundRequest.checkConstraints`, the integrity/validation bytes, `MethodConstraints`). The **constraint-honesty rule** (a transport MUST NOT assert an unverified security property — the board's UDS `Confidentiality.YES` over-claim war story) as normative text. Name the `maxScalarBytes` intersection (OQ-4). | general-purpose · **XHIGH** (security-defining) | top-tier | **parallel board** (security seat lead) | T1 |
 | **T6** · Endpoint families as profiles (§9) | TCP, SSL/TLS-1.3, UDS, QUIC each specified as a §4 profile with its deltas: confidentiality/integrity claims, `getChannel()` nullability (blocking `SSLSocket` vs channel-backed), and the **server-initiated-stream / ephemeral-client** model (caller-identity inversion, confused-deputy guard) folded from STD-010 §4.6/§4.7 and the board §3.3/§3.4. STD-010 becomes the QUIC profile by reference. **Give HTTP/HTTPS an explicit disposition**: it uses **HTTP framing, not the mux**, and **independently re-implements `AcknowledgmentSource`** — specify it as a distinct **non-mux profile** (its independent DGC-ack re-implementation is itself proof the ack is a transport-SPI obligation, not a mux artifact), per skeleton §9.5. | general-purpose · **HIGH** | mid-tier | **parallel board** (transport seat) | T1, T2 |
@@ -316,11 +330,13 @@ SOW: every task's deliverable is normative (or conformance) text, no production 
   says something §4 contradicts, that is a T6 finding to reconcile (probably STD-010 is
   right and §4 must accommodate it — STD-010 was board-reviewed against real QUIC), not a
   silent divergence.
-- **Method-hash change (OQ-3) is out-of-band from transcription.** T3 records the SHA-1
-  hash as the *historical* 3.x-shipped identifier (severed under the clean-break posture —
-  §2 / OQ-3) and specifies SHA-256-leftmost-*N* as the **sole** modern identifier
-  (RATIFIED); realizing it is a versioned wire change, never folded into the modernization
-  transcription (§4). Pre-4.0 version bytes are rejected fail-loud, not SHA-1-hashed.
+- **Method-hash change (OQ-3) is out-of-band from transcription.** T3 records the
+  version-keyed identifier map (§2 / OQ-3): SHA-1/64-bit **retained on the `0x01`
+  atomic-interop lane** (sunset in 5.0), SHA-256-leftmost-*N* **on the `0x02` DER version**
+  (shipping in 4.0.0); realizing the `0x02` identifier is a versioned wire change, never
+  folded into the modernization transcription (§4). Only `0x00` (pre-Atomic JOSS) is
+  rejected fail-loud — on the **security** ground that it is the JOSS-without-Atomic version,
+  not because of the hash; `0x01` and `0x02` are supported.
 
 ---
 
@@ -354,14 +370,25 @@ SOW: every task's deliverable is normative (or conformance) text, no production 
      attacker-chosen. Hashing is memoised at proxy/dispatcher construction
      (`Util.getMethodHash` `TableCache`), so **wire bytes are the only recurring cost** of
      a wider field.
-   - **(1) Algorithm (RATIFIED).** The method identifier is the **leftmost *N* bytes of
-     SHA-256**(method name + JVMS §4.3.3 descriptor) — the **only** scheme. There is **no
-     SHA-1 legacy lane.** The SHA-1/64-bit hash River/JGDMS 3.x actually released (RMI
-     heritage) is recorded as historical fact and **deliberately severed** under the 4.0.0
-     clean-break posture (consistent with the JOSS rejection and the DiscoveryV1 removal),
-     described as the old structural selector only, not preserved as a supported interop
-     lane. Pre-4.0 invocation version bytes are **rejected fail-loud** via the OQ-2 / §6.5
-     MISMATCH path (two `0x00` bytes), never silently hashed with SHA-1.
+   - **(1) Algorithm (RATIFIED) — version-keyed, not single-scheme.** The method identifier
+     is keyed to the marshal-stream version:
+     - **`0x00` (pre-Atomic JOSS, `PREVIOUS_VERSION`)** is **rejected fail-loud** via the
+       OQ-2 / §6.5 MISMATCH path (two `0x00` bytes). This is a **security** decision — `0x00`
+       is the JOSS-without-Atomic, deserialization-gadget-exposure version — **not**
+       hash-driven, and it is the **only** version rejected.
+     - **`0x01` (Atomic, JOSS wire format, `VERSION`)** **retains the SHA-1/64-bit hash**
+       River/JGDMS 3.x released (RMI heritage) as its atomic-interop identifier. SHA-1 is a
+       non-cryptographic structural selector; confined to this lane there is no real risk in
+       retaining it for the transition. **Supported through the 4.x line; sunset in JGDMS
+       5.0** (which is targeted for release *before* the NIST 2030 SHA-1 retirement).
+     - **`0x02` (DER — the unreleased version under development for release with JGDMS 4.0.0,
+       adding principals/ACC + DER marshalling)** uses the **leftmost *N* bytes of
+       SHA-256**(method name + JVMS §4.3.3 descriptor). Because `0x02` is unreleased, it
+       adopts SHA-256 at **zero interop cost** — SHA-256 **ships in 4.0.0 on the DER path**,
+       not deferred to 5.0.
+     SHA-1 is thus **not severed entirely** and pre-4.0 is **not wholesale-rejected**; the
+     3.x heritage is retained on `0x01` through 4.x and sunset in 5.0, while the modern DER
+     version `0x02` uses SHA-256 from the start.
    - **(2) Framing (RATIFIED design constraint).** The method-identifier *field* is
      **version-keyed and length-delimited**: *N* is a parameter of the wire **version**, not
      of the frame format. The framing MUST accommodate identifier widths up to the full
@@ -369,19 +396,21 @@ SOW: every task's deliverable is normative (or conformance) text, no production 
      adopt SHA-512 — or **SHA-512/256** (noted for its 64-bit-CPU throughput advantage) —
      without touching the frame. This deliberately mirrors the STD-006 stream version-octet
      evolution philosophy: evolve the payload under a stable, self-describing frame.
-   - **(3) Default width for the first modern version [RATIFIED — Peter, 2026-07-24].**
-     **128 bits** (SHA-256 truncated): ~2^64 birthday bound, +8 bytes/call vs the old 64-bit
-     hash, negligible. Full-width identifiers are **deliberately not** the default — 64
+   - **(3) Default width for the first modern version (`0x02`, the DER path) [RATIFIED —
+     Peter, 2026-07-24].** **128 bits** (SHA-256 truncated): ~2^64 birthday bound, +8
+     bytes/call vs the old 64-bit hash, negligible. Full-width identifiers are **deliberately not** the default — 64
      bytes/call to select one of typically <100 interface methods is unjustified by the
      threat model (developer-declared inputs, post-resolution authorization).
    - **(4) STD-009 processor-assigned ids** remain the structural alternative for
      annotation-processed services (`@RemoteFunction`/`@JiniService` already mints stable
      ids); the length-delimited field accommodates them under the **same** framing — so this
      is "explicit id where one exists, SHA-256-leftmost-*N* otherwise", not an either/or.
-   Out-of-band from the transcription (§4): §6 records SHA-1 as the historical 3.x-shipped
-   hash (severed, not a supported lane) and specifies SHA-256-leftmost-*N* as the **sole**
-   method identifier; the change is realized by a modern marshal-stream version (interacts
-   with OQ-2), and pre-4.0 version bytes are rejected fail-loud rather than SHA-1-hashed.
+   Out-of-band from the transcription (§4): §6 records SHA-1 as **retained on the `0x01`
+   atomic-interop lane** (sunset in 5.0, not severed entirely) and specifies
+   SHA-256-leftmost-*N* on the **`0x02` DER version** (shipping in 4.0.0); realizing the
+   `0x02` identifier is a modern marshal-stream version change (interacts with OQ-2). Only
+   `0x00` (pre-Atomic JOSS) is rejected fail-loud, on security grounds; `0x01` and `0x02`
+   are supported.
 4. **OQ-4 · The `maxScalarBytes` intersection (cross-standard, half-discharged).**
    STD-011 §3.3's `maxScalarBytes` is enforced on the expression-literal side but the
    candidate-projection side and the STD-006 §4.5 `[PATCH]` ceiling row are unpinned. Does
