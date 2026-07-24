@@ -24,8 +24,11 @@ import java.io.PrintWriter;
 
 // All other imports
 import java.rmi.*;
+import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.entry.Entry;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.lease.Lease;
@@ -73,20 +76,39 @@ class NotifyTestUtil {
      * <code>Entry</code> as the match template.  The lease is
      * requested to be <code>Lease.ANY</code>, and the template
      * is passed as the passback object.
-     * @see TestSpaceLease;
+     *
+     * <p>DER-only (JGDMS 4.0.0, {@code
+     * SOW-Outrigger-DER-Only-JOSS-Rejection.md} sec.3 item 8): the
+     * handback is a <em>constraint-built ATOMIC_DER</em>
+     * {@link MarshalledInstance} -- never the bare
+     * {@code new MarshalledInstance(obj)} (JOSS payload, rejected at
+     * registration by decision 5) and never a
+     * {@code java.rmi.MarshalledObject} (non-null MO handback throws
+     * {@code UnsupportedOperationException} per decisions 3+4). The
+     * delivered handback's CONTENT is asserted at delivery by
+     * {@link MonitoredSpaceListener#processNotify}; in the
+     * {@code *Shutdown} test variants the service is restarted between
+     * this registration and the triggering write
+     * ({@code MatchTestCore.spaceSet()}), so the same delivery-time
+     * content assertion also proves the DER handback SURVIVES RESTART
+     * (recovered from the persisted registration).
+     * @see TestSpaceListener
      */
     void registerForNotify(Entry tmpl)
             throws TransactionException, RemoteException, java.io.IOException {
 	try {
-            TestSpaceListener tsl = 
+            TestSpaceListener tsl =
                     new TestSpaceListener(config.getConfiguration(), tmpl);
             tsl.export();
-	    EventRegistration er = 
+	    EventRegistration er =
 		space.notify(tmpl,
-			     null, 
+			     null,
 			     tsl,
-			     Lease.ANY, 
-			     new MarshalledInstance(tmpl).convertToMarshalledObject());
+			     Lease.ANY,
+			     new MarshalledInstance(tmpl,
+				 Collections.EMPTY_SET,
+				 new InvocationConstraints(
+				     MarshallingFormat.ATOMIC_DER, null)));
 	    QAConfig c = QAConfig.getConfig();
 	    if (c.getConfiguration() instanceof org.apache.river.qa.harness.QAConfiguration) {
 		er = (EventRegistration) c.prepare("test.outriggerEventRegistrationPreparer", er);

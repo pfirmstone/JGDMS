@@ -18,15 +18,20 @@
 package org.apache.river.test.spec.javaspace.conformance;
 
 import net.jini.space.JavaSpace05;
+import net.jini.space.TupleSpace;
 import net.jini.space.AvailabilityEvent;
 import net.jini.space.JavaSpace;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.lease.Lease;
 import net.jini.core.event.EventRegistration;
+import net.jini.io.MarshalledInstance;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Iterator;
-import java.rmi.MarshalledObject;
 
 import org.apache.river.qa.harness.TestException;
 
@@ -95,14 +100,21 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         ArrayList registrations = new ArrayList();
 
         TestEventListener05.setConfiguration(getConfig().getConfiguration());
-        JavaSpace05 space05 = (JavaSpace05) space;
+        /*
+         * DER-only (JGDMS 4.0.0): registrations below use the live
+         * TupleSpace MarshalledInstance handback overload -- the
+         * deprecated JavaSpace05 MarshalledObject overload throws
+         * UnsupportedOperationException for a non-null handback
+         * (SOW-Outrigger-DER-Only-JOSS-Rejection.md decisions 3+4).
+         */
+        TupleSpace space05 = (TupleSpace) space;
         reset();
 
         TestEventListener05 testEventListener0 = new TestEventListener05();
         templates.add((SimpleEntry) sampleEntry1.clone());
         EventRegistration er0 = space05.registerForAvailabilityEvent(templates,
                 null, true, testEventListener0, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         final long gotER0Timestamp = System.currentTimeMillis();
         expectedResult.add(sampleEntry1);  // this entry is to trigger the event
         space.write(sampleEntry1, null, leaseForeverTime);
@@ -117,7 +129,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         templates.add((SimpleEntry) sampleEntry2.clone());
         EventRegistration er1 = space05.registerForAvailabilityEvent(templates,
                 null, true, testEventListener1, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         space.write(sampleEntry1, null, leaseForeverTime);
@@ -132,7 +144,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         templates.add(new SimpleEntry(null, 2));
         EventRegistration er2 = space05.registerForAvailabilityEvent(templates,
                 null, true, testEventListener2, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
         space.write(sampleEntry2, null, leaseForeverTime);
@@ -147,7 +159,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         templates.add(new SimpleEntry(null, null));
         EventRegistration er3 = space05.registerForAvailabilityEvent(templates,
                 null, true, testEventListener3, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
@@ -164,7 +176,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         templates.add(null);
         EventRegistration er4 = space05.registerForAvailabilityEvent(templates,
                 null, true, testEventListener4, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         space.write(sampleEntry1, null, leaseForeverTime);
@@ -179,7 +191,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         templates.add(null);
         EventRegistration er5 = space05.registerForAvailabilityEvent(templates,
                 null, true, testEventListener5, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry1);
         space.write(sampleEntry1, null, leaseForeverTime);
@@ -204,7 +216,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         templates.add(new SimpleEntry(null, 2));
         EventRegistration er6 = space05.registerForAvailabilityEvent(templates,
                 null, true, testEventListener6, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
         space.write(sampleEntry2, null, leaseForeverTime);
@@ -226,7 +238,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         EventRegistration er0a = space05.registerForAvailabilityEvent(
                 templates, null, false,
                 testEventListener0a, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry1);  // this entry is to trigger the event
         space.write(sampleEntry1, null, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
@@ -241,7 +253,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         EventRegistration er1a = space05.registerForAvailabilityEvent(
                 templates, null, false,
                 testEventListener1a, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         space.write(sampleEntry1, null, leaseForeverTime);
@@ -257,7 +269,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         EventRegistration er2a = space05.registerForAvailabilityEvent(
                 templates, null, false,
                 testEventListener2a, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
         space.write(sampleEntry2, null, leaseForeverTime);
@@ -274,7 +286,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         EventRegistration er3a = space05.registerForAvailabilityEvent(
                 templates, null, false,
                 testEventListener3a, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
@@ -293,7 +305,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         EventRegistration er4a = space05.registerForAvailabilityEvent(
                 templates, null, false,
                 testEventListener4a, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         space.write(sampleEntry1, null, leaseForeverTime);
@@ -310,7 +322,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         EventRegistration er5a = space05.registerForAvailabilityEvent(
                 templates, null, false,
                 testEventListener5a, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry1);
         space.write(sampleEntry1, null, leaseForeverTime);
@@ -336,7 +348,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         EventRegistration er6a = space05.registerForAvailabilityEvent(
                 templates, null, false,
                 testEventListener6a, leaseForeverTime,
-                new MarshalledObject("notUsedHere"));
+                derHandback());
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
         space.write(sampleEntry2, null, leaseForeverTime);
@@ -387,7 +399,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         try {
             space05.registerForAvailabilityEvent(templates, null, true,
                     testEventListenerExc, leaseForeverTime,
-                    new MarshalledObject("notUsedHere"));
+                    derHandback());
             throw new TestException("IllegalArgumentException is not thrown "
                                     + "when a non-null element of tmpls "
                                     + "is not an instance of Entry");
@@ -397,7 +409,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         try {
             space05.registerForAvailabilityEvent(templates, null, true,
                     testEventListenerExc, leaseForeverTime,
-                    new MarshalledObject("notUsedHere"));
+                    derHandback());
             throw new TestException("IllegalArgumentException is not thrown "
                                     + "when tmpls is empty");
         } catch (IllegalArgumentException e) {}
@@ -406,7 +418,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         try {
             space05.registerForAvailabilityEvent(templates, null, true,
                     testEventListenerExc, 0,
-                    new MarshalledObject("notUsedHere"));
+                    derHandback());
             throw new TestException("IllegalArgumentException is not thrown "
                                     + "when leaseDuration is neither positive "
                                     + "nor Lease.ANY (0)");
@@ -415,7 +427,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         try {
             space05.registerForAvailabilityEvent(templates, null, true,
                     testEventListenerExc, Lease.ANY - 1,
-                    new MarshalledObject("notUsedHere"));
+                    derHandback());
             throw new TestException("IllegalArgumentException is not thrown "
                                     + "when leaseDuration is neither positive "
                                     + "nor Lease.ANY (Lease.ANY-1)");
@@ -424,7 +436,7 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         try {
             space05.registerForAvailabilityEvent(null, null, true,
                     testEventListenerExc, leaseForeverTime,
-                    new MarshalledObject("notUsedHere"));
+                    derHandback());
             throw new TestException("NullPointerException is not thrown "
                                     + "when tmpls is null");
         } catch (NullPointerException e) {}
@@ -432,10 +444,21 @@ public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
         try {
             space05.registerForAvailabilityEvent(templates, null, true,
                     null, leaseForeverTime,
-                    new MarshalledObject("notUsedHere"));
+                    derHandback());
             throw new TestException("NullPointerException is not thrown "
                                     + "when listener is null");
         } catch (NullPointerException e) {}
+    }
+
+    /**
+     * A constraint-built ATOMIC_DER {@link MarshalledInstance} handback
+     * (never the bare {@code new MarshalledInstance(obj)}, whose JOSS
+     * payload a DER-only space rejects at registration --
+     * {@code SOW-Outrigger-DER-Only-JOSS-Rejection.md} decision 5).
+     */
+    private static MarshalledInstance derHandback() throws IOException {
+        return new MarshalledInstance("notUsedHere", Collections.EMPTY_SET,
+            new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null));
     }
 
     private void checkNotifications(List notifications, List expectedResult,
