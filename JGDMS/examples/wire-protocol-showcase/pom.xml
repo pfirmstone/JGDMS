@@ -53,6 +53,16 @@
             <artifactId>jgdms-platform</artifactId>
             <version>${jgdms.version}</version>
         </dependency>
+        <!--
+          The rule-language library (JGDMS-STD-011): used only by demonstration 5's test.
+          test-scoped so it does not widen the runtime dependencies of the other demos.
+        -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-cel</artifactId>
+            <version>${jgdms.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
