@@ -82,7 +82,24 @@ import java.util.Set;
  *   [12] PRIMITIVE   -- boxed java.lang.Float; content = canonical 4-byte IEEE-754 OCTET STRING content
  *   [13] PRIMITIVE   -- boxed java.lang.Double; content = canonical 8-byte IEEE-754 OCTET STRING content
  *   [14] PRIMITIVE   -- boxed java.lang.Character; content = canonical Unicode codepoint INTEGER content
+ *   [15] PRIMITIVE   -- stream-format version octet (8F 01 01) -- NOT an object item: the
+ *                       mandatory FIRST TLV of every object stream (STD-006 Appendix C
+ *                       sec.C.5.2); anywhere else it is rejected by the readObject catch-all
  * </pre>
+ *
+ * <h2>Stream format: version octet + mandatory schema-chain dedup (STD-006 Appendix C)</h2>
+ * <p>
+ * Every DER object stream begins with the {@code [15]} stream-format version octet
+ * ({@code 8F 01 01}); a stream that does not (including the superseded pre-dedup trunk
+ * format) or that names an unknown version is hard-rejected at the first TLV. At every
+ * chain site ([1] items, nested {@code @AtomicSerial} records, [9] {@code @AtomicSerial}
+ * array elements) the stream carries the Appendix C dedup productions: the first
+ * occurrence of a schema-chain identity travels as {@code fullChain [0]}, every
+ * subsequent occurrence as a 32-byte {@code chainRef [1]} — unconditionally (dedup is
+ * the format, not a mode, sec.C.9). {@link StreamSchemaDedup} holds the per-stream
+ * tables and the transform; every {@code [8]} proxy interior is excluded byte-region-wide
+ * (sec.C.6.5), and the record-level capture context ({@code streamFormat = false},
+ * sec.C.1.2 item 3) uses neither the version octet nor the dedup productions.
  * Context class = 0x80 (primitive) / 0xA0 (constructed); constructed bit set only for
  * [1], [7], [8], [9]. Single-byte tags: [0]-&gt;0x80, [1]-&gt;0xa1, [2]-&gt;0x82, [3]-&gt;0x83,
  * [4]-&gt;0x84, [5]-&gt;0x85, [6]-&gt;0x86, [7]-&gt;0xa7, [8]-&gt;0xa8, [9]-&gt;0xa9, [10]-&gt;0x8a,
@@ -227,11 +244,63 @@ final class DerObjectStreamCodec {
     private ResolutionContext resolution = ResolutionContext.NONE;
 
     // =========================================================================
+    // Stream-format / dedup state (STD-006 Appendix C — mandatory in the released
+    // DER object-stream format)
+    // =========================================================================
+
+    /**
+     * Whether this codec speaks the DER <b>object-stream format</b> (STD-006
+     * Appendix C): the stream begins with the mandatory {@code [15]} stream-format
+     * version octet ({@code 8F 01 01}, sec.C.5.2) and every chain site uses the
+     * mandatory per-stream schema-chain dedup productions (sec.C.5/C.6/C.9).
+     * {@code false} ONLY for the record-level capture context (the standalone
+     * {@code MarshalledInstance} capture path, sec.C.1.2 item 3) — which is not an
+     * object stream and MUST NOT use stream productions: no version octet, no
+     * {@code SchemaChainRef}, canonical record-level full forms only. This is not a
+     * negotiated mode of the stream format (there is none, sec.C.9.1); it is the
+     * wire-only scope boundary.
+     */
+    private final boolean streamFormat;
+
+    /** Encode-direction per-stream dedup state; non-null iff {@link #streamFormat}. */
+    private final StreamSchemaDedup encodeDedup;
+
+    /**
+     * Decode-direction per-stream dedup state; created by {@link #initReader} when
+     * {@link #streamFormat} — one table per stream, discarded with this codec
+     * (sec.C.7.1/C.7.2).
+     */
+    private StreamSchemaDedup decodeDedup;
+
+    // =========================================================================
     // Construction
     // =========================================================================
 
-    /** Creates a fresh codec ready for writing; initialise read side later via {@link #initReader}. */
-    DerObjectStreamCodec() {}
+    /**
+     * Creates a fresh object-stream codec (stream format: version octet + mandatory
+     * dedup); initialise read side later via {@link #initReader}.
+     */
+    DerObjectStreamCodec() {
+        this(true);
+    }
+
+    /**
+     * Creates a fresh codec, selecting between the object-stream format
+     * ({@code streamFormat = true}) and the record-level capture context
+     * ({@code streamFormat = false} — see {@link #streamFormat}).
+     */
+    DerObjectStreamCodec(boolean streamFormat) {
+        this.streamFormat = streamFormat;
+        if (streamFormat) {
+            // sec.C.5.2: the version TLV is the FIRST TLV of every stream — seeded
+            // before any item or positional primitive can be buffered. (Harmless for
+            // a read-only codec: its write buffer is never drained.)
+            writeBuffer.add(StreamSchemaDedup.versionTlv());
+            this.encodeDedup = new StreamSchemaDedup(true);
+        } else {
+            this.encodeDedup = null;
+        }
+    }
 
     /**
      * Enables write-side substitution of a downloadable top-level proxy ({@link
@@ -250,7 +319,7 @@ final class DerObjectStreamCodec {
     }
 
     /** Initialises the read side over a complete DER byte array (no decode-unit token). */
-    void initReader(byte[] buf) {
+    void initReader(byte[] buf) throws IOException {
         initReader(buf, null);
     }
 
@@ -261,7 +330,7 @@ final class DerObjectStreamCodec {
      * @param buf        the complete DER byte array (must not be {@code null})
      * @param decodeUnit the per-decode-unit completion sink, or {@code null}
      */
-    void initReader(byte[] buf, DeserializationCompletion decodeUnit) {
+    void initReader(byte[] buf, DeserializationCompletion decodeUnit) throws IOException {
         initReader(buf, decodeUnit, ResolutionContext.NONE);
     }
 
@@ -274,11 +343,60 @@ final class DerObjectStreamCodec {
      * @param decodeUnit the per-decode-unit completion sink, or {@code null}
      * @param resolution the endpoint-assigned resolution context (must not be {@code null})
      */
-    void initReader(byte[] buf, DeserializationCompletion decodeUnit, ResolutionContext resolution) {
+    void initReader(byte[] buf, DeserializationCompletion decodeUnit, ResolutionContext resolution)
+            throws IOException {
         Objects.requireNonNull(buf, "buf");
         this.reader = new DerReader(buf);
         this.decodeUnit = decodeUnit;
         this.resolution = Objects.requireNonNull(resolution, "resolution");
+        if (streamFormat) {
+            // sec.C.5.2: every stream MUST begin with the stream-format version octet
+            // (8F 01 01). Absence — including the superseded trunk format, whose first
+            // TLV is an item tag — or an unknown version is a hard reject; there is no
+            // unversioned form and no fallback. Consuming it here also creates this
+            // stream's decode-side dedup table (sec.C.7.2: table created at stream open).
+            consumeVersionOctet();
+            this.decodeDedup = new StreamSchemaDedup(false);
+        }
+    }
+
+    /** Verifies and consumes the mandatory {@code [15]} stream-format version octet. */
+    private void consumeVersionOctet() throws IOException {
+        DerReader.TlvHeader hdr;
+        try {
+            hdr = reader.readTlvHeader();
+        } catch (DerException e) {
+            throw new IOException(
+                    "DER object stream: cannot read the stream-format version octet"
+                    + " (STD-006 Appendix C sec.C.5.2): " + e.getMessage(), e);
+        }
+        if (!StreamSchemaDedup.TAG_VERSION.equals(hdr.tag())) {
+            throw new IOException(
+                    "DER object stream: does not begin with the mandatory [15] stream-format"
+                    + " version octet (8F 01 01) — first TLV is " + hdr.tag()
+                    + "; unversioned (superseded-trunk-format) streams are rejected"
+                    + " (STD-006 Appendix C sec.C.5.2)");
+        }
+        if (hdr.contentLength() != 1) {
+            throw new IOException(
+                    "DER object stream: stream-format version octet content length must be 1,"
+                    + " got " + hdr.contentLength() + " (STD-006 Appendix C sec.C.5.2)");
+        }
+        byte[] content;
+        try {
+            content = reader.readRawContent(1);
+        } catch (DerException e) {
+            throw new IOException(
+                    "DER object stream: truncated stream-format version octet", e);
+        }
+        int version = content[0] & 0xFF;
+        if (version != StreamSchemaDedup.STREAM_FORMAT_VERSION) {
+            throw new IOException(
+                    "DER object stream: unknown stream-format version 0x"
+                    + String.format("%02X", version) + " (this implementation speaks version 0x"
+                    + String.format("%02X", StreamSchemaDedup.STREAM_FORMAT_VERSION)
+                    + " only) — hard reject, no fallback (STD-006 Appendix C sec.C.5.2)");
+        }
     }
 
     // =========================================================================
@@ -457,7 +575,13 @@ final class DerObjectStreamCodec {
         // Arrays are VALUES, not @AtomicSerial objects (byte[] handled above as OCTET STRING).
         if (obj.getClass().isArray()) {
             try {
-                writeBuffer.add(DerWriter.writeTlv(CTX_ARRAY, ObjectCodec.encodeTopLevelArray(obj)));
+                byte[] content = ObjectCodec.encodeTopLevelArray(obj);
+                if (streamFormat) {
+                    // Appendix C: @AtomicSerial elements of a [9] array are P2 chain
+                    // sites and dedup like every other site (sec.C.4.2 P2c).
+                    content = encodeDedup.dedupTopLevelArray(content);
+                }
+                writeBuffer.add(DerWriter.writeTlv(CTX_ARRAY, content));
             } catch (DerException e) {
                 throw new IOException("DER stream [9] array encode failed for "
                         + obj.getClass().getName(), e);
@@ -602,7 +726,16 @@ final class DerObjectStreamCodec {
         }
 
         try {
-            writeBuffer.add(DerWriter.writeTlv(CTX_ATOMIC, encodeAtomicRecord(obj)));
+            byte[] rec = encodeAtomicRecord(obj);
+            if (streamFormat) {
+                // Appendix C: the canonical sec.7.8 record becomes the stream-form
+                // DedupMarshalledInstanceRecord — this record's chain site and every
+                // P2 site in its payload interior, deduplicated in pre-order under the
+                // pinned first-full-then-reference rule (sec.C.5.3/C.6). Unconditional:
+                // dedup is the stream format, not a mode (sec.C.9).
+                rec = encodeDedup.dedupTopLevelAtomic(rec);
+            }
+            writeBuffer.add(DerWriter.writeTlv(CTX_ATOMIC, rec));
         } catch (DerException e) {
             throw new IOException("DER encode failed for " + cls.getName(), e);
         }
@@ -933,6 +1066,25 @@ final class DerObjectStreamCodec {
                 throw new IOException("readObject: [9] array wireType must start with 'array:', got '"
                         + awt + "'");
             }
+            if (streamFormat) {
+                // Appendix C: reconstitute the [9] array's P2 element sites (references
+                // resolved fail-closed against this stream's table) BEFORE the existing
+                // record-level decode sees the bytes. No-op for non-@AtomicSerial
+                // components (whose elements carry no chain sites).
+                try {
+                    content = decodeDedup.reconstituteTopLevelArray(content);
+                } catch (DerException e) {
+                    throw new IOException(
+                            "readObject: [9] array stream schema-dedup reconstitution"
+                            + " failed: " + e.getMessage(), e);
+                }
+                ar = new DerReader(content);
+                try {
+                    awt = ar.readUtf8String();
+                } catch (DerException e) {
+                    throw new IOException("readObject: malformed [9] array wireType", e);
+                }
+            }
             byte[] seqBytes = Arrays.copyOfRange(content, ar.position(), content.length);
             String componentWT = awt.substring("array:".length());
             try {
@@ -947,12 +1099,27 @@ final class DerObjectStreamCodec {
         }
 
         if (CTX_ATOMIC.equals(tag)) {
-            // [1] @AtomicSerial object: content is a MarshalledInstanceRecord SEQUENCE
+            // [1] @AtomicSerial object. Stream format: the content is a stream-form
+            // DedupMarshalledInstanceRecord (STD-006 Appendix C sec.C.5.3), verified and
+            // reconstituted to the byte-exact canonical sec.7.8 four-field record —
+            // references resolved fail-closed against this stream's table, chain sites
+            // processed in pre-order, ceilings metered during the walk — BEFORE the
+            // unchanged record-level decode below sees the bytes. (Record-level capture
+            // context: the content is already canonical and passes straight through.)
             byte[] recBytes;
             try {
                 recBytes = reader.readRawContent(hdr.contentLength());
             } catch (DerException e) {
                 throw new IOException("readObject: failed to read @AtomicSerial record bytes", e);
+            }
+            if (streamFormat) {
+                try {
+                    recBytes = decodeDedup.reconstituteTopLevelAtomic(recBytes);
+                } catch (DerException e) {
+                    throw new IOException(
+                            "readObject: [1] stream schema-dedup reconstitution failed: "
+                            + e.getMessage(), e);
+                }
             }
             return decodeAtomicRecord(recBytes);
         }
@@ -1132,7 +1299,9 @@ final class DerObjectStreamCodec {
 
         throw new IOException("readObject: unexpected context tag " + tag
                 + " (expected [0],[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12],[13],[14]);"
-                + " back-references are not supported (sec.15.3)");
+                + " back-references are not supported (sec.15.3), and [15] is the stream-format"
+                + " version octet, valid ONLY as the first TLV of the stream — a second or"
+                + " mid-stream [15] is rejected here (STD-006 Appendix C sec.C.5.2)");
     }
 
     /**

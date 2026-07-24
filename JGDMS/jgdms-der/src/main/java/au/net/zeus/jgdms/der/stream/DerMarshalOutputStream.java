@@ -82,6 +82,33 @@ public final class DerMarshalOutputStream implements ObjectOutput {
         this.codec = new DerObjectStreamCodec();
     }
 
+    /** Private: wraps a pre-configured codec (see {@link #recordLevelCapture}). */
+    private DerMarshalOutputStream(OutputStream out, DerObjectStreamCodec codec) {
+        this.out   = Objects.requireNonNull(out, "out");
+        this.codec = codec;
+    }
+
+    /**
+     * Creates a <b>record-level capture</b> writer: the standalone
+     * {@code MarshalledInstance} capture context (STD-006 Appendix C sec.C.1.2 item 3),
+     * which is NOT a DER object stream and MUST NOT use the stream productions — no
+     * {@code [15]} stream-format version octet, no {@code SchemaChainRef} dedup forms;
+     * canonical record-level full forms only. The bytes it produces are identity- and
+     * persistence-bearing ({@code MarshalledInstance} state), which is exactly why the
+     * wire-only dedup layer never touches them.
+     *
+     * <p>Used ONLY by {@code DerMarshalInstanceOutput}'s empty-schema-sentinel path (a
+     * bare proxy / String / byte[] / enum captured inside a {@code MarshalledInstance}).
+     * Every transport stream uses the public constructors, which speak the mandatory
+     * stream format (version octet + dedup, sec.C.9).
+     *
+     * @param out the underlying output stream (must not be null)
+     * @return a writer producing record-level canonical bytes with no stream framing
+     */
+    public static DerMarshalOutputStream recordLevelCapture(OutputStream out) {
+        return new DerMarshalOutputStream(out, new DerObjectStreamCodec(false));
+    }
+
     /**
      * Constructs a DER object-stream writer that SUBSTITUTES a downloadable top-level proxy
      * ({@code DynamicProxyCodebaseAccessor} / {@code ProxyAccessor}) with a {@code DerProxySerializer}

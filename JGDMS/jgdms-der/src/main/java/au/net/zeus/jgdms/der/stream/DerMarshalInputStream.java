@@ -128,12 +128,42 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     public DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits)
             throws IOException {
+        this(in, resolution, limits, true);
+    }
+
+    /** Private: selects between the object-stream format and record-level capture. */
+    private DerMarshalInputStream(InputStream in, ResolutionContext resolution,
+                                  DerInputLimits limits, boolean streamFormat)
+            throws IOException {
         this.underlying = Objects.requireNonNull(in, "in");
         Objects.requireNonNull(resolution, "resolution");
         Objects.requireNonNull(limits, "limits");
         byte[] buf = limits.readAllBytesBounded(in); // bounded: refuse oversize input (DoS)
-        this.codec = new DerObjectStreamCodec();
+        this.codec = new DerObjectStreamCodec(streamFormat);
         this.codec.initReader(buf, decodeUnit, resolution);
+    }
+
+    /**
+     * Creates a <b>record-level capture</b> reader: the standalone
+     * {@code MarshalledInstance} capture context (STD-006 Appendix C sec.C.1.2 item 3),
+     * which is NOT a DER object stream — no {@code [15]} stream-format version octet is
+     * expected or accepted, and no {@code SchemaChainRef} dedup production is valid;
+     * canonical record-level full forms only.
+     *
+     * <p>Used ONLY by {@code DerMarshalInstanceInput}'s empty-schema-sentinel path (a
+     * bare proxy / String / byte[] / enum captured inside a {@code MarshalledInstance}).
+     * Every transport stream uses the public constructors, which enforce the mandatory
+     * stream format (version octet + dedup, sec.C.9).
+     *
+     * @param in         the captured payload bytes (must not be null)
+     * @param resolution the endpoint-assigned resolution context (must not be null)
+     * @return a reader for record-level canonical bytes with no stream framing
+     * @throws IOException if reading from {@code in} fails
+     */
+    public static DerMarshalInputStream recordLevelCapture(InputStream in,
+                                                           ResolutionContext resolution)
+            throws IOException {
+        return new DerMarshalInputStream(in, resolution, DerInputLimits.DEFAULT, false);
     }
 
     // =========================================================================

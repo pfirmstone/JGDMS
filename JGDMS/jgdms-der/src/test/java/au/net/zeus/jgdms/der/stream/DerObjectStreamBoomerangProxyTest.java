@@ -175,9 +175,14 @@ class DerObjectStreamBoomerangProxyTest {
 
     /** Parses the [8] item's leading interface-name list directly off the wire (white-box check). */
     private static String[] rawInterfaceNames(byte[] wireBytes) throws DerException {
+        // Stream bytes begin with the mandatory [15] stream-format version octet
+        // (8F 01 01, STD-006 Appendix C sec.C.5.2); the [8] item follows it.
+        assertEquals((byte) 0x8F, wireBytes[0], "stream must begin with the version octet");
         DerReader r = new DerReader(wireBytes);
+        DerReader.TlvHeader ver = r.readTlvHeader();
+        r.readRawContent(ver.contentLength());
         DerReader.TlvHeader hdr = r.readTlvHeader();
-        assertEquals((byte) 0xA8, wireBytes[0], "must be the [8] proxy tag");
+        assertEquals((byte) 0xA8, wireBytes[3], "must be the [8] proxy tag");
         byte[] content = r.readRawContent(hdr.contentLength());
         return rawInterfaceNamesFromContent(content);
     }
